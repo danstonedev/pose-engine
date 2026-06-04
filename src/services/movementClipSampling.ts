@@ -4,17 +4,19 @@
 // scalar inputs and returns derived data without touching scene state.
 
 import * as THREE from 'three';
-
-// NOTE: `getMovementClipSpeed` (and its `MOVEMENT_CLIPS` catalog dependency
-// from the body-chart `movementTimeline` module) is intentionally NOT part of
-// the shared pose-engine — the clip catalog is an application concern, not a
-// pose-math primitive. Consumers that need per-clip speed should own their own
-// catalog and pass the scalar in. This keeps the engine free of body-chart's
-// pain-map dependency chain (bodyRenderScene / symptomGrouping / bodyChartDebug).
+import type { MovementClipId } from '../types';
+import { MOVEMENT_CLIP_SPEEDS } from './movementClips';
 
 export interface SampledMovementBonePose {
   position?: THREE.Vector3;
   quaternion?: THREE.Quaternion;
+}
+
+/** Per-clip playback speed scalar (1× when no id or no catalog entry). Backed
+ *  by the engine's lean speed catalog (movementClips.ts), NOT the body-chart
+ *  timeline — so the engine stays free of the pain-map dependency chain. */
+export function getMovementClipSpeed(clipId: MovementClipId | null): number {
+  return clipId ? (MOVEMENT_CLIP_SPEEDS[clipId] ?? 1) : 1;
 }
 
 /** Clamp a movement progress value into [0, 1], coercing NaN / Infinity

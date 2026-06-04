@@ -28,8 +28,15 @@ export * from './services/cameraTween';
 // Limb-axis polyline model
 export * from './services/limbAxisModel';
 
-// Movement-clip sampling (catalog-free; app owns its clip catalog)
+// Movement-clip sampling + lean speed catalog
 export * from './services/movementClipSampling';
+export * from './services/movementClips';
+
+// Posed-geometry world-space baking
+export * from './services/posedGeometry';
+
+// In-3D goniometer overlay helpers
+export * from './services/poseGoniometerHelpers';
 
 // Pose types (JointAngleReport intentionally omitted — sourced from
 // ./services/jointAngles above to avoid a duplicate-export conflict).
