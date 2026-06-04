@@ -1,0 +1,25 @@
+{
+  "name": "@vspx/pose-engine",
+  "version": "0.1.0",
+  "description": "Shared 3D pose engine (rig config, FK/IK, joint angles, ROM, camera) for body-chart and aquatic-therapy.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "three": "^0.183.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.183.0",
+    "three": "^0.183.2",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
+  }
+}
