@@ -38,6 +38,9 @@ export * from './services/posedGeometry';
 // In-3D goniometer overlay helpers
 export * from './services/poseGoniometerHelpers';
 
+// Standard scene boot — renderer, lights, GLB variant loader
+export * from './services/sceneBoot';
+
 // TransformControls rotate-gizmo configuration helpers
 export * from './services/poseGizmoHelpers';
 
