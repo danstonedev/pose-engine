@@ -32,48 +32,67 @@ export function removeGizmoFreeRotate(helper: Object3D): void {
 }
 
 /**
- * Replace the half-arc (180°) X/Y/Z rotate rings with FULL 360° circles.
+ * Constrain the X/Y/Z rotate PICKERS to the visible (camera-facing) half-arc.
  *
- * three.js draws each planar rotate ring as a half-arc that `update()` spins to
- * face the camera, but the PICKER for that ring is a full torus. So the user can
- * grab the undrawn far half of the ring — and the far side of a rotation wheel
- * turns the opposite way, which reads as "inverted" because that half isn't
- * visible. Drawing the full ring makes the grab area match what's shown, so the
- * rotation is legible from any side.
+ * three.js draws each planar rotate ring as a 180° half-arc that `update()`
+ * spins to face the camera, but the matching PICKER is a full 360° torus. So a
+ * user can grab the undrawn far half of the ring — and the far side of a
+ * rotation wheel turns the opposite way, which reads as "inverted" because that
+ * half isn't visible. (We keep the half-arc visuals: filling them to 360° would
+ * break plane alignment, since three differentiates the rings purely via that
+ * camera-facing spin.)
  *
- * Only the thin visible rings (tube ≈ 0.0075) are swapped; the fat invisible
- * picker tori (tube ≈ 0.1) are left full/grabbable, and translate/scale handles
- * (cylinders/boxes, not tori) are ignored.
+ * Fix: shrink each picker torus to a half-arc with the SAME base orientation as
+ * the visible ring's CircleGeometry (rotateY then rotateX by 90°). `update()`
+ * applies the same camera-facing quaternion to the gizmo and its picker, so the
+ * half-picker tracks the visible half exactly — you can only grab what you see,
+ * and rotation always reads in the correct direction.
+ *
+ * Targets only the fat picker tori (tube ≈ 0.1); the thin visible rings
+ * (tube ≈ 0.0075) and translate/scale handles (cylinders/boxes) are left alone.
  */
-export function fillRotateRings(helper: Object3D): void {
+export function restrictRotatePickersToVisibleHalf(helper: Object3D): void {
   helper.traverse((obj) => {
     if (obj.name !== 'X' && obj.name !== 'Y' && obj.name !== 'Z') return;
     const mesh = obj as Mesh;
     const geo = mesh.geometry as (TorusGeometry & {
-      parameters?: { radius: number; tube: number; radialSegments: number; arc: number };
+      parameters?: {
+        radius: number;
+        tube: number;
+        radialSegments: number;
+        tubularSegments: number;
+        arc: number;
+      };
     }) | undefined;
     const p = geo?.parameters;
     if (!p || typeof p.arc !== 'number') return; // not a torus (translate/scale handle)
-    if (p.tube > 0.05) return; // fat picker torus — leave it full + grabbable
-    if (p.arc >= Math.PI * 2 - 0.01) return; // already a full ring (e.g. E)
+    if (p.tube <= 0.05) return; // thin visible ring — leave the visual untouched
+    if (p.arc <= Math.PI + 0.01) return; // already a half picker
 
-    // Rebuild as a full ring with the same base orientation three's
-    // CircleGeometry helper uses (rotateY then rotateX by 90°).
-    const full = new TorusGeometry(p.radius, p.tube, p.radialSegments ?? 3, 64, Math.PI * 2);
-    full.rotateY(Math.PI / 2);
-    full.rotateX(Math.PI / 2);
+    // Rebuild as a half-arc with the visible ring's base orientation so the
+    // picker overlays exactly the camera-facing half-arc that's drawn.
+    const half = new TorusGeometry(
+      p.radius,
+      p.tube,
+      p.radialSegments ?? 4,
+      p.tubularSegments ?? 24,
+      Math.PI,
+    );
+    half.rotateY(Math.PI / 2);
+    half.rotateX(Math.PI / 2);
     geo.dispose?.();
-    mesh.geometry = full;
+    mesh.geometry = half;
   });
 }
 
 /**
  * One-call configuration for a pose rotate gizmo so every app is identical:
- *  - remove the 'XYZE' free-rotation trackball (keep outer 'E' camera ring),
- *  - draw full X/Y/Z planar rings (so rotation isn't grabbed on an invisible
- *    far half and read as inverted).
+ *  - remove the 'XYZE' free-rotation trackball (keep the outer 'E' camera ring
+ *    and the aligned X/Y/Z half-arc rings),
+ *  - restrict the X/Y/Z pickers to the visible half so rotation can't be grabbed
+ *    on the invisible far half (which would turn the joint the opposite way).
  */
 export function configurePoseRotateGizmo(helper: Object3D): void {
   removeGizmoFreeRotate(helper);
-  fillRotateRings(helper);
+  restrictRotatePickersToVisibleHalf(helper);
 }
