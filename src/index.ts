@@ -38,6 +38,9 @@ export * from './services/posedGeometry';
 // In-3D goniometer overlay helpers
 export * from './services/poseGoniometerHelpers';
 
+// TransformControls rotate-gizmo configuration helpers
+export * from './services/poseGizmoHelpers';
+
 // Pose types (JointAngleReport intentionally omitted — sourced from
 // ./services/jointAngles above to avoid a duplicate-export conflict).
 export {
