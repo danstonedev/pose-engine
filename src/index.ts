@@ -44,6 +44,9 @@ export * from './services/sceneBoot';
 // TransformControls rotate-gizmo configuration helpers
 export * from './services/poseGizmoHelpers';
 
+// Full-ring rotate gizmo (swept-angle grab, 3D tube rings, depth overlay)
+export * from './services/poseRotateRings';
+
 // Pose types (JointAngleReport intentionally omitted — sourced from
 // ./services/jointAngles above to avoid a duplicate-export conflict).
 export {

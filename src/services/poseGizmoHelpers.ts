@@ -46,3 +46,11 @@ export function removeGizmoFreeRotate(helper: Object3D): void {
 export function configurePoseRotateGizmo(helper: Object3D): void {
   removeGizmoFreeRotate(helper);
 }
+
+/** Configuration for the full-ring rotate gizmo (`PoseRotateRingGizmo`): remove
+ *  three's XYZE trackball AND its X/Y/Z rings/pickers, keeping only the 'E'
+ *  camera-space ring. The X/Y/Z rings are then drawn + grabbed by the overlay
+ *  gizmo, so what you see is what you grab and grabbing works from anywhere. */
+export function configureRingRotateGizmo(helper: Object3D): void {
+  removeGizmoHandles(helper, ['XYZE', 'X', 'Y', 'Z']);
+}
