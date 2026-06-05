@@ -50,8 +50,11 @@ export function removeGizmoFreeRotate(helper: Object3D): void {
  *
  * Targets only the fat picker tori (tube ≈ 0.1); the thin visible rings
  * (tube ≈ 0.0075) and translate/scale handles (cylinders/boxes) are left alone.
+ *
+ * `grabTube` sets the (invisible) hit-band radius — three's default 0.1 is hard
+ * to grab, so we widen it. The visible ring is untouched; only the grab area grows.
  */
-export function restrictRotatePickersToVisibleHalf(helper: Object3D): void {
+export function restrictRotatePickersToVisibleHalf(helper: Object3D, grabTube = 0.22): void {
   helper.traverse((obj) => {
     if (obj.name !== 'X' && obj.name !== 'Y' && obj.name !== 'Z') return;
     const mesh = obj as Mesh;
@@ -73,7 +76,7 @@ export function restrictRotatePickersToVisibleHalf(helper: Object3D): void {
     // picker overlays exactly the camera-facing half-arc that's drawn.
     const half = new TorusGeometry(
       p.radius,
-      p.tube,
+      grabTube,
       p.radialSegments ?? 4,
       p.tubularSegments ?? 24,
       Math.PI,
