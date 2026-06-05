@@ -50,6 +50,9 @@ export * from './services/poseRotateRings';
 // Click-vs-drag deselect for pose editing (shared dismiss-on-empty-click trait)
 export * from './services/poseClickDeselect';
 
+// Anatomic start pose (arms at sides) — the shared 0° clinical reference
+export * from './services/anatomicPose';
+
 // Pose types (JointAngleReport intentionally omitted — sourced from
 // ./services/jointAngles above to avoid a duplicate-export conflict).
 export {
