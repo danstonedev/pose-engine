@@ -47,6 +47,9 @@ export * from './services/poseGizmoHelpers';
 // Full-ring rotate gizmo (swept-angle grab, 3D tube rings, depth overlay)
 export * from './services/poseRotateRings';
 
+// Click-vs-drag deselect for pose editing (shared dismiss-on-empty-click trait)
+export * from './services/poseClickDeselect';
+
 // Pose types (JointAngleReport intentionally omitted — sourced from
 // ./services/jointAngles above to avoid a duplicate-export conflict).
 export {
