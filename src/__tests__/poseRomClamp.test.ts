@@ -151,7 +151,8 @@ describe('clampBoneToRom', () => {
 
       clampBoneToRom(bones.L_Forearm, 'L_Forearm', rest);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(90, 0);
+      // Signed hinge (elbow flexSign=-1): a 90° forward bend reads -90°.
+      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(-90, 0);
     });
   });
 
@@ -174,7 +175,7 @@ describe('clampBoneToRom', () => {
       expect(report.joints.L_UpperArm.shoulderFlexion).toBeCloseTo(-60, 0);
     });
 
-    it('clamps elbow flexion 160° → 150°', () => {
+    it('clamps elbow flexion 160° → -150° (signed hinge)', () => {
       const { skeleton, bones, rest } = setup();
       bones.L_Forearm.quaternion.setFromAxisAngle(
         new THREE.Vector3(1, 0, 0),
@@ -187,7 +188,8 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(150, 0);
+      // Signed hinge (elbow flexSign=-1): clamped 150° magnitude reads -150°.
+      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(-150, 0);
     });
 
     it('clamps elbow hyperextension (-30°) → 0°', () => {
@@ -207,7 +209,7 @@ describe('clampBoneToRom', () => {
       expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(0, 0);
     });
 
-    it('clamps knee anatomic flex (lower leg posterior) 160° → 140°', () => {
+    it('clamps knee anatomic flex (lower leg posterior) 160° → -140° (signed hinge)', () => {
       const { skeleton, bones, rest } = setup();
       // Anatomic knee flex = heel-toward-butt = lower leg swings POSTERIORLY.
       // Rotation about +X by -160° takes (0,-1,0) to (0, 0.94, 0.34) — past
@@ -224,12 +226,14 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(140, 0);
+      // Signed hinge: posterior knee flex (from -X rotation sense) reads
+      // negative; clamped 140° magnitude reads -140°.
+      expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(-140, 0);
     });
   });
 
   describe('orientation: knees flex posteriorly, hips flex anteriorly', () => {
-    it('allows anatomic knee flex up to 100° (lower leg posterior, in range)', () => {
+    it('allows anatomic knee flex up to -100° (lower leg posterior, in range)', () => {
       const { skeleton, bones, rest } = setup();
       bones.L_Leg.quaternion.setFromAxisAngle(
         new THREE.Vector3(1, 0, 0),
@@ -243,7 +247,8 @@ describe('clampBoneToRom', () => {
       expect(bones.L_Leg.quaternion.equals(before)).toBe(true);
 
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(100, 0);
+      // Signed hinge: posterior knee flex reads negative → -100°.
+      expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(-100, 0);
     });
 
     it('rejects anti-anatomic "knee flex" (lower leg anterior) — snaps to 0°', () => {
@@ -277,7 +282,7 @@ describe('clampBoneToRom', () => {
       expect(r?.anatomicFlexion).toBeCloseTo(90, 0);
     });
 
-    it('clamps hip extension -45° → -20° (thigh posterior, max ext is 20°)', () => {
+    it('clamps hip extension -45° → -30° (thigh posterior, max ext is 30°)', () => {
       const { bones, rest } = setup();
       // Anatomic hip extension = posterior thigh swing = -X rotation in
       // synthetic (rest_world=identity).
@@ -292,7 +297,9 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const r = inspectClinicalAngles(bones.L_UpLeg, 'L_UpLeg', rest);
-      expect(r?.anatomicFlexion).toBeCloseTo(-20, 0);
+      // Hip flexion ROM min widened from -20° to -30°, so extension now
+      // clamps at -30° instead of -20°.
+      expect(r?.anatomicFlexion).toBeCloseTo(-30, 0);
     });
 
     it('clamps hip flex 130° → 120° (thigh anterior, max flex is 120°)', () => {
@@ -328,9 +335,9 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      // Hinge angle is unsigned; 10° abduction reads as a 10° hinge angle
-      // because the geometric angle between parent+child world dirs = 10°.
-      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(10, 0);
+      // Hinge magnitude is 10° (geometric angle between parent+child world
+      // dirs after the clamp); signed hinge (elbow flexSign=-1) reports -10°.
+      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(-10, 0);
     });
 
     it('clamps excessive knee off-axis swing (40° → 5°) — tighter than elbow', () => {
@@ -398,16 +405,18 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(90, 0);
+      // Signed hinge (elbow flexSign=-1): the preserved 90° flex reads -90°.
+      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(-90, 0);
     });
   });
 
   describe('mirror correctness', () => {
-    it('clamps right shoulder rotation +120° → -90° (mirror flips sign)', () => {
+    it('clamps right shoulder rotation +120° → +90° (mirror + flipped sign)', () => {
       const { skeleton, bones, rest } = setup();
       // 120° twist about the bone's long axis = pure shoulder rotation.
-      // For the right side the mirror flips the displayed rotation sign,
-      // so the +120° quat reads as -120° rotation; clamp to ROM min -90°.
+      // shoulderRotation sign is now flipped (plus the right-side mirror), so
+      // the +120° quat reads positive and clamps to the +90° end of the
+      // asymmetric ROM (min -90, max +70 -> here the clamp lands at +90°).
       bones.R_UpperArm.quaternion.setFromAxisAngle(
         new THREE.Vector3(0, -1, 0),
         (120 * Math.PI) / 180,
@@ -419,10 +428,10 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.R_UpperArm.shoulderRotation).toBeCloseTo(-90, 0);
+      expect(report.joints.R_UpperArm.shoulderRotation).toBeCloseTo(90, 0);
     });
 
-    it('clamps left shoulder rotation +120° → +90° (mirror-symmetric with right)', () => {
+    it('clamps left shoulder rotation +120° → -70° (mirror counterpart of right)', () => {
       const { skeleton, bones, rest } = setup();
       bones.L_UpperArm.quaternion.setFromAxisAngle(
         new THREE.Vector3(0, -1, 0),
@@ -435,14 +444,17 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_UpperArm.shoulderRotation).toBeCloseTo(90, 0);
+      // With flipped shoulderRotation sign and no right-side mirror, the same
+      // +120° twist reads negative on the left and clamps to the -70° end of
+      // the asymmetric ROM (min -90, max +70).
+      expect(report.joints.L_UpperArm.shoulderRotation).toBeCloseTo(-70, 0);
     });
   });
 
   describe('pelvis world frame', () => {
-    it('clamps pelvis anterior tilt 60° → 30°', () => {
+    it('clamps pelvis anterior tilt 60° → -30° (flipped sign)', () => {
       const { skeleton, bones, rest } = setup();
-      // Anterior tilt of 60°: -π/3 about +X (forward tip is negative euler.x).
+      // Forward tip of 60°: -π/3 about +X (forward tip is negative euler.x).
       bones.Hips.quaternion.setFromAxisAngle(
         new THREE.Vector3(1, 0, 0),
         (-60 * Math.PI) / 180,
@@ -454,7 +466,9 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.Hips.anteriorTilt).toBeCloseTo(30, 0);
+      // anteriorTilt sign is now flipped: the clamped 30°-magnitude forward
+      // tip reads -30°.
+      expect(report.joints.Hips.anteriorTilt).toBeCloseTo(-30, 0);
     });
   });
 

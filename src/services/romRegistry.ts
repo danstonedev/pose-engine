@@ -84,8 +84,8 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     canonicalKey: 'Spine_Mid',
     label: 'Trunk',
     fields: [
-      field('flexion', 'Flex', 'Flex', 'Ext', { min: -30, max: 60 }, 'sagittal'),
-      field('lateralTilt', 'Lateral', 'Left', 'Right', { min: -25, max: 25 }, 'frontal'),
+      field('flexion', 'Flex', 'Flex', 'Ext', { min: -30, max: 80 }, 'sagittal'),
+      field('lateralTilt', 'Lateral', 'Left', 'Right', { min: -35, max: 35 }, 'frontal'),
       field('rotation', 'Rotate', 'Toward L', 'Toward R', { min: -45, max: 45 }, 'transverse'),
     ],
   },
@@ -93,9 +93,27 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     canonicalKey: 'Head',
     label: 'Head / Neck',
     fields: [
-      field('flexion', 'Flex', 'Flex', 'Ext', { min: -45, max: 45 }, 'sagittal'),
-      field('lateralTilt', 'Lateral', 'Left', 'Right', { min: -25, max: 25 }, 'frontal'),
+      field('flexion', 'Flex', 'Flex', 'Ext', { min: -60, max: 50 }, 'sagittal'),
+      field('lateralTilt', 'Lateral', 'Left', 'Right', { min: -45, max: 45 }, 'frontal'),
       field('rotation', 'Rotate', 'Toward L', 'Toward R', { min: -80, max: 80 }, 'transverse'),
+    ],
+  },
+  {
+    canonicalKey: 'L_Shoulder',
+    label: 'L Scapula',
+    fields: [
+      field('upRotation', 'Up rot', 'Up', 'Down', { min: -5, max: 60 }, 'frontal'),
+      field('scapularTilt', 'Tilt', 'Post', 'Ant', { min: -10, max: 40 }, 'sagittal'),
+      field('protraction', 'Protract', 'Pro', 'Ret', { min: -30, max: 30 }, 'transverse'),
+    ],
+  },
+  {
+    canonicalKey: 'R_Shoulder',
+    label: 'R Scapula',
+    fields: [
+      field('upRotation', 'Up rot', 'Up', 'Down', { min: -5, max: 60 }, 'frontal'),
+      field('scapularTilt', 'Tilt', 'Post', 'Ant', { min: -10, max: 40 }, 'sagittal'),
+      field('protraction', 'Protract', 'Pro', 'Ret', { min: -30, max: 30 }, 'transverse'),
     ],
   },
   {
@@ -103,8 +121,8 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     label: 'L Shoulder',
     fields: [
       field('shoulderFlexion', 'Flex', 'Flex', 'Ext', { min: -60, max: 180 }, 'sagittal'),
-      field('shoulderAbduction', 'Abd', 'Abd', 'Add', { min: -40, max: 180 }, 'frontal'),
-      field('shoulderRotation', 'Rotate', 'Int', 'Ext', { min: -90, max: 90 }, 'transverse'),
+      field('shoulderAbduction', 'Abd', 'Abd', 'Add', { min: -50, max: 180 }, 'frontal'),
+      field('shoulderRotation', 'Rotate', 'Int', 'Ext', { min: -90, max: 70 }, 'transverse'),
     ],
   },
   {
@@ -112,8 +130,8 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     label: 'R Shoulder',
     fields: [
       field('shoulderFlexion', 'Flex', 'Flex', 'Ext', { min: -60, max: 180 }, 'sagittal'),
-      field('shoulderAbduction', 'Abd', 'Abd', 'Add', { min: -40, max: 180 }, 'frontal'),
-      field('shoulderRotation', 'Rotate', 'Int', 'Ext', { min: -90, max: 90 }, 'transverse'),
+      field('shoulderAbduction', 'Abd', 'Abd', 'Add', { min: -50, max: 180 }, 'frontal'),
+      field('shoulderRotation', 'Rotate', 'Int', 'Ext', { min: -90, max: 70 }, 'transverse'),
     ],
   },
   {
@@ -123,6 +141,8 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('elbowFlexion', 'Flex', 'Flex', 'Ext', { min: 0, max: 150 }, 'sagittal', {
         warningMarginDeg: 8,
       }),
+      field('forearmRotation', 'Pro/Sup', 'Sup', 'Pro', { min: -80, max: 80 }, 'transverse'),
+      field('elbowDeviation', 'Var/Valg', 'Valg', 'Var', { min: -5, max: 15 }, 'frontal'),
     ],
   },
   {
@@ -132,13 +152,16 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('elbowFlexion', 'Flex', 'Flex', 'Ext', { min: 0, max: 150 }, 'sagittal', {
         warningMarginDeg: 8,
       }),
+      field('forearmRotation', 'Pro/Sup', 'Sup', 'Pro', { min: -80, max: 80 }, 'transverse'),
+      field('elbowDeviation', 'Var/Valg', 'Valg', 'Var', { min: -5, max: 15 }, 'frontal'),
     ],
   },
   {
     canonicalKey: 'L_Hand',
     label: 'L Wrist',
     fields: [
-      field('wristFlexion', 'Flex', 'Flex', 'Ext', { min: -70, max: 90 }, 'sagittal'),
+      field('wristFlexion', 'Flex', 'Flex', 'Ext', { min: -70, max: 80 }, 'sagittal'),
+      field('proSup', 'Pro/Sup', 'Sup', 'Pro', { min: -80, max: 80 }, 'transverse'),
       field('wristDeviation', 'Dev', 'Radial', 'Ulnar', { min: -30, max: 20 }, 'frontal'),
     ],
   },
@@ -146,7 +169,8 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     canonicalKey: 'R_Hand',
     label: 'R Wrist',
     fields: [
-      field('wristFlexion', 'Flex', 'Flex', 'Ext', { min: -70, max: 90 }, 'sagittal'),
+      field('wristFlexion', 'Flex', 'Flex', 'Ext', { min: -70, max: 80 }, 'sagittal'),
+      field('proSup', 'Pro/Sup', 'Sup', 'Pro', { min: -80, max: 80 }, 'transverse'),
       field('wristDeviation', 'Dev', 'Radial', 'Ulnar', { min: -30, max: 20 }, 'frontal'),
     ],
   },
@@ -154,7 +178,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     canonicalKey: 'L_UpLeg',
     label: 'L Hip',
     fields: [
-      field('hipFlexion', 'Flex', 'Flex', 'Ext', { min: -20, max: 120 }, 'sagittal'),
+      field('hipFlexion', 'Flex', 'Flex', 'Ext', { min: -30, max: 120 }, 'sagittal'),
       field('hipAbduction', 'Abd', 'Abd', 'Add', { min: -30, max: 45 }, 'frontal'),
       field('hipRotation', 'Rotate', 'Int', 'Ext', { min: -45, max: 45 }, 'transverse'),
     ],
@@ -163,7 +187,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     canonicalKey: 'R_UpLeg',
     label: 'R Hip',
     fields: [
-      field('hipFlexion', 'Flex', 'Flex', 'Ext', { min: -20, max: 120 }, 'sagittal'),
+      field('hipFlexion', 'Flex', 'Flex', 'Ext', { min: -30, max: 120 }, 'sagittal'),
       field('hipAbduction', 'Abd', 'Abd', 'Add', { min: -30, max: 45 }, 'frontal'),
       field('hipRotation', 'Rotate', 'Int', 'Ext', { min: -45, max: 45 }, 'transverse'),
     ],
@@ -175,6 +199,8 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('kneeFlexion', 'Flex', 'Flex', 'Ext', { min: 0, max: 140 }, 'sagittal', {
         warningMarginDeg: 8,
       }),
+      field('kneeRotation', 'Rotate', 'Int', 'Ext', { min: -35, max: 25 }, 'transverse'),
+      field('kneeDeviation', 'Var/Valg', 'Valg', 'Var', { min: -5, max: 5 }, 'frontal'),
     ],
   },
   {
@@ -184,6 +210,8 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('kneeFlexion', 'Flex', 'Flex', 'Ext', { min: 0, max: 140 }, 'sagittal', {
         warningMarginDeg: 8,
       }),
+      field('kneeRotation', 'Rotate', 'Int', 'Ext', { min: -35, max: 25 }, 'transverse'),
+      field('kneeDeviation', 'Var/Valg', 'Valg', 'Var', { min: -5, max: 5 }, 'frontal'),
     ],
   },
   {
@@ -193,7 +221,8 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('ankleFlexion', 'Flex', 'Dorsi', 'Plantar', { min: -50, max: 20 }, 'sagittal', {
         neutralSeparationDeg: -90,
       }),
-      field('ankleInversion', 'Invert', 'Inv', 'Ev', { min: -20, max: 35 }, 'frontal'),
+      field('ankleInversion', 'Invert', 'Inv', 'Ev', { min: -15, max: 35 }, 'frontal'),
+      field('ankleAbduction', 'Abd/Add', 'Abd', 'Add', { min: -20, max: 15 }, 'transverse'),
     ],
   },
   {
@@ -203,7 +232,8 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('ankleFlexion', 'Flex', 'Dorsi', 'Plantar', { min: -50, max: 20 }, 'sagittal', {
         neutralSeparationDeg: -90,
       }),
-      field('ankleInversion', 'Invert', 'Inv', 'Ev', { min: -20, max: 35 }, 'frontal'),
+      field('ankleInversion', 'Invert', 'Inv', 'Ev', { min: -15, max: 35 }, 'frontal'),
+      field('ankleAbduction', 'Abd/Add', 'Abd', 'Add', { min: -20, max: 15 }, 'transverse'),
     ],
   },
 ];

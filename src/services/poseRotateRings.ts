@@ -176,6 +176,9 @@ export class PoseRotateRingGizmo {
   readonly pickers: { axis: THREE.Vector3; name: RingAxisName; mesh: THREE.Mesh }[] = [];
 
   private readonly opt: ResolvedOptions;
+  /** Visible ring materials by lowercase axis, with their default colour, so the
+   *  host can recolour rings by plane-of-motion per joint (see `setRingColors`). */
+  private readonly ringMats: { axis: 'x' | 'y' | 'z'; mat: THREE.MeshBasicMaterial; defaultHex: number }[] = [];
 
   constructor(options: PoseRotateRingsOptions = {}) {
     const o: ResolvedOptions = { ...DEFAULTS, ...options };
@@ -201,6 +204,11 @@ export class PoseRotateRingGizmo {
       );
       ring.renderOrder = 1002;
       ring.quaternion.copy(q);
+      this.ringMats.push({
+        axis: name.toLowerCase() as 'x' | 'y' | 'z',
+        mat: ring.material as THREE.MeshBasicMaterial,
+        defaultHex: o.axisColors[i],
+      });
       // Invisible fat grab band coinciding with the ring.
       const picker = new THREE.Mesh(
         new THREE.TorusGeometry(1, o.grabTube, 6, 64),
@@ -243,6 +251,16 @@ export class PoseRotateRingGizmo {
 
   get visible(): boolean {
     return this.group.visible;
+  }
+
+  /** Recolour the visible rings by axis. Pass a hex per lowercase axis (x/y/z);
+   *  any axis omitted resets to its default colour. Used to colour each ring by
+   *  the clinical PLANE of motion it drives (red = flex/sagittal, blue = frontal,
+   *  green = transverse) so the gizmo speaks the same colour language per joint. */
+  setRingColors(colorByAxis: Partial<Record<'x' | 'y' | 'z', number>>): void {
+    for (const r of this.ringMats) {
+      r.mat.color.setHex(colorByAxis[r.axis] ?? r.defaultHex);
+    }
   }
 
   /** Position/orient/scale the rings at a joint. `frameQuat` = the bone's world

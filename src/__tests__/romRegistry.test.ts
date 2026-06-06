@@ -12,7 +12,7 @@ import {
 describe('romRegistry', () => {
   it('exposes expected clinical ranges and visual planes for major motions', () => {
     const shoulderAbduction = getRomFieldDefinition('L_UpperArm', 'shoulderAbduction');
-    expect(shoulderAbduction?.range).toEqual({ min: -40, max: 180 });
+    expect(shoulderAbduction?.range).toEqual({ min: -50, max: 180 });
     expect(shoulderAbduction?.plane).toBe('frontal');
 
     const elbowFlexion = getRomFieldDefinition('R_Forearm', 'elbowFlexion');

@@ -122,19 +122,22 @@ describe('computeJointAngles', () => {
   });
 
   describe('hinge flexion (elbow / knee)', () => {
-    it('reads 90° when forearm bends 90° about local X (elbow flex)', () => {
+    it('reads -90° when forearm bends 90° about local X (elbow flex)', () => {
       const { skeleton, bones } = buildSyntheticCCSkeleton();
       bones.L_Forearm.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
       bones.Hips.updateMatrixWorld(true);
       const report = computeJointAngles(skeleton, variant, 'male');
-      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(90, 0);
+      // Elbow flexion is now SIGNED (magnitude * dir * flexSign, flexSign=-1
+      // for the elbow), so this forward bend reads -90° rather than +90°.
+      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(-90, 0);
     });
-    it('reads 90° on the right elbow too (mirror does not affect hinge)', () => {
+    it('reads -90° on the right elbow too (mirror does not affect hinge sign)', () => {
       const { skeleton, bones } = buildSyntheticCCSkeleton();
       bones.R_Forearm.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
       bones.Hips.updateMatrixWorld(true);
       const report = computeJointAngles(skeleton, variant, 'male');
-      expect(report.joints.R_Forearm.elbowFlexion).toBeCloseTo(90, 0);
+      // Signed hinge: same -90° as the left elbow (elbow flexSign=-1).
+      expect(report.joints.R_Forearm.elbowFlexion).toBeCloseTo(-90, 0);
     });
     it('reads 90° when knee bends 90°', () => {
       const { skeleton, bones } = buildSyntheticCCSkeleton();
@@ -183,22 +186,24 @@ describe('computeJointAngles', () => {
   });
 
   describe('pelvis world frame', () => {
-    it('reads +anteriorTilt when the pelvis tips forward (top toward -Z)', () => {
+    it('reads -anteriorTilt when the pelvis tips forward (top toward -Z)', () => {
       const { skeleton, bones } = buildSyntheticCCSkeleton();
-      // Anterior tilt: superior axis (+Y) rotates toward anterior (-Z).
-      // Right-hand rule about +X moves +Y toward +Z (posterior), so an
-      // anterior tilt of 30° comes from a -π/6 rotation about +X.
+      // Superior axis (+Y) rotates toward anterior (-Z). Right-hand rule about
+      // +X moves +Y toward +Z (posterior), so the forward tip comes from a
+      // -π/6 rotation about +X. anteriorTilt sign is now flipped, so this
+      // forward tip reads -30° rather than +30°.
       bones.Hips.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 6);
       bones.Hips.updateMatrixWorld(true);
       const report = computeJointAngles(skeleton, variant, 'male');
-      expect(report.joints.Hips.anteriorTilt).toBeCloseTo(30, 0);
+      expect(report.joints.Hips.anteriorTilt).toBeCloseTo(-30, 0);
     });
-    it('reads -anteriorTilt (posterior) when the pelvis tips backward', () => {
+    it('reads +anteriorTilt (posterior tip) when the pelvis tips backward', () => {
       const { skeleton, bones } = buildSyntheticCCSkeleton();
       bones.Hips.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 6); // 30° about +X
       bones.Hips.updateMatrixWorld(true);
       const report = computeJointAngles(skeleton, variant, 'male');
-      expect(report.joints.Hips.anteriorTilt).toBeCloseTo(-30, 0);
+      // anteriorTilt sign flipped: backward tip now reads +30° rather than -30°.
+      expect(report.joints.Hips.anteriorTilt).toBeCloseTo(30, 0);
     });
     it('reads +lateralTilt when subject’s left rises', () => {
       const { skeleton, bones } = buildSyntheticCCSkeleton();
@@ -208,15 +213,15 @@ describe('computeJointAngles', () => {
       const report = computeJointAngles(skeleton, variant, 'male');
       expect(report.joints.Hips.lateralTilt).toBeCloseTo(30, 0);
     });
-    it('reads +rotation when the body rotates to face subject’s left', () => {
+    it('reads -rotation when the body rotates to face subject’s left', () => {
       const { skeleton, bones } = buildSyntheticCCSkeleton();
       // Body anterior is -Z; rotating to face -X (subject’s left) takes
-      // -Z to -X, which is rotation about +Y by -π/2. So +rotation should
-      // correspond to negative Y-Euler.
+      // -Z to -X, which is rotation about +Y by -π/6. Pelvis rotation sign is
+      // now flipped, so facing subject's left reads -30° rather than +30°.
       bones.Hips.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 6);
       bones.Hips.updateMatrixWorld(true);
       const report = computeJointAngles(skeleton, variant, 'male');
-      expect(report.joints.Hips.rotation).toBeCloseTo(30, 0);
+      expect(report.joints.Hips.rotation).toBeCloseTo(-30, 0);
     });
   });
 
@@ -242,8 +247,9 @@ describe('computeJointAngles', () => {
       expect(report.joints.R_UpperArm.shoulderAbduction).toBeCloseTo(0, 1);
       // Hinge angle isn't delta-based but at this configuration the parent
       // and child still point closely enough for elbow extension to read
-      // small (forearm bend was 0.15 rad ≈ 8.6°).
-      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(8.6, 0);
+      // small (forearm bend was 0.15 rad ≈ 8.6°). Signed hinge (elbow
+      // flexSign=-1) makes this read -8.6° rather than +8.6°.
+      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(-8.6, 0);
     });
     it('measures additional rotation correctly when current diverges from rest', () => {
       const { skeleton, bones } = buildSyntheticCCSkeleton();
