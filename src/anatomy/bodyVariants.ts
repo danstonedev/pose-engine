@@ -164,10 +164,12 @@ const SHARED_POSE_RIG: PoseRigConfig = {
     { canonicalKey: 'L_UpLeg', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'L_Leg', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'L_Foot', type: 'ik-effector', chainParentCount: 2 },
+    { canonicalKey: 'L_Toes', type: 'ik-effector', chainParentCount: 1 }, // forefoot / MTP
     // Right leg
     { canonicalKey: 'R_UpLeg', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'R_Leg', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'R_Foot', type: 'ik-effector', chainParentCount: 2 },
+    { canonicalKey: 'R_Toes', type: 'ik-effector', chainParentCount: 1 }, // forefoot / MTP
   ],
 };
 

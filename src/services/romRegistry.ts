@@ -248,6 +248,17 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('ankleAbduction', 'Abd/Add', 'Abd', 'Add', { min: -20, max: 15 }, 'transverse'),
     ],
   },
+  {
+    // Forefoot / great-toe MTP (ToeBase). AROM per AAOS — verify live.
+    canonicalKey: 'L_Toes',
+    label: 'L Toes',
+    fields: [field('toeFlexion', 'MTP', 'Ext', 'Flex', { min: -40, max: 70 }, 'sagittal')],
+  },
+  {
+    canonicalKey: 'R_Toes',
+    label: 'R Toes',
+    fields: [field('toeFlexion', 'MTP', 'Ext', 'Flex', { min: -40, max: 70 }, 'sagittal')],
+  },
 ];
 
 const ROM_JOINT_BY_KEY = new Map(ROM_JOINT_ROWS.map((row) => [row.canonicalKey, row]));

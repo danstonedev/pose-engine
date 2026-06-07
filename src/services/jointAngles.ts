@@ -632,6 +632,15 @@ export function computeJointAngles(
     }
   }
 
+  // ── Toes (forefoot MTP — ToeBase relative to the foot) ───────────────
+  for (const key of ['L_Toes', 'R_Toes'] as const) {
+    const bone = lookup.get(key);
+    if (!bone) continue;
+    deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
+    const a = decomposeBodyDelta(delta);
+    joints[key] = { toeFlexion: -a.flexion }; // + = extension (PROVISIONAL — verify)
+  }
+
   return {
     at: new Date().toISOString(),
     variant: variantId,
