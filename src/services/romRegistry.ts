@@ -259,6 +259,22 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     label: 'R Toes',
     fields: [field('toeFlexion', 'MTP', 'Ext', 'Flex', { min: -40, max: 70 }, 'sagittal')],
   },
+  // Fingers — composite total-flexion (curl) per digit. Geometric, ~0 straight.
+  ...(['L_', 'R_'] as const).flatMap((side) =>
+    (
+      [
+        ['Thumb1', 'Thumb'],
+        ['Index1', 'Index'],
+        ['Mid1', 'Mid'],
+        ['Ring1', 'Ring'],
+        ['Pinky1', 'Pinky'],
+      ] as const
+    ).map(([key, label]) => ({
+      canonicalKey: `${side}${key}`,
+      label: `${side === 'L_' ? 'L' : 'R'} ${label}`,
+      fields: [field('fingerFlexion', 'Curl', 'Flex', 'Ext', { min: 0, max: 160 }, 'sagittal')],
+    })),
+  ),
 ];
 
 const ROM_JOINT_BY_KEY = new Map(ROM_JOINT_ROWS.map((row) => [row.canonicalKey, row]));

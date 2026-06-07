@@ -23,7 +23,15 @@ export type CanonicalBone =
   | 'UpLeg'
   | 'Leg'
   | 'Foot'
-  | 'Toes';
+  | 'Toes'
+  // Finger MCP/CMC anchors (the distal phalanges are reached by traversal). These
+  // resolve as handles for per-finger curl; finger detection (FingerToken) still
+  // runs in parallel for the paint classifier.
+  | 'Thumb1'
+  | 'Index1'
+  | 'Mid1'
+  | 'Ring1'
+  | 'Pinky1';
 
 export type FingerToken = 'HandThumb' | 'HandIndex' | 'HandMiddle' | 'HandRing' | 'HandPinky';
 
@@ -124,6 +132,13 @@ export interface PoseRigHandle {
   chainParentCount?: number;
   /** Visual radius of the handle sphere in world units (auto-scales with camera). */
   handleRadius?: number;
+  /** Parent handle key for sub-handles (e.g. finger dots → their Hand). Hosts may
+   *  hide these unless the parent (or a sibling sub-handle) is selected, to keep
+   *  the dense finger cluster from cluttering the default view. */
+  parentKey?: string;
+  /** Whether dragging this handle should curl its whole chain as one arc (fingers)
+   *  rather than rotating a single bone. */
+  curl?: boolean;
 }
 
 export interface PoseRigConfig {
@@ -170,6 +185,13 @@ const SHARED_POSE_RIG: PoseRigConfig = {
     { canonicalKey: 'R_Leg', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'R_Foot', type: 'ik-effector', chainParentCount: 2 },
     { canonicalKey: 'R_Toes', type: 'ik-effector', chainParentCount: 1 }, // forefoot / MTP
+    // Fingers — one curl control per digit (MCP/CMC anchor; rotating curls the
+    // whole finger across its 3 phalanges). Hidden until the parent Hand or a
+    // sibling finger is selected.
+    ...(['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const).flatMap((d) => [
+      { canonicalKey: `L_${d}`, type: 'ik-effector' as const, chainParentCount: 2, parentKey: 'L_Hand', curl: true },
+      { canonicalKey: `R_${d}`, type: 'ik-effector' as const, chainParentCount: 2, parentKey: 'R_Hand', curl: true },
+    ]),
   ],
 };
 
@@ -216,6 +238,12 @@ const CC_BONE_NAME_MAP: BoneNameMap = {
     Leg: ['Calf'],
     Foot: ['Foot'],
     Toes: ['ToeBase'],
+    // Finger MCP/CMC anchors (handles for per-finger curl).
+    Thumb1: ['Thumb1'],
+    Index1: ['Index1'],
+    Mid1: ['Mid1'],
+    Ring1: ['Ring1'],
+    Pinky1: ['Pinky1'],
   },
   fingers: [
     { pattern: /^(Finger0|Thumb)/, token: 'HandThumb' },
@@ -393,13 +421,14 @@ export function normalizeBoneNameForVariant(
     }
   }
 
+  // Run core detection even for finger bones: a finger MCP (e.g. Index1) resolves
+  // to BOTH its FingerToken (for the paint classifier) and a canonical token (so it
+  // can be a per-finger pose handle). Non-MCP phalanges simply find no core match.
   let canonical: CanonicalBone | null = null;
-  if (!finger) {
-    for (const [token, names] of Object.entries(map.core) as Array<[CanonicalBone, string[]]>) {
-      if (names.some((n) => n.length > 0 && core === n)) {
-        canonical = token;
-        break;
-      }
+  for (const [token, names] of Object.entries(map.core) as Array<[CanonicalBone, string[]]>) {
+    if (names.some((n) => n.length > 0 && core === n)) {
+      canonical = token;
+      break;
     }
   }
 

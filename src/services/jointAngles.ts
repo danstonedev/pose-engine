@@ -258,6 +258,12 @@ export function computeDrivingRingMap(rest: JointAngleRestReference): DrivingRin
       };
       continue;
     }
+    // Fingers inherit the hand's twisted frame: the curl (flexion) is the local-Z
+    // ring, like the wrist. Pin it so the chip + gizmo colour the curl ring red.
+    if (/(Thumb1|Index1|Mid1|Ring1|Pinky1)$/.test(key)) {
+      map[key] = { sagittal: { ring: 'z', approximate: false } };
+      continue;
+    }
     const space = gizmoSpaceForJoint(key);
     const worldArr = rest.worldQuats[key];
     const approximate = jointIsApproximate(key);
@@ -639,6 +645,30 @@ export function computeJointAngles(
     deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
     const a = decomposeBodyDelta(delta);
     joints[key] = { toeFlexion: -a.flexion }; // + = extension (PROVISIONAL — verify)
+  }
+
+  // ── Fingers (composite curl = MCP + PIP bend; geometric, ~0 when straight) ──
+  const _fHand = new THREE.Vector3();
+  const _fMcp = new THREE.Vector3();
+  const _fMeta = new THREE.Vector3();
+  for (const side of ['L_', 'R_'] as const) {
+    const hand = lookup.get(`${side}Hand`);
+    if (!hand) continue;
+    hand.getWorldPosition(_fHand);
+    for (const d of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
+      const mcp = lookup.get(`${side}${d}`);
+      if (!mcp) continue;
+      const d1 = boneWorldDirection(mcp); // proximal phalanx (MCP → PIP)
+      if (!d1) continue;
+      mcp.getWorldPosition(_fMcp);
+      _fMeta.copy(_fMcp).sub(_fHand); // metacarpal (wrist → knuckle)
+      let deg = 0;
+      if (_fMeta.lengthSq() > 1e-8) deg += angleBetween(_fMeta, d1) * DEG; // MCP
+      const pip = mcp.children.find((c) => (c as THREE.Bone).isBone) as THREE.Bone | undefined;
+      const d2 = pip ? boneWorldDirection(pip) : null;
+      if (d2) deg += angleBetween(d1, d2) * DEG; // PIP
+      joints[`${side}${d}`] = { fingerFlexion: deg };
+    }
   }
 
   return {
