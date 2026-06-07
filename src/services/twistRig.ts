@@ -15,9 +15,21 @@ import { signedAngleAboutAxis } from './jointAngles';
  * proximal joint outward. The distal child (Hand/Foot/Forearm) continues at θ.
  */
 
-const TWIST_SEGMENT_KEYS = ['UpperArm', 'Forearm', 'UpLeg', 'Leg'] as const;
+// Limb segments whose axial twist is spread across twist bones. `distal` names a
+// distal child whose own axial twist is part of the SAME functional rotation and
+// so adds to the total the segment grades toward — e.g. forearm pro/sup is shared
+// between the forearm and the hand, so wrist-driven pro/sup must also distribute
+// along the forearm (not pinch at the wrist). Humeral/hip/tibial rotation have no
+// such shared distal twist.
+const TWIST_SEGMENTS: { key: string; distal?: string }[] = [
+  { key: 'UpperArm' },
+  { key: 'Forearm', distal: 'Hand' },
+  { key: 'UpLeg' },
+  { key: 'Leg' },
+];
 // Cumulative world-twist fraction at each twist bone (Twist01 at the base, Twist02
-// mid-segment). The segment base is 1.0; grading from 0 spreads the proximal joint.
+// mid-segment). The segment base carries full twist; grading from 0 spreads the
+// proximal joint; the distal end reaches the total twist.
 const TWIST_FRACTIONS = [0, 0.5];
 // Bone-local long axis: every child sits at +Y, so the segment twists about +Y.
 const LONG_AXIS = new THREE.Vector3(0, 1, 0);
@@ -27,6 +39,10 @@ export interface TwistSegment {
   restSegmentLocal: THREE.Quaternion;
   chain: THREE.Object3D[];
   restChainLocals: THREE.Quaternion[];
+  /** Optional distal child whose axial twist adds to the total (e.g. the hand for
+   *  the forearm), so wrist-driven pro/sup spreads along the forearm too. */
+  distal?: THREE.Object3D;
+  restDistalLocal?: THREE.Quaternion;
 }
 
 /** Follow the twist-bone sub-chain under a segment (descendant bones whose name
@@ -53,17 +69,20 @@ export function buildTwistRig(
 ): TwistSegment[] {
   const lookup = buildBoneByPoseKey(skeleton, variantCfg);
   const out: TwistSegment[] = [];
-  for (const key of TWIST_SEGMENT_KEYS) {
+  for (const cfg of TWIST_SEGMENTS) {
     for (const side of ['L_', 'R_'] as const) {
-      const segment = lookup.get(`${side}${key}`);
+      const segment = lookup.get(`${side}${cfg.key}`);
       if (!segment) continue;
       const chain = findTwistChain(segment);
       if (!chain.length) continue;
+      const distal = cfg.distal ? lookup.get(`${side}${cfg.distal}`) : undefined;
       out.push({
         segment,
         restSegmentLocal: segment.quaternion.clone(),
         chain,
         restChainLocals: chain.map((b) => b.quaternion.clone()),
+        distal,
+        restDistalLocal: distal ? distal.quaternion.clone() : undefined,
       });
     }
   }
@@ -75,22 +94,34 @@ const _twDelta = new THREE.Quaternion();
 const _twTwist = new THREE.Quaternion();
 const _twInc = new THREE.Quaternion();
 
-/** Spread each segment's axial twist (about its long axis, vs rest) across its
- *  twist bones. Call after pose edits, before render. Cheap; safe to call every
- *  frame. */
+/** Swing-twist: the bone's axial twist (about +Y) of its delta-from-rest, in deg-
+ *  free radians, discarding swing. */
+function twistAngleAboutY(restLocal: THREE.Quaternion, current: THREE.Quaternion): number {
+  _twInv.copy(restLocal).invert();
+  _twDelta.copy(_twInv).multiply(current);
+  _twTwist.set(0, _twDelta.y, 0, _twDelta.w);
+  return signedAngleAboutAxis(_twTwist, LONG_AXIS);
+}
+
+/** Spread each segment's axial twist across its twist bones, grading the mesh from
+ *  0 at the proximal joint to the TOTAL twist (segment + shared distal child, e.g.
+ *  forearm + hand) at the distal end. Call after pose edits, before render. Cheap;
+ *  safe to call every frame. */
 export function applyTwistRig(rig: TwistSegment[]): void {
   for (const ts of rig) {
-    _twInv.copy(ts.restSegmentLocal).invert();
-    _twDelta.copy(_twInv).multiply(ts.segment.quaternion); // segment delta from rest
-    // Swing-twist: isolate the twist ABOUT the long axis (+Y), discarding swing.
-    _twTwist.set(0, _twDelta.y, 0, _twDelta.w);
-    const theta = signedAngleAboutAxis(_twTwist, LONG_AXIS);
-    let prev = 1; // the segment base carries full twist
+    const thetaSeg = twistAngleAboutY(ts.restSegmentLocal, ts.segment.quaternion);
+    let total = thetaSeg;
+    if (ts.distal && ts.restDistalLocal) {
+      total += twistAngleAboutY(ts.restDistalLocal, ts.distal.quaternion);
+    }
+    // Each twist bone's cumulative WORLD twist = fraction × total. The segment base
+    // already carries thetaSeg, so the first increment counters it down toward 0.
+    let prevWorld = thetaSeg;
     for (let i = 0; i < ts.chain.length; i += 1) {
-      const f = TWIST_FRACTIONS[i] ?? 0;
-      _twInc.setFromAxisAngle(LONG_AXIS, (f - prev) * theta);
+      const desiredWorld = (TWIST_FRACTIONS[i] ?? 0) * total;
+      _twInc.setFromAxisAngle(LONG_AXIS, desiredWorld - prevWorld);
       ts.chain[i].quaternion.copy(ts.restChainLocals[i]).multiply(_twInc);
-      prev = f;
+      prevWorld = desiredWorld;
     }
   }
 }
