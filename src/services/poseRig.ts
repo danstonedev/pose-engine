@@ -6,7 +6,7 @@ import {
   type PoseRigHandle,
 } from '../anatomy/bodyVariants';
 import { POSE_SCHEMA_VERSION, type CustomPose } from '../types';
-import type { JointAngleRestReference } from './jointAngles';
+import { localAxisTowardBodyLeft, type JointAngleRestReference } from './jointAngles';
 import { clampBoneToRom } from './poseRomClamp';
 
 /** Optional ROM-clamp metadata threaded through pose manipulators. When
@@ -33,6 +33,50 @@ export function buildBoneByPoseKey(
     map.set(`${sidePrefix}${norm.canonical}`, bone);
   }
   return map;
+}
+
+const _curveDelta = new THREE.Quaternion();
+const _curveShare = new THREE.Quaternion();
+const _curveInv = new THREE.Quaternion();
+
+/** Distribute a control bone's local rotation evenly across a chain of segments
+ *  so the chain bends as one smooth arc instead of kinking at a single joint
+ *  (e.g. a "trunk curve" spreading a bend across lumbar→thoracic spine bones).
+ *  `controlTarget` is the local quaternion a gizmo produced for the control
+ *  segment; its delta-from-rest is split into `1/segments.length` slices and each
+ *  segment is set to (its rest local) × that slice. Assumes the segments share a
+ *  roughly common local frame, which holds for stacked spine/neck bones. */
+export function distributeChainCurve(
+  segments: THREE.Object3D[],
+  restLocals: THREE.Quaternion[],
+  controlIndex: number,
+  controlTarget: THREE.Quaternion,
+): void {
+  if (segments.length === 0 || segments.length !== restLocals.length) return;
+  _curveInv.copy(restLocals[controlIndex]).invert();
+  _curveDelta.copy(_curveInv).multiply(controlTarget); // control's delta-from-rest
+  _curveShare.identity().slerp(_curveDelta, 1 / segments.length);
+  for (let i = 0; i < segments.length; i++) {
+    segments[i].quaternion.copy(restLocals[i]).multiply(_curveShare);
+  }
+}
+
+const _pinParent = new THREE.Quaternion();
+
+/** Re-seat each bone's LOCAL rotation so its WORLD orientation equals the given
+ *  rest world quaternion — keeps distal segments planted while an ancestor moves
+ *  (e.g. the legs stay put during a pelvic tilt that rotates the body root).
+ *  The caller must have refreshed the parents' world matrices first. */
+export function pinBonesToRestWorld(
+  bones: THREE.Object3D[],
+  restWorlds: THREE.Quaternion[],
+): void {
+  for (let i = 0; i < bones.length; i++) {
+    const b = bones[i];
+    if (!b.parent || !restWorlds[i]) continue;
+    b.parent.getWorldQuaternion(_pinParent);
+    b.quaternion.copy(_pinParent.invert()).multiply(restWorlds[i]);
+  }
 }
 
 /** Apply a stored custom pose by writing each entry's local quaternion (and
@@ -389,10 +433,33 @@ const _ikNewWorldQuat = new THREE.Quaternion();
  *  after the per-iteration write. The chain naturally settles on a best-
  *  effort pose when the target is unreachable — clinically accurate, since
  *  a hand that can't reach where you're dragging it shouldn't reach there. */
+const _hingeRest = new THREE.Quaternion();
+const _hingeRestInv = new THREE.Quaternion();
+const _hingeDelta = new THREE.Quaternion();
+const _hingeTwist = new THREE.Quaternion();
+
+/** Constrain a joint's local rotation to a HINGE: keep only the component of its
+ *  delta-from-rest that twists about `axisLocal`, discarding off-axis swing. Used
+ *  in IK so a knee/elbow flexes/extends to compensate rather than picking up
+ *  varus/valgus or axial rotation. (Swing-twist decomposition about the axis.) */
+function constrainLocalToHinge(
+  joint: THREE.Bone,
+  restLocal: THREE.Quaternion,
+  axisLocal: THREE.Vector3,
+): void {
+  _hingeRestInv.copy(restLocal).invert();
+  _hingeDelta.copy(_hingeRestInv).multiply(joint.quaternion); // delta from rest
+  const d = _hingeDelta.x * axisLocal.x + _hingeDelta.y * axisLocal.y + _hingeDelta.z * axisLocal.z;
+  _hingeTwist.set(axisLocal.x * d, axisLocal.y * d, axisLocal.z * d, _hingeDelta.w);
+  if (_hingeTwist.lengthSq() < 1e-8) _hingeTwist.identity();
+  else _hingeTwist.normalize();
+  joint.quaternion.copy(restLocal).multiply(_hingeTwist);
+}
+
 export function solveIKChain(
   ctx: IKChainContext,
   targetWorldPos: THREE.Vector3,
-  clamp?: { rest: JointAngleRestReference | null | undefined },
+  clamp?: { rest: JointAngleRestReference | null | undefined; hinges?: Set<string> },
 ): void {
   const { bones, canonicalKeys } = ctx;
   const effector = bones[0];
@@ -427,6 +494,15 @@ export function solveIKChain(
       }
 
       const canonicalKey = canonicalKeys[i];
+      // Hinge joints (knee/elbow) compensate by flexion only — strip off-axis
+      // swing the free CCD introduced before clamping to ROM.
+      if (clamp?.rest && canonicalKey && clamp.hinges?.has(canonicalKey)) {
+        const restArr = clamp.rest.localQuats[canonicalKey];
+        if (restArr) {
+          _hingeRest.set(restArr[0], restArr[1], restArr[2], restArr[3]);
+          constrainLocalToHinge(joint, _hingeRest, localAxisTowardBodyLeft(clamp.rest.worldQuats[canonicalKey]));
+        }
+      }
       if (clamp?.rest && canonicalKey) {
         clampBoneToRom(joint, canonicalKey, clamp.rest);
       }

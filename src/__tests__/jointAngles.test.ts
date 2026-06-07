@@ -108,7 +108,9 @@ describe('computeJointAngles', () => {
       expect(report.joints.Hips.anteriorTilt).toBeCloseTo(0, 1);
       expect(report.joints.Hips.lateralTilt).toBeCloseTo(0, 1);
       expect(report.joints.Hips.rotation).toBeCloseTo(0, 1);
-      expect(report.joints.Spine_Mid.flexion).toBeCloseTo(0, 1);
+      // Spine_Mid is the trunk-curve control (no standalone readout); the
+      // regional thoracic readout lives on Spine_Upper.
+      expect(report.joints.Spine_Upper.flexion).toBeCloseTo(0, 1);
       expect(report.joints.L_UpperArm.shoulderFlexion).toBeCloseTo(0, 1);
       expect(report.joints.L_UpperArm.shoulderAbduction).toBeCloseTo(0, 1);
       expect(report.joints.R_UpperArm.shoulderFlexion).toBeCloseTo(0, 1);

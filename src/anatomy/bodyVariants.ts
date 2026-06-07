@@ -11,6 +11,7 @@ export type CanonicalBone =
   | 'Head'
   | 'HeadTop'
   | 'Neck'
+  | 'Neck_Lower'
   | 'Shoulder'
   | 'UpperArm'
   | 'Forearm'
@@ -139,8 +140,14 @@ const SHARED_POSE_RIG: PoseRigConfig = {
     // parent-bone chain, but route every other visible handle through IK so
     // the direct-drag "just move the joint" interaction works consistently.
     { canonicalKey: 'Hips', type: 'fk' },
-    { canonicalKey: 'Spine_Mid', type: 'ik-effector', chainParentCount: 1 },
-    { canonicalKey: 'Head', type: 'ik-effector', chainParentCount: 1 },
+    // Regional spine/neck controls: Lumbar (Waist, single bone); Thoracic
+    // (Spine_Upper handle — curves Spine01+Spine02 mid/upper back); Cervical
+    // (Neck handle — curves both neck bones; the head follows as its child, so
+    // no separate Head control). The curve controls distribute via
+    // distributeChainCurve in the host scene.
+    { canonicalKey: 'Spine_Lower', type: 'ik-effector', chainParentCount: 1 },
+    { canonicalKey: 'Spine_Upper', type: 'ik-effector', chainParentCount: 1 },
+    { canonicalKey: 'Neck', type: 'ik-effector', chainParentCount: 1 },
     // Left arm — every visible joint handle participates in the drag-to-pose
     // solve so the yellow dots all respond to the same grab-and-move affordance.
     { canonicalKey: 'L_Shoulder', type: 'ik-effector', chainParentCount: 1 },
@@ -193,7 +200,8 @@ const CC_BONE_NAME_MAP: BoneNameMap = {
   core: {
     Head: ['Head'],
     HeadTop: [],
-    Neck: ['NeckTwist02', 'NeckTwist01'],
+    Neck: ['NeckTwist02'], // upper/mid cervical (the Cervical curve control)
+    Neck_Lower: ['NeckTwist01'], // lower cervical (folded into the Cervical curve)
     Shoulder: ['Clavicle'],
     UpperArm: ['Upperarm'],
     Forearm: ['Forearm'],

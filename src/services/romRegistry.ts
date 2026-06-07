@@ -81,17 +81,29 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     ],
   },
   {
-    canonicalKey: 'Spine_Mid',
-    label: 'Trunk',
+    // Lumbar (Waist rel pelvis). AROM per AAOS / Norkin & White — verify live.
+    canonicalKey: 'Spine_Lower',
+    label: 'Lumbar',
     fields: [
-      field('flexion', 'Flex', 'Flex', 'Ext', { min: -30, max: 80 }, 'sagittal'),
-      field('lateralTilt', 'Lateral', 'Left', 'Right', { min: -35, max: 35 }, 'frontal'),
-      field('rotation', 'Rotate', 'Toward L', 'Toward R', { min: -45, max: 45 }, 'transverse'),
+      field('flexion', 'Flex', 'Flex', 'Ext', { min: -25, max: 60 }, 'sagittal'),
+      field('lateralTilt', 'Lateral', 'Left', 'Right', { min: -25, max: 25 }, 'frontal'),
+      field('rotation', 'Rotate', 'Toward L', 'Toward R', { min: -10, max: 10 }, 'transverse'),
     ],
   },
   {
-    canonicalKey: 'Head',
-    label: 'Head / Neck',
+    // Thoracic region (Spine01+Spine02 combined). AROM per AAOS — verify live.
+    canonicalKey: 'Spine_Upper',
+    label: 'Thoracic',
+    fields: [
+      field('flexion', 'Flex', 'Flex', 'Ext', { min: -25, max: 40 }, 'sagittal'),
+      field('lateralTilt', 'Lateral', 'Left', 'Right', { min: -25, max: 25 }, 'frontal'),
+      field('rotation', 'Rotate', 'Toward L', 'Toward R', { min: -35, max: 35 }, 'transverse'),
+    ],
+  },
+  {
+    // Cervical (whole neck). AROM per AAOS / Norkin & White — verify live.
+    canonicalKey: 'Neck',
+    label: 'Cervical',
     fields: [
       field('flexion', 'Flex', 'Flex', 'Ext', { min: -60, max: 50 }, 'sagittal'),
       field('lateralTilt', 'Lateral', 'Left', 'Right', { min: -45, max: 45 }, 'frontal'),

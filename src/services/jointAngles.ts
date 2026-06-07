@@ -298,7 +298,7 @@ function emptyRestReference(): JointAngleRestReference {
 /** The bone-LOCAL axis (unit) whose rest-world direction is nearest the body's
  *  medio-lateral axis (subject-left +X), oriented to point toward +left. Used to
  *  sign the otherwise-unsigned geometric hinge magnitude (flexion vs extension). */
-function localAxisTowardBodyLeft(
+export function localAxisTowardBodyLeft(
   worldArr: [number, number, number, number] | undefined,
 ): THREE.Vector3 {
   if (!worldArr) return new THREE.Vector3(1, 0, 0);
@@ -476,18 +476,46 @@ export function computeJointAngles(
     };
   }
 
-  // ── Spine / Head (parent-local body-frame Euler delta from rest) ─────
-  for (const [key, latSign] of [['Spine_Mid', -1], ['Head', -1]] as const) {
+  // ── Spine / neck / head (parent-local body-frame Euler delta from rest) ─
+  // Each segment measures relative to its parent (segmental). Signs follow the
+  // verified Spine_Mid/Head convention; the new segments (Lower/Upper/Neck) are
+  // PROVISIONAL — verify live and adjust latSign per segment if needed.
+  for (const [key, latSign] of [
+    ['Spine_Lower', -1],
+    ['Spine_Mid', -1],
+    ['Spine_Upper', -1],
+    ['Neck_Lower', -1],
+    ['Neck', -1],
+    ['Head', -1],
+  ] as const) {
     const bone = lookup.get(key);
     if (!bone) continue;
     deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
     const a = decomposeBodyDelta(delta);
     joints[key] = {
-      flexion: -a.flexion, // + = forward flexion (trunk/neck flip)
-      lateralTilt: a.abduction * latSign, // neck (Head) lateral flipped; trunk stays
-      rotation: -a.rotation, // transverse flip (trunk/neck)
+      flexion: -a.flexion, // + = forward flexion
+      lateralTilt: a.abduction * latSign,
+      rotation: -a.rotation, // transverse flip
     };
   }
+
+  // Regional readouts = sum of each region's two segments, so a single readout
+  // reflects the whole span its one curve control bends. The folded-in segment
+  // then has no standalone row. Thoracic = Spine01+Spine02; Cervical = both neck.
+  const addRegion = (target: string, a: string, b: string) => {
+    const ja = joints[a];
+    const jb = joints[b];
+    if (!ja || !jb) return;
+    joints[target] = {
+      flexion: (ja.flexion ?? 0) + (jb.flexion ?? 0),
+      lateralTilt: (ja.lateralTilt ?? 0) + (jb.lateralTilt ?? 0),
+      rotation: (ja.rotation ?? 0) + (jb.rotation ?? 0),
+    };
+  };
+  addRegion('Spine_Upper', 'Spine_Mid', 'Spine_Upper'); // Thoracic
+  addRegion('Neck', 'Neck_Lower', 'Neck'); // Cervical
+  delete joints['Spine_Mid'];
+  delete joints['Neck_Lower'];
 
   // ── Scapula / shoulder girdle (the 'Shoulder' canonical = clavicle bone) ──
   // Girdle motions from the clavicle's body-frame Euler delta (verified live):
