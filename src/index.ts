@@ -15,6 +15,9 @@ export * from './anatomy/bodyVariants';
 // Pose manipulation: FK/IK solve, serialize, blend
 export * from './services/poseRig';
 
+// Twist-bone distribution (smooth limb twist deformation)
+export * from './services/twistRig';
+
 // Clinical joint-angle measurement (also the canonical JointAngleReport)
 export * from './services/jointAngles';
 
