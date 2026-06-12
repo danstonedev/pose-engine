@@ -1,38 +1,47 @@
 <script lang="ts">
-  /** Standalone harness for the shared clinical mannequin viewer. */
+  /** Standalone harness: the lightweight viewer + the interactive pose-tool editor. */
   import PoseViewer from '../src/PoseViewer.svelte';
+  import PoseLab from './PoseLab.svelte';
 
   type ViewName = 'front' | 'back' | 'left' | 'right';
   const VIEWS: ViewName[] = ['front', 'back', 'left', 'right'];
 
+  let mode = $state<'viewer' | 'editor'>('viewer');
   let variant = $state<'male' | 'female'>('female');
   let view = $state<ViewName>('front');
 </script>
 
 <div class="app">
   <header>
-    <h1>@vspx/pose-engine · PoseViewer</h1>
-    <p>The shared clinical mannequin, standalone. Drag to orbit · scroll to zoom.</p>
+    <h1>@vspx/pose-engine</h1>
+    <p>The shared clinical mannequin + pose toolset, standalone.</p>
   </header>
 
-  <div class="controls">
-    <div class="seg" role="group" aria-label="Body variant">
-      <button class:active={variant === 'female'} onclick={() => (variant = 'female')}>Female</button>
-      <button class:active={variant === 'male'} onclick={() => (variant = 'male')}>Male</button>
-    </div>
-    <div class="seg" role="group" aria-label="Camera view">
-      {#each VIEWS as v (v)}
-        <button class:active={view === v} onclick={() => (view = v)}>{v}</button>
-      {/each}
-    </div>
+  <div class="tabs">
+    <button class:active={mode === 'viewer'} onclick={() => (mode = 'viewer')}>Viewer</button>
+    <button class:active={mode === 'editor'} onclick={() => (mode = 'editor')}>Editor (pose tools)</button>
   </div>
 
-  <PoseViewer {variant} {view} height="32rem" />
-
-  <p class="note">
-    Props: <code>variant={variant}</code> · <code>view={view}</code>. The same component a host
-    drops into a scenario's <code>pose3d</code> slot.
-  </p>
+  {#if mode === 'viewer'}
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Body variant">
+        <button class:active={variant === 'female'} onclick={() => (variant = 'female')}>Female</button>
+        <button class:active={variant === 'male'} onclick={() => (variant = 'male')}>Male</button>
+      </div>
+      <div class="seg" role="group" aria-label="Camera view">
+        {#each VIEWS as v (v)}
+          <button class:active={view === v} onclick={() => (view = v)}>{v}</button>
+        {/each}
+      </div>
+    </div>
+    <PoseViewer {variant} {view} height="32rem" />
+    <p class="note">
+      The lightweight shipped component. Props: <code>variant={variant}</code> ·
+      <code>view={view}</code> — the same one a host drops into a scenario's <code>pose3d</code> slot.
+    </p>
+  {:else}
+    <PoseLab />
+  {/if}
 </div>
 
 <style>
@@ -44,7 +53,7 @@
     box-sizing: border-box;
   }
   .app {
-    max-width: 52rem;
+    max-width: 60rem;
     margin: 0 auto;
     padding: 1.5rem 1.25rem;
     color: rgba(255, 255, 255, 0.9);
@@ -64,6 +73,29 @@
     margin: 0 0 1rem;
     color: rgba(255, 255, 255, 0.6);
     font-size: 0.82rem;
+  }
+  .tabs {
+    display: inline-flex;
+    gap: 0.3rem;
+    margin-bottom: 1rem;
+    padding: 0.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .tabs button {
+    border: 0;
+    border-radius: 6px;
+    padding: 0.34rem 0.8rem;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .tabs button.active {
+    background: #6fcdb8;
+    color: #06231d;
+    font-weight: 700;
   }
   .controls {
     display: flex;

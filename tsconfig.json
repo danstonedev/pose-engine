@@ -12,5 +12,5 @@
     "verbatimModuleSyntax": true,
     "types": ["vitest/globals"]
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte"]
+  "include": ["src/**/*.ts", "src/**/*.svelte", "playground/**/*.svelte"]
 }
