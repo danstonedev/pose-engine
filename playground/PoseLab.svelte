@@ -22,6 +22,7 @@
     clampBoneToRom,
     hasClampStrategy,
     gizmoSpaceForJoint,
+    getRomJointDefinition,
     buildLimbAxisModel,
     ALL_LIMB_IDS,
     buildIKChainContext,
@@ -49,6 +50,15 @@
   let showAxes = $state(false);
   let romOn = $state(true);
   let copied = $state(false);
+
+  /** Clinician-facing joint name from pose-engine's ROM labels (single source of
+   *  truth), with the L/R prefix spelled out; falls back to a prettified key. */
+  function friendlyJoint(key: string): string {
+    const def = getRomJointDefinition(key);
+    const src = def?.label ?? key.replace(/_/g, ' ');
+    return src.replace(/^L /, 'Left ').replace(/^R /, 'Right ');
+  }
+  const selectedLabel = $derived(selectedKey ? friendlyJoint(selectedKey) : null);
 
   // Imperative handles wired after boot.
   let api: {
@@ -527,7 +537,8 @@
 
     <div class="lab__sel">
       <span class="lab__label">Selected joint</span>
-      <strong>{selectedKey ?? '— click a dot —'}</strong>
+      <strong>{selectedLabel ?? '— click a dot —'}</strong>
+      {#if selectedKey}<code class="lab__key">{selectedKey}</code>{/if}
     </div>
 
     {#if selectedAngles}
@@ -661,7 +672,12 @@
   .lab__sel strong {
     display: block;
     margin-top: 0.2rem;
+    color: #fff;
+    font-size: 0.95rem;
+  }
+  .lab__key {
     font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+    font-size: 0.7rem;
     color: #9fe3d6;
   }
   .lab__angles table {
