@@ -30,6 +30,9 @@
     disposeIKChainContext,
     createMannequinRenderer,
     addMannequinLights,
+    configureRingRotateGizmo,
+    PoseRotateRingGizmo,
+    computeDrivingRingMap,
     JointAnglesPanel,
   } from '../src/index';
   import type {
@@ -38,7 +41,18 @@
     JointAngleRestReference,
     JointAngleReport,
     IKChainContext,
+    PoseRingDrag,
+    DrivingRingMap,
+    RomPlane,
   } from '../src/index';
+
+  /** Plane → ring colour (matches body-chart's gizmo): sagittal red, frontal
+   *  blue, transverse green. */
+  const POSE_PLANE_RING_HEX: Record<RomPlane, number> = {
+    sagittal: 0xff3653,
+    frontal: 0x2c8fff,
+    transverse: 0x8adb00,
+  };
 
   let { base = '' }: { base?: string } = $props();
 
@@ -110,12 +124,17 @@
     // FK rotate gizmo (visibility via the helper; `tc.visible` is untyped in r0.183).
     const tc = new TransformControls(camera, renderer.domElement);
     tc.setMode('rotate');
-    tc.size = 0.7;
+    tc.size = 0.675; // MUST match the ring gizmo size
     tc.enabled = false;
     const tcHelper = tc.getHelper();
     tcHelper.visible = false;
+    // Strip TC's X/Y/Z rings — keep only its camera-space 'E' ring; the shared
+    // PoseRotateRingGizmo draws + grabs the X/Y/Z plane rings (full tubes,
+    // swept-angle grab → correct direction regardless of camera facing).
+    configureRingRotateGizmo(tcHelper);
     tcHelper.traverse((o) => (o.renderOrder = 1000));
     scene.add(tcHelper);
+    const ringGizmo = new PoseRotateRingGizmo({ size: 0.675 });
 
     let renderNeeded = true;
     const requestRender = () => (renderNeeded = true);
@@ -146,6 +165,11 @@
     const _dragPlane = new THREE.Plane();
     const _dragTarget = new THREE.Vector3();
     const _camDir = new THREE.Vector3();
+    let ringDrag: PoseRingDrag | null = null;
+    let poseDrivingRings: DrivingRingMap | null = null;
+    const _ringPos = new THREE.Vector3();
+    const _ringQuat = new THREE.Quaternion();
+    const _ringQuat2 = new THREE.Quaternion();
 
     const raycaster = new THREE.Raycaster();
     const _ndc = new THREE.Vector2();
@@ -162,6 +186,37 @@
         return;
       }
       report = computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, restRef);
+    }
+
+    /** Colour each plane ring by the motion it drives (red sagittal / blue
+     *  frontal / green transverse), via the driving-ring map — like body-chart. */
+    function applyPoseRingColors(key: string) {
+      const def = getRomJointDefinition(key);
+      const dr = poseDrivingRings?.[key];
+      if (!def || !dr) {
+        ringGizmo.setRingColors({});
+        return;
+      }
+      const colors: { x?: number; y?: number; z?: number } = {};
+      for (const f of def.fields) {
+        const ring = dr[f.plane]?.ring;
+        if (ring) colors[ring] = POSE_PLANE_RING_HEX[f.plane];
+      }
+      ringGizmo.setRingColors(colors);
+    }
+
+    /** Position the plane rings at the selected joint. frameQuat = identity for
+     *  world-space joints (UpperArm) else the bone's world quat — this is what
+     *  keeps the rotation direction correct regardless of camera facing. */
+    function updateRingGizmo() {
+      if (!selected) {
+        ringGizmo.update(camera, _ringPos, _ringQuat, false);
+        return;
+      }
+      selected.bone.getWorldPosition(_ringPos);
+      if (gizmoSpaceForJoint(selected.key) === 'world') _ringQuat.identity();
+      else selected.bone.getWorldQuaternion(_ringQuat);
+      ringGizmo.update(camera, _ringPos, _ringQuat, true);
     }
 
     function clearHandles() {
@@ -303,6 +358,7 @@
         if (boneMap) for (const [k, b] of boneMap) reverseBoneMap.set(b, k);
         // Capture rest reference AFTER anatomic pose so angles read 0 at rest.
         restRef = sk ? captureJointAngleRestReference(sk.skeleton, cfg) : null;
+        poseDrivingRings = restRef ? computeDrivingRingMap(restRef) : null;
         baselinePose = sk ? serializeCustomPose(sk.skeleton, cfg, cfg.id) : null;
 
         buildHandles(cfg);
@@ -325,6 +381,7 @@
       tc.attach(h.bone);
       tc.enabled = true;
       tcHelper.visible = true;
+      applyPoseRingColors(h.key);
       updateHandles();
       refreshAngles();
       requestRender();
@@ -336,6 +393,7 @@
       tc.detach();
       tc.enabled = false;
       tcHelper.visible = false;
+      ringGizmo.hide();
       controls.enabled = true;
       updateHandles();
       requestRender();
@@ -370,6 +428,25 @@
       if (tcDragging || !handleGroup) return;
       setNdc(e);
       raycaster.setFromCamera(_ndc, camera);
+      // Ring rotate grab has PRIORITY: grab anywhere on a plane ring → swept-angle
+      // rotate that axis (correct direction regardless of front/back facing).
+      if (ringGizmo.visible && selected) {
+        selected.bone.getWorldPosition(_ringPos);
+        if (gizmoSpaceForJoint(selected.key) === 'world') _ringQuat.identity();
+        else selected.bone.getWorldQuaternion(_ringQuat);
+        const drag = ringGizmo.beginDrag(raycaster, {
+          centerWorld: _ringPos,
+          frameQuat: _ringQuat,
+          boneLocalQuat: selected.bone.quaternion,
+          parentWorldQuat: (selected.bone.parent ?? selected.bone).getWorldQuaternion(_ringQuat2),
+        });
+        if (drag) {
+          ringDrag = drag;
+          controls.enabled = false;
+          e.preventDefault();
+          return;
+        }
+      }
       const hit = raycaster.intersectObjects(
         handles.flatMap((h) => [h.mesh, h.hit]),
         false,
@@ -388,6 +465,21 @@
       }
     }
     function onPointerMove(e: PointerEvent) {
+      // Ring rotate drag: spin the joint to follow the cursor sweep.
+      if (ringDrag && selected && modelRoot) {
+        setNdc(e);
+        raycaster.setFromCamera(_ndc, camera);
+        selected.bone.quaternion.copy(ringDrag.update(raycaster));
+        if (restRef && romOn && hasClampStrategy(selected.key)) {
+          clampBoneToRom(selected.bone, selected.key, restRef);
+        }
+        modelRoot.updateMatrixWorld(true);
+        updateHandles();
+        refreshAngles();
+        requestRender();
+        e.preventDefault();
+        return;
+      }
       if (!press || tcDragging || !modelRoot) return;
       if (!press.dragging) {
         if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) < 5) return;
@@ -418,6 +510,12 @@
       requestRender();
     }
     function onPointerUp() {
+      if (ringDrag) {
+        ringDrag = null;
+        controls.enabled = true;
+        refreshAngles();
+        return;
+      }
       if (ikCtx) {
         disposeIKChainContext(ikCtx);
         ikCtx = null;
@@ -443,7 +541,9 @@
       controls.update();
       updateHandles();
       if (!renderNeeded) return;
+      updateRingGizmo();
       renderer.render(scene, camera);
+      ringGizmo.render(renderer, camera);
       renderNeeded = false;
     };
     loop();
@@ -498,6 +598,7 @@
       if (ikCtx) disposeIKChainContext(ikCtx);
       clearHandles();
       clearAxes();
+      ringGizmo.dispose();
       tc.detach();
       tc.dispose();
       controls.dispose();
