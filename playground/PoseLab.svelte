@@ -30,23 +30,23 @@
     disposeIKChainContext,
     createMannequinRenderer,
     addMannequinLights,
+    JointAnglesPanel,
   } from '../src/index';
   import type {
     BodyVariantConfig,
     CustomPose,
     JointAngleRestReference,
+    JointAngleReport,
     IKChainContext,
   } from '../src/index';
 
   let { base = '' }: { base?: string } = $props();
 
-  type AngleRow = { key: string; pos: string; neg: string; value: number };
-
   let container: HTMLDivElement;
   let variant = $state<'male' | 'female'>('female');
   let loading = $state(true);
   let selectedKey = $state<string | null>(null);
-  let selectedRows = $state<AngleRow[] | null>(null);
+  let report = $state<JointAngleReport | null>(null);
   let showAxes = $state(false);
   let romOn = $state(true);
   let copied = $state(false);
@@ -59,6 +59,13 @@
     return src.replace(/^L /, 'Left ').replace(/^R /, 'Right ');
   }
   const selectedLabel = $derived(selectedKey ? friendlyJoint(selectedKey) : null);
+  // The shared JointAnglesPanel shows whatever joints are in the report; narrow
+  // it to the selected joint so the editor's readout stays focused.
+  const selectedReport = $derived<JointAngleReport | null>(
+    report && selectedKey && report.joints[selectedKey]
+      ? { ...report, joints: { [selectedKey]: report.joints[selectedKey] } }
+      : null,
+  );
 
   // Imperative handles wired after boot.
   let api: {
@@ -150,31 +157,11 @@
     let loadToken = 0;
 
     function refreshAngles() {
-      if (!skinned || !variantCfg || !restRef || !selectedKey) {
-        selectedRows = null;
+      if (!skinned || !variantCfg || !restRef) {
+        report = null;
         return;
       }
-      const report = computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, restRef);
-      const angles = report.joints[selectedKey];
-      if (!angles) {
-        selectedRows = null;
-        return;
-      }
-      // Pair each measured angle with its clinician-authored pole labels
-      // (positiveAs / negativeAs) from the ROM registry, in ROM field order.
-      const def = getRomJointDefinition(selectedKey);
-      const rows: AngleRow[] = [];
-      if (def) {
-        for (const f of def.fields) {
-          const v = angles[f.key];
-          if (typeof v === 'number') rows.push({ key: f.key, pos: f.positiveAs, neg: f.negativeAs, value: v });
-        }
-      } else {
-        for (const [k, v] of Object.entries(angles)) {
-          if (typeof v === 'number') rows.push({ key: k, pos: '+', neg: '−', value: v });
-        }
-      }
-      selectedRows = rows;
+      report = computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, restRef);
     }
 
     function clearHandles() {
@@ -346,7 +333,6 @@
     function deselect() {
       selected = null;
       selectedKey = null;
-      selectedRows = null;
       tc.detach();
       tc.enabled = false;
       tcHelper.visible = false;
@@ -563,27 +549,8 @@
       {#if selectedKey}<code class="lab__key">{selectedKey}</code>{/if}
     </div>
 
-    {#if selectedRows && selectedRows.length}
-      <div class="lab__angles">
-        <span class="lab__label">Joint angles (live)</span>
-        <table>
-          <tbody>
-            {#each selectedRows as r (r.key)}
-              {@const a = Math.abs(r.value)}
-              <tr>
-                <td class="lab__pole">{r.pos} / {r.neg}</td>
-                <td>
-                  {#if a < 0.5}
-                    Neutral
-                  {:else}
-                    {a.toFixed(1)}° <span class="lab__dir">{r.value >= 0 ? r.pos : r.neg}</span>
-                  {/if}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+    {#if selectedReport}
+      <JointAnglesPanel report={selectedReport} title="Joint angles (live)" />
     {/if}
 
     <details class="lab__caps">
@@ -711,27 +678,6 @@
     font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
     font-size: 0.7rem;
     color: #9fe3d6;
-  }
-  .lab__angles table {
-    width: 100%;
-    border-collapse: collapse;
-    font-variant-numeric: tabular-nums;
-  }
-  .lab__angles td {
-    padding: 0.15rem 0.2rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  }
-  .lab__angles td:last-child {
-    text-align: right;
-    color: #fff;
-  }
-  .lab__pole {
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 0.72rem;
-  }
-  .lab__dir {
-    color: #9fe3d6;
-    font-weight: 600;
   }
   .lab__caps {
     font-size: 0.72rem;

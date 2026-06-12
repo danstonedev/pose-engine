@@ -73,3 +73,7 @@ export {
 // export). Consumers that just want the pose math can ignore it; it lazy-loads
 // three on mount, so importing the barrel stays SSR/prerender-safe.
 export { default as PoseViewer } from './PoseViewer.svelte';
+
+// Optional Svelte panel — the canonical clinical joint-angle readout (direction
+// labels + ROM limit bars + status), so every host shows identical angles.
+export { default as JointAnglesPanel } from './JointAnglesPanel.svelte';
