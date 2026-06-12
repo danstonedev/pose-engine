@@ -40,13 +40,13 @@
 
   let { base = '' }: { base?: string } = $props();
 
-  type AngleSet = Record<string, number>;
+  type AngleRow = { key: string; pos: string; neg: string; value: number };
 
   let container: HTMLDivElement;
   let variant = $state<'male' | 'female'>('female');
   let loading = $state(true);
   let selectedKey = $state<string | null>(null);
-  let selectedAngles = $state<AngleSet | null>(null);
+  let selectedRows = $state<AngleRow[] | null>(null);
   let showAxes = $state(false);
   let romOn = $state(true);
   let copied = $state(false);
@@ -150,9 +150,31 @@
     let loadToken = 0;
 
     function refreshAngles() {
-      if (!skinned || !variantCfg || !restRef) return;
+      if (!skinned || !variantCfg || !restRef || !selectedKey) {
+        selectedRows = null;
+        return;
+      }
       const report = computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, restRef);
-      selectedAngles = selectedKey ? (report.joints[selectedKey] ?? null) : null;
+      const angles = report.joints[selectedKey];
+      if (!angles) {
+        selectedRows = null;
+        return;
+      }
+      // Pair each measured angle with its clinician-authored pole labels
+      // (positiveAs / negativeAs) from the ROM registry, in ROM field order.
+      const def = getRomJointDefinition(selectedKey);
+      const rows: AngleRow[] = [];
+      if (def) {
+        for (const f of def.fields) {
+          const v = angles[f.key];
+          if (typeof v === 'number') rows.push({ key: f.key, pos: f.positiveAs, neg: f.negativeAs, value: v });
+        }
+      } else {
+        for (const [k, v] of Object.entries(angles)) {
+          if (typeof v === 'number') rows.push({ key: k, pos: '+', neg: '−', value: v });
+        }
+      }
+      selectedRows = rows;
     }
 
     function clearHandles() {
@@ -324,7 +346,7 @@
     function deselect() {
       selected = null;
       selectedKey = null;
-      selectedAngles = null;
+      selectedRows = null;
       tc.detach();
       tc.enabled = false;
       tcHelper.visible = false;
@@ -541,13 +563,23 @@
       {#if selectedKey}<code class="lab__key">{selectedKey}</code>{/if}
     </div>
 
-    {#if selectedAngles}
+    {#if selectedRows && selectedRows.length}
       <div class="lab__angles">
         <span class="lab__label">Joint angles (live)</span>
         <table>
           <tbody>
-            {#each Object.entries(selectedAngles) as [name, deg] (name)}
-              <tr><td>{name}</td><td>{deg.toFixed(1)}°</td></tr>
+            {#each selectedRows as r (r.key)}
+              {@const a = Math.abs(r.value)}
+              <tr>
+                <td class="lab__pole">{r.pos} / {r.neg}</td>
+                <td>
+                  {#if a < 0.5}
+                    Neutral
+                  {:else}
+                    {a.toFixed(1)}° <span class="lab__dir">{r.value >= 0 ? r.pos : r.neg}</span>
+                  {/if}
+                </td>
+              </tr>
             {/each}
           </tbody>
         </table>
@@ -692,6 +724,14 @@
   .lab__angles td:last-child {
     text-align: right;
     color: #fff;
+  }
+  .lab__pole {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.72rem;
+  }
+  .lab__dir {
+    color: #9fe3d6;
+    font-weight: 600;
   }
   .lab__caps {
     font-size: 0.72rem;
