@@ -3,7 +3,8 @@
  *
  * Pure THREE.js pose math + rig config, extracted from the body-chart app so
  * body-chart and the aquatic-therapy simulator consume ONE source of truth.
- * No Svelte, no pain-map/EMR dependencies.
+ * No pain-map/EMR dependencies. The math surface is framework-free; the only
+ * Svelte export is the optional {@link PoseViewer} clinical-mannequin component.
  *
  * Public surface = everything the consuming apps import. Internal helpers are
  * re-exported too (harmless) so consumers can reach the full math if needed.
@@ -67,3 +68,8 @@ export {
   type PainBodyVector3,
   type MovementClipId,
 } from './types';
+
+// Optional Svelte viewer — the shared clinical mannequin (the only non-pure-TS
+// export). Consumers that just want the pose math can ignore it; it lazy-loads
+// three on mount, so importing the barrel stays SSR/prerender-safe.
+export { default as PoseViewer } from './PoseViewer.svelte';
