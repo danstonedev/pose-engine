@@ -75,6 +75,9 @@
       controls.addEventListener('change', requestRender);
 
       const _box = new THREE.Box3();
+      const _sphere = new THREE.Sphere();
+      const modelCenter = new THREE.Vector3();
+      let modelRadius = 1;
       let modelRoot: import('three').Object3D | null = null;
       let loadToken = 0;
 
@@ -109,8 +112,14 @@
           _box.setFromObject(root);
           root.position.y -= _box.min.y; // ground the feet at y = 0
           root.updateMatrixWorld(true);
+          // Capture the grounded bounds so the camera can frame head-to-toe.
+          _box.setFromObject(root);
+          _box.getBoundingSphere(_sphere);
+          modelCenter.copy(_sphere.center);
+          modelRadius = _sphere.radius;
           modelRoot = root;
           loading = false;
+          setView(view); // frame the freshly-loaded model
           requestRender();
         } catch (err) {
           if (disposed) return;
@@ -121,10 +130,19 @@
       }
 
       function setView(v: ViewName) {
-        const isMobile = window.matchMedia('(max-width: 45rem)').matches;
-        const sp = resolveCameraViewSetpoint(v, isMobile);
-        camera.position.set(sp.position[0], sp.position[1], sp.position[2]);
-        controls.target.set(sp.target[0], sp.target[1], sp.target[2]);
+        // Use the preset only for the viewing DIRECTION; compute the distance +
+        // target from the model's bounds so the whole body fits, head to toe,
+        // regardless of variant, view, or container aspect.
+        const sp = resolveCameraViewSetpoint(v, false);
+        const dir = new THREE.Vector3(
+          sp.position[0] - sp.target[0],
+          sp.position[1] - sp.target[1],
+          sp.position[2] - sp.target[2],
+        ).normalize();
+        const fov = (camera.fov * Math.PI) / 180;
+        const dist = (modelRadius / Math.sin(fov / 2)) * 1.1; // +10% padding
+        controls.target.copy(modelCenter);
+        camera.position.copy(modelCenter).addScaledVector(dir, dist);
         controls.update();
         requestRender();
       }
@@ -152,7 +170,6 @@
       ro.observe(container);
       resize();
 
-      setView(view);
       await loadVariant(variant);
 
       setViewFn = setView;
