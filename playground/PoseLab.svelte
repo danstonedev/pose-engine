@@ -24,10 +24,18 @@
     gizmoSpaceForJoint,
     buildLimbAxisModel,
     ALL_LIMB_IDS,
+    buildIKChainContext,
+    solveIKChain,
+    disposeIKChainContext,
     createMannequinRenderer,
     addMannequinLights,
   } from '../src/index';
-  import type { BodyVariantConfig, CustomPose, JointAngleRestReference } from '../src/index';
+  import type {
+    BodyVariantConfig,
+    CustomPose,
+    JointAngleRestReference,
+    IKChainContext,
+  } from '../src/index';
 
   let { base = '' }: { base?: string } = $props();
 
@@ -103,11 +111,24 @@
     let restRef: JointAngleRestReference | null = null;
     let baselinePose: CustomPose | null = null;
 
-    type Handle = { key: string; bone: THREE.Bone; mesh: THREE.Mesh; hit: THREE.Mesh };
+    type Handle = {
+      key: string;
+      bone: THREE.Bone;
+      mesh: THREE.Mesh;
+      hit: THREE.Mesh;
+      type: 'fk' | 'ik-effector';
+      chain: number;
+    };
     let handles: Handle[] = [];
     let handleGroup: THREE.Group | null = null;
     let selected: Handle | null = null;
     let axesGroup: THREE.Group | null = null;
+    let reverseBoneMap: Map<THREE.Object3D, string> | null = null;
+    let press: { handle: Handle; startX: number; startY: number; dragging: boolean } | null = null;
+    let ikCtx: IKChainContext | null = null;
+    const _dragPlane = new THREE.Plane();
+    const _dragTarget = new THREE.Vector3();
+    const _camDir = new THREE.Vector3();
 
     const raycaster = new THREE.Raycaster();
     const _ndc = new THREE.Vector2();
@@ -150,7 +171,14 @@
         const hit = new THREE.Mesh(hitGeo, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
         mesh.add(hit);
         handleGroup.add(mesh);
-        handles.push({ key: h.canonicalKey, bone, mesh, hit });
+        handles.push({
+          key: h.canonicalKey,
+          bone,
+          mesh,
+          hit,
+          type: h.type,
+          chain: h.chainParentCount ?? 1,
+        });
       }
       scene.add(handleGroup);
     }
@@ -252,6 +280,8 @@
         skinned = sk;
         variantCfg = cfg;
         boneMap = sk ? buildBoneByPoseKey(sk.skeleton, cfg) : null;
+        reverseBoneMap = new Map();
+        if (boneMap) for (const [k, b] of boneMap) reverseBoneMap.set(b, k);
         // Capture rest reference AFTER anatomic pose so angles read 0 at rest.
         restRef = sk ? captureJointAngleRestReference(sk.skeleton, cfg) : null;
         baselinePose = sk ? serializeCustomPose(sk.skeleton, cfg, cfg.id) : null;
@@ -328,9 +358,60 @@
       )[0];
       if (!hit) return;
       const h = handles.find((x) => x.mesh === hit.object || x.hit === hit.object);
-      if (h) selectHandle(h);
+      if (!h) return;
+      selectHandle(h);
+      // Arm an IK drag for effector joints — grab the dot and drag it to move it.
+      if (h.type === 'ik-effector') {
+        h.bone.getWorldPosition(_v);
+        camera.getWorldDirection(_camDir);
+        _dragPlane.setFromNormalAndCoplanarPoint(_camDir, _v);
+        press = { handle: h, startX: e.clientX, startY: e.clientY, dragging: false };
+        controls.enabled = false;
+      }
+    }
+    function onPointerMove(e: PointerEvent) {
+      if (!press || tcDragging || !modelRoot) return;
+      if (!press.dragging) {
+        if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) < 5) return;
+        press.dragging = true;
+      }
+      setNdc(e);
+      raycaster.setFromCamera(_ndc, camera);
+      if (!raycaster.ray.intersectPlane(_dragPlane, _dragTarget)) return;
+      if (!ikCtx && skinned && variantCfg) {
+        ikCtx = buildIKChainContext(skinned, press.handle.bone, press.handle.chain, variantCfg);
+      }
+      if (!ikCtx) return;
+      solveIKChain(ikCtx, _dragTarget);
+      // ROM-clamp the solved chain (effector bone up through its parents).
+      if (restRef && romOn && reverseBoneMap) {
+        let b: THREE.Object3D | null = press.handle.bone;
+        for (let i = 0; i <= press.handle.chain && b; i++) {
+          const key = reverseBoneMap.get(b);
+          if (key && hasClampStrategy(key)) clampBoneToRom(b as THREE.Bone, key, restRef);
+          const parent: THREE.Object3D | null = b.parent;
+          if (!parent || !(parent as THREE.Bone).isBone) break;
+          b = parent;
+        }
+      }
+      modelRoot.updateMatrixWorld(true);
+      updateHandles();
+      refreshAngles();
+      requestRender();
+    }
+    function onPointerUp() {
+      if (ikCtx) {
+        disposeIKChainContext(ikCtx);
+        ikCtx = null;
+      }
+      if (press) {
+        press = null;
+        controls.enabled = true;
+      }
     }
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
 
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') deselect();
@@ -393,7 +474,10 @@
       ro.disconnect();
       controls.removeEventListener('change', requestRender);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('keydown', onKey);
+      if (ikCtx) disposeIKChainContext(ikCtx);
       clearHandles();
       clearAxes();
       tc.detach();
@@ -417,7 +501,9 @@
   <div class="lab__stage">
     <div class="lab__canvas" bind:this={container}></div>
     {#if loading}<div class="lab__loading">Loading…</div>{/if}
-    <div class="lab__hint">Click a joint dot · rotate with the gizmo · Esc to deselect</div>
+    <div class="lab__hint">
+      Click a joint dot · drag it to pose (IK) · rotate with the gizmo · Esc to deselect
+    </div>
   </div>
 
   <aside class="lab__panel">
@@ -464,11 +550,11 @@
         <li>ROM clamping (clampBoneToRom)</li>
         <li>Clinical joint angles (computeJointAngles)</li>
         <li>Limb-axis model overlay (buildLimbAxisModel)</li>
+        <li>IK drag-to-pose (buildIKChainContext + solveIKChain)</li>
         <li>Pose serialize (serializeCustomPose) + reset</li>
       </ul>
       <p class="lab__note">
-        Also in pose-engine, not yet wired here: IK drag (solveIKChain), the rotate-ring gizmo,
-        movement clips, twist rig.
+        Also in pose-engine, not yet wired here: the rotate-ring gizmo, movement clips, twist rig.
       </p>
     </details>
   </aside>
