@@ -32,11 +32,13 @@
     addMannequinLights,
     configureRingRotateGizmo,
     PoseRotateRingGizmo,
+    PoseClickDeselect,
     computeDrivingRingMap,
     buildTwistRig,
     applyTwistRig,
     distributeChainCurve,
     pinBonesToRestWorld,
+    blendCustomPoseWithBaseline,
     JointAnglesPanel,
   } from '../src/index';
   import type {
@@ -78,6 +80,7 @@
   let showAxes = $state(false);
   let romOn = $state(true);
   let twistOn = $state(true);
+  let playing = $state(false);
   let copied = $state(false);
 
   /** Clinician-facing joint name from pose-engine's ROM labels (single source of
@@ -103,6 +106,7 @@
     setAxes: (on: boolean) => void;
     load: (v: string) => void;
     render: () => void;
+    playPose: () => void;
   } | null = null;
 
   const LIMB_COLORS: Record<string, number> = {
@@ -193,6 +197,7 @@
 
     const raycaster = new THREE.Raycaster();
     const _ndc = new THREE.Vector2();
+    const clickDeselect = new PoseClickDeselect(5); // click-off-to-deselect vs drag/orbit
     const _v = new THREE.Vector3();
     const _box = new THREE.Box3();
     const _sphere = new THREE.Sphere();
@@ -313,6 +318,44 @@
       }
       _plantFootBones.length = 0;
       _plantFootQuats.length = 0;
+    }
+
+    // ── Pose-motion preview (baseline ↔ current pose, smoothstep triangle) ──
+    let playRaf = 0;
+    let playPosed: CustomPose | null = null;
+    const PLAY_DUR = 700;
+    function stopPlay() {
+      cancelAnimationFrame(playRaf);
+      playing = false;
+      if (playPosed && skinned && variantCfg) {
+        applyCustomPose(skinned.skeleton, variantCfg, playPosed);
+        modelRoot?.updateMatrixWorld(true);
+        requestRender();
+      }
+      playPosed = null;
+    }
+    function playPose() {
+      if (playing) {
+        stopPlay();
+        return;
+      }
+      if (!skinned || !variantCfg || !baselinePose) return;
+      playPosed = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
+      playing = true;
+      const start = performance.now();
+      const tick = () => {
+        const phase = ((performance.now() - start) % (2 * PLAY_DUR)) / PLAY_DUR; // 0..2
+        const tri = phase <= 1 ? phase : 2 - phase; // 0..1..0
+        const eased = tri * tri * (3 - 2 * tri); // smoothstep
+        const blended = blendCustomPoseWithBaseline(baselinePose, playPosed, baselinePose, eased);
+        if (blended && skinned && variantCfg) {
+          applyCustomPose(skinned.skeleton, variantCfg, blended);
+          modelRoot?.updateMatrixWorld(true);
+          requestRender();
+        }
+        playRaf = requestAnimationFrame(tick);
+      };
+      tick();
     }
 
     function clearHandles() {
@@ -472,6 +515,7 @@
     }
 
     function selectHandle(h: Handle) {
+      clickDeselect.cancel();
       selected = h;
       selectedKey = h.key;
       const space = gizmoSpaceForJoint(h.key);
@@ -550,7 +594,11 @@
         handles.flatMap((h) => [h.mesh, h.hit]),
         false,
       )[0];
-      if (!hit) return;
+      if (!hit) {
+        // Empty click: arm a deselect (a drag/orbit past threshold cancels it).
+        if (selected) clickDeselect.arm(e.pointerId, e.clientX, e.clientY);
+        return;
+      }
       const h = handles.find((x) => x.mesh === hit.object || x.hit === hit.object);
       if (!h) return;
       selectHandle(h);
@@ -564,6 +612,7 @@
       }
     }
     function onPointerMove(e: PointerEvent) {
+      clickDeselect.handleMove(e.pointerId, e.clientX, e.clientY);
       // Ring rotate drag: spin the joint to follow the cursor sweep.
       if (ringDrag && selected && modelRoot) {
         setNdc(e);
@@ -620,7 +669,7 @@
       refreshAngles();
       requestRender();
     }
-    function onPointerUp() {
+    function onPointerUp(e: PointerEvent) {
       if (ringDrag) {
         ringDrag = null;
         releasePelvisPlant();
@@ -636,6 +685,8 @@
         press = null;
         controls.enabled = true;
       }
+      // Clean click-off (no drag past threshold) → deselect.
+      if (clickDeselect.shouldDeselect(e.pointerId)) deselect();
     }
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
@@ -700,11 +751,13 @@
       },
       load: (v) => void load(v),
       render: () => requestRender(),
+      playPose: () => playPose(),
     };
 
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(playRaf);
       ro.disconnect();
       controls.removeEventListener('change', requestRender);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
@@ -763,6 +816,7 @@
 
     <div class="lab__row lab__btns">
       <button onclick={() => api?.reset()}>Reset to anatomic</button>
+      <button onclick={() => api?.playPose()}>{playing ? 'Stop ■' : 'Play pose ▶'}</button>
       <button onclick={() => api?.copyPose()}>{copied ? 'Copied ✓' : 'Copy pose JSON'}</button>
     </div>
 
