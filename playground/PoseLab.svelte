@@ -33,6 +33,10 @@
     configureRingRotateGizmo,
     PoseRotateRingGizmo,
     computeDrivingRingMap,
+    buildTwistRig,
+    applyTwistRig,
+    distributeChainCurve,
+    pinBonesToRestWorld,
     JointAnglesPanel,
   } from '../src/index';
   import type {
@@ -44,7 +48,17 @@
     PoseRingDrag,
     DrivingRingMap,
     RomPlane,
+    TwistSegment,
   } from '../src/index';
+
+  /** Region curve handles distribute their bend across a 2-bone chain (smooth
+   *  arc, not a kink at one joint) — Thoracic (Spine) + Cervical (Neck). */
+  const POSE_CURVE_CHAINS: Record<string, { keys: string[]; control: number }> = {
+    Spine_Upper: { keys: ['Spine_Mid', 'Spine_Upper'], control: 1 },
+    Neck: { keys: ['Neck_Lower', 'Neck'], control: 1 },
+  };
+  /** Knees stay hinge-locked while the feet are pinned during a pelvis tilt. */
+  const POSE_PLANT_HINGES = new Set(['L_Leg', 'R_Leg']);
 
   /** Plane → ring colour (matches body-chart's gizmo): sagittal red, frontal
    *  blue, transverse green. */
@@ -63,6 +77,7 @@
   let report = $state<JointAngleReport | null>(null);
   let showAxes = $state(false);
   let romOn = $state(true);
+  let twistOn = $state(true);
   let copied = $state(false);
 
   /** Clinician-facing joint name from pose-engine's ROM labels (single source of
@@ -86,8 +101,8 @@
     reset: () => void;
     copyPose: () => void;
     setAxes: (on: boolean) => void;
-    setRom: (on: boolean) => void;
     load: (v: string) => void;
+    render: () => void;
   } | null = null;
 
   const LIMB_COLORS: Record<string, number> = {
@@ -170,6 +185,11 @@
     const _ringPos = new THREE.Vector3();
     const _ringQuat = new THREE.Quaternion();
     const _ringQuat2 = new THREE.Quaternion();
+    let twistRig: TwistSegment[] = [];
+    let fingerCurls: Map<string, { bones: THREE.Object3D[]; rest: THREE.Quaternion[] }> | null = null;
+    let pelvisPlant: { ctx: IKChainContext; pos: THREE.Vector3 }[] | null = null;
+    const _plantFootBones: THREE.Object3D[] = [];
+    const _plantFootQuats: THREE.Quaternion[] = [];
 
     const raycaster = new THREE.Raycaster();
     const _ndc = new THREE.Vector2();
@@ -217,6 +237,82 @@
       if (gizmoSpaceForJoint(selected.key) === 'world') _ringQuat.identity();
       else selected.bone.getWorldQuaternion(_ringQuat);
       ringGizmo.update(camera, _ringPos, _ringQuat, true);
+    }
+
+    /** Capture each finger's MCP→PIP→DIP chain + rest rotations (post-anatomic). */
+    function buildFingerCurls() {
+      fingerCurls = new Map();
+      for (const h of handles) {
+        if (!/(Thumb1|Index1|Mid1|Ring1|Pinky1)$/.test(h.key)) continue;
+        const bones: THREE.Object3D[] = [h.bone];
+        let node: THREE.Object3D = h.bone;
+        for (let i = 0; i < 2; i++) {
+          const next = node.children.find((c) => (c as THREE.Bone).isBone);
+          if (!next) break;
+          bones.push(next);
+          node = next;
+        }
+        fingerCurls.set(h.key, {
+          bones,
+          rest: bones.map((b) => (b as THREE.Bone).quaternion.clone()),
+        });
+      }
+    }
+
+    /** Region curve handles (spine/neck): spread the bend across a 2-bone chain. */
+    function applyPoseCurveChain(key: string, target: THREE.Quaternion): boolean {
+      const chain = POSE_CURVE_CHAINS[key];
+      if (!chain || !boneMap || !restRef) return false;
+      const segs: THREE.Object3D[] = [];
+      const rests: THREE.Quaternion[] = [];
+      for (const k of chain.keys) {
+        const b = boneMap.get(k);
+        const rl = restRef.localQuats[k];
+        if (!b || !rl) return false;
+        segs.push(b);
+        rests.push(new THREE.Quaternion(rl[0], rl[1], rl[2], rl[3]));
+      }
+      distributeChainCurve(segs, rests, chain.control, target);
+      return true;
+    }
+
+    /** On a Hips grab: snapshot each foot's world transform + an IK chain. */
+    function capturePelvisPlant() {
+      releasePelvisPlant();
+      if (!skinned || !variantCfg || !boneMap) return;
+      const plant: { ctx: IKChainContext; pos: THREE.Vector3 }[] = [];
+      for (const k of ['L_Foot', 'R_Foot']) {
+        const foot = boneMap.get(k);
+        if (!foot) continue;
+        const ctx = buildIKChainContext(skinned, foot, 2, variantCfg);
+        if (!ctx) continue;
+        const pos = new THREE.Vector3();
+        foot.getWorldPosition(pos);
+        const quat = new THREE.Quaternion();
+        foot.getWorldQuaternion(quat);
+        plant.push({ ctx, pos });
+        _plantFootBones.push(foot);
+        _plantFootQuats.push(quat);
+      }
+      pelvisPlant = plant.length ? plant : null;
+    }
+
+    /** Per-frame during a Hips tilt: re-solve the legs to keep feet planted. */
+    function applyPelvisPlant() {
+      if (!pelvisPlant) return;
+      for (const leg of pelvisPlant) {
+        solveIKChain(leg.ctx, leg.pos, { rest: restRef, hinges: POSE_PLANT_HINGES });
+      }
+      pinBonesToRestWorld(_plantFootBones, _plantFootQuats);
+    }
+
+    function releasePelvisPlant() {
+      if (pelvisPlant) {
+        for (const leg of pelvisPlant) disposeIKChainContext(leg.ctx);
+        pelvisPlant = null;
+      }
+      _plantFootBones.length = 0;
+      _plantFootQuats.length = 0;
     }
 
     function clearHandles() {
@@ -359,9 +455,11 @@
         // Capture rest reference AFTER anatomic pose so angles read 0 at rest.
         restRef = sk ? captureJointAngleRestReference(sk.skeleton, cfg) : null;
         poseDrivingRings = restRef ? computeDrivingRingMap(restRef) : null;
+        twistRig = sk ? buildTwistRig(sk.skeleton, cfg) : [];
         baselinePose = sk ? serializeCustomPose(sk.skeleton, cfg, cfg.id) : null;
 
         buildHandles(cfg);
+        buildFingerCurls();
         if (showAxes) buildAxes();
         frame();
         loading = false;
@@ -442,6 +540,7 @@
         });
         if (drag) {
           ringDrag = drag;
+          if (selected.key === 'Hips') capturePelvisPlant();
           controls.enabled = false;
           e.preventDefault();
           return;
@@ -469,9 +568,21 @@
       if (ringDrag && selected && modelRoot) {
         setNdc(e);
         raycaster.setFromCamera(_ndc, camera);
-        selected.bone.quaternion.copy(ringDrag.update(raycaster));
-        if (restRef && romOn && hasClampStrategy(selected.key)) {
-          clampBoneToRom(selected.bone, selected.key, restRef);
+        const target = ringDrag.update(raycaster);
+        const fc = fingerCurls?.get(selected.key);
+        if (applyPoseCurveChain(selected.key, target)) {
+          // region curve (spine/neck) distributed the bend across its chain
+        } else if (fc) {
+          distributeChainCurve(fc.bones, fc.rest, 0, target); // finger curl
+        } else if (selected.key === 'Hips') {
+          selected.bone.quaternion.copy(target);
+          modelRoot.updateMatrixWorld(true);
+          applyPelvisPlant(); // keep feet planted while tilting the pelvis
+        } else {
+          selected.bone.quaternion.copy(target);
+          if (restRef && romOn && hasClampStrategy(selected.key)) {
+            clampBoneToRom(selected.bone, selected.key, restRef);
+          }
         }
         modelRoot.updateMatrixWorld(true);
         updateHandles();
@@ -512,6 +623,7 @@
     function onPointerUp() {
       if (ringDrag) {
         ringDrag = null;
+        releasePelvisPlant();
         controls.enabled = true;
         refreshAngles();
         return;
@@ -541,6 +653,10 @@
       controls.update();
       updateHandles();
       if (!renderNeeded) return;
+      if (twistOn && twistRig.length) {
+        applyTwistRig(twistRig); // smooth forearm/shin twist distribution
+        modelRoot?.updateMatrixWorld(true);
+      }
       updateRingGizmo();
       renderer.render(scene, camera);
       ringGizmo.render(renderer, camera);
@@ -582,8 +698,8 @@
         else clearAxes();
         requestRender();
       },
-      setRom: () => {},
       load: (v) => void load(v),
+      render: () => requestRender(),
     };
 
     return () => {
@@ -596,6 +712,7 @@
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('keydown', onKey);
       if (ikCtx) disposeIKChainContext(ikCtx);
+      releasePelvisPlant();
       clearHandles();
       clearAxes();
       ringGizmo.dispose();
@@ -613,6 +730,10 @@
   });
   $effect(() => {
     api?.setAxes(showAxes);
+  });
+  $effect(() => {
+    void twistOn;
+    api?.render();
   });
 </script>
 
@@ -637,6 +758,7 @@
     <div class="lab__row">
       <label class="lab__check"><input type="checkbox" bind:checked={showAxes} /> Limb-axis overlay</label>
       <label class="lab__check"><input type="checkbox" bind:checked={romOn} /> ROM clamp</label>
+      <label class="lab__check"><input type="checkbox" bind:checked={twistOn} /> Twist rig</label>
     </div>
 
     <div class="lab__row lab__btns">
