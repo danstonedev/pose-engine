@@ -39,6 +39,8 @@
     distributeChainCurve,
     pinBonesToRestWorld,
     blendCustomPoseWithBaseline,
+    buildOrbitTweenForWorldTarget,
+    evaluateOrbitTween,
     JointAnglesPanel,
   } from '../src/index';
   import type {
@@ -107,6 +109,7 @@
     load: (v: string) => void;
     render: () => void;
     playPose: () => void;
+    focus: () => void;
   } | null = null;
 
   const LIMB_COLORS: Record<string, number> = {
@@ -354,6 +357,31 @@
           requestRender();
         }
         playRaf = requestAnimationFrame(tick);
+      };
+      tick();
+    }
+
+    // ── Orbit-to-mark: smoothly swing the camera to face the selected joint ──
+    let orbitRaf = 0;
+    function focusSelected() {
+      if (!selected) return;
+      selected.bone.getWorldPosition(_v);
+      const tween = buildOrbitTweenForWorldTarget({
+        cameraPosition: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        controlsTarget: controls.target,
+        worldTarget: { x: _v.x, y: _v.y, z: _v.z },
+        startedAt: performance.now(),
+      });
+      if (!tween) return;
+      cancelAnimationFrame(orbitRaf);
+      const ease = (t: number) => t * t * (3 - 2 * t);
+      const tick = () => {
+        const step = evaluateOrbitTween(tween, performance.now(), ease);
+        camera.position.copy(step.position);
+        controls.target.copy(step.target);
+        controls.update();
+        requestRender();
+        if (!step.done) orbitRaf = requestAnimationFrame(tick);
       };
       tick();
     }
@@ -752,12 +780,14 @@
       load: (v) => void load(v),
       render: () => requestRender(),
       playPose: () => playPose(),
+      focus: () => focusSelected(),
     };
 
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
       cancelAnimationFrame(playRaf);
+      cancelAnimationFrame(orbitRaf);
       ro.disconnect();
       controls.removeEventListener('change', requestRender);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
@@ -823,7 +853,10 @@
     <div class="lab__sel">
       <span class="lab__label">Selected joint</span>
       <strong>{selectedLabel ?? '— click a dot —'}</strong>
-      {#if selectedKey}<code class="lab__key">{selectedKey}</code>{/if}
+      {#if selectedKey}
+        <code class="lab__key">{selectedKey}</code>
+        <button class="lab__focus" onclick={() => api?.focus()}>Focus camera</button>
+      {/if}
     </div>
 
     {#if selectedReport}
@@ -955,6 +988,17 @@
     font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
     font-size: 0.7rem;
     color: #9fe3d6;
+  }
+  .lab__focus {
+    display: inline-block;
+    margin-top: 0.4rem;
+    padding: 0.28rem 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.7rem;
+    cursor: pointer;
   }
   .lab__caps {
     font-size: 0.72rem;
