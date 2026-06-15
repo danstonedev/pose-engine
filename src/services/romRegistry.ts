@@ -153,7 +153,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('elbowFlexion', 'Flex', 'Flex', 'Ext', { min: 0, max: 150 }, 'sagittal', {
         warningMarginDeg: 8,
       }),
-      field('forearmRotation', 'Pro/Sup', 'Sup', 'Pro', { min: -80, max: 80 }, 'transverse'),
+      field('forearmRotation', 'Pro/Sup', 'Sup', 'Pro', { min: -90, max: 90 }, 'transverse'),
       field('elbowDeviation', 'Var/Valg', 'Valg', 'Var', { min: -5, max: 15 }, 'frontal'),
     ],
   },
@@ -164,7 +164,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('elbowFlexion', 'Flex', 'Flex', 'Ext', { min: 0, max: 150 }, 'sagittal', {
         warningMarginDeg: 8,
       }),
-      field('forearmRotation', 'Pro/Sup', 'Sup', 'Pro', { min: -80, max: 80 }, 'transverse'),
+      field('forearmRotation', 'Pro/Sup', 'Sup', 'Pro', { min: -90, max: 90 }, 'transverse'),
       field('elbowDeviation', 'Var/Valg', 'Valg', 'Var', { min: -5, max: 15 }, 'frontal'),
     ],
   },
@@ -173,7 +173,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     label: 'L Wrist',
     fields: [
       field('wristFlexion', 'Flex', 'Flex', 'Ext', { min: -70, max: 80 }, 'sagittal'),
-      field('proSup', 'Pro/Sup', 'Sup', 'Pro', { min: -80, max: 80 }, 'transverse'),
+      field('proSup', 'Pro/Sup', 'Sup', 'Pro', { min: -90, max: 90 }, 'transverse'),
       field('wristDeviation', 'Dev', 'Radial', 'Ulnar', { min: -30, max: 20 }, 'frontal'),
     ],
   },
@@ -182,7 +182,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     label: 'R Wrist',
     fields: [
       field('wristFlexion', 'Flex', 'Flex', 'Ext', { min: -70, max: 80 }, 'sagittal'),
-      field('proSup', 'Pro/Sup', 'Sup', 'Pro', { min: -80, max: 80 }, 'transverse'),
+      field('proSup', 'Pro/Sup', 'Sup', 'Pro', { min: -90, max: 90 }, 'transverse'),
       field('wristDeviation', 'Dev', 'Radial', 'Ulnar', { min: -30, max: 20 }, 'frontal'),
     ],
   },

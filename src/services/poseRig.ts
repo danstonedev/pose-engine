@@ -6,7 +6,12 @@ import {
   type PoseRigHandle,
 } from '../anatomy/bodyVariants';
 import { POSE_SCHEMA_VERSION, type CustomPose } from '../types';
-import { localAxisTowardBodyLeft, type JointAngleRestReference } from './jointAngles';
+import {
+  localAxisTowardBodyLeft,
+  swingTwistDecompose,
+  signedAngleAboutAxis,
+  type JointAngleRestReference,
+} from './jointAngles';
 import { clampBoneToRom } from './poseRomClamp';
 
 /** Optional ROM-clamp metadata threaded through pose manipulators. When
@@ -59,6 +64,42 @@ export function distributeChainCurve(
   for (let i = 0; i < segments.length; i++) {
     segments[i].quaternion.copy(restLocals[i]).multiply(_curveShare);
   }
+}
+
+// Every rig bone's child sits at +Y, so a segment's axial twist (pronation/
+// supination on the forearm + hand) is rotation about its own +Y long axis.
+const _twAxis = new THREE.Vector3(0, 1, 0);
+const _twDelta = new THREE.Quaternion();
+const _twSwing = new THREE.Quaternion();
+const _twTwist = new THREE.Quaternion();
+const _twNew = new THREE.Quaternion();
+const _twRestInv = new THREE.Quaternion();
+
+/** Read a bone-local quaternion's axial twist (radians, right-handed about +Y)
+ *  relative to its rest local — the pronation/supination measure that lives on
+ *  the forearm and hand long axis. Swing (flexion / deviation) is discarded. */
+export function readAxialTwist(local: THREE.Quaternion, restLocal: THREE.Quaternion): number {
+  _twRestInv.copy(restLocal).invert();
+  _twDelta.copy(_twRestInv).multiply(local);
+  swingTwistDecompose(_twDelta, _twAxis, _twSwing, _twTwist);
+  return signedAngleAboutAxis(_twTwist, _twAxis);
+}
+
+/** Set a bone's axial twist about +Y to `angleRad`, preserving its current
+ *  swing (flexion / deviation) — the inverse of {@link readAxialTwist}. Used to
+ *  drive coupled forearm↔hand pro/sup: write the same per-segment twist to both
+ *  bones without disturbing elbow flexion or wrist flex/dev. */
+export function setAxialTwist(
+  bone: THREE.Object3D,
+  restLocal: THREE.Quaternion,
+  angleRad: number,
+): void {
+  _twRestInv.copy(restLocal).invert();
+  _twDelta.copy(_twRestInv).multiply(bone.quaternion);
+  swingTwistDecompose(_twDelta, _twAxis, _twSwing, _twTwist);
+  _twNew.setFromAxisAngle(_twAxis, angleRad);
+  _twDelta.copy(_twSwing).multiply(_twNew);
+  bone.quaternion.copy(restLocal).multiply(_twDelta);
 }
 
 const _pinParent = new THREE.Quaternion();

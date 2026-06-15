@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { blendCustomPose, blendCustomPoseWithBaseline } from '../services/poseRig';
+import {
+  blendCustomPose,
+  blendCustomPoseWithBaseline,
+  readAxialTwist,
+  setAxialTwist,
+} from '../services/poseRig';
 import { POSE_SCHEMA_VERSION, type CustomPose } from '../types';
 
 const IDENTITY_QUAT: [number, number, number, number] = [0, 0, 0, 1];
@@ -185,5 +190,37 @@ describe('blendCustomPose', () => {
     const at0 = blendCustomPose(a, b, 0)!;
     at0.bones.Hips[0] = 99;
     expect(a.bones.Hips[0]).not.toBe(99);
+  });
+});
+
+describe('axial twist helpers (pro/sup distribution)', () => {
+  const D2R = Math.PI / 180;
+  const REST = new THREE.Quaternion(); // identity rest
+
+  it('round-trips a set twist through read', () => {
+    const bone = new THREE.Object3D();
+    setAxialTwist(bone, REST, 40 * D2R);
+    expect(readAxialTwist(bone.quaternion, REST) / D2R).toBeCloseTo(40, 1);
+  });
+
+  it('sets twist about +Y on a flexed bone, and is removable without disturbing swing', () => {
+    const bone = new THREE.Object3D();
+    // Pure flexion about local X (swing, no twist yet).
+    bone.quaternion.setFromEuler(new THREE.Euler(50 * D2R, 0, 0, 'YXZ'));
+    const original = bone.quaternion.clone();
+    setAxialTwist(bone, REST, 30 * D2R);
+    expect(readAxialTwist(bone.quaternion, REST) / D2R).toBeCloseTo(30, 1);
+    // Removing the twist restores the pure-flexion swing exactly.
+    setAxialTwist(bone, REST, 0);
+    expect(bone.quaternion.angleTo(original)).toBeLessThan(1e-3);
+  });
+
+  it('measures twist relative to a non-identity rest', () => {
+    const rest = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 20 * D2R, 0, 'YXZ'));
+    const bone = new THREE.Object3D();
+    bone.quaternion.copy(rest); // at rest → zero twist
+    expect(readAxialTwist(bone.quaternion, rest)).toBeCloseTo(0, 5);
+    setAxialTwist(bone, rest, 35 * D2R);
+    expect(readAxialTwist(bone.quaternion, rest) / D2R).toBeCloseTo(35, 1);
   });
 });

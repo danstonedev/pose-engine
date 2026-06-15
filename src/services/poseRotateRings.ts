@@ -176,9 +176,17 @@ export class PoseRotateRingGizmo {
   readonly pickers: { axis: THREE.Vector3; name: RingAxisName; mesh: THREE.Mesh }[] = [];
 
   private readonly opt: ResolvedOptions;
-  /** Visible ring materials by lowercase axis, with their default colour, so the
-   *  host can recolour rings by plane-of-motion per joint (see `setRingColors`). */
-  private readonly ringMats: { axis: 'x' | 'y' | 'z'; mat: THREE.MeshBasicMaterial; defaultHex: number }[] = [];
+  /** Visible ring meshes/materials by lowercase axis, with their default colour,
+   *  so the host can recolour rings by plane-of-motion per joint (see
+   *  `setRingColors`) and hide individual rings (see `setHiddenRings`). */
+  private readonly ringMats: {
+    axis: 'x' | 'y' | 'z';
+    mesh: THREE.Mesh;
+    mat: THREE.MeshBasicMaterial;
+    defaultHex: number;
+  }[] = [];
+  /** Axes whose ring is currently hidden — both invisible and un-grabbable. */
+  private hidden = new Set<'x' | 'y' | 'z'>();
 
   constructor(options: PoseRotateRingsOptions = {}) {
     const o: ResolvedOptions = { ...DEFAULTS, ...options };
@@ -206,6 +214,7 @@ export class PoseRotateRingGizmo {
       ring.quaternion.copy(q);
       this.ringMats.push({
         axis: name.toLowerCase() as 'x' | 'y' | 'z',
+        mesh: ring,
         mat: ring.material as THREE.MeshBasicMaterial,
         defaultHex: o.axisColors[i],
       });
@@ -263,6 +272,16 @@ export class PoseRotateRingGizmo {
     }
   }
 
+  /** Hide specific rings (by lowercase axis) — they vanish AND stop accepting
+   *  grabs, so the joint exposes fewer DOFs visually. Pass the full set each
+   *  call; any axis not listed is shown. Used to drop the wrist's pro/sup (Y)
+   *  ring once pro/sup is driven from the elbow. The shared ±pole nodes stay
+   *  (they belong to the other rings too). */
+  setHiddenRings(axes: readonly ('x' | 'y' | 'z')[]): void {
+    this.hidden = new Set(axes);
+    for (const r of this.ringMats) r.mesh.visible = !this.hidden.has(r.axis);
+  }
+
   /** Position/orient/scale the rings at a joint. `frameQuat` = the bone's world
    *  quaternion for a local-space gizmo, or identity for a world-space gizmo.
    *  Pass `visible=false` to hide. Call once per frame. */
@@ -305,7 +324,10 @@ export class PoseRotateRingGizmo {
    *  If a ring is grabbed, returns a live drag; otherwise null. */
   beginDrag(raycaster: THREE.Raycaster, params: PoseRingDragParams): PoseRingDrag | null {
     this.group.updateMatrixWorld(true);
-    const hit = raycaster.intersectObjects(this.pickers.map((p) => p.mesh), false)[0];
+    const grabbable = this.pickers.filter(
+      (p) => !this.hidden.has(p.name.toLowerCase() as 'x' | 'y' | 'z'),
+    );
+    const hit = raycaster.intersectObjects(grabbable.map((p) => p.mesh), false)[0];
     if (!hit) return null;
     const picker = this.pickers.find((p) => p.mesh === hit.object);
     if (!picker) return null;

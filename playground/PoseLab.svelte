@@ -37,6 +37,8 @@
     buildTwistRig,
     applyTwistRig,
     distributeChainCurve,
+    readAxialTwist,
+    setAxialTwist,
     pinBonesToRestWorld,
     blendCustomPoseWithBaseline,
     buildOrbitTweenForWorldTarget,
@@ -63,6 +65,12 @@
   };
   /** Knees stay hinge-locked while the feet are pinned during a pelvis tilt. */
   const POSE_PLANT_HINGES = new Set(['L_Leg', 'R_Leg']);
+
+  /** Pronation/supination is one shared forearm rotation, distributed 1:1 across
+   *  the elbow (proximal radioulnar) and the wrist (distal) — total ±90°, ±45°
+   *  per segment. Driven by the twist (Y) ring on either the forearm or hand. */
+  const PROSUP_KEYS = new Set(['L_Forearm', 'R_Forearm', 'L_Hand', 'R_Hand']);
+  const PROSUP_SEG_LIMIT_RAD = (45 * Math.PI) / 180; // half of the ±90 registry total
 
   /** Plane → ring colour (matches body-chart's gizmo): sagittal red, frontal
    *  blue, transverse green. */
@@ -223,6 +231,7 @@
       const dr = poseDrivingRings?.[key];
       if (!def || !dr) {
         ringGizmo.setRingColors({});
+        ringGizmo.setHiddenRings([]);
         return;
       }
       const colors: { x?: number; y?: number; z?: number } = {};
@@ -231,6 +240,13 @@
         if (ring) colors[ring] = POSE_PLANE_RING_HEX[f.plane];
       }
       ringGizmo.setRingColors(colors);
+      // Hide the wrist's pro/sup (transverse) ring: pro/sup is driven from the
+      // elbow now (most natural there) and stays coupled 1:1 to the wrist, so
+      // the wrist's own twist ring is redundant visual clutter.
+      const proSupRing = dr.transverse?.ring;
+      ringGizmo.setHiddenRings(
+        (key === 'L_Hand' || key === 'R_Hand') && proSupRing ? [proSupRing] : [],
+      );
     }
 
     /** Position the plane rings at the selected joint. frameQuat = identity for
@@ -295,6 +311,48 @@
         }
       }
       distributeChainCurve(segs, rests, chain.control, clamped);
+      return true;
+    }
+
+    /** Coupled pronation/supination: a twist (Y-ring) drag on the forearm OR the
+     *  hand drives ONE shared rotation split 1:1 between the two segments. The
+     *  selected bone takes the drag's swing (so flexion / flex-dev still track
+     *  the cursor) but its twist — and the sibling's — is set to the same
+     *  per-segment angle (±45°), summing to the ±90° registry total. Only fires
+     *  on the twist ring; flexion/deviation drags fall through so they never
+     *  disturb existing pro/sup. */
+    function applyProSup(key: string, target: THREE.Quaternion): boolean {
+      if (!PROSUP_KEYS.has(key) || !boneMap || !restRef) return false;
+      const side = key.startsWith('L_') ? 'L_' : 'R_';
+      const forearm = boneMap.get(`${side}Forearm`);
+      const hand = boneMap.get(`${side}Hand`);
+      const rfArr = restRef.localQuats[`${side}Forearm`];
+      const rhArr = restRef.localQuats[`${side}Hand`];
+      if (!forearm || !hand || !rfArr || !rhArr) return false;
+      const restF = new THREE.Quaternion(rfArr[0], rfArr[1], rfArr[2], rfArr[3]);
+      const restH = new THREE.Quaternion(rhArr[0], rhArr[1], rhArr[2], rhArr[3]);
+      const selIsForearm = key.endsWith('Forearm');
+      const sel = selIsForearm ? forearm : hand;
+      const restSel = selIsForearm ? restF : restH;
+
+      // Per-segment twist = the drag's intended twist, capped at ±45° (read from
+      // the raw target, before the hand's body-euler clamp zeroes the Y axis).
+      const twist = Math.max(
+        -PROSUP_SEG_LIMIT_RAD,
+        Math.min(PROSUP_SEG_LIMIT_RAD, readAxialTwist(target, restSel)),
+      );
+
+      // Selected bone follows the cursor for its swing; clamp its swing via the
+      // normal strategy (forearm hinge = flexion; hand body-euler = flex/dev),
+      // then override the twist with our capped, distributed value.
+      sel.quaternion.copy(target);
+      if (romOn && hasClampStrategy(key)) clampBoneToRom(sel as THREE.Bone, key, restRef);
+      setAxialTwist(sel, restSel, twist);
+
+      // Sibling mirrors the SAME per-segment twist, preserving its own swing.
+      const sib = selIsForearm ? hand : forearm;
+      const restSib = selIsForearm ? restH : restF;
+      setAxialTwist(sib, restSib, twist);
       return true;
     }
 
@@ -663,6 +721,8 @@
         const fc = fingerCurls?.get(selected.key);
         if (applyPoseCurveChain(selected.key, target)) {
           // region curve (spine/neck) distributed the bend across its chain
+        } else if (ringDrag.axis === 'Y' && applyProSup(selected.key, target)) {
+          // coupled forearm↔hand pronation/supination (1:1, twist ring only)
         } else if (fc) {
           distributeChainCurve(fc.bones, fc.rest, 0, target); // finger curl
         } else if (selected.key === 'Hips') {
