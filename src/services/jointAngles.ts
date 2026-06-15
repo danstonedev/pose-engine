@@ -624,14 +624,16 @@ export function computeJointAngles(
       // local-Z component and deviation the local-X component (blue↔red switch).
       // Pro/sup TOTAL = forearm (radioulnar) twist + hand (wrist) twist — the two
       // share the rotation, so the total is written to BOTH the elbow and wrist
-      // rows. Signs/mirror PROVISIONAL — verify.
+      // rows. Flex + dev signs verified live in PoseLab — both poles read
+      // inverted, so flexion = -a.abduction and deviation = -(L)/+(R) a.flexion
+      // (radial +, ulnar -). Pro/sup sign still PROVISIONAL — verify.
       const forearmKey = key.replace('Hand', 'Forearm');
       const total = (joints[forearmKey]?.forearmRotation ?? 0) + rotation;
       if (joints[forearmKey]) joints[forearmKey].forearmRotation = total;
       joints[key] = {
-        wristFlexion: a.abduction,
+        wristFlexion: -a.abduction,
         proSup: total,
-        wristDeviation: mirror ? -a.flexion : a.flexion,
+        wristDeviation: mirror ? a.flexion : -a.flexion,
       };
     } else {
       joints[key] = { ankleFlexion: -a.flexion, ankleInversion: -abduction, ankleAbduction: rotation }; // ankle F/E flip; inv/ev flip

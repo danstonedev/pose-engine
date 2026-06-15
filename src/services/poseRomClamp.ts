@@ -216,10 +216,11 @@ const STRATEGIES: Record<string, ClampStrategy> = {
   // Wrist inherits the forearm's twisted frame, so the readout reads flexion
   // from local-Z (a.abduction) and radial/ulnar deviation from local-X
   // (a.flexion) — the flexionAxis/abductionAxis swap. Without it the clamp
-  // constrained flex with the deviation range (±~25°) and vice-versa. NOTE: the
-  // wrist readout signs are flagged PROVISIONAL in jointAngles.ts — the axis
-  // mapping + magnitudes are now correct; verify flex/ext + radial/ulnar poles
-  // live and flip a sign here if a direction reads inverted.
+  // constrained flex with the deviation range (±~25°) and vice-versa. Flex pole
+  // verified live in PoseLab: both poles read inverted. Flexion flips to
+  // -a.abduction (flexionSign: -1, keeps the -70/+80 ext/flex bounds on the
+  // correct pole) and deviation flips to -(L)/+(R) a.flexion (abductionSign: -1,
+  // keeps radial +20 / ulnar -30 on the correct pole).
   L_Hand: {
     kind: 'body-euler',
     flexionField: 'wristFlexion',
@@ -228,6 +229,8 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     mirror: false,
     flexionAxis: 'z',
     abductionAxis: 'x',
+    flexionSign: -1,
+    abductionSign: -1,
   },
   R_Hand: {
     kind: 'body-euler',
@@ -237,6 +240,8 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     mirror: true,
     flexionAxis: 'z',
     abductionAxis: 'x',
+    flexionSign: -1,
+    abductionSign: -1,
   },
   L_Foot: {
     kind: 'body-euler',

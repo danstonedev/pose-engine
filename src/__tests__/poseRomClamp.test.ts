@@ -353,9 +353,11 @@ describe('clampBoneToRom', () => {
 
   describe('wrist: flex/dev read from swapped axes (twisted frame)', () => {
     // The wrist inherits the forearm's twisted frame: readout wristFlexion =
-    // a.abduction (local-Z), wristDeviation = a.flexion (local-X). The clamp
+    // -a.abduction (local-Z), wristDeviation = -a.flexion (local-X, L). The clamp
     // must use the SAME swap, else flexion is constrained by the deviation
-    // range (±~25°) and deviation by the flexion range (±~70-80°).
+    // range (±~25°) and deviation by the flexion range (±~70-80°). The flex sign
+    // (verified live in PoseLab) means +flexion = -raw-Z, so flexion bounds
+    // (+80) land on negative raw-Z and extension (-70) on positive raw-Z.
     // Ranges: wristFlexion {-70, 80}, wristDeviation {-30, 20}.
 
     const REST_IDENTITY: [number, number, number, number] = [0, 0, 0, 1];
@@ -371,13 +373,13 @@ describe('clampBoneToRom', () => {
       deltaFromRest(bone.quaternion, REST_IDENTITY, d);
       return decomposeBodyDelta(d);
     }
-    // Pure Z-euler θ → a.abduction = θ → readout wristFlexion = θ.
+    // Pure Z-euler θ → a.abduction = θ → readout wristFlexion = -θ.
     function abductBone(deg: number): THREE.Bone {
       const bone = new THREE.Bone();
       bone.quaternion.setFromEuler(new THREE.Euler(0, 0, (deg * Math.PI) / 180, 'YXZ'));
       return bone;
     }
-    // Pure X-euler -φ → a.flexion = φ → readout wristDeviation (L) = φ.
+    // Pure X-euler -φ → a.flexion = φ → readout wristDeviation (L) = -φ.
     function flexBone(devDeg: number): THREE.Bone {
       const bone = new THREE.Bone();
       bone.quaternion.setFromEuler(new THREE.Euler((-devDeg * Math.PI) / 180, 0, 0, 'YXZ'));
@@ -385,33 +387,33 @@ describe('clampBoneToRom', () => {
     }
 
     it('clamps wrist flexion 100° → 80° (NOT the ±25° deviation range)', () => {
-      const bone = abductBone(100); // readout wristFlexion = 100
+      const bone = abductBone(-100); // readout wristFlexion = -(-100) = 100
       expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(true);
-      expect(decomposed(bone).abduction).toBeCloseTo(80, 0); // wristFlexion
+      expect(decomposed(bone).abduction).toBeCloseTo(-80, 0); // wristFlexion = 80
     });
 
     it('clamps wrist extension -100° → -70°', () => {
-      const bone = abductBone(-100);
+      const bone = abductBone(100); // readout wristFlexion = -100 (extension)
       expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(true);
-      expect(decomposed(bone).abduction).toBeCloseTo(-70, 0);
+      expect(decomposed(bone).abduction).toBeCloseTo(70, 0); // wristFlexion = -70
     });
 
     it('clamps radial deviation 50° → 20° (NOT the ±80° flexion range)', () => {
-      const bone = flexBone(50); // readout wristDeviation = 50
+      const bone = flexBone(-50); // readout wristDeviation (L) = -(-50) = 50 (radial)
       expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(true);
-      expect(decomposed(bone).flexion).toBeCloseTo(20, 0); // wristDeviation (L)
+      expect(decomposed(bone).flexion).toBeCloseTo(-20, 0); // wristDeviation = 20
     });
 
     it('clamps ulnar deviation -50° → -30°', () => {
-      const bone = flexBone(-50);
+      const bone = flexBone(50); // readout wristDeviation (L) = -50 (ulnar)
       expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(true);
-      expect(decomposed(bone).flexion).toBeCloseTo(-30, 0);
+      expect(decomposed(bone).flexion).toBeCloseTo(30, 0); // wristDeviation = -30
     });
 
     it('leaves within-ROM wrist flexion (60°) untouched', () => {
-      const bone = abductBone(60);
+      const bone = abductBone(-60); // readout wristFlexion = 60
       expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(false);
-      expect(decomposed(bone).abduction).toBeCloseTo(60, 0);
+      expect(decomposed(bone).abduction).toBeCloseTo(-60, 0);
     });
   });
 
