@@ -54,6 +54,9 @@ export * from './services/poseRotateRings';
 // Click-vs-drag deselect for pose editing (shared dismiss-on-empty-click trait)
 export * from './services/poseClickDeselect';
 
+// Anatomical reference planes + cross-section slicing (cardinal + oblique)
+export * from './services/anatomicalPlanes';
+
 // Anatomic start pose (arms at sides) — the shared 0° clinical reference
 export * from './services/anatomicPose';
 

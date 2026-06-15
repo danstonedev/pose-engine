@@ -43,6 +43,7 @@
     blendCustomPoseWithBaseline,
     buildOrbitTweenForWorldTarget,
     evaluateOrbitTween,
+    createAnatomicalPlanes,
     JointAnglesPanel,
   } from '../src/index';
   import type {
@@ -55,6 +56,7 @@
     DrivingRingMap,
     RomPlane,
     TwistSegment,
+    AnatomicalPlanes,
   } from '../src/index';
 
   /** Region curve handles distribute their bend across a 2-bone chain (smooth
@@ -90,6 +92,11 @@
   let showAxes = $state(false);
   let romOn = $state(true);
   let twistOn = $state(true);
+  let showSagittal = $state(false);
+  let showFrontal = $state(false);
+  let showTransverse = $state(false);
+  let showOblique = $state(false);
+  let showJoints = $state(true);
   let playing = $state(false);
   let copied = $state(false);
 
@@ -118,6 +125,7 @@
     render: () => void;
     playPose: () => void;
     focus: () => void;
+    setPlanes: () => void;
   } | null = null;
 
   const LIMB_COLORS: Record<string, number> = {
@@ -212,6 +220,13 @@
     const _v = new THREE.Vector3();
     const _box = new THREE.Box3();
     const _sphere = new THREE.Sphere();
+    let planes: AnatomicalPlanes | null = null;
+    // The oblique plane reuses the joint ring gizmo (rotate) + a centre dot
+    // (translate) so its manipulation matches the joint gizmos exactly.
+    let obliqueDot: THREE.Mesh | null = null;
+    let obliqueHit: THREE.Mesh | null = null;
+    let obliqueRingDrag: PoseRingDrag | null = null;
+    let obliquePress: { startX: number; startY: number; dragging: boolean } | null = null;
     const handleGeo = new THREE.SphereGeometry(0.022, 14, 10);
     const hitGeo = new THREE.SphereGeometry(0.06, 10, 8);
     let loadToken = 0;
@@ -253,6 +268,14 @@
      *  world-space joints (UpperArm) else the bone's world quat — this is what
      *  keeps the rotation direction correct regardless of camera facing. */
     function updateRingGizmo() {
+      // Oblique-plane editing owns the ring gizmo (positioned/oriented on the
+      // plane node) — the same rings used to rotate joints.
+      if (showOblique && planes) {
+        planes.oblique.getWorldPosition(_ringPos);
+        planes.oblique.getWorldQuaternion(_ringQuat);
+        ringGizmo.update(camera, _ringPos, _ringQuat, true);
+        return;
+      }
       if (!selected) {
         ringGizmo.update(camera, _ringPos, _ringQuat, false);
         return;
@@ -497,9 +520,14 @@
     }
 
     function updateHandles() {
-      if (!handleGroup) return;
       const d = camera.position.distanceTo(controls.target);
       const s = Math.max(0.6, Math.min(2, d / 4));
+      if (obliqueDot && obliqueDot.visible && planes) {
+        planes.oblique.getWorldPosition(_v);
+        obliqueDot.position.copy(_v);
+        obliqueDot.scale.setScalar(s);
+      }
+      if (!handleGroup) return;
       for (const h of handles) {
         h.bone.getWorldPosition(_v);
         h.mesh.position.copy(_v);
@@ -562,6 +590,55 @@
       requestRender();
     }
 
+    /** Joint dots hide (and stop responding) while editing the oblique plane, or
+     *  when the user turns markers off — so the plane can be positioned without
+     *  nudging a joint. */
+    function jointsActive() {
+      return showJoints && !showOblique;
+    }
+    function applyJointVisibility() {
+      if (handleGroup) handleGroup.visible = jointsActive();
+      if (!jointsActive() && selected) deselect();
+    }
+
+    /** Sync the plane toggles + oblique gizmo to the current UI state. */
+    function applyPlaneState() {
+      if (!planes) return;
+      planes.setCardinalVisible('sagittal', showSagittal);
+      planes.setCardinalVisible('frontal', showFrontal);
+      planes.setCardinalVisible('transverse', showTransverse);
+      planes.setObliqueVisible(showOblique);
+      if (obliqueDot) obliqueDot.visible = showOblique;
+      if (showOblique) {
+        // The ring gizmo now serves the plane; clear any joint selection + show
+        // all three rotation rings in their default colours.
+        if (selected) deselect();
+        ringGizmo.setRingColors({});
+        ringGizmo.setHiddenRings([]);
+      } else {
+        obliqueRingDrag = null;
+        ringGizmo.hide();
+      }
+      applyJointVisibility();
+      requestRender();
+    }
+
+    /** Build the planes + oblique centre-dot handle once, on first model load. */
+    function ensurePlanes() {
+      if (planes) return;
+      planes = createAnatomicalPlanes();
+      scene.add(planes.group);
+      obliqueDot = new THREE.Mesh(
+        handleGeo,
+        new THREE.MeshBasicMaterial({ color: 0xffb020, depthTest: false, transparent: true, opacity: 0.9 }),
+      );
+      obliqueDot.renderOrder = 999;
+      obliqueHit = new THREE.Mesh(hitGeo, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+      obliqueDot.add(obliqueHit);
+      obliqueDot.visible = false;
+      scene.add(obliqueDot);
+    }
+
     async function load(variantId: string) {
       const cfg = getBodyVariant(variantId);
       const token = ++loadToken;
@@ -604,6 +681,9 @@
         buildHandles(cfg);
         buildFingerCurls();
         if (showAxes) buildAxes();
+        ensurePlanes();
+        planes?.setExtents(_sphere.center, _sphere.radius);
+        applyPlaneState();
         frame();
         loading = false;
         requestRender();
@@ -670,6 +750,36 @@
       if (tcDragging || !handleGroup) return;
       setNdc(e);
       raycaster.setFromCamera(_ndc, camera);
+      // Oblique-plane editing: rotate via the ring gizmo, translate via the
+      // centre dot — the same controls as joints. While active, joints are
+      // ignored entirely so they can't be moved by accident.
+      if (showOblique && planes && obliqueHit) {
+        const node = planes.oblique;
+        node.getWorldPosition(_ringPos);
+        node.getWorldQuaternion(_ringQuat);
+        const drag = ringGizmo.beginDrag(raycaster, {
+          centerWorld: _ringPos,
+          frameQuat: _ringQuat,
+          boneLocalQuat: node.quaternion,
+          parentWorldQuat: (node.parent ?? node).getWorldQuaternion(_ringQuat2),
+        });
+        if (drag) {
+          obliqueRingDrag = drag;
+          controls.enabled = false;
+          e.preventDefault();
+          return;
+        }
+        if (raycaster.intersectObject(obliqueHit, false)[0]) {
+          node.getWorldPosition(_v);
+          camera.getWorldDirection(_camDir);
+          _dragPlane.setFromNormalAndCoplanarPoint(_camDir, _v);
+          obliquePress = { startX: e.clientX, startY: e.clientY, dragging: false };
+          controls.enabled = false;
+          e.preventDefault();
+          return;
+        }
+        return;
+      }
       // Ring rotate grab has PRIORITY: grab anywhere on a plane ring → swept-angle
       // rotate that axis (correct direction regardless of front/back facing).
       if (ringGizmo.visible && selected) {
@@ -713,6 +823,30 @@
     }
     function onPointerMove(e: PointerEvent) {
       clickDeselect.handleMove(e.pointerId, e.clientX, e.clientY);
+      // Oblique plane: rotate (ring) or translate (centre dot on a camera-facing
+      // plane, like the joint IK drag).
+      if (obliqueRingDrag && planes) {
+        setNdc(e);
+        raycaster.setFromCamera(_ndc, camera);
+        planes.oblique.quaternion.copy(obliqueRingDrag.update(raycaster));
+        requestRender();
+        e.preventDefault();
+        return;
+      }
+      if (obliquePress && planes) {
+        if (!obliquePress.dragging) {
+          if (Math.hypot(e.clientX - obliquePress.startX, e.clientY - obliquePress.startY) < 5) return;
+          obliquePress.dragging = true;
+        }
+        setNdc(e);
+        raycaster.setFromCamera(_ndc, camera);
+        if (raycaster.ray.intersectPlane(_dragPlane, _dragTarget)) {
+          planes.oblique.position.copy(_dragTarget);
+          requestRender();
+        }
+        e.preventDefault();
+        return;
+      }
       // Ring rotate drag: spin the joint to follow the cursor sweep.
       if (ringDrag && selected && modelRoot) {
         setNdc(e);
@@ -772,6 +906,12 @@
       requestRender();
     }
     function onPointerUp(e: PointerEvent) {
+      if (obliqueRingDrag || obliquePress) {
+        obliqueRingDrag = null;
+        obliquePress = null;
+        controls.enabled = true;
+        return;
+      }
       if (ringDrag) {
         ringDrag = null;
         releasePelvisPlant();
@@ -855,6 +995,7 @@
       render: () => requestRender(),
       playPose: () => playPose(),
       focus: () => focusSelected(),
+      setPlanes: () => applyPlaneState(),
     };
 
     return () => {
@@ -875,6 +1016,12 @@
       ringGizmo.dispose();
       tc.detach();
       tc.dispose();
+      if (obliqueDot) {
+        scene.remove(obliqueDot);
+        (obliqueDot.material as THREE.Material).dispose?.();
+        (obliqueHit?.material as THREE.Material | undefined)?.dispose?.();
+      }
+      planes?.dispose();
       controls.dispose();
       renderer.dispose();
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
@@ -891,6 +1038,14 @@
   $effect(() => {
     void twistOn;
     api?.render();
+  });
+  $effect(() => {
+    void showSagittal;
+    void showFrontal;
+    void showTransverse;
+    void showOblique;
+    void showJoints;
+    api?.setPlanes();
   });
 </script>
 
@@ -916,6 +1071,20 @@
       <label class="lab__check"><input type="checkbox" bind:checked={showAxes} /> Limb-axis overlay</label>
       <label class="lab__check"><input type="checkbox" bind:checked={romOn} /> ROM clamp</label>
       <label class="lab__check"><input type="checkbox" bind:checked={twistOn} /> Twist rig</label>
+    </div>
+
+    <div class="lab__row">
+      <span class="lab__label">Anatomical planes</span>
+    </div>
+    <div class="lab__row">
+      <label class="lab__check lab__check--sagittal"><input type="checkbox" bind:checked={showSagittal} /> Sagittal</label>
+      <label class="lab__check lab__check--frontal"><input type="checkbox" bind:checked={showFrontal} /> Frontal</label>
+      <label class="lab__check lab__check--transverse"><input type="checkbox" bind:checked={showTransverse} /> Transverse</label>
+      <label class="lab__check lab__check--oblique"><input type="checkbox" bind:checked={showOblique} /> Oblique</label>
+    </div>
+    <div class="lab__row">
+      <label class="lab__check"><input type="checkbox" bind:checked={showJoints} /> Joint markers</label>
+      {#if showOblique}<span class="lab__hint-inline">Oblique: drag the dot to move · grab a ring to tilt · joints hidden</span>{/if}
     </div>
 
     <div class="lab__row lab__btns">
@@ -1037,6 +1206,33 @@
     gap: 0.4rem;
     font-size: 0.76rem;
     color: rgba(255, 255, 255, 0.78);
+  }
+  /* Colour chip per plane, matching the 3D plane colours. */
+  .lab__check--sagittal,
+  .lab__check--frontal,
+  .lab__check--transverse,
+  .lab__check--oblique {
+    position: relative;
+    padding-left: 0.1rem;
+  }
+  .lab__check--sagittal::after,
+  .lab__check--frontal::after,
+  .lab__check--transverse::after,
+  .lab__check--oblique::after {
+    content: '';
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 2px;
+    margin-left: 0.05rem;
+  }
+  .lab__check--sagittal::after { background: #ff3653; }
+  .lab__check--frontal::after { background: #2c8fff; }
+  .lab__check--transverse::after { background: #8adb00; }
+  .lab__check--oblique::after { background: #ffb020; }
+  .lab__hint-inline {
+    font-size: 0.66rem;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.3;
   }
   .lab__btns {
     flex-direction: row;
