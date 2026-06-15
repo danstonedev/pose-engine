@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import {
   captureJointAngleRestReference,
   computeJointAngles,
+  decomposeBodyDelta,
+  deltaFromRest,
   type JointAngleRestReference,
 } from '../services/jointAngles';
 import { clampBoneToRom, hasClampStrategy, inspectClinicalAngles } from '../services/poseRomClamp';
@@ -103,8 +105,8 @@ describe('clampBoneToRom', () => {
     it('recognises every joint with a ROM definition', () => {
       for (const key of [
         'Hips',
-        'Spine_Mid',
-        'Head',
+        'Spine_Upper',
+        'Neck',
         'L_UpperArm',
         'R_UpperArm',
         'L_Forearm',
@@ -229,6 +231,187 @@ describe('clampBoneToRom', () => {
       // Signed hinge: posterior knee flex (from -X rotation sense) reads
       // negative; clamped 140° magnitude reads -140°.
       expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(-140, 0);
+    });
+  });
+
+  describe('ankle: dorsi/plantar bounds land on the correct pole', () => {
+    // Regression for the clamp/readout sign mismatch: the readout writes
+    // ankleFlexion = -a.flexion (dorsi +), but the clamp used to feed raw
+    // a.flexion into the registry range — so plantarflexion stopped at the
+    // dorsi limit (20°) and dorsiflexion ran to the plantar limit (50°).
+    // ROM: dorsi 0–20, plantar 0–50 (range {min:-50, max:20}).
+
+    it('leaves 15° dorsiflexion (within ROM) untouched', () => {
+      const { skeleton, bones, rest } = setup();
+      // +X rotation lifts the toe toward the shin = dorsiflexion (Dorsi +).
+      bones.L_Foot.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), (15 * Math.PI) / 180);
+      bones.Hips.updateMatrixWorld(true);
+
+      const changed = clampBoneToRom(bones.L_Foot, 'L_Foot', rest);
+      expect(changed).toBe(false);
+
+      const report = reportFor(skeleton, rest);
+      expect(report.joints.L_Foot.ankleFlexion).toBeCloseTo(15, 0);
+    });
+
+    it('clamps 50° dorsiflexion → 20° (dorsi limit, NOT 50)', () => {
+      const { skeleton, bones, rest } = setup();
+      bones.L_Foot.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), (50 * Math.PI) / 180);
+      bones.Hips.updateMatrixWorld(true);
+
+      const changed = clampBoneToRom(bones.L_Foot, 'L_Foot', rest);
+      expect(changed).toBe(true);
+
+      bones.Hips.updateMatrixWorld(true);
+      const report = reportFor(skeleton, rest);
+      expect(report.joints.L_Foot.ankleFlexion).toBeCloseTo(20, 0);
+    });
+
+    it('allows 40° plantarflexion (within ROM) untouched', () => {
+      const { skeleton, bones, rest } = setup();
+      // -X rotation points the toe down = plantarflexion (Plantar, readout -).
+      bones.L_Foot.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), (-40 * Math.PI) / 180);
+      bones.Hips.updateMatrixWorld(true);
+
+      const changed = clampBoneToRom(bones.L_Foot, 'L_Foot', rest);
+      expect(changed).toBe(false);
+
+      const report = reportFor(skeleton, rest);
+      expect(report.joints.L_Foot.ankleFlexion).toBeCloseTo(-40, 0);
+    });
+
+    it('clamps 60° plantarflexion → 50° (plantar limit, NOT 20)', () => {
+      const { skeleton, bones, rest } = setup();
+      bones.L_Foot.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), (-60 * Math.PI) / 180);
+      bones.Hips.updateMatrixWorld(true);
+
+      const changed = clampBoneToRom(bones.L_Foot, 'L_Foot', rest);
+      expect(changed).toBe(true);
+
+      bones.Hips.updateMatrixWorld(true);
+      const report = reportFor(skeleton, rest);
+      expect(report.joints.L_Foot.ankleFlexion).toBeCloseTo(-50, 0);
+    });
+  });
+
+  describe('spine: thoracic + cervical regional ROM (C/T-spine)', () => {
+    // The region curve clamps the CONTROL bone's target (the regional total)
+    // against the registry row keyed by the control: Spine_Upper = Thoracic,
+    // Neck = Cervical. Body-euler shares the readout frame, so the clamped
+    // result is checked in the readout's convention (flexion = -a.flexion).
+
+    const REST_IDENTITY: [number, number, number, number] = [0, 0, 0, 1];
+    function spineRest(key: string): JointAngleRestReference {
+      return {
+        pelvisWorldQuat: REST_IDENTITY,
+        localQuats: { [key]: REST_IDENTITY },
+        worldQuats: {},
+      } as unknown as JointAngleRestReference;
+    }
+    // A pure +X-euler (YXZ) delta of θ° reads as θ° of readout flexion.
+    function flexBone(deg: number): THREE.Bone {
+      const bone = new THREE.Bone();
+      bone.quaternion.setFromEuler(new THREE.Euler((deg * Math.PI) / 180, 0, 0, 'YXZ'));
+      return bone;
+    }
+    function readoutFlexion(bone: THREE.Bone): number {
+      const d = new THREE.Quaternion();
+      deltaFromRest(bone.quaternion, REST_IDENTITY, d);
+      return -decomposeBodyDelta(d).flexion; // readout convention
+    }
+
+    it('clamps thoracic flexion 60° → 40° (Spine_Upper max flex)', () => {
+      const bone = flexBone(60);
+      expect(clampBoneToRom(bone, 'Spine_Upper', spineRest('Spine_Upper'))).toBe(true);
+      expect(readoutFlexion(bone)).toBeCloseTo(40, 0);
+    });
+
+    it('clamps thoracic extension -40° → -25° (Spine_Upper max ext)', () => {
+      const bone = flexBone(-40);
+      expect(clampBoneToRom(bone, 'Spine_Upper', spineRest('Spine_Upper'))).toBe(true);
+      expect(readoutFlexion(bone)).toBeCloseTo(-25, 0);
+    });
+
+    it('leaves within-ROM thoracic flexion (30°) untouched', () => {
+      const bone = flexBone(30);
+      expect(clampBoneToRom(bone, 'Spine_Upper', spineRest('Spine_Upper'))).toBe(false);
+      expect(readoutFlexion(bone)).toBeCloseTo(30, 0);
+    });
+
+    it('clamps cervical flexion 80° → 50° (Neck max flex)', () => {
+      const bone = flexBone(80);
+      expect(clampBoneToRom(bone, 'Neck', spineRest('Neck'))).toBe(true);
+      expect(readoutFlexion(bone)).toBeCloseTo(50, 0);
+    });
+
+    it('clamps cervical extension -90° → -60° (Neck max ext)', () => {
+      const bone = flexBone(-90);
+      expect(clampBoneToRom(bone, 'Neck', spineRest('Neck'))).toBe(true);
+      expect(readoutFlexion(bone)).toBeCloseTo(-60, 0);
+    });
+  });
+
+  describe('wrist: flex/dev read from swapped axes (twisted frame)', () => {
+    // The wrist inherits the forearm's twisted frame: readout wristFlexion =
+    // a.abduction (local-Z), wristDeviation = a.flexion (local-X). The clamp
+    // must use the SAME swap, else flexion is constrained by the deviation
+    // range (±~25°) and deviation by the flexion range (±~70-80°).
+    // Ranges: wristFlexion {-70, 80}, wristDeviation {-30, 20}.
+
+    const REST_IDENTITY: [number, number, number, number] = [0, 0, 0, 1];
+    function handRest(): JointAngleRestReference {
+      return {
+        pelvisWorldQuat: REST_IDENTITY,
+        localQuats: { L_Hand: REST_IDENTITY },
+        worldQuats: {},
+      } as unknown as JointAngleRestReference;
+    }
+    function decomposed(bone: THREE.Bone) {
+      const d = new THREE.Quaternion();
+      deltaFromRest(bone.quaternion, REST_IDENTITY, d);
+      return decomposeBodyDelta(d);
+    }
+    // Pure Z-euler θ → a.abduction = θ → readout wristFlexion = θ.
+    function abductBone(deg: number): THREE.Bone {
+      const bone = new THREE.Bone();
+      bone.quaternion.setFromEuler(new THREE.Euler(0, 0, (deg * Math.PI) / 180, 'YXZ'));
+      return bone;
+    }
+    // Pure X-euler -φ → a.flexion = φ → readout wristDeviation (L) = φ.
+    function flexBone(devDeg: number): THREE.Bone {
+      const bone = new THREE.Bone();
+      bone.quaternion.setFromEuler(new THREE.Euler((-devDeg * Math.PI) / 180, 0, 0, 'YXZ'));
+      return bone;
+    }
+
+    it('clamps wrist flexion 100° → 80° (NOT the ±25° deviation range)', () => {
+      const bone = abductBone(100); // readout wristFlexion = 100
+      expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(true);
+      expect(decomposed(bone).abduction).toBeCloseTo(80, 0); // wristFlexion
+    });
+
+    it('clamps wrist extension -100° → -70°', () => {
+      const bone = abductBone(-100);
+      expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(true);
+      expect(decomposed(bone).abduction).toBeCloseTo(-70, 0);
+    });
+
+    it('clamps radial deviation 50° → 20° (NOT the ±80° flexion range)', () => {
+      const bone = flexBone(50); // readout wristDeviation = 50
+      expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(true);
+      expect(decomposed(bone).flexion).toBeCloseTo(20, 0); // wristDeviation (L)
+    });
+
+    it('clamps ulnar deviation -50° → -30°', () => {
+      const bone = flexBone(-50);
+      expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(true);
+      expect(decomposed(bone).flexion).toBeCloseTo(-30, 0);
+    });
+
+    it('leaves within-ROM wrist flexion (60°) untouched', () => {
+      const bone = abductBone(60);
+      expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(false);
+      expect(decomposed(bone).abduction).toBeCloseTo(60, 0);
     });
   });
 

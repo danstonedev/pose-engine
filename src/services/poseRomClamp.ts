@@ -58,6 +58,25 @@ interface BodyEulerStrategy {
   rotationField: string | null;
   /** Mirror right-side joints so they share the left-side sign convention. */
   mirror: boolean;
+  /** Sign mapping the raw swing decomposition's flexion into the joint's
+   *  CLINICAL flexion — the same convention the readout (`jointAngles.ts`)
+   *  and the ROM registry use. The ankle readout writes `-a.flexion`
+   *  (dorsi positive), so feet need `-1`; spine/head/hand map directly
+   *  (`+1`). Without this the registry's dorsi/plantar bounds clamp the
+   *  wrong pole (plantar stops at the dorsi limit and vice-versa). */
+  flexionSign?: 1 | -1;
+  /** Sign mapping the (mirror-applied) raw abduction into the joint's
+   *  CLINICAL frontal-plane value (e.g. ankle inversion). The ankle readout
+   *  writes `-abduction`, so feet need `-1`; everything else maps directly. */
+  abductionSign?: 1 | -1;
+  /** Which raw decomposition axis feeds the FLEXION field: 'x' (sagittal,
+   *  default) or 'z' (frontal). The wrist inherits the forearm's twisted
+   *  frame, so its flexion reads from local-Z and deviation from local-X —
+   *  the same axis swap the readout pins (flex=Z, dev=X). */
+  flexionAxis?: 'x' | 'z';
+  /** Which raw axis feeds the ABDUCTION/deviation field: 'z' (default) or 'x'.
+   *  Must differ from `flexionAxis`. */
+  abductionAxis?: 'x' | 'z';
 }
 
 interface BallJointStrategy {
@@ -112,19 +131,31 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     abductionField: 'lateralTilt',
     rotationField: 'rotation',
   },
-  Spine_Mid: {
+  // Thoracic (T-spine) + Cervical (C-spine) regional ROM. Keyed by the region
+  // CONTROL bone (Spine_Upper / Neck) — these are the canonical keys the
+  // readout reports the regional total under AND the registry rows. The region
+  // curve distributes the bend across two segments, so the clamp is applied to
+  // the control's target orientation (the regional total) before distribution.
+  // Body-euler shares the readout's parent-local frame, so the signs must match
+  // the readout (flexion = -a.flexion, lateralTilt = -a.abduction); the flexion
+  // range is asymmetric (thoracic -25/40, cervical -60/50) so the flip matters.
+  Spine_Upper: {
     kind: 'body-euler',
     flexionField: 'flexion',
     abductionField: 'lateralTilt',
     rotationField: 'rotation',
     mirror: false,
+    flexionSign: -1,
+    abductionSign: -1,
   },
-  Head: {
+  Neck: {
     kind: 'body-euler',
     flexionField: 'flexion',
     abductionField: 'lateralTilt',
     rotationField: 'rotation',
     mirror: false,
+    flexionSign: -1,
+    abductionSign: -1,
   },
   L_UpperArm: {
     kind: 'ball-joint',
@@ -182,12 +213,21 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     rotationRange: { min: -15, max: 15 },
     flexionSign: -1,
   },
+  // Wrist inherits the forearm's twisted frame, so the readout reads flexion
+  // from local-Z (a.abduction) and radial/ulnar deviation from local-X
+  // (a.flexion) — the flexionAxis/abductionAxis swap. Without it the clamp
+  // constrained flex with the deviation range (±~25°) and vice-versa. NOTE: the
+  // wrist readout signs are flagged PROVISIONAL in jointAngles.ts — the axis
+  // mapping + magnitudes are now correct; verify flex/ext + radial/ulnar poles
+  // live and flip a sign here if a direction reads inverted.
   L_Hand: {
     kind: 'body-euler',
     flexionField: 'wristFlexion',
     abductionField: 'wristDeviation',
     rotationField: null,
     mirror: false,
+    flexionAxis: 'z',
+    abductionAxis: 'x',
   },
   R_Hand: {
     kind: 'body-euler',
@@ -195,6 +235,8 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     abductionField: 'wristDeviation',
     rotationField: null,
     mirror: true,
+    flexionAxis: 'z',
+    abductionAxis: 'x',
   },
   L_Foot: {
     kind: 'body-euler',
@@ -202,6 +244,11 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     abductionField: 'ankleInversion',
     rotationField: null,
     mirror: false,
+    // Readout writes ankleFlexion = -a.flexion (dorsi +) and
+    // ankleInversion = -abduction, so the clamp must flip both to land the
+    // registry's dorsi/plantar + inv/ev bounds on the correct pole.
+    flexionSign: -1,
+    abductionSign: -1,
   },
   R_Foot: {
     kind: 'body-euler',
@@ -209,6 +256,8 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     abductionField: 'ankleInversion',
     rotationField: null,
     mirror: true,
+    flexionSign: -1,
+    abductionSign: -1,
   },
 };
 
@@ -294,23 +343,50 @@ function clampBodyEuler(
     ? lookupRange(canonicalKey, strategy.rotationField)
     : ZERO_RANGE;
 
-  let abductionInput = angles.abduction;
-  if (strategy.mirror) abductionInput = -abductionInput;
+  // Map the raw decomposition (X = flexion, Z = abduction) into each clinical
+  // field, then clamp, then invert exactly back to raw for recomposition. This
+  // is the precise inverse of the per-joint readout in jointAngles.ts:
+  //   - flexionAxis/abductionAxis pick which raw axis feeds each field. Most
+  //     joints map flexion←X, abduction←Z; the WRIST inherits the forearm's
+  //     twisted frame so flexion←Z, deviation←X.
+  //   - flexionSign/abductionSign bring each field into the readout's clinical
+  //     convention (feet/spine flip flexion; feet/spine flip the frontal axis).
+  //   - mirror flips ONLY the abduction-field source for right-side joints
+  //     (foot inversion, wrist deviation) — flexion is never mirrored, matching
+  //     the readout.
+  const fAxis = strategy.flexionAxis ?? 'x';
+  const aAxis = strategy.abductionAxis ?? 'z';
+  const pick = (ax: 'x' | 'z') => (ax === 'x' ? angles.flexion : angles.abduction);
+  const fSign = strategy.flexionSign ?? 1;
+  const aSign = strategy.abductionSign ?? 1;
+  const aMirror = strategy.mirror ? -1 : 1;
 
-  const clampedFlex = clampValue(angles.flexion, flexRange);
-  const clampedAbd = clampValue(abductionInput, abdRange);
+  const clinFlex = fSign * pick(fAxis);
+  const clinAbd = aSign * aMirror * pick(aAxis);
+
+  const clampedFlex = clampValue(clinFlex, flexRange);
+  const clampedAbd = clampValue(clinAbd, abdRange);
   const clampedRot = clampValue(angles.rotation, rotRange);
 
   if (
-    approxEqual(clampedFlex, angles.flexion) &&
-    approxEqual(clampedAbd, abductionInput) &&
+    approxEqual(clampedFlex, clinFlex) &&
+    approxEqual(clampedAbd, clinAbd) &&
     approxEqual(clampedRot, angles.rotation)
   ) {
     return false;
   }
 
-  const abdOut = strategy.mirror ? -clampedAbd : clampedAbd;
-  recomposeBodyEuler(clampedFlex, abdOut, clampedRot, _qDelta);
+  // Invert back to raw X/Z components (fAxis ≠ aAxis, so each is set once).
+  const fRaw = clampedFlex * fSign;
+  const aRaw = clampedAbd * aSign * aMirror;
+  let rawX = 0;
+  let rawZ = 0;
+  if (fAxis === 'x') rawX = fRaw;
+  else rawZ = fRaw;
+  if (aAxis === 'x') rawX = aRaw;
+  else rawZ = aRaw;
+
+  recomposeBodyEuler(rawX, rawZ, clampedRot, _qDelta);
   applyDeltaToLocal(bone, restArr, _qDelta);
   return true;
 }
@@ -624,8 +700,9 @@ export function inspectClinicalAngles(
     const a = decomposeBodyDelta(_qDelta);
     let abd = a.abduction;
     if (strategy.mirror) abd = -abd;
+    abd *= strategy.abductionSign ?? 1;
     raw = { flexion: a.flexion, abduction: abd, rotation: a.rotation };
-    anatomicFlexion = a.flexion;
+    anatomicFlexion = (strategy.flexionSign ?? 1) * a.flexion;
     flexRange = lookupRange(canonicalKey, strategy.flexionField);
     abdRange = lookupRange(canonicalKey, strategy.abductionField);
     rotRange = strategy.rotationField

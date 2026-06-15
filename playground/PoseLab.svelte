@@ -280,7 +280,21 @@
         segs.push(b);
         rests.push(new THREE.Quaternion(rl[0], rl[1], rl[2], rl[3]));
       }
-      distributeChainCurve(segs, rests, chain.control, target);
+      // ROM-clamp the REGIONAL total before distributing: the target is the
+      // control bone's intended end orientation (= the whole region's bend),
+      // and the registry row for the control key (Spine_Upper = Thoracic,
+      // Neck = Cervical) holds the regional ROM. Body-euler clamp is local-only,
+      // so we clamp the control bone in place, then distribute the clamped arc.
+      let clamped = target;
+      if (romOn && hasClampStrategy(key)) {
+        const ctrl = boneMap.get(key);
+        if (ctrl) {
+          ctrl.quaternion.copy(target);
+          clampBoneToRom(ctrl as THREE.Bone, key, restRef);
+          clamped = ctrl.quaternion.clone();
+        }
+      }
+      distributeChainCurve(segs, rests, chain.control, clamped);
       return true;
     }
 
