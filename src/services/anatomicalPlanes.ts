@@ -65,6 +65,9 @@ export interface AnatomicalPlanes {
    *  re-centre every call; the oblique is centred only the first time, so a
    *  user's gizmo edits survive a model reload. */
   setExtents(center: THREE.Vector3, radius: number): void;
+  /** Slide a cardinal plane along its own normal by `distance` from the stored
+   *  model centre — the cross-section depth scrubber. */
+  setCardinalOffset(name: CardinalPlaneName, distance: number): void;
   /** World-space math plane (normal + constant) for clipping/capping (Phase 2). */
   getClipPlane(name: PlaneName, out?: THREE.Plane): THREE.Plane;
   dispose(): void;
@@ -125,6 +128,7 @@ export function createAnatomicalPlanes(opts: AnatomicalPlanesOptions = {}): Anat
     );
 
   let obliqueCentred = false;
+  const _center = new THREE.Vector3();
   const _p = new THREE.Vector3();
   const _q = new THREE.Quaternion();
   const _n = new THREE.Vector3();
@@ -140,6 +144,7 @@ export function createAnatomicalPlanes(opts: AnatomicalPlanesOptions = {}): Anat
       visuals.oblique.node.visible = visible;
     },
     setExtents(center, radius) {
+      _center.copy(center);
       const size = radius * sizeFactor;
       for (const name of ['sagittal', 'frontal', 'transverse'] as CardinalPlaneName[]) {
         visuals[name].node.position.copy(center);
@@ -151,6 +156,11 @@ export function createAnatomicalPlanes(opts: AnatomicalPlanesOptions = {}): Anat
         ob.position.copy(center);
         obliqueCentred = true;
       }
+    },
+    setCardinalOffset(name, distance) {
+      visuals[name].node.position
+        .copy(_center)
+        .addScaledVector(CARDINAL_NORMAL[name], distance);
     },
     getClipPlane(name, out = new THREE.Plane()) {
       const node = visuals[name].node;

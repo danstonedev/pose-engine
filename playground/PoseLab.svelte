@@ -44,6 +44,7 @@
     buildOrbitTweenForWorldTarget,
     evaluateOrbitTween,
     createAnatomicalPlanes,
+    createSectionCap,
     JointAnglesPanel,
   } from '../src/index';
   import type {
@@ -57,6 +58,7 @@
     RomPlane,
     TwistSegment,
     AnatomicalPlanes,
+    SectionCap,
   } from '../src/index';
 
   /** Region curve handles distribute their bend across a 2-bone chain (smooth
@@ -97,6 +99,19 @@
   let showTransverse = $state(false);
   let showOblique = $state(false);
   let showJoints = $state(true);
+  let slice = $state<'off' | 'sagittal' | 'frontal' | 'transverse' | 'oblique'>('off');
+  let sliceFlip = $state(false);
+  let sliceDepth = $state(0); // -1..1, scaled by the model radius
+  let sliceCap = $state(true); // solid stencil cap (bright cross-section + contour)
+  const obliqueActive = $derived(showOblique || slice === 'oblique');
+
+  /** Bright cross-section colour per plane (matches the plane visuals). */
+  const PLANE_COLOR: Record<string, number> = {
+    sagittal: 0xff3653,
+    frontal: 0x2c8fff,
+    transverse: 0x8adb00,
+    oblique: 0xffb020,
+  };
   let playing = $state(false);
   let copied = $state(false);
 
@@ -126,6 +141,7 @@
     playPose: () => void;
     focus: () => void;
     setPlanes: () => void;
+    setSlice: () => void;
   } | null = null;
 
   const LIMB_COLORS: Record<string, number> = {
@@ -149,6 +165,7 @@
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
+    renderer.localClippingEnabled = true; // cross-section slicing (clipping planes)
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -227,6 +244,11 @@
     let obliqueHit: THREE.Mesh | null = null;
     let obliqueRingDrag: PoseRingDrag | null = null;
     let obliquePress: { startX: number; startY: number; dragging: boolean } | null = null;
+    // Cross-section slicing: one live clip plane shared by the model materials.
+    const sliceClipPlane = new THREE.Plane();
+    let clipTargets: THREE.Material[] = [];
+    let clipMeshes: THREE.Mesh[] = [];
+    let sectionCap: SectionCap | null = null;
     const handleGeo = new THREE.SphereGeometry(0.022, 14, 10);
     const hitGeo = new THREE.SphereGeometry(0.06, 10, 8);
     let loadToken = 0;
@@ -270,7 +292,7 @@
     function updateRingGizmo() {
       // Oblique-plane editing owns the ring gizmo (positioned/oriented on the
       // plane node) — the same rings used to rotate joints.
-      if (showOblique && planes) {
+      if (obliqueEditing() && planes) {
         planes.oblique.getWorldPosition(_ringPos);
         planes.oblique.getWorldQuaternion(_ringQuat);
         ringGizmo.update(camera, _ringPos, _ringQuat, true);
@@ -590,11 +612,32 @@
       requestRender();
     }
 
+    /** The oblique plane is being edited when its checkbox is on OR it's the
+     *  active slicing plane (slicing implies you want to position it). */
+    function obliqueEditing() {
+      return showOblique || slice === 'oblique';
+    }
+    /** A plane's quad is shown if its checkbox is on, or it's the active slice in
+     *  hollow mode (to mark the cut). When the solid cap is on, the cap replaces
+     *  the active slice's quad (avoids z-fighting; the cap shows the contour). */
+    function planeShown(name: 'sagittal' | 'frontal' | 'transverse' | 'oblique') {
+      const checked =
+        name === 'sagittal'
+          ? showSagittal
+          : name === 'frontal'
+            ? showFrontal
+            : name === 'transverse'
+              ? showTransverse
+              : showOblique;
+      if (slice === name) return sliceCap ? checked : true;
+      return checked;
+    }
+
     /** Joint dots hide (and stop responding) while editing the oblique plane, or
      *  when the user turns markers off — so the plane can be positioned without
      *  nudging a joint. */
     function jointsActive() {
-      return showJoints && !showOblique;
+      return showJoints && !obliqueEditing();
     }
     function applyJointVisibility() {
       if (handleGroup) handleGroup.visible = jointsActive();
@@ -604,12 +647,12 @@
     /** Sync the plane toggles + oblique gizmo to the current UI state. */
     function applyPlaneState() {
       if (!planes) return;
-      planes.setCardinalVisible('sagittal', showSagittal);
-      planes.setCardinalVisible('frontal', showFrontal);
-      planes.setCardinalVisible('transverse', showTransverse);
-      planes.setObliqueVisible(showOblique);
-      if (obliqueDot) obliqueDot.visible = showOblique;
-      if (showOblique) {
+      planes.setCardinalVisible('sagittal', planeShown('sagittal'));
+      planes.setCardinalVisible('frontal', planeShown('frontal'));
+      planes.setCardinalVisible('transverse', planeShown('transverse'));
+      planes.setObliqueVisible(planeShown('oblique'));
+      if (obliqueDot) obliqueDot.visible = obliqueEditing();
+      if (obliqueEditing()) {
         // The ring gizmo now serves the plane; clear any joint selection + show
         // all three rotation rings in their default colours.
         if (selected) deselect();
@@ -620,6 +663,56 @@
         ringGizmo.hide();
       }
       applyJointVisibility();
+      requestRender();
+    }
+
+    /** Collect model materials (for clipping) + meshes (for the cap), and
+     *  (re)build the section cap for the current model. */
+    function collectClipTargets() {
+      clipTargets = [];
+      clipMeshes = [];
+      if (!modelRoot) return;
+      modelRoot.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        clipMeshes.push(mesh);
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const m of mats) if (m) clipTargets.push(m);
+      });
+      sectionCap?.dispose();
+      sectionCap = createSectionCap(clipMeshes, (_sphere.radius || 1) * 2.5);
+      sectionCap.setVisible(false);
+      scene.add(sectionCap.group);
+    }
+
+    /** Recompute the live clip plane from the active plane's current transform
+     *  (so gizmo moves + the depth scrubber update the cut). Called each frame. */
+    function refreshSlicePlane() {
+      if (!planes || slice === 'off') return;
+      planes.getClipPlane(slice, sliceClipPlane);
+      if (sliceFlip) sliceClipPlane.negate();
+      sectionCap?.setPlane(sliceClipPlane);
+    }
+
+    /** Attach/detach the clip plane to the model materials + scrub cardinal depth. */
+    function applySlice() {
+      if (planes) {
+        const r = _sphere.radius || 1;
+        for (const c of ['sagittal', 'frontal', 'transverse'] as const) {
+          planes.setCardinalOffset(c, slice === c ? sliceDepth * r : 0);
+        }
+      }
+      const on = slice !== 'off';
+      if (on) refreshSlicePlane();
+      for (const m of clipTargets) {
+        m.clippingPlanes = on ? [sliceClipPlane] : [];
+        m.clipShadows = on;
+      }
+      if (sectionCap) {
+        sectionCap.setVisible(on && sliceCap);
+        if (on) sectionCap.setColor(PLANE_COLOR[slice] ?? 0xffb020);
+      }
+      applyPlaneState();
       requestRender();
     }
 
@@ -683,7 +776,8 @@
         if (showAxes) buildAxes();
         ensurePlanes();
         planes?.setExtents(_sphere.center, _sphere.radius);
-        applyPlaneState();
+        collectClipTargets();
+        applySlice();
         frame();
         loading = false;
         requestRender();
@@ -753,7 +847,7 @@
       // Oblique-plane editing: rotate via the ring gizmo, translate via the
       // centre dot — the same controls as joints. While active, joints are
       // ignored entirely so they can't be moved by accident.
-      if (showOblique && planes && obliqueHit) {
+      if (obliqueEditing() && planes && obliqueHit) {
         const node = planes.oblique;
         node.getWorldPosition(_ringPos);
         node.getWorldQuaternion(_ringQuat);
@@ -951,6 +1045,10 @@
         modelRoot?.updateMatrixWorld(true);
       }
       updateRingGizmo();
+      if (slice !== 'off') {
+        refreshSlicePlane(); // live-track gizmo moves + depth
+        if (sliceCap && sectionCap) sectionCap.update();
+      }
       renderer.render(scene, camera);
       ringGizmo.render(renderer, camera);
       renderNeeded = false;
@@ -996,6 +1094,7 @@
       playPose: () => playPose(),
       focus: () => focusSelected(),
       setPlanes: () => applyPlaneState(),
+      setSlice: () => applySlice(),
     };
 
     return () => {
@@ -1022,6 +1121,7 @@
         (obliqueHit?.material as THREE.Material | undefined)?.dispose?.();
       }
       planes?.dispose();
+      sectionCap?.dispose();
       controls.dispose();
       renderer.dispose();
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
@@ -1046,6 +1146,13 @@
     void showOblique;
     void showJoints;
     api?.setPlanes();
+  });
+  $effect(() => {
+    void slice;
+    void sliceFlip;
+    void sliceDepth;
+    void sliceCap;
+    api?.setSlice();
   });
 </script>
 
@@ -1084,8 +1191,31 @@
     </div>
     <div class="lab__row">
       <label class="lab__check"><input type="checkbox" bind:checked={showJoints} /> Joint markers</label>
-      {#if showOblique}<span class="lab__hint-inline">Oblique: drag the dot to move · grab a ring to tilt · joints hidden</span>{/if}
+      {#if obliqueActive}<span class="lab__hint-inline">Oblique: drag the dot to move · grab a ring to tilt · joints hidden</span>{/if}
     </div>
+
+    <div class="lab__row">
+      <span class="lab__label">Cross-section slice</span>
+    </div>
+    <div class="lab__row lab__slice">
+      <select bind:value={slice}>
+        <option value="off">Off</option>
+        <option value="sagittal">Sagittal</option>
+        <option value="frontal">Frontal</option>
+        <option value="transverse">Transverse</option>
+        <option value="oblique">Oblique</option>
+      </select>
+      {#if slice !== 'off'}
+        <label class="lab__check"><input type="checkbox" bind:checked={sliceFlip} /> Flip side</label>
+        <label class="lab__check"><input type="checkbox" bind:checked={sliceCap} /> Solid cap</label>
+      {/if}
+    </div>
+    {#if slice !== 'off' && slice !== 'oblique'}
+      <div class="lab__row lab__slice">
+        <span class="lab__label">Depth</span>
+        <input type="range" min="-1" max="1" step="0.01" bind:value={sliceDepth} />
+      </div>
+    {/if}
 
     <div class="lab__row lab__btns">
       <button onclick={() => api?.reset()}>Reset to anatomic</button>
@@ -1233,6 +1363,22 @@
     font-size: 0.66rem;
     color: rgba(255, 255, 255, 0.45);
     line-height: 1.3;
+  }
+  .lab__slice {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .lab__slice select {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 7px;
+    padding: 0.3rem;
+  }
+  .lab__slice input[type='range'] {
+    flex: 1;
   }
   .lab__btns {
     flex-direction: row;

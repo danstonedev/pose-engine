@@ -57,6 +57,9 @@ export * from './services/poseClickDeselect';
 // Anatomical reference planes + cross-section slicing (cardinal + oblique)
 export * from './services/anatomicalPlanes';
 
+// Solid cross-section cap (stencil) for clipped models
+export * from './services/sectionCap';
+
 // Anatomic start pose (arms at sides) — the shared 0° clinical reference
 export * from './services/anatomicPose';
 
