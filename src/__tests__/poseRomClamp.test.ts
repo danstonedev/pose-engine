@@ -364,7 +364,7 @@ describe('clampBoneToRom', () => {
     function handRest(): JointAngleRestReference {
       return {
         pelvisWorldQuat: REST_IDENTITY,
-        localQuats: { L_Hand: REST_IDENTITY },
+        localQuats: { L_Hand: REST_IDENTITY, R_Hand: REST_IDENTITY },
         worldQuats: {},
       } as unknown as JointAngleRestReference;
     }
@@ -414,6 +414,21 @@ describe('clampBoneToRom', () => {
       const bone = abductBone(-60); // readout wristFlexion = 60
       expect(clampBoneToRom(bone, 'L_Hand', handRest())).toBe(false);
       expect(decomposed(bone).abduction).toBeCloseTo(-60, 0);
+    });
+
+    // Right hand's local frame is flipped ~180° about its long axis, so its
+    // FLEXION read inverts vs the left (flexionSign +1 not -1); deviation maps
+    // the same on both. These lock that asymmetry.
+    it('right wrist flexion uses the opposite raw-Z sign vs left', () => {
+      const bone = abductBone(100); // a.abduction = 100 → R clinical flexion +100
+      expect(clampBoneToRom(bone, 'R_Hand', handRest())).toBe(true);
+      expect(decomposed(bone).abduction).toBeCloseTo(80, 0); // clamped to flex max +80
+    });
+
+    it('right wrist radial deviation matches the left mapping', () => {
+      const bone = flexBone(-50); // a.flexion = -50 → R clinical deviation +50 (radial)
+      expect(clampBoneToRom(bone, 'R_Hand', handRest())).toBe(true);
+      expect(decomposed(bone).flexion).toBeCloseTo(-20, 0); // clamped to radial max +20
     });
   });
 
