@@ -3,40 +3,53 @@ import * as THREE from 'three';
 /**
  * Solid cross-section cap for a clipped model — turns the hollow opening left by
  * a clipping plane into a filled slice whose boundary reads as a bright
- * intersection contour (so you can see exactly where the plane cuts the body).
+ * intersection contour, so you can see where the plane cuts the body.
  *
- * Technique (the classic stencil cap, adapted for skinned meshes):
- *   1. Render each source mesh's BACK faces, incrementing the stencil, and its
- *      FRONT faces, decrementing it — both clipped by the same plane. The
- *      stencil ends non-zero exactly where the plane passes through solid.
- *   2. Draw a plane-aligned quad where stencil != 0 (the cap fill), then clear
- *      the stencil for the next frame.
+ * Caps are built PER SOURCE MESH, each coloured from its own material. On a
+ * single hollow shell (the pose mannequin) that's one silhouette fill; on a
+ * layered anatomy model (bone / muscle / vessel / nerve meshes) every tissue
+ * caps in its own colour — a true colour cross-section. The models are still
+ * hollow per-mesh, so a cap fills each structure's outline at the cut, not
+ * sub-structure. See `anatomicalPlanes`.
  *
- * Skinned meshes deform via a *shared skeleton*: `mesh.clone()` copies the
- * skeleton + bind matrices by reference, so the stencil clones bend with the
- * pose. We glue each clone's world matrix to its source every frame.
+ * Technique (the classic stencil cap, adapted for skinned meshes + per mesh):
+ *   For each source, render BACK faces incrementing the stencil and FRONT faces
+ *   decrementing it (both clipped by the plane); the stencil is non-zero where
+ *   the plane passes through that solid. Draw a plane-aligned quad where stencil
+ *   != 0 (coloured as the source), then clear the stencil before the next mesh.
+ *   Strictly increasing renderOrder sequences each mesh's stencil→cap→clear.
  *
- * The cap is hollow inside (the models have no internal anatomy) — it fills the
- * silhouette of the body at the cut, not organs. See `anatomicalPlanes`.
+ * Skinned meshes deform via a shared skeleton (`mesh.clone()` copies the
+ * skeleton + bind matrices by reference); we glue each clone's world matrix to
+ * its source every frame.
  */
 
 export interface SectionCapOptions {
-  /** Cap fill colour (hex). Default amber. */
-  color?: number;
-  /** Render order for the stencil pass; the cap quad uses this + 1. Default 2. */
+  /** Render order for the first mesh's stencil pass; each mesh uses +2. Default 2. */
   renderOrder?: number;
+  /** Cap colour when a source material exposes no usable colour. Default amber. */
+  defaultColor?: number;
 }
 
 export interface SectionCap {
-  /** Add to the scene. Holds the stencil clones + the cap quad. */
+  /** Add to the scene. Holds every mesh's stencil clones + cap quad. */
   readonly group: THREE.Group;
-  /** Set the world-space clip plane the cap aligns to (copied in). */
+  /** Set the world-space clip plane the caps align to (copied in). */
   setPlane(plane: THREE.Plane): void;
-  setColor(hex: number): void;
+  /** Force a single colour on every cap (e.g. a demo on a hollow shell). Pass
+   *  null to restore each cap to its source material's colour. */
+  setColor(hex: number | null): void;
   setVisible(visible: boolean): void;
-  /** Per-frame: glue stencil clones to their sources + place the cap quad. */
+  /** Per-frame: glue stencil clones to their sources + place the cap quads. */
   update(): void;
   dispose(): void;
+}
+
+function readColor(mesh: THREE.Mesh, fallback: number): number {
+  const mat = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as
+    | (THREE.Material & { color?: THREE.Color })
+    | undefined;
+  return mat?.color ? mat.color.getHex() : fallback;
 }
 
 export function createSectionCap(
@@ -45,10 +58,12 @@ export function createSectionCap(
   opts: SectionCapOptions = {},
 ): SectionCap {
   const baseOrder = opts.renderOrder ?? 2;
+  const fallback = opts.defaultColor ?? 0xffb020;
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
   const group = new THREE.Group();
   group.name = 'section-cap';
+  const capGeo = new THREE.PlaneGeometry(size, size);
 
   function stencilMat(side: THREE.Side, op: THREE.StencilOp): THREE.MeshBasicMaterial {
     const m = new THREE.MeshBasicMaterial();
@@ -65,41 +80,50 @@ export function createSectionCap(
     return m;
   }
 
-  // Two stencil clones per source: back faces increment, front faces decrement.
-  const clones: { src: THREE.Object3D; clone: THREE.Object3D }[] = [];
+  interface Entry {
+    clones: THREE.Object3D[];
+    sources: THREE.Object3D[];
+    capQuad: THREE.Mesh;
+    capMat: THREE.MeshStandardMaterial;
+    srcColor: number;
+  }
+  const entries: Entry[] = [];
+  let order = baseOrder;
   for (const src of sources) {
     const back = src.clone(false);
     back.material = stencilMat(THREE.BackSide, THREE.IncrementWrapStencilOp);
     const front = src.clone(false);
     front.material = stencilMat(THREE.FrontSide, THREE.DecrementWrapStencilOp);
     for (const c of [back, front]) {
-      c.renderOrder = baseOrder;
+      c.renderOrder = order;
       c.matrixAutoUpdate = false;
       c.matrixWorldAutoUpdate = false;
-      c.frustumCulled = false; // world matrix is set manually; skip cull guesswork
+      c.frustumCulled = false;
       group.add(c);
-      clones.push({ src, clone: c });
     }
-  }
 
-  // The visible cap fill: drawn where stencil != 0, then resets the stencil.
-  const capMat = new THREE.MeshStandardMaterial({
-    color: opts.color ?? 0xffb020,
-    metalness: 0.0,
-    roughness: 0.85,
-    side: THREE.DoubleSide,
-    stencilWrite: true,
-    stencilRef: 0,
-    stencilFunc: THREE.NotEqualStencilFunc,
-    stencilFail: THREE.ReplaceStencilOp,
-    stencilZFail: THREE.ReplaceStencilOp,
-    stencilZPass: THREE.ReplaceStencilOp,
-  });
-  const capQuad = new THREE.Mesh(new THREE.PlaneGeometry(size, size), capMat);
-  capQuad.renderOrder = baseOrder + 1;
-  capQuad.frustumCulled = false;
-  capQuad.onAfterRender = (renderer) => renderer.clearStencil();
-  group.add(capQuad);
+    const srcColor = readColor(src, fallback);
+    const capMat = new THREE.MeshStandardMaterial({
+      color: srcColor,
+      metalness: 0.0,
+      roughness: 0.85,
+      side: THREE.DoubleSide,
+      stencilWrite: true,
+      stencilRef: 0,
+      stencilFunc: THREE.NotEqualStencilFunc,
+      stencilFail: THREE.ReplaceStencilOp,
+      stencilZFail: THREE.ReplaceStencilOp,
+      stencilZPass: THREE.ReplaceStencilOp,
+    });
+    const capQuad = new THREE.Mesh(capGeo, capMat);
+    capQuad.renderOrder = order + 1;
+    capQuad.frustumCulled = false;
+    capQuad.onAfterRender = (renderer) => renderer.clearStencil();
+    group.add(capQuad);
+
+    entries.push({ clones: [back, front], sources: [src, src], capQuad, capMat, srcColor });
+    order += 2;
+  }
 
   const _z = new THREE.Vector3(0, 0, 1);
   const _q = new THREE.Quaternion();
@@ -111,22 +135,24 @@ export function createSectionCap(
       plane.copy(p);
     },
     setColor(hex) {
-      capMat.color.setHex(hex);
+      for (const e of entries) e.capMat.color.setHex(hex ?? e.srcColor);
     },
     setVisible(visible) {
       group.visible = visible;
     },
     update() {
-      for (const { src, clone } of clones) {
-        src.updateWorldMatrix(true, false);
-        clone.matrixWorld.copy(src.matrixWorld);
-      }
       _q.setFromUnitVectors(_z, plane.normal);
-      capQuad.quaternion.copy(_q);
       plane.coplanarPoint(_pt);
-      capQuad.position.copy(_pt);
-      capQuad.updateMatrix();
-      capQuad.updateMatrixWorld(true);
+      for (const e of entries) {
+        for (let i = 0; i < e.clones.length; i++) {
+          e.sources[i].updateWorldMatrix(true, false);
+          e.clones[i].matrixWorld.copy(e.sources[i].matrixWorld);
+        }
+        e.capQuad.quaternion.copy(_q);
+        e.capQuad.position.copy(_pt);
+        e.capQuad.updateMatrix();
+        e.capQuad.updateMatrixWorld(true);
+      }
     },
     dispose() {
       group.traverse((o) => {
@@ -134,7 +160,7 @@ export function createSectionCap(
         const mat = mesh.material as THREE.Material | THREE.Material[] | undefined;
         if (mat) (Array.isArray(mat) ? mat : [mat]).forEach((m) => m.dispose?.());
       });
-      capQuad.geometry.dispose();
+      capGeo.dispose();
       group.parent?.remove(group);
     },
   };
