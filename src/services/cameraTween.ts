@@ -49,12 +49,18 @@ export interface OrbitTween {
 export function resolveCameraViewSetpoint(
   view: PainBodyView,
   isMobile: boolean,
+  /** Mobile-only vertical lift (world units) added to both the camera height
+   *  and look-at target, so the model renders lower in the frame — used to keep
+   *  the head clear of top overlaid controls on narrow screens. Ignored on
+   *  desktop. Default 0 (no shift). */
+  frameLift = 0,
 ): { position: [number, number, number]; target: [number, number, number] } {
   const preset = VIEW_PRESETS[view];
   const scale = isMobile ? MOBILE_ZOOM_OUT : 1;
+  const lift = isMobile ? frameLift : 0;
   return {
-    position: [preset.position[0] * scale, preset.position[1], preset.position[2] * scale],
-    target: [...preset.target],
+    position: [preset.position[0] * scale, preset.position[1] + lift, preset.position[2] * scale],
+    target: [preset.target[0], preset.target[1] + lift, preset.target[2]],
   };
 }
 
