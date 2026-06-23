@@ -15,11 +15,13 @@ export interface CameraViewPreset {
   target: [number, number, number];
 }
 
+const DEFAULT_CAMERA_TARGET_Y = 0.95;
+
 export const VIEW_PRESETS: Record<PainBodyView, CameraViewPreset> = {
-  front: { position: [0, 0.85, 3.2], target: [0, 0.75, 0] },
-  back: { position: [0, 0.85, -3.2], target: [0, 0.75, 0] },
-  left: { position: [-2.8, 0.85, 0], target: [0, 0.75, 0] },
-  right: { position: [2.8, 0.85, 0], target: [0, 0.75, 0] },
+  front: { position: [0, 0.95, 3.2], target: [0, DEFAULT_CAMERA_TARGET_Y, 0] },
+  back: { position: [0, 0.95, -3.2], target: [0, DEFAULT_CAMERA_TARGET_Y, 0] },
+  left: { position: [-2.8, 0.95, 0], target: [0, DEFAULT_CAMERA_TARGET_Y, 0] },
+  right: { position: [2.8, 0.95, 0], target: [0, DEFAULT_CAMERA_TARGET_Y, 0] },
 };
 
 /** OrbitTween fully describes a single camera-orbit pass. The camera
