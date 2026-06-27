@@ -45,6 +45,12 @@ export * from './services/poseGoniometerHelpers';
 // Standard scene boot — renderer, lights, GLB variant loader
 export * from './services/sceneBoot';
 
+// Shared orbit-viewer boot (scene + camera + OrbitControls + dirty-flag render
+// loop + resize + context-loss), the rotate-gizmo TransformControls factory,
+// and a DRACO-capable GLTF loader. Additive — collapses the scene-boot block
+// duplicated across the consuming apps.
+export * from './services/orbitViewer';
+
 // TransformControls rotate-gizmo configuration helpers
 export * from './services/poseGizmoHelpers';
 
