@@ -29,6 +29,7 @@ import {
   type JointAngleRestReference,
 } from './jointAngles';
 import { getRomFieldDefinition, type RomRangeDeg } from './romRegistry';
+import { getEffectiveRomRange } from './romConstraints';
 
 const DEG = 180 / Math.PI;
 const RAD = Math.PI / 180;
@@ -279,8 +280,21 @@ function isClampActive(): boolean {
     | undefined;
   if (g && g.__enableRomClamp === true) return true;
   if (g && g.__disableRomClamp === true) return false;
+  if (clampEnabledOverride !== null) return clampEnabledOverride;
   // Default differs by context.
   return typeof window === 'undefined';
+}
+
+/** Host-set clamp override — between the debug globals (which win, so a
+ *  console user can always intervene) and the context default. */
+let clampEnabledOverride: boolean | null = null;
+
+/** Programmatic clamp toggle for embedding hosts (e.g. a scenario ROM exam
+ *  that NEEDS the clamp on in the browser, where the calibration default is
+ *  OFF). Pass `null` to restore the context default. The `__enableRomClamp` /
+ *  `__disableRomClamp` debug globals still take precedence. */
+export function setRomClampEnabled(enabled: boolean | null): void {
+  clampEnabledOverride = enabled;
 }
 
 /** True if clamping is currently active (after applying overrides). The
@@ -583,6 +597,11 @@ function recomposeBallJoint(
 const ZERO_RANGE: RomRangeDeg = { min: 0, max: 0 };
 
 function lookupRange(canonicalKey: string, fieldKey: string): RomRangeDeg {
+  // Effective = normative ∩ active scenario constraint (romConstraints.ts),
+  // so a case-authored restriction ("this elbow stops at 95°") clamps here
+  // exactly like a normative limit does.
+  const effective = getEffectiveRomRange(canonicalKey, fieldKey);
+  if (effective) return effective;
   const def = getRomFieldDefinition(canonicalKey, fieldKey);
   return def ? def.range : ZERO_RANGE;
 }

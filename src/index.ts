@@ -26,6 +26,11 @@ export * from './services/jointAngles';
 export * from './services/romRegistry';
 export * from './services/poseRomClamp';
 
+// Scenario ROM constraints — per-patient available range / painful arc /
+// end-feel overrides a host installs for the active case; the clamp enforces
+// normative ∩ constraint and readouts render available-vs-normal.
+export * from './services/romConstraints';
+
 // Camera view presets + orbit tween math
 export * from './services/cameraTween';
 
