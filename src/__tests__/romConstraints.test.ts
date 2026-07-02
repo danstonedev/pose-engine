@@ -115,6 +115,14 @@ describe('isInRomPainfulArc', () => {
     expect(isInRomPainfulArc(121, constraint)).toBe(false);
   });
 
+  it('tolerates clamp-readback error at the arc boundary', () => {
+    // An arc that ENDS at the available limit (the common pain-limited-ROM
+    // authoring) must still register when the clamped bone reads back a hair
+    // past the boundary.
+    expect(isInRomPainfulArc(120.001, constraint)).toBe(true);
+    expect(isInRomPainfulArc(59.999, constraint)).toBe(true);
+  });
+
   it('is false without an arc or with a non-finite value', () => {
     expect(isInRomPainfulArc(90, undefined)).toBe(false);
     expect(isInRomPainfulArc(90, {})).toBe(false);

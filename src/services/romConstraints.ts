@@ -123,15 +123,23 @@ export function getEffectiveRomRange(
   return resolveAvailableRange(def.range, getRomFieldConstraint(canonicalKey, fieldKey));
 }
 
-/** True when `value` sits inside the constraint's painful arc (inclusive). */
+/** Tolerance (deg) for the painful-arc test. Pain-limited ROM is usually
+ *  authored with the arc ENDING at the available limit; the clamp stops the
+ *  bone exactly there, but the angle read back off the recomposed quaternion
+ *  can land a hair past the boundary, which would silently drop the pain
+ *  signal at the exact position it matters most. */
+const PAINFUL_ARC_TOLERANCE_DEG = 0.25;
+
+/** True when `value` sits inside the constraint's painful arc (inclusive,
+ *  with a small readback tolerance at the boundaries). */
 export function isInRomPainfulArc(
   value: number,
   constraint: RomFieldConstraint | null | undefined,
 ): boolean {
   const arc = constraint?.painfulArc;
   if (!arc || !Number.isFinite(value)) return false;
-  const lo = Math.min(arc.min, arc.max);
-  const hi = Math.max(arc.min, arc.max);
+  const lo = Math.min(arc.min, arc.max) - PAINFUL_ARC_TOLERANCE_DEG;
+  const hi = Math.max(arc.min, arc.max) + PAINFUL_ARC_TOLERANCE_DEG;
   return value >= lo && value <= hi;
 }
 
