@@ -83,3 +83,9 @@ export { default as PoseViewer } from './PoseViewer.svelte';
 // Optional Svelte panel — the canonical clinical joint-angle readout (direction
 // labels + ROM limit bars + status), so every host shows identical angles.
 export { default as JointAnglesPanel } from './JointAnglesPanel.svelte';
+
+// Optional Svelte viewer — read-only observation of an AUTHORED patient pose
+// (mission-shell `move.observe`, ADR-0018): applies the pose over the anatomic
+// baseline and reports the engine-computed joint angles via `onReport`. Same
+// lazy-three contract as PoseViewer, so the barrel stays SSR/prerender-safe.
+export { default as ObservationViewer } from './ObservationViewer.svelte';
