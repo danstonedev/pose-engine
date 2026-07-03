@@ -10,6 +10,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 
@@ -147,7 +148,11 @@ export async function loadVariantModel(
   base: string,
 ): Promise<LoadedVariantModel> {
   const url = variant.modelUrl(base);
-  const gltf = (await new GLTFLoader().loadAsync(url)) as GLTF;
+  // Runtime mannequin GLBs are EXT_meshopt_compression-encoded; the decoder is
+  // backward-compatible (uncompressed GLBs still load with it registered).
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  const gltf = (await loader.loadAsync(url)) as GLTF;
   const root = gltf.scene;
   root.scale.setScalar(variant.pose.rootScale);
 

@@ -13,15 +13,21 @@
     "dev": "vite --config playground/vite.playground.ts",
     "predev": "node playground/copy-models.mjs",
     "check": "svelte-check",
-    "test": "vitest run"
+    "test": "vitest run",
+    "models:compress": "node scripts/compress-runtime-models.mjs",
+    "models:verify": "node scripts/verify-runtime-models.mjs"
   },
   "peerDependencies": {
     "svelte": "^5.0.0",
     "three": "^0.183.0"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.4.1",
+    "@gltf-transform/extensions": "^4.4.1",
+    "@gltf-transform/functions": "^4.4.1",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@types/three": "^0.183.0",
+    "meshoptimizer": "^1.2.0",
     "svelte": "^5.20.0",
     "svelte-check": "^4.1.0",
     "three": "^0.183.2",

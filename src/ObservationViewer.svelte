@@ -77,6 +77,7 @@
       const THREE = await import('three');
       const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
       const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+      const { MeshoptDecoder } = await import('three/examples/jsm/libs/meshopt_decoder.module.js');
       // Services via relative paths (not the barrel) — the barrel re-exports
       // this component, so importing it here would be circular.
       const { getBodyVariant } = await import('./anatomy/bodyVariants');
@@ -162,7 +163,11 @@
           let root: import('three').Object3D;
           let skinned: import('three').SkinnedMesh | null;
           if (url) {
-            const gltf = await new GLTFLoader().loadAsync(url);
+            // Runtime mannequin GLBs are EXT_meshopt_compression-encoded; the
+            // decoder is backward-compatible with uncompressed GLBs.
+            const gltfLoader = new GLTFLoader();
+            gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+            const gltf = await gltfLoader.loadAsync(url);
             root = gltf.scene;
             root.scale.setScalar(variantCfg.pose.rootScale);
             skinned = findFirstSkinnedMesh(root);
@@ -254,15 +259,30 @@
         requestRender();
       }
 
+      // Hosts display:none this viewer during overlays, and rAF keeps firing
+      // for display:none elements — a hidden stage used to burn a 60Hz loop +
+      // controls.update() forever. Park the loop (no reschedule) when the
+      // container is hidden (offsetParent === null); the ResizeObserver fires
+      // with real dimensions when it is shown again and restarts the loop.
       let raf = 0;
+      let loopRunning = false;
       const loop = () => {
+        if (container.offsetParent === null) {
+          loopRunning = false;
+          return; // parked — startLoop() (via the ResizeObserver) resumes
+        }
         raf = requestAnimationFrame(loop);
         controls.update();
         if (!renderNeeded) return;
         renderer.render(scene, camera);
         renderNeeded = false;
       };
-      loop();
+      const startLoop = () => {
+        if (loopRunning) return;
+        loopRunning = true;
+        raf = requestAnimationFrame(loop);
+      };
+      startLoop();
 
       const resize = () => {
         const w = container.clientWidth;
@@ -272,6 +292,7 @@
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         requestRender();
+        startLoop(); // restart the parked loop when the stage becomes visible
       };
       const ro = new ResizeObserver(resize);
       ro.observe(container);
