@@ -1,78 +1,60 @@
 /**
- * Meshopt-compress the runtime pain-map mannequin GLBs (in place).
+ * Meshopt-compress the runtime pain-map mannequin GLBs (in place) — LOSSLESSLY.
  *
  * The `painmap3D_{male,female}.runtime.glb` files are produced by body-chart's
  * `scripts/prune-runtime-models.mjs` (a lossless orphan-data prune) and ship
- * with plain uncompressed geometry (~1.05 MiB each). This script adds an
- * EXT_meshopt_compression stage on that pipeline's OUTPUT: quantize + reorder +
- * meshopt-encode via glTF-Transform, cutting the payload roughly in half while
- * staying loadable by three's GLTFLoader once `setMeshoptDecoder(...)` is
- * registered (which every loader site in this repo now does; the decoder is
- * backward-compatible with uncompressed GLBs).
+ * with plain uncompressed geometry (~1.05 MiB each). This script wraps that
+ * pipeline's OUTPUT in EXT_meshopt_compression and nothing else.
  *
- * Safety: the paint-raycast pipeline and joint-angle code key off node names,
- * and pose logic depends on the skin joint list — so BEFORE overwriting, this
- * script snapshots each file's sorted node names, sorted mesh names, skin
- * joint counts, and extensionsUsed to `models/runtime-models.baseline.json`.
- * Run `node scripts/verify-runtime-models.mjs` (or `npm run models:verify`)
- * afterwards to prove the compressed files preserve all of them.
+ * IMPORTANT — why NO quantize and NO reorder:
+ * body-chart's paint/metrics ecosystem depends on the DECODED buffers being
+ * byte-identical to the originals:
+ *   - the triangle-region atlas keys anatomy attribution by faceIndex, so the
+ *     triangle ORDER must not change (gltf-transform's reorder() permutes it);
+ *   - hot paths read attribute arrays directly, and three's raycast culling
+ *     derives bounds from raw attribute values — quantized int storage
+ *     (KHR_mesh_quantization with the dequant folded into the IBMs) broke the
+ *     BVH paint proxy and slowed direct skinned raycasts ~60x (no culling).
+ * Pure EXT_meshopt_compression is a transport codec: attributes decode
+ * byte-for-byte, and the index codec preserves face order and winding (it may
+ * only rotate vertices WITHIN a triangle, which nothing keys on). Verified by
+ * scripts/verify-runtime-models.mjs via the SHA-256 baseline captured below.
  *
- * Idempotent: re-running decodes and re-encodes; names/skins are unchanged.
+ * Size: ~1,051 kB -> ~695 kB per model (-34%). Loaders must register
+ * MeshoptDecoder (all pose-engine + body-chart GLTFLoader sites do; the
+ * decoder is backward-compatible with uncompressed GLBs).
  *
- * Usage: npm run models:compress
+ * Idempotent: re-running decodes and re-encodes the same bytes.
+ *
+ * Usage: npm run models:compress   (then npm run models:verify)
  */
-import { NodeIO } from '@gltf-transform/core';
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { meshopt } from '@gltf-transform/functions';
-import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
-import { readFileSync, writeFileSync, renameSync, statSync } from 'node:fs';
+import { EXTMeshoptCompression } from '@gltf-transform/extensions';
+import { renameSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRuntimeModelIO, snapshotRuntimeModel } from './runtime-model-snapshot.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MODELS_DIR = resolve(ROOT, 'models');
 const VARIANTS = ['male', 'female'];
 const BASELINE_PATH = resolve(MODELS_DIR, 'runtime-models.baseline.json');
 
-await MeshoptDecoder.ready;
-await MeshoptEncoder.ready;
-
-const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
-  'meshopt.decoder': MeshoptDecoder,
-  'meshopt.encoder': MeshoptEncoder,
-});
-
-/** Structural snapshot the runtime consumers depend on. */
-function snapshot(doc) {
-  const root = doc.getRoot();
-  return {
-    nodeNames: root
-      .listNodes()
-      .map((n) => n.getName())
-      .sort(),
-    meshNames: root
-      .listMeshes()
-      .map((m) => m.getName())
-      .sort(),
-    skinJointCounts: root.listSkins().map((s) => s.listJoints().length),
-    extensionsUsed: root
-      .listExtensionsUsed()
-      .map((e) => e.extensionName)
-      .sort(),
-  };
-}
+const io = await createRuntimeModelIO();
 
 const baseline = {};
 for (const variant of VARIANTS) {
   const path = resolve(MODELS_DIR, `painmap3D_${variant}.runtime.glb`);
   const before = statSync(path).size;
 
-  // 1) Snapshot the pre-compression structure BEFORE overwriting anything.
+  // 1) Snapshot the pre-compression structure + bytes BEFORE overwriting.
   const doc = await io.read(path);
-  baseline[variant] = { ...snapshot(doc), bytesBefore: before };
+  baseline[variant] = { bytesBefore: before, ...snapshotRuntimeModel(doc) };
 
-  // 2) Quantize + reorder + meshopt-encode (EXT_meshopt_compression).
-  await doc.transform(meshopt({ encoder: MeshoptEncoder }));
+  // 2) Pure EXT_meshopt_compression — no quantize, no reorder (see header).
+  doc
+    .createExtension(EXTMeshoptCompression)
+    .setRequired(true)
+    .setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.QUANTIZE });
 
   // 3) Write to a temp file, then atomically replace the original.
   const tmp = `${path}.tmp`;
@@ -90,5 +72,3 @@ for (const variant of VARIANTS) {
 writeFileSync(BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`);
 console.log(`Baseline snapshot written: ${BASELINE_PATH}`);
 console.log('Now run: node scripts/verify-runtime-models.mjs');
-// Sanity: the baseline file itself must round-trip as JSON.
-JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));

@@ -274,6 +274,11 @@ function getDirectVec3Reader(
     return null;
   }
   const buffer = attribute as THREE.BufferAttribute;
+  // Normalized integer attributes (e.g. uint8/uint16-normalized WEIGHTS_0 in
+  // quantized GLBs) store raw ints; only the getX/Y/Z/W accessors denormalize
+  // to the logical [0,1]/[-1,1] values. Reading `.array` directly would feed
+  // e.g. 0..255 weights into the bake and inflate the output ~255x.
+  if (buffer.normalized) return null;
   const stride = buffer.itemSize;
   if (stride !== 3) return null;
   const array = buffer.array;
@@ -288,6 +293,9 @@ function getDirectVec4Reader(
     return null;
   }
   const buffer = attribute as THREE.BufferAttribute;
+  // See getDirectVec3Reader — normalized attributes must go through the
+  // denormalizing getters.
+  if (buffer.normalized) return null;
   const stride = buffer.itemSize;
   if (stride !== 4) return null;
   const array = buffer.array;

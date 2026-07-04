@@ -1,5 +1,6 @@
 {
   "male": {
+    "bytesBefore": 1075836,
     "nodeNames": [
       "Armature",
       "CC_Base_Body",
@@ -114,10 +115,84 @@
     "extensionsUsed": [
       "KHR_materials_specular"
     ],
-    "bytesBefore": 1075836,
-    "bytesAfter": 339764
+    "primitives": [
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "8c199822097bb3258d69d875bed78e5cdb0d323dec6cc0583f7c0ecdb8317d28",
+          "NORMAL": "2aa1d3ae9fd22384d544ed08532cae52b57bd79a98c40d5409231828b2e8d1f3",
+          "TEXCOORD_0": "d65cecb05bb614021bd9ac226dc30e1eac2f670ed698185894b4f386b9816a8e",
+          "JOINTS_0": "025f262f120a3cf43781553caffc7b5a871f6f4020043e62d885451ba35ed165",
+          "WEIGHTS_0": "321c02047bcf3f19d0f43aca614b1415141b0b9abcd257e85ccdc771b0ef1c24"
+        },
+        "triangleCount": 8316,
+        "triangleListSha256": "1ce706cc58b77f58b14d0c1cc0f9bb68b42c39544e0679b7ff36253b43cb1d90"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "508c171327d2a41717e2a10728a6a47e49297d2ee36b5e07bb7ea9bd08f0f476",
+          "NORMAL": "2d68830f7ab64079cecad5d9afeafb5b84b0c50b5f8c330d8abd5a6b87bf6b62",
+          "TEXCOORD_0": "460c6f9f24f8f079fa3a773917edf911dc3886c7972e7927604742cbd5cccccf",
+          "JOINTS_0": "c014d2f1947599ccb657e39a20c6096224fcf1be6a8e413bad7be392e0e1e307",
+          "WEIGHTS_0": "20b20ea2e8b79a054dd1b7f0d7cddddf1b06e1c40fdd0c963f5a5197aa4dad2b"
+        },
+        "triangleCount": 3892,
+        "triangleListSha256": "9bfcc2c8d83ba47ecf9ad4c94c43bd789876f5dc9c26453c7d60b1d03cb90bd5"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "b98009aa8d50fee1b5349f37f8b0f875b2e7b41335ec4dcbc51fae985533fe1a",
+          "NORMAL": "0459c79feee158856e9b50991e22ec21ba1d7f517d3dce6904b4258e1885cb5f",
+          "TEXCOORD_0": "9b87fbd99cfbf5ec07dc66c946bfd1eb3b093c5705d9e94ce3017e3a15f9194f",
+          "JOINTS_0": "007b3761c05f8bbbec6128146c2b19e07314cb54dc9b9ec6580913ff65dcb43e",
+          "WEIGHTS_0": "68a06b6a102ab58e68165adab59ec6b726ebaaed774df080e765419d42d7c0a3"
+        },
+        "triangleCount": 8368,
+        "triangleListSha256": "25d098dfb3e6ba0b35de5a9887d97e743b42ccbebdf2652d3b4c08d135e72da2"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "eb2972e4b67299276df405d97668e702a6cd2736a54dc3a48c24ddae58bfc7bb",
+          "NORMAL": "8c076eeffb34e7792b88a2e696ee62b666b602418481b511c2447b7279f78c3d",
+          "TEXCOORD_0": "4bfc061bae286da8a1e94e6dfdd76a4b9b63f98e7a76d4ffa1486ab5073e6753",
+          "JOINTS_0": "d2aa15425396849eebae8d9918c26bd65fe2937b8f0fb1a9b436b9c18dab56c5",
+          "WEIGHTS_0": "7f3667dc3ae428497b85059d63330aabeb6affb11e4e0de8a42483589f5605d3"
+        },
+        "triangleCount": 4528,
+        "triangleListSha256": "1c4174f56dcaf8d43003492ce34c959a3f7eb28a04be9dfdb92db15ef980584a"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "b00f45f0a50c2a2c08e63d1454cce1a76624c396c5069eccdded32873085810d",
+          "NORMAL": "e6676dda4b1a3e897cb622dfd99cc2864f248d5dd1b0bbfdcf6a852e8b2f30b2",
+          "TEXCOORD_0": "173a320f6ec4fc980bb6beb7fe259005bd38d3fc5df823d45eba06c0a920957e",
+          "JOINTS_0": "614045584f26ed503d47d6598e14cd6775c51b4553800636ffcabe2ae860bc10",
+          "WEIGHTS_0": "1efd0121982d334bfb329cd42af52f2304d5874e5590bbe23f3ab0ffe8aa9798"
+        },
+        "triangleCount": 1788,
+        "triangleListSha256": "427761166f7bb1d9634b0da2ead3b10a24d9a0d61e25ac9dcded2ab044e71ef3"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "2ede59d77885afb58fb111ec0ef46b0b528bda3948614f5fec9944a7f0a50aff",
+          "NORMAL": "695fb938f164518fd67f57af0b54d868503ccbe9b95c6d154ea05930762051b6",
+          "TEXCOORD_0": "02a67501d0eb764f98a9de2c8ac644428cd4dc399ccd11bddc3ccab0a20a09f3",
+          "JOINTS_0": "7dad87ec15c0edb1adfeee309b05dfce7e0528e3e6bc0571c061e70f47e1d1ae",
+          "WEIGHTS_0": "191ada405642e86181ce8721328a3968587330fc4c6c896395ca74b45ae68bef"
+        },
+        "triangleCount": 1200,
+        "triangleListSha256": "870c1f64555b2b583af126cef831268b6aeb94ed675cde942f844fd018418d98"
+      }
+    ],
+    "bytesAfter": 712200
   },
   "female": {
+    "bytesBefore": 1076060,
     "nodeNames": [
       "Armature",
       "CC_Base_Body",
@@ -232,7 +307,80 @@
     "extensionsUsed": [
       "KHR_materials_specular"
     ],
-    "bytesBefore": 1076060,
-    "bytesAfter": 338616
+    "primitives": [
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "6a2211d35f7fb1e4d71ac518f513cefba61b55ac724e6b6a2957c1959636ccdc",
+          "NORMAL": "2b685091d0006b029460a2c6f490536199b8b5db17eb992f610a23748614e045",
+          "TEXCOORD_0": "d65cecb05bb614021bd9ac226dc30e1eac2f670ed698185894b4f386b9816a8e",
+          "JOINTS_0": "025f262f120a3cf43781553caffc7b5a871f6f4020043e62d885451ba35ed165",
+          "WEIGHTS_0": "321c02047bcf3f19d0f43aca614b1415141b0b9abcd257e85ccdc771b0ef1c24"
+        },
+        "triangleCount": 8316,
+        "triangleListSha256": "b784a125e169b8288923674a60580ea0d3ae7c22f51ecfa09b654700cc4dda65"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "67aa185d0683fc11161cfce74d45ae1081dd5debf01b41bfc8dc4290a7c7a13d",
+          "NORMAL": "c7f5a509425ccbb5e43418336818869b7fee8212cbee98e495d72244948b7075",
+          "TEXCOORD_0": "460c6f9f24f8f079fa3a773917edf911dc3886c7972e7927604742cbd5cccccf",
+          "JOINTS_0": "c014d2f1947599ccb657e39a20c6096224fcf1be6a8e413bad7be392e0e1e307",
+          "WEIGHTS_0": "20b20ea2e8b79a054dd1b7f0d7cddddf1b06e1c40fdd0c963f5a5197aa4dad2b"
+        },
+        "triangleCount": 3892,
+        "triangleListSha256": "9bfcc2c8d83ba47ecf9ad4c94c43bd789876f5dc9c26453c7d60b1d03cb90bd5"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "b42c808499b8dd0d4d2cd27bc628ff18f3a113f50b761ea7f75795097b912fc2",
+          "NORMAL": "0837269795df9b90b7520b2160de4609727c790509f2268b905ca174a9b3b639",
+          "TEXCOORD_0": "9b87fbd99cfbf5ec07dc66c946bfd1eb3b093c5705d9e94ce3017e3a15f9194f",
+          "JOINTS_0": "007b3761c05f8bbbec6128146c2b19e07314cb54dc9b9ec6580913ff65dcb43e",
+          "WEIGHTS_0": "68a06b6a102ab58e68165adab59ec6b726ebaaed774df080e765419d42d7c0a3"
+        },
+        "triangleCount": 8368,
+        "triangleListSha256": "fed843b728a82c5a362bd73ea8471632522413b8f932cdd984b67af2e7304780"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "4e7d7423ec08d66f17211bb206cff57326af0ca64af6a6ef0b3a7d6791a4f3bf",
+          "NORMAL": "244bb6c4bdaaa865fd1f706906005cc1df8aabba7fb831a08911d338808668b7",
+          "TEXCOORD_0": "4bfc061bae286da8a1e94e6dfdd76a4b9b63f98e7a76d4ffa1486ab5073e6753",
+          "JOINTS_0": "d2aa15425396849eebae8d9918c26bd65fe2937b8f0fb1a9b436b9c18dab56c5",
+          "WEIGHTS_0": "7f3667dc3ae428497b85059d63330aabeb6affb11e4e0de8a42483589f5605d3"
+        },
+        "triangleCount": 4528,
+        "triangleListSha256": "5fbe221a6524dde3efa1eb702c82e90e73c42e595e72791244fb9e3475d50491"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "bfed434759a7a352fbb99ed4dcee7fc5f8a81efa1445d07f5dde142ce37f7a10",
+          "NORMAL": "67188266cf07a2efc4faf6596a469b6b91e53bc8df3c8590ad246f7fc981e08c",
+          "TEXCOORD_0": "173a320f6ec4fc980bb6beb7fe259005bd38d3fc5df823d45eba06c0a920957e",
+          "JOINTS_0": "614045584f26ed503d47d6598e14cd6775c51b4553800636ffcabe2ae860bc10",
+          "WEIGHTS_0": "1efd0121982d334bfb329cd42af52f2304d5874e5590bbe23f3ab0ffe8aa9798"
+        },
+        "triangleCount": 1788,
+        "triangleListSha256": "c9a3c352839246106ddeb7cead2df3e8177800da9323a8eac9ea7af3b62b8ff2"
+      },
+      {
+        "mesh": "CC_Base_Body",
+        "semantics": {
+          "POSITION": "97b226afa3e5b228f8eeb73334cb78078531f9035cac38334f345b43c8b02501",
+          "NORMAL": "9d19a79daf71ff8aa4a83840067f9856432086adfa37604a5a266292ad0e04f7",
+          "TEXCOORD_0": "02a67501d0eb764f98a9de2c8ac644428cd4dc399ccd11bddc3ccab0a20a09f3",
+          "JOINTS_0": "7dad87ec15c0edb1adfeee309b05dfce7e0528e3e6bc0571c061e70f47e1d1ae",
+          "WEIGHTS_0": "191ada405642e86181ce8721328a3968587330fc4c6c896395ca74b45ae68bef"
+        },
+        "triangleCount": 1200,
+        "triangleListSha256": "870c1f64555b2b583af126cef831268b6aeb94ed675cde942f844fd018418d98"
+      }
+    ],
+    "bytesAfter": 712132
   }
 }
