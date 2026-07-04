@@ -14,6 +14,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
 import { createMannequinRenderer, type MannequinRendererOptions } from './sceneBoot';
 
@@ -123,8 +124,22 @@ export function createOrbitViewer(opts: OrbitViewerOptions): OrbitViewer {
   };
   controls.addEventListener('change', requestRender);
 
+  // rAF keeps firing for display:none elements, so a hidden viewer used to
+  // burn a 60Hz loop + controls.update() forever. When the container is
+  // hidden (offsetParent === null) the loop parks itself (no reschedule);
+  // the ResizeObserver fires with real dimensions when it is shown again and
+  // restarts it. `parkedHidden` is separate from `running` so an explicit
+  // caller stop() is never undone by a resize.
+  let parkedHidden = false;
+
   const tick = () => {
     if (!running) return;
+    if (container.offsetParent === null) {
+      parkedHidden = true;
+      running = false;
+      rafId = 0;
+      return;
+    }
     rafId = requestAnimationFrame(tick);
     // OrbitControls.update() returns true while damping is still settling.
     const moving = controls.update();
@@ -138,11 +153,13 @@ export function createOrbitViewer(opts: OrbitViewerOptions): OrbitViewer {
 
   const start = () => {
     if (running) return;
+    parkedHidden = false;
     running = true;
     clock.getDelta(); // reset delta so the first frame isn't a huge dt
     rafId = requestAnimationFrame(tick);
   };
   const stop = () => {
+    parkedHidden = false;
     running = false;
     if (rafId) cancelAnimationFrame(rafId);
     rafId = 0;
@@ -155,6 +172,7 @@ export function createOrbitViewer(opts: OrbitViewerOptions): OrbitViewer {
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
     dirty = true;
+    if (parkedHidden) start(); // container became visible again — resume the parked loop
   };
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(container);
@@ -286,6 +304,9 @@ export interface LoadGLTFOptions {
  */
 export async function loadGLTFModel(url: string, options: LoadGLTFOptions = {}): Promise<GLTF> {
   const loader = new GLTFLoader();
+  // Runtime mannequin GLBs are EXT_meshopt_compression-encoded; the decoder is
+  // backward-compatible (uncompressed GLBs still load with it registered).
+  loader.setMeshoptDecoder(MeshoptDecoder);
   let draco: DRACOLoader | undefined;
   if (options.dracoDecoderPath) {
     draco = new DRACOLoader();

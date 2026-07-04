@@ -147,15 +147,30 @@
         requestRender();
       }
 
+      // Hosts display:none this viewer during overlays, and rAF keeps firing
+      // for display:none elements — a hidden stage used to burn a 60Hz loop +
+      // controls.update() forever. Park the loop (no reschedule) when the
+      // container is hidden (offsetParent === null); the ResizeObserver fires
+      // with real dimensions when it is shown again and restarts the loop.
       let raf = 0;
+      let loopRunning = false;
       const loop = () => {
+        if (container.offsetParent === null) {
+          loopRunning = false;
+          return; // parked — startLoop() (via the ResizeObserver) resumes
+        }
         raf = requestAnimationFrame(loop);
         controls.update();
         if (!renderNeeded) return;
         renderer.render(scene, camera);
         renderNeeded = false;
       };
-      loop();
+      const startLoop = () => {
+        if (loopRunning) return;
+        loopRunning = true;
+        raf = requestAnimationFrame(loop);
+      };
+      startLoop();
 
       const resize = () => {
         const w = container.clientWidth;
@@ -165,6 +180,7 @@
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         requestRender();
+        startLoop(); // restart the parked loop when the stage becomes visible
       };
       const ro = new ResizeObserver(resize);
       ro.observe(container);
