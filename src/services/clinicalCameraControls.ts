@@ -23,6 +23,21 @@
  *                           listenToKeyEvents), + / = and − dolly in/out in
  *                           ~10% steps, 0 / Home resets the view
  *
+ * COOPERATIVE TOUCH (opt-in via `allowPageScrollOnMiss`, coarse pointers
+ * only): on phones a ≥60vh canvas that claims every one-finger swipe traps
+ * the student on the 3D stage — the page can never scroll. With the option
+ * set and `(pointer: coarse)` matching:
+ *   - one-finger swipe    → NOT a camera gesture (touches.ONE = null); the
+ *                           canvas carries `touch-action: pan-y`, so vertical
+ *                           swipes scroll the page
+ *   - two-finger drag     → rotate; pinch → zoom (TOUCH.DOLLY_ROTATE)
+ *   - double-TAP          → the same focus-or-reset as double-click (a
+ *                           touch-synthesized handler — iOS Safari does not
+ *                           reliably emit dblclick for double-taps)
+ * Default false → the existing model everywhere; fine pointers are never
+ * affected. The gesture vocabulary (aria label / legend) has a touch
+ * variant selected by pointer capability.
+ *
  * The helper owns NO render loop: the component's existing parked rAF loop
  * calls `update()` once per frame (before `controls.update()`), and every
  * camera mutation funnels through the component's `requestRender` so the
@@ -66,6 +81,169 @@ export const CLINICAL_CAMERA_TWEEN_MS = 320;
 export const CLINICAL_CAMERA_ARIA_LABEL =
   '3D patient. Drag to rotate, right-drag to pan, scroll to zoom, ' +
   'double-click to focus, arrow keys pan, + and − zoom, 0 resets.';
+
+/** Touch variant of {@link CLINICAL_CAMERA_ARIA_LABEL} — the cooperative
+ *  coarse-pointer vocabulary (one finger belongs to the page). */
+export const CLINICAL_CAMERA_ARIA_LABEL_TOUCH =
+  '3D patient. Two-finger drag moves the camera, pinch zooms, ' +
+  'double-tap focuses, double-tap empty space resets. ' +
+  'One-finger swipe scrolls the page.';
+
+/** Short gesture-legend line hosts render under the stage (mouse). */
+export const CLINICAL_CAMERA_GESTURE_LEGEND =
+  'Drag rotates · right-drag pans · scroll zooms · double-click focuses';
+
+/** Short gesture-legend line hosts render under the stage (touch). */
+export const CLINICAL_CAMERA_GESTURE_LEGEND_TOUCH =
+  'Two-finger drag moves · pinch zooms · double-tap focuses';
+
+/** True when the device's PRIMARY pointer is coarse (a finger). Safe
+ *  everywhere: no matchMedia (SSR, Node tests) → false. */
+export function isCoarsePointer(): boolean {
+  if (typeof matchMedia !== 'function') return false;
+  try {
+    return matchMedia('(pointer: coarse)').matches;
+  } catch {
+    return false;
+  }
+}
+
+/** Aria label for the active gesture model: touch vocabulary when the
+ *  cooperative coarse-pointer model is in effect, mouse vocabulary
+ *  otherwise. Defaults to plain pointer capability for hosts that always
+ *  run cooperative gestures on touch. */
+export function resolveClinicalCameraAriaLabel(
+  cooperativeTouch: boolean = isCoarsePointer(),
+): string {
+  return cooperativeTouch ? CLINICAL_CAMERA_ARIA_LABEL_TOUCH : CLINICAL_CAMERA_ARIA_LABEL;
+}
+
+/** Gesture-legend counterpart of {@link resolveClinicalCameraAriaLabel}. */
+export function resolveClinicalCameraGestureLegend(
+  cooperativeTouch: boolean = isCoarsePointer(),
+): string {
+  return cooperativeTouch ? CLINICAL_CAMERA_GESTURE_LEGEND_TOUCH : CLINICAL_CAMERA_GESTURE_LEGEND;
+}
+
+// ── Cooperative touch-gesture configuration (pure, Node-testable) ──────────
+
+/** CSS touch-action while cooperative gestures are active: the browser owns
+ *  one-finger VERTICAL swipes (page scroll); everything else — horizontal
+ *  one-finger drags, two-finger drag, pinch, double-tap — reaches the
+ *  controls as pointer events (pan-y excludes browser pinch-zoom and
+ *  double-tap-zoom on the element). */
+export const CLINICAL_COOPERATIVE_TOUCH_ACTION = 'pan-y';
+
+/** Resolved touch-gesture model for one stage. */
+export interface ClinicalTouchGestures {
+  /** Value for OrbitControls `touches.ONE` — `null` means one finger is NOT
+   *  a camera gesture (three r183 has no TOUCH.NONE; `null` falls through
+   *  OrbitControls' switch to the no-gesture state and is the typed way to
+   *  disable it). */
+  one: THREE.TOUCH | null;
+  /** Value for OrbitControls `touches.TWO`. */
+  two: THREE.TOUCH;
+  /** CSS touch-action for the canvas + its container. */
+  touchAction: 'none' | 'pan-y';
+  /** True when the cooperative model is active (opt-in ∧ coarse pointer). */
+  cooperative: boolean;
+}
+
+/** Decide the touch-gesture model. Cooperative gestures require BOTH the
+ *  embedder's opt-in (`allowPageScrollOnMiss`, default false) and a coarse
+ *  primary pointer — fine-pointer devices keep the mouse model untouched.
+ *  The non-cooperative branch mirrors the OrbitControls defaults and is
+ *  never written back (the factory only applies the cooperative branch), so
+ *  default-mode behavior is bit-identical to before this option existed. */
+export function resolveTouchGestureConfig(
+  allowPageScrollOnMiss: boolean | undefined,
+  coarsePointer: boolean,
+): ClinicalTouchGestures {
+  if ((allowPageScrollOnMiss ?? false) && coarsePointer) {
+    return {
+      one: null,
+      two: THREE.TOUCH.DOLLY_ROTATE,
+      touchAction: CLINICAL_COOPERATIVE_TOUCH_ACTION,
+      cooperative: true,
+    };
+  }
+  return {
+    one: THREE.TOUCH.ROTATE,
+    two: THREE.TOUCH.DOLLY_PAN,
+    touchAction: 'none',
+    cooperative: false,
+  };
+}
+
+// ── Double-tap detection (pure, Node-testable) ──────────────────────────────
+
+/** A press held longer than this is a drag/hold, not a tap (ms). */
+export const CLINICAL_TAP_MAX_MS = 300;
+/** Finger travel within one tap beyond this is a swipe, not a tap (px). */
+export const CLINICAL_TAP_SLOP_PX = 14;
+/** Max gap between two tap RELEASES that still reads as a double-tap (ms). */
+export const CLINICAL_DOUBLE_TAP_MS = 350;
+/** Max distance between the two taps of a double-tap (px). */
+export const CLINICAL_DOUBLE_TAP_RADIUS_PX = 40;
+
+export interface DoubleTapTracker {
+  /** Feed a touch pointerdown. */
+  down(id: number, x: number, y: number, time: number): void;
+  /** Feed a touch pointerup. Returns true when this release completes a
+   *  double-tap (single-finger, low-travel, inside the time/space window). */
+  up(id: number, x: number, y: number, time: number): boolean;
+  /** Feed a touch pointercancel (the browser claimed the gesture, e.g. for
+   *  page scroll) — resets all tap state. */
+  cancel(): void;
+}
+
+/** Small state machine that recognizes single-finger double-taps from raw
+ *  touch pointer events. Any multi-touch involvement (a second finger down)
+ *  voids the sequence — a pinch must never end in a surprise focus jump. */
+export function createDoubleTapTracker(): DoubleTapTracker {
+  let activeTouches = 0;
+  let candidate: { id: number; x: number; y: number; time: number } | null = null;
+  let lastTap: { x: number; y: number; time: number } | null = null;
+  return {
+    down(id, x, y, time) {
+      activeTouches += 1;
+      if (activeTouches > 1) {
+        candidate = null;
+        lastTap = null;
+        return;
+      }
+      candidate = { id, x, y, time };
+    },
+    up(id, x, y, time) {
+      activeTouches = Math.max(0, activeTouches - 1);
+      const cand = candidate;
+      candidate = null;
+      if (!cand || cand.id !== id) return false;
+      const isTap =
+        time - cand.time <= CLINICAL_TAP_MAX_MS &&
+        Math.hypot(x - cand.x, y - cand.y) <= CLINICAL_TAP_SLOP_PX;
+      if (!isTap) {
+        lastTap = null;
+        return false;
+      }
+      if (
+        lastTap &&
+        time - lastTap.time <= CLINICAL_DOUBLE_TAP_MS &&
+        Math.hypot(x - lastTap.x, y - lastTap.y) <= CLINICAL_DOUBLE_TAP_RADIUS_PX
+      ) {
+        lastTap = null;
+        return true;
+      }
+      lastTap = { x, y, time };
+      return false;
+    },
+    cancel() {
+      activeTouches = Math.max(0, activeTouches - 1);
+      candidate = null;
+      lastTap = null;
+    },
+  };
+}
 
 // ── Pure math (Node-testable) ───────────────────────────────────────────────
 
@@ -156,11 +334,22 @@ export interface ClinicalCameraControlsOptions {
   /** Root object raycast on double-click; return null while no model is
    *  loaded (double-click then falls through to reset). */
   getPickRoot: () => THREE.Object3D | null;
+  /** Opt-in cooperative touch gestures for scrollable host pages. When true
+   *  AND the primary pointer is coarse (`(pointer: coarse)`), one-finger
+   *  swipes are left to the browser (`touch-action: pan-y` → the page
+   *  scrolls), two-finger drag rotates, pinch zooms, and double-TAP runs
+   *  the same focus-or-reset as double-click. Default false — the existing
+   *  one-finger-orbit model everywhere; fine pointers are never affected. */
+  allowPageScrollOnMiss?: boolean;
 }
 
 export interface ClinicalCameraControlsHandle {
   /** The configured OrbitControls (shared clinical defaults applied). */
   controls: OrbitControls;
+  /** True when cooperative touch gestures are active on THIS stage
+   *  (`allowPageScrollOnMiss` ∧ coarse pointer) — hosts pick the touch
+   *  gesture vocabulary (aria label / legend) off this. */
+  cooperativeTouch: boolean;
   /** Snapshot the CURRENT camera/target as the home view — call right after
    *  the component's own framing math has positioned the camera. */
   captureHomeView(): void;
@@ -192,6 +381,25 @@ export function createClinicalCameraControls(
 
   const controls = new OrbitControls(camera, domElement);
   Object.assign(controls, CLINICAL_CAMERA_DEFAULTS);
+
+  // Cooperative touch (P0 "3D stage scroll trap"): on coarse pointers with
+  // the opt-in set, one finger belongs to the PAGE and two fingers to the
+  // camera. Applied only when cooperative — the default path leaves the
+  // OrbitControls touch model and every touch-action style byte-identical
+  // to the pre-option behavior.
+  const touchGestures = resolveTouchGestureConfig(opts.allowPageScrollOnMiss, isCoarsePointer());
+  if (touchGestures.cooperative) {
+    controls.touches.ONE = touchGestures.one;
+    controls.touches.TWO = touchGestures.two;
+    // Both OrbitControls.connect() and createMannequinRenderer hard-set
+    // `touch-action: none`; override AFTER construction so one-finger
+    // vertical swipes reach the browser's scroller. The container gets the
+    // same value — it is the hit surface wherever it outsizes the canvas.
+    domElement.style.touchAction = touchGestures.touchAction;
+    if (keyElement && keyElement !== domElement) {
+      keyElement.style.touchAction = touchGestures.touchAction;
+    }
+  }
 
   const raycaster = new THREE.Raycaster();
   const _ndc = new THREE.Vector2();
@@ -268,10 +476,10 @@ export function createClinicalCameraControls(
     requestRender();
   }
 
-  // ── Double-click: focus the hit point, or reset on a miss ────────────────
-  const onDblClick = (ev: MouseEvent) => {
+  // ── Double-click / double-tap: focus the hit point, or reset on a miss ───
+  function focusOrResetAt(clientX: number, clientY: number): void {
     const rect = domElement.getBoundingClientRect();
-    const ndc = clientToNdc(ev.clientX, ev.clientY, rect);
+    const ndc = clientToNdc(clientX, clientY, rect);
     const root = getPickRoot();
     if (root) {
       _ndc.set(ndc.x, ndc.y);
@@ -285,8 +493,43 @@ export function createClinicalCameraControls(
       }
     }
     resetView();
+  }
+
+  /** While set, ignore dblclick — a touch double-tap already handled the
+   *  gesture and some browsers ALSO synthesize dblclick from it. */
+  let suppressDblClickUntil = 0;
+
+  const onDblClick = (ev: MouseEvent) => {
+    if (performance.now() < suppressDblClickUntil) return;
+    focusOrResetAt(ev.clientX, ev.clientY);
   };
   domElement.addEventListener('dblclick', onDblClick);
+
+  // Touch double-tap → the same focus-or-reset. Cooperative mode only:
+  // there one finger no longer orbits (so a tap is unambiguous) and iOS
+  // Safari does not reliably synthesize dblclick from double-taps.
+  const doubleTap = createDoubleTapTracker();
+  const onTouchPointerDown = (ev: PointerEvent) => {
+    if (ev.pointerType !== 'touch') return;
+    doubleTap.down(ev.pointerId, ev.clientX, ev.clientY, performance.now());
+  };
+  const onTouchPointerUp = (ev: PointerEvent) => {
+    if (ev.pointerType !== 'touch') return;
+    const now = performance.now();
+    if (doubleTap.up(ev.pointerId, ev.clientX, ev.clientY, now)) {
+      suppressDblClickUntil = now + 700;
+      focusOrResetAt(ev.clientX, ev.clientY);
+    }
+  };
+  const onTouchPointerCancel = (ev: PointerEvent) => {
+    if (ev.pointerType !== 'touch') return;
+    doubleTap.cancel();
+  };
+  if (touchGestures.cooperative) {
+    domElement.addEventListener('pointerdown', onTouchPointerDown);
+    domElement.addEventListener('pointerup', onTouchPointerUp);
+    domElement.addEventListener('pointercancel', onTouchPointerCancel);
+  }
 
   // ── Keyboard path (container must be focusable) ──────────────────────────
   const onKeyDown = (ev: KeyboardEvent) => {
@@ -316,6 +559,7 @@ export function createClinicalCameraControls(
 
   return {
     controls,
+    cooperativeTouch: touchGestures.cooperative,
     captureHomeView,
     hasHomeView: () => home !== null,
     focusOn,
@@ -325,6 +569,11 @@ export function createClinicalCameraControls(
     dispose: () => {
       tween = null;
       domElement.removeEventListener('dblclick', onDblClick);
+      if (touchGestures.cooperative) {
+        domElement.removeEventListener('pointerdown', onTouchPointerDown);
+        domElement.removeEventListener('pointerup', onTouchPointerUp);
+        domElement.removeEventListener('pointercancel', onTouchPointerCancel);
+      }
       if (keyElement) {
         keyElement.removeEventListener('keydown', onKeyDown);
         // Only when wired — three's stopListenToKeyEvents throws if

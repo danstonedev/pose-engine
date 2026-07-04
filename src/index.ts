@@ -63,7 +63,9 @@ export * from './services/orbitViewer';
 
 // Shared clinical camera controls — the ONE OrbitControls interaction model
 // for PoseViewer / ObservationViewer / ExamStage3D: right-drag pan,
-// zoom-to-cursor (0.35–6 m), double-click focus-or-reset, keyboard path.
+// zoom-to-cursor (0.35–6 m), double-click focus-or-reset, keyboard path,
+// and opt-in cooperative touch (`allowPageScrollOnMiss`: one finger scrolls
+// the page, two fingers move the camera, double-tap focuses).
 export * from './services/clinicalCameraControls';
 
 // TransformControls rotate-gizmo configuration helpers

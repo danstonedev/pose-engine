@@ -3,19 +3,34 @@
  * contract. The DOM-side handle (createClinicalCameraControls) needs a
  * browser and is exercised by the consuming viewers; these tests lock the
  * Node-testable pieces: the defaults object (the interaction model as
- * data), NDC conversion, keyboard dolly stepping, and the focus/reset
- * view-pose interpolation.
+ * data), NDC conversion, keyboard dolly stepping, the focus/reset
+ * view-pose interpolation, the cooperative touch-gesture config (the P0
+ * mobile scroll-trap fix), the coarse-pointer probe, the touch gesture
+ * vocabulary, and the double-tap recognizer.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as THREE from 'three';
 import {
   CLINICAL_CAMERA_ARIA_LABEL,
+  CLINICAL_CAMERA_ARIA_LABEL_TOUCH,
   CLINICAL_CAMERA_DEFAULTS,
+  CLINICAL_CAMERA_GESTURE_LEGEND,
+  CLINICAL_CAMERA_GESTURE_LEGEND_TOUCH,
   CLINICAL_CAMERA_TWEEN_MS,
+  CLINICAL_COOPERATIVE_TOUCH_ACTION,
   CLINICAL_DOLLY_STEP_FRACTION,
+  CLINICAL_DOUBLE_TAP_MS,
+  CLINICAL_TAP_MAX_MS,
+  CLINICAL_TAP_SLOP_PX,
   clientToNdc,
+  createDoubleTapTracker,
   easeInOutCubic,
   interpolateViewPose,
+  isCoarsePointer,
+  resolveClinicalCameraAriaLabel,
+  resolveClinicalCameraGestureLegend,
   resolveDollyDistance,
+  resolveTouchGestureConfig,
   type CameraViewPose,
 } from '../services/clinicalCameraControls';
 
@@ -134,5 +149,164 @@ describe('interpolateViewPose (focus / reset tween math)', () => {
   it('tween duration stays in the sub-half-second "responsive" band', () => {
     expect(CLINICAL_CAMERA_TWEEN_MS).toBeGreaterThanOrEqual(200);
     expect(CLINICAL_CAMERA_TWEEN_MS).toBeLessThanOrEqual(500);
+  });
+});
+
+describe('resolveTouchGestureConfig (cooperative touch — the P0 scroll-trap fix)', () => {
+  it('coarse pointer + opt-in → one finger scrolls the page, two move the camera', () => {
+    const cfg = resolveTouchGestureConfig(true, true);
+    expect(cfg.cooperative).toBe(true);
+    // null (not a TOUCH constant) → OrbitControls' switch falls through to
+    // the no-gesture state: one finger does NOT orbit.
+    expect(cfg.one).toBeNull();
+    // Two-finger drag rotates, pinch zooms.
+    expect(cfg.two).toBe(THREE.TOUCH.DOLLY_ROTATE);
+    // pan-y: the browser owns one-finger VERTICAL swipes (page scroll) while
+    // multi-touch + horizontal gestures still reach the controls.
+    expect(cfg.touchAction).toBe('pan-y');
+    expect(cfg.touchAction).toBe(CLINICAL_COOPERATIVE_TOUCH_ACTION);
+  });
+
+  it('defaults OFF: the option must be an explicit opt-in', () => {
+    // Omitted option (factory passes undefined) — never cooperative.
+    expect(resolveTouchGestureConfig(undefined, true).cooperative).toBe(false);
+    expect(resolveTouchGestureConfig(false, true).cooperative).toBe(false);
+  });
+
+  it('fine pointers keep the mouse model even when the host opts in', () => {
+    const cfg = resolveTouchGestureConfig(true, false);
+    expect(cfg.cooperative).toBe(false);
+    expect(cfg.one).toBe(THREE.TOUCH.ROTATE);
+    expect(cfg.two).toBe(THREE.TOUCH.DOLLY_PAN);
+    expect(cfg.touchAction).toBe('none');
+  });
+
+  it('the non-cooperative branch mirrors the OrbitControls touch defaults', () => {
+    // Locked so the "factory only applies the cooperative branch" contract
+    // stays honest: this data must equal what three ships out of the box.
+    const cfg = resolveTouchGestureConfig(false, false);
+    expect(cfg.one).toBe(THREE.TOUCH.ROTATE); // three's touches.ONE default
+    expect(cfg.two).toBe(THREE.TOUCH.DOLLY_PAN); // three's touches.TWO default
+  });
+});
+
+describe('isCoarsePointer (matchMedia capability probe)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('is false where matchMedia does not exist (SSR / Node)', () => {
+    expect(typeof globalThis.matchMedia).toBe('undefined');
+    expect(isCoarsePointer()).toBe(false);
+  });
+
+  it('reflects the (pointer: coarse) media query when matchMedia exists', () => {
+    const matchMedia = vi.fn((query: string) => ({ matches: /coarse/.test(query) }));
+    vi.stubGlobal('matchMedia', matchMedia);
+    expect(isCoarsePointer()).toBe(true);
+    expect(matchMedia).toHaveBeenCalledWith('(pointer: coarse)');
+
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    expect(isCoarsePointer()).toBe(false);
+  });
+
+  it('survives a throwing matchMedia (older engines) as fine-pointer', () => {
+    vi.stubGlobal('matchMedia', () => {
+      throw new Error('unsupported query');
+    });
+    expect(isCoarsePointer()).toBe(false);
+  });
+});
+
+describe('gesture vocabulary (aria label + legend, touch variant)', () => {
+  it('touch aria label speaks the cooperative model', () => {
+    for (const phrase of ['Two-finger', 'pinch', 'double-tap', 'scrolls the page']) {
+      expect(CLINICAL_CAMERA_ARIA_LABEL_TOUCH).toContain(phrase);
+    }
+    // The mouse vocabulary must NOT leak into the touch label.
+    expect(CLINICAL_CAMERA_ARIA_LABEL_TOUCH).not.toContain('right-drag');
+    expect(CLINICAL_CAMERA_ARIA_LABEL_TOUCH).not.toContain('double-click');
+  });
+
+  it('touch legend is the agreed chip line', () => {
+    expect(CLINICAL_CAMERA_GESTURE_LEGEND_TOUCH).toBe(
+      'Two-finger drag moves · pinch zooms · double-tap focuses',
+    );
+  });
+
+  it('resolvers pick touch vocabulary only for the cooperative model', () => {
+    expect(resolveClinicalCameraAriaLabel(true)).toBe(CLINICAL_CAMERA_ARIA_LABEL_TOUCH);
+    expect(resolveClinicalCameraAriaLabel(false)).toBe(CLINICAL_CAMERA_ARIA_LABEL);
+    expect(resolveClinicalCameraGestureLegend(true)).toBe(CLINICAL_CAMERA_GESTURE_LEGEND_TOUCH);
+    expect(resolveClinicalCameraGestureLegend(false)).toBe(CLINICAL_CAMERA_GESTURE_LEGEND);
+    // No matchMedia (this Node env) → capability default is the mouse model.
+    expect(resolveClinicalCameraAriaLabel()).toBe(CLINICAL_CAMERA_ARIA_LABEL);
+  });
+});
+
+describe('createDoubleTapTracker (touch double-tap → focus-or-reset)', () => {
+  const tap = (
+    t: ReturnType<typeof createDoubleTapTracker>,
+    id: number,
+    x: number,
+    y: number,
+    downAt: number,
+    upAt: number = downAt + 40,
+  ): boolean => {
+    t.down(id, x, y, downAt);
+    return t.up(id, x, y, upAt);
+  };
+
+  it('two quick taps in place read as a double-tap', () => {
+    const t = createDoubleTapTracker();
+    expect(tap(t, 1, 100, 100, 0)).toBe(false); // first tap arms
+    expect(tap(t, 2, 104, 98, 200)).toBe(true); // second tap fires
+  });
+
+  it('a slow second tap does not chain (and re-arms as a fresh first tap)', () => {
+    const t = createDoubleTapTracker();
+    expect(tap(t, 1, 100, 100, 0)).toBe(false);
+    expect(tap(t, 2, 100, 100, 40 + CLINICAL_DOUBLE_TAP_MS + 1)).toBe(false);
+    // …but that late tap armed a new sequence:
+    expect(tap(t, 3, 100, 100, 40 + CLINICAL_DOUBLE_TAP_MS + 200)).toBe(true);
+  });
+
+  it('far-apart taps do not chain', () => {
+    const t = createDoubleTapTracker();
+    expect(tap(t, 1, 100, 100, 0)).toBe(false);
+    expect(tap(t, 2, 300, 100, 150)).toBe(false);
+  });
+
+  it('a long press or a swipe is not a tap', () => {
+    const t = createDoubleTapTracker();
+    // Long press: held past the tap ceiling.
+    t.down(1, 100, 100, 0);
+    expect(t.up(1, 100, 100, CLINICAL_TAP_MAX_MS + 50)).toBe(false);
+    // Swipe: traveled past the slop radius.
+    t.down(2, 100, 100, 500);
+    expect(t.up(2, 100 + CLINICAL_TAP_SLOP_PX + 10, 100, 540)).toBe(false);
+    // Neither armed a sequence a following tap could complete.
+    expect(tap(t, 3, 100, 100, 700)).toBe(false);
+  });
+
+  it('multi-touch (a pinch/two-finger drag) voids the sequence', () => {
+    const t = createDoubleTapTracker();
+    expect(tap(t, 1, 100, 100, 0)).toBe(false); // armed
+    // Two fingers land — a camera gesture, not a tap.
+    t.down(2, 90, 100, 100);
+    t.down(3, 110, 100, 105);
+    expect(t.up(2, 90, 100, 140)).toBe(false);
+    expect(t.up(3, 110, 100, 145)).toBe(false);
+    // The earlier armed tap must NOT pair with a tap after the pinch.
+    expect(tap(t, 4, 100, 100, 200)).toBe(false);
+  });
+
+  it('pointercancel (the browser claimed the swipe for scrolling) resets state', () => {
+    const t = createDoubleTapTracker();
+    expect(tap(t, 1, 100, 100, 0)).toBe(false); // armed
+    t.down(2, 100, 100, 100);
+    t.cancel(); // browser took the gesture → page scrolled
+    expect(tap(t, 3, 100, 100, 200)).toBe(false); // sequence voided
+    expect(tap(t, 4, 100, 100, 320)).toBe(true); // fresh double-tap still works
   });
 });

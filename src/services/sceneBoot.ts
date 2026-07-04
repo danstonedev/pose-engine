@@ -16,7 +16,8 @@ import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 
 /** Options for {@link createMannequinRenderer}. */
 export interface MannequinRendererOptions {
-  /** Element the canvas will be appended to. `touch-action: none` is set on it. */
+  /** Element the canvas will be appended to. `touchAction` (default
+   *  `'none'`) is set on it. */
   container: HTMLElement;
   /**
    * Transparent canvas (pain-map mannequin composites over page background).
@@ -30,13 +31,23 @@ export interface MannequinRendererOptions {
    * improve perceived sharpness on a 1× DPI clinical monitor.
    */
   maxPixelRatio?: number;
+  /**
+   * CSS `touch-action` applied to the canvas AND its container. Default
+   * `'none'` (every touch is a 3D/paint gesture — the historical behavior).
+   * Cooperative-gesture embedders pass `'pan-y'` so one-finger vertical
+   * swipes scroll the page; viewers that use createClinicalCameraControls
+   * with `allowPageScrollOnMiss` get this override applied for them on
+   * coarse pointers and can leave the default here.
+   */
+  touchAction?: string;
 }
 
 /**
  * WebGLRenderer with the renderer flags every VSP 3D scene uses:
  * antialias on, `powerPreference: 'high-performance'`, sRGB output color
- * space, DPR capped at 2, and `touch-action: none` on both the canvas and
- * its container so browser gesture preemption never eats a stroke.
+ * space, DPR capped at 2, and `touch-action` (default `none`, so browser
+ * gesture preemption never eats a stroke; configurable for cooperative
+ * touch hosts) on both the canvas and its container.
  */
 export function createMannequinRenderer(opts: MannequinRendererOptions): THREE.WebGLRenderer {
   const renderer = new THREE.WebGLRenderer({
@@ -48,8 +59,9 @@ export function createMannequinRenderer(opts: MannequinRendererOptions): THREE.W
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, cap));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   if (opts.className) renderer.domElement.className = opts.className;
-  renderer.domElement.style.touchAction = 'none';
-  opts.container.style.touchAction = 'none';
+  const touchAction = opts.touchAction ?? 'none';
+  renderer.domElement.style.touchAction = touchAction;
+  opts.container.style.touchAction = touchAction;
   opts.container.appendChild(renderer.domElement);
   return renderer;
 }
