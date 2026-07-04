@@ -34,7 +34,10 @@
    * three-using services are dynamically imported inside onMount so
    * importing this component never pulls WebGL into a host's SSR/prerender;
    * bare 'three' specifiers keep the host on a single three instance.
-   * Interaction is read-only (orbit + zoom). Theme via `--pv-bg`.
+   * Camera interaction is the shared clinical model — damped orbit,
+   * right-drag pan, zoom-to-cursor, double-click focus-or-reset, keyboard
+   * path (see services/clinicalCameraControls.ts); poses move ONLY via
+   * movement commands. Theme via `--pv-bg`.
    */
   import { onMount } from 'svelte';
   import { POSE_SCHEMA_VERSION, type CustomPose } from './types';
@@ -47,6 +50,7 @@
     type RomScenarioConstraints,
   } from './services/romConstraints';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
+  import { CLINICAL_CAMERA_ARIA_LABEL } from './services/clinicalCameraControls';
 
   let {
     variant = 'male',
@@ -98,6 +102,15 @@
   let resolveBoot: () => void = () => {};
   const bootDone = new Promise<void>((r) => (resolveBoot = r));
   let commandChain: Promise<unknown> = Promise.resolve();
+  let resetViewFn: () => void = () => {};
+
+  /** Smoothly return the camera to the framed home view (the shared
+   *  clinical-camera reset — also reachable via a double-click miss or the
+   *  `0`/Home key). The mission shell mounts its Reset chip on this.
+   *  Camera-only: poses and any in-flight movement command are untouched. */
+  export function resetView(): void {
+    resetViewFn();
+  }
 
   export function applyMovementCommand(cmd: ExamMovementCommand): Promise<ExamMovementOutcome> {
     const run = commandChain.then(async () => {
@@ -122,7 +135,6 @@
       // Bare 'three' specifiers only — a second three instance would break
       // the instanceof checks inside the pose services.
       const THREE = await import('three');
-      const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
       const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
       const { MeshoptDecoder } = await import('three/examples/jsm/libs/meshopt_decoder.module.js');
       // Services via relative paths (not the barrel) — the barrel re-exports
@@ -140,6 +152,7 @@
       );
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
+      const { createClinicalCameraControls } = await import('./services/clinicalCameraControls');
 
       if (disposed || !container) return;
 
@@ -151,20 +164,27 @@
       renderer.domElement.style.height = '100%';
       renderer.domElement.style.display = 'block';
 
-      const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.12;
-      controls.enablePan = false; // read-only stage: orbit + zoom only
-      controls.minDistance = 1.2;
-      controls.maxDistance = 6;
-      controls.maxPolarAngle = Math.PI * 0.92;
-
-      addMannequinLights(scene, 'clinical');
-
       let renderNeeded = true;
       const requestRender = () => {
         renderNeeded = true;
       };
+
+      // Shared clinical camera: damped orbit, right-drag pan, zoom-to-cursor
+      // (0.35–6 m so a student can fill the frame with the ankle), double-
+      // click focus-or-reset, arrow/±/0 keyboard path. Camera-only — it
+      // never touches poses, so it cannot fight a movement-command tween.
+      const cam = createClinicalCameraControls({
+        camera,
+        domElement: renderer.domElement,
+        keyElement: container,
+        requestRender,
+        getPickRoot: () => modelRoot,
+      });
+      const controls = cam.controls;
+      resetViewFn = cam.resetView;
+
+      addMannequinLights(scene, 'clinical');
+
       controls.addEventListener('change', requestRender);
 
       const _box = new THREE.Box3();
@@ -326,6 +346,9 @@
         controls.target.copy(modelCenter);
         camera.position.copy(modelCenter).addScaledVector(dir, dist);
         controls.update();
+        // This framed view is the reset home (double-click miss / `0` key /
+        // resetView()) until the next model load.
+        cam.captureHomeView();
         requestRender();
       }
 
@@ -442,8 +465,9 @@
           return; // parked — startLoop() (via the ResizeObserver) resumes
         }
         raf = requestAnimationFrame(loop);
+        cam.update(); // step any camera focus/reset tween (camera-only)
         controls.update();
-        if (activeTween) stepTween(performance.now());
+        if (activeTween) stepTween(performance.now()); // pose tween (bones-only)
         if (!renderNeeded) return;
         renderer.render(scene, camera);
         renderNeeded = false;
@@ -478,7 +502,7 @@
         ro.disconnect();
         controls.removeEventListener('change', requestRender);
         disposeModel();
-        controls.dispose();
+        cam.dispose(); // removes dblclick/key listeners + disposes controls
         renderer.dispose();
         if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
         clearRomScenarioConstraints();
@@ -527,7 +551,18 @@
 </script>
 
 <div class="pose-viewer" style="height: {height};">
-  <div class="pose-viewer__canvas" bind:this={container}></div>
+  <!-- Focusable so the keyboard path works: arrow keys pan, +/− zoom, 0 resets.
+       role="application" hands arrow keys to the 3D controls instead of the
+       screen reader's document cursor. The a11y rule can't see the imperative
+       key/pointer listeners the camera helper attaches, hence the ignore. -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <div
+    class="pose-viewer__canvas"
+    bind:this={container}
+    tabindex="0"
+    role="application"
+    aria-label={CLINICAL_CAMERA_ARIA_LABEL}
+  ></div>
   {#if loading}<div class="pose-viewer__status">Loading 3D model…</div>{/if}
   {#if loadError}<div class="pose-viewer__status pose-viewer__status--err">{loadError}</div>{/if}
 </div>
@@ -547,6 +582,12 @@
   .pose-viewer__canvas {
     position: absolute;
     inset: 0;
+    outline: none;
+  }
+  .pose-viewer__canvas:focus-visible {
+    outline: 2px solid rgba(120, 190, 255, 0.9);
+    outline-offset: -2px;
+    border-radius: 12px;
   }
   .pose-viewer__status {
     position: absolute;

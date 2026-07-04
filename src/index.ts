@@ -61,6 +61,11 @@ export * from './services/sceneBoot';
 // duplicated across the consuming apps.
 export * from './services/orbitViewer';
 
+// Shared clinical camera controls — the ONE OrbitControls interaction model
+// for PoseViewer / ObservationViewer / ExamStage3D: right-drag pan,
+// zoom-to-cursor (0.35–6 m), double-click focus-or-reset, keyboard path.
+export * from './services/clinicalCameraControls';
+
 // TransformControls rotate-gizmo configuration helpers
 export * from './services/poseGizmoHelpers';
 

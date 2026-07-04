@@ -20,13 +20,16 @@
    * Framework notes (same contract as {@link PoseViewer}): three + the
    * three-using services are dynamically imported inside onMount, so importing
    * this component never pulls WebGL into a host's SSR/prerender — and bare
-   * 'three' specifiers keep the host on a single three instance. Interaction is
-   * read-only: orbit + zoom only (no pan, no pose handles). Theme the backdrop
+   * 'three' specifiers keep the host on a single three instance. Interaction
+   * is inspection-only (no pose handles) via the shared clinical camera:
+   * damped orbit, right-drag pan, zoom-to-cursor, double-click focus-or-reset,
+   * keyboard path (see services/clinicalCameraControls.ts). Theme the backdrop
    * via the `--pv-bg` CSS custom property.
    */
   import { onMount } from 'svelte';
   import { POSE_SCHEMA_VERSION, type CustomPose } from './types';
   import type { JointAngleReport } from './services/jointAngles';
+  import { CLINICAL_CAMERA_ARIA_LABEL } from './services/clinicalCameraControls';
 
   let {
     variant = 'male',
@@ -66,6 +69,14 @@
   let appliedModelUrl = $state('');
   let appliedPose: CustomPose | null = null;
   let reloadFn: (variantId: string, url: string, pose: CustomPose | null) => void = () => {};
+  let resetViewFn: () => void = () => {};
+
+  /** Smoothly return the camera to the framed home view (the shared
+   *  clinical-camera reset — also reachable via a double-click miss or the
+   *  `0`/Home key). Hosts mount their Reset chip on this. */
+  export function resetView(): void {
+    resetViewFn();
+  }
 
   onMount(() => {
     let disposed = false;
@@ -75,7 +86,6 @@
       // Bare 'three' specifiers only — a second three instance would break the
       // instanceof checks inside the pose services.
       const THREE = await import('three');
-      const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
       const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
       const { MeshoptDecoder } = await import('three/examples/jsm/libs/meshopt_decoder.module.js');
       // Services via relative paths (not the barrel) — the barrel re-exports
@@ -90,6 +100,7 @@
       const { captureJointAngleRestReference, computeJointAngles } = await import(
         './services/jointAngles'
       );
+      const { createClinicalCameraControls } = await import('./services/clinicalCameraControls');
 
       if (disposed || !container) return;
 
@@ -101,20 +112,25 @@
       renderer.domElement.style.height = '100%';
       renderer.domElement.style.display = 'block';
 
-      const controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.12;
-      controls.enablePan = false; // read-only viewer: orbit + zoom only
-      controls.minDistance = 1.2;
-      controls.maxDistance = 6;
-      controls.maxPolarAngle = Math.PI * 0.92;
-
-      addMannequinLights(scene, 'clinical');
-
       let renderNeeded = true;
       const requestRender = () => {
         renderNeeded = true;
       };
+
+      // Shared clinical camera: damped orbit, right-drag pan, zoom-to-cursor
+      // (0.35–6 m), double-click focus-or-reset, arrow/±/0 keyboard path.
+      const cam = createClinicalCameraControls({
+        camera,
+        domElement: renderer.domElement,
+        keyElement: container,
+        requestRender,
+        getPickRoot: () => modelRoot,
+      });
+      const controls = cam.controls;
+      resetViewFn = cam.resetView;
+
+      addMannequinLights(scene, 'clinical');
+
       controls.addEventListener('change', requestRender);
 
       const _box = new THREE.Box3();
@@ -256,6 +272,9 @@
         controls.target.copy(modelCenter);
         camera.position.copy(modelCenter).addScaledVector(dir, dist);
         controls.update();
+        // This framed view is the reset home (double-click miss / `0` key /
+        // resetView()) until the next model load.
+        cam.captureHomeView();
         requestRender();
       }
 
@@ -272,6 +291,7 @@
           return; // parked — startLoop() (via the ResizeObserver) resumes
         }
         raf = requestAnimationFrame(loop);
+        cam.update(); // step any focus/reset tween before controls.update()
         controls.update();
         if (!renderNeeded) return;
         renderer.render(scene, camera);
@@ -306,7 +326,7 @@
         ro.disconnect();
         controls.removeEventListener('change', requestRender);
         disposeModel();
-        controls.dispose();
+        cam.dispose(); // removes dblclick/key listeners + disposes controls
         renderer.dispose();
         if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
       };
@@ -346,7 +366,18 @@
 </script>
 
 <div class="pose-viewer" style="height: {height};">
-  <div class="pose-viewer__canvas" bind:this={container}></div>
+  <!-- Focusable so the keyboard path works: arrow keys pan, +/− zoom, 0 resets.
+       role="application" hands arrow keys to the 3D controls instead of the
+       screen reader's document cursor. The a11y rule can't see the imperative
+       key/pointer listeners the camera helper attaches, hence the ignore. -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <div
+    class="pose-viewer__canvas"
+    bind:this={container}
+    tabindex="0"
+    role="application"
+    aria-label={CLINICAL_CAMERA_ARIA_LABEL}
+  ></div>
   {#if loading}<div class="pose-viewer__status">Loading 3D model…</div>{/if}
   {#if loadError}<div class="pose-viewer__status pose-viewer__status--err">{loadError}</div>{/if}
 </div>
@@ -366,6 +397,12 @@
   .pose-viewer__canvas {
     position: absolute;
     inset: 0;
+    outline: none;
+  }
+  .pose-viewer__canvas:focus-visible {
+    outline: 2px solid rgba(120, 190, 255, 0.9);
+    outline-offset: -2px;
+    border-radius: 12px;
   }
   .pose-viewer__status {
     position: absolute;
