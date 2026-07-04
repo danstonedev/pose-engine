@@ -36,8 +36,9 @@
    * bare 'three' specifiers keep the host on a single three instance.
    * Camera interaction is the shared clinical model — damped orbit,
    * right-drag pan, zoom-to-cursor, double-click focus-or-reset, keyboard
-   * path (see services/clinicalCameraControls.ts); poses move ONLY via
-   * movement commands. Theme via `--pv-bg`.
+   * path, opt-in cooperative touch via `allowPageScrollOnMiss` (see
+   * services/clinicalCameraControls.ts); poses move ONLY via movement
+   * commands. Theme via `--pv-bg`.
    */
   import { onMount } from 'svelte';
   import { POSE_SCHEMA_VERSION, type CustomPose } from './types';
@@ -50,7 +51,7 @@
     type RomScenarioConstraints,
   } from './services/romConstraints';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
-  import { CLINICAL_CAMERA_ARIA_LABEL } from './services/clinicalCameraControls';
+  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
 
   let {
     variant = 'male',
@@ -59,6 +60,7 @@
     authoredPose = null,
     romConstraints = null,
     height = '26rem',
+    allowPageScrollOnMiss = false,
     onReport,
     onPoseDropped,
   }: {
@@ -74,6 +76,13 @@
      *  painful arc / end-feel). Installed on load, cleared on destroy. */
     romConstraints?: RomScenarioConstraints | null;
     height?: string;
+    /** Cooperative touch gestures for scrollable host pages (the simLAB
+     *  mission shell passes true). On coarse-pointer devices: one-finger
+     *  swipes scroll the PAGE (the camera ignores them), two-finger drag
+     *  rotates, pinch zooms, double-tap focuses/resets. Fine pointers and
+     *  the default (false) keep the existing one-finger-orbit model.
+     *  Applied when the stage boots. */
+    allowPageScrollOnMiss?: boolean;
     /** Fires with the engine-computed clinical joint angles after the
      *  initial load and after each command settles (the truth the host
      *  grades against). */
@@ -86,6 +95,13 @@
   let container: HTMLDivElement;
   let loading = $state(true);
   let loadError = $state('');
+
+  // Gesture vocabulary matches the ACTIVE interaction model: the touch
+  // variant only when cooperative gestures will engage (opt-in ∧ coarse
+  // pointer); SSR has no matchMedia → mouse vocabulary, same as before.
+  const ariaLabel = $derived(
+    resolveClinicalCameraAriaLabel(allowPageScrollOnMiss && isCoarsePointer()),
+  );
 
   // Imperative handles, wired after the client-only boot completes.
   let ready = $state(false);
@@ -173,12 +189,15 @@
       // (0.35–6 m so a student can fill the frame with the ankle), double-
       // click focus-or-reset, arrow/±/0 keyboard path. Camera-only — it
       // never touches poses, so it cannot fight a movement-command tween.
+      // allowPageScrollOnMiss (host opt-in) enables cooperative touch on
+      // coarse pointers: one finger scrolls the page, two move the camera.
       const cam = createClinicalCameraControls({
         camera,
         domElement: renderer.domElement,
         keyElement: container,
         requestRender,
         getPickRoot: () => modelRoot,
+        allowPageScrollOnMiss,
       });
       const controls = cam.controls;
       resetViewFn = cam.resetView;
@@ -561,7 +580,7 @@
     bind:this={container}
     tabindex="0"
     role="application"
-    aria-label={CLINICAL_CAMERA_ARIA_LABEL}
+    aria-label={ariaLabel}
   ></div>
   {#if loading}<div class="pose-viewer__status">Loading 3D model…</div>{/if}
   {#if loadError}<div class="pose-viewer__status pose-viewer__status--err">{loadError}</div>{/if}

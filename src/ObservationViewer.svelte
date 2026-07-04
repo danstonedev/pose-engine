@@ -29,7 +29,7 @@
   import { onMount } from 'svelte';
   import { POSE_SCHEMA_VERSION, type CustomPose } from './types';
   import type { JointAngleReport } from './services/jointAngles';
-  import { CLINICAL_CAMERA_ARIA_LABEL } from './services/clinicalCameraControls';
+  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
 
   let {
     variant = 'male',
@@ -37,6 +37,7 @@
     modelUrl = '',
     authoredPose = null,
     height = '26rem',
+    allowPageScrollOnMiss = false,
     onReport,
     onPoseDropped,
   }: {
@@ -49,6 +50,12 @@
     /** Authored patient pose to present; `null` shows the anatomic baseline. */
     authoredPose?: CustomPose | null;
     height?: string;
+    /** Cooperative touch gestures for scrollable host pages. On coarse-
+     *  pointer devices: one-finger swipes scroll the PAGE (the camera
+     *  ignores them), two-finger drag rotates, pinch zooms, double-tap
+     *  focuses/resets. Fine pointers and the default (false) keep the
+     *  existing one-finger-orbit model. Applied when the viewer boots. */
+    allowPageScrollOnMiss?: boolean;
     /** Fires once per successful load with the engine-computed clinical joint
      *  angles for the presented pose (the truth the host grades against). */
     onReport?: (report: JointAngleReport) => void;
@@ -62,6 +69,13 @@
   let container: HTMLDivElement;
   let loading = $state(true);
   let loadError = $state('');
+
+  // Gesture vocabulary matches the ACTIVE interaction model: the touch
+  // variant only when cooperative gestures will engage (opt-in ∧ coarse
+  // pointer); SSR has no matchMedia → mouse vocabulary, same as before.
+  const ariaLabel = $derived(
+    resolveClinicalCameraAriaLabel(allowPageScrollOnMiss && isCoarsePointer()),
+  );
 
   // Imperative handles, wired after the client-only boot completes.
   let ready = $state(false);
@@ -119,12 +133,15 @@
 
       // Shared clinical camera: damped orbit, right-drag pan, zoom-to-cursor
       // (0.35–6 m), double-click focus-or-reset, arrow/±/0 keyboard path.
+      // allowPageScrollOnMiss (host opt-in) enables cooperative touch on
+      // coarse pointers: one finger scrolls the page, two move the camera.
       const cam = createClinicalCameraControls({
         camera,
         domElement: renderer.domElement,
         keyElement: container,
         requestRender,
         getPickRoot: () => modelRoot,
+        allowPageScrollOnMiss,
       });
       const controls = cam.controls;
       resetViewFn = cam.resetView;
@@ -376,7 +393,7 @@
     bind:this={container}
     tabindex="0"
     role="application"
-    aria-label={CLINICAL_CAMERA_ARIA_LABEL}
+    aria-label={ariaLabel}
   ></div>
   {#if loading}<div class="pose-viewer__status">Loading 3D model…</div>{/if}
   {#if loadError}<div class="pose-viewer__status pose-viewer__status--err">{loadError}</div>{/if}
