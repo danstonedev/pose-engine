@@ -12,6 +12,10 @@
   "scripts": {
     "dev": "vite --config playground/vite.playground.ts",
     "predev": "node playground/copy-models.mjs",
+    "simmove": "vite --config playground/vite.playground.ts",
+    "presimmove": "node playground/copy-models.mjs",
+    "build:simmove": "vite build --config playground/vite.playground.ts",
+    "prebuild:simmove": "node playground/copy-models.mjs",
     "check": "svelte-check",
     "test": "vitest run"
   },

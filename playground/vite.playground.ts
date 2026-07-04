@@ -1,5 +1,5 @@
 /**
- * Standalone dev harness for @vspx/pose-engine's PoseViewer. Named
+ * simMOVE: the first-party front end for @vspx/pose-engine. Named
  * `vite.playground.ts` (not `vite.config.ts`) so tools like svelte-check don't
  * auto-discover it. Root is this folder; the GLBs are served from public/models
  * (populated by the `predev` copy step).
