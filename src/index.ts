@@ -31,6 +31,11 @@ export * from './services/poseRomClamp';
 // normative ∩ constraint and readouts render available-vs-normal.
 export * from './services/romConstraints';
 
+// Imperative exam movement commands (simLAB A0) — structural command/outcome
+// types, ROM-clamped target resolution (with the documented refusal rule),
+// and command-pose construction. Pure math; ExamStage3D animates it.
+export * from './services/movementCommand';
+
 // Camera view presets + orbit tween math
 export * from './services/cameraTween';
 
@@ -100,3 +105,10 @@ export { default as JointAnglesPanel } from './JointAnglesPanel.svelte';
 // baseline and reports the engine-computed joint angles via `onReport`. Same
 // lazy-three contract as PoseViewer, so the barrel stays SSR/prerender-safe.
 export { default as ObservationViewer } from './ObservationViewer.svelte';
+
+// Optional Svelte stage — ObservationViewer's interactive sibling for simLAB
+// exam encounters (voice-3D A0): exposes an imperative, ROM-clamped
+// `applyMovementCommand(cmd)` on the component instance that tweens the
+// patient and resolves with the MEASURED outcome. Same lazy-three contract,
+// so the barrel stays SSR/prerender-safe.
+export { default as ExamStage3D } from './ExamStage3D.svelte';
