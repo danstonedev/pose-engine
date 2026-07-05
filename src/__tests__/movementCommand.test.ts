@@ -404,24 +404,28 @@ describe('buildCommandPose on the real male rig', () => {
   });
 
   it('knee: 30° flexion lands within ±2° and swings the foot posteriorly (both sides)', () => {
-    for (const [legKey, footKey] of [
-      ['R_Leg', 'R_Foot'],
-      ['L_Leg', 'L_Foot'],
+    for (const [legKey, footKey, toesKey] of [
+      ['R_Leg', 'R_Foot', 'R_Toes'],
+      ['L_Leg', 'L_Foot', 'L_Toes'],
     ] as const) {
       resetToAnatomic();
+      // CONVENTION-FREE direction pin (founder field report: the old test
+      // hardcoded "the mannequin faces −Z" — it faces +Z, so "bend your knee"
+      // shipped as an anterior front-kick). Anterior is defined by the rig
+      // itself: the way the toes point at rest. Anatomic knee flexion carries
+      // the foot AWAY from where the toes point (heel toward buttock).
       const footBefore = boneLookup.get(footKey)!.getWorldPosition(new THREE.Vector3());
+      const toesBefore = boneLookup.get(toesKey)!.getWorldPosition(new THREE.Vector3());
+      const anterior = toesBefore.clone().sub(footBefore).setY(0).normalize();
       const cmd = setJoint(legKey, 'kneeFlexion', 30);
       const resolved = resolveCommandTarget(cmd, variantCfg);
       expect(resolved.status).toBe('complied');
       const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
       const report = applyAndMeasure(pose);
-      // Anatomic knee flexion carries the foot POSTERIOR (world +Z; the
-      // mannequin faces −Z), not sideways/anterior — locks the motion-axis
-      // direction on the real rig, which the readout alone can't (the
-      // geometric hinge magnitude is direction-blind).
       const footAfter = boneLookup.get(footKey)!.getWorldPosition(new THREE.Vector3());
-      expect(footAfter.z - footBefore.z).toBeGreaterThan(0.05);
-      expect(Math.abs(footAfter.x - footBefore.x)).toBeLessThan(0.05);
+      const travel = footAfter.clone().sub(footBefore);
+      expect(travel.clone().setY(0).dot(anterior)).toBeLessThan(-0.05); // posterior
+      expect(travel.clone().setY(0).addScaledVector(anterior, -travel.clone().setY(0).dot(anterior)).length()).toBeLessThan(0.05); // no lateral drift
       const achieved = measureCommandMotion(report, legKey, 'kneeFlexion')!;
       expect(Math.abs(achieved - 30)).toBeLessThan(2);
       // Off-axis leakage stays negligible (clean hinge motion).
