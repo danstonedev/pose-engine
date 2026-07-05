@@ -23,12 +23,19 @@
  *   ─────────────────────────────────────────────────────────────────────────
  *   L/R_Foot     ankleFlexion      + dorsiflexion / − plantar    SUPPORTED
  *   L/R_Leg      kneeFlexion       + flexion / − hyperextension  SUPPORTED
+ *   Spine_Lower  flexion           + forward flex / − extension  SUPPORTED (v1.1)
  *   (any other registry joint/field)                             refused, reason 'unsupported-motion'
  *
  * v1 deliberately ships the two sagittal motions the ankle pilot needs
  * (ankle + knee, the must-haves). Shoulder flexion was attempted and
  * withdrawn — see the SUPPORTED_MOTIONS doc for why the real rig can't yet
- * honor it honestly. Every OTHER registry-valid joint/motion resolves to a
+ * honor it honestly. v1.1 adds LUMBAR FLEXION (simLAB lumbar cases:
+ * "bend forward"), rig-verified: the waist bone's parent-local frame is
+ * body-aligned on the CC rig, so a parent-frame X-euler delta of +20° reads
+ * back as clinical flexion +20.000° with ZERO lateral/rotation smear while
+ * the head provably translates anterior (+Z, the rig's facing) and caudal —
+ * the commanded visual and the measured readout agree exactly (see the
+ * 'trunk:' cases in movementCommand.test.ts). Every OTHER registry-valid joint/motion resolves to a
  * refused outcome with `reason: 'unsupported-motion'` so hosts degrade
  * gracefully; unknown keys refuse with 'unknown-joint' / 'unknown-motion'.
  *
@@ -284,11 +291,22 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     compose: 'rest',
     fromReport: (deg) => -deg,
   };
+  // Lumbar flexion (v1.1): the waist bone's parent-local frame is body-aligned
+  // on the CC rig (unlike the twisted thigh/clavicle locals), so a plain
+  // parent-frame X-euler delta both LOOKS right in world space (head moves
+  // anterior + caudal) and READS back exactly (clinical flexion = commanded,
+  // zero lateral/rotation smear) — rig-verified in movementCommand.test.ts.
+  const lumbar: SupportedMotionSpec = {
+    buildDelta: (deg) => eulerXDelta(deg),
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  };
   return {
     L_Foot: { ankleFlexion: ankle },
     R_Foot: { ankleFlexion: ankle },
     L_Leg: { kneeFlexion: knee },
     R_Leg: { kneeFlexion: knee },
+    Spine_Lower: { flexion: lumbar },
   };
 })();
 
