@@ -222,8 +222,9 @@ function eulerXDelta(deg: number): THREE.Quaternion {
 
 /** CANONICAL-frame delta for a ball/hinge sagittal swing — the same frame
  *  the ROM clamp recomposes in (`poseRomClamp.recomposeBallJoint`): swing the
- *  rest long axis (0,−1,0) toward anterior (−Z) by `deg` about the
- *  medio-lateral axis, no twist. The canonical delta relates rest→current
+ *  rest long axis (0,−1,0) toward −Z by `deg` about the medio-lateral axis,
+ *  no twist. On the real rig −Z is POSTERIOR (the toes point +Z), so callers
+ *  pick the anatomic direction by sign — the knee passes −deg. The canonical delta relates rest→current
  *  WORLD orientation (`currentWorld = restWorld · delta`), so the world
  *  direction of the swing is guaranteed regardless of how the GLB binds the
  *  bone-local frame — the thigh/clavicle local frames on the CC rig are
@@ -261,15 +262,15 @@ interface SupportedMotionSpec {
  *  - ankleFlexion: parent-frame body-euler X delta (exact against the
  *    readout, which decomposes exactly this delta; dorsi + = +X, plantar
  *    − = −X — the authored ankle-sprain axis convention).
- *  - kneeFlexion: canonical/rest-frame ball swing. Empirically verified
- *    against the real male runtime rig (movementCommand.test.ts): raw
- *    flexion = +deg swings the shin POSTERIORLY (anatomic knee flexion) —
- *    the rig's canonical frame is flipped about the long axis relative to
- *    the synthetic-skeleton assumption (the same per-joint calibration gap
- *    that keeps poseRomClamp browser-default-OFF). The geometric hinge
- *    readout signs anatomic flexion NEGATIVE (mag·dir·flexSign, see
- *    jointAngles.ts), so `fromReport` negates back into the registry's
- *    positive-flexion convention.
+ *  - kneeFlexion: canonical/rest-frame ball swing, NEGATED into the delta
+ *    (v1.2 field fix): the rig's anterior is +Z — the toes point +Z, pinned
+ *    convention-free by the trunk calibration — so the raw ballFlexDelta
+ *    swing toward −Z is what anatomic knee flexion needs, and the original
+ *    un-negated spec shipped a front-kick (founder field report). The
+ *    direction test now derives anterior from the toes themselves instead
+ *    of assuming a world facing. With the corrected direction the geometric
+ *    hinge readout signs anatomic flexion POSITIVE, so `fromReport` is
+ *    identity.
  *
  *  SHOULDER (L/R_UpperArm.shoulderFlexion) was planned for v1 but is
  *  deliberately NOT shipped: on the real rig the clavicle/upper-arm local
@@ -287,9 +288,9 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     fromReport: (deg) => deg,
   };
   const knee: SupportedMotionSpec = {
-    buildDelta: (deg) => ballFlexDelta(deg),
+    buildDelta: (deg) => ballFlexDelta(-deg),
     compose: 'rest',
-    fromReport: (deg) => -deg,
+    fromReport: (deg) => deg,
   };
   // Lumbar flexion (v1.1): the waist bone's parent-local frame is body-aligned
   // on the CC rig (unlike the twisted thigh/clavicle locals), so a plain
