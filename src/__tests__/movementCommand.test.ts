@@ -229,7 +229,7 @@ describe('resolveCommandTarget', () => {
       expect(r.status).toBe('complied');
     });
 
-    it('exposes exactly the documented v1 vocabulary', () => {
+    it('exposes exactly the documented vocabulary (v1 hinges + v1.1 lumbar flexion)', () => {
       const list = listSupportedMovementCommands()
         .map((c) => `${c.joint}.${c.motion}`)
         .sort();
@@ -238,8 +238,12 @@ describe('resolveCommandTarget', () => {
         'L_Leg.kneeFlexion',
         'R_Foot.ankleFlexion',
         'R_Leg.kneeFlexion',
+        'Spine_Lower.flexion',
       ]);
       expect(isMovementCommandSupported('R_Foot', 'ankleFlexion')).toBe(true);
+      expect(isMovementCommandSupported('Spine_Lower', 'flexion')).toBe(true);
+      // Non-sagittal trunk motions stay withheld until rig-verified like flexion.
+      expect(isMovementCommandSupported('Spine_Lower', 'lateralTilt')).toBe(false);
       expect(isMovementCommandSupported('R_Foot', 'ankleInversion')).toBe(false);
     });
 
@@ -249,6 +253,32 @@ describe('resolveCommandTarget', () => {
         expect(r.status).toBe('refused');
         expect(r.reason).toBe('unsupported-motion');
       }
+    });
+
+    it('trunk: clamps lumbar flexion to the normative registry range (−25…60)', () => {
+      const over = resolveCommandTarget(setJoint('Spine_Lower', 'flexion', 75), variantCfg);
+      expect(over.status).toBe('modified');
+      expect(over.clampedDegrees).toBe(60);
+      expect(over.limitedBy).toBe('normative-rom');
+      const ext = resolveCommandTarget(setJoint('Spine_Lower', 'flexion', -40), variantCfg);
+      expect(ext.status).toBe('modified');
+      expect(ext.clampedDegrees).toBe(-25);
+    });
+
+    it('trunk: the authored guarded-flexion shape (cap 32, painful 24–32) modifies + hurts', () => {
+      setRomScenarioConstraints({
+        Spine_Lower: {
+          flexion: {
+            availableRange: { min: -18, max: 32 },
+            painfulArc: { min: 24, max: 32 },
+          },
+        },
+      });
+      const r = resolveCommandTarget(setJoint('Spine_Lower', 'flexion', 45), variantCfg);
+      expect(r.status).toBe('modified');
+      expect(r.clampedDegrees).toBe(32);
+      expect(r.limitedBy).toBe('scenario-constraint');
+      expect(r.painful).toBe(true);
     });
   });
 
@@ -398,6 +428,74 @@ describe('buildCommandPose on the real male rig', () => {
       expect(Math.abs(report.joints[legKey].kneeDeviation)).toBeLessThan(1);
       expect(Math.abs(report.joints[legKey].kneeRotation)).toBeLessThan(1);
     }
+  });
+
+  it('trunk: 20° lumbar flexion lands EXACT, smear-free, and bends the body forward', () => {
+    resetToAnatomic();
+    // Convention-free forward check: bending forward carries the head toward
+    // where the toes point (and caudally). Capture the toe direction at rest.
+    const footRest = boneLookup.get('R_Foot')!.getWorldPosition(new THREE.Vector3());
+    const toesRest = boneLookup.get('R_Toes')!.getWorldPosition(new THREE.Vector3());
+    const anterior = toesRest.sub(footRest).setY(0).normalize();
+    const headRest = boneLookup.get('Head')!.getWorldPosition(new THREE.Vector3());
+
+    const cmd = setJoint('Spine_Lower', 'flexion', 20);
+    const resolved = resolveCommandTarget(cmd, variantCfg);
+    expect(resolved.status).toBe('complied');
+    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+    const report = applyAndMeasure(pose);
+
+    // The readout honesty bar (what kept shoulder out): commanded == measured.
+    const achieved = measureCommandMotion(report, 'Spine_Lower', 'flexion')!;
+    expect(Math.abs(achieved - 20)).toBeLessThan(2);
+    // Zero off-axis smear — a sagittal command must not read as tilt/rotation.
+    expect(Math.abs(report.joints.Spine_Lower.lateralTilt)).toBeLessThan(1);
+    expect(Math.abs(report.joints.Spine_Lower.rotation)).toBeLessThan(1);
+
+    // The visual honesty bar: the head moved TOWARD the toes and DOWN.
+    const headAfter = boneLookup.get('Head')!.getWorldPosition(new THREE.Vector3());
+    const headTravel = headAfter.clone().sub(headRest);
+    expect(headTravel.clone().setY(0).dot(anterior)).toBeGreaterThan(0.05);
+    expect(headTravel.y).toBeLessThan(-0.005);
+    // Legs stay parked — only the commanded segment moves.
+    expect(Math.abs(measureCommandMotion(report, 'R_Leg', 'kneeFlexion')!)).toBeLessThan(1);
+    expect(Math.abs(report.joints.R_Foot.ankleFlexion)).toBeLessThan(1);
+  });
+
+  it('trunk: extension (−15°) measures true and moves the head the other way', () => {
+    resetToAnatomic();
+    const headRest = boneLookup.get('Head')!.getWorldPosition(new THREE.Vector3());
+    const footRest = boneLookup.get('R_Foot')!.getWorldPosition(new THREE.Vector3());
+    const toesRest = boneLookup.get('R_Toes')!.getWorldPosition(new THREE.Vector3());
+    const anterior = toesRest.sub(footRest).setY(0).normalize();
+    const cmd = setJoint('Spine_Lower', 'flexion', -15);
+    const resolved = resolveCommandTarget(cmd, variantCfg);
+    expect(resolved.status).toBe('complied');
+    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+    const report = applyAndMeasure(pose);
+    expect(Math.abs(measureCommandMotion(report, 'Spine_Lower', 'flexion')! - -15)).toBeLessThan(2);
+    const headAfter = boneLookup.get('Head')!.getWorldPosition(new THREE.Vector3());
+    expect(headAfter.clone().sub(headRest).setY(0).dot(anterior)).toBeLessThan(-0.05);
+  });
+
+  it('trunk: the guarded-flexion scenario settles at the cap, in the painful arc', () => {
+    resetToAnatomic();
+    setRomScenarioConstraints({
+      Spine_Lower: {
+        flexion: { availableRange: { min: -18, max: 32 }, painfulArc: { min: 24, max: 32 } },
+      },
+    });
+    const cmd = setJoint('Spine_Lower', 'flexion', 45);
+    const resolved = resolveCommandTarget(cmd, variantCfg);
+    expect(resolved.status).toBe('modified');
+    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+    const report = applyAndMeasure(pose);
+    const achieved = measureCommandMotion(report, 'Spine_Lower', 'flexion')!;
+    expect(Math.abs(achieved - 32)).toBeLessThan(2);
+    const outcome = finalizeOutcome(resolved, achieved);
+    expect(outcome.status).toBe('modified');
+    expect(outcome.limitedBy).toBe('scenario-constraint');
+    expect(outcome.painful).toBe(true);
   });
 
   it('preserves the rest of a fromPose (sequential commands compose)', () => {
