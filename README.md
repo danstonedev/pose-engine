@@ -16,6 +16,8 @@ no pain-map / EMR dependencies.
 | `services/cameraTween` | View presets + orbit-tween math |
 | `services/limbAxisModel` | Proximal→distal limb polylines |
 | `services/movementClipSampling` | Sample GLB animation clips into bone poses |
+| `services/movementCommand` | Imperative exam ROM commands (set-joint / relax) |
+| `services/motionCommand` | Named basic-motion commands (walk / sit / stand) + asset-ingestion seam |
 
 ## Usage
 

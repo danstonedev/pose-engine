@@ -41,7 +41,7 @@
    * commands. Theme via `--pv-bg`.
    */
   import { onMount } from 'svelte';
-  import { POSE_SCHEMA_VERSION, type CustomPose } from './types';
+  import { POSE_SCHEMA_VERSION, type CustomPose, type MovementClipId } from './types';
   import type { JointAngleReport } from './services/jointAngles';
   // romConstraints is three-free (pure registry math) — static import stays
   // SSR-safe and lets the constraint store install/clear synchronously.
@@ -51,6 +51,11 @@
     type RomScenarioConstraints,
   } from './services/romConstraints';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
+  import type {
+    MotionClipProvider,
+    MotionCommand,
+    MotionCommandOutcome,
+  } from './services/motionCommand';
   import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
 
   let {
@@ -59,6 +64,7 @@
     modelUrl = '',
     authoredPose = null,
     romConstraints = null,
+    motionClipProvider = null,
     height = '26rem',
     allowPageScrollOnMiss = false,
     onReport,
@@ -75,6 +81,11 @@
     /** Scenario ROM constraints for the active case (available range /
      *  painful arc / end-feel). Installed on load, cleared on destroy. */
     romConstraints?: RomScenarioConstraints | null;
+    /** Asset-ingestion seam for NAMED basic motions (walk / sit / stand). When
+     *  supplied, `applyMotionCommand` drives the rig with the provider's
+     *  animation clips through a THREE.AnimationMixer. Null = named motions
+     *  refuse with `clip-unavailable`; exam ROM commands are unaffected. */
+    motionClipProvider?: MotionClipProvider | null;
     height?: string;
     /** Cooperative touch gestures for scrollable host pages (the simLAB
      *  mission shell passes true). On coarse-pointer devices: one-finger
@@ -115,6 +126,10 @@
   // grab it via `bind:this`). Commands are chained so each one starts from
   // the previous settled pose; callers may fire-and-forget or await.
   let runCommandImpl: ((cmd: ExamMovementCommand) => Promise<ExamMovementOutcome>) | null = null;
+  // Named-motion (walk / sit / stand) executor — clip-driven, shares the same
+  // serialized command chain as the exam commands so the two modes never run
+  // on the skeleton at once.
+  let runMotionImpl: ((cmd: MotionCommand) => Promise<MotionCommandOutcome>) | null = null;
   let resolveBoot: () => void = () => {};
   const bootDone = new Promise<void>((r) => (resolveBoot = r));
   let commandChain: Promise<unknown> = Promise.resolve();
@@ -135,6 +150,30 @@
         return { status: 'refused', reason: 'stage-unavailable' } as ExamMovementOutcome;
       }
       return runCommandImpl(cmd);
+    });
+    commandChain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  /**
+   * Play a NAMED basic motion ("walk" / "sit" / "stand") on the mannequin, or
+   * stop the active motion. Clip-driven (THREE.AnimationMixer), NOT the exam
+   * pose tween. Serialized on the SAME command chain as
+   * {@link applyMovementCommand} — a motion and an exam command can never drive
+   * the skeleton simultaneously. Resolves with what the motion did: `playing`
+   * (a looping walk/stand started), `completed` (a one-shot sit settled),
+   * `stopped`, or `refused` (unknown motion / no clip provider / missing clip).
+   */
+  export function applyMotionCommand(cmd: MotionCommand): Promise<MotionCommandOutcome> {
+    const run = commandChain.then(async () => {
+      await bootDone;
+      if (!runMotionImpl) {
+        return { status: 'refused', reason: 'stage-unavailable' } as MotionCommandOutcome;
+      }
+      return runMotionImpl(cmd);
     });
     commandChain = run.then(
       () => undefined,
@@ -168,6 +207,8 @@
       );
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
+      const { resolveMotionCommand } = await import('./services/motionCommand');
+      const { normalizeRigBoneName } = await import('./services/movementClipSampling');
       const { createClinicalCameraControls } = await import('./services/clinicalCameraControls');
 
       if (disposed || !container) return;
@@ -224,8 +265,64 @@
       /** The pose currently on the skeleton (null = anatomic baseline). */
       let currentPose: CustomPose | null = null;
 
+      // ── Named-motion (clip) playback state ─────────────────────────────────
+      // A THREE.AnimationMixer drives walk/sit/stand clips. Motions and exam
+      // pose tweens are mutually exclusive — starting either cancels the other.
+      let mixer: import('three').AnimationMixer | null = null;
+      let motionAction: import('three').AnimationAction | null = null;
+      let activeMotionId: MovementClipId | null = null;
+      /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
+      let motionFinishResolve: (() => void) | null = null;
+      const motionClock = new THREE.Clock();
+      /** Per-motion clip cache, remapped to THIS load's skeleton. Cleared on
+       *  every model (re)load since bone identities change. */
+      const motionClipCache = new Map<MovementClipId, import('three').AnimationClip>();
+
+      /** Remap a clip's track bone names onto the live skeleton via the engine
+       *  normalizer (no-op for clips authored on the same CC rig). */
+      function remapClipToSkeleton(
+        clip: import('three').AnimationClip,
+        skeleton: import('three').Skeleton,
+      ): import('three').AnimationClip {
+        const nameByNormalized = new Map<string, string>();
+        for (const bone of skeleton.bones) {
+          nameByNormalized.set(normalizeRigBoneName(bone.name || ''), bone.name);
+        }
+        for (const track of clip.tracks) {
+          const dot = track.name.indexOf('.');
+          if (dot === -1) continue;
+          const trackBone = track.name.slice(0, dot);
+          const property = track.name.slice(dot);
+          const modelBone = nameByNormalized.get(normalizeRigBoneName(trackBone));
+          if (modelBone && modelBone !== trackBone) track.name = modelBone + property;
+        }
+        return clip;
+      }
+
+      /** Stop any active motion and return the skeleton to its last known
+       *  CustomPose (the pre-motion pose). Idempotent. */
+      function stopMotion() {
+        if (mixer) mixer.stopAllAction();
+        motionAction = null;
+        activeMotionId = null;
+        if (motionFinishResolve) {
+          const r = motionFinishResolve;
+          motionFinishResolve = null;
+          r();
+        }
+        applyPoseNow(currentPose);
+        requestRender();
+      }
+
       function disposeModel() {
         if (!modelRoot) return;
+        // Tear down any active motion + mixer bound to the outgoing model.
+        stopMotion();
+        if (mixer) {
+          mixer.uncacheRoot(modelRoot);
+          mixer = null;
+        }
+        motionClipCache.clear();
         scene.remove(modelRoot);
         modelRoot.traverse((o) => {
           const mesh = o as import('three').Mesh;
@@ -339,6 +436,17 @@
           restingPoseRef = resting;
           currentPose = resting;
 
+          // 7b) Fresh AnimationMixer bound to this model root for named
+          //     motions. A one-shot clip that reaches its end fires 'finished',
+          //     which resolves the awaiting `applyMotionCommand`.
+          mixer = new THREE.AnimationMixer(root);
+          mixer.addEventListener('finished', () => {
+            const r = motionFinishResolve;
+            motionFinishResolve = null;
+            activeMotionId = null;
+            r?.();
+          });
+
           // 8) Measure the presented pose and hand the report to the host.
           if (skinned && rest) {
             onReport?.(computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, rest));
@@ -438,6 +546,9 @@
         if (disposed || !skinnedRef || !variantCfgRef || !restRef || !baselinePoseRef) {
           return { status: 'refused', reason: 'stage-unavailable' };
         }
+        // Mode switch: an exam ROM command owns the skeleton — cancel any active
+        // named motion first (returns to the last known pose), then proceed.
+        if (activeMotionId) stopMotion();
         if (cmd.action === 'relax') {
           await tweenTo(restingPoseRef);
           const report = measureNow();
@@ -470,6 +581,95 @@
         return finalizeOutcome(resolved, achieved);
       };
 
+      runMotionImpl = async (cmd: MotionCommand): Promise<MotionCommandOutcome> => {
+        if (disposed || !mixer || !modelRoot) {
+          return { status: 'refused', reason: 'stage-unavailable' };
+        }
+        const resolved = resolveMotionCommand(cmd);
+        if (resolved.status === 'stop') {
+          stopMotion();
+          return { status: 'stopped' };
+        }
+        if (resolved.status === 'refused' || !resolved.motion || !resolved.definition) {
+          return { status: 'refused', motion: resolved.motion, reason: resolved.reason };
+        }
+        if (!motionClipProvider) {
+          return { status: 'refused', motion: resolved.motion, reason: 'clip-unavailable' };
+        }
+
+        const motion = resolved.motion;
+        const def = resolved.definition;
+        const loop = resolved.loop ?? def.loop;
+        const speed = resolved.speed ?? def.speed;
+
+        // Resolve the clip (host-loaded, cached here per skeleton).
+        let clip = motionClipCache.get(motion) ?? null;
+        if (!clip) {
+          let clips: import('three').AnimationClip[] | null = null;
+          try {
+            clips = (await motionClipProvider.getClips(motion)) ?? null;
+          } catch (err) {
+            console.error('ExamStage3D: motion clip load failed', motion, err);
+            clips = null;
+          }
+          if (disposed || !mixer || !modelRoot) {
+            return { status: 'refused', motion, reason: 'stage-unavailable' };
+          }
+          if (!clips || clips.length === 0) {
+            return { status: 'refused', motion, reason: 'clip-unavailable' };
+          }
+          const cloned = clips[0]!.clone();
+          const skel = skinnedRef?.skeleton;
+          clip = skel ? remapClipToSkeleton(cloned, skel) : cloned;
+          motionClipCache.set(motion, clip);
+        }
+
+        // Cancel any in-flight pose tween and prior motion, then start the clip.
+        if (activeTween) finishTween();
+        mixer.stopAllAction();
+        if (motionFinishResolve) {
+          const r = motionFinishResolve;
+          motionFinishResolve = null;
+          r();
+        }
+        const action = mixer.clipAction(clip, modelRoot);
+        action.reset();
+        action.setLoop(
+          loop === 'repeat' ? THREE.LoopRepeat : THREE.LoopOnce,
+          loop === 'repeat' ? Infinity : 1,
+        );
+        action.clampWhenFinished = loop === 'once';
+        action.timeScale = speed;
+        action.enabled = true;
+        action.play();
+        motionAction = action;
+        activeMotionId = motion;
+        motionClock.getDelta(); // drop the accumulated idle delta
+        startLoop();
+        requestRender();
+
+        const outcomeBase = { motion, kind: def.kind, loop, speed } as const;
+
+        // Hidden stage: the loop is parked, so a looping motion can't animate —
+        // report 'playing' immediately; a one-shot can't reach 'finished', so
+        // sample its final frame and settle synchronously.
+        const hidden = !container || container.offsetParent === null;
+        if (loop === 'repeat') {
+          return { status: 'playing', ...outcomeBase };
+        }
+        if (hidden) {
+          mixer.setTime(clip.duration / Math.max(speed, 1e-3));
+          modelRoot.updateMatrixWorld(true);
+          activeMotionId = null;
+          return { status: 'completed', ...outcomeBase };
+        }
+        // Visible one-shot: await the mixer 'finished' event.
+        await new Promise<void>((resolve) => {
+          motionFinishResolve = resolve;
+        });
+        return { status: 'completed', ...outcomeBase };
+      };
+
       // Hosts display:none this stage during overlays, and rAF keeps firing
       // for display:none elements — park the loop (no reschedule) when the
       // container is hidden; the ResizeObserver restarts it when shown. A
@@ -481,11 +681,27 @@
         if (container.offsetParent === null) {
           loopRunning = false;
           if (activeTween) finishTween();
+          // A one-shot motion awaiting 'finished' would strand while parked —
+          // jump it to its end frame and resolve.
+          if (mixer && activeMotionId && motionAction && motionFinishResolve) {
+            mixer.setTime(motionAction.getClip().duration / Math.max(motionAction.timeScale, 1e-3));
+            modelRoot?.updateMatrixWorld(true);
+            const r = motionFinishResolve;
+            motionFinishResolve = null;
+            activeMotionId = null;
+            r();
+          }
           return; // parked — startLoop() (via the ResizeObserver) resumes
         }
         raf = requestAnimationFrame(loop);
         cam.update(); // step any camera focus/reset tween (camera-only)
         controls.update();
+        const motionDelta = motionClock.getDelta();
+        if (mixer && activeMotionId) {
+          mixer.update(motionDelta); // step the named-motion clip (bones-only)
+          modelRoot?.updateMatrixWorld();
+          renderNeeded = true; // keep rendering while a motion plays
+        }
         if (activeTween) stepTween(performance.now()); // pose tween (bones-only)
         if (!renderNeeded) return;
         renderer.render(scene, camera);
@@ -516,7 +732,9 @@
       // mid-load must still stop the rAF loop and dispose everything.
       cleanup = () => {
         if (activeTween) finishTween();
+        stopMotion(); // resolves any awaiting one-shot motion promise
         runCommandImpl = null;
+        runMotionImpl = null;
         cancelAnimationFrame(raf);
         ro.disconnect();
         controls.removeEventListener('change', requestRender);

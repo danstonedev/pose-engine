@@ -349,7 +349,12 @@ export const BODY_VARIANTS: Record<BodyVariantId, BodyVariantConfig> = {
     skeleton: 'cc',
     boneNameMap: CC_BONE_NAME_MAP,
     atlasModuleId: 'cc',
-    movementClipIds: [],
+    // Basic human motions the CC rig can be driven with (see
+    // services/motionCommand.ts). Declares CAPABILITY for host discovery; the
+    // clip BYTES are host/asset-supplied via a MotionClipProvider.
+    // TODO(asset): extend once the delivered "Human Basic Motions" pack is
+    // retargeted to the CC skeleton (jog / run / strafe / crouch-walk / limp).
+    movementClipIds: ['stand', 'sit', 'walk'],
     pose: CC_ANATOMIC_POSE,
     referenceHeightWorld: 1.970411,
     // Mosteller BSA at 1.97 m × 80 kg → √(197 × 80 / 3600) m² ≈ 2.092 m².
@@ -364,7 +369,8 @@ export const BODY_VARIANTS: Record<BodyVariantId, BodyVariantConfig> = {
     skeleton: 'cc',
     boneNameMap: CC_BONE_NAME_MAP,
     atlasModuleId: 'cc',
-    movementClipIds: [],
+    // Basic human motions (see male variant + services/motionCommand.ts).
+    movementClipIds: ['stand', 'sit', 'walk'],
     pose: CC_ANATOMIC_POSE,
     referenceHeightWorld: 1.849547,
     // Mosteller BSA at 1.85 m × 65 kg → √(185 × 65 / 3600) m² ≈ 1.828 m².

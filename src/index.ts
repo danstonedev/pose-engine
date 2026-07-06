@@ -46,6 +46,12 @@ export * from './services/limbAxisModel';
 export * from './services/movementClipSampling';
 export * from './services/movementClips';
 
+// Named basic-motion commands (simLAB A2) — the clip-driven sibling of the
+// exam movement layer: "walk" / "sit" / "stand" motion vocabulary, per-motion
+// metadata (kind / loop / speed), command resolution, and the asset-ingestion
+// seam (MotionClipProvider). Clip BYTES/PATHS stay a host/asset concern.
+export * from './services/motionCommand';
+
 // Posed-geometry world-space baking
 export * from './services/posedGeometry';
 
