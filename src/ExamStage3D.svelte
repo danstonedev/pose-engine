@@ -550,6 +550,16 @@
         return computeJointAngles(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id, restRef);
       }
 
+      // Loop-local measure: the render loop already ran modelRoot.updateMatrixWorld()
+      // right after mixer.update(), so the world matrices are fresh — skip the
+      // force-recompute measureNow() does and just read the angles. This is the
+      // hot path for per-frame motion streaming; the redundant full matrix pass
+      // is what made high report rates expensive.
+      function measureNowFresh(): JointAngleReport | null {
+        if (!skinnedRef || !variantCfgRef || !restRef) return null;
+        return computeJointAngles(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id, restRef);
+      }
+
       runCommandImpl = async (cmd: ExamMovementCommand): Promise<ExamMovementOutcome> => {
         if (disposed || !skinnedRef || !variantCfgRef || !restRef || !baselinePoseRef) {
           return { status: 'refused', reason: 'stage-unavailable' };
@@ -712,12 +722,15 @@
           renderNeeded = true; // keep rendering while a motion plays
           // Live per-frame angle streaming (opt-in): re-measure the achieved
           // pose at up to motionReportHz and report it, so hosts can chart
-          // angles as the clip plays instead of only at settle.
+          // angles as the clip plays instead of only at settle. A ~4ms slack
+          // absorbs rAF jitter so e.g. 60 streams every frame at a 60Hz display
+          // instead of aliasing down to 30. Matrices are already fresh from the
+          // updateMatrixWorld() above, so measureNowFresh() skips a full pass.
           if (motionReportHz > 0 && onReport) {
             const nowMs = performance.now();
-            if (nowMs - lastMotionReport >= 1000 / motionReportHz) {
+            if (nowMs - lastMotionReport >= 1000 / motionReportHz - 4) {
               lastMotionReport = nowMs;
-              const report = measureNow();
+              const report = measureNowFresh();
               if (report) onReport(report);
             }
           }
