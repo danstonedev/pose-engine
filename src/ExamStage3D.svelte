@@ -67,6 +67,7 @@
     motionClipProvider = null,
     height = '26rem',
     allowPageScrollOnMiss = false,
+    motionReportHz = 0,
     onReport,
     onPoseDropped,
   }: {
@@ -94,9 +95,16 @@
      *  the default (false) keep the existing one-finger-orbit model.
      *  Applied when the stage boots. */
     allowPageScrollOnMiss?: boolean;
+    /** Live joint-angle reporting DURING named-motion playback, in reports
+     *  per second (throttled; 0 = off, the default). When > 0, `onReport`
+     *  also fires this many times a second while a motion clip animates, so
+     *  hosts can stream angles frame-by-frame instead of only at settle.
+     *  Exam ROM commands still report at settle regardless. */
+    motionReportHz?: number;
     /** Fires with the engine-computed clinical joint angles after the
      *  initial load and after each command settles (the truth the host
-     *  grades against). */
+     *  grades against). With `motionReportHz > 0` it additionally fires
+     *  throttled during motion playback. */
     onReport?: (report: JointAngleReport) => void;
     /** Fires when the authored pose is rejected at load time ('variant',
      *  'schema', 'empty', 'no-skeleton'); the stage continues anatomic. */
@@ -677,6 +685,7 @@
       // promises never strand.
       let raf = 0;
       let loopRunning = false;
+      let lastMotionReport = 0;
       const loop = () => {
         if (container.offsetParent === null) {
           loopRunning = false;
@@ -701,6 +710,17 @@
           mixer.update(motionDelta); // step the named-motion clip (bones-only)
           modelRoot?.updateMatrixWorld();
           renderNeeded = true; // keep rendering while a motion plays
+          // Live per-frame angle streaming (opt-in): re-measure the achieved
+          // pose at up to motionReportHz and report it, so hosts can chart
+          // angles as the clip plays instead of only at settle.
+          if (motionReportHz > 0 && onReport) {
+            const nowMs = performance.now();
+            if (nowMs - lastMotionReport >= 1000 / motionReportHz) {
+              lastMotionReport = nowMs;
+              const report = measureNow();
+              if (report) onReport(report);
+            }
+          }
         }
         if (activeTween) stepTween(performance.now()); // pose tween (bones-only)
         if (!renderNeeded) return;
