@@ -48,6 +48,7 @@
   import {
     clearRomScenarioConstraints,
     setRomScenarioConstraints,
+    getEffectiveRomRange,
     type RomScenarioConstraints,
   } from './services/romConstraints';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
@@ -228,8 +229,6 @@
         isCustomPoseEmpty,
         serializeCustomPose,
         buildBoneByPoseKey,
-        buildIKChainContext,
-        solveIKChain,
       } = await import('./services/poseRig');
       const { clampBoneToRom, hasClampStrategy, setRomClampEnabled } = await import(
         './services/poseRomClamp'
@@ -310,26 +309,39 @@
       // its excursion while the hip/ankle re-solve to keep the foot on the clip's
       // trajectory — stiff-knee gait, not a floating foot.
       const KNEE_TO_FOOT: Record<string, string> = { R_Leg: 'R_Foot', L_Leg: 'L_Foot' };
+      const KNEE_TO_HIP: Record<string, string> = { R_Leg: 'R_UpLeg', L_Leg: 'L_UpLeg' };
       let motionCapLegs: {
         kneeKey: string;
+        hipKey: string;
+        hipBone: import('three').Bone;
         kneeBone: import('three').Bone;
         footBone: import('three').Bone;
-        ctx: NonNullable<ReturnType<typeof buildIKChainContext>>;
       }[] = [];
       const _capFootTarget = new THREE.Vector3();
+      const _capH = new THREE.Vector3();
+      const _capK = new THREE.Vector3();
+      const _capF = new THREE.Vector3();
+      const _capThighDir = new THREE.Vector3();
+      const _capCalfDir = new THREE.Vector3();
+      const _capToFoot = new THREE.Vector3();
+      const _capToTarget = new THREE.Vector3();
+      const _capRestQ = new THREE.Quaternion();
+      const _capClipQ = new THREE.Quaternion();
+      const _capSwing = new THREE.Quaternion();
+      const _capHipW = new THREE.Quaternion();
+      const _capParW = new THREE.Quaternion();
       setMotionRomCapsImpl = (keys: string[]) => {
         motionCapKeys = keys.filter((k) => hasClampStrategy(k));
         motionCapLegs = [];
-        if (skinnedRef && variantCfgRef && motionCapBones) {
+        if (skinnedRef && motionCapBones) {
           for (const key of motionCapKeys) {
             const footKey = KNEE_TO_FOOT[key];
+            const hipKey = KNEE_TO_HIP[key];
             const kneeBone = motionCapBones.get(key);
             const footBone = footKey ? motionCapBones.get(footKey) : undefined;
-            if (footKey && kneeBone && footBone) {
-              // Chain foot → calf(knee) → thigh(hip): the effector is the foot,
-              // and the hinge set restricts the knee to flexion-only compensation.
-              const ctx = buildIKChainContext(skinnedRef, footBone, 2, variantCfgRef);
-              if (ctx) motionCapLegs.push({ kneeKey: key, kneeBone, footBone, ctx });
+            const hipBone = hipKey ? motionCapBones.get(hipKey) : undefined;
+            if (footKey && hipKey && kneeBone && footBone && hipBone) {
+              motionCapLegs.push({ kneeKey: key, hipKey, hipBone, kneeBone, footBone });
             }
           }
         }
@@ -791,16 +803,55 @@
           // stays on the clip's trajectory (Build C); other caps clamp directly.
           if (motionCapKeys.length && restRef && motionCapBones && modelRoot) {
             let changed = false;
-            // Leg caps: capture the clip's foot target, cap the knee (foot drifts
-            // off), then IK-solve the leg back to the target — the knee stays at
-            // the cap (solveIKChain re-clamps it) and the hip/ankle compensate.
+            // Leg caps (Build C, calibrated): ease the knee toward extension
+            // until its CLINICAL flexion (the chart's own thigh↔calf segment
+            // angle) hits the cap, then rotate only the hip to put the foot back
+            // on the clip's trajectory — the knee stays fixed, the hip/ankle
+            // compensate. This keeps the cap honest in the readout's units,
+            // sidestepping the bone clamp's un-calibrated hinge measure.
             for (const leg of motionCapLegs) {
-              leg.footBone.getWorldPosition(_capFootTarget);
-              clampBoneToRom(leg.kneeBone, leg.kneeKey, restRef);
-              solveIKChain(leg.ctx, _capFootTarget, {
-                rest: restRef,
-                hinges: new Set([leg.kneeKey]),
-              });
+              leg.hipBone.getWorldPosition(_capH);
+              leg.kneeBone.getWorldPosition(_capK);
+              leg.footBone.getWorldPosition(_capF);
+              _capFootTarget.copy(_capF); // the clip's intended foot placement
+              _capThighDir.copy(_capK).sub(_capH);
+              _capCalfDir.copy(_capF).sub(_capK);
+              if (_capThighDir.lengthSq() < 1e-8 || _capCalfDir.lengthSq() < 1e-8) continue;
+              _capThighDir.normalize();
+              _capCalfDir.normalize();
+              const F0 =
+                (Math.acos(Math.max(-1, Math.min(1, _capThighDir.dot(_capCalfDir)))) * 180) /
+                Math.PI;
+              const cap = getEffectiveRomRange(leg.kneeKey, 'kneeFlexion')?.max ?? Infinity;
+              if (!(F0 > cap + 0.5)) continue;
+              const restArr = restRef.localQuats[leg.kneeKey];
+              if (!restArr) continue;
+              // slerp(extended, clip, t) ⇒ flexion ≈ t·F0, so t = cap/F0.
+              _capRestQ.set(restArr[0], restArr[1], restArr[2], restArr[3]);
+              _capClipQ.copy(leg.kneeBone.quaternion);
+              leg.kneeBone.quaternion.copy(_capRestQ).slerp(_capClipQ, Math.min(1, cap / F0));
+              modelRoot.updateMatrixWorld();
+              // Hip-only CCD (a few iters) to restore the foot, knee held fixed.
+              for (let it = 0; it < 3; it += 1) {
+                leg.hipBone.getWorldPosition(_capH);
+                leg.footBone.getWorldPosition(_capF);
+                _capToFoot.copy(_capF).sub(_capH);
+                _capToTarget.copy(_capFootTarget).sub(_capH);
+                if (_capToFoot.lengthSq() < 1e-8 || _capToTarget.lengthSq() < 1e-8) break;
+                _capToFoot.normalize();
+                _capToTarget.normalize();
+                _capSwing.setFromUnitVectors(_capToFoot, _capToTarget);
+                leg.hipBone.getWorldQuaternion(_capHipW);
+                _capHipW.premultiply(_capSwing);
+                if (leg.hipBone.parent) {
+                  leg.hipBone.parent.getWorldQuaternion(_capParW);
+                  leg.hipBone.quaternion.copy(_capParW.invert()).multiply(_capHipW);
+                } else {
+                  leg.hipBone.quaternion.copy(_capHipW);
+                }
+                clampBoneToRom(leg.hipBone, leg.hipKey, restRef);
+                modelRoot.updateMatrixWorld();
+              }
               changed = true;
             }
             // Non-leg caps (e.g. trunk flexion): direct clamp.
