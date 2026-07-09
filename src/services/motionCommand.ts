@@ -119,6 +119,14 @@ export const MOTION_CLIP_DEFINITIONS: Record<MovementClipId, MotionClipDefinitio
   jog: { id: 'jog', label: 'Jog', kind: 'locomotion', loop: 'repeat', speed: speedOf('jog'), assetHint: 'M_Jog_001' },
   run: { id: 'run', label: 'Run', kind: 'locomotion', loop: 'repeat', speed: speedOf('run'), assetHint: 'M_Run_001' },
   'walk-relaxed': { id: 'walk-relaxed', label: 'Relaxed Walk', kind: 'locomotion', loop: 'repeat', speed: speedOf('walk-relaxed'), assetHint: 'walk-relaxed-loop' },
+  'walk-elder': { id: 'walk-elder', label: 'Elder Walk', kind: 'locomotion', loop: 'repeat', speed: speedOf('walk-elder'), assetHint: 'elder-walk' },
+  'walk-elderly': { id: 'walk-elderly', label: 'Elderly Walk', kind: 'locomotion', loop: 'repeat', speed: speedOf('walk-elderly'), assetHint: 'elderly-walk' },
+  'walk-elderly-wobble': { id: 'walk-elderly-wobble', label: 'Elderly Walk (Wobble)', kind: 'locomotion', loop: 'repeat', speed: speedOf('walk-elderly-wobble'), assetHint: 'elderly-walk-wobble' },
+  catwalk: { id: 'catwalk', label: 'Catwalk', kind: 'locomotion', loop: 'repeat', speed: speedOf('catwalk'), assetHint: 'catwalk' },
+  'aerobic-dance': { id: 'aerobic-dance', label: 'Aerobic Dance', kind: 'locomotion', loop: 'repeat', speed: speedOf('aerobic-dance'), assetHint: 'aerobic-dance' },
+  // Idle postures that loop in place.
+  idle: { id: 'idle', label: 'Idle', kind: 'posture-hold', loop: 'repeat', speed: speedOf('idle'), assetHint: 'male-idle' },
+  'idle-passenger': { id: 'idle-passenger', label: 'Passenger Idle', kind: 'posture-hold', loop: 'repeat', speed: speedOf('idle-passenger'), assetHint: 'passenger-idle' },
   // ── Clinical maneuver clips ────────────────────────────────────────────────
   'left-knee-extension': { id: 'left-knee-extension', label: 'Left Knee Extension', kind: 'clinical', loop: 'once', speed: speedOf('left-knee-extension'), assetHint: 'Sit_Lknee_ex' },
   'right-knee-extension': { id: 'right-knee-extension', label: 'Right Knee Extension', kind: 'clinical', loop: 'once', speed: speedOf('right-knee-extension'), assetHint: 'Sit_Rknee_ex' },
