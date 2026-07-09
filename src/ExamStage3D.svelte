@@ -48,6 +48,7 @@
   import {
     clearRomScenarioConstraints,
     setRomScenarioConstraints,
+    getEffectiveRomRange,
     type RomScenarioConstraints,
   } from './services/romConstraints';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
@@ -142,6 +143,7 @@
   // installs the constraint set (setRomScenarioConstraints); this list is the
   // joints to clamp each frame while a capped motion plays.
   let setMotionRomCapsImpl: ((keys: string[]) => void) | null = null;
+  let setMotionOverlaysImpl: ((overlays: { guarding?: number } | null) => void) | null = null;
   let resolveBoot: () => void = () => {};
   const bootDone = new Promise<void>((r) => (resolveBoot = r));
   let commandChain: Promise<unknown> = Promise.resolve();
@@ -202,6 +204,15 @@
    */
   export function setMotionRomCaps(keys: string[]): void {
     setMotionRomCapsImpl?.(keys);
+  }
+
+  /**
+   * Set additive clinical overlays applied per frame during motion (L2, Build D).
+   * `guarding` (0..1) stiffens the trunk and arms toward neutral — reduced
+   * excursion, the guarded/protective movement pattern. Pass `null`/0 to clear.
+   */
+  export function setMotionOverlays(overlays: { guarding?: number } | null): void {
+    setMotionOverlaysImpl?.(overlays);
   }
 
   onMount(() => {
@@ -304,10 +315,57 @@
       // L2 ROM-cap state: canonical-key → bone, and the keys to clamp each frame.
       let motionCapBones: Map<string, import('three').Bone> | null = null;
       let motionCapKeys: string[] = [];
+      // Leg caps get IK whole-chain resolution (Build C): a capped knee reduces
+      // its excursion while the hip/ankle re-solve to keep the foot on the clip's
+      // trajectory — stiff-knee gait, not a floating foot.
+      const KNEE_TO_FOOT: Record<string, string> = { R_Leg: 'R_Foot', L_Leg: 'L_Foot' };
+      const KNEE_TO_HIP: Record<string, string> = { R_Leg: 'R_UpLeg', L_Leg: 'L_UpLeg' };
+      let motionCapLegs: {
+        kneeKey: string;
+        hipKey: string;
+        hipBone: import('three').Bone;
+        kneeBone: import('three').Bone;
+        footBone: import('three').Bone;
+      }[] = [];
+      const _capFootTarget = new THREE.Vector3();
+      const _capH = new THREE.Vector3();
+      const _capK = new THREE.Vector3();
+      const _capF = new THREE.Vector3();
+      const _capThighDir = new THREE.Vector3();
+      const _capCalfDir = new THREE.Vector3();
+      const _capToFoot = new THREE.Vector3();
+      const _capToTarget = new THREE.Vector3();
+      const _capRestQ = new THREE.Quaternion();
+      const _capClipQ = new THREE.Quaternion();
+      const _capSwing = new THREE.Quaternion();
+      const _capHipW = new THREE.Quaternion();
+      const _capParW = new THREE.Quaternion();
       setMotionRomCapsImpl = (keys: string[]) => {
         motionCapKeys = keys.filter((k) => hasClampStrategy(k));
-        // The per-frame clamp needs the global clamp active; lift it when no caps.
+        motionCapLegs = [];
+        if (skinnedRef && motionCapBones) {
+          for (const key of motionCapKeys) {
+            const footKey = KNEE_TO_FOOT[key];
+            const hipKey = KNEE_TO_HIP[key];
+            const kneeBone = motionCapBones.get(key);
+            const footBone = footKey ? motionCapBones.get(footKey) : undefined;
+            const hipBone = hipKey ? motionCapBones.get(hipKey) : undefined;
+            if (footKey && hipKey && kneeBone && footBone && hipBone) {
+              motionCapLegs.push({ kneeKey: key, hipKey, hipBone, kneeBone, footBone });
+            }
+          }
+        }
+        // The per-frame clamp/IK needs the global clamp active; lift it when no caps.
         setRomClampEnabled(motionCapKeys.length ? true : null);
+      };
+
+      // Guarding overlay: blend the trunk + arms toward neutral each frame,
+      // reducing excursion (stiff, protective movement). 0 = off, 1 = ~80% damped.
+      const GUARDING_KEYS = ['Spine_Lower', 'Spine_Upper', 'Neck', 'L_UpperArm', 'R_UpperArm'];
+      let motionGuarding = 0;
+      const _guardRestQ = new THREE.Quaternion();
+      setMotionOverlaysImpl = (overlays: { guarding?: number } | null) => {
+        motionGuarding = Math.max(0, Math.min(1, overlays?.guarding ?? 0));
       };
       /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
       let motionFinishResolve: (() => void) | null = null;
@@ -345,6 +403,8 @@
         activeMotionId = null;
         // Lift any ROM caps (the host clears its constraint set separately).
         motionCapKeys = [];
+        motionCapLegs = [];
+        motionGuarding = 0;
         setRomClampEnabled(null);
         if (motionFinishResolve) {
           const r = motionFinishResolve;
@@ -758,16 +818,83 @@
         if (mixer && activeMotionId) {
           mixer.update(motionDelta); // step the named-motion clip (bones-only)
           modelRoot?.updateMatrixWorld();
-          // L2 ROM cap: pull capped joints back into their (scenario-narrowed)
-          // range each frame, so a knee-flexion ceiling physically holds while
-          // the clip plays. Only joints with a clamp strategy are capped.
+          // L2 ROM cap: enforce the scenario-narrowed range each frame while the
+          // clip plays. Leg (knee) caps re-solve the whole leg via IK so the foot
+          // stays on the clip's trajectory (Build C); other caps clamp directly.
           if (motionCapKeys.length && restRef && motionCapBones && modelRoot) {
-            let clamped = false;
-            for (const key of motionCapKeys) {
-              const bone = motionCapBones.get(key);
-              if (bone && clampBoneToRom(bone, key, restRef)) clamped = true;
+            let changed = false;
+            // Leg caps (Build C, calibrated): ease the knee toward extension
+            // until its CLINICAL flexion (the chart's own thigh↔calf segment
+            // angle) hits the cap, then rotate only the hip to put the foot back
+            // on the clip's trajectory — the knee stays fixed, the hip/ankle
+            // compensate. This keeps the cap honest in the readout's units,
+            // sidestepping the bone clamp's un-calibrated hinge measure.
+            for (const leg of motionCapLegs) {
+              leg.hipBone.getWorldPosition(_capH);
+              leg.kneeBone.getWorldPosition(_capK);
+              leg.footBone.getWorldPosition(_capF);
+              _capFootTarget.copy(_capF); // the clip's intended foot placement
+              _capThighDir.copy(_capK).sub(_capH);
+              _capCalfDir.copy(_capF).sub(_capK);
+              if (_capThighDir.lengthSq() < 1e-8 || _capCalfDir.lengthSq() < 1e-8) continue;
+              _capThighDir.normalize();
+              _capCalfDir.normalize();
+              const F0 =
+                (Math.acos(Math.max(-1, Math.min(1, _capThighDir.dot(_capCalfDir)))) * 180) /
+                Math.PI;
+              const cap = getEffectiveRomRange(leg.kneeKey, 'kneeFlexion')?.max ?? Infinity;
+              if (!(F0 > cap + 0.5)) continue;
+              const restArr = restRef.localQuats[leg.kneeKey];
+              if (!restArr) continue;
+              // slerp(extended, clip, t) ⇒ flexion ≈ t·F0, so t = cap/F0.
+              _capRestQ.set(restArr[0], restArr[1], restArr[2], restArr[3]);
+              _capClipQ.copy(leg.kneeBone.quaternion);
+              leg.kneeBone.quaternion.copy(_capRestQ).slerp(_capClipQ, Math.min(1, cap / F0));
+              modelRoot.updateMatrixWorld();
+              // Hip-only CCD (a few iters) to restore the foot, knee held fixed.
+              for (let it = 0; it < 3; it += 1) {
+                leg.hipBone.getWorldPosition(_capH);
+                leg.footBone.getWorldPosition(_capF);
+                _capToFoot.copy(_capF).sub(_capH);
+                _capToTarget.copy(_capFootTarget).sub(_capH);
+                if (_capToFoot.lengthSq() < 1e-8 || _capToTarget.lengthSq() < 1e-8) break;
+                _capToFoot.normalize();
+                _capToTarget.normalize();
+                _capSwing.setFromUnitVectors(_capToFoot, _capToTarget);
+                leg.hipBone.getWorldQuaternion(_capHipW);
+                _capHipW.premultiply(_capSwing);
+                if (leg.hipBone.parent) {
+                  leg.hipBone.parent.getWorldQuaternion(_capParW);
+                  leg.hipBone.quaternion.copy(_capParW.invert()).multiply(_capHipW);
+                } else {
+                  leg.hipBone.quaternion.copy(_capHipW);
+                }
+                clampBoneToRom(leg.hipBone, leg.hipKey, restRef);
+                modelRoot.updateMatrixWorld();
+              }
+              changed = true;
             }
-            if (clamped) modelRoot.updateMatrixWorld();
+            // Non-leg caps (e.g. trunk flexion): direct clamp.
+            for (const key of motionCapKeys) {
+              if (KNEE_TO_FOOT[key]) continue;
+              const bone = motionCapBones.get(key);
+              if (bone && clampBoneToRom(bone, key, restRef)) changed = true;
+            }
+            if (changed) modelRoot.updateMatrixWorld();
+          }
+          // Guarding overlay: ease the trunk + arms toward neutral, damping
+          // excursion into a stiff, protective movement pattern.
+          if (motionGuarding > 0 && restRef && motionCapBones && modelRoot) {
+            const f = motionGuarding * 0.8;
+            for (const key of GUARDING_KEYS) {
+              const bone = motionCapBones.get(key);
+              const restArr = restRef.localQuats[key];
+              if (bone && restArr) {
+                _guardRestQ.set(restArr[0], restArr[1], restArr[2], restArr[3]);
+                bone.quaternion.slerp(_guardRestQ, f);
+              }
+            }
+            modelRoot.updateMatrixWorld();
           }
           renderNeeded = true; // keep rendering while a motion plays
           // Live per-frame angle streaming (opt-in): re-measure the achieved
