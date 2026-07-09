@@ -51,6 +51,7 @@ export * from './services/movementClips';
 // metadata (kind / loop / speed), command resolution, and the asset-ingestion
 // seam (MotionClipProvider). Clip BYTES/PATHS stay a host/asset concern.
 export * from './services/motionCommand';
+export * from './services/motionPrescription';
 
 // Posed-geometry world-space baking
 export * from './services/posedGeometry';
