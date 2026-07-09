@@ -63,5 +63,14 @@ export type MovementClipId =
   | 'long-sit'
   | 'jog'
   | 'run'
+  | 'walk-relaxed'
+  | 'walk-elder'
+  | 'walk-elderly'
+  | 'walk-elderly-wobble'
+  | 'catwalk'
+  | 'aerobic-dance'
+  | 'idle'
+  | 'idle-passenger'
   | 'left-knee-extension'
-  | 'right-knee-extension';
+  | 'right-knee-extension'
+  | 'sandbox';

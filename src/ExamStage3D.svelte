@@ -67,6 +67,7 @@
     motionClipProvider = null,
     height = '26rem',
     allowPageScrollOnMiss = false,
+    motionReportHz = 0,
     onReport,
     onPoseDropped,
   }: {
@@ -94,9 +95,16 @@
      *  the default (false) keep the existing one-finger-orbit model.
      *  Applied when the stage boots. */
     allowPageScrollOnMiss?: boolean;
+    /** Live joint-angle reporting DURING named-motion playback, in reports
+     *  per second (throttled; 0 = off, the default). When > 0, `onReport`
+     *  also fires this many times a second while a motion clip animates, so
+     *  hosts can stream angles frame-by-frame instead of only at settle.
+     *  Exam ROM commands still report at settle regardless. */
+    motionReportHz?: number;
     /** Fires with the engine-computed clinical joint angles after the
      *  initial load and after each command settles (the truth the host
-     *  grades against). */
+     *  grades against). With `motionReportHz > 0` it additionally fires
+     *  throttled during motion playback. */
     onReport?: (report: JointAngleReport) => void;
     /** Fires when the authored pose is rejected at load time ('variant',
      *  'schema', 'empty', 'no-skeleton'); the stage continues anatomic. */
@@ -130,6 +138,10 @@
   // serialized command chain as the exam commands so the two modes never run
   // on the skeleton at once.
   let runMotionImpl: ((cmd: MotionCommand) => Promise<MotionCommandOutcome>) | null = null;
+  // Clinical ROM caps enforced per frame during motion (L2 modifier). The host
+  // installs the constraint set (setRomScenarioConstraints); this list is the
+  // joints to clamp each frame while a capped motion plays.
+  let setMotionRomCapsImpl: ((keys: string[]) => void) | null = null;
   let resolveBoot: () => void = () => {};
   const bootDone = new Promise<void>((r) => (resolveBoot = r));
   let commandChain: Promise<unknown> = Promise.resolve();
@@ -182,6 +194,16 @@
     return run;
   }
 
+  /**
+   * Install the joints to ROM-clamp per frame while a motion plays (an L2
+   * clinical modifier — reduced excursion). Pass the canonical keys the active
+   * constraint set restricts (the host sets the constraints themselves via
+   * `setRomScenarioConstraints`); pass `[]` to lift the caps.
+   */
+  export function setMotionRomCaps(keys: string[]): void {
+    setMotionRomCapsImpl?.(keys);
+  }
+
   onMount(() => {
     let disposed = false;
     let cleanup = () => {};
@@ -200,8 +222,16 @@
       );
       const { applyAnatomicPose } = await import('./services/anatomicPose');
       const { resolveCameraViewSetpoint } = await import('./services/cameraTween');
-      const { applyCustomPose, blendCustomPoseWithBaseline, isCustomPoseEmpty, serializeCustomPose } =
-        await import('./services/poseRig');
+      const {
+        applyCustomPose,
+        blendCustomPoseWithBaseline,
+        isCustomPoseEmpty,
+        serializeCustomPose,
+        buildBoneByPoseKey,
+      } = await import('./services/poseRig');
+      const { clampBoneToRom, hasClampStrategy, setRomClampEnabled } = await import(
+        './services/poseRomClamp'
+      );
       const { captureJointAngleRestReference, computeJointAngles } = await import(
         './services/jointAngles'
       );
@@ -271,6 +301,14 @@
       let mixer: import('three').AnimationMixer | null = null;
       let motionAction: import('three').AnimationAction | null = null;
       let activeMotionId: MovementClipId | null = null;
+      // L2 ROM-cap state: canonical-key → bone, and the keys to clamp each frame.
+      let motionCapBones: Map<string, import('three').Bone> | null = null;
+      let motionCapKeys: string[] = [];
+      setMotionRomCapsImpl = (keys: string[]) => {
+        motionCapKeys = keys.filter((k) => hasClampStrategy(k));
+        // The per-frame clamp needs the global clamp active; lift it when no caps.
+        setRomClampEnabled(motionCapKeys.length ? true : null);
+      };
       /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
       let motionFinishResolve: (() => void) | null = null;
       const motionClock = new THREE.Clock();
@@ -305,6 +343,9 @@
         if (mixer) mixer.stopAllAction();
         motionAction = null;
         activeMotionId = null;
+        // Lift any ROM caps (the host clears its constraint set separately).
+        motionCapKeys = [];
+        setRomClampEnabled(null);
         if (motionFinishResolve) {
           const r = motionFinishResolve;
           motionFinishResolve = null;
@@ -435,6 +476,8 @@
           baselinePoseRef = baseline;
           restingPoseRef = resting;
           currentPose = resting;
+          // Canonical-key → bone lookup for the per-frame motion ROM clamp.
+          motionCapBones = skinned ? buildBoneByPoseKey(skinned.skeleton, variantCfg) : null;
 
           // 7b) Fresh AnimationMixer bound to this model root for named
           //     motions. A one-shot clip that reaches its end fires 'finished',
@@ -542,6 +585,16 @@
         return computeJointAngles(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id, restRef);
       }
 
+      // Loop-local measure: the render loop already ran modelRoot.updateMatrixWorld()
+      // right after mixer.update(), so the world matrices are fresh — skip the
+      // force-recompute measureNow() does and just read the angles. This is the
+      // hot path for per-frame motion streaming; the redundant full matrix pass
+      // is what made high report rates expensive.
+      function measureNowFresh(): JointAngleReport | null {
+        if (!skinnedRef || !variantCfgRef || !restRef) return null;
+        return computeJointAngles(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id, restRef);
+      }
+
       runCommandImpl = async (cmd: ExamMovementCommand): Promise<ExamMovementOutcome> => {
         if (disposed || !skinnedRef || !variantCfgRef || !restRef || !baselinePoseRef) {
           return { status: 'refused', reason: 'stage-unavailable' };
@@ -602,8 +655,12 @@
         const loop = resolved.loop ?? def.loop;
         const speed = resolved.speed ?? def.speed;
 
-        // Resolve the clip (host-loaded, cached here per skeleton).
-        let clip = motionClipCache.get(motion) ?? null;
+        // Resolve the clip (host-loaded, cached here per skeleton). The
+        // `sandbox` slot is host-supplied and swaps between plays (simMOVE's
+        // upload-to-test), so it is NEVER cached — always re-fetch it from the
+        // provider, or a second upload would replay the first clip.
+        const cacheable = motion !== 'sandbox';
+        let clip = cacheable ? (motionClipCache.get(motion) ?? null) : null;
         if (!clip) {
           let clips: import('three').AnimationClip[] | null = null;
           try {
@@ -621,7 +678,7 @@
           const cloned = clips[0]!.clone();
           const skel = skinnedRef?.skeleton;
           clip = skel ? remapClipToSkeleton(cloned, skel) : cloned;
-          motionClipCache.set(motion, clip);
+          if (cacheable) motionClipCache.set(motion, clip);
         }
 
         // Cancel any in-flight pose tween and prior motion, then start the clip.
@@ -677,6 +734,7 @@
       // promises never strand.
       let raf = 0;
       let loopRunning = false;
+      let lastMotionReport = 0;
       const loop = () => {
         if (container.offsetParent === null) {
           loopRunning = false;
@@ -700,7 +758,32 @@
         if (mixer && activeMotionId) {
           mixer.update(motionDelta); // step the named-motion clip (bones-only)
           modelRoot?.updateMatrixWorld();
+          // L2 ROM cap: pull capped joints back into their (scenario-narrowed)
+          // range each frame, so a knee-flexion ceiling physically holds while
+          // the clip plays. Only joints with a clamp strategy are capped.
+          if (motionCapKeys.length && restRef && motionCapBones && modelRoot) {
+            let clamped = false;
+            for (const key of motionCapKeys) {
+              const bone = motionCapBones.get(key);
+              if (bone && clampBoneToRom(bone, key, restRef)) clamped = true;
+            }
+            if (clamped) modelRoot.updateMatrixWorld();
+          }
           renderNeeded = true; // keep rendering while a motion plays
+          // Live per-frame angle streaming (opt-in): re-measure the achieved
+          // pose at up to motionReportHz and report it, so hosts can chart
+          // angles as the clip plays instead of only at settle. A ~4ms slack
+          // absorbs rAF jitter so e.g. 60 streams every frame at a 60Hz display
+          // instead of aliasing down to 30. Matrices are already fresh from the
+          // updateMatrixWorld() above, so measureNowFresh() skips a full pass.
+          if (motionReportHz > 0 && onReport) {
+            const nowMs = performance.now();
+            if (nowMs - lastMotionReport >= 1000 / motionReportHz - 4) {
+              lastMotionReport = nowMs;
+              const report = measureNowFresh();
+              if (report) onReport(report);
+            }
+          }
         }
         if (activeTween) stepTween(performance.now()); // pose tween (bones-only)
         if (!renderNeeded) return;
