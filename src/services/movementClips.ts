@@ -19,6 +19,7 @@ export const MOVEMENT_CLIP_SPEEDS: Record<MovementClipId, number> = {
   'long-sit': 0.75,
   jog: 1,
   run: 1,
+  'walk-relaxed': 1,
   'left-knee-extension': 0.8,
   'right-knee-extension': 0.8,
 };

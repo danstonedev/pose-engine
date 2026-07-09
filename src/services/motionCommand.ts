@@ -118,6 +118,7 @@ export const MOTION_CLIP_DEFINITIONS: Record<MovementClipId, MotionClipDefinitio
   'long-sit': { id: 'long-sit', label: 'Long Sit', kind: 'posture-transition', loop: 'once', speed: speedOf('long-sit'), assetHint: 'LongSit' },
   jog: { id: 'jog', label: 'Jog', kind: 'locomotion', loop: 'repeat', speed: speedOf('jog'), assetHint: 'M_Jog_001' },
   run: { id: 'run', label: 'Run', kind: 'locomotion', loop: 'repeat', speed: speedOf('run'), assetHint: 'M_Run_001' },
+  'walk-relaxed': { id: 'walk-relaxed', label: 'Relaxed Walk', kind: 'locomotion', loop: 'repeat', speed: speedOf('walk-relaxed'), assetHint: 'walk-relaxed-loop' },
   // ── Clinical maneuver clips ────────────────────────────────────────────────
   'left-knee-extension': { id: 'left-knee-extension', label: 'Left Knee Extension', kind: 'clinical', loop: 'once', speed: speedOf('left-knee-extension'), assetHint: 'Sit_Lknee_ex' },
   'right-knee-extension': { id: 'right-knee-extension', label: 'Right Knee Extension', kind: 'clinical', loop: 'once', speed: speedOf('right-knee-extension'), assetHint: 'Sit_Rknee_ex' },

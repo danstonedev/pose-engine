@@ -63,5 +63,6 @@ export type MovementClipId =
   | 'long-sit'
   | 'jog'
   | 'run'
+  | 'walk-relaxed'
   | 'left-knee-extension'
   | 'right-knee-extension';
