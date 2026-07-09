@@ -22,4 +22,5 @@ export const MOVEMENT_CLIP_SPEEDS: Record<MovementClipId, number> = {
   'walk-relaxed': 1,
   'left-knee-extension': 0.8,
   'right-knee-extension': 0.8,
+  sandbox: 1,
 };

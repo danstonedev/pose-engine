@@ -65,4 +65,5 @@ export type MovementClipId =
   | 'run'
   | 'walk-relaxed'
   | 'left-knee-extension'
-  | 'right-knee-extension';
+  | 'right-knee-extension'
+  | 'sandbox';
