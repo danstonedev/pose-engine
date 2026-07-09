@@ -477,7 +477,7 @@
           restingPoseRef = resting;
           currentPose = resting;
           // Canonical-key → bone lookup for the per-frame motion ROM clamp.
-          motionCapBones = buildBoneByPoseKey(skinned.skeleton, variantCfg);
+          motionCapBones = skinned ? buildBoneByPoseKey(skinned.skeleton, variantCfg) : null;
 
           // 7b) Fresh AnimationMixer bound to this model root for named
           //     motions. A one-shot clip that reaches its end fires 'finished',
