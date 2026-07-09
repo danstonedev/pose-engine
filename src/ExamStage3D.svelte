@@ -228,6 +228,8 @@
         isCustomPoseEmpty,
         serializeCustomPose,
         buildBoneByPoseKey,
+        buildIKChainContext,
+        solveIKChain,
       } = await import('./services/poseRig');
       const { clampBoneToRom, hasClampStrategy, setRomClampEnabled } = await import(
         './services/poseRomClamp'
@@ -304,9 +306,34 @@
       // L2 ROM-cap state: canonical-key → bone, and the keys to clamp each frame.
       let motionCapBones: Map<string, import('three').Bone> | null = null;
       let motionCapKeys: string[] = [];
+      // Leg caps get IK whole-chain resolution (Build C): a capped knee reduces
+      // its excursion while the hip/ankle re-solve to keep the foot on the clip's
+      // trajectory — stiff-knee gait, not a floating foot.
+      const KNEE_TO_FOOT: Record<string, string> = { R_Leg: 'R_Foot', L_Leg: 'L_Foot' };
+      let motionCapLegs: {
+        kneeKey: string;
+        kneeBone: import('three').Bone;
+        footBone: import('three').Bone;
+        ctx: NonNullable<ReturnType<typeof buildIKChainContext>>;
+      }[] = [];
+      const _capFootTarget = new THREE.Vector3();
       setMotionRomCapsImpl = (keys: string[]) => {
         motionCapKeys = keys.filter((k) => hasClampStrategy(k));
-        // The per-frame clamp needs the global clamp active; lift it when no caps.
+        motionCapLegs = [];
+        if (skinnedRef && variantCfgRef && motionCapBones) {
+          for (const key of motionCapKeys) {
+            const footKey = KNEE_TO_FOOT[key];
+            const kneeBone = motionCapBones.get(key);
+            const footBone = footKey ? motionCapBones.get(footKey) : undefined;
+            if (footKey && kneeBone && footBone) {
+              // Chain foot → calf(knee) → thigh(hip): the effector is the foot,
+              // and the hinge set restricts the knee to flexion-only compensation.
+              const ctx = buildIKChainContext(skinnedRef, footBone, 2, variantCfgRef);
+              if (ctx) motionCapLegs.push({ kneeKey: key, kneeBone, footBone, ctx });
+            }
+          }
+        }
+        // The per-frame clamp/IK needs the global clamp active; lift it when no caps.
         setRomClampEnabled(motionCapKeys.length ? true : null);
       };
       /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
@@ -345,6 +372,7 @@
         activeMotionId = null;
         // Lift any ROM caps (the host clears its constraint set separately).
         motionCapKeys = [];
+        motionCapLegs = [];
         setRomClampEnabled(null);
         if (motionFinishResolve) {
           const r = motionFinishResolve;
@@ -758,16 +786,30 @@
         if (mixer && activeMotionId) {
           mixer.update(motionDelta); // step the named-motion clip (bones-only)
           modelRoot?.updateMatrixWorld();
-          // L2 ROM cap: pull capped joints back into their (scenario-narrowed)
-          // range each frame, so a knee-flexion ceiling physically holds while
-          // the clip plays. Only joints with a clamp strategy are capped.
+          // L2 ROM cap: enforce the scenario-narrowed range each frame while the
+          // clip plays. Leg (knee) caps re-solve the whole leg via IK so the foot
+          // stays on the clip's trajectory (Build C); other caps clamp directly.
           if (motionCapKeys.length && restRef && motionCapBones && modelRoot) {
-            let clamped = false;
-            for (const key of motionCapKeys) {
-              const bone = motionCapBones.get(key);
-              if (bone && clampBoneToRom(bone, key, restRef)) clamped = true;
+            let changed = false;
+            // Leg caps: capture the clip's foot target, cap the knee (foot drifts
+            // off), then IK-solve the leg back to the target — the knee stays at
+            // the cap (solveIKChain re-clamps it) and the hip/ankle compensate.
+            for (const leg of motionCapLegs) {
+              leg.footBone.getWorldPosition(_capFootTarget);
+              clampBoneToRom(leg.kneeBone, leg.kneeKey, restRef);
+              solveIKChain(leg.ctx, _capFootTarget, {
+                rest: restRef,
+                hinges: new Set([leg.kneeKey]),
+              });
+              changed = true;
             }
-            if (clamped) modelRoot.updateMatrixWorld();
+            // Non-leg caps (e.g. trunk flexion): direct clamp.
+            for (const key of motionCapKeys) {
+              if (KNEE_TO_FOOT[key]) continue;
+              const bone = motionCapBones.get(key);
+              if (bone && clampBoneToRom(bone, key, restRef)) changed = true;
+            }
+            if (changed) modelRoot.updateMatrixWorld();
           }
           renderNeeded = true; // keep rendering while a motion plays
           // Live per-frame angle streaming (opt-in): re-measure the achieved
