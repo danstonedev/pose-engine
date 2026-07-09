@@ -138,6 +138,10 @@
   // serialized command chain as the exam commands so the two modes never run
   // on the skeleton at once.
   let runMotionImpl: ((cmd: MotionCommand) => Promise<MotionCommandOutcome>) | null = null;
+  // Clinical ROM caps enforced per frame during motion (L2 modifier). The host
+  // installs the constraint set (setRomScenarioConstraints); this list is the
+  // joints to clamp each frame while a capped motion plays.
+  let setMotionRomCapsImpl: ((keys: string[]) => void) | null = null;
   let resolveBoot: () => void = () => {};
   const bootDone = new Promise<void>((r) => (resolveBoot = r));
   let commandChain: Promise<unknown> = Promise.resolve();
@@ -190,6 +194,16 @@
     return run;
   }
 
+  /**
+   * Install the joints to ROM-clamp per frame while a motion plays (an L2
+   * clinical modifier — reduced excursion). Pass the canonical keys the active
+   * constraint set restricts (the host sets the constraints themselves via
+   * `setRomScenarioConstraints`); pass `[]` to lift the caps.
+   */
+  export function setMotionRomCaps(keys: string[]): void {
+    setMotionRomCapsImpl?.(keys);
+  }
+
   onMount(() => {
     let disposed = false;
     let cleanup = () => {};
@@ -208,8 +222,16 @@
       );
       const { applyAnatomicPose } = await import('./services/anatomicPose');
       const { resolveCameraViewSetpoint } = await import('./services/cameraTween');
-      const { applyCustomPose, blendCustomPoseWithBaseline, isCustomPoseEmpty, serializeCustomPose } =
-        await import('./services/poseRig');
+      const {
+        applyCustomPose,
+        blendCustomPoseWithBaseline,
+        isCustomPoseEmpty,
+        serializeCustomPose,
+        buildBoneByPoseKey,
+      } = await import('./services/poseRig');
+      const { clampBoneToRom, hasClampStrategy, setRomClampEnabled } = await import(
+        './services/poseRomClamp'
+      );
       const { captureJointAngleRestReference, computeJointAngles } = await import(
         './services/jointAngles'
       );
@@ -279,6 +301,14 @@
       let mixer: import('three').AnimationMixer | null = null;
       let motionAction: import('three').AnimationAction | null = null;
       let activeMotionId: MovementClipId | null = null;
+      // L2 ROM-cap state: canonical-key → bone, and the keys to clamp each frame.
+      let motionCapBones: Map<string, import('three').Bone> | null = null;
+      let motionCapKeys: string[] = [];
+      setMotionRomCapsImpl = (keys: string[]) => {
+        motionCapKeys = keys.filter((k) => hasClampStrategy(k));
+        // The per-frame clamp needs the global clamp active; lift it when no caps.
+        setRomClampEnabled(motionCapKeys.length ? true : null);
+      };
       /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
       let motionFinishResolve: (() => void) | null = null;
       const motionClock = new THREE.Clock();
@@ -313,6 +343,9 @@
         if (mixer) mixer.stopAllAction();
         motionAction = null;
         activeMotionId = null;
+        // Lift any ROM caps (the host clears its constraint set separately).
+        motionCapKeys = [];
+        setRomClampEnabled(null);
         if (motionFinishResolve) {
           const r = motionFinishResolve;
           motionFinishResolve = null;
@@ -443,6 +476,8 @@
           baselinePoseRef = baseline;
           restingPoseRef = resting;
           currentPose = resting;
+          // Canonical-key → bone lookup for the per-frame motion ROM clamp.
+          motionCapBones = buildBoneByPoseKey(skinned.skeleton, variantCfg);
 
           // 7b) Fresh AnimationMixer bound to this model root for named
           //     motions. A one-shot clip that reaches its end fires 'finished',
@@ -723,6 +758,17 @@
         if (mixer && activeMotionId) {
           mixer.update(motionDelta); // step the named-motion clip (bones-only)
           modelRoot?.updateMatrixWorld();
+          // L2 ROM cap: pull capped joints back into their (scenario-narrowed)
+          // range each frame, so a knee-flexion ceiling physically holds while
+          // the clip plays. Only joints with a clamp strategy are capped.
+          if (motionCapKeys.length && restRef && motionCapBones && modelRoot) {
+            let clamped = false;
+            for (const key of motionCapKeys) {
+              const bone = motionCapBones.get(key);
+              if (bone && clampBoneToRom(bone, key, restRef)) clamped = true;
+            }
+            if (clamped) modelRoot.updateMatrixWorld();
+          }
           renderNeeded = true; // keep rendering while a motion plays
           // Live per-frame angle streaming (opt-in): re-measure the achieved
           // pose at up to motionReportHz and report it, so hosts can chart

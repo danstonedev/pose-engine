@@ -21,6 +21,7 @@
 import type { MovementClipId } from '../types';
 import type { MotionCommand } from './motionCommand';
 import { getRomJointDefinition, getRomFieldDefinition } from './romRegistry';
+import type { RomScenarioConstraints } from './romConstraints';
 
 export type ClinicalRegion =
   | 'neck'
@@ -131,6 +132,28 @@ export function validateMotionPrescription(
       issues.push({ path: `romCaps[${i}]`, message: 'a cap needs maxDeg and/or minDeg' });
   }
   return issues;
+}
+
+/**
+ * Fold ROM caps into the engine's scenario-constraint shape, so the SAME clamp
+ * path that enforces a case-authored restriction ("elbow stops at 95°") enforces
+ * a clinical cap during motion. `availableRange` only restricts, never extends.
+ */
+export function romCapsToConstraints(caps: RomCap[]): RomScenarioConstraints {
+  const out: RomScenarioConstraints = {};
+  for (const cap of caps) {
+    const range: { min?: number; max?: number } = {};
+    if (cap.maxDeg != null) range.max = cap.maxDeg;
+    if (cap.minDeg != null) range.min = cap.minDeg;
+    if (range.min == null && range.max == null) continue;
+    (out[cap.joint] ??= {})[cap.field] = { availableRange: range };
+  }
+  return out;
+}
+
+/** The canonical joint keys a cap set touches (for the runtime's per-frame clamp). */
+export function romCapJointKeys(caps: RomCap[]): string[] {
+  return [...new Set(caps.map((c) => c.joint))];
 }
 
 /**
