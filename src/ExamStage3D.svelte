@@ -143,7 +143,9 @@
   // installs the constraint set (setRomScenarioConstraints); this list is the
   // joints to clamp each frame while a capped motion plays.
   let setMotionRomCapsImpl: ((keys: string[]) => void) | null = null;
-  let setMotionOverlaysImpl: ((overlays: { guarding?: number } | null) => void) | null = null;
+  let setMotionOverlaysImpl:
+    | ((overlays: { guarding?: number; balanceSway?: number } | null) => void)
+    | null = null;
   let resolveBoot: () => void = () => {};
   const bootDone = new Promise<void>((r) => (resolveBoot = r));
   let commandChain: Promise<unknown> = Promise.resolve();
@@ -209,9 +211,13 @@
   /**
    * Set additive clinical overlays applied per frame during motion (L2, Build D).
    * `guarding` (0..1) stiffens the trunk and arms toward neutral — reduced
-   * excursion, the guarded/protective movement pattern. Pass `null`/0 to clear.
+   * excursion, the guarded/protective movement pattern. `balanceSway` (0..1) adds
+   * a slow postural wobble (lateral + AP lean at the low back) over the planted
+   * base — the unsteady/reduced-balance pattern. Pass `null`/0 to clear.
    */
-  export function setMotionOverlays(overlays: { guarding?: number } | null): void {
+  export function setMotionOverlays(
+    overlays: { guarding?: number; balanceSway?: number } | null,
+  ): void {
     setMotionOverlaysImpl?.(overlays);
   }
 
@@ -364,8 +370,21 @@
       const GUARDING_KEYS = ['Spine_Lower', 'Spine_Upper', 'Neck', 'L_UpperArm', 'R_UpperArm'];
       let motionGuarding = 0;
       const _guardRestQ = new THREE.Quaternion();
-      setMotionOverlaysImpl = (overlays: { guarding?: number } | null) => {
+      // Balance-sway overlay: a slow postural wobble applied additively at the low
+      // back (trunk + everything above it leans over the planted feet). Two
+      // incommensurate low frequencies keep it from looking like a metronome.
+      let motionSway = 0;
+      let swayTime = 0;
+      const _swayQ = new THREE.Quaternion();
+      const _swayAxisAP = new THREE.Vector3(1, 0, 0); // pitch: anterior/posterior lean
+      const _swayAxisML = new THREE.Vector3(0, 0, 1); // roll: medial/lateral lean
+      const SWAY_ML_HZ = 0.45; // lateral wobble is the slower, larger component
+      const SWAY_AP_HZ = 0.7;
+      const SWAY_ML_DEG = 8; // max lateral lean at balanceSway = 1
+      const SWAY_AP_DEG = 5; // max A/P lean at balanceSway = 1
+      setMotionOverlaysImpl = (overlays: { guarding?: number; balanceSway?: number } | null) => {
         motionGuarding = Math.max(0, Math.min(1, overlays?.guarding ?? 0));
+        motionSway = Math.max(0, Math.min(1, overlays?.balanceSway ?? 0));
       };
       /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
       let motionFinishResolve: (() => void) | null = null;
@@ -405,6 +424,8 @@
         motionCapKeys = [];
         motionCapLegs = [];
         motionGuarding = 0;
+        motionSway = 0;
+        swayTime = 0;
         setRomClampEnabled(null);
         if (motionFinishResolve) {
           const r = motionFinishResolve;
@@ -895,6 +916,27 @@
               }
             }
             modelRoot.updateMatrixWorld();
+          }
+          // Balance-sway overlay: an additive low-frequency lean at the low back,
+          // pre-multiplied so the whole trunk/head/arms wobble over the planted
+          // feet (feet/legs are untouched → they stay on the clip's plant). Two
+          // incommensurate sines make it read as unsteady, not periodic.
+          if (motionSway > 0 && motionCapBones && modelRoot) {
+            swayTime += motionDelta;
+            const bone = motionCapBones.get('Spine_Lower');
+            if (bone) {
+              const mlDeg =
+                motionSway * SWAY_ML_DEG * Math.sin(2 * Math.PI * SWAY_ML_HZ * swayTime);
+              const apDeg =
+                motionSway *
+                SWAY_AP_DEG *
+                Math.sin(2 * Math.PI * SWAY_AP_HZ * swayTime + 1.3);
+              _swayQ.setFromAxisAngle(_swayAxisML, (mlDeg * Math.PI) / 180);
+              bone.quaternion.premultiply(_swayQ);
+              _swayQ.setFromAxisAngle(_swayAxisAP, (apDeg * Math.PI) / 180);
+              bone.quaternion.premultiply(_swayQ);
+              modelRoot.updateMatrixWorld();
+            }
           }
           renderNeeded = true; // keep rendering while a motion plays
           // Live per-frame angle streaming (opt-in): re-measure the achieved
