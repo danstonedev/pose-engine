@@ -178,3 +178,190 @@ export function resolveMotionPrescription(rx: MotionPrescription): ResolvedPresc
     sequence: rx.sequence ?? [rx.motion],
   };
 }
+
+// ── L1 tool schema (the shared prescribe_motion contract) ───────────────────
+// The tool schema an AI calls to request a motion. Both DevPT apps build it from
+// HERE so the vocabulary never drifts. Two variants from one builder:
+//   - full  (allowModifiers: true)  — the AUTHORING variant (simMOVE): the user
+//     IS the clinician-author, so motion + all clinical modifiers are theirs.
+//   - intent-only (allowModifiers: false) — the EXAM-PATIENT variant (simLAB):
+//     the roleplay patient may pick only WHAT to attempt; the clinical modifiers
+//     ARE the exam findings and are supplied by the scenario, merged server-side
+//     (mergeAuthoredPrescription). The patient can never author its own findings.
+// Same MotionPrescription result either way.
+
+/** One ROM-cap joint offered by the full tool variant. */
+export interface MotionCapJoint {
+  /** ROM canonical joint key, e.g. 'R_Leg'. */
+  joint: string;
+  /** ROM field key, e.g. 'kneeFlexion'. */
+  field: string;
+  /** Human label for the tool description, e.g. 'right knee flexion'. */
+  label: string;
+  /** Upper bound (degrees) the field may be capped to. */
+  maxDeg: number;
+}
+
+export interface PrescribeMotionToolOptions {
+  /** Allowed motion ids — becomes the `motion` enum. */
+  motions: readonly string[];
+  /** Optional per-motion hint text woven into the description. */
+  motionHints?: Partial<Record<string, string>>;
+  /** false / undefined → intent-only (motion only); true → full modifiers. */
+  allowModifiers?: boolean;
+  /** ROM-cap joints offered by the full variant. */
+  capJoints?: readonly MotionCapJoint[];
+  /** Override the tool name (defaults per variant). */
+  name?: string;
+}
+
+export interface PrescribeMotionToolSchema {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+const PRESCRIBE_INTENT_DESC =
+  'Perform a movement on the 3D mannequin. Pick the closest base motion, and only when the clinician asks for a movement. The simulation — not you — decides what the body actually does: every request is clamped to the body’s real joint limits and any authored restriction, and you receive back what the mannequin actually performed. Describe that honestly; never claim a motion or angle that was not returned. One call per instruction.';
+
+const PRESCRIBE_FULL_DESC =
+  'Perform a movement on the 3D mannequin. Pick the closest base motion and layer any clinical modifiers requested (slower/faster, a restricted joint range in degrees, guarding/stiffness, or reduced balance). The engine clamps every request to real joint limits and returns what the mannequin actually performed. Describe the result honestly; never claim a motion or angle that was not returned. One call per instruction.';
+
+/** Build the `prescribe_motion` (full) / `attempt_motion` (intent-only) schema. */
+export function buildPrescribeMotionTool(
+  opts: PrescribeMotionToolOptions,
+): PrescribeMotionToolSchema {
+  const full = opts.allowModifiers === true;
+  const motionEnum = [...opts.motions];
+  const motionDesc =
+    'Base motion to play.' +
+    (opts.motionHints
+      ? ' Options: ' +
+        motionEnum.map((m) => `${m} (${opts.motionHints?.[m] ?? m})`).join(', ') +
+        '.'
+      : '');
+  const properties: Record<string, unknown> = {
+    motion: { type: 'string', enum: motionEnum, description: motionDesc },
+  };
+  if (full) {
+    properties.timeScale = {
+      type: 'number',
+      description:
+        'Playback speed. 1 = normal, 0.4 = very slow/cautious, 1.5 = fast/brisk. Clamped to [0.4, 1.5]. Omit for normal.',
+    };
+    const capJoints = opts.capJoints ?? [];
+    if (capJoints.length) {
+      properties.romCapJoint = {
+        type: 'string',
+        enum: capJoints.map((c) => c.joint),
+        description:
+          'Optionally restrict one joint: ' +
+          capJoints.map((c) => `${c.joint} = ${c.label} (0–${c.maxDeg}°)`).join('; ') +
+          '. Requires romCapMaxDeg.',
+      };
+      properties.romCapMaxDeg = {
+        type: 'number',
+        description: 'Maximum degrees for the restricted joint. Requires romCapJoint.',
+      };
+    }
+    properties.guarding = {
+      type: 'number',
+      description:
+        '0–1 trunk + arm stiffness (guarded, protective, reduced-excursion pattern). Omit or 0 for none.',
+    };
+    properties.balanceSway = {
+      type: 'number',
+      description:
+        '0–1 slow postural wobble over the planted feet (unsteady / reduced-balance pattern). Omit or 0 for none.',
+    };
+  }
+  return {
+    name: opts.name ?? (full ? 'prescribe_motion' : 'attempt_motion'),
+    description: full ? PRESCRIBE_FULL_DESC : PRESCRIBE_INTENT_DESC,
+    parameters: {
+      type: 'object',
+      properties,
+      required: ['motion'],
+      additionalProperties: false,
+    },
+  };
+}
+
+/** Raw tool-call arguments (wire form is a JSON string, parsed by the SDK). */
+export interface PrescribeMotionArgs {
+  motion?: string;
+  timeScale?: number;
+  romCapJoint?: string;
+  romCapMaxDeg?: number;
+  guarding?: number;
+  balanceSway?: number;
+}
+
+const clampNum = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+
+/**
+ * Map raw tool args → MotionPrescription. `capJoints` supplies the joint→field
+ * mapping for a ROM cap. When `allowModifiers` is falsy (the exam-patient
+ * variant), ANY modifier fields in the args are ignored — the patient can never
+ * author findings; the scenario does, via {@link mergeAuthoredPrescription}.
+ * Returns null on an unknown/missing motion (a hallucinated call) so callers can
+ * refuse cleanly.
+ */
+export function toolArgsToPrescription(
+  args: PrescribeMotionArgs,
+  opts: {
+    motions: readonly string[];
+    capJoints?: readonly MotionCapJoint[];
+    allowModifiers?: boolean;
+  },
+): MotionPrescription | null {
+  const motion = args?.motion;
+  if (!motion || !opts.motions.includes(motion)) return null;
+  if (!opts.allowModifiers) {
+    return { motion: motion as MovementClipId, mode: 'play' };
+  }
+  const modifiers: ClinicalModifiers = {};
+  if (typeof args.timeScale === 'number' && args.timeScale !== 1) {
+    modifiers.timeScale = clampNum(args.timeScale, 0.4, 1.5);
+  }
+  const cap = args.romCapJoint
+    ? opts.capJoints?.find((c) => c.joint === args.romCapJoint)
+    : undefined;
+  if (cap && typeof args.romCapMaxDeg === 'number') {
+    modifiers.romCaps = [
+      { joint: cap.joint, field: cap.field, maxDeg: clampNum(args.romCapMaxDeg, 0, cap.maxDeg) },
+    ];
+  }
+  if (typeof args.guarding === 'number' && args.guarding > 0) {
+    modifiers.guarding = clampNum(args.guarding, 0, 1);
+  }
+  if (typeof args.balanceSway === 'number' && args.balanceSway > 0) {
+    modifiers.balanceSway = clampNum(args.balanceSway, 0, 1);
+  }
+  const hasMods = Object.keys(modifiers).length > 0;
+  return {
+    motion: motion as MovementClipId,
+    mode: hasMods ? 'modify' : 'play',
+    ...(hasMods ? { modifiers } : {}),
+  };
+}
+
+/**
+ * Merge scenario-authored modifiers onto a patient-chosen (intent-only)
+ * prescription. The patient supplies `motion`; the SCENARIO supplies the clinical
+ * presentation — so the exam patient never authors its own findings. Authored
+ * modifiers replace whatever was on the base (the patient shouldn't have set any).
+ */
+export function mergeAuthoredPrescription(
+  base: MotionPrescription,
+  authored: ClinicalModifiers | null | undefined,
+): MotionPrescription {
+  const hasMods = !!authored && Object.keys(authored).length > 0;
+  return {
+    motion: base.motion,
+    mode: hasMods ? 'modify' : 'play',
+    ...(base.sequence ? { sequence: base.sequence } : {}),
+    ...(base.label ? { label: base.label } : {}),
+    ...(hasMods ? { modifiers: authored } : {}),
+  };
+}
