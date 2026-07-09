@@ -620,8 +620,12 @@
         const loop = resolved.loop ?? def.loop;
         const speed = resolved.speed ?? def.speed;
 
-        // Resolve the clip (host-loaded, cached here per skeleton).
-        let clip = motionClipCache.get(motion) ?? null;
+        // Resolve the clip (host-loaded, cached here per skeleton). The
+        // `sandbox` slot is host-supplied and swaps between plays (simMOVE's
+        // upload-to-test), so it is NEVER cached — always re-fetch it from the
+        // provider, or a second upload would replay the first clip.
+        const cacheable = motion !== 'sandbox';
+        let clip = cacheable ? (motionClipCache.get(motion) ?? null) : null;
         if (!clip) {
           let clips: import('three').AnimationClip[] | null = null;
           try {
@@ -639,7 +643,7 @@
           const cloned = clips[0]!.clone();
           const skel = skinnedRef?.skeleton;
           clip = skel ? remapClipToSkeleton(cloned, skel) : cloned;
-          motionClipCache.set(motion, clip);
+          if (cacheable) motionClipCache.set(motion, clip);
         }
 
         // Cancel any in-flight pose tween and prior motion, then start the clip.
