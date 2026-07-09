@@ -143,6 +143,7 @@
   // installs the constraint set (setRomScenarioConstraints); this list is the
   // joints to clamp each frame while a capped motion plays.
   let setMotionRomCapsImpl: ((keys: string[]) => void) | null = null;
+  let setMotionOverlaysImpl: ((overlays: { guarding?: number } | null) => void) | null = null;
   let resolveBoot: () => void = () => {};
   const bootDone = new Promise<void>((r) => (resolveBoot = r));
   let commandChain: Promise<unknown> = Promise.resolve();
@@ -203,6 +204,15 @@
    */
   export function setMotionRomCaps(keys: string[]): void {
     setMotionRomCapsImpl?.(keys);
+  }
+
+  /**
+   * Set additive clinical overlays applied per frame during motion (L2, Build D).
+   * `guarding` (0..1) stiffens the trunk and arms toward neutral — reduced
+   * excursion, the guarded/protective movement pattern. Pass `null`/0 to clear.
+   */
+  export function setMotionOverlays(overlays: { guarding?: number } | null): void {
+    setMotionOverlaysImpl?.(overlays);
   }
 
   onMount(() => {
@@ -348,6 +358,15 @@
         // The per-frame clamp/IK needs the global clamp active; lift it when no caps.
         setRomClampEnabled(motionCapKeys.length ? true : null);
       };
+
+      // Guarding overlay: blend the trunk + arms toward neutral each frame,
+      // reducing excursion (stiff, protective movement). 0 = off, 1 = ~80% damped.
+      const GUARDING_KEYS = ['Spine_Lower', 'Spine_Upper', 'Neck', 'L_UpperArm', 'R_UpperArm'];
+      let motionGuarding = 0;
+      const _guardRestQ = new THREE.Quaternion();
+      setMotionOverlaysImpl = (overlays: { guarding?: number } | null) => {
+        motionGuarding = Math.max(0, Math.min(1, overlays?.guarding ?? 0));
+      };
       /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
       let motionFinishResolve: (() => void) | null = null;
       const motionClock = new THREE.Clock();
@@ -385,6 +404,7 @@
         // Lift any ROM caps (the host clears its constraint set separately).
         motionCapKeys = [];
         motionCapLegs = [];
+        motionGuarding = 0;
         setRomClampEnabled(null);
         if (motionFinishResolve) {
           const r = motionFinishResolve;
@@ -861,6 +881,20 @@
               if (bone && clampBoneToRom(bone, key, restRef)) changed = true;
             }
             if (changed) modelRoot.updateMatrixWorld();
+          }
+          // Guarding overlay: ease the trunk + arms toward neutral, damping
+          // excursion into a stiff, protective movement pattern.
+          if (motionGuarding > 0 && restRef && motionCapBones && modelRoot) {
+            const f = motionGuarding * 0.8;
+            for (const key of GUARDING_KEYS) {
+              const bone = motionCapBones.get(key);
+              const restArr = restRef.localQuats[key];
+              if (bone && restArr) {
+                _guardRestQ.set(restArr[0], restArr[1], restArr[2], restArr[3]);
+                bone.quaternion.slerp(_guardRestQ, f);
+              }
+            }
+            modelRoot.updateMatrixWorld();
           }
           renderNeeded = true; // keep rendering while a motion plays
           // Live per-frame angle streaming (opt-in): re-measure the achieved
