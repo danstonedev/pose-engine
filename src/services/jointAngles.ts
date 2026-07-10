@@ -78,6 +78,11 @@ export interface JointAngleRestReference {
    *  where every bone's rest long axis aligns with `(0,-1,0)` regardless
    *  of how the GLB binds the bone-local frame. */
   worldQuats: Record<string, [number, number, number, number]>;
+  /** Rest WORLD long-axis direction (shoulder→elbow etc.) per canonical bone
+   *  key. Needed by the world-frame UpperArm readout + the shoulder command
+   *  construction, where the twisted humeral local frame means the bone's
+   *  local -Y is NOT the arm axis. Optional for backward compatibility. */
+  worldDirs?: Record<string, [number, number, number]>;
 }
 
 // ── Constants + scratch state ──────────────────────────────────────────────
@@ -177,11 +182,14 @@ export function captureJointAngleRestReference(
   const lookup = buildLookup(skeleton, variantCfg);
   const localQuats: Record<string, [number, number, number, number]> = {};
   const worldQuats: Record<string, [number, number, number, number]> = {};
+  const worldDirs: Record<string, [number, number, number]> = {};
   for (const [key, bone] of lookup) {
     const q = bone.quaternion;
     localQuats[key] = [q.x, q.y, q.z, q.w];
     const wq = bone.getWorldQuaternion(_q1);
     worldQuats[key] = [wq.x, wq.y, wq.z, wq.w];
+    const dir = boneWorldDirection(bone);
+    if (dir) worldDirs[key] = [dir.x, dir.y, dir.z];
   }
   let pelvisWorldQuat: [number, number, number, number] = [0, 0, 0, 1];
   const hips = lookup.get('Hips');
@@ -189,7 +197,7 @@ export function captureJointAngleRestReference(
     const wq = hips.getWorldQuaternion(_q1);
     pelvisWorldQuat = [wq.x, wq.y, wq.z, wq.w];
   }
-  return { pelvisWorldQuat, localQuats, worldQuats };
+  return { pelvisWorldQuat, localQuats, worldQuats, worldDirs };
 }
 
 // ── Gizmo ring ↔ clinical motion mapping ─────────────────────────────────────
@@ -445,6 +453,41 @@ export function ballJointAngles(
   return { flexion, abduction, rotation };
 }
 
+/** WORLD/thorax-frame shoulder angles for the UpperArm (option a). The humeral
+ *  local frame is twisted (local -Y is NOT the arm axis), so the local swing-twist
+ *  decomposition scrambles forward flexion into rotation. Here flexion/abduction
+ *  come from the arm's REAL world long axis (shoulder→elbow) and axial rotation is
+ *  the residual after removing the minimal-arc elevation swing — so a pure forward
+ *  raise reads as pure flexion, a pure lateral raise as pure abduction, and IR/ER
+ *  as pure rotation. `curDir`/`restDir` are world arm directions; `mirror` flips
+ *  abduction+rotation on the right to the clinical convention (+abd away from
+ *  midline, +rot internal). flexion/abduction are clean 0..~90° in their own plane
+ *  (they saturate past horizontal in the OTHER plane — an inherent 3-field limit). */
+const _stSwing = new THREE.Quaternion();
+const _stTwist = new THREE.Quaternion();
+export function upperArmWorldAngles(
+  curWorldQuat: THREE.Quaternion,
+  restWorldQuat: THREE.Quaternion,
+  curDir: THREE.Vector3,
+  restDir: THREE.Vector3,
+  mirror: boolean,
+): SwingTwistDeg {
+  const s = mirror ? -1 : 1;
+  // + flexion = forward (anterior +Z); + abduction = away from midline. Both are
+  // IN-PLANE angles (0..180° in their own plane); each saturates toward 180° when
+  // the OTHER motion passes horizontal — an inherent 3-field ball-joint limit.
+  const flexOf = (v: THREE.Vector3) => Math.atan2(v.z, -v.y) * DEG;
+  const abdOf = (v: THREE.Vector3) => Math.atan2(s * v.x, -v.y) * DEG;
+  const flexion = flexOf(curDir) - flexOf(restDir);
+  const abduction = abdOf(curDir) - abdOf(restDir);
+  // Axial rotation = residual twist about the CURRENT arm axis after the swing.
+  _stTwist.copy(curWorldQuat).multiply(_q1.copy(restWorldQuat).invert()); // world delta
+  _stSwing.setFromUnitVectors(restDir, curDir);
+  _stTwist.premultiply(_stSwing.invert());
+  const rotation = signedAngleAboutAxis(_stTwist, curDir) * DEG * s;
+  return { flexion, abduction, rotation };
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /** Long axis in every limb-root bone's local frame. Our convention: the
@@ -541,10 +584,47 @@ export function computeJointAngles(
     };
   }
 
-  // ── Limb root: UpperArm / UpLeg (3-axis swing-twist on delta) ────────
+  // ── Shoulder (UpperArm): WORLD-frame readout (option a) ──────────────
+  // The humeral local frame is twisted, so a local swing-twist scrambles forward
+  // flexion into rotation. Decompose in the world/thorax frame from the arm's real
+  // long axis instead — see upperArmWorldAngles.
+  const _curDir = new THREE.Vector3();
+  const _restDir = new THREE.Vector3();
+  const _armRestW = new THREE.Quaternion();
+  const _armCurW = new THREE.Quaternion();
   for (const [key, mirror] of [
     ['L_UpperArm', false],
     ['R_UpperArm', true],
+  ] as const) {
+    const bone = lookup.get(key);
+    if (!bone) continue;
+    const rd = rest.worldDirs?.[key];
+    const rwq = rest.worldQuats[key];
+    const curDir = boneWorldDirection(bone) ?? _curDir.set(0, -1, 0);
+    if (rd && rwq) {
+      _restDir.set(rd[0], rd[1], rd[2]);
+      _armRestW.set(rwq[0], rwq[1], rwq[2], rwq[3]);
+      bone.getWorldQuaternion(_armCurW);
+      const a = upperArmWorldAngles(_armCurW, _armRestW, curDir, _restDir, mirror);
+      joints[key] = {
+        shoulderFlexion: a.flexion,
+        shoulderAbduction: a.abduction,
+        shoulderRotation: a.rotation,
+      };
+    } else {
+      // Fallback (no rest world dirs captured): legacy local swing-twist.
+      deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
+      const a = ballJointAngles(delta, REST_DOWN_LOCAL, mirror);
+      joints[key] = {
+        shoulderFlexion: a.flexion,
+        shoulderAbduction: a.abduction,
+        shoulderRotation: -a.rotation,
+      };
+    }
+  }
+
+  // ── Hip (UpLeg): 3-axis swing-twist on the local delta ───────────────
+  for (const [key, mirror] of [
     ['L_UpLeg', false],
     ['R_UpLeg', true],
   ] as const) {
@@ -552,19 +632,11 @@ export function computeJointAngles(
     if (!bone) continue;
     deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
     const a = ballJointAngles(delta, REST_DOWN_LOCAL, mirror);
-    if (key.endsWith('UpperArm')) {
-      joints[key] = {
-        shoulderFlexion: a.flexion,
-        shoulderAbduction: a.abduction,
-        shoulderRotation: -a.rotation, // transverse flip (shoulder; hip stays)
-      };
-    } else {
-      joints[key] = {
-        hipFlexion: -a.flexion, // + = hip flexion (flip; shoulder stays as-is)
-        hipAbduction: a.abduction,
-        hipRotation: a.rotation,
-      };
-    }
+    joints[key] = {
+      hipFlexion: -a.flexion, // + = hip flexion (flip; shoulder stays as-is)
+      hipAbduction: a.abduction,
+      hipRotation: a.rotation,
+    };
   }
 
   // ── Hinges: Forearm (elbow), Leg (knee) ──────────────────────────────

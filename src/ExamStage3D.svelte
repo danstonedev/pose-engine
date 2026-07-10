@@ -702,6 +702,7 @@
           resolved.clampedDegrees,
           variantCfgRef,
           currentPose,
+          restRef, // shoulder elevation needs the rest world orientation
         );
         if (!target) {
           return finalizeOutcome({ ...resolved, status: 'refused', reason: 'unsupported-motion' });

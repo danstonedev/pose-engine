@@ -143,7 +143,11 @@ describe('clampBoneToRom', () => {
       expect(bones.L_UpperArm.quaternion.equals(before)).toBe(true);
 
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_UpperArm.shoulderFlexion).toBeCloseTo(60, 0);
+      // World-frame shoulder readout: local +X swings the arm posteriorly, so it
+      // reads −60 (extension) — still within ROM (min −60), so the clamp is a no-op.
+      // (poseRomClamp itself decomposes locally; the shoulder clamp path is the
+      // documented, command-unused seam — see ExamStage3D.)
+      expect(report.joints.L_UpperArm.shoulderFlexion).toBeCloseTo(-60, 0);
     });
 
     it('leaves a 90° elbow flexion (within ROM) almost untouched', () => {
@@ -174,7 +178,10 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_UpperArm.shoulderFlexion).toBeCloseTo(-60, 0);
+      // Clamp decomposes locally (−90 → −60 local); the world-frame readout signs
+      // the clamped pose as +60. Local clamp vs world read is the documented,
+      // command-unused shoulder seam (see ExamStage3D).
+      expect(report.joints.L_UpperArm.shoulderFlexion).toBeCloseTo(60, 0);
     });
 
     it('clamps elbow flexion 160° → -150° (signed hinge)', () => {
@@ -628,7 +635,9 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.R_UpperArm.shoulderRotation).toBeCloseTo(90, 0);
+      // Local clamp lands at the +90° local twist limit; the world-frame readout
+      // signs it −90 (local-clamp vs world-read shoulder seam — see ExamStage3D).
+      expect(report.joints.R_UpperArm.shoulderRotation).toBeCloseTo(-90, 0);
     });
 
     it('clamps left shoulder rotation +120° → -70° (mirror counterpart of right)', () => {
@@ -644,10 +653,9 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      // With flipped shoulderRotation sign and no right-side mirror, the same
-      // +120° twist reads negative on the left and clamps to the -70° end of
-      // the asymmetric ROM (min -90, max +70).
-      expect(report.joints.L_UpperArm.shoulderRotation).toBeCloseTo(-70, 0);
+      // Local clamp lands at the −70° local limit (no right-side mirror); the
+      // world-frame readout signs it +70 (local-clamp vs world-read shoulder seam).
+      expect(report.joints.L_UpperArm.shoulderRotation).toBeCloseTo(70, 0);
     });
   });
 

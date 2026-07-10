@@ -62,7 +62,7 @@
 import * as THREE from 'three';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import { POSE_SCHEMA_VERSION, type CustomPose } from '../types';
-import type { JointAngleReport } from './jointAngles';
+import type { JointAngleReport, JointAngleRestReference } from './jointAngles';
 import { getRomFieldDefinition, getRomJointDefinition } from './romRegistry';
 import {
   getRomFieldConstraint,
@@ -277,10 +277,36 @@ function ballTwistDelta(deg: number): THREE.Quaternion {
   return new THREE.Quaternion().setFromAxisAngle(REST_DOWN, deg * RAD);
 }
 
+const WORLD_X = new THREE.Vector3(1, 0, 0);
+const WORLD_Z = new THREE.Vector3(0, 0, 1);
+/** WORLD-plane elevation swing for the shoulder (option a): re-aim the arm's rest
+ *  world direction about a world axis by `deg`, as a MINIMAL-ARC swing (zero axial
+ *  twist), then conjugate into the rest-arm-local frame so `compose:'rest'` yields
+ *  currentWorld = worldSwing × restWorld. Rig-verified: flexion/abduction read back
+ *  exact with zero rotation leak. Without ctx (no rest reference) returns identity. */
+function armSwingDelta(ctx: BuildCtx | undefined, worldAxis: THREE.Vector3, deg: number): THREE.Quaternion {
+  if (!ctx) return new THREE.Quaternion();
+  const target = ctx.restDir
+    .clone()
+    .applyQuaternion(new THREE.Quaternion().setFromAxisAngle(worldAxis, deg * RAD));
+  const worldSwing = new THREE.Quaternion().setFromUnitVectors(ctx.restDir, target);
+  return ctx.restWorldQuat.clone().invert().multiply(worldSwing).multiply(ctx.restWorldQuat);
+}
+
+/** Rest-frame context a few specs (shoulder elevation) need to build a
+ *  WORLD-plane swing: the commanded bone's rest WORLD orientation + world long
+ *  axis. Supplied by buildCommandPose from the rest reference. */
+interface BuildCtx {
+  restWorldQuat: THREE.Quaternion;
+  restDir: THREE.Vector3;
+}
+
 interface SupportedMotionSpec {
   /** Delta quaternion realizing a clinical target (deg, registry
-   *  convention) from the anatomic-rest local quaternion. */
-  buildDelta(clinicalDeg: number): THREE.Quaternion;
+   *  convention) from the anatomic-rest local quaternion. `ctx` is provided
+   *  only when buildCommandPose has the rest reference; specs that need it
+   *  (shoulder elevation) return the identity delta without it. */
+  buildDelta(clinicalDeg: number, ctx?: BuildCtx): THREE.Quaternion;
   /** How the delta composes with the rest local quaternion:
    *  - 'parent': bone.local = delta × restLocal — a PARENT-frame delta.
    *    Exact for body-euler readouts (ankle), which decompose exactly this.
@@ -349,27 +375,34 @@ interface SupportedMotionSpec {
  *     lumbar constructions transfer verbatim (X / Z(−deg) / Y). Register under Spine_Upper.
  *   - SCAPULA / clavicle (L/R_Shoulder.upRotation/scapularTilt/protraction): parent
  *     body-euler Z / −X / −Y; upRotation + protraction mirror on the right, tilt does not.
- *   - WRIST (L/R_Hand.wristFlexion/wristDeviation/proSup): parent euler on the forearm-
+ *   - WRIST (L/R_Hand.wristFlexion/wristDeviation): parent euler on the forearm-
  *     inherited frame — flexion Z (RIGHT inverts, ~180° frame flip), deviation X (no
- *     mirror), proSup Y (mirror R). proSup reads exact on the Hand bone; note it visually
- *     spins the hand about a stationary forearm (cosmetic; grading is correct).
- *   - SHOULDER ROTATION (L/R_UpperArm.shoulderRotation): parent Y-euler (a rest-frame
- *     twist smears on the twisted humeral local frame). + = internal, mirror on the right.
+ *     mirror). (pro/sup moved to the Forearm bone in v1.6 — see below.)
  *   - FINGERS / THUMB (L/R_{Thumb1,Index1,Mid1,Ring1,Pinky1}.fingerFlexion): composite
  *     MCP+PIP curl about the pinned local-Z ring (compose 'rest'). The readback is
  *     ABSOLUTE-geometric (not rest-relative) with a per-digit slope+offset, so buildDelta
  *     PRE-COMPENSATES (inverts the linear fit) → commanded == measured; fromReport identity.
  *     sideSign L −1 / R +1 curls toward the palm. Usable to ~110° on the single MCP bone.
  *
- *  SHOULDER FLEXION (L/R_UpperArm.shoulderFlexion) remains deliberately NOT
- *  shipped: true forward flexion rotates about the clavicle-Y axis, which IS the
- *  swing-twist readout's long axis (0,−1,0) — so any world-correct raise is
- *  measured as pure `shoulderRotation`, and any readout-clean construction barely
- *  lifts the arm (≈41° world elevation for a commanded 90°). No single-axis
- *  construction is both world-correct and self-consistent; it needs a 2-axis
- *  build plus a world-frame readout redefinition. Shipping it would corrupt
- *  grading, so it refuses with 'unsupported-motion' until the readout is
- *  redefined (same workstream as enabling the ROM clamp in browsers). */
+ *  v1.6 EXPANSION — SHOULDER (world-frame readout) + hinge rotations:
+ *   - The UpperArm readout is now WORLD/thorax-anchored (jointAngles.upperArmWorldAngles):
+ *     flexion/abduction come from the arm's real world long axis, rotation is the residual
+ *     twist after removing the elevation swing. This fixes the old degeneracy (a forward
+ *     raise used to read as pure rotation).
+ *   - shoulderFlexion (NOW SHIPPED): rest-frame MINIMAL-ARC world-plane swing (armSwingDelta
+ *     about world X); needs the rest world orientation, so buildCommandPose passes a
+ *     BuildCtx. Exact + twist-free through ≥135°. + = forward.
+ *   - shoulderAbduction: same world-swing about world Z (mirror per side); exact to ~90°.
+ *   - shoulderRotation: rest-frame ballTwist; exact, zero elevation leak. + = internal.
+ *     (flexion/abduction are IN-PLANE fields — each saturates toward 180° once the OTHER
+ *     passes horizontal; an inherent 3-field ball-joint limit, harmless to single-plane grading.)
+ *   - FOREARM pro/sup (L/R_Forearm.forearmRotation): TRUE forearm rotation (ballTwist on the
+ *     Forearm bone; the readout writes the total to the elbow + wrist rows). + = supination.
+ *   - KNEE rotation (L/R_Leg.kneeRotation): tibial int/ext (ballTwist); + = internal.
+ *
+ *  STILL REFUSED — elbow/knee VARUS-VALGUS (elbowDeviation, kneeDeviation): a frontal re-aim
+ *  is geometrically indistinguishable from the (geometric) hinge-flexion term, so commanding
+ *  deviation reads as ~1:1 phantom flexion. Shipping it would corrupt flexion grading. */
 const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (() => {
   const ankle: SupportedMotionSpec = {
     buildDelta: (deg) => eulerXDelta(deg),
@@ -456,15 +489,25 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     compose: 'parent',
     fromReport: (deg) => deg,
   };
-  // Shoulder abduction (v1.3): parent-frame Z-euler; readout mirrors on the right.
+  // Shoulder (v1.6): WORLD-frame elevation swings under the world UpperArm readout.
+  // flexion = world sagittal swing (same both arms; forward is forward); abduction =
+  // world frontal swing (mirrored per side, away-from-midline +); rotation = rest-frame
+  // twist. SIGN_* pin the world-axis direction to the clinical + convention.
+  const SHOULDER_FLEX_SIGN = -1; // +deg flexion = forward (anterior)
+  const SHOULDER_ABD_SIGN = 1; // +deg abduction = away from midline (L); R mirrors
+  const shoulderFlex: SupportedMotionSpec = {
+    buildDelta: (deg, ctx) => armSwingDelta(ctx, WORLD_X, SHOULDER_FLEX_SIGN * deg),
+    compose: 'rest',
+    fromReport: (deg) => deg,
+  };
   const shoulderAbdL: SupportedMotionSpec = {
-    buildDelta: (deg) => eulerZDelta(deg),
-    compose: 'parent',
+    buildDelta: (deg, ctx) => armSwingDelta(ctx, WORLD_Z, SHOULDER_ABD_SIGN * deg),
+    compose: 'rest',
     fromReport: (deg) => deg,
   };
   const shoulderAbdR: SupportedMotionSpec = {
-    buildDelta: (deg) => eulerZDelta(-deg),
-    compose: 'parent',
+    buildDelta: (deg, ctx) => armSwingDelta(ctx, WORLD_Z, -SHOULDER_ABD_SIGN * deg),
+    compose: 'rest',
     fromReport: (deg) => deg,
   };
   // ── v1.5 EXPANSION (rig-verified by the calibration team; each ±≤2° readback,
@@ -501,8 +544,19 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   // SHOULDER ROTATION (L/R_UpperArm): parent Y-euler — a rest-frame twist smears on
   // the twisted humeral local frame, but the parent Y-euler reads clean. + = internal.
   // Mirror on the right. (shoulderFlexion stays refused — see the doc note.)
-  const shoulderRotL: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(deg), compose: 'parent', fromReport: (deg) => deg };
-  const shoulderRotR: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  // Shoulder rotation (v1.6): rest-frame twist about the arm long axis; exact + zero
+  // elevation leak under the world readout. + = internal; readout mirrors on the right.
+  const shoulderRotL: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(-deg), compose: 'rest', fromReport: (deg) => deg };
+  const shoulderRotR: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(deg), compose: 'rest', fromReport: (deg) => deg };
+  // Forearm pro/sup (v1.6): TRUE forearm rotation commanded on the Forearm bone
+  // (radioulnar twist; the readout writes the total to both the elbow + wrist rows).
+  // + = supination. Rest-frame twist; L +deg / R −deg.
+  const forearmRotL: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(deg), compose: 'rest', fromReport: (deg) => deg };
+  const forearmRotR: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(-deg), compose: 'rest', fromReport: (deg) => deg };
+  // Knee rotation (v1.6): tibial int/ext rotation. Rest-frame twist; + = internal.
+  // knee readout twistSign=−1 flips the pattern vs the forearm: L −deg / R +deg.
+  const kneeRotL: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(-deg), compose: 'rest', fromReport: (deg) => deg };
+  const kneeRotR: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(deg), compose: 'rest', fromReport: (deg) => deg };
   // FINGERS / THUMB: composite MCP+PIP curl about the pinned local-Z ring. The
   // readback is ABSOLUTE-geometric (not rest-relative), so it carries a per-digit
   // slope+offset (agent linear fit on the flexion branch). buildDelta PRE-COMPENSATES
@@ -520,21 +574,23 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     R_Foot: { ankleFlexion: ankle, ankleInversion: ankleInvR, ankleAbduction: ankleAbdR },
     L_Toes: { toeFlexion: toe },
     R_Toes: { toeFlexion: toe },
-    L_Leg: { kneeFlexion: knee },
-    R_Leg: { kneeFlexion: knee },
+    L_Leg: { kneeFlexion: knee, kneeRotation: kneeRotL },
+    R_Leg: { kneeFlexion: knee, kneeRotation: kneeRotR },
     L_UpLeg: { hipFlexion: hip, hipAbduction: hipAbdL, hipRotation: hipRotL },
     R_UpLeg: { hipFlexion: hip, hipAbduction: hipAbdR, hipRotation: hipRotR },
-    L_Forearm: { elbowFlexion: elbow },
-    R_Forearm: { elbowFlexion: elbow },
-    L_Hand: { wristFlexion: wristFlexL, wristDeviation: wristDev, proSup: wristProSupL },
-    R_Hand: { wristFlexion: wristFlexR, wristDeviation: wristDev, proSup: wristProSupR },
+    L_Forearm: { elbowFlexion: elbow, forearmRotation: forearmRotL },
+    R_Forearm: { elbowFlexion: elbow, forearmRotation: forearmRotR },
+    // Wrist flex/dev on the Hand; pro/sup is commanded on the Forearm (true forearm
+    // rotation), so it is intentionally NOT registered on the Hand.
+    L_Hand: { wristFlexion: wristFlexL, wristDeviation: wristDev },
+    R_Hand: { wristFlexion: wristFlexR, wristDeviation: wristDev },
     Spine_Lower: { flexion: lumbar, lateralTilt: lumbarLateral, rotation: lumbarRotation },
     Spine_Upper: { flexion: thoracicFlex, lateralTilt: thoracicLateral, rotation: thoracicRotation },
     Neck: { flexion: cervicalFlex, rotation: cervicalRotation, lateralTilt: cervicalLateral },
     L_Shoulder: { upRotation: scapUpRotL, scapularTilt: scapTilt, protraction: scapProtractL },
     R_Shoulder: { upRotation: scapUpRotR, scapularTilt: scapTilt, protraction: scapProtractR },
-    L_UpperArm: { shoulderAbduction: shoulderAbdL, shoulderRotation: shoulderRotL },
-    R_UpperArm: { shoulderAbduction: shoulderAbdR, shoulderRotation: shoulderRotR },
+    L_UpperArm: { shoulderFlexion: shoulderFlex, shoulderAbduction: shoulderAbdL, shoulderRotation: shoulderRotL },
+    R_UpperArm: { shoulderFlexion: shoulderFlex, shoulderAbduction: shoulderAbdR, shoulderRotation: shoulderRotR },
     L_Thumb1: { fingerFlexion: makeFinger(-1, 0.99, 11.5) },
     L_Index1: { fingerFlexion: makeFinger(-1, 0.93, 14) },
     L_Mid1: { fingerFlexion: makeFinger(-1, 1.0, 6) },
@@ -605,6 +661,7 @@ export function buildCommandPose(
   clampedDegrees: number,
   variantCfg: BodyVariantConfig,
   fromPose?: CustomPose | null,
+  rest?: JointAngleRestReference | null,
 ): CustomPose | null {
   if (cmd.action === 'relax') {
     return copyPose(baselinePose, variantCfg.id);
@@ -616,7 +673,18 @@ export function buildCommandPose(
 
   const target = copyPose(fromPose ?? baselinePose, variantCfg.id);
   const restQ = new THREE.Quaternion(restArr[0], restArr[1], restArr[2], restArr[3]);
-  const delta = spec.buildDelta(clampedDegrees);
+  // Shoulder elevation needs the arm's rest WORLD orientation + direction to build
+  // a world-plane swing; supplied from the rest reference when available.
+  let ctx: BuildCtx | undefined;
+  const rwArr = rest?.worldQuats?.[cmd.joint];
+  const rdArr = rest?.worldDirs?.[cmd.joint];
+  if (rwArr && rdArr) {
+    ctx = {
+      restWorldQuat: new THREE.Quaternion(rwArr[0], rwArr[1], rwArr[2], rwArr[3]),
+      restDir: new THREE.Vector3(rdArr[0], rdArr[1], rdArr[2]),
+    };
+  }
+  const delta = spec.buildDelta(clampedDegrees, ctx);
   const q =
     spec.compose === 'parent'
       ? delta.multiply(restQ) // parent-frame: delta × rest

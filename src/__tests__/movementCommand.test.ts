@@ -212,8 +212,8 @@ describe('resolveCommandTarget', () => {
       expect(r.reason).toBe('unknown-motion');
     });
 
-    it('refuses a registry-valid but unsupported motion (knee rotation)', () => {
-      const r = resolveCommandTarget(setJoint('L_Leg', 'kneeRotation', 10), variantCfg);
+    it('refuses a registry-valid but unsupported motion (elbow deviation)', () => {
+      const r = resolveCommandTarget(setJoint('L_Forearm', 'elbowDeviation', 10), variantCfg);
       expect(r.status).toBe('refused');
       expect(r.reason).toBe('unsupported-motion');
     });
@@ -238,11 +238,12 @@ describe('resolveCommandTarget', () => {
         'L_Foot.ankleFlexion',
         'L_Foot.ankleInversion',
         'L_Forearm.elbowFlexion',
-        'L_Hand.proSup',
+        'L_Forearm.forearmRotation',
         'L_Hand.wristDeviation',
         'L_Hand.wristFlexion',
         'L_Index1.fingerFlexion',
         'L_Leg.kneeFlexion',
+        'L_Leg.kneeRotation',
         'L_Mid1.fingerFlexion',
         'L_Pinky1.fingerFlexion',
         'L_Ring1.fingerFlexion',
@@ -255,6 +256,7 @@ describe('resolveCommandTarget', () => {
         'L_UpLeg.hipFlexion',
         'L_UpLeg.hipRotation',
         'L_UpperArm.shoulderAbduction',
+        'L_UpperArm.shoulderFlexion',
         'L_UpperArm.shoulderRotation',
         'Neck.flexion',
         'Neck.lateralTilt',
@@ -263,11 +265,12 @@ describe('resolveCommandTarget', () => {
         'R_Foot.ankleFlexion',
         'R_Foot.ankleInversion',
         'R_Forearm.elbowFlexion',
-        'R_Hand.proSup',
+        'R_Forearm.forearmRotation',
         'R_Hand.wristDeviation',
         'R_Hand.wristFlexion',
         'R_Index1.fingerFlexion',
         'R_Leg.kneeFlexion',
+        'R_Leg.kneeRotation',
         'R_Mid1.fingerFlexion',
         'R_Pinky1.fingerFlexion',
         'R_Ring1.fingerFlexion',
@@ -280,6 +283,7 @@ describe('resolveCommandTarget', () => {
         'R_UpLeg.hipFlexion',
         'R_UpLeg.hipRotation',
         'R_UpperArm.shoulderAbduction',
+        'R_UpperArm.shoulderFlexion',
         'R_UpperArm.shoulderRotation',
         'Spine_Lower.flexion',
         'Spine_Lower.lateralTilt',
@@ -298,16 +302,15 @@ describe('resolveCommandTarget', () => {
       expect(isMovementCommandSupported('L_Mid1', 'fingerFlexion')).toBe(true);
       expect(isMovementCommandSupported('L_Toes', 'toeFlexion')).toBe(true);
       // Shoulder FLEXION stays withheld (readout long-axis degeneracy — see spec).
-      expect(isMovementCommandSupported('R_UpperArm', 'shoulderFlexion')).toBe(false);
-      // Hinge secondary axes (knee rotation/deviation) remain uncalibrated.
-      expect(isMovementCommandSupported('L_Leg', 'kneeRotation')).toBe(false);
+      expect(isMovementCommandSupported('L_UpperArm', 'shoulderFlexion')).toBe(true);
+      // Hinge deviation axes (knee rotation/deviation) remain uncalibrated.
+      expect(isMovementCommandSupported('L_Forearm', 'elbowDeviation')).toBe(false);
     });
 
-    it('refuses shoulder flexion as unsupported in v1 (real-rig frame not yet calibrated)', () => {
+    it('supports shoulder flexion (v1.6 world-frame readout)', () => {
       for (const joint of ['L_UpperArm', 'R_UpperArm']) {
         const r = resolveCommandTarget(setJoint(joint, 'shoulderFlexion', 60), variantCfg);
-        expect(r.status).toBe('refused');
-        expect(r.reason).toBe('unsupported-motion');
+        expect(r.status).toBe('complied');
       }
     });
 
@@ -355,7 +358,7 @@ describe('resolveCommandTarget', () => {
     });
 
     it('carries refusal metadata through without an achieved angle', () => {
-      const resolved = resolveCommandTarget(setJoint('L_Leg', 'kneeRotation', 10), variantCfg);
+      const resolved = resolveCommandTarget(setJoint('L_Forearm', 'elbowDeviation', 10), variantCfg);
       const outcome = finalizeOutcome(resolved);
       expect(outcome.status).toBe('refused');
       expect(outcome.reason).toBe('unsupported-motion');
@@ -692,29 +695,43 @@ describe('buildCommandPose on the real male rig', () => {
     }
   });
 
-  it('shoulder abduction: 60° raises the arm laterally within ±2° (both sides)', () => {
+  it('shoulder FLEXION (v1.6): forward-raises the arm, exact + isolated (both arms)', () => {
     for (const [armKey, handKey] of [
-      ['R_UpperArm', 'R_Hand'],
       ['L_UpperArm', 'L_Hand'],
+      ['R_UpperArm', 'R_Hand'],
     ] as const) {
-      resetToAnatomic();
-      const handBefore = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
-      const cmd = setJoint(armKey, 'shoulderAbduction', 60);
-      const resolved = resolveCommandTarget(cmd, variantCfg);
-      expect(resolved.status).toBe('complied');
-      const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
-      const report = applyAndMeasure(pose);
-      expect(Math.abs(measureCommandMotion(report, armKey, 'shoulderAbduction')! - 60)).toBeLessThan(2);
-      expect(Math.abs(report.joints[armKey].shoulderRotation)).toBeLessThan(5);
-      // The hand rises as the arm lifts away from the side.
-      const handAfter = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
-      expect(handAfter.y).toBeGreaterThan(handBefore.y);
+      // Main axis exact across the full clinical range (incl. overhead).
+      for (const deg of [45, 90, 135]) {
+        resetToAnatomic();
+        const handBefore = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
+        const report = expectMeasured(armKey, 'shoulderFlexion', deg);
+        expect(Math.abs(report.joints[armKey].shoulderRotation)).toBeLessThan(3); // no twist leak
+        // World direction: the hand raises anteriorly (+Z) and upward.
+        const handAfter = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
+        expect(handAfter.z).toBeGreaterThan(handBefore.z);
+        expect(handAfter.y).toBeGreaterThan(handBefore.y);
+      }
+      // (The abduction field carries a few degrees of cross-talk during flexion and
+      // saturates toward 180° past horizontal — an inherent 3-field ball-joint
+      // limit; the twist-free main axis above is what grading uses.)
     }
   });
 
-  it('shoulder FLEXION stays refused — no supported spec (readout long-axis degeneracy)', () => {
-    expect(isMovementCommandSupported('R_UpperArm', 'shoulderFlexion')).toBe(false);
-    expect(isMovementCommandSupported('L_UpperArm', 'shoulderFlexion')).toBe(false);
+  it('shoulder abduction (v1.6): laterally raises the arm, exact + isolated to ~90° (both arms)', () => {
+    for (const [armKey, handKey, awaySign] of [
+      ['L_UpperArm', 'L_Hand', +1], // left arm away from midline = +X
+      ['R_UpperArm', 'R_Hand', -1],
+    ] as const) {
+      for (const deg of [45, 90]) {
+        resetToAnatomic();
+        const handBefore = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
+        const report = expectMeasured(armKey, 'shoulderAbduction', deg);
+        expect(Math.abs(report.joints[armKey].shoulderRotation)).toBeLessThan(4);
+        const handAfter = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
+        expect(Math.sign(handAfter.x - handBefore.x)).toBe(awaySign); // away from midline
+        expect(handAfter.y).toBeGreaterThan(handBefore.y);
+      }
+    }
   });
 
   // ── v1.5 commanded joints: ankle secondary / great toe / thoracic / scapula /
@@ -725,7 +742,7 @@ describe('buildCommandPose on the real male rig', () => {
     const cmd = setJoint(joint, motion, deg);
     const resolved = resolveCommandTarget(cmd, variantCfg);
     expect(resolved.status).toBe('complied');
-    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg, null, rest)!;
     const report = applyAndMeasure(pose);
     expect(Math.abs(measureCommandMotion(report, joint, motion)! - deg)).toBeLessThan(tol);
     return report;
@@ -792,19 +809,39 @@ describe('buildCommandPose on the real male rig', () => {
     }
   });
 
-  it('wrist: flexion/extension, deviation, pro/sup read back exact, smear-free (both hands)', () => {
+  it('wrist: flexion/extension & radial/ulnar deviation read back exact, smear-free (both hands)', () => {
     for (const hand of ['L_Hand', 'R_Hand'] as const) {
       for (const [motion, deg] of [
         ['wristFlexion', 40],
         ['wristFlexion', -40],
         ['wristDeviation', 15],
         ['wristDeviation', -20],
-        ['proSup', 60],
-        ['proSup', -60],
       ] as const) {
         const report = expectMeasured(hand, motion, deg);
-        for (const off of ['wristFlexion', 'wristDeviation', 'proSup'] as const)
+        for (const off of ['wristFlexion', 'wristDeviation'] as const)
           if (off !== motion) expect(Math.abs(report.joints[hand][off])).toBeLessThan(2);
+      }
+    }
+  });
+
+  it('forearm: pro/supination commanded on the Forearm reads back exact (both arms)', () => {
+    for (const foreKey of ['L_Forearm', 'R_Forearm'] as const) {
+      for (const deg of [60, -60]) {
+        const report = expectMeasured(foreKey, 'forearmRotation', deg);
+        // The readout writes the total pro/sup to the wrist row too.
+        const handKey = foreKey === 'L_Forearm' ? 'L_Hand' : 'R_Hand';
+        expect(Math.abs(report.joints[handKey].proSup - deg)).toBeLessThan(3);
+        // Hinge flexion undisturbed.
+        expect(Math.abs(report.joints[foreKey].elbowFlexion)).toBeLessThan(2);
+      }
+    }
+  });
+
+  it('knee rotation: tibial internal/external reads back exact (both legs)', () => {
+    for (const legKey of ['L_Leg', 'R_Leg'] as const) {
+      for (const deg of [20, -20]) {
+        const report = expectMeasured(legKey, 'kneeRotation', deg);
+        expect(Math.abs(report.joints[legKey].kneeFlexion)).toBeLessThan(2);
       }
     }
   });
@@ -880,7 +917,7 @@ describe('buildCommandPose on the real male rig', () => {
   it('returns null for unsupported motions (callers refuse first)', () => {
     const pose = buildCommandPose(
       baselinePose,
-      setJoint('L_Leg', 'kneeRotation', 10),
+      setJoint('L_Forearm', 'elbowDeviation', 10),
       10,
       variantCfg,
     );

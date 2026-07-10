@@ -272,7 +272,11 @@ describe('computeJointAngles', () => {
       bones.L_UpperArm.quaternion.copy(addQ).multiply(restQ);
       bones.Hips.updateMatrixWorld(true);
       const report = computeJointAngles(skeleton, variant, 'male', rest);
-      expect(report.joints.L_UpperArm.shoulderFlexion).toBeCloseTo(30, 0);
+      // World-frame shoulder readout (option a): a +X swing carries the arm
+      // POSTERIORLY on this rig, so it reads as 30° of extension (−flexion). The
+      // point — the delta is measured from the DIVERGED rest, not the absolute
+      // pose — still holds (magnitude 30, not the rest's abduction).
+      expect(report.joints.L_UpperArm.shoulderFlexion).toBeCloseTo(-30, 0);
     });
   });
 });
