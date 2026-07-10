@@ -229,7 +229,7 @@ describe('resolveCommandTarget', () => {
       expect(r.status).toBe('complied');
     });
 
-    it('exposes exactly the documented vocabulary (v1 hinges + v1.1 lumbar + v1.3 quarter)', () => {
+    it('exposes exactly the documented vocabulary (v1 hinges + v1.1 lumbar + v1.3 quarter + v1.4 hip)', () => {
       const list = listSupportedMovementCommands()
         .map((c) => `${c.joint}.${c.motion}`)
         .sort();
@@ -237,7 +237,9 @@ describe('resolveCommandTarget', () => {
         'L_Foot.ankleFlexion',
         'L_Forearm.elbowFlexion',
         'L_Leg.kneeFlexion',
+        'L_UpLeg.hipAbduction',
         'L_UpLeg.hipFlexion',
+        'L_UpLeg.hipRotation',
         'L_UpperArm.shoulderAbduction',
         'Neck.flexion',
         'Neck.lateralTilt',
@@ -245,7 +247,9 @@ describe('resolveCommandTarget', () => {
         'R_Foot.ankleFlexion',
         'R_Forearm.elbowFlexion',
         'R_Leg.kneeFlexion',
+        'R_UpLeg.hipAbduction',
         'R_UpLeg.hipFlexion',
+        'R_UpLeg.hipRotation',
         'R_UpperArm.shoulderAbduction',
         'Spine_Lower.flexion',
         'Spine_Lower.lateralTilt',
@@ -253,6 +257,8 @@ describe('resolveCommandTarget', () => {
       ]);
       expect(isMovementCommandSupported('R_Foot', 'ankleFlexion')).toBe(true);
       expect(isMovementCommandSupported('R_UpLeg', 'hipFlexion')).toBe(true);
+      expect(isMovementCommandSupported('R_UpLeg', 'hipAbduction')).toBe(true);
+      expect(isMovementCommandSupported('L_UpLeg', 'hipRotation')).toBe(true);
       expect(isMovementCommandSupported('Spine_Lower', 'lateralTilt')).toBe(true);
       expect(isMovementCommandSupported('Neck', 'rotation')).toBe(true);
       // Shoulder FLEXION stays withheld (readout long-axis degeneracy — see spec).
@@ -538,6 +544,52 @@ describe('buildCommandPose on the real male rig', () => {
         // Flexion carries the thigh up; extension drops it back.
         const kneeAfter = boneLookup.get(kneeKey)!.getWorldPosition(new THREE.Vector3());
         if (cmd > 0) expect(kneeAfter.y).toBeGreaterThan(kneeBefore.y);
+      }
+    }
+  });
+
+  it('hip: abduction (+30) & adduction (−20) read back within ±2° and swing the knee laterally (both sides)', () => {
+    for (const [hipKey, kneeKey, awaySign] of [
+      // true abduction carries the LEFT knee toward +X (subject-left) and the
+      // RIGHT knee toward −X — both AWAY from the midline.
+      ['L_UpLeg', 'L_Leg', +1],
+      ['R_UpLeg', 'R_Leg', -1],
+    ] as const) {
+      for (const cmd of [30, -20]) {
+        resetToAnatomic();
+        const kneeBefore = boneLookup.get(kneeKey)!.getWorldPosition(new THREE.Vector3());
+        const command = setJoint(hipKey, 'hipAbduction', cmd);
+        const resolved = resolveCommandTarget(command, variantCfg);
+        expect(resolved.status).toBe('complied');
+        const pose = buildCommandPose(baselinePose, command, resolved.clampedDegrees!, variantCfg)!;
+        const report = applyAndMeasure(pose);
+        expect(Math.abs(measureCommandMotion(report, hipKey, 'hipAbduction')! - cmd)).toBeLessThan(2);
+        // Clean world swing: knee moves in X (abduction +away / adduction −toward),
+        // with no anterior/posterior drift (Z ≈ 0).
+        const kneeAfter = boneLookup.get(kneeKey)!.getWorldPosition(new THREE.Vector3());
+        const d = kneeAfter.clone().sub(kneeBefore);
+        expect(Math.sign(d.x)).toBe(cmd > 0 ? awaySign : -awaySign);
+        expect(Math.abs(d.z)).toBeLessThan(0.03);
+        // Off-plane smear is the swing-twist coupling artifact — bounded, not zero.
+        expect(Math.abs(report.joints[hipKey].hipFlexion)).toBeLessThan(5);
+        expect(Math.abs(report.joints[hipKey].hipRotation)).toBeLessThan(6);
+      }
+    }
+  });
+
+  it('hip: internal (+25) & external (−25) rotation read back within ±2° (both sides)', () => {
+    for (const hipKey of ['L_UpLeg', 'R_UpLeg'] as const) {
+      for (const cmd of [25, -25]) {
+        resetToAnatomic();
+        const command = setJoint(hipKey, 'hipRotation', cmd);
+        const resolved = resolveCommandTarget(command, variantCfg);
+        expect(resolved.status).toBe('complied');
+        const pose = buildCommandPose(baselinePose, command, resolved.clampedDegrees!, variantCfg)!;
+        const report = applyAndMeasure(pose);
+        expect(Math.abs(measureCommandMotion(report, hipKey, 'hipRotation')! - cmd)).toBeLessThan(2);
+        // Coupled swing stays bounded; the twist itself is exact.
+        expect(Math.abs(report.joints[hipKey].hipFlexion)).toBeLessThan(4);
+        expect(Math.abs(report.joints[hipKey].hipAbduction)).toBeLessThan(5);
       }
     }
   });

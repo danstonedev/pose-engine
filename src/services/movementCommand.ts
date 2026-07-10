@@ -251,6 +251,29 @@ function ballFlexDelta(deg: number): THREE.Quaternion {
   return new THREE.Quaternion().setFromUnitVectors(REST_DOWN, swung);
 }
 
+/** CANONICAL-frame FRONTAL swing for a ball joint (hip abduction/adduction):
+ *  re-aim the rest long axis (0,−1,0) toward ±X (lateral) by `deg` about the
+ *  A-P axis, no twist. Same rest-frame construction family as ballFlexDelta but
+ *  in the coronal plane. Rig-verified: readback hipAbduction == commanded within
+ *  ±1° (L +deg away from midline; the right passes −deg to move away on its
+ *  side). The swing-twist decomposition couples a few degrees of apparent
+ *  rotation off-neutral, but the WORLD motion is a clean lateral swing (knee
+ *  travels in X, zero anterior/posterior). */
+function ballAbductDelta(deg: number): THREE.Quaternion {
+  const f = deg * RAD;
+  const swung = new THREE.Vector3(Math.sin(f), -Math.cos(f), 0);
+  return new THREE.Quaternion().setFromUnitVectors(REST_DOWN, swung);
+}
+
+/** CANONICAL-frame TWIST about a ball joint's rest long axis (hip int/ext
+ *  rotation): pure rotation about (0,−1,0). Rig-verified: readback hipRotation
+ *  == commanded within ±1° (the readout twist sign is opposite the geometric
+ *  twist on the left and same on the right, so the specs pass ∓deg). Small
+ *  abduction coupling off-neutral; the twist itself is exact. */
+function ballTwistDelta(deg: number): THREE.Quaternion {
+  return new THREE.Quaternion().setFromAxisAngle(REST_DOWN, deg * RAD);
+}
+
 interface SupportedMotionSpec {
   /** Delta quaternion realizing a clinical target (deg, registry
    *  convention) from the anatomic-rest local quaternion. */
@@ -303,6 +326,17 @@ interface SupportedMotionSpec {
  *     Clavicle-Z ≈ world +Z (the true abduction axis) is perpendicular to the
  *     readout's long axis, so it decomposes as a clean swing (L +deg, R −deg).
  *
+ *  v1.4 EXPANSION — HIP frontal + transverse (L/R_UpLeg), rig-verified:
+ *   - hipAbduction: rest-frame FRONTAL swing (ballAbductDelta). One signed field,
+ *     + = abduction / − = adduction; the readout mirrors on the right so the right
+ *     spec swings toward −X. World motion is a clean lateral knee swing.
+ *   - hipRotation: rest-frame TWIST about the long axis (ballTwistDelta). + = internal
+ *     / − = external; the readout twist sign flips on the left, matches on the right.
+ *   Main-axis readback is exact (±1°); as a swing-twist ball joint the off-neutral
+ *   decomposition couples a few degrees into the other two planes (≤~5° at 30°) —
+ *   an inherent readout artifact, not a world-motion error, and the graded axis is
+ *   exact. (Hip flexion/extension shipped in v1.3.)
+ *
  *  SHOULDER FLEXION (L/R_UpperArm.shoulderFlexion) remains deliberately NOT
  *  shipped: true forward flexion rotates about the clavicle-Y axis, which IS the
  *  swing-twist readout's long axis (0,−1,0) — so any world-correct raise is
@@ -331,6 +365,33 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   };
   const elbow: SupportedMotionSpec = {
     buildDelta: (deg) => ballFlexDelta(deg),
+    compose: 'rest',
+    fromReport: (deg) => deg,
+  };
+  // Hip abduction/adduction (v1.4): rest-frame frontal swing. One signed field —
+  // + = abduction (away from midline), − = adduction. The readout mirrors on the
+  // right, so the right spec swings toward −X (pass −deg) to abduct on its side.
+  const hipAbdL: SupportedMotionSpec = {
+    buildDelta: (deg) => ballAbductDelta(deg),
+    compose: 'rest',
+    fromReport: (deg) => deg,
+  };
+  const hipAbdR: SupportedMotionSpec = {
+    buildDelta: (deg) => ballAbductDelta(-deg),
+    compose: 'rest',
+    fromReport: (deg) => deg,
+  };
+  // Hip internal/external rotation (v1.4): rest-frame twist about the long axis.
+  // + = internal rotation, − = external. The readout twist sign is flipped on the
+  // left relative to the geometric twist and matched on the right (rig-verified),
+  // so the left spec passes −deg and the right +deg.
+  const hipRotL: SupportedMotionSpec = {
+    buildDelta: (deg) => ballTwistDelta(-deg),
+    compose: 'rest',
+    fromReport: (deg) => deg,
+  };
+  const hipRotR: SupportedMotionSpec = {
+    buildDelta: (deg) => ballTwistDelta(deg),
     compose: 'rest',
     fromReport: (deg) => deg,
   };
@@ -387,8 +448,8 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     R_Foot: { ankleFlexion: ankle },
     L_Leg: { kneeFlexion: knee },
     R_Leg: { kneeFlexion: knee },
-    L_UpLeg: { hipFlexion: hip },
-    R_UpLeg: { hipFlexion: hip },
+    L_UpLeg: { hipFlexion: hip, hipAbduction: hipAbdL, hipRotation: hipRotL },
+    R_UpLeg: { hipFlexion: hip, hipAbduction: hipAbdR, hipRotation: hipRotR },
     L_Forearm: { elbowFlexion: elbow },
     R_Forearm: { elbowFlexion: elbow },
     Spine_Lower: { flexion: lumbar, lateralTilt: lumbarLateral, rotation: lumbarRotation },
