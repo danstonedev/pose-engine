@@ -817,6 +817,15 @@
         requestRender();
       }
 
+      /** True when the stage cannot animate: parked (display:none host overlay
+       *  → offsetParent null) OR the whole tab is background (visibilityState
+       *  'hidden' freezes rAF WITHOUT hiding the element). Either way tweens
+       *  settle instantly and holds skip so command promises never strand. */
+      const stageHidden = () =>
+        !container ||
+        container.offsetParent === null ||
+        (typeof document !== 'undefined' && document.visibilityState === 'hidden');
+
       function tweenTo(
         to: CustomPose | null,
         durationMs: number = TWEEN_MS,
@@ -827,9 +836,9 @@
           activeTween = { from: currentPose, to, start: performance.now(), durationMs, ...(root ? { root } : {}), resolve };
           startLoop();
           requestRender();
-          // Hidden stage: the loop is parked, so settle instantly rather
-          // than stranding the command promise until the stage is shown.
-          if (!container || container.offsetParent === null) finishTween();
+          // Hidden stage / background tab: the loop is parked (or rAF frozen),
+          // so settle instantly rather than stranding the command promise.
+          if (stageHidden()) finishTween();
         });
       }
 
@@ -947,7 +956,7 @@
         if (resolved.startFrom === 'neutral') resetRootToRest();
         const measurements: ComposedMotionPlaybackResult['measurements'] = [];
         const finalAngles: Record<string, number> = {};
-        const hidden = () => !container || container.offsetParent === null;
+        const hidden = stageHidden;
         const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
         let lastReport: JointAngleReport | null = null;
         // Root tween runs from the current composed root state, advancing per keyframe.
@@ -1029,11 +1038,19 @@
           })();
           return { status: 'playing', ...base };
         }
-        // One-shot (or superseded): settle, lift the overlays.
-        if (token === composedSeq) {
-          composedActive = false;
-          setMotionOverlaysImpl?.(null);
+        if (token !== composedSeq) {
+          // Superseded mid-play (a newer command / variant switch / unmount):
+          // answer honestly with only the keyframes that settled, so the host
+          // never narrates a partial motion as complete.
+          return {
+            status: 'interrupted',
+            reason: disposed ? 'stage-disposed' : 'superseded',
+            ...base,
+          };
         }
+        // One-shot: settle, lift the overlays.
+        composedActive = false;
+        setMotionOverlaysImpl?.(null);
         return { status: 'completed', ...base };
       };
 
@@ -1117,7 +1134,7 @@
         // Hidden stage: the loop is parked, so a looping motion can't animate —
         // report 'playing' immediately; a one-shot can't reach 'finished', so
         // sample its final frame and settle synchronously.
-        const hidden = !container || container.offsetParent === null;
+        const hidden = stageHidden();
         if (loop === 'repeat') {
           return { status: 'playing', ...outcomeBase };
         }
@@ -1300,6 +1317,29 @@
       };
       startLoop();
 
+      // Background tab: visibilityState 'hidden' freezes rAF WITHOUT hiding
+      // the element (offsetParent stays non-null), so an in-flight tween
+      // would strand its command promise until refocus. Mirror the parked-
+      // stage branch: finish the active tween instantly and resolve any
+      // awaiting one-shot clip; holds skip via stageHidden().
+      const onVisibilityChange = () => {
+        if (document.visibilityState !== 'hidden') {
+          startLoop();
+          requestRender();
+          return;
+        }
+        if (activeTween) finishTween();
+        if (mixer && activeMotionId && motionAction && motionFinishResolve) {
+          mixer.setTime(motionAction.getClip().duration / Math.max(motionAction.timeScale, 1e-3));
+          modelRoot?.updateMatrixWorld(true);
+          const r = motionFinishResolve;
+          motionFinishResolve = null;
+          activeMotionId = null;
+          r();
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibilityChange);
+
       const resize = () => {
         const w = container.clientWidth;
         const h = container.clientHeight;
@@ -1323,6 +1363,7 @@
         runMotionImpl = null;
         runComposedImpl = null;
         cancelAnimationFrame(raf);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
         ro.disconnect();
         controls.removeEventListener('change', requestRender);
         disposeModel();

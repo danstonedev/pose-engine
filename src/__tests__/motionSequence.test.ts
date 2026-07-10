@@ -37,6 +37,7 @@ import { measureCommandMotion } from '../services/movementCommand';
 import {
   MAX_ANGULAR_VELOCITY_DEG_S,
   MAX_KEYFRAMES,
+  MAX_KEYFRAME_MS,
   MAX_TARGETS_PER_KEYFRAME,
   MIN_KEYFRAME_MS,
   buildSequencePoses,
@@ -137,6 +138,47 @@ describe('resolveComposedMotion', () => {
     expect(r.keyframes[0]!.durationMs).toBe(1000);
     expect(r.keyframes[1]!.durationMs).toBe(MIN_KEYFRAME_MS);
     expect(r.keyframes[1]!.timingAdjusted).toBe(true);
+  });
+
+  it('caps an unbounded durationMs at MAX_KEYFRAME_MS and flags timingAdjusted (H1 stage-DoS guard)', () => {
+    // 1e12 ms would freeze a host's serialized command chain forever.
+    const r = resolveComposedMotion(
+      { keyframes: [kf([{ joint: 'R_Leg', motion: 'kneeFlexion', deg: 90 }], 1e12)] },
+      variantCfg,
+    );
+    expect(r.status).toBe('ok');
+    expect(MAX_KEYFRAME_MS).toBe(10_000);
+    expect(r.keyframes[0]!.durationMs).toBe(MAX_KEYFRAME_MS);
+    expect(r.keyframes[0]!.timingAdjusted).toBe(true);
+  });
+
+  it('velocity floor still wins over a too-short request but never exceeds the cap', () => {
+    // 90° in 200ms → floor raises to 375ms; well under the cap, so the floor rules.
+    const r = resolveComposedMotion(
+      { keyframes: [kf([{ joint: 'R_Leg', motion: 'kneeFlexion', deg: 90 }], 200)] },
+      variantCfg,
+    );
+    expect(r.keyframes[0]!.durationMs).toBe(375);
+    expect(r.keyframes[0]!.durationMs).toBeLessThanOrEqual(MAX_KEYFRAME_MS);
+    expect(r.keyframes[0]!.timingAdjusted).toBe(true);
+    // A sane in-range request is untouched (no over-eager capping).
+    const ok = resolveComposedMotion(
+      { keyframes: [kf([{ joint: 'R_Leg', motion: 'kneeFlexion', deg: 90 }], 2000, 500)] },
+      variantCfg,
+    );
+    expect(ok.keyframes[0]!.durationMs).toBe(2000);
+    expect(ok.keyframes[0]!.holdMs).toBe(500);
+    expect(ok.keyframes[0]!.timingAdjusted).toBeUndefined();
+  });
+
+  it('clamps holdMs engine-side to MAX_KEYFRAME_MS (H1)', () => {
+    const r = resolveComposedMotion(
+      { keyframes: [kf([{ joint: 'R_Leg', motion: 'kneeFlexion', deg: 90 }], 1000, 1e12)] },
+      variantCfg,
+    );
+    expect(r.status).toBe('ok');
+    expect(r.keyframes[0]!.holdMs).toBe(MAX_KEYFRAME_MS);
+    expect(r.keyframes[0]!.timingAdjusted).toBe(true);
   });
 
   it('enforces the minimum keyframe duration even for tiny travels', () => {
