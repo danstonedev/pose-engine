@@ -59,6 +59,13 @@ export * from './services/motionPrescription';
 // single commands, realistic-velocity timing, and keyframe pose folding.
 export * from './services/motionSequence';
 
+// Motion recording (simMOVE) — the shared composed-tween easing, the offline
+// deterministic sampler (replays the stage's exact interpolation headlessly,
+// measuring computeJointAngles per frame), pure timeline edit ops (trim /
+// split / bake-frame-edit / rename / concat / compact), and the kinematic
+// export (angle + velocity series, trajectories, speeds, summaries, CSV).
+export * from './services/motionRecording';
+
 // Root motion (simMOVE full-body layer) — whole-body posture (orient), travel
 // (translate), and the PLANTED closed-chain foot-pin, all on the MODEL ROOT so
 // no clinical joint readout is disturbed. Pairs with motionSequence's per-

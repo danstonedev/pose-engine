@@ -61,6 +61,11 @@
     MotionCommand,
     MotionCommandOutcome,
   } from './services/motionCommand';
+  import type {
+    MotionRecording,
+    MotionRecordingSourceKind,
+    RecordedFrame,
+  } from './services/motionRecording';
   import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
 
   let {
@@ -252,6 +257,61 @@
     setMotionRomCapsImpl?.(keys);
   }
 
+  // ── Motion recording tap ─────────────────────────────────────────────────
+  // Samples the LIVE stage into a MotionRecording while active — works across
+  // composed playback, clip playback, exam commands, and idle manual time.
+  // Negligible overhead when not recording (one null check per rAF frame).
+  let startRecordingImpl:
+    | ((opts?: {
+        sampleHz?: number;
+        name?: string;
+        sourceKind?: MotionRecordingSourceKind;
+        sourceName?: string;
+      }) => void)
+    | null = null;
+  let stopRecordingImpl: (() => MotionRecording | null) | null = null;
+  let showRecordedFrameImpl: ((frame: RecordedFrame) => void) | null = null;
+  let captureFrameImpl: (() => RecordedFrame | null) | null = null;
+
+  /**
+   * Start sampling the live stage into a recording at `sampleHz` (default 30):
+   * per sample it serializes the current pose, MEASURES computeJointAngles,
+   * captures the model-root transform, and tracks the default bone set's world
+   * positions. Reuses the motionReportHz throttling pattern inside the
+   * existing rAF loop — no second loop. A second call restarts the recording.
+   */
+  export function startRecording(opts?: {
+    sampleHz?: number;
+    name?: string;
+    sourceKind?: MotionRecordingSourceKind;
+    sourceName?: string;
+  }): void {
+    startRecordingImpl?.(opts);
+  }
+
+  /** Stop sampling and return the captured recording (null when the stage
+   *  never booted / nothing was recording). */
+  export function stopRecording(): MotionRecording | null {
+    return stopRecordingImpl?.() ?? null;
+  }
+
+  /**
+   * Show one recorded frame on the stage (timeline scrubbing): cancels any
+   * active motion, applies the frame's pose + root transform verbatim, updates
+   * pose/root continuity state, and reports the measured angles. Subsequent
+   * exam commands fine-tune FROM this frame (ROM-clamped as always).
+   */
+  export function showRecordedFrame(frame: RecordedFrame): void {
+    showRecordedFrameImpl?.(frame);
+  }
+
+  /** One-off capture of the CURRENT stage state as a RecordedFrame (pose +
+   *  measured angles + root + tracked-bone world positions) at tMs 0 — the
+   *  hosts' "bake this hand-tuned pose into the timeline" source. */
+  export function captureFrame(): RecordedFrame | null {
+    return captureFrameImpl?.() ?? null;
+  }
+
   /**
    * Set additive clinical overlays applied per frame during motion (L2, Build D).
    * `guarding` (0..1) stiffens the trunk and arms toward neutral — reduced
@@ -299,6 +359,9 @@
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
       const { buildSequencePoses } = await import('./services/motionSequence');
+      const { composedTweenEase, DEFAULT_TRACKED_BONES } = await import(
+        './services/motionRecording'
+      );
       const { captureFloorReference, pinRootToFloor, rotateRestReferenceByRoot } = await import(
         './services/rootMotion'
       );
@@ -737,8 +800,10 @@
 
       // ── Command tween (runs INSIDE the existing rAF loop) ──────────────
       const TWEEN_MS = 600;
-      const easeInOutCubic = (t: number) =>
-        t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      // THE shared composed-tween easing (services/motionRecording) — the
+      // offline sampler replays this exact curve, so stage playback and
+      // headless sampling cannot diverge.
+      const easeInOutCubic = composedTweenEase;
 
       interface RootTweenTarget {
         fromQuat: [number, number, number, number];
@@ -867,6 +932,115 @@
           activeRestRef() ?? restRef,
         );
       }
+
+      // ── Motion recording tap (samples inside the existing rAF loop) ────
+      interface ActiveRecording {
+        sampleHz: number;
+        name: string;
+        sourceKind: MotionRecordingSourceKind;
+        sourceName?: string;
+        startT: number;
+        lastSample: number;
+        frames: RecordedFrame[];
+      }
+      let recording: ActiveRecording | null = null;
+      const _recPos = new THREE.Vector3();
+      const _recQ = new THREE.Quaternion();
+
+      /** Build one frame from the live stage (pose + measured angles + root +
+       *  tracked-bone world positions). Forces a matrix refresh so idle-time
+       *  sampling (no motion playing) still measures fresh. */
+      function buildFrameNow(tMs: number): RecordedFrame | null {
+        if (!skinnedRef || !variantCfgRef || !restRef || !modelRoot) return null;
+        modelRoot.updateMatrixWorld(true);
+        const report = measureNowFresh();
+        if (!report) return null;
+        const angles: Record<string, Record<string, number>> = {};
+        for (const [j, set] of Object.entries(report.joints)) angles[j] = { ...set };
+        // Composed root state relative to the grounded rest transform (the
+        // inverse of applyRootState); translate INCLUDES any planted pin.
+        _recQ.copy(rootRestQuat).invert().multiply(modelRoot.quaternion);
+        const worldTracks: Record<string, [number, number, number]> = {};
+        if (motionCapBones) {
+          for (const key of DEFAULT_TRACKED_BONES) {
+            const bone = motionCapBones.get(key);
+            if (!bone) continue;
+            bone.getWorldPosition(_recPos);
+            worldTracks[key] = [_recPos.x, _recPos.y, _recPos.z];
+          }
+        }
+        return {
+          tMs: Math.max(0, tMs),
+          pose: serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id),
+          angles,
+          root: {
+            orientQuat: [_recQ.x, _recQ.y, _recQ.z, _recQ.w],
+            translateM: [
+              modelRoot.position.x - rootRestPos.x,
+              modelRoot.position.y - rootRestPos.y,
+              modelRoot.position.z - rootRestPos.z,
+            ],
+          },
+          worldTracks,
+        };
+      }
+
+      function captureRecordingFrame(rec: ActiveRecording, nowMs: number): void {
+        const frame = buildFrameNow(nowMs - rec.startT);
+        if (frame) rec.frames.push(frame);
+      }
+
+      captureFrameImpl = () => buildFrameNow(0);
+
+      startRecordingImpl = (opts) => {
+        const now = performance.now();
+        recording = {
+          sampleHz: Math.max(1, Math.min(120, opts?.sampleHz ?? 30)),
+          name: opts?.name ?? 'recording',
+          sourceKind: opts?.sourceKind ?? 'manual',
+          ...(opts?.sourceName ? { sourceName: opts.sourceName } : {}),
+          startT: now,
+          lastSample: now,
+          frames: [],
+        };
+        captureRecordingFrame(recording, now); // frame 0 — the starting pose
+        startLoop();
+      };
+
+      stopRecordingImpl = () => {
+        const rec = recording;
+        recording = null;
+        if (!rec) return null;
+        // Final frame at stop time so the settle pose is always captured.
+        captureRecordingFrame(rec, performance.now());
+        return {
+          id: `rec-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+          name: rec.name,
+          variant: variantCfgRef?.id ?? '',
+          sourceKind: rec.sourceKind,
+          ...(rec.sourceName ? { sourceName: rec.sourceName } : {}),
+          sampleHz: rec.sampleHz,
+          frames: rec.frames,
+          createdAtIso: new Date().toISOString(),
+        };
+      };
+
+      showRecordedFrameImpl = (frame: RecordedFrame) => {
+        if (!skinnedRef || !variantCfgRef) return;
+        // Scrubbing owns the skeleton: cancel any motion / composed / tween.
+        cancelComposed();
+        if (activeMotionId) stopMotion();
+        if (activeTween) finishTween();
+        applyCustomPose(skinnedRef.skeleton, variantCfgRef, frame.pose);
+        currentPose = frame.pose;
+        composedRootQuat = [...frame.root.orientQuat];
+        composedRootTranslate = [...frame.root.translateM];
+        applyRootState(frame.root.orientQuat, frame.root.translateM);
+        requestRender();
+        startLoop();
+        const report = measureNow();
+        if (report) onReport?.(report);
+      };
 
       runCommandImpl = async (cmd: ExamMovementCommand): Promise<ExamMovementOutcome> => {
         if (disposed || !skinnedRef || !variantCfgRef || !restRef || !baselinePoseRef) {
@@ -1306,6 +1480,17 @@
             }
           }
         }
+        // Motion-recording tap: while active, sample at the requested rate
+        // regardless of what drives the skeleton (clip, exam tween, composed
+        // playback, or idle manual time). Same throttle pattern as the
+        // motionReportHz streaming above; a single null check when inactive.
+        if (recording) {
+          const nowMs = performance.now();
+          if (nowMs - recording.lastSample >= 1000 / recording.sampleHz - 4) {
+            recording.lastSample = nowMs;
+            captureRecordingFrame(recording, nowMs);
+          }
+        }
         if (!renderNeeded) return;
         renderer.render(scene, camera);
         renderNeeded = false;
@@ -1362,6 +1547,10 @@
         runCommandImpl = null;
         runMotionImpl = null;
         runComposedImpl = null;
+        startRecordingImpl = null;
+        stopRecordingImpl = null;
+        showRecordedFrameImpl = null;
+        captureFrameImpl = null;
         cancelAnimationFrame(raf);
         document.removeEventListener('visibilitychange', onVisibilityChange);
         ro.disconnect();

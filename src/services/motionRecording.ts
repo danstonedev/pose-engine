@@ -1,0 +1,853 @@
+/**
+ * Motion recording + timeline editing + kinematic export (simMOVE).
+ *
+ * Three pure, headless-testable layers over the composed-motion machinery:
+ *
+ * 1. OFFLINE SAMPLER — {@link sampleComposedMotion} replays a resolved
+ *    composed motion through the SAME per-keyframe interpolation the stage
+ *    uses ({@link composedTweenEase} + blendCustomPoseWithBaseline + the
+ *    root slerp/lerp + the planted foot-pin), applying each sampled pose to
+ *    a headless skeleton and MEASURING computeJointAngles per frame. The
+ *    easing lives HERE and ExamStage3D imports it, so stage playback and
+ *    offline sampling cannot diverge. Deterministic: same input → an
+ *    identical recording — which is what makes AI cross-checking instant
+ *    (no visual playback needed).
+ *
+ * 2. EDIT OPERATIONS — trim / split / bake-a-frame-edit / rename / concat,
+ *    all pure and non-mutating (they return new recordings).
+ *
+ * 3. KINEMATIC EXPORT — {@link exportKinematics} turns a recording into a
+ *    JSON-serializable dataset (angle-vs-time series, angular velocities,
+ *    world trajectories, speeds, per-joint and per-bone summaries) whose
+ *    field meanings are documented INSIDE the export (`schema`), so a second
+ *    AI can interpret it without side-channel docs. {@link exportKinematicsCsv}
+ *    is the compact spreadsheet twin.
+ *
+ * Pure THREE on plain data / live skeletons — no Svelte, no DOM.
+ */
+import * as THREE from 'three';
+import type { BodyVariantConfig } from '../anatomy/bodyVariants';
+import type { CustomPose } from '../types';
+import {
+  computeJointAngles,
+  type JointAngleRestReference,
+} from './jointAngles';
+import {
+  applyCustomPose,
+  blendCustomPose,
+  blendCustomPoseWithBaseline,
+  buildBoneByPoseKey,
+} from './poseRig';
+import {
+  buildSequencePoses,
+  type ResolvedComposedMotion,
+} from './motionSequence';
+import {
+  captureFloorReference,
+  pinRootToFloor,
+  rotateRestReferenceByRoot,
+} from './rootMotion';
+
+// ── Shared easing (the ONE tween curve stage + sampler use) ─────────────────
+
+/**
+ * The composed-motion tween easing — ease-in-out cubic. ExamStage3D's pose
+ * tween imports THIS function, and the offline sampler replays it, so a
+ * recording sampled headlessly is frame-for-frame what the stage would show.
+ */
+export function composedTweenEase(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/** The default exam-command tween duration, ms (mirrors ExamStage3D). */
+export const COMMAND_TWEEN_MS = 600;
+
+// ── Recording types ──────────────────────────────────────────────────────────
+
+/** One sampled frame: the pose on the skeleton, the MEASURED clinical angles,
+ *  the whole-body root state, and (optionally) tracked-bone world positions. */
+export interface RecordedFrame {
+  /** Time since recording start, ms. */
+  tMs: number;
+  /** The full CustomPose on the skeleton at this instant. */
+  pose: CustomPose;
+  /** MEASURED clinical joint angles (computeJointAngles().joints — degrees,
+   *  engine sign convention), keyed joint → motion field. */
+  angles: Record<string, Record<string, number>>;
+  /** Model-root state relative to its grounded rest transform: orientation
+   *  quaternion [x,y,z,w] (identity = upright) and translation in meters
+   *  (INCLUDES any planted foot-pin Y shift — the honest world position). */
+  root: { orientQuat: [number, number, number, number]; translateM: [number, number, number] };
+  /** World positions (meters) of the tracked bone set, keyed by canonical
+   *  bone key (default pelvis/head/hands/feet). */
+  worldTracks?: Record<string, [number, number, number]>;
+}
+
+export type MotionRecordingSourceKind = 'composed' | 'clip' | 'command' | 'manual';
+
+/** A captured movement: uniformly-sampled frames plus provenance. */
+export interface MotionRecording {
+  id: string;
+  name: string;
+  variant: string;
+  sourceKind: MotionRecordingSourceKind;
+  /** Human label of the source motion (composed-motion name / clip id). */
+  sourceName?: string;
+  sampleHz: number;
+  frames: RecordedFrame[];
+  /** Caller-stamped creation time (the pure layer never reads the clock). */
+  createdAtIso?: string;
+}
+
+/** Canonical bones tracked by default (world trajectories). */
+export const DEFAULT_TRACKED_BONES = [
+  'Hips',
+  'Head',
+  'L_Hand',
+  'R_Hand',
+  'L_Foot',
+  'R_Foot',
+] as const;
+
+/** Total duration of a recording, ms (last frame's timestamp). */
+export function recordingDurationMs(rec: MotionRecording): number {
+  return rec.frames.length ? rec.frames[rec.frames.length - 1]!.tMs : 0;
+}
+
+// ── Internal helpers ─────────────────────────────────────────────────────────
+
+/** Deterministic FNV-1a hash of a string, hex. */
+function fnv(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h.toString(16);
+}
+
+function copyAngles(
+  joints: Record<string, Record<string, number>>,
+): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const [j, set] of Object.entries(joints)) out[j] = { ...set };
+  return out;
+}
+
+function copyFrame(f: RecordedFrame, tMs: number): RecordedFrame {
+  return {
+    tMs,
+    pose: f.pose,
+    angles: f.angles,
+    root: {
+      orientQuat: [...f.root.orientQuat],
+      translateM: [...f.root.translateM],
+    },
+    ...(f.worldTracks ? { worldTracks: f.worldTracks } : {}),
+  };
+}
+
+const QUAT_IDENTITY: [number, number, number, number] = [0, 0, 0, 1];
+const isIdentityQuat = (q: [number, number, number, number]) =>
+  Math.abs(q[0]) < 1e-6 && Math.abs(q[1]) < 1e-6 && Math.abs(q[2]) < 1e-6;
+
+// ── 1. Offline sampler ───────────────────────────────────────────────────────
+
+/** The headless rig the sampler drives — the SAME objects the stage holds. */
+export interface SkeletonSampleHarness {
+  /** Model root (the GLB scene) — the sampler rides root orient/translate on
+   *  it, treating its transform AT CALL TIME as the grounded rest transform. */
+  root: THREE.Object3D;
+  /** The skinned mesh whose skeleton is posed + measured. */
+  skinned: THREE.SkinnedMesh;
+}
+
+export interface SampleComposedOptions {
+  /** Full-skeleton anatomic-rest pose (same contract as buildSequencePoses). */
+  baselinePose: CustomPose;
+  variantCfg: BodyVariantConfig;
+  /** Rest reference captured at anatomic (required for shoulder elevation). */
+  rest: JointAngleRestReference;
+  skeletonHarness: SkeletonSampleHarness;
+  /** Samples per second (default 30, clamped 1..120). */
+  sampleHz?: number;
+  /** Canonical keys whose world positions are tracked per frame. */
+  trackedBones?: readonly string[];
+  /** Recording label (defaults to the motion's name). */
+  name?: string;
+  sourceKind?: MotionRecordingSourceKind;
+  sourceName?: string;
+  /** Continuity seeds — the pose/root the body is currently in (mirrors the
+   *  stage's cross-motion continuity). Omit to sample from anatomic rest. */
+  currentPose?: CustomPose | null;
+  currentRoot?: {
+    quat?: [number, number, number, number];
+    translateM?: [number, number, number];
+  } | null;
+}
+
+interface SampleSegment {
+  kind: 'travel' | 'hold';
+  fromPose: CustomPose;
+  toPose: CustomPose;
+  fromQuat: [number, number, number, number];
+  toQuat: [number, number, number, number];
+  fromTranslate: [number, number, number];
+  toTranslate: [number, number, number];
+  planted: boolean;
+  durMs: number;
+}
+
+const _sq = new THREE.Quaternion();
+const _sqB = new THREE.Quaternion();
+const _sv = new THREE.Vector3();
+const _svB = new THREE.Vector3();
+
+/**
+ * Offline-sample a RESOLVED composed motion: replay the exact per-keyframe
+ * easing/tween interpolation, holds, root transforms (slerp/lerp + planted
+ * foot-pin) the stage plays, applying each sampled pose to the headless
+ * skeleton and measuring {@link computeJointAngles} per frame.
+ *
+ * Deterministic — same input produces a deep-equal recording (the id is a
+ * content hash; `createdAtIso` is intentionally NOT stamped here).
+ * The harness is left at the final frame's state.
+ */
+export function sampleComposedMotion(
+  resolved: ResolvedComposedMotion,
+  opts: SampleComposedOptions,
+): MotionRecording {
+  const { baselinePose, variantCfg, rest, skeletonHarness } = opts;
+  const { root, skinned } = skeletonHarness;
+  const hz = Math.max(1, Math.min(120, opts.sampleHz ?? 30));
+  const tracked = opts.trackedBones ?? DEFAULT_TRACKED_BONES;
+  const name = opts.name ?? resolved.name ?? 'recording';
+
+  const empty = (): MotionRecording => ({
+    id: `rec-${fnv(name + hz)}`,
+    name,
+    variant: variantCfg.id,
+    sourceKind: opts.sourceKind ?? 'composed',
+    ...(opts.sourceName ?? resolved.name ? { sourceName: opts.sourceName ?? resolved.name } : {}),
+    sampleHz: hz,
+    frames: [],
+  });
+  if (resolved.status !== 'ok' || resolved.keyframes.length === 0) return empty();
+
+  // The harness transform at call time IS the grounded rest transform the
+  // composed root state rides on (mirrors the stage's rootRestPos/Quat).
+  const rootRestPos = root.position.clone();
+  const rootRestQuat = root.quaternion.clone();
+
+  // Floor reference is captured at anatomic rest (upright, baseline pose) —
+  // same as the stage capturing it right after boot grounding.
+  applyCustomPose(skinned.skeleton, variantCfg, baselinePose);
+  root.updateMatrixWorld(true);
+  const floorRef = captureFloorReference(skinned.skeleton, variantCfg);
+
+  const built = buildSequencePoses(baselinePose, resolved, variantCfg, rest, {
+    currentPose: opts.currentPose ?? null,
+    currentRoot: opts.currentRoot ?? null,
+  });
+
+  const timeScale = Math.min(1.5, Math.max(0.4, resolved.modifiers?.timeScale ?? 1));
+  const startNeutral = resolved.startFrom === 'neutral';
+  let prevPose: CustomPose =
+    startNeutral ? baselinePose : opts.currentPose ?? baselinePose;
+  let prevQuat: [number, number, number, number] =
+    !startNeutral && opts.currentRoot?.quat ? [...opts.currentRoot.quat] : [...QUAT_IDENTITY];
+  let prevTranslate: [number, number, number] =
+    !startNeutral && opts.currentRoot?.translateM ? [...opts.currentRoot.translateM] : [0, 0, 0];
+
+  const segments: SampleSegment[] = [];
+  for (let i = 0; i < built.poses.length; i += 1) {
+    const rs = built.roots[i]!;
+    const toPose = built.poses[i]!;
+    segments.push({
+      kind: 'travel',
+      fromPose: prevPose,
+      toPose,
+      fromQuat: prevQuat,
+      toQuat: rs.quat,
+      fromTranslate: prevTranslate,
+      toTranslate: rs.translateM,
+      planted: rs.stance === 'planted',
+      durMs: built.durationsMs[i]! / timeScale,
+    });
+    const holdMs = Math.min((built.holdsMs[i] ?? 0) / timeScale, 10_000);
+    if (holdMs > 0) {
+      segments.push({
+        kind: 'hold',
+        fromPose: toPose,
+        toPose,
+        fromQuat: rs.quat,
+        toQuat: rs.quat,
+        fromTranslate: rs.translateM,
+        toTranslate: rs.translateM,
+        planted: rs.stance === 'planted',
+        durMs: holdMs,
+      });
+    }
+    prevPose = toPose;
+    prevQuat = rs.quat;
+    prevTranslate = rs.translateM;
+  }
+
+  const totalMs = segments.reduce((s, seg) => s + seg.durMs, 0);
+  const dtMs = 1000 / hz;
+  const boneByKey = buildBoneByPoseKey(skinned.skeleton, variantCfg);
+
+  /** Sample the rig at absolute time t and read back one frame. */
+  const sampleAt = (tMs: number): RecordedFrame => {
+    // Locate the segment containing t.
+    let segStart = 0;
+    let seg = segments[segments.length - 1]!;
+    let local = 1;
+    for (const s of segments) {
+      if (tMs <= segStart + s.durMs || s === segments[segments.length - 1]) {
+        seg = s;
+        local = s.durMs > 0 ? Math.min(1, Math.max(0, (tMs - segStart) / s.durMs)) : 1;
+        break;
+      }
+      segStart += s.durMs;
+    }
+    const eased = seg.kind === 'hold' ? 1 : composedTweenEase(local);
+
+    // Pose — the exact blend the stage's stepTween applies.
+    const pose =
+      blendCustomPoseWithBaseline(seg.fromPose, seg.toPose, baselinePose, eased) ?? baselinePose;
+    applyCustomPose(skinned.skeleton, variantCfg, pose);
+
+    // Root — slerp orient / lerp translate at the SAME eased parameter,
+    // then (planted) pin the deepest foot back to floor level.
+    _sq.set(seg.fromQuat[0], seg.fromQuat[1], seg.fromQuat[2], seg.fromQuat[3]);
+    _sqB.set(seg.toQuat[0], seg.toQuat[1], seg.toQuat[2], seg.toQuat[3]);
+    _sq.slerp(_sqB, eased);
+    _sv
+      .set(seg.fromTranslate[0], seg.fromTranslate[1], seg.fromTranslate[2])
+      .lerp(_svB.set(seg.toTranslate[0], seg.toTranslate[1], seg.toTranslate[2]), eased);
+    root.quaternion.copy(rootRestQuat).multiply(_sq);
+    root.position.set(rootRestPos.x + _sv.x, rootRestPos.y + _sv.y, rootRestPos.z + _sv.z);
+    root.updateMatrixWorld(true);
+    if (seg.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+
+    // Measure against the (possibly reoriented) rest reference — same as the
+    // stage's activeRestRef().
+    const orientQuat: [number, number, number, number] = [_sq.x, _sq.y, _sq.z, _sq.w];
+    const measureRest = isIdentityQuat(orientQuat)
+      ? rest
+      : rotateRestReferenceByRoot(
+          rest,
+          _sqB.copy(root.quaternion).multiply(_sq.copy(rootRestQuat).invert()),
+        );
+    const report = computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, measureRest);
+
+    const worldTracks: Record<string, [number, number, number]> = {};
+    for (const key of tracked) {
+      const bone = boneByKey.get(key);
+      if (!bone) continue;
+      bone.getWorldPosition(_sv);
+      worldTracks[key] = [_sv.x, _sv.y, _sv.z];
+    }
+
+    return {
+      tMs,
+      pose,
+      angles: copyAngles(report.joints as Record<string, Record<string, number>>),
+      root: {
+        orientQuat,
+        translateM: [
+          root.position.x - rootRestPos.x,
+          root.position.y - rootRestPos.y,
+          root.position.z - rootRestPos.z,
+        ],
+      },
+      worldTracks,
+    };
+  };
+
+  const frames: RecordedFrame[] = [];
+  const steps = Math.floor(totalMs / dtMs + 1e-6);
+  for (let k = 0; k <= steps; k += 1) frames.push(sampleAt(k * dtMs));
+  if (steps * dtMs < totalMs - 1e-3) frames.push(sampleAt(totalMs));
+
+  return {
+    id: `rec-${fnv(JSON.stringify(resolved) + '|' + hz + '|' + variantCfg.id + '|' + name)}`,
+    name,
+    variant: variantCfg.id,
+    sourceKind: opts.sourceKind ?? 'composed',
+    ...(opts.sourceName ?? resolved.name ? { sourceName: opts.sourceName ?? resolved.name } : {}),
+    sampleHz: hz,
+    frames,
+  };
+}
+
+// ── 2. Edit operations (pure, non-mutating) ─────────────────────────────────
+
+/** Keep only the frames within [startMs, endMs] and re-zero timestamps. */
+export function trimRecording(
+  rec: MotionRecording,
+  startMs: number,
+  endMs: number,
+): MotionRecording {
+  const lo = Math.min(startMs, endMs);
+  const hi = Math.max(startMs, endMs);
+  const kept = rec.frames.filter((f) => f.tMs >= lo - 1e-6 && f.tMs <= hi + 1e-6);
+  const zero = kept.length ? kept[0]!.tMs : 0;
+  return { ...rec, frames: kept.map((f) => copyFrame(f, f.tMs - zero)) };
+}
+
+/** Split at the playhead into two re-zeroed clips. The frame nearest `atMs`
+ *  becomes the last frame of A AND the first frame of B (a clean seam). */
+export function splitRecording(
+  rec: MotionRecording,
+  atMs: number,
+): [MotionRecording, MotionRecording] {
+  if (rec.frames.length < 2) {
+    return [
+      { ...rec, id: `${rec.id}-a`, name: `${rec.name} · 1`, frames: rec.frames.map((f) => copyFrame(f, f.tMs)) },
+      { ...rec, id: `${rec.id}-b`, name: `${rec.name} · 2`, frames: [] },
+    ];
+  }
+  let cut = 0;
+  let best = Infinity;
+  for (const [i, f] of rec.frames.entries()) {
+    const d = Math.abs(f.tMs - atMs);
+    if (d < best) {
+      best = d;
+      cut = i;
+    }
+  }
+  cut = Math.max(0, Math.min(rec.frames.length - 1, cut));
+  const aFrames = rec.frames.slice(0, cut + 1);
+  const bFrames = rec.frames.slice(cut);
+  const bZero = bFrames[0]!.tMs;
+  return [
+    { ...rec, id: `${rec.id}-a`, name: `${rec.name} · 1`, frames: aFrames.map((f) => copyFrame(f, f.tMs)) },
+    { ...rec, id: `${rec.id}-b`, name: `${rec.name} · 2`, frames: bFrames.map((f) => copyFrame(f, f.tMs - bZero)) },
+  ];
+}
+
+export interface BakeFrameEditOptions {
+  /** Blend half-window, ms — neighbors within ±blendMs receive a linearly
+   *  falling share of the edit so it doesn't pop. Default 300; 0 = only the
+   *  nearest frame is replaced. */
+  blendMs?: number;
+  /** MEASURED angles for the edited pose (from the live stage / a measure
+   *  pass). Used verbatim on the edited frame and blended numerically into
+   *  neighbors when no `measure` fn is supplied. */
+  editedAngles?: Record<string, Record<string, number>>;
+  /** Re-measure a blended pose's clinical angles (caller applies the pose to
+   *  a skeleton and reads computeJointAngles). When supplied it is used for
+   *  the edited frame AND every blended neighbor — the measured truth path. */
+  measure?: (pose: CustomPose) => Record<string, Record<string, number>>;
+}
+
+/** Numeric linear blend of two angle reports (fields present on both sides). */
+function blendAngles(
+  a: Record<string, Record<string, number>>,
+  b: Record<string, Record<string, number>>,
+  t: number,
+): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const [j, setA] of Object.entries(a)) {
+    const setB = b[j];
+    const dst: Record<string, number> = {};
+    for (const [k, va] of Object.entries(setA)) {
+      const vb = setB?.[k];
+      dst[k] = typeof vb === 'number' ? va + (vb - va) * t : va;
+    }
+    out[j] = dst;
+  }
+  return out;
+}
+
+/**
+ * Replace the frame nearest `atMs` with `editedPose` and blend the edit
+ * linearly into neighbors within ±blendMs (weight 1 at the edited frame,
+ * falling to 0 at the window edge) so the bake doesn't pop. Angles are
+ * re-measured via `opts.measure` when supplied, else blended numerically
+ * from `opts.editedAngles`. World tracks of touched frames are retained
+ * as-sampled (an edited pose's trajectories are re-derivable by re-measuring).
+ * Pure — returns a new recording.
+ */
+export function bakeFrameEdit(
+  rec: MotionRecording,
+  atMs: number,
+  editedPose: CustomPose,
+  opts: BakeFrameEditOptions = {},
+): MotionRecording {
+  if (rec.frames.length === 0) return { ...rec, frames: [] };
+  const blendMs = Math.max(0, opts.blendMs ?? 300);
+  let idx = 0;
+  let best = Infinity;
+  for (const [i, f] of rec.frames.entries()) {
+    const d = Math.abs(f.tMs - atMs);
+    if (d < best) {
+      best = d;
+      idx = i;
+    }
+  }
+  const centerT = rec.frames[idx]!.tMs;
+  const editedAngles =
+    opts.measure?.(editedPose) ?? opts.editedAngles ?? rec.frames[idx]!.angles;
+
+  const frames = rec.frames.map((f, i) => {
+    const d = Math.abs(f.tMs - centerT);
+    if (i === idx) {
+      return { ...copyFrame(f, f.tMs), pose: editedPose, angles: editedAngles };
+    }
+    if (blendMs <= 0 || d >= blendMs) return f;
+    const w = 1 - d / blendMs; // 1 at the edit, 0 at the window edge
+    const pose = blendCustomPose(f.pose, editedPose, w) ?? f.pose;
+    const angles = opts.measure
+      ? opts.measure(pose)
+      : blendAngles(f.angles, editedAngles, w);
+    return { ...copyFrame(f, f.tMs), pose, angles };
+  });
+  return { ...rec, frames };
+}
+
+/** Rename (pure). */
+export function renameRecording(rec: MotionRecording, name: string): MotionRecording {
+  return { ...rec, name };
+}
+
+/** Append `b` after `a` (b's frames shifted past a's end by one sample). */
+export function concatRecordings(
+  a: MotionRecording,
+  b: MotionRecording,
+  name?: string,
+): MotionRecording {
+  const offset = recordingDurationMs(a) + 1000 / Math.max(1, a.sampleHz);
+  return {
+    ...a,
+    id: `${a.id}+${b.id}`,
+    name: name ?? `${a.name} + ${b.name}`,
+    frames: [
+      ...a.frames.map((f) => copyFrame(f, f.tMs)),
+      ...b.frames.map((f) => copyFrame(f, f.tMs + offset)),
+    ],
+  };
+}
+
+/** Round every numeric payload (quats/positions/angles/tracks) to `precision`
+ *  decimals — the compact form for explicit library saves (storage quota). */
+export function compactRecording(rec: MotionRecording, precision = 4): MotionRecording {
+  const r = (n: number) => {
+    const p = 10 ** precision;
+    return Math.round(n * p) / p;
+  };
+  const r3 = (a: [number, number, number]): [number, number, number] => [r(a[0]), r(a[1]), r(a[2])];
+  const r4 = (a: [number, number, number, number]): [number, number, number, number] => [
+    r(a[0]),
+    r(a[1]),
+    r(a[2]),
+    r(a[3]),
+  ];
+  return {
+    ...rec,
+    frames: rec.frames.map((f) => ({
+      tMs: r(f.tMs),
+      pose: {
+        variant: f.pose.variant,
+        schemaVersion: f.pose.schemaVersion,
+        bones: Object.fromEntries(Object.entries(f.pose.bones ?? {}).map(([k, q]) => [k, r4(q)])),
+        ...(f.pose.positions
+          ? {
+              positions: Object.fromEntries(
+                Object.entries(f.pose.positions).map(([k, p]) => [k, r3(p)]),
+              ),
+            }
+          : {}),
+      },
+      angles: Object.fromEntries(
+        Object.entries(f.angles).map(([j, set]) => [
+          j,
+          Object.fromEntries(Object.entries(set).map(([k, v]) => [k, r(v)])),
+        ]),
+      ),
+      root: { orientQuat: r4(f.root.orientQuat), translateM: r3(f.root.translateM) },
+      ...(f.worldTracks
+        ? {
+            worldTracks: Object.fromEntries(
+              Object.entries(f.worldTracks).map(([k, p]) => [k, r3(p)]),
+            ),
+          }
+        : {}),
+    })),
+  };
+}
+
+// ── 3. Kinematic export ──────────────────────────────────────────────────────
+
+export interface JointKinematicSummary {
+  peakDeg: number;
+  minDeg: number;
+  excursionDeg: number;
+  peakVelocityDegS: number;
+  /** Timestamp of the peak (max) angle, ms. */
+  timeOfPeakMs: number;
+}
+
+export interface BoneKinematicSummary {
+  pathLengthM: number;
+  peakSpeedMs: number;
+}
+
+export interface KinematicExport {
+  /** Self-describing docs — a second AI reads THIS to interpret the fields. */
+  schema: string;
+  meta: {
+    name: string;
+    id: string;
+    variant: string;
+    sourceKind: MotionRecordingSourceKind;
+    sourceName?: string;
+    sampleHz: number;
+    durationMs: number;
+    frameCount: number;
+    createdAtIso?: string;
+  };
+  /** Frame timestamps, ms (shared x-axis of every series below). */
+  timesMs: number[];
+  /** Angle-vs-time, degrees, keyed 'joint.motion' (engine sign convention). */
+  series: Record<string, number[]>;
+  /** Finite-difference angular velocity, °/s, same keys + length as series. */
+  angularVelocityDegS: Record<string, number[]>;
+  /** World position [x,y,z] meters per frame, keyed by tracked bone. */
+  trajectories: Record<string, [number, number, number][]>;
+  /** Finite-difference speed, m/s, per tracked bone (same length). */
+  speedsMs: Record<string, number[]>;
+  /** Model-root translation [x,y,z] meters per frame. */
+  rootTranslateM: [number, number, number][];
+  summary: {
+    joints: Record<string, JointKinematicSummary>;
+    bones: Record<string, BoneKinematicSummary>;
+    root: {
+      /** Component-wise max |translation| plus the peak magnitude, meters. */
+      maxTranslateM: { x: number; y: number; z: number; magnitude: number };
+      /** Sparse orientation timeline: first/last frame plus every frame whose
+       *  orientation moved >10° from the previous key point. */
+      orientationKeyPoints: { tMs: number; orientQuat: [number, number, number, number] }[];
+    };
+  };
+  /** Caller-attached provenance (e.g. the source ComposedMotion plan) so
+   *  intent and measured outcome travel together. */
+  provenance?: Record<string, unknown>;
+}
+
+const EXPORT_SCHEMA_DOC =
+  'simMOVE kinematic export v1. All angles are MEASURED clinical joint angles in degrees ' +
+  '(computed from the 3D skeleton each frame, engine sign convention: + flexion / + abduction / ' +
+  '+ internal rotation; right-side joints mirrored so symmetric poses read symmetric). ' +
+  "`timesMs` is the shared time axis (ms since recording start, uniformly sampled at meta.sampleHz). " +
+  "`series['Joint.motion'][i]` is that joint motion's angle at timesMs[i]; " +
+  "`angularVelocityDegS` is its central finite-difference derivative in deg/s (one-sided at the ends; ~0 during holds). " +
+  "`trajectories[bone][i]` is that bone's world position [x,y,z] in meters (x = subject-left+, y = up+, z = posterior+); " +
+  '`speedsMs[bone]` is its finite-difference speed in m/s. ' +
+  '`rootTranslateM[i]` is the whole-body model-root translation from its grounded stance origin (includes planted-stance floor pinning). ' +
+  '`summary.joints` gives per joint.motion peak/min/excursion angle (deg), peak |angular velocity| (deg/s) and the time of the peak angle; ' +
+  '`summary.bones` gives per tracked bone the total path length (m) and peak speed (m/s); ' +
+  "`summary.root.orientationKeyPoints` is a sparse whole-body orientation timeline (quaternion [x,y,z,w], identity = upright). " +
+  "`provenance` (when present) carries the source motion plan (e.g. the ComposedMotion keyframes the AI requested) so requested intent " +
+  'can be compared against these measured outcomes.';
+
+/** Central finite difference (one-sided at the ends). Rate per second. */
+function finiteDiff(values: number[], timesMs: number[]): number[] {
+  const n = values.length;
+  const out = new Array<number>(n).fill(0);
+  if (n < 2) return out;
+  for (let i = 0; i < n; i += 1) {
+    const i0 = Math.max(0, i - 1);
+    const i1 = Math.min(n - 1, i + 1);
+    const dt = timesMs[i1]! - timesMs[i0]!;
+    out[i] = dt > 0 ? ((values[i1]! - values[i0]!) / dt) * 1000 : 0;
+  }
+  return out;
+}
+
+const dist3 = (a: [number, number, number], b: [number, number, number]) =>
+  Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+
+export interface ExportKinematicsOptions {
+  /** Attached verbatim as `provenance` (e.g. the source ComposedMotion JSON). */
+  provenance?: Record<string, unknown>;
+}
+
+/**
+ * Turn a recording into the JSON-serializable kinematic dataset described by
+ * its own `schema` string: per joint.motion angle + angular-velocity series,
+ * tracked-bone world trajectories + speeds, root travel, and summaries.
+ */
+export function exportKinematics(
+  rec: MotionRecording,
+  opts: ExportKinematicsOptions = {},
+): KinematicExport {
+  const timesMs = rec.frames.map((f) => f.tMs);
+
+  // Union of every joint.motion present with a finite value.
+  const keys = new Set<string>();
+  for (const f of rec.frames) {
+    for (const [j, set] of Object.entries(f.angles)) {
+      for (const [k, v] of Object.entries(set)) {
+        if (typeof v === 'number' && Number.isFinite(v)) keys.add(`${j}.${k}`);
+      }
+    }
+  }
+
+  const series: Record<string, number[]> = {};
+  const angularVelocityDegS: Record<string, number[]> = {};
+  const joints: Record<string, JointKinematicSummary> = {};
+  for (const key of [...keys].sort()) {
+    const dot = key.indexOf('.');
+    const j = key.slice(0, dot);
+    const m = key.slice(dot + 1);
+    let prev = 0;
+    const vals = rec.frames.map((f) => {
+      const v = f.angles[j]?.[m];
+      prev = typeof v === 'number' && Number.isFinite(v) ? v : prev;
+      return prev;
+    });
+    const vel = finiteDiff(vals, timesMs);
+    series[key] = vals;
+    angularVelocityDegS[key] = vel;
+    let peakDeg = -Infinity;
+    let minDeg = Infinity;
+    let timeOfPeakMs = 0;
+    let peakVelocityDegS = 0;
+    for (let i = 0; i < vals.length; i += 1) {
+      if (vals[i]! > peakDeg) {
+        peakDeg = vals[i]!;
+        timeOfPeakMs = timesMs[i]!;
+      }
+      if (vals[i]! < minDeg) minDeg = vals[i]!;
+      if (Math.abs(vel[i]!) > Math.abs(peakVelocityDegS)) peakVelocityDegS = vel[i]!;
+    }
+    if (!Number.isFinite(peakDeg)) {
+      peakDeg = 0;
+      minDeg = 0;
+    }
+    joints[key] = {
+      peakDeg,
+      minDeg,
+      excursionDeg: peakDeg - minDeg,
+      peakVelocityDegS,
+      timeOfPeakMs,
+    };
+  }
+
+  // Tracked-bone trajectories + speeds + summaries.
+  const boneKeys = new Set<string>();
+  for (const f of rec.frames) for (const k of Object.keys(f.worldTracks ?? {})) boneKeys.add(k);
+  const trajectories: Record<string, [number, number, number][]> = {};
+  const speedsMs: Record<string, number[]> = {};
+  const bones: Record<string, BoneKinematicSummary> = {};
+  for (const bone of [...boneKeys].sort()) {
+    let prev: [number, number, number] = [0, 0, 0];
+    const pts = rec.frames.map((f) => {
+      const p = f.worldTracks?.[bone];
+      prev = p ? [p[0], p[1], p[2]] : prev;
+      return prev;
+    });
+    trajectories[bone] = pts;
+    const speeds = new Array<number>(pts.length).fill(0);
+    let pathLengthM = 0;
+    let peakSpeedMs = 0;
+    for (let i = 0; i < pts.length; i += 1) {
+      const i0 = Math.max(0, i - 1);
+      const i1 = Math.min(pts.length - 1, i + 1);
+      const dt = timesMs[i1]! - timesMs[i0]!;
+      speeds[i] = dt > 0 ? (dist3(pts[i0]!, pts[i1]!) / dt) * 1000 : 0;
+      if (speeds[i]! > peakSpeedMs) peakSpeedMs = speeds[i]!;
+      if (i > 0) pathLengthM += dist3(pts[i - 1]!, pts[i]!);
+    }
+    speedsMs[bone] = speeds;
+    bones[bone] = { pathLengthM, peakSpeedMs };
+  }
+
+  // Root travel + sparse orientation key points.
+  const rootTranslateM = rec.frames.map(
+    (f) => [...f.root.translateM] as [number, number, number],
+  );
+  let mx = 0;
+  let my = 0;
+  let mz = 0;
+  let mag = 0;
+  for (const t of rootTranslateM) {
+    mx = Math.max(mx, Math.abs(t[0]));
+    my = Math.max(my, Math.abs(t[1]));
+    mz = Math.max(mz, Math.abs(t[2]));
+    mag = Math.max(mag, Math.hypot(t[0], t[1], t[2]));
+  }
+  const orientationKeyPoints: { tMs: number; orientQuat: [number, number, number, number] }[] = [];
+  const qa = new THREE.Quaternion();
+  const qb = new THREE.Quaternion();
+  for (const [i, f] of rec.frames.entries()) {
+    const last = orientationKeyPoints[orientationKeyPoints.length - 1];
+    if (!last || i === rec.frames.length - 1) {
+      orientationKeyPoints.push({ tMs: f.tMs, orientQuat: [...f.root.orientQuat] });
+      continue;
+    }
+    qa.set(last.orientQuat[0], last.orientQuat[1], last.orientQuat[2], last.orientQuat[3]);
+    qb.set(f.root.orientQuat[0], f.root.orientQuat[1], f.root.orientQuat[2], f.root.orientQuat[3]);
+    if ((qa.angleTo(qb) * 180) / Math.PI > 10) {
+      orientationKeyPoints.push({ tMs: f.tMs, orientQuat: [...f.root.orientQuat] });
+    }
+  }
+
+  return {
+    schema: EXPORT_SCHEMA_DOC,
+    meta: {
+      name: rec.name,
+      id: rec.id,
+      variant: rec.variant,
+      sourceKind: rec.sourceKind,
+      ...(rec.sourceName ? { sourceName: rec.sourceName } : {}),
+      sampleHz: rec.sampleHz,
+      durationMs: recordingDurationMs(rec),
+      frameCount: rec.frames.length,
+      ...(rec.createdAtIso ? { createdAtIso: rec.createdAtIso } : {}),
+    },
+    timesMs,
+    series,
+    angularVelocityDegS,
+    trajectories,
+    speedsMs,
+    rootTranslateM,
+    summary: {
+      joints,
+      bones,
+      root: { maxTranslateM: { x: mx, y: my, z: mz, magnitude: mag }, orientationKeyPoints },
+    },
+    ...(opts.provenance ? { provenance: opts.provenance } : {}),
+  };
+}
+
+/**
+ * Compact wide CSV: `tMs` + one column per joint.motion angle (degrees,
+ * 2-decimal), one row per frame — the spreadsheet quick-look twin of
+ * {@link exportKinematics}.
+ */
+export function exportKinematicsCsv(rec: MotionRecording): string {
+  const keys = new Set<string>();
+  for (const f of rec.frames) {
+    for (const [j, set] of Object.entries(f.angles)) {
+      for (const [k, v] of Object.entries(set)) {
+        if (typeof v === 'number' && Number.isFinite(v)) keys.add(`${j}.${k}`);
+      }
+    }
+  }
+  const cols = [...keys].sort();
+  const lines = [`tMs,${cols.join(',')}`];
+  for (const f of rec.frames) {
+    const row = [String(Math.round(f.tMs))];
+    for (const key of cols) {
+      const dot = key.indexOf('.');
+      const v = f.angles[key.slice(0, dot)]?.[key.slice(dot + 1)];
+      row.push(typeof v === 'number' && Number.isFinite(v) ? v.toFixed(2) : '');
+    }
+    lines.push(row.join(','));
+  }
+  return lines.join('\n');
+}
