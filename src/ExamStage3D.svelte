@@ -53,6 +53,10 @@
   } from './services/romConstraints';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
+    ComposedMotionPlaybackResult,
+    ResolvedComposedMotion,
+  } from './services/motionSequence';
+  import type {
     MotionClipProvider,
     MotionCommand,
     MotionCommandOutcome,
@@ -139,6 +143,11 @@
   // serialized command chain as the exam commands so the two modes never run
   // on the skeleton at once.
   let runMotionImpl: ((cmd: MotionCommand) => Promise<MotionCommandOutcome>) | null = null;
+  // Composed-motion (generative keyframe sequence) executor — pose-tween
+  // driven, shares the same serialized command chain.
+  let runComposedImpl:
+    | ((resolved: ResolvedComposedMotion) => Promise<ComposedMotionPlaybackResult>)
+    | null = null;
   // Clinical ROM caps enforced per frame during motion (L2 modifier). The host
   // installs the constraint set (setRomScenarioConstraints); this list is the
   // joints to clamp each frame while a capped motion plays.
@@ -190,6 +199,41 @@
         return { status: 'refused', reason: 'stage-unavailable' } as MotionCommandOutcome;
       }
       return runMotionImpl(cmd);
+    });
+    commandChain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  /**
+   * Play a COMPOSED motion — a resolved generative keyframe sequence (see
+   * `resolveComposedMotion` / `buildSequencePoses` in services/motionSequence)
+   * — by tweening through its keyframe poses with the resolved durations and
+   * holds. Serialized on the SAME command chain as the exam + clip commands.
+   * `modifiers.timeScale` scales the durations; `guarding` / `balanceSway`
+   * reuse the per-frame overlay machinery clip playback uses. Resolves with
+   * per-keyframe MEASURED angles plus the final measured angles at the last
+   * keyframe ('completed'), or 'playing' after the first pass of a looping
+   * motion (the loop cycles until the next command or stop).
+   */
+  export function applyComposedMotion(
+    resolved: ResolvedComposedMotion,
+  ): Promise<ComposedMotionPlaybackResult> {
+    const run = commandChain.then(async () => {
+      await bootDone;
+      if (!runComposedImpl) {
+        return {
+          status: 'refused',
+          reason: 'stage-unavailable',
+          measurements: [],
+          finalAngles: {},
+          loop: false,
+          timingAdjusted: false,
+        } as ComposedMotionPlaybackResult;
+      }
+      return runComposedImpl(resolved);
     });
     commandChain = run.then(
       () => undefined,
@@ -254,6 +298,7 @@
       );
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
+      const { buildSequencePoses } = await import('./services/motionSequence');
       const { resolveMotionCommand } = await import('./services/motionCommand');
       const { normalizeRigBoneName } = await import('./services/movementClipSampling');
       const { createClinicalCameraControls } = await import('./services/clinicalCameraControls');
@@ -386,6 +431,18 @@
         motionGuarding = Math.max(0, Math.min(1, overlays?.guarding ?? 0));
         motionSway = Math.max(0, Math.min(1, overlays?.balanceSway ?? 0));
       };
+      // ── Composed-motion (generative keyframe sequence) playback state ─────
+      // Pose-tween driven (NOT the mixer). `composedActive` gates the same
+      // guarding/sway overlays clip playback applies; `composedSeq` is a
+      // cancellation token — any newer command bumps it and the composed
+      // playback (including a detached loop cycle) stops at its next check.
+      let composedActive = false;
+      let composedSeq = 0;
+      function cancelComposed() {
+        composedSeq += 1;
+        composedActive = false;
+      }
+
       /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
       let motionFinishResolve: (() => void) | null = null;
       const motionClock = new THREE.Clock();
@@ -417,6 +474,7 @@
       /** Stop any active motion and return the skeleton to its last known
        *  CustomPose (the pre-motion pose). Idempotent. */
       function stopMotion() {
+        cancelComposed();
         if (mixer) mixer.stopAllAction();
         motionAction = null;
         activeMotionId = null;
@@ -612,6 +670,8 @@
         from: CustomPose | null;
         to: CustomPose | null;
         start: number;
+        /** Travel time for THIS tween (composed keyframes pass their own). */
+        durationMs: number;
         resolve: () => void;
       }
       let activeTween: ActiveTween | null = null;
@@ -636,7 +696,7 @@
       function stepTween(now: number) {
         const tw = activeTween;
         if (!tw) return;
-        const t = Math.min(1, (now - tw.start) / TWEEN_MS);
+        const t = Math.min(1, (now - tw.start) / Math.max(tw.durationMs, 1));
         if (t >= 1) {
           finishTween();
           return;
@@ -648,10 +708,10 @@
         requestRender();
       }
 
-      function tweenTo(to: CustomPose | null): Promise<void> {
+      function tweenTo(to: CustomPose | null, durationMs: number = TWEEN_MS): Promise<void> {
         return new Promise((resolve) => {
           if (activeTween) finishTween(); // safety — commands are serialized
-          activeTween = { from: currentPose, to, start: performance.now(), resolve };
+          activeTween = { from: currentPose, to, start: performance.now(), durationMs, resolve };
           startLoop();
           requestRender();
           // Hidden stage: the loop is parked, so settle instantly rather
@@ -681,7 +741,8 @@
           return { status: 'refused', reason: 'stage-unavailable' };
         }
         // Mode switch: an exam ROM command owns the skeleton — cancel any active
-        // named motion first (returns to the last known pose), then proceed.
+        // named motion or composed playback first, then proceed.
+        cancelComposed();
         if (activeMotionId) stopMotion();
         if (cmd.action === 'relax') {
           await tweenTo(restingPoseRef);
@@ -714,6 +775,115 @@
         if (report) onReport?.(report);
         const achieved = report ? measureCommandMotion(report, cmd.joint, cmd.motion) : undefined;
         return finalizeOutcome(resolved, achieved);
+      };
+
+      runComposedImpl = async (
+        resolved: ResolvedComposedMotion,
+      ): Promise<ComposedMotionPlaybackResult> => {
+        const timingAdjusted = !!resolved?.keyframes?.some((k) => k.timingAdjusted);
+        const refusedResult = (reason: string): ComposedMotionPlaybackResult => ({
+          status: 'refused',
+          ...(resolved?.name ? { name: resolved.name } : {}),
+          reason,
+          measurements: [],
+          finalAngles: {},
+          loop: !!resolved?.loop,
+          timingAdjusted,
+        });
+        if (disposed || !skinnedRef || !variantCfgRef || !restRef || !baselinePoseRef) {
+          return refusedResult('stage-unavailable');
+        }
+        if (!resolved || resolved.status !== 'ok' || resolved.keyframes.length === 0) {
+          return refusedResult(resolved?.reason ?? 'not-resolved');
+        }
+        // Composed playback owns the skeleton: cancel any clip / prior
+        // composed loop / in-flight tween, THEN capture the cancellation token.
+        if (activeMotionId) stopMotion();
+        if (activeTween) finishTween();
+        cancelComposed();
+        const token = composedSeq;
+        const mods = resolved.modifiers ?? {};
+        // Same qualitative-overlay semantics as prescribe_motion: timeScale
+        // scales the (already velocity-floored) durations; guarding/sway run
+        // through the identical per-frame overlay machinery clips use.
+        const timeScale = Math.min(1.5, Math.max(0.4, mods.timeScale ?? 1));
+        setMotionOverlaysImpl?.({ guarding: mods.guarding, balanceSway: mods.balanceSway });
+        composedActive = true;
+        startLoop();
+
+        const built = buildSequencePoses(baselinePoseRef, resolved, variantCfgRef, restRef);
+        const measurements: ComposedMotionPlaybackResult['measurements'] = [];
+        const finalAngles: Record<string, number> = {};
+        const hidden = () => !container || container.offsetParent === null;
+        const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+        let lastReport: JointAngleReport | null = null;
+
+        for (let i = 0; i < built.poses.length; i += 1) {
+          if (token !== composedSeq) break; // superseded by a newer command
+          await tweenTo(built.poses[i]!, built.durationsMs[i]! / timeScale);
+          // Settle: MEASURE what the patient actually did at this keyframe.
+          const report = measureNow();
+          if (report) {
+            lastReport = report;
+            onReport?.(report);
+            for (const t of resolved.keyframes[i]!.targets) {
+              const measured = measureCommandMotion(report, t.joint, t.motion);
+              measurements.push({
+                keyframe: i,
+                joint: t.joint,
+                motion: t.motion,
+                clampedDegrees: t.clampedDegrees,
+                ...(measured != null ? { measuredDegrees: measured } : {}),
+              });
+            }
+          }
+          // Hold at the keyframe (assessment moment). Skipped when hidden so
+          // a parked stage never strands the command chain.
+          const hold = (built.holdsMs[i] ?? 0) / timeScale;
+          if (hold > 0 && !hidden()) await sleep(Math.min(hold, 10_000));
+        }
+
+        // Final measured angles at the last keyframe for every touched field.
+        if (lastReport) {
+          const touched = new Set<string>();
+          for (const kfr of resolved.keyframes) {
+            for (const t of kfr.targets) touched.add(`${t.joint}.${t.motion}`);
+          }
+          for (const key of touched) {
+            const dot = key.indexOf('.');
+            const measured = measureCommandMotion(lastReport, key.slice(0, dot), key.slice(dot + 1));
+            if (measured != null) finalAngles[key] = measured;
+          }
+        }
+
+        const base = {
+          ...(resolved.name ? { name: resolved.name } : {}),
+          measurements,
+          finalAngles,
+          loop: resolved.loop,
+          timingAdjusted,
+        };
+        if (resolved.loop && token === composedSeq) {
+          // Detached cycle OUTSIDE the command chain: keep tweening through
+          // the keyframes until a newer command bumps the token. The first
+          // pass's measurements above are what the caller narrates from.
+          void (async () => {
+            let idx = 0;
+            while (token === composedSeq && !disposed && !hidden()) {
+              await tweenTo(built.poses[idx]!, built.durationsMs[idx]! / timeScale);
+              const hold = (built.holdsMs[idx] ?? 0) / timeScale;
+              if (hold > 0 && !hidden()) await sleep(Math.min(hold, 10_000));
+              idx = (idx + 1) % built.poses.length;
+            }
+          })();
+          return { status: 'playing', ...base };
+        }
+        // One-shot (or superseded): settle, lift the overlays.
+        if (token === composedSeq) {
+          composedActive = false;
+          setMotionOverlaysImpl?.(null);
+        }
+        return { status: 'completed', ...base };
       };
 
       runMotionImpl = async (cmd: MotionCommand): Promise<MotionCommandOutcome> => {
@@ -763,7 +933,9 @@
           if (cacheable) motionClipCache.set(motion, clip);
         }
 
-        // Cancel any in-flight pose tween and prior motion, then start the clip.
+        // Cancel any in-flight pose tween, composed playback, and prior
+        // motion, then start the clip.
+        cancelComposed();
         if (activeTween) finishTween();
         mixer.stopAllAction();
         if (motionFinishResolve) {
@@ -904,6 +1076,12 @@
             }
             if (changed) modelRoot.updateMatrixWorld();
           }
+          renderNeeded = true; // keep rendering while a motion plays
+        }
+        if (activeTween) stepTween(performance.now()); // pose tween (bones-only)
+        // Overlays + live streaming apply to BOTH animation modes: clip
+        // playback (mixer) and composed keyframe playback (pose tweens).
+        if ((mixer && activeMotionId) || composedActive) {
           // Guarding overlay: ease the trunk + arms toward neutral, damping
           // excursion into a stiff, protective movement pattern.
           if (motionGuarding > 0 && restRef && motionCapBones && modelRoot) {
@@ -939,6 +1117,9 @@
               modelRoot.updateMatrixWorld();
             }
           }
+          // Composed playback refreshes world matrices here (the mixer path
+          // already did right after mixer.update) so streaming measures fresh.
+          if (composedActive && modelRoot) modelRoot.updateMatrixWorld();
           renderNeeded = true; // keep rendering while a motion plays
           // Live per-frame angle streaming (opt-in): re-measure the achieved
           // pose at up to motionReportHz and report it, so hosts can chart
@@ -955,7 +1136,6 @@
             }
           }
         }
-        if (activeTween) stepTween(performance.now()); // pose tween (bones-only)
         if (!renderNeeded) return;
         renderer.render(scene, camera);
         renderNeeded = false;
@@ -988,6 +1168,7 @@
         stopMotion(); // resolves any awaiting one-shot motion promise
         runCommandImpl = null;
         runMotionImpl = null;
+        runComposedImpl = null;
         cancelAnimationFrame(raf);
         ro.disconnect();
         controls.removeEventListener('change', requestRender);

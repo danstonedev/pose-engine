@@ -53,6 +53,12 @@ export * from './services/movementClips';
 export * from './services/motionCommand';
 export * from './services/motionPrescription';
 
+// Generative motion composition (simMOVE L3) — novel movements authored as
+// timed keyframes over the calibrated movement-command vocabulary: shape +
+// limit validation, per-target ROM clamping through the SAME truth path as
+// single commands, realistic-velocity timing, and keyframe pose folding.
+export * from './services/motionSequence';
+
 // Posed-geometry world-space baking
 export * from './services/posedGeometry';
 
