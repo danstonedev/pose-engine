@@ -212,8 +212,8 @@ describe('resolveCommandTarget', () => {
       expect(r.reason).toBe('unknown-motion');
     });
 
-    it('refuses a registry-valid but v1-unsupported motion (ankle inversion)', () => {
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleInversion', 10), variantCfg);
+    it('refuses a registry-valid but unsupported motion (knee rotation)', () => {
+      const r = resolveCommandTarget(setJoint('L_Leg', 'kneeRotation', 10), variantCfg);
       expect(r.status).toBe('refused');
       expect(r.reason).toBe('unsupported-motion');
     });
@@ -229,41 +229,78 @@ describe('resolveCommandTarget', () => {
       expect(r.status).toBe('complied');
     });
 
-    it('exposes exactly the documented vocabulary (v1 hinges + v1.1 lumbar + v1.3 quarter + v1.4 hip)', () => {
+    it('exposes exactly the documented vocabulary (v1 → v1.5: every rig-reported joint)', () => {
       const list = listSupportedMovementCommands()
         .map((c) => `${c.joint}.${c.motion}`)
         .sort();
       expect(list).toEqual([
+        'L_Foot.ankleAbduction',
         'L_Foot.ankleFlexion',
+        'L_Foot.ankleInversion',
         'L_Forearm.elbowFlexion',
+        'L_Hand.proSup',
+        'L_Hand.wristDeviation',
+        'L_Hand.wristFlexion',
+        'L_Index1.fingerFlexion',
         'L_Leg.kneeFlexion',
+        'L_Mid1.fingerFlexion',
+        'L_Pinky1.fingerFlexion',
+        'L_Ring1.fingerFlexion',
+        'L_Shoulder.protraction',
+        'L_Shoulder.scapularTilt',
+        'L_Shoulder.upRotation',
+        'L_Thumb1.fingerFlexion',
+        'L_Toes.toeFlexion',
         'L_UpLeg.hipAbduction',
         'L_UpLeg.hipFlexion',
         'L_UpLeg.hipRotation',
         'L_UpperArm.shoulderAbduction',
+        'L_UpperArm.shoulderRotation',
         'Neck.flexion',
         'Neck.lateralTilt',
         'Neck.rotation',
+        'R_Foot.ankleAbduction',
         'R_Foot.ankleFlexion',
+        'R_Foot.ankleInversion',
         'R_Forearm.elbowFlexion',
+        'R_Hand.proSup',
+        'R_Hand.wristDeviation',
+        'R_Hand.wristFlexion',
+        'R_Index1.fingerFlexion',
         'R_Leg.kneeFlexion',
+        'R_Mid1.fingerFlexion',
+        'R_Pinky1.fingerFlexion',
+        'R_Ring1.fingerFlexion',
+        'R_Shoulder.protraction',
+        'R_Shoulder.scapularTilt',
+        'R_Shoulder.upRotation',
+        'R_Thumb1.fingerFlexion',
+        'R_Toes.toeFlexion',
         'R_UpLeg.hipAbduction',
         'R_UpLeg.hipFlexion',
         'R_UpLeg.hipRotation',
         'R_UpperArm.shoulderAbduction',
+        'R_UpperArm.shoulderRotation',
         'Spine_Lower.flexion',
         'Spine_Lower.lateralTilt',
         'Spine_Lower.rotation',
+        'Spine_Upper.flexion',
+        'Spine_Upper.lateralTilt',
+        'Spine_Upper.rotation',
       ]);
       expect(isMovementCommandSupported('R_Foot', 'ankleFlexion')).toBe(true);
-      expect(isMovementCommandSupported('R_UpLeg', 'hipFlexion')).toBe(true);
-      expect(isMovementCommandSupported('R_UpLeg', 'hipAbduction')).toBe(true);
+      expect(isMovementCommandSupported('R_Foot', 'ankleInversion')).toBe(true);
       expect(isMovementCommandSupported('L_UpLeg', 'hipRotation')).toBe(true);
-      expect(isMovementCommandSupported('Spine_Lower', 'lateralTilt')).toBe(true);
-      expect(isMovementCommandSupported('Neck', 'rotation')).toBe(true);
+      expect(isMovementCommandSupported('R_Hand', 'wristFlexion')).toBe(true);
+      expect(isMovementCommandSupported('L_Shoulder', 'upRotation')).toBe(true);
+      expect(isMovementCommandSupported('R_UpperArm', 'shoulderRotation')).toBe(true);
+      expect(isMovementCommandSupported('Spine_Upper', 'rotation')).toBe(true);
+      expect(isMovementCommandSupported('L_Mid1', 'fingerFlexion')).toBe(true);
+      expect(isMovementCommandSupported('L_Toes', 'toeFlexion')).toBe(true);
       // Shoulder FLEXION stays withheld (readout long-axis degeneracy — see spec).
       expect(isMovementCommandSupported('R_UpperArm', 'shoulderFlexion')).toBe(false);
-      expect(isMovementCommandSupported('R_Foot', 'ankleInversion')).toBe(false);
+      // Hinge secondary axes (knee rotation/deviation) remain uncalibrated.
+      expect(isMovementCommandSupported('L_Leg', 'kneeRotation')).toBe(false);
     });
 
     it('refuses shoulder flexion as unsupported in v1 (real-rig frame not yet calibrated)', () => {
@@ -318,7 +355,7 @@ describe('resolveCommandTarget', () => {
     });
 
     it('carries refusal metadata through without an achieved angle', () => {
-      const resolved = resolveCommandTarget(setJoint('R_Foot', 'ankleInversion', 10), variantCfg);
+      const resolved = resolveCommandTarget(setJoint('L_Leg', 'kneeRotation', 10), variantCfg);
       const outcome = finalizeOutcome(resolved);
       expect(outcome.status).toBe('refused');
       expect(outcome.reason).toBe('unsupported-motion');
@@ -680,6 +717,137 @@ describe('buildCommandPose on the real male rig', () => {
     expect(isMovementCommandSupported('L_UpperArm', 'shoulderFlexion')).toBe(false);
   });
 
+  // ── v1.5 commanded joints: ankle secondary / great toe / thoracic / scapula /
+  //    wrist / shoulder rotation / fingers — rig-verified by the calibration team. ──
+
+  const expectMeasured = (joint: string, motion: string, deg: number, tol = 2) => {
+    resetToAnatomic();
+    const cmd = setJoint(joint, motion, deg);
+    const resolved = resolveCommandTarget(cmd, variantCfg);
+    expect(resolved.status).toBe('complied');
+    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+    const report = applyAndMeasure(pose);
+    expect(Math.abs(measureCommandMotion(report, joint, motion)! - deg)).toBeLessThan(tol);
+    return report;
+  };
+
+  it('ankle secondary: inversion/eversion & abduction/adduction read back exact (both feet)', () => {
+    for (const foot of ['L_Foot', 'R_Foot'] as const) {
+      for (const [motion, deg] of [
+        ['ankleInversion', 20],
+        ['ankleInversion', -10],
+        ['ankleAbduction', 10],
+        ['ankleAbduction', -10],
+      ] as const) {
+        const report = expectMeasured(foot, motion, deg);
+        // The other two ankle axes stay put (clean single-axis motion).
+        for (const off of ['ankleFlexion', 'ankleInversion', 'ankleAbduction'] as const)
+          if (off !== motion) expect(Math.abs(report.joints[foot][off])).toBeLessThan(2);
+        // The opposite foot never moves.
+        const other = foot === 'L_Foot' ? 'R_Foot' : 'L_Foot';
+        expect(Math.abs(report.joints[other][motion])).toBeLessThan(1);
+      }
+    }
+  });
+
+  it('great toe: MTP extension (+40) lifts the toes and flexion (−20) curls them (both feet)', () => {
+    for (const toeKey of ['L_Toes', 'R_Toes'] as const) {
+      resetToAnatomic();
+      const tipRest = boneLookup.get(toeKey)!.getWorldPosition(new THREE.Vector3());
+      const ext = expectMeasured(toeKey, 'toeFlexion', 40);
+      const tipExt = boneLookup.get(toeKey)!.getWorldPosition(new THREE.Vector3());
+      expect(tipExt.y).toBeGreaterThan(tipRest.y - 0.001); // toes rise on extension
+      void ext;
+      expectMeasured(toeKey, 'toeFlexion', -20); // curl reads back exact
+    }
+  });
+
+  it('thoracic: flexion / lateralTilt / rotation read back exact, smear-free', () => {
+    for (const [motion, deg] of [
+      ['flexion', 20],
+      ['flexion', -15],
+      ['lateralTilt', 20],
+      ['lateralTilt', -20],
+      ['rotation', 25],
+      ['rotation', -25],
+    ] as const) {
+      const report = expectMeasured('Spine_Upper', motion, deg);
+      for (const off of ['flexion', 'lateralTilt', 'rotation'] as const)
+        if (off !== motion) expect(Math.abs(report.joints.Spine_Upper[off])).toBeLessThan(2);
+    }
+  });
+
+  it('scapula: upRotation / scapularTilt / protraction read back exact (both sides)', () => {
+    for (const scap of ['L_Shoulder', 'R_Shoulder'] as const) {
+      for (const [motion, deg] of [
+        ['upRotation', 30],
+        ['scapularTilt', 20],
+        ['protraction', 20],
+        ['protraction', -20],
+      ] as const) {
+        const report = expectMeasured(scap, motion, deg);
+        for (const off of ['upRotation', 'scapularTilt', 'protraction'] as const)
+          if (off !== motion) expect(Math.abs(report.joints[scap][off])).toBeLessThan(2);
+      }
+    }
+  });
+
+  it('wrist: flexion/extension, deviation, pro/sup read back exact, smear-free (both hands)', () => {
+    for (const hand of ['L_Hand', 'R_Hand'] as const) {
+      for (const [motion, deg] of [
+        ['wristFlexion', 40],
+        ['wristFlexion', -40],
+        ['wristDeviation', 15],
+        ['wristDeviation', -20],
+        ['proSup', 60],
+        ['proSup', -60],
+      ] as const) {
+        const report = expectMeasured(hand, motion, deg);
+        for (const off of ['wristFlexion', 'wristDeviation', 'proSup'] as const)
+          if (off !== motion) expect(Math.abs(report.joints[hand][off])).toBeLessThan(2);
+      }
+    }
+  });
+
+  it('shoulder rotation: internal (+30) & external (−30) read back exact (both arms)', () => {
+    for (const arm of ['L_UpperArm', 'R_UpperArm'] as const) {
+      for (const deg of [30, -30]) {
+        const report = expectMeasured(arm, 'shoulderRotation', deg);
+        expect(Math.abs(report.joints[arm].shoulderFlexion)).toBeLessThan(3);
+        expect(Math.abs(report.joints[arm].shoulderAbduction)).toBeLessThan(3);
+      }
+    }
+  });
+
+  it('fingers: composite curl reads back near commanded and bends the fingertip toward the palm', () => {
+    // The finger readback is absolute-geometric; buildDelta pre-compensates the
+    // per-digit slope/offset so commanded ≈ measured across the usable range.
+    for (const digit of ['L_Mid1', 'R_Mid1', 'L_Thumb1', 'R_Index1', 'L_Pinky1'] as const) {
+      for (const deg of [30, 60, 90]) {
+        expectMeasured(digit, 'fingerFlexion', deg, 5);
+      }
+    }
+    // Direction: a curl moves the fingertip closer to the wrist/palm.
+    resetToAnatomic();
+    const wrist = boneLookup.get('R_Hand')!.getWorldPosition(new THREE.Vector3());
+    const deepest = (b: THREE.Bone): THREE.Bone => {
+      let cur: THREE.Bone = b;
+      for (;;) {
+        const child = cur.children.find((c) => (c as THREE.Bone).isBone) as THREE.Bone | undefined;
+        if (!child) return cur;
+        cur = child;
+      }
+    };
+    const tip = deepest(boneLookup.get('R_Mid1')!);
+    const tipRest = tip.getWorldPosition(new THREE.Vector3());
+    const cmd = setJoint('R_Mid1', 'fingerFlexion', 90);
+    const resolved = resolveCommandTarget(cmd, variantCfg);
+    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+    applyAndMeasure(pose);
+    const tipCurl = tip.getWorldPosition(new THREE.Vector3());
+    expect(tipCurl.distanceTo(wrist)).toBeLessThan(tipRest.distanceTo(wrist));
+  });
+
   it('preserves the rest of a fromPose (sequential commands compose)', () => {
     resetToAnatomic();
     // First command: knee to 30.
@@ -712,7 +880,7 @@ describe('buildCommandPose on the real male rig', () => {
   it('returns null for unsupported motions (callers refuse first)', () => {
     const pose = buildCommandPose(
       baselinePose,
-      setJoint('R_Foot', 'ankleInversion', 10),
+      setJoint('L_Leg', 'kneeRotation', 10),
       10,
       variantCfg,
     );

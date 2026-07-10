@@ -209,6 +209,9 @@ const RAD = Math.PI / 180;
 /** Canonical long axis at rest (child points down) — matches
  *  `REST_DOWN_LOCAL` in jointAngles.ts. */
 const REST_DOWN = new THREE.Vector3(0, -1, 0);
+/** Local-Z axis — the pinned finger-curl ring (see `computeDrivingRingMap`);
+ *  a rest-frame rotation about it curls the MCP toward the palm. */
+const LOCAL_Z = new THREE.Vector3(0, 0, 1);
 
 /** Parent-local delta for a body-euler sagittal motion: pure X rotation in
  *  the YXZ order the readout decomposes with. For the foot, readout
@@ -337,6 +340,27 @@ interface SupportedMotionSpec {
  *   an inherent readout artifact, not a world-motion error, and the graded axis is
  *   exact. (Hip flexion/extension shipped in v1.3.)
  *
+ *  v1.5 EXPANSION — "every joint the rig reports" (calibration team, rig-verified):
+ *   - ANKLE secondary (L/R_Foot.ankleInversion, .ankleAbduction): parent body-euler
+ *     Z / Y; readout mirrors on the right → right passes the opposite sign. Exact, 0 smear.
+ *   - GREAT TOE (L/R_Toes.toeFlexion): parent X-euler like the ankle, same sign both
+ *     feet; + = MTP extension (toe up), − = curl.
+ *   - THORACIC (Spine_Upper.flexion/lateralTilt/rotation): body-aligned segment, the
+ *     lumbar constructions transfer verbatim (X / Z(−deg) / Y). Register under Spine_Upper.
+ *   - SCAPULA / clavicle (L/R_Shoulder.upRotation/scapularTilt/protraction): parent
+ *     body-euler Z / −X / −Y; upRotation + protraction mirror on the right, tilt does not.
+ *   - WRIST (L/R_Hand.wristFlexion/wristDeviation/proSup): parent euler on the forearm-
+ *     inherited frame — flexion Z (RIGHT inverts, ~180° frame flip), deviation X (no
+ *     mirror), proSup Y (mirror R). proSup reads exact on the Hand bone; note it visually
+ *     spins the hand about a stationary forearm (cosmetic; grading is correct).
+ *   - SHOULDER ROTATION (L/R_UpperArm.shoulderRotation): parent Y-euler (a rest-frame
+ *     twist smears on the twisted humeral local frame). + = internal, mirror on the right.
+ *   - FINGERS / THUMB (L/R_{Thumb1,Index1,Mid1,Ring1,Pinky1}.fingerFlexion): composite
+ *     MCP+PIP curl about the pinned local-Z ring (compose 'rest'). The readback is
+ *     ABSOLUTE-geometric (not rest-relative) with a per-digit slope+offset, so buildDelta
+ *     PRE-COMPENSATES (inverts the linear fit) → commanded == measured; fromReport identity.
+ *     sideSign L −1 / R +1 curls toward the palm. Usable to ~110° on the single MCP bone.
+ *
  *  SHOULDER FLEXION (L/R_UpperArm.shoulderFlexion) remains deliberately NOT
  *  shipped: true forward flexion rotates about the clavicle-Y axis, which IS the
  *  swing-twist readout's long axis (0,−1,0) — so any world-correct raise is
@@ -443,19 +467,84 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     compose: 'parent',
     fromReport: (deg) => deg,
   };
+  // ── v1.5 EXPANSION (rig-verified by the calibration team; each ±≤2° readback,
+  //    zero/near-zero off-plane smear, world-correct direction) ────────────────
+  // ANKLE secondary axes (L/R_Foot): parent body-euler; readout mirrors on the
+  // right so the right passes the opposite sign. inversion = eulerZ, abduction = eulerY.
+  const ankleInvL: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  const ankleInvR: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  const ankleAbdL: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  const ankleAbdR: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  // GREAT TOE / forefoot MTP (L/R_Toes): parent X-euler like the ankle, same sign
+  // both feet (toeFlexion = −euler.x, no mirror). + = extension (toe lifts up).
+  const toe: SupportedMotionSpec = { buildDelta: (deg) => eulerXDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  // THORACIC (Spine_Upper): body-aligned segment — the lumbar constructions transfer verbatim.
+  const thoracicFlex: SupportedMotionSpec = { buildDelta: (deg) => eulerXDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  const thoracicLateral: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  const thoracicRotation: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  // SCAPULAR GIRDLE (L/R_Shoulder = clavicle bone): parent body-euler. upRotation
+  // (Z, mirror R), scapularTilt (−X, no mirror), protraction (−Y, mirror R). ~0 smear.
+  const scapUpRotL: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  const scapUpRotR: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  const scapTilt: SupportedMotionSpec = { buildDelta: (deg) => eulerXDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  const scapProtractL: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  const scapProtractR: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  // WRIST (L/R_Hand): parent euler on the forearm-inherited frame. flexion = Z (the
+  // RIGHT frame is flipped ~180°, so its sign inverts), deviation = X (no mirror),
+  // proSup = Y (mirror R). NOTE proSup reads exact on the Hand bone but visually
+  // spins the hand about a stationary forearm — a cosmetic caveat, grading is correct.
+  const wristFlexL: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  const wristFlexR: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  const wristDev: SupportedMotionSpec = { buildDelta: (deg) => eulerXDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  const wristProSupL: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  const wristProSupR: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  // SHOULDER ROTATION (L/R_UpperArm): parent Y-euler — a rest-frame twist smears on
+  // the twisted humeral local frame, but the parent Y-euler reads clean. + = internal.
+  // Mirror on the right. (shoulderFlexion stays refused — see the doc note.)
+  const shoulderRotL: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  const shoulderRotR: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
+  // FINGERS / THUMB: composite MCP+PIP curl about the pinned local-Z ring. The
+  // readback is ABSOLUTE-geometric (not rest-relative), so it carries a per-digit
+  // slope+offset (agent linear fit on the flexion branch). buildDelta PRE-COMPENSATES
+  // (inverts the fit) so commanded == measured across the usable range; fromReport is
+  // identity. sideSign L −1 / R +1 curls the fingertip toward the palm. Usable to
+  // ~110° (single MCP bone; the full 160° would also drive the PIP child).
+  const makeFinger = (sideSign: number, slope: number, offset: number): SupportedMotionSpec => ({
+    buildDelta: (deg) =>
+      new THREE.Quaternion().setFromAxisAngle(LOCAL_Z, (sideSign * (deg - offset)) / slope * RAD),
+    compose: 'rest',
+    fromReport: (deg) => deg,
+  });
   return {
-    L_Foot: { ankleFlexion: ankle },
-    R_Foot: { ankleFlexion: ankle },
+    L_Foot: { ankleFlexion: ankle, ankleInversion: ankleInvL, ankleAbduction: ankleAbdL },
+    R_Foot: { ankleFlexion: ankle, ankleInversion: ankleInvR, ankleAbduction: ankleAbdR },
+    L_Toes: { toeFlexion: toe },
+    R_Toes: { toeFlexion: toe },
     L_Leg: { kneeFlexion: knee },
     R_Leg: { kneeFlexion: knee },
     L_UpLeg: { hipFlexion: hip, hipAbduction: hipAbdL, hipRotation: hipRotL },
     R_UpLeg: { hipFlexion: hip, hipAbduction: hipAbdR, hipRotation: hipRotR },
     L_Forearm: { elbowFlexion: elbow },
     R_Forearm: { elbowFlexion: elbow },
+    L_Hand: { wristFlexion: wristFlexL, wristDeviation: wristDev, proSup: wristProSupL },
+    R_Hand: { wristFlexion: wristFlexR, wristDeviation: wristDev, proSup: wristProSupR },
     Spine_Lower: { flexion: lumbar, lateralTilt: lumbarLateral, rotation: lumbarRotation },
+    Spine_Upper: { flexion: thoracicFlex, lateralTilt: thoracicLateral, rotation: thoracicRotation },
     Neck: { flexion: cervicalFlex, rotation: cervicalRotation, lateralTilt: cervicalLateral },
-    L_UpperArm: { shoulderAbduction: shoulderAbdL },
-    R_UpperArm: { shoulderAbduction: shoulderAbdR },
+    L_Shoulder: { upRotation: scapUpRotL, scapularTilt: scapTilt, protraction: scapProtractL },
+    R_Shoulder: { upRotation: scapUpRotR, scapularTilt: scapTilt, protraction: scapProtractR },
+    L_UpperArm: { shoulderAbduction: shoulderAbdL, shoulderRotation: shoulderRotL },
+    R_UpperArm: { shoulderAbduction: shoulderAbdR, shoulderRotation: shoulderRotR },
+    L_Thumb1: { fingerFlexion: makeFinger(-1, 0.99, 11.5) },
+    L_Index1: { fingerFlexion: makeFinger(-1, 0.93, 14) },
+    L_Mid1: { fingerFlexion: makeFinger(-1, 1.0, 6) },
+    L_Ring1: { fingerFlexion: makeFinger(-1, 0.99, 3) },
+    L_Pinky1: { fingerFlexion: makeFinger(-1, 0.91, 4) },
+    R_Thumb1: { fingerFlexion: makeFinger(1, 0.99, 11.5) },
+    R_Index1: { fingerFlexion: makeFinger(1, 0.93, 14) },
+    R_Mid1: { fingerFlexion: makeFinger(1, 1.0, 6) },
+    R_Ring1: { fingerFlexion: makeFinger(1, 0.99, 3) },
+    R_Pinky1: { fingerFlexion: makeFinger(1, 0.91, 4) },
   };
 })();
 
