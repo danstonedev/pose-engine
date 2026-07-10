@@ -207,12 +207,21 @@ export interface PrescribeMotionToolOptions {
   motions: readonly string[];
   /** Optional per-motion hint text woven into the description. */
   motionHints?: Partial<Record<string, string>>;
-  /** false / undefined → intent-only (motion only); true → full modifiers. */
+  /** false / undefined → intent-only (motion only); true → modifiers exposed. */
   allowModifiers?: boolean;
-  /** ROM-cap joints offered by the full variant. */
+  /**
+   * Whether the ROM-cap fields are offered (default true when allowModifiers).
+   * The EXAM patient sets this false: ROM is the measurable finding, authored by
+   * the scenario and engine-enforced — the patient reasons only the QUALITATIVE
+   * presentation (timing / guarding / balance), never the measurable ROM.
+   */
+  allowRomCap?: boolean;
+  /** ROM-cap joints offered when allowRomCap. */
   capJoints?: readonly MotionCapJoint[];
   /** Override the tool name (defaults per variant). */
   name?: string;
+  /** Override the tool description (e.g. the exam's clinical-reasoning framing). */
+  description?: string;
 }
 
 export interface PrescribeMotionToolSchema {
@@ -249,7 +258,7 @@ export function buildPrescribeMotionTool(
       description:
         'Playback speed. 1 = normal, 0.4 = very slow/cautious, 1.5 = fast/brisk. Clamped to [0.4, 1.5]. Omit for normal.',
     };
-    const capJoints = opts.capJoints ?? [];
+    const capJoints = opts.allowRomCap === false ? [] : (opts.capJoints ?? []);
     if (capJoints.length) {
       properties.romCapJoint = {
         type: 'string',
@@ -277,7 +286,7 @@ export function buildPrescribeMotionTool(
   }
   return {
     name: opts.name ?? (full ? 'prescribe_motion' : 'attempt_motion'),
-    description: full ? PRESCRIBE_FULL_DESC : PRESCRIBE_INTENT_DESC,
+    description: opts.description ?? (full ? PRESCRIBE_FULL_DESC : PRESCRIBE_INTENT_DESC),
     parameters: {
       type: 'object',
       properties,
@@ -313,6 +322,9 @@ export function toolArgsToPrescription(
     motions: readonly string[];
     capJoints?: readonly MotionCapJoint[];
     allowModifiers?: boolean;
+    /** Default true when allowModifiers. False = ignore romCap args (exam: ROM is
+     *  the measurable finding, authored + engine-enforced, never patient-set). */
+    allowRomCap?: boolean;
   },
 ): MotionPrescription | null {
   const motion = args?.motion;
@@ -324,9 +336,10 @@ export function toolArgsToPrescription(
   if (typeof args.timeScale === 'number' && args.timeScale !== 1) {
     modifiers.timeScale = clampNum(args.timeScale, 0.4, 1.5);
   }
-  const cap = args.romCapJoint
-    ? opts.capJoints?.find((c) => c.joint === args.romCapJoint)
-    : undefined;
+  const cap =
+    opts.allowRomCap !== false && args.romCapJoint
+      ? opts.capJoints?.find((c) => c.joint === args.romCapJoint)
+      : undefined;
   if (cap && typeof args.romCapMaxDeg === 'number') {
     modifiers.romCaps = [
       { joint: cap.joint, field: cap.field, maxDeg: clampNum(args.romCapMaxDeg, 0, cap.maxDeg) },
@@ -347,21 +360,24 @@ export function toolArgsToPrescription(
 }
 
 /**
- * Merge scenario-authored modifiers onto a patient-chosen (intent-only)
- * prescription. The patient supplies `motion`; the SCENARIO supplies the clinical
- * presentation — so the exam patient never authors its own findings. Authored
- * modifiers replace whatever was on the base (the patient shouldn't have set any).
+ * Merge scenario-authored modifiers over a base prescription, FIELD BY FIELD:
+ * authored fields win; the base's fields fill the gaps. This is what lets the
+ * exam patient REASON a qualitative presentation (guarding / sway / timing) from
+ * its clinical picture on the base, while any value the scenario author pinned
+ * takes precedence — "authored where specified, inferred where not." ROM stays
+ * out of this path entirely (it's engine-enforced from the scenario constraints).
  */
 export function mergeAuthoredPrescription(
   base: MotionPrescription,
   authored: ClinicalModifiers | null | undefined,
 ): MotionPrescription {
-  const hasMods = !!authored && Object.keys(authored).length > 0;
+  const merged: ClinicalModifiers = { ...(base.modifiers ?? {}), ...(authored ?? {}) };
+  const hasMods = Object.keys(merged).length > 0;
   return {
     motion: base.motion,
     mode: hasMods ? 'modify' : 'play',
     ...(base.sequence ? { sequence: base.sequence } : {}),
     ...(base.label ? { label: base.label } : {}),
-    ...(hasMods ? { modifiers: authored } : {}),
+    ...(hasMods ? { modifiers: merged } : {}),
   };
 }

@@ -32,6 +32,20 @@ describe('buildPrescribeMotionTool', () => {
     expect(Object.keys(props)).toEqual(['motion']);
   });
 
+  it('presentation variant (allowRomCap:false) exposes qualitative modifiers but NOT rom caps', () => {
+    const t = buildPrescribeMotionTool({
+      motions: MOTIONS,
+      allowModifiers: true,
+      allowRomCap: false,
+      capJoints: CAPS,
+      description: 'reason it',
+    });
+    const props = (t.parameters as { properties: Record<string, unknown> }).properties;
+    expect(Object.keys(props)).toEqual(['motion', 'timeScale', 'guarding', 'balanceSway']);
+    expect(props.romCapJoint).toBeUndefined();
+    expect(t.description).toBe('reason it');
+  });
+
   it('name override wins', () => {
     const t = buildPrescribeMotionTool({ motions: MOTIONS, name: 'move' });
     expect(t.name).toBe('move');
@@ -73,6 +87,16 @@ describe('toolArgsToPrescription', () => {
     expect(rx).toEqual({ motion: 'walk', mode: 'play' });
   });
 
+  it('PRESENTATION variant keeps qualitative modifiers but drops rom caps (exam)', () => {
+    const rx = toolArgsToPrescription(
+      { motion: 'walk', guarding: 0.6, timeScale: 0.7, romCapJoint: 'R_Leg', romCapMaxDeg: 30 },
+      { motions: MOTIONS, capJoints: CAPS, allowModifiers: true, allowRomCap: false },
+    );
+    expect(rx!.modifiers?.guarding).toBe(0.6);
+    expect(rx!.modifiers?.timeScale).toBe(0.7);
+    expect(rx!.modifiers?.romCaps).toBeUndefined(); // ROM stays engine-enforced
+  });
+
   it('returns null on an unknown or missing motion', () => {
     expect(toolArgsToPrescription({ motion: 'moonwalk' }, full)).toBeNull();
     expect(toolArgsToPrescription({}, full)).toBeNull();
@@ -95,5 +119,16 @@ describe('mergeAuthoredPrescription (the exam merge)', () => {
   it('no authored modifiers → play mode', () => {
     const merged = mergeAuthoredPrescription({ motion: 'idle', mode: 'play' }, null);
     expect(merged).toEqual({ motion: 'idle', mode: 'play' });
+  });
+
+  it('field-level: authored overrides per field, AI-reasoned base fills the gaps', () => {
+    // base = what the patient reasoned; authored = what the scenario pinned.
+    const base: MotionPrescription = {
+      motion: 'walk',
+      mode: 'modify',
+      modifiers: { guarding: 0.4, balanceSway: 0.3, timeScale: 0.8 },
+    };
+    const merged = mergeAuthoredPrescription(base, { guarding: 0.7 });
+    expect(merged.modifiers).toEqual({ guarding: 0.7, balanceSway: 0.3, timeScale: 0.8 });
   });
 });
