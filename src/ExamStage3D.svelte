@@ -48,6 +48,7 @@
   import type { AnatomicalPlanes } from './services/anatomicalPlanes';
   import type { SectionCap } from './services/sectionCap';
   import type { IKChainContext } from './services/poseRig';
+  import type { PoseTrajectory } from './services/motionTrajectory';
   // romRegistry is three-free (pure definitions) — static import stays SSR-safe.
   import { getRomJointDefinition, type RomPlane } from './services/romRegistry';
   // romConstraints is three-free (pure registry math) — static import stays
@@ -486,9 +487,12 @@
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
       const { buildSequencePoses } = await import('./services/motionSequence');
-      const { composedTweenEase, stagedBlendWithBaseline, DEFAULT_TRACKED_BONES } = await import(
-        './services/motionRecording'
-      );
+      const {
+        composedTweenEase,
+        stagedBlendWithBaseline,
+        buildComposedTrajectory,
+        DEFAULT_TRACKED_BONES,
+      } = await import('./services/motionRecording');
       const { captureFloorReference, pinRootToFloor, rotateRestReferenceByRoot } = await import(
         './services/rootMotion'
       );
@@ -698,6 +702,12 @@
       function cancelComposed() {
         composedSeq += 1;
         composedActive = false;
+        // Abort an in-flight continuous trajectory so any awaiter unblocks.
+        if (activeTrajectory) {
+          const resolve = activeTrajectory.resolve;
+          activeTrajectory = null;
+          resolve();
+        }
       }
 
       // ── Posing-layer hooks (assigned by the posable init block below; all
@@ -1028,6 +1038,74 @@
         requestRender();
       }
 
+      // ── Continuous composed-motion player (services/motionTrajectory) ──────
+      // Replaces the old per-keyframe stop-start await-loop: ONE velocity-
+      // continuous spline flows through every keyframe, easing to rest only at
+      // holds and the end. Built by the SAME function the offline sampler uses,
+      // so the recording is frame-for-frame what plays here.
+      interface ActiveTrajectory {
+        traj: PoseTrajectory;
+        start: number;
+        settleAtMs: number[];
+        nextSettle: number;
+        onSettle: (i: number) => void;
+        loop: boolean;
+        resolve: () => void;
+        finished: boolean;
+      }
+      let activeTrajectory: ActiveTrajectory | null = null;
+
+      /** Set the whole-body root from an absolute trajectory sample, then (planted)
+       *  pin the lower foot to the floor. */
+      function applyTrajectoryRoot(
+        rootQuat: [number, number, number, number],
+        rootTranslate: [number, number, number],
+        planted: boolean,
+      ): void {
+        if (!modelRoot) return;
+        _rootQA.set(rootQuat[0], rootQuat[1], rootQuat[2], rootQuat[3]);
+        modelRoot.quaternion.copy(rootRestQuat).multiply(_rootQA);
+        modelRoot.position.set(
+          rootRestPos.x + rootTranslate[0],
+          rootRestPos.y + rootTranslate[1],
+          rootRestPos.z + rootTranslate[2],
+        );
+        modelRoot.updateMatrixWorld(true);
+        if (planted && skinnedRef && variantCfgRef && floorRef) {
+          pinRootToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, floorRef);
+        }
+      }
+
+      function stepTrajectory(now: number): void {
+        const at = activeTrajectory;
+        if (!at) return;
+        const total = at.traj.totalMs;
+        const raw = now - at.start;
+        // Fire each keyframe's settle measurement ONCE, off the EXACT settle pose
+        // (frame-timing-independent), before the visual frame pose is applied.
+        while (at.nextSettle < at.settleAtMs.length && raw >= at.settleAtMs[at.nextSettle]!) {
+          const st = at.traj.sampleAt(at.settleAtMs[at.nextSettle]!);
+          if (skinnedRef && variantCfgRef)
+            applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
+          applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted);
+          at.onSettle(at.nextSettle);
+          at.nextSettle += 1;
+        }
+        const done = !at.loop && raw >= total;
+        const elapsed = at.loop && total > 0 ? raw % total : Math.min(total, raw);
+        const s = at.traj.sampleAt(elapsed);
+        if (skinnedRef && variantCfgRef) applyCustomPose(skinnedRef.skeleton, variantCfgRef, s.pose);
+        currentPose = s.pose;
+        applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted);
+        requestRender();
+        if (done && !at.finished) {
+          at.finished = true;
+          const resolve = at.resolve;
+          activeTrajectory = null;
+          resolve();
+        }
+      }
+
       /** True when the stage cannot animate: parked (display:none host overlay
        *  → offsetParent null) OR the whole tab is background (visibilityState
        *  'hidden' freezes rAF WITHOUT hiding the element). Either way tweens
@@ -1279,51 +1357,75 @@
         const measurements: ComposedMotionPlaybackResult['measurements'] = [];
         const finalAngles: Record<string, number> = {};
         const hidden = stageHidden;
-        const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
         let lastReport: JointAngleReport | null = null;
-        // Root tween runs from the current composed root state, advancing per keyframe.
-        let prevQuat: [number, number, number, number] = [...composedRootQuat];
-        let prevTranslate: [number, number, number] = [...composedRootTranslate];
-        const rootTweenFor = (i: number): RootTweenTarget => {
-          const rs = built.roots[i]!;
-          const rt: RootTweenTarget = {
-            fromQuat: prevQuat,
-            toQuat: rs.quat,
-            fromTranslate: prevTranslate,
-            toTranslate: rs.translateM,
-            planted: rs.stance === 'planted',
-          };
-          prevQuat = rs.quat;
-          prevTranslate = rs.translateM;
-          composedRootQuat = rs.quat;
-          composedRootTranslate = rs.translateM;
-          return rt;
+
+        // ONE continuous trajectory through every keyframe — the SAME builder the
+        // offline sampler uses, so the recording matches the stage exactly. The
+        // start knot is the live on-stage pose/root (cross-motion continuity);
+        // interior keyframes are fly-throughs, holds + the end are stops.
+        const startPose = currentPose ?? baselinePoseRef ?? built.poses[0]!;
+        const { trajectory, settleAtMs } = buildComposedTrajectory(built, {
+          startPose,
+          startQuat: [...composedRootQuat],
+          startTranslate: [...composedRootTranslate],
+          timeScale,
+        });
+        // Advance the continuity/root state to the final keyframe for the NEXT motion.
+        const lastRoot = built.roots[built.roots.length - 1];
+        if (lastRoot) {
+          composedRootQuat = [...lastRoot.quat];
+          composedRootTranslate = [...lastRoot.translateM];
+        }
+
+        // Per-keyframe settle: MEASURE what the patient actually did (off the exact
+        // settle pose the player applies for us, frame-timing-independent).
+        const measureSettle = (i: number): void => {
+          const report = measureNow();
+          if (!report) return;
+          lastReport = report;
+          onReport?.(report);
+          for (const t of resolved.keyframes[i]!.targets) {
+            const measured = measureCommandMotion(report, t.joint, t.motion);
+            measurements.push({
+              keyframe: i,
+              joint: t.joint,
+              motion: t.motion,
+              clampedDegrees: t.clampedDegrees,
+              ...(measured != null ? { measuredDegrees: measured } : {}),
+            });
+          }
         };
 
-        for (let i = 0; i < built.poses.length; i += 1) {
-          if (token !== composedSeq) break; // superseded by a newer command
-          await tweenTo(built.poses[i]!, built.durationsMs[i]! / timeScale, rootTweenFor(i));
-          // Settle: MEASURE what the patient actually did at this keyframe.
-          const report = measureNow();
-          if (report) {
-            lastReport = report;
-            onReport?.(report);
-            for (const t of resolved.keyframes[i]!.targets) {
-              const measured = measureCommandMotion(report, t.joint, t.motion);
-              measurements.push({
-                keyframe: i,
-                joint: t.joint,
-                motion: t.motion,
-                clampedDegrees: t.clampedDegrees,
-                ...(measured != null ? { measuredDegrees: measured } : {}),
-              });
+        // Play the first pass to completion — or settle instantly when parked so a
+        // background stage never strands the command promise.
+        await new Promise<void>((resolve) => {
+          if (hidden()) {
+            for (let i = 0; i < settleAtMs.length; i += 1) {
+              const st = trajectory.sampleAt(settleAtMs[i]!);
+              if (skinnedRef && variantCfgRef)
+                applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
+              applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted);
+              measureSettle(i);
             }
+            const end = trajectory.sampleAt(trajectory.totalMs);
+            if (skinnedRef && variantCfgRef)
+              applyCustomPose(skinnedRef.skeleton, variantCfgRef, end.pose);
+            currentPose = end.pose;
+            applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted);
+            resolve();
+            return;
           }
-          // Hold at the keyframe (assessment moment). Skipped when hidden so
-          // a parked stage never strands the command chain.
-          const hold = (built.holdsMs[i] ?? 0) / timeScale;
-          if (hold > 0 && !hidden()) await sleep(Math.min(hold, 10_000));
-        }
+          activeTrajectory = {
+            traj: trajectory,
+            start: performance.now(),
+            settleAtMs,
+            nextSettle: 0,
+            onSettle: measureSettle,
+            loop: false,
+            resolve,
+            finished: false,
+          };
+        });
 
         // Final measured angles at the last keyframe for every touched field.
         if (lastReport) {
@@ -1346,18 +1448,20 @@
           timingAdjusted,
         };
         if (resolved.loop && token === composedSeq) {
-          // Detached cycle OUTSIDE the command chain: keep tweening through
-          // the keyframes until a newer command bumps the token. The first
-          // pass's measurements above are what the caller narrates from.
-          void (async () => {
-            let idx = 0;
-            while (token === composedSeq && !disposed && !hidden()) {
-              await tweenTo(built.poses[idx]!, built.durationsMs[idx]! / timeScale, rootTweenFor(idx));
-              const hold = (built.holdsMs[idx] ?? 0) / timeScale;
-              if (hold > 0 && !hidden()) await sleep(Math.min(hold, 10_000));
-              idx = (idx + 1) % built.poses.length;
-            }
-          })();
+          // Detached continuous cycle OUTSIDE the command chain: keep flowing
+          // through the keyframes (velocity-continuous) until a newer command
+          // bumps the token. First-pass measurements above are the narration.
+          activeTrajectory = {
+            traj: trajectory,
+            start: performance.now(),
+            settleAtMs: [],
+            nextSettle: 0,
+            onSettle: () => {},
+            loop: true,
+            resolve: () => {},
+            finished: false,
+          };
+          composedActive = true;
           return { status: 'playing', ...base };
         }
         if (token !== composedSeq) {
@@ -1572,6 +1676,7 @@
           renderNeeded = true; // keep rendering while a motion plays
         }
         if (activeTween) stepTween(performance.now()); // pose tween (bones-only)
+        if (activeTrajectory) stepTrajectory(performance.now()); // composed motion
         // Overlays + live streaming apply to BOTH animation modes: clip
         // playback (mixer) and composed keyframe playback (pose tweens).
         if ((mixer && activeMotionId) || composedActive) {

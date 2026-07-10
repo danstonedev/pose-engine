@@ -48,6 +48,8 @@ import {
 } from './rootMotion';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
 export { stagedBlendWithBaseline };
+import { buildComposedTrajectory } from './motionTrajectory';
+export { buildComposedTrajectory };
 
 // ── Shared easing (the ONE tween curve stage + sampler use) ─────────────────
 
@@ -259,80 +261,37 @@ export function sampleComposedMotion(
   let prevTranslate: [number, number, number] =
     !startNeutral && opts.currentRoot?.translateM ? [...opts.currentRoot.translateM] : [0, 0, 0];
 
-  const segments: SampleSegment[] = [];
-  for (let i = 0; i < built.poses.length; i += 1) {
-    const rs = built.roots[i]!;
-    const toPose = built.poses[i]!;
-    segments.push({
-      kind: 'travel',
-      fromPose: prevPose,
-      toPose,
-      fromQuat: prevQuat,
-      toQuat: rs.quat,
-      fromTranslate: prevTranslate,
-      toTranslate: rs.translateM,
-      planted: rs.stance === 'planted',
-      durMs: built.durationsMs[i]! / timeScale,
-    });
-    const holdMs = Math.min((built.holdsMs[i] ?? 0) / timeScale, 10_000);
-    if (holdMs > 0) {
-      segments.push({
-        kind: 'hold',
-        fromPose: toPose,
-        toPose,
-        fromQuat: rs.quat,
-        toQuat: rs.quat,
-        fromTranslate: rs.translateM,
-        toTranslate: rs.translateM,
-        planted: rs.stance === 'planted',
-        durMs: holdMs,
-      });
-    }
-    prevPose = toPose;
-    prevQuat = rs.quat;
-    prevTranslate = rs.translateM;
-  }
-
-  const totalMs = segments.reduce((s, seg) => s + seg.durMs, 0);
+  // CONTINUOUS TRAJECTORY (services/motionTrajectory): one velocity-continuous
+  // spline that FLOWS THROUGH the keyframe waypoints instead of the old
+  // stop-at-every-keyframe segment tween. Built by the SAME shared function the
+  // live stage uses, so a recording is frame-for-frame what the stage shows.
+  const { trajectory } = buildComposedTrajectory(built, {
+    startPose: prevPose,
+    startQuat: prevQuat,
+    startTranslate: prevTranslate,
+    timeScale,
+  });
+  const totalMs = trajectory.totalMs;
   const dtMs = 1000 / hz;
   const boneByKey = buildBoneByPoseKey(skinned.skeleton, variantCfg);
 
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
-    // Locate the segment containing t.
-    let segStart = 0;
-    let seg = segments[segments.length - 1]!;
-    let local = 1;
-    for (const s of segments) {
-      if (tMs <= segStart + s.durMs || s === segments[segments.length - 1]) {
-        seg = s;
-        local = s.durMs > 0 ? Math.min(1, Math.max(0, (tMs - segStart) / s.durMs)) : 1;
-        break;
-      }
-      segStart += s.durMs;
-    }
-    // Root (most proximal) leads on the plain eased scalar; the pose bones get
-    // the proximal→distal onset stagger. Holds settle fully (local → 1).
-    const holdLocal = seg.kind === 'hold' ? 1 : local;
-    const eased = composedTweenEase(holdLocal);
-
-    // Pose — the exact staggered blend the stage's stepTween applies.
-    const pose =
-      stagedBlendWithBaseline(seg.fromPose, seg.toPose, baselinePose, holdLocal) ?? baselinePose;
+    const sample = trajectory.sampleAt(tMs);
+    const pose = sample.pose;
     applyCustomPose(skinned.skeleton, variantCfg, pose);
 
-    // Root — slerp orient / lerp translate at the SAME eased parameter,
-    // then (planted) pin the deepest foot back to floor level.
-    _sq.set(seg.fromQuat[0], seg.fromQuat[1], seg.fromQuat[2], seg.fromQuat[3]);
-    _sqB.set(seg.toQuat[0], seg.toQuat[1], seg.toQuat[2], seg.toQuat[3]);
-    _sq.slerp(_sqB, eased);
-    _sv
-      .set(seg.fromTranslate[0], seg.fromTranslate[1], seg.fromTranslate[2])
-      .lerp(_svB.set(seg.toTranslate[0], seg.toTranslate[1], seg.toTranslate[2]), eased);
+    // Root orient/translate come from the same continuous spline; (planted) pin
+    // the deepest foot back to floor level.
+    _sq.set(sample.rootQuat[0], sample.rootQuat[1], sample.rootQuat[2], sample.rootQuat[3]);
     root.quaternion.copy(rootRestQuat).multiply(_sq);
-    root.position.set(rootRestPos.x + _sv.x, rootRestPos.y + _sv.y, rootRestPos.z + _sv.z);
+    root.position.set(
+      rootRestPos.x + sample.rootTranslate[0],
+      rootRestPos.y + sample.rootTranslate[1],
+      rootRestPos.z + sample.rootTranslate[2],
+    );
     root.updateMatrixWorld(true);
-    if (seg.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+    if (sample.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
 
     // Measure against the (possibly reoriented) rest reference — same as the
     // stage's activeRestRef().
