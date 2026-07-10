@@ -59,6 +59,12 @@ export * from './services/motionPrescription';
 // single commands, realistic-velocity timing, and keyframe pose folding.
 export * from './services/motionSequence';
 
+// Root motion (simMOVE full-body layer) — whole-body posture (orient), travel
+// (translate), and the PLANTED closed-chain foot-pin, all on the MODEL ROOT so
+// no clinical joint readout is disturbed. Pairs with motionSequence's per-
+// keyframe root/stance to unlock lying, rolling, jumping, stepping, squatting.
+export * from './services/rootMotion';
+
 // Posed-geometry world-space baking
 export * from './services/posedGeometry';
 

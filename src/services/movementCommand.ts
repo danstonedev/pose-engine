@@ -719,6 +719,134 @@ export function buildCommandPose(
   return target;
 }
 
+/** True when a joint composes as a swing-twist BALL joint (shoulder / hip) —
+ *  its three clinical fields (flexion/abduction/rotation) must be composed into
+ *  ONE delta rather than written independently, or later fields silently
+ *  overwrite earlier ones. */
+function isBallJoint(joint: string): boolean {
+  return /(?:UpperArm|UpLeg)$/.test(joint);
+}
+
+/** Shoulder (world-frame readout): compose flexion F, abduction A, rotation R
+ *  (clinical deg) into ONE rest-frame local delta. Builds the target world arm
+ *  direction that reads back exactly F and A under `upperArmWorldAngles`
+ *  (in-plane, away from the flexion/abduction singularity), then adds the axial
+ *  twist. Needs the rest world orientation (ctx). */
+function composeShoulderDelta(ctx: BuildCtx, side: 'L' | 'R', F: number, A: number, R: number): THREE.Quaternion {
+  const restDir = ctx.restDir!;
+  const restWorldQuat = ctx.restWorldQuat!;
+  const s = side === 'R' ? -1 : 1;
+  const tFlex = Math.atan2(restDir.z, -restDir.y) + F * RAD;
+  const tAbd = Math.atan2(s * restDir.x, -restDir.y) + A * RAD;
+  const tf = Math.tan(tFlex), ta = Math.tan(tAbd);
+  const c = 1 / Math.sqrt(1 + tf * tf + ta * ta);
+  const target = new THREE.Vector3(s * c * ta, -c, c * tf).normalize();
+  const worldSwing = new THREE.Quaternion().setFromUnitVectors(restDir, target);
+  const delta = restWorldQuat.clone().invert().multiply(worldSwing).multiply(restWorldQuat);
+  const twSign = side === 'R' ? 1 : -1;
+  return delta.multiply(new THREE.Quaternion().setFromAxisAngle(REST_DOWN, twSign * R * RAD));
+}
+
+/** Hip (canonical rest-frame readout): compose flexion F, abduction A, rotation
+ *  R (clinical deg) into ONE rest-frame local delta. Re-aims the rest long axis
+ *  to the swung direction that reads back F/A under `ballJointAngles`, then adds
+ *  the long-axis twist. Main axis exact ±~4°; the swing-twist decomposition
+ *  couples a few degrees into the off-axis fields off-neutral (documented). */
+function composeHipDelta(side: 'L' | 'R', F: number, A: number, R: number): THREE.Quaternion {
+  const s = side === 'R' ? -1 : 1;
+  const aFlex = F * RAD;
+  const aAbd = A * RAD * s;
+  const rem = Math.cos(aAbd);
+  const target = new THREE.Vector3(Math.sin(aAbd), -rem * Math.cos(aFlex), -rem * Math.sin(aFlex)).normalize();
+  const delta = new THREE.Quaternion().setFromUnitVectors(REST_DOWN, target);
+  const twSign = side === 'R' ? 1 : -1;
+  return delta.multiply(new THREE.Quaternion().setFromAxisAngle(REST_DOWN, twSign * R * RAD));
+}
+
+/** One commanded motion on a joint inside a keyframe: its registry motion key
+ *  and the (already ROM-clamped, trunk-compensated) clinical target. */
+export interface ComposedJointTarget {
+  motion: string;
+  degrees: number;
+}
+
+/**
+ * Build the target CustomPose for MULTIPLE motions commanded on the SAME joint
+ * within one keyframe — the fix for the same-bone overwrite bug. Every motion
+ * is composed into ONE bone quaternion instead of each write clobbering the
+ * last:
+ *   - BALL joints (L/R_UpperArm, L/R_UpLeg): flexion + abduction + rotation are
+ *     folded into a single swing+twist delta ({@link composeShoulderDelta} /
+ *     {@link composeHipDelta}). Main axes read back within tolerance; expect a
+ *     few degrees of swing-twist coupling in the off-axis fields.
+ *   - PARENT-euler joints (spine / neck / ankle / scapula / wrist / toes): the
+ *     commanded axes are summed into ONE body-frame YXZ Euler delta, so e.g.
+ *     lumbar flexion + lateralTilt + rotation coexist in one pose.
+ *   - Any other rest-frame combination (e.g. elbow flexion + forearm rotation):
+ *     the deltas are multiplied in order onto the rest local.
+ * A single-motion group takes the identical path as {@link buildCommandPose}.
+ */
+export function buildComposedCommandPose(
+  baselinePose: CustomPose,
+  joint: string,
+  targets: ComposedJointTarget[],
+  variantCfg: BodyVariantConfig,
+  fromPose?: CustomPose | null,
+  rest?: JointAngleRestReference | null,
+): CustomPose | null {
+  const specs = SUPPORTED_MOTIONS[joint];
+  if (!specs) return null;
+  const restArr = baselinePose.bones?.[joint];
+  if (!restArr) return null;
+  const usable = targets.filter((t) => specs[t.motion]);
+  if (usable.length === 0) return null;
+
+  const target = copyPose(fromPose ?? baselinePose, variantCfg.id);
+  const restQ = new THREE.Quaternion(restArr[0], restArr[1], restArr[2], restArr[3]);
+  const ctx: BuildCtx = { variantId: variantCfg.id };
+  const rwArr = rest?.worldQuats?.[joint];
+  const rdArr = rest?.worldDirs?.[joint];
+  if (rwArr && rdArr) {
+    ctx.restWorldQuat = new THREE.Quaternion(rwArr[0], rwArr[1], rwArr[2], rwArr[3]);
+    ctx.restDir = new THREE.Vector3(rdArr[0], rdArr[1], rdArr[2]);
+  }
+
+  let q: THREE.Quaternion;
+  if (usable.length === 1) {
+    const spec = specs[usable[0]!.motion]!;
+    const delta = spec.buildDelta(usable[0]!.degrees, ctx);
+    q = spec.compose === 'parent' ? delta.multiply(restQ) : restQ.clone().multiply(delta);
+  } else if (isBallJoint(joint) && ctx.restDir) {
+    // Fold flexion/abduction/rotation into one delta (shoulder world / hip canonical).
+    const side: 'L' | 'R' = joint.startsWith('R_') ? 'R' : 'L';
+    let F = 0, A = 0, R = 0;
+    for (const t of usable) {
+      if (t.motion.endsWith('Flexion')) F = t.degrees;
+      else if (t.motion.endsWith('Abduction')) A = t.degrees;
+      else if (t.motion.endsWith('Rotation')) R = t.degrees;
+    }
+    const delta = joint.endsWith('UpperArm')
+      ? composeShoulderDelta(ctx, side, F, A, R)
+      : composeHipDelta(side, F, A, R);
+    q = restQ.clone().multiply(delta);
+  } else if (usable.every((t) => specs[t.motion]!.compose === 'parent')) {
+    // Body-frame parent-euler joints: sum the single-axis Euler contributions.
+    const e = new THREE.Euler();
+    let ex = 0, ey = 0, ez = 0;
+    for (const t of usable) {
+      e.setFromQuaternion(specs[t.motion]!.buildDelta(t.degrees, ctx), 'YXZ');
+      ex += e.x; ey += e.y; ez += e.z;
+    }
+    q = new THREE.Quaternion().setFromEuler(new THREE.Euler(ex, ey, ez, 'YXZ')).multiply(restQ);
+  } else {
+    // Mixed rest-frame (e.g. elbow flexion + forearm rotation): compose in order.
+    q = restQ.clone();
+    for (const t of usable) q.multiply(specs[t.motion]!.buildDelta(t.degrees, ctx));
+  }
+  target.bones[joint] = [q.x, q.y, q.z, q.w];
+  return target;
+}
+
 /**
  * Read the MEASURED angle for a commanded joint/motion out of a
  * `computeJointAngles` report, mapped into the registry's clinical

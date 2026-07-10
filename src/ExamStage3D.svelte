@@ -299,6 +299,9 @@
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
       const { buildSequencePoses } = await import('./services/motionSequence');
+      const { captureFloorReference, pinRootToFloor, rotateRestReferenceByRoot } = await import(
+        './services/rootMotion'
+      );
       const { resolveMotionCommand } = await import('./services/motionCommand');
       const { normalizeRigBoneName } = await import('./services/movementClipSampling');
       const { createClinicalCameraControls } = await import('./services/clinicalCameraControls');
@@ -356,6 +359,70 @@
       let restingPoseRef: CustomPose | null = null;
       /** The pose currently on the skeleton (null = anatomic baseline). */
       let currentPose: CustomPose | null = null;
+      // ── Full-body ROOT motion state (simMOVE) ──────────────────────────────
+      // The planted-stance floor reference + the boot root transform (position
+      // after grounding; quaternion identity). Composed motions ride orient /
+      // translate on the MODEL ROOT relative to these; they persist across
+      // compositions for continuity and reset when a clip / exam command takes
+      // over.
+      let floorRef: ReturnType<typeof captureFloorReference> | null = null;
+      const rootRestPos = new THREE.Vector3();
+      const rootRestQuat = new THREE.Quaternion();
+      /** Current composed root state (meters-from-origin translate + orient quat). */
+      let composedRootQuat: [number, number, number, number] = [0, 0, 0, 1];
+      let composedRootTranslate: [number, number, number] = [0, 0, 0];
+      const _rootQA = new THREE.Quaternion();
+      const _rootQB = new THREE.Quaternion();
+      const _rootInv = new THREE.Quaternion();
+      const _rootPosA = new THREE.Vector3();
+      const _rootPosB = new THREE.Vector3();
+
+      /** Set the model root to a composed root state (orient quat relative to
+       *  rest + translate in meters from the anatomic origin). */
+      function applyRootState(
+        quat: [number, number, number, number],
+        translate: [number, number, number],
+      ): void {
+        if (!modelRoot) return;
+        _rootQA.set(quat[0], quat[1], quat[2], quat[3]);
+        modelRoot.quaternion.copy(rootRestQuat).multiply(_rootQA);
+        modelRoot.position.set(
+          rootRestPos.x + translate[0],
+          rootRestPos.y + translate[1],
+          rootRestPos.z + translate[2],
+        );
+        modelRoot.updateMatrixWorld(true);
+      }
+
+      /** Restore the model root to its grounded rest transform (upright, origin).
+       *  Called when a clip or exam command takes over from a composed posture. */
+      function resetRootToRest(): void {
+        composedRootQuat = [0, 0, 0, 1];
+        composedRootTranslate = [0, 0, 0];
+        if (!modelRoot) return;
+        modelRoot.quaternion.copy(rootRestQuat);
+        modelRoot.position.copy(rootRestPos);
+        modelRoot.updateMatrixWorld(true);
+      }
+
+      /** The orientation delta the model root currently carries vs its rest —
+       *  null when upright (so measurement uses the plain rest reference). */
+      function rootOrientDelta(): import('three').Quaternion | null {
+        if (!modelRoot) return null;
+        _rootQB.copy(modelRoot.quaternion).multiply(_rootInv.copy(rootRestQuat).invert());
+        if (Math.abs(_rootQB.x) < 1e-6 && Math.abs(_rootQB.y) < 1e-6 && Math.abs(_rootQB.z) < 1e-6) {
+          return null;
+        }
+        return _rootQB;
+      }
+
+      /** Rest reference to measure against right now — rotated to the reoriented
+       *  torso when the body is reoriented, else the plain rest. */
+      function activeRestRef(): ReturnType<typeof captureJointAngleRestReference> | null {
+        if (!restRef) return null;
+        const d = rootOrientDelta();
+        return d ? rotateRestReferenceByRoot(restRef, d) : restRef;
+      }
 
       // ── Named-motion (clip) playback state ─────────────────────────────────
       // A THREE.AnimationMixer drives walk/sit/stand clips. Motions and exam
@@ -606,6 +673,13 @@
           modelCenter.copy(_sphere.center);
           modelRadius = _sphere.radius;
           modelRoot = root;
+          // Capture the grounded rest root transform + planted-stance floor
+          // reference; composed root motion rides relative to these.
+          rootRestPos.copy(root.position);
+          rootRestQuat.copy(root.quaternion);
+          composedRootQuat = [0, 0, 0, 1];
+          composedRootTranslate = [0, 0, 0];
+          floorRef = skinned ? captureFloorReference(skinned.skeleton, variantCfg) : null;
           frameCamera();
 
           // 7) Wire the command surface to the fresh skeleton.
@@ -666,15 +740,47 @@
       const easeInOutCubic = (t: number) =>
         t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
+      interface RootTweenTarget {
+        fromQuat: [number, number, number, number];
+        toQuat: [number, number, number, number];
+        fromTranslate: [number, number, number];
+        toTranslate: [number, number, number];
+        /** Planted stance → pin the lower foot to the floor each frame. */
+        planted: boolean;
+      }
       interface ActiveTween {
         from: CustomPose | null;
         to: CustomPose | null;
         start: number;
         /** Travel time for THIS tween (composed keyframes pass their own). */
         durationMs: number;
+        /** Optional whole-body root transform tween (composed full-body motion). */
+        root?: RootTweenTarget;
         resolve: () => void;
       }
       let activeTween: ActiveTween | null = null;
+
+      /** Interpolate + apply the root transform for a tween at parameter t, and
+       *  (planted) re-pin the lower foot to the floor. */
+      function applyRootTween(rt: RootTweenTarget, t: number): void {
+        _rootQA.set(rt.fromQuat[0], rt.fromQuat[1], rt.fromQuat[2], rt.fromQuat[3]);
+        _rootQB.set(rt.toQuat[0], rt.toQuat[1], rt.toQuat[2], rt.toQuat[3]);
+        _rootQA.slerp(_rootQB, t);
+        _rootPosA
+          .set(rt.fromTranslate[0], rt.fromTranslate[1], rt.fromTranslate[2])
+          .lerp(_rootPosB.set(rt.toTranslate[0], rt.toTranslate[1], rt.toTranslate[2]), t);
+        if (!modelRoot) return;
+        modelRoot.quaternion.copy(rootRestQuat).multiply(_rootQA);
+        modelRoot.position.set(
+          rootRestPos.x + _rootPosA.x,
+          rootRestPos.y + _rootPosA.y,
+          rootRestPos.z + _rootPosA.z,
+        );
+        modelRoot.updateMatrixWorld(true);
+        if (rt.planted && skinnedRef && variantCfgRef && floorRef) {
+          pinRootToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, floorRef);
+        }
+      }
 
       function applyPoseNow(pose: CustomPose | null) {
         if (!skinnedRef || !variantCfgRef) return;
@@ -689,6 +795,7 @@
         activeTween = null;
         applyPoseNow(tw.to);
         currentPose = tw.to;
+        if (tw.root) applyRootTween(tw.root, 1);
         requestRender();
         tw.resolve();
       }
@@ -701,17 +808,23 @@
           finishTween();
           return;
         }
+        const eased = easeInOutCubic(t);
         if (skinnedRef && variantCfgRef) {
-          const blended = blendCustomPoseWithBaseline(tw.from, tw.to, baselinePoseRef, easeInOutCubic(t));
+          const blended = blendCustomPoseWithBaseline(tw.from, tw.to, baselinePoseRef, eased);
           if (blended) applyCustomPose(skinnedRef.skeleton, variantCfgRef, blended);
         }
+        if (tw.root) applyRootTween(tw.root, eased);
         requestRender();
       }
 
-      function tweenTo(to: CustomPose | null, durationMs: number = TWEEN_MS): Promise<void> {
+      function tweenTo(
+        to: CustomPose | null,
+        durationMs: number = TWEEN_MS,
+        root?: RootTweenTarget,
+      ): Promise<void> {
         return new Promise((resolve) => {
           if (activeTween) finishTween(); // safety — commands are serialized
-          activeTween = { from: currentPose, to, start: performance.now(), durationMs, resolve };
+          activeTween = { from: currentPose, to, start: performance.now(), durationMs, ...(root ? { root } : {}), resolve };
           startLoop();
           requestRender();
           // Hidden stage: the loop is parked, so settle instantly rather
@@ -723,7 +836,12 @@
       function measureNow(): JointAngleReport | null {
         if (!skinnedRef || !variantCfgRef || !restRef || !modelRoot) return null;
         modelRoot.updateMatrixWorld(true);
-        return computeJointAngles(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id, restRef);
+        return computeJointAngles(
+          skinnedRef.skeleton,
+          variantCfgRef,
+          variantCfgRef.id,
+          activeRestRef() ?? restRef,
+        );
       }
 
       // Loop-local measure: the render loop already ran modelRoot.updateMatrixWorld()
@@ -733,7 +851,12 @@
       // is what made high report rates expensive.
       function measureNowFresh(): JointAngleReport | null {
         if (!skinnedRef || !variantCfgRef || !restRef) return null;
-        return computeJointAngles(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id, restRef);
+        return computeJointAngles(
+          skinnedRef.skeleton,
+          variantCfgRef,
+          variantCfgRef.id,
+          activeRestRef() ?? restRef,
+        );
       }
 
       runCommandImpl = async (cmd: ExamMovementCommand): Promise<ExamMovementOutcome> => {
@@ -741,9 +864,11 @@
           return { status: 'refused', reason: 'stage-unavailable' };
         }
         // Mode switch: an exam ROM command owns the skeleton — cancel any active
-        // named motion or composed playback first, then proceed.
+        // named motion or composed playback first, then proceed. Exam ROM is
+        // upright/open-chain, so drop any composed full-body root posture.
         cancelComposed();
         if (activeMotionId) stopMotion();
+        resetRootToRest();
         if (cmd.action === 'relax') {
           await tweenTo(restingPoseRef);
           const report = measureNow();
@@ -811,16 +936,42 @@
         composedActive = true;
         startLoop();
 
-        const built = buildSequencePoses(baselinePoseRef, resolved, variantCfgRef, restRef);
+        // CROSS-MOTION CONTINUITY: fold onto the CURRENT on-stage pose + root, so
+        // a second motion holds unmentioned joints and continues from the live
+        // posture (unless the motion asked to start from neutral, which the build
+        // honors by folding onto the anatomic baseline / upright root instead).
+        const built = buildSequencePoses(baselinePoseRef, resolved, variantCfgRef, restRef, {
+          currentPose,
+          currentRoot: { quat: composedRootQuat, translateM: composedRootTranslate },
+        });
+        if (resolved.startFrom === 'neutral') resetRootToRest();
         const measurements: ComposedMotionPlaybackResult['measurements'] = [];
         const finalAngles: Record<string, number> = {};
         const hidden = () => !container || container.offsetParent === null;
         const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
         let lastReport: JointAngleReport | null = null;
+        // Root tween runs from the current composed root state, advancing per keyframe.
+        let prevQuat: [number, number, number, number] = [...composedRootQuat];
+        let prevTranslate: [number, number, number] = [...composedRootTranslate];
+        const rootTweenFor = (i: number): RootTweenTarget => {
+          const rs = built.roots[i]!;
+          const rt: RootTweenTarget = {
+            fromQuat: prevQuat,
+            toQuat: rs.quat,
+            fromTranslate: prevTranslate,
+            toTranslate: rs.translateM,
+            planted: rs.stance === 'planted',
+          };
+          prevQuat = rs.quat;
+          prevTranslate = rs.translateM;
+          composedRootQuat = rs.quat;
+          composedRootTranslate = rs.translateM;
+          return rt;
+        };
 
         for (let i = 0; i < built.poses.length; i += 1) {
           if (token !== composedSeq) break; // superseded by a newer command
-          await tweenTo(built.poses[i]!, built.durationsMs[i]! / timeScale);
+          await tweenTo(built.poses[i]!, built.durationsMs[i]! / timeScale, rootTweenFor(i));
           // Settle: MEASURE what the patient actually did at this keyframe.
           const report = measureNow();
           if (report) {
@@ -870,7 +1021,7 @@
           void (async () => {
             let idx = 0;
             while (token === composedSeq && !disposed && !hidden()) {
-              await tweenTo(built.poses[idx]!, built.durationsMs[idx]! / timeScale);
+              await tweenTo(built.poses[idx]!, built.durationsMs[idx]! / timeScale, rootTweenFor(idx));
               const hold = (built.holdsMs[idx] ?? 0) / timeScale;
               if (hold > 0 && !hidden()) await sleep(Math.min(hold, 10_000));
               idx = (idx + 1) % built.poses.length;
@@ -934,9 +1085,11 @@
         }
 
         // Cancel any in-flight pose tween, composed playback, and prior
-        // motion, then start the clip.
+        // motion, then start the clip. Clips animate the skeleton from the
+        // grounded upright root, so drop any composed full-body root posture.
         cancelComposed();
         if (activeTween) finishTween();
+        resetRootToRest();
         mixer.stopAllAction();
         if (motionFinishResolve) {
           const r = motionFinishResolve;

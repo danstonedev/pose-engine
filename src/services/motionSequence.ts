@@ -33,11 +33,13 @@ import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 import type { JointAngleRestReference } from './jointAngles';
 import {
-  buildCommandPose,
+  buildComposedCommandPose,
   resolveCommandTarget,
+  type ComposedJointTarget,
   type ExamMovementLimiter,
   type ExamMovementRefusalReason,
 } from './movementCommand';
+import { rootOrientQuatTuple, type RootOrient, type RootTransform } from './rootMotion';
 
 // ── Composed-motion types (structural — hosts mirror these shapes) ──────────
 
@@ -51,6 +53,27 @@ export interface SequenceTarget {
   targetDegrees: number;
 }
 
+/** Angular-velocity CLASS for a keyframe — the cap the timing governor enforces.
+ *  DEFAULT is 'deliberate' (clinical honesty: exams never silently go
+ *  ballistic). 'functional' unlocks everyday speed (a front kick), 'ballistic'
+ *  the athletic power a throw/kick spike needs. The governor still raises the
+ *  duration to the chosen class's floor and still flags `timingAdjusted`. */
+export type VelocityClass = 'deliberate' | 'functional' | 'ballistic';
+
+/** Per-class angular-velocity cap, °/s. */
+export const VELOCITY_CLASS_CAPS: Record<VelocityClass, number> = {
+  deliberate: 240,
+  functional: 600,
+  ballistic: 2000,
+};
+
+/** How a keyframe (or the whole motion) grounds: 'floating' = today's open-chain
+ *  behavior (limbs swing free; the body never touches the floor). 'planted' =
+ *  the closed-chain approximation — the lower foot is pinned to floor level, so
+ *  hip/knee/ankle flexion becomes a squat, plantarflexion a heel raise, trunk+hip
+ *  flexion a real hip-hinge toe-touch. Default 'floating' (back-compat). */
+export type StanceMode = 'floating' | 'planted';
+
 /** One timed keyframe: the targets to reach, how long the travel takes, and
  *  an optional hold at the reached position (assessment moments, end-range). */
 export interface SequenceKeyframe {
@@ -59,6 +82,13 @@ export interface SequenceKeyframe {
   durationMs: number;
   /** Optional dwell at the keyframe once reached, ms. */
   holdMs?: number;
+  /** Velocity class governing this keyframe's timing floor. Default 'deliberate'. */
+  velocityClass?: VelocityClass;
+  /** Whole-body root posture + travel for this keyframe (persists forward until
+   *  a later keyframe overrides it). Distinct from any joint AROM. */
+  root?: RootTransform;
+  /** Per-keyframe stance override (else the motion-level stance applies). */
+  stance?: StanceMode;
 }
 
 /** Qualitative overlay modifiers — same semantics as prescribe_motion's. */
@@ -80,6 +110,14 @@ export interface ComposedMotion {
    *  the first). Default false: play once and settle at the last keyframe. */
   loop?: boolean;
   modifiers?: ComposedMotionModifiers;
+  /** Where the motion begins. 'current' (DEFAULT): compose onto the CURRENT
+   *  on-stage pose — unmentioned joints hold where they are, so a second motion
+   *  never teleports the rest of the body back to rest. 'neutral': return to
+   *  anatomic first, then play (unmentioned joints reset to 0°). */
+  startFrom?: 'current' | 'neutral';
+  /** Default grounding for every keyframe that doesn't set its own `stance`.
+   *  Default 'floating' (back-compat open-chain behavior). */
+  stance?: StanceMode;
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
@@ -88,11 +126,17 @@ export interface ComposedMotion {
 export const MAX_KEYFRAMES = 12;
 /** Most joint targets a single keyframe may hold. */
 export const MAX_TARGETS_PER_KEYFRAME = 8;
-/** Fast clinical motion bound — no commanded joint may be asked to travel
- *  faster than this; keyframe durations are raised to respect it. */
-export const MAX_ANGULAR_VELOCITY_DEG_S = 240;
+/** Fast clinical motion bound — the DEFAULT ('deliberate') velocity-class cap;
+ *  no commanded joint may be asked to travel faster than this unless a keyframe
+ *  opts into a higher {@link VelocityClass}. Keyframe durations are raised to
+ *  respect the active cap. */
+export const MAX_ANGULAR_VELOCITY_DEG_S = VELOCITY_CLASS_CAPS.deliberate;
 /** Shortest a keyframe's travel may be, ms. */
 export const MIN_KEYFRAME_MS = 150;
+/** Longest a keyframe's travel — or its hold — may be, ms. Caps requested
+ *  durations (and even the velocity floor at pathological angular travel) so a
+ *  single keyframe can never freeze a host's serialized command chain. */
+export const MAX_KEYFRAME_MS = 10_000;
 
 // ── Resolution result types ─────────────────────────────────────────────────
 
@@ -119,6 +163,10 @@ export interface ResolvedSequenceKeyframe {
   holdMs: number;
   /** True when durationMs was raised to the realistic-velocity floor. */
   timingAdjusted?: boolean;
+  /** Whole-body root posture + travel for this keyframe (validated pass-through). */
+  root?: RootTransform;
+  /** Resolved effective stance for this keyframe. */
+  stance: StanceMode;
 }
 
 export interface ResolvedComposedMotion {
@@ -129,8 +177,20 @@ export interface ResolvedComposedMotion {
   outcomes: SequenceTargetOutcome[];
   loop: boolean;
   modifiers?: ComposedMotionModifiers;
+  /** Resolved start mode ('current' unless the motion asked for 'neutral'). */
+  startFrom: 'current' | 'neutral';
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
+}
+
+/** Options threading the CURRENT on-stage state into resolution (cross-motion
+ *  continuity): a second motion is timed + composed from where the body IS. */
+export interface ResolveComposedOptions {
+  /** Current MEASURED joint angles keyed `joint.motion` (registry clinical
+   *  degrees) — seeds each target's velocity 'from' value so a keyframe's timing
+   *  floor is measured from the live pose, not neutral. Ignored when the motion's
+   *  `startFrom` is 'neutral'. */
+  currentAngles?: Record<string, number>;
 }
 
 const isFiniteNum = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
@@ -143,8 +203,37 @@ function refuse(motion: ComposedMotion | null | undefined, reason: string): Reso
     keyframes: [],
     outcomes: [],
     loop: !!motion?.loop,
+    startFrom: motion?.startFrom === 'neutral' ? 'neutral' : 'current',
     reason,
   };
+}
+
+const isFiniteOpt = (n: unknown): boolean => n == null || (typeof n === 'number' && Number.isFinite(n));
+
+/** Validate + normalize a keyframe's root transform (finite orient angles, a
+ *  3-number translate). Returns the cleaned transform or undefined. Throws a
+ *  string reason via the caller's refuse path is avoided — returns `'invalid'`. */
+function validateRoot(root: RootTransform | undefined): RootTransform | undefined | 'invalid' {
+  if (root == null) return undefined;
+  if (typeof root !== 'object') return 'invalid';
+  const out: RootTransform = {};
+  if (root.orient != null) {
+    const o = root.orient;
+    if (!isFiniteOpt(o.pitchDeg) || !isFiniteOpt(o.rollDeg) || !isFiniteOpt(o.yawDeg)) return 'invalid';
+    const orient: RootOrient = {};
+    if (o.pitchDeg != null) orient.pitchDeg = o.pitchDeg;
+    if (o.rollDeg != null) orient.rollDeg = o.rollDeg;
+    if (o.yawDeg != null) orient.yawDeg = o.yawDeg;
+    if (Object.keys(orient).length) out.orient = orient;
+  }
+  if (root.translateM != null) {
+    const t = root.translateM;
+    if (!Array.isArray(t) || t.length !== 3 || !t.every((n) => typeof n === 'number' && Number.isFinite(n))) {
+      return 'invalid';
+    }
+    out.translateM = [t[0], t[1], t[2]];
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /**
@@ -157,6 +246,7 @@ function refuse(motion: ComposedMotion | null | undefined, reason: string): Reso
 export function resolveComposedMotion(
   motion: ComposedMotion,
   variantCfg?: BodyVariantConfig,
+  opts?: ResolveComposedOptions,
 ): ResolvedComposedMotion {
   if (!motion || !Array.isArray(motion.keyframes)) return refuse(motion, 'invalid-shape');
   if (motion.keyframes.length === 0) return refuse(motion, 'no-keyframes');
@@ -164,11 +254,19 @@ export function resolveComposedMotion(
     return refuse(motion, `too-many-keyframes (max ${MAX_KEYFRAMES})`);
   }
 
+  const startFrom: 'current' | 'neutral' = motion.startFrom === 'neutral' ? 'neutral' : 'current';
+  const motionStance: StanceMode = motion.stance === 'planted' ? 'planted' : 'floating';
   const outcomes: SequenceTargetOutcome[] = [];
   const resolvedKeyframes: ResolvedSequenceKeyframe[] = [];
   /** Last clamped value per `joint.motion` — the previous keyframe's position
-   *  for the velocity check. Joints never commanded start at neutral 0°. */
+   *  for the velocity check. Seeded from the CURRENT measured angle (cross-motion
+   *  continuity) when startFrom==='current'; otherwise from neutral 0°. */
   const lastClamped = new Map<string, number>();
+  if (startFrom === 'current' && opts?.currentAngles) {
+    for (const [key, deg] of Object.entries(opts.currentAngles)) {
+      if (typeof deg === 'number' && Number.isFinite(deg)) lastClamped.set(key, deg);
+    }
+  }
   let survivors = 0;
 
   for (const [ki, kf] of motion.keyframes.entries()) {
@@ -184,6 +282,12 @@ export function resolveComposedMotion(
     if (kf.holdMs != null && (!isFiniteNum(kf.holdMs) || kf.holdMs < 0)) {
       return refuse(motion, `keyframe ${ki}: holdMs must be a non-negative number`);
     }
+    if (kf.velocityClass != null && VELOCITY_CLASS_CAPS[kf.velocityClass] == null) {
+      return refuse(motion, `keyframe ${ki}: unknown velocityClass`);
+    }
+    const kfRoot = validateRoot(kf.root);
+    if (kfRoot === 'invalid') return refuse(motion, `keyframe ${ki}: malformed root transform`);
+    const velCap = VELOCITY_CLASS_CAPS[kf.velocityClass ?? 'deliberate'];
 
     const targets: ResolvedSequenceKeyframe['targets'] = [];
     let maxDeltaDeg = 0;
@@ -221,14 +325,29 @@ export function resolveComposedMotion(
       survivors += 1;
     }
 
-    // Realistic timing: the fastest joint may not exceed the velocity bound.
-    const floorMs = Math.max(MIN_KEYFRAME_MS, (maxDeltaDeg / MAX_ANGULAR_VELOCITY_DEG_S) * 1000);
-    const timingAdjusted = kf.durationMs < floorMs;
+    // Realistic timing: the fastest joint may not exceed this keyframe's
+    // velocity-class cap (default 'deliberate' = 240°/s).
+    const floorMs = Math.max(MIN_KEYFRAME_MS, (maxDeltaDeg / velCap) * 1000);
+    let durationMs = kf.durationMs < floorMs ? Math.ceil(floorMs) : kf.durationMs;
+    // Any adjustment away from the request — raised to the floor OR lowered to
+    // the playability cap — is reported so the caller can narrate honestly.
+    let timingAdjusted = kf.durationMs < floorMs;
+    // Playability beats both the request AND the velocity floor: a keyframe may
+    // never exceed MAX_KEYFRAME_MS (an unbounded duration would freeze a host's
+    // serialized command chain forever).
+    if (durationMs > MAX_KEYFRAME_MS) {
+      durationMs = MAX_KEYFRAME_MS;
+      timingAdjusted = true;
+    }
+    const holdMs = Math.min(kf.holdMs ?? 0, MAX_KEYFRAME_MS);
+    if ((kf.holdMs ?? 0) > MAX_KEYFRAME_MS) timingAdjusted = true;
     resolvedKeyframes.push({
       targets,
-      durationMs: timingAdjusted ? Math.ceil(floorMs) : kf.durationMs,
-      holdMs: kf.holdMs ?? 0,
+      durationMs,
+      holdMs,
       ...(timingAdjusted ? { timingAdjusted: true } : {}),
+      ...(kfRoot ? { root: kfRoot } : {}),
+      stance: kf.stance === 'planted' || kf.stance === 'floating' ? kf.stance : motionStance,
     });
   }
 
@@ -244,6 +363,7 @@ export function resolveComposedMotion(
     keyframes: resolvedKeyframes,
     outcomes,
     loop: !!motion.loop,
+    startFrom,
     ...(motion.modifiers ? { modifiers: motion.modifiers } : {}),
   };
 }
@@ -277,13 +397,42 @@ export interface ComposedMotionPlaybackResult {
   timingAdjusted: boolean;
 }
 
+/** Resolved whole-body root state for one keyframe (what the stage tweens the
+ *  MODEL ROOT to). `quat`/`translateM` carry FORWARD across keyframes — a
+ *  keyframe that doesn't set a root posture keeps the previous one. */
+export interface KeyframeRootState {
+  /** Model-root orientation quaternion [x,y,z,w] (identity when upright). */
+  quat: [number, number, number, number];
+  /** Model-root translation in meters [x,y,z] from the anatomic stance origin
+   *  (the PLANTED foot-pin Y drop is applied by the stage ON TOP of this). */
+  translateM: [number, number, number];
+  /** Effective stance for this keyframe. */
+  stance: StanceMode;
+}
+
 /** The built playback plan: one target CustomPose per keyframe plus its
- *  timing. Poses persist unmentioned joints across keyframes. */
+ *  timing and whole-body root state. Poses persist unmentioned joints across
+ *  keyframes; root state persists posture/travel across keyframes. */
 export interface ComposedMotionPoses {
   poses: CustomPose[];
+  /** Parallel to `poses`: the root orientation/translation/stance per keyframe. */
+  roots: KeyframeRootState[];
   durationsMs: number[];
   holdsMs: number[];
   loop: boolean;
+  /** Resolved start mode carried through for the stage/host. */
+  startFrom: 'current' | 'neutral';
+}
+
+/** Options threading the CURRENT on-stage pose into the build (continuity). */
+export interface BuildSequenceOptions {
+  /** The pose the body is CURRENTLY in. When the motion's startFrom is
+   *  'current' (default), keyframe poses fold onto this so unmentioned joints
+   *  persist across compositions instead of snapping back to anatomic rest. */
+  currentPose?: CustomPose | null;
+  /** The root state the body is CURRENTLY in (orientation/translation), so a
+   *  second motion continues from the live posture rather than upright origin. */
+  currentRoot?: { quat?: [number, number, number, number]; translateM?: [number, number, number] } | null;
 }
 
 /**
@@ -306,48 +455,69 @@ export function buildSequencePoses(
   resolved: ResolvedComposedMotion,
   variantCfg: BodyVariantConfig,
   rest?: JointAngleRestReference | null,
+  opts?: BuildSequenceOptions,
 ): ComposedMotionPoses {
   const poses: CustomPose[] = [];
+  const roots: KeyframeRootState[] = [];
   const durationsMs: number[] = [];
   const holdsMs: number[] = [];
-  let prev: CustomPose = baselinePose;
+  // CROSS-MOTION CONTINUITY: fold onto the CURRENT pose (unmentioned joints
+  // persist across compositions) unless startFrom==='neutral' (return to
+  // anatomic rest first). A fresh motion with no currentPose degrades to the
+  // anatomic baseline — identical to the pre-continuity behavior.
+  let prev: CustomPose =
+    resolved.startFrom === 'neutral' ? baselinePose : opts?.currentPose ?? baselinePose;
+  // Root state carried forward across keyframes. Seeds from the current root
+  // (continuity) unless returning to neutral.
+  let curQuat: [number, number, number, number] =
+    resolved.startFrom !== 'neutral' && opts?.currentRoot?.quat
+      ? [...opts.currentRoot.quat]
+      : [0, 0, 0, 1];
+  let curTranslate: [number, number, number] =
+    resolved.startFrom !== 'neutral' && opts?.currentRoot?.translateM
+      ? [...opts.currentRoot.translateM]
+      : [0, 0, 0];
   // Trunk sagittal state across the fold (clamped clinical degrees). The
   // shoulder-flexion readout is WORLD-anchored while its construction swings
   // from the REST world orientation, so a flexed/extended trunk shifts the
   // measured arm elevation by exactly the trunk's sagittal angle
-  // (rig-verified in motionSequence.test.ts: trunk −5° read as +5° extra
-  // shoulder flexion). Compensate at the MOTOR level — command
-  // clamped + trunkSum so the humerothoracic readout lands ON the clamped
-  // target — the same pre-compensation family as the finger fits. Other
-  // proximal→distal couplings (lateral tilt vs abduction) are small and left
-  // uncompensated.
+  // (rig-verified: trunk −5° read as +5° extra shoulder flexion). Compensate at
+  // the MOTOR level — command clamped + trunkSum so the humerothoracic readout
+  // lands ON the clamped target.
   const trunkFlex = new Map<string, number>();
   for (const kf of resolved.keyframes) {
-    // The keyframe's trunk end-state first — all its targets settle together.
     for (const t of kf.targets) {
       if ((t.joint === 'Spine_Lower' || t.joint === 'Spine_Upper') && t.motion === 'flexion') {
         trunkFlex.set(t.joint, t.clampedDegrees);
       }
     }
     const trunkSum = (trunkFlex.get('Spine_Lower') ?? 0) + (trunkFlex.get('Spine_Upper') ?? 0);
-    let pose: CustomPose = prev;
+
+    // GROUP targets by joint, then COMPOSE each joint's motions into ONE pose —
+    // the fix for the same-bone overwrite bug (two motions on one bone used to
+    // clobber each other, e.g. shoulder flexion + abduction).
+    const byJoint = new Map<string, ComposedJointTarget[]>();
     for (const t of kf.targets) {
-      const buildDeg =
-        t.motion === 'shoulderFlexion' ? t.clampedDegrees + trunkSum : t.clampedDegrees;
-      const built = buildCommandPose(
-        baselinePose,
-        { action: 'set-joint', joint: t.joint, motion: t.motion, targetDegrees: buildDeg },
-        buildDeg,
-        variantCfg,
-        pose,
-        rest,
-      );
-      if (built) pose = built; // null only for unsupported motions — already dropped
+      const deg = t.motion === 'shoulderFlexion' ? t.clampedDegrees + trunkSum : t.clampedDegrees;
+      const list = byJoint.get(t.joint) ?? [];
+      list.push({ motion: t.motion, degrees: deg });
+      byJoint.set(t.joint, list);
     }
+    let pose: CustomPose = prev;
+    for (const [joint, group] of byJoint) {
+      const built = buildComposedCommandPose(baselinePose, joint, group, variantCfg, pose, rest);
+      if (built) pose = built; // null only for wholly-unsupported joints — already dropped
+    }
+
+    // Root posture/travel carry forward; a keyframe that sets them overrides.
+    if (kf.root?.orient) curQuat = rootOrientQuatTuple(kf.root.orient);
+    if (kf.root?.translateM) curTranslate = [...kf.root.translateM];
+
     poses.push(pose);
+    roots.push({ quat: [...curQuat], translateM: [...curTranslate], stance: kf.stance });
     durationsMs.push(kf.durationMs);
     holdsMs.push(kf.holdMs);
     prev = pose;
   }
-  return { poses, durationsMs, holdsMs, loop: resolved.loop };
+  return { poses, roots, durationsMs, holdsMs, loop: resolved.loop, startFrom: resolved.startFrom };
 }
