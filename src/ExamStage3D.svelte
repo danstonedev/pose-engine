@@ -486,7 +486,7 @@
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
       const { buildSequencePoses } = await import('./services/motionSequence');
-      const { composedTweenEase, DEFAULT_TRACKED_BONES } = await import(
+      const { composedTweenEase, stagedBlendWithBaseline, DEFAULT_TRACKED_BONES } = await import(
         './services/motionRecording'
       );
       const { captureFloorReference, pinRootToFloor, rotateRestReferenceByRoot } = await import(
@@ -1018,7 +1018,10 @@
         }
         const eased = easeInOutCubic(t);
         if (skinnedRef && variantCfgRef) {
-          const blended = blendCustomPoseWithBaseline(tw.from, tw.to, baselinePoseRef, eased);
+          // Pose bones sequence proximal→distal (naturalism); the root (most
+          // proximal) leads on the plain eased scalar. Both settle exactly on
+          // target at t=1 — see services/motionStagger.
+          const blended = stagedBlendWithBaseline(tw.from, tw.to, baselinePoseRef, t);
           if (blended) applyCustomPose(skinnedRef.skeleton, variantCfgRef, blended);
         }
         if (tw.root) applyRootTween(tw.root, eased);

@@ -35,7 +35,6 @@ import {
 import {
   applyCustomPose,
   blendCustomPose,
-  blendCustomPoseWithBaseline,
   buildBoneByPoseKey,
 } from './poseRig';
 import {
@@ -47,17 +46,18 @@ import {
   pinRootToFloor,
   rotateRestReferenceByRoot,
 } from './rootMotion';
+import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
+export { stagedBlendWithBaseline };
 
 // ── Shared easing (the ONE tween curve stage + sampler use) ─────────────────
 
 /**
- * The composed-motion tween easing — ease-in-out cubic. ExamStage3D's pose
- * tween imports THIS function, and the offline sampler replays it, so a
- * recording sampled headlessly is frame-for-frame what the stage would show.
+ * The composed-motion tween easing — ease-in-out cubic. Defined in
+ * ./motionStagger (co-located with the proximal→distal onset warp so the two
+ * can never drift apart) and re-exported here for API stability: ExamStage3D's
+ * pose tween and existing callers import it from this module.
  */
-export function composedTweenEase(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
+export { composedTweenEase };
 
 /** The default exam-command tween duration, ms (mirrors ExamStage3D). */
 export const COMMAND_TWEEN_MS = 600;
@@ -311,11 +311,14 @@ export function sampleComposedMotion(
       }
       segStart += s.durMs;
     }
-    const eased = seg.kind === 'hold' ? 1 : composedTweenEase(local);
+    // Root (most proximal) leads on the plain eased scalar; the pose bones get
+    // the proximal→distal onset stagger. Holds settle fully (local → 1).
+    const holdLocal = seg.kind === 'hold' ? 1 : local;
+    const eased = composedTweenEase(holdLocal);
 
-    // Pose — the exact blend the stage's stepTween applies.
+    // Pose — the exact staggered blend the stage's stepTween applies.
     const pose =
-      blendCustomPoseWithBaseline(seg.fromPose, seg.toPose, baselinePose, eased) ?? baselinePose;
+      stagedBlendWithBaseline(seg.fromPose, seg.toPose, baselinePose, holdLocal) ?? baselinePose;
     applyCustomPose(skinned.skeleton, variantCfg, pose);
 
     // Root — slerp orient / lerp translate at the SAME eased parameter,

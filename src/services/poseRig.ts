@@ -266,6 +266,21 @@ export function blendCustomPose(
   to: CustomPose | null | undefined,
   t: number,
 ): CustomPose | null {
+  return blendCustomPosePerBone(from, to, () => t);
+}
+
+/** Like {@link blendCustomPose}, but the interpolation parameter is resolved
+ *  PER BONE via `tForBone(poseKey)` instead of a single shared scalar. This is
+ *  the primitive behind proximal-to-distal onset staggering: hips/spine can be
+ *  further along their arc than fingers/toes at the same instant. `tForBone`
+ *  MUST return 1 for every key at the segment endpoint so the pose still
+ *  arrives exactly on target (keyframe boundaries and measurement stay exact).
+ *  Positions interpolate at their own bone key's parameter too. */
+export function blendCustomPosePerBone(
+  from: CustomPose | null | undefined,
+  to: CustomPose | null | undefined,
+  tForBone: (poseKey: string) => number,
+): CustomPose | null {
   if (!from && !to) return null;
   if (!from) return copyPose(to as CustomPose);
   if (!to) return null;
@@ -274,7 +289,6 @@ export function blendCustomPose(
   // orientations differ) — snap to `to` regardless of t.
   if (from.variant !== to.variant) return copyPose(to);
 
-  const clamped = clamp01(t);
   // No t=0 / t=1 fast paths: the union loop below handles those naturally
   // (slerp(_, 0) = a, slerp(_, 1) = b) AND keeps single-sided bones present
   // at the endpoints. Returning copyPose(from) at t=0 would silently drop
@@ -288,6 +302,7 @@ export function blendCustomPose(
     const a = fromBones[key];
     const b = toBones[key];
     if (a && b) {
+      const clamped = clamp01(tForBone(key));
       tmpBlendQuatA.set(a[0], a[1], a[2], a[3]);
       tmpBlendQuatB.set(b[0], b[1], b[2], b[3]);
       tmpBlendQuatOut.copy(tmpBlendQuatA);
@@ -318,6 +333,7 @@ export function blendCustomPose(
       const a = fromPositions?.[key];
       const b = toPositions?.[key];
       if (a && b) {
+        const clamped = clamp01(tForBone(key));
         tmpBlendVecA.set(a[0], a[1], a[2]);
         tmpBlendVecB.set(b[0], b[1], b[2]);
         tmpBlendVecOut.lerpVectors(tmpBlendVecA, tmpBlendVecB, clamped);
