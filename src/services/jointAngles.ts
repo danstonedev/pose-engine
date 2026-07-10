@@ -488,6 +488,35 @@ export function upperArmWorldAngles(
   return { flexion, abduction, rotation };
 }
 
+/** True when an UpperArm IN-PLANE field (shoulderFlexion / shoulderAbduction)
+ *  is outside its meaningful zone and hosts should render it masked ("—").
+ *  The world-frame readout measures flexion and abduction as in-plane angles;
+ *  once the OTHER elevation passes ~horizontal, this field's projection
+ *  degenerates and saturates toward ±180° — an inherent 3-field ball-joint
+ *  limit, not a measurement of anything. Single-plane grading is unaffected
+ *  (the commanded axis stays exact); this is a DISPLAY guard so the HUD never
+ *  shows the saturated garbage next to a clean commanded motion. */
+export function isShoulderFieldMasked(
+  jointKey: string,
+  fieldKey: string,
+  set: Record<string, number> | undefined,
+): boolean {
+  if (!set || !jointKey.endsWith('UpperArm')) return false;
+  const OTHER: Record<string, string> = {
+    shoulderFlexion: 'shoulderAbduction',
+    shoulderAbduction: 'shoulderFlexion',
+  };
+  const otherKey = OTHER[fieldKey];
+  if (!otherKey) return false; // rotation is the residual twist — always valid
+  const value = set[fieldKey];
+  const other = set[otherKey];
+  if (typeof value !== 'number' || typeof other !== 'number') return false;
+  // The degenerate projection is the one that saturated: a reading past 150°
+  // that is also the more extreme of the pair is the artifact (a real 150°+
+  // elevation leaves the OTHER field reading even closer to ±180°).
+  return Math.abs(value) > 150 && Math.abs(value) >= Math.abs(other);
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────
 
 /** Long axis in every limb-root bone's local frame. Our convention: the

@@ -15,7 +15,7 @@
     formatRomValue,
     getRomFieldState,
   } from './services/romRegistry';
-  import type { JointAngleReport } from './services/jointAngles';
+  import { isShoulderFieldMasked, type JointAngleReport } from './services/jointAngles';
 
   interface Props {
     report: JointAngleReport | null;
@@ -71,7 +71,21 @@
                 <th scope="row">{row.label}</th>
                 <td>
                   {#each row.fields as field (field.key)}
-                    {#if set[field.key] !== undefined && (!filterChangedOnly || fieldMoved(set[field.key]))}
+                    {#if isShoulderFieldMasked(row.canonicalKey, field.key, set)}
+                      <!-- The other elevation is past horizontal: this in-plane
+                           field's projection degenerates (saturates toward
+                           ±180°), so show a mask instead of the garbage. -->
+                      <span
+                        class="joint-angles__field joint-angles__field--masked"
+                        style={`--rom-color: ${field.color};`}
+                        title={`${field.label}: not measurable in this arm position (the other elevation is past horizontal)`}
+                      >
+                        <span class="joint-angles__field-main">
+                          <span class="joint-angles__field-label">{field.label}</span>
+                          <span class="joint-angles__field-value">—</span>
+                        </span>
+                      </span>
+                    {:else if set[field.key] !== undefined && (!filterChangedOnly || fieldMoved(set[field.key]))}
                       {@const state = getRomFieldState(set[field.key], field)}
                       <span
                         class={`joint-angles__field joint-angles__field--${state.status}`}
@@ -210,6 +224,14 @@
   .joint-angles__field--outside .joint-angles__field-status {
     color: #fff;
     background: #ef4444;
+  }
+  /* Masked in-plane shoulder field (other elevation past horizontal): dimmed,
+     no track — the em-dash + tooltip say why. */
+  .joint-angles__field--masked {
+    opacity: 0.45;
+  }
+  .joint-angles__field--masked .joint-angles__field-value {
+    color: var(--text-3, #6b7280);
   }
   .joint-angles__rom-track {
     position: relative;

@@ -924,3 +924,81 @@ describe('buildCommandPose on the real male rig', () => {
     expect(pose).toBeNull();
   });
 });
+
+// ── 3. FEMALE-variant canary (the calibrations were derived on the male rig;
+//    this compact boot of the female GLB guards the transfer — especially the
+//    finger fits, whose OFFSETS are variant-keyed (different rest MCP posture).
+//    Rig-verified full sweep: 51/57 transfer exactly; fingers need the female
+//    constants in FINGER_FIT. ─────────────────────────────────────────────────
+
+describe('female-variant canary (calibration transfers)', () => {
+  const femaleCfg = BODY_VARIANTS.female;
+  let fRoot: THREE.Object3D;
+  let fSkinned: THREE.SkinnedMesh;
+  let fRest: JointAngleRestReference;
+  let fBaseline: CustomPose;
+
+  beforeAll(async () => {
+    const url = new URL('../../models/painmap3D_female.runtime.glb', import.meta.url);
+    const buf = readFileSync(fileURLToPath(url));
+    const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    const gltf = await new Promise<{ scene: THREE.Group }>((resolve, reject) => {
+      const loader = new GLTFLoader();
+      loader.setMeshoptDecoder(MeshoptDecoder);
+      loader.parse(arrayBuffer, '', resolve, reject);
+    });
+    fRoot = gltf.scene;
+    fRoot.scale.setScalar(femaleCfg.pose.rootScale);
+    fRoot.traverse((o) => {
+      if ((o as THREE.SkinnedMesh).isSkinnedMesh && !fSkinned) fSkinned = o as THREE.SkinnedMesh;
+    });
+    fRoot.updateMatrixWorld(true);
+    applyAnatomicPose(fRoot, femaleCfg);
+    fRoot.updateMatrixWorld(true);
+    fRest = captureJointAngleRestReference(fSkinned.skeleton, femaleCfg);
+    fBaseline = serializeCustomPose(fSkinned.skeleton, femaleCfg, 'female');
+  });
+
+  const measureFemale = (joint: string, motion: string, deg: number, tol = 2) => {
+    const cmd = setJoint(joint, motion, deg);
+    const resolved = resolveCommandTarget(cmd, femaleCfg);
+    expect(resolved.status).toBe('complied');
+    const pose = buildCommandPose(fBaseline, cmd, resolved.clampedDegrees!, femaleCfg, null, fRest)!;
+    expect(pose).not.toBeNull();
+    applyCustomPose(fSkinned.skeleton, femaleCfg, pose);
+    fRoot.updateMatrixWorld(true);
+    const report = computeJointAngles(fSkinned.skeleton, femaleCfg, 'female', fRest);
+    expect(Math.abs(measureCommandMotion(report, joint, motion)! - deg)).toBeLessThan(tol);
+  };
+
+  it('one canary per joint group reads back exact on the female rig', () => {
+    measureFemale('R_Foot', 'ankleFlexion', 12);
+    measureFemale('L_Foot', 'ankleInversion', 20);
+    measureFemale('R_Leg', 'kneeFlexion', 60);
+    measureFemale('L_UpLeg', 'hipAbduction', 27);
+    measureFemale('R_UpLeg', 'hipRotation', 25);
+    measureFemale('L_Forearm', 'elbowFlexion', 60, 3);
+    measureFemale('R_Forearm', 'forearmRotation', 54);
+    measureFemale('L_Hand', 'wristFlexion', 40);
+    measureFemale('Spine_Lower', 'lateralTilt', 20);
+    measureFemale('Spine_Upper', 'rotation', 25);
+    measureFemale('Neck', 'rotation', 48);
+    measureFemale('R_Shoulder', 'protraction', 20);
+    measureFemale('L_Toes', 'toeFlexion', 40);
+  });
+
+  it('shoulder world-frame readout is variant-independent (flexion 90 / abduction 45 / rotation ±30)', () => {
+    measureFemale('L_UpperArm', 'shoulderFlexion', 90);
+    measureFemale('R_UpperArm', 'shoulderFlexion', 45);
+    measureFemale('L_UpperArm', 'shoulderAbduction', 45);
+    measureFemale('R_UpperArm', 'shoulderRotation', 30);
+    measureFemale('L_UpperArm', 'shoulderRotation', -30);
+  });
+
+  it('fingers use the FEMALE fit constants (all five digits within ±3° at 60°)', () => {
+    for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
+      measureFemale(`L_${digit}`, 'fingerFlexion', 60, 3);
+      measureFemale(`R_${digit}`, 'fingerFlexion', 60, 3);
+    }
+  });
+});

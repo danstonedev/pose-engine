@@ -306,3 +306,24 @@ describe('hashJointAngleReport', () => {
     expect(hashJointAngleReport(a)).not.toBe(hashJointAngleReport(c));
   });
 });
+
+describe('isShoulderFieldMasked (HUD saturation guard)', () => {
+  it('masks the in-plane sibling only past horizontal, never rotation, never other joints', async () => {
+    const { isShoulderFieldMasked } = await import('../services/jointAngles');
+    // At rest / below horizontal: nothing masked.
+    const low = { shoulderFlexion: 60, shoulderAbduction: 5, shoulderRotation: 0 };
+    expect(isShoulderFieldMasked('L_UpperArm', 'shoulderAbduction', low)).toBe(false);
+    expect(isShoulderFieldMasked('L_UpperArm', 'shoulderFlexion', low)).toBe(false);
+    // Deep flexion: the ABDUCTION field degenerates and is masked; flexion is not.
+    const deepFlex = { shoulderFlexion: 135, shoulderAbduction: 178, shoulderRotation: 0 };
+    expect(isShoulderFieldMasked('R_UpperArm', 'shoulderAbduction', deepFlex)).toBe(true);
+    expect(isShoulderFieldMasked('R_UpperArm', 'shoulderFlexion', deepFlex)).toBe(false);
+    // Full abduction: the FLEXION field is masked.
+    const fullAbd = { shoulderFlexion: -175, shoulderAbduction: 90, shoulderRotation: 0 };
+    expect(isShoulderFieldMasked('L_UpperArm', 'shoulderFlexion', fullAbd)).toBe(true);
+    // Rotation is the residual twist — always valid.
+    expect(isShoulderFieldMasked('L_UpperArm', 'shoulderRotation', deepFlex)).toBe(false);
+    // Non-shoulder joints are never masked.
+    expect(isShoulderFieldMasked('L_UpLeg', 'hipAbduction', { hipFlexion: 120 })).toBe(false);
+  });
+});

@@ -285,7 +285,7 @@ const WORLD_Z = new THREE.Vector3(0, 0, 1);
  *  currentWorld = worldSwing × restWorld. Rig-verified: flexion/abduction read back
  *  exact with zero rotation leak. Without ctx (no rest reference) returns identity. */
 function armSwingDelta(ctx: BuildCtx | undefined, worldAxis: THREE.Vector3, deg: number): THREE.Quaternion {
-  if (!ctx) return new THREE.Quaternion();
+  if (!ctx?.restWorldQuat || !ctx.restDir) return new THREE.Quaternion();
   const target = ctx.restDir
     .clone()
     .applyQuaternion(new THREE.Quaternion().setFromAxisAngle(worldAxis, deg * RAD));
@@ -293,12 +293,14 @@ function armSwingDelta(ctx: BuildCtx | undefined, worldAxis: THREE.Vector3, deg:
   return ctx.restWorldQuat.clone().invert().multiply(worldSwing).multiply(ctx.restWorldQuat);
 }
 
-/** Rest-frame context a few specs (shoulder elevation) need to build a
- *  WORLD-plane swing: the commanded bone's rest WORLD orientation + world long
- *  axis. Supplied by buildCommandPose from the rest reference. */
+/** Build context a few specs need beyond the rest local quaternion: the body
+ *  variant (finger fits are variant-keyed) and — when the caller supplies the
+ *  rest reference — the commanded bone's rest WORLD orientation + world long
+ *  axis (shoulder elevation builds a world-plane swing from them). */
 interface BuildCtx {
-  restWorldQuat: THREE.Quaternion;
-  restDir: THREE.Vector3;
+  variantId?: string;
+  restWorldQuat?: THREE.Quaternion;
+  restDir?: THREE.Vector3;
 }
 
 interface SupportedMotionSpec {
@@ -559,13 +561,38 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   const kneeRotR: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(deg), compose: 'rest', fromReport: (deg) => deg };
   // FINGERS / THUMB: composite MCP+PIP curl about the pinned local-Z ring. The
   // readback is ABSOLUTE-geometric (not rest-relative), so it carries a per-digit
-  // slope+offset (agent linear fit on the flexion branch). buildDelta PRE-COMPENSATES
+  // slope+offset (linear fit on the flexion branch). buildDelta PRE-COMPENSATES
   // (inverts the fit) so commanded == measured across the usable range; fromReport is
   // identity. sideSign L −1 / R +1 curls the fingertip toward the palm. Usable to
   // ~110° (single MCP bone; the full 160° would also drive the PIP child).
-  const makeFinger = (sideSign: number, slope: number, offset: number): SupportedMotionSpec => ({
-    buildDelta: (deg) =>
-      new THREE.Quaternion().setFromAxisAngle(LOCAL_Z, (sideSign * (deg - offset)) / slope * RAD),
+  // The fits are VARIANT-KEYED: the slopes are shared rig geometry, but the
+  // OFFSETS are each hand's rest MCP posture, which differs male vs female
+  // (rig-verified on both GLBs; L and R are bit-identical per variant).
+  const FINGER_FIT: Record<string, Record<string, { slope: number; offset: number }>> = {
+    male: {
+      Thumb1: { slope: 0.99, offset: 11.5 },
+      Index1: { slope: 0.93, offset: 14 },
+      Mid1: { slope: 1.0, offset: 6 },
+      Ring1: { slope: 0.99, offset: 3 },
+      Pinky1: { slope: 0.91, offset: 4 },
+    },
+    female: {
+      Thumb1: { slope: 1.0, offset: 15.2 },
+      Index1: { slope: 0.93, offset: 9.8 },
+      Mid1: { slope: 1.0, offset: 3.5 },
+      Ring1: { slope: 0.99, offset: 1.7 },
+      Pinky1: { slope: 0.93, offset: 7.9 },
+    },
+  };
+  const makeFinger = (sideSign: number, digit: string): SupportedMotionSpec => ({
+    buildDelta: (deg, ctx) => {
+      const variant = FINGER_FIT[ctx?.variantId ?? 'male'] ?? FINGER_FIT.male!;
+      const fit = variant[digit] ?? FINGER_FIT.male![digit]!;
+      return new THREE.Quaternion().setFromAxisAngle(
+        LOCAL_Z,
+        ((sideSign * (deg - fit.offset)) / fit.slope) * RAD,
+      );
+    },
     compose: 'rest',
     fromReport: (deg) => deg,
   });
@@ -591,16 +618,16 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     R_Shoulder: { upRotation: scapUpRotR, scapularTilt: scapTilt, protraction: scapProtractR },
     L_UpperArm: { shoulderFlexion: shoulderFlex, shoulderAbduction: shoulderAbdL, shoulderRotation: shoulderRotL },
     R_UpperArm: { shoulderFlexion: shoulderFlex, shoulderAbduction: shoulderAbdR, shoulderRotation: shoulderRotR },
-    L_Thumb1: { fingerFlexion: makeFinger(-1, 0.99, 11.5) },
-    L_Index1: { fingerFlexion: makeFinger(-1, 0.93, 14) },
-    L_Mid1: { fingerFlexion: makeFinger(-1, 1.0, 6) },
-    L_Ring1: { fingerFlexion: makeFinger(-1, 0.99, 3) },
-    L_Pinky1: { fingerFlexion: makeFinger(-1, 0.91, 4) },
-    R_Thumb1: { fingerFlexion: makeFinger(1, 0.99, 11.5) },
-    R_Index1: { fingerFlexion: makeFinger(1, 0.93, 14) },
-    R_Mid1: { fingerFlexion: makeFinger(1, 1.0, 6) },
-    R_Ring1: { fingerFlexion: makeFinger(1, 0.99, 3) },
-    R_Pinky1: { fingerFlexion: makeFinger(1, 0.91, 4) },
+    L_Thumb1: { fingerFlexion: makeFinger(-1, 'Thumb1') },
+    L_Index1: { fingerFlexion: makeFinger(-1, 'Index1') },
+    L_Mid1: { fingerFlexion: makeFinger(-1, 'Mid1') },
+    L_Ring1: { fingerFlexion: makeFinger(-1, 'Ring1') },
+    L_Pinky1: { fingerFlexion: makeFinger(-1, 'Pinky1') },
+    R_Thumb1: { fingerFlexion: makeFinger(1, 'Thumb1') },
+    R_Index1: { fingerFlexion: makeFinger(1, 'Index1') },
+    R_Mid1: { fingerFlexion: makeFinger(1, 'Mid1') },
+    R_Ring1: { fingerFlexion: makeFinger(1, 'Ring1') },
+    R_Pinky1: { fingerFlexion: makeFinger(1, 'Pinky1') },
   };
 })();
 
@@ -673,16 +700,15 @@ export function buildCommandPose(
 
   const target = copyPose(fromPose ?? baselinePose, variantCfg.id);
   const restQ = new THREE.Quaternion(restArr[0], restArr[1], restArr[2], restArr[3]);
-  // Shoulder elevation needs the arm's rest WORLD orientation + direction to build
-  // a world-plane swing; supplied from the rest reference when available.
-  let ctx: BuildCtx | undefined;
+  // Context beyond the rest local: the variant (finger fits are variant-keyed),
+  // plus — when the rest reference is supplied — the bone's rest WORLD
+  // orientation + direction (shoulder elevation builds a world-plane swing).
+  const ctx: BuildCtx = { variantId: variantCfg.id };
   const rwArr = rest?.worldQuats?.[cmd.joint];
   const rdArr = rest?.worldDirs?.[cmd.joint];
   if (rwArr && rdArr) {
-    ctx = {
-      restWorldQuat: new THREE.Quaternion(rwArr[0], rwArr[1], rwArr[2], rwArr[3]),
-      restDir: new THREE.Vector3(rdArr[0], rdArr[1], rdArr[2]),
-    };
+    ctx.restWorldQuat = new THREE.Quaternion(rwArr[0], rwArr[1], rwArr[2], rwArr[3]);
+    ctx.restDir = new THREE.Vector3(rdArr[0], rdArr[1], rdArr[2]);
   }
   const delta = spec.buildDelta(clampedDegrees, ctx);
   const q =
