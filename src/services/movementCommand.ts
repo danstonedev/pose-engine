@@ -220,6 +220,21 @@ function eulerXDelta(deg: number): THREE.Quaternion {
   return new THREE.Quaternion().setFromEuler(new THREE.Euler(deg * RAD, 0, 0, 'YXZ'));
 }
 
+/** Parent-local Y-euler delta (transverse/axial) — for body-aligned bones whose
+ *  parent-local frame reads a clean yaw (lumbar + cervical rotation; rig-verified
+ *  exact readback, zero off-plane smear). */
+function eulerYDelta(deg: number): THREE.Quaternion {
+  return new THREE.Quaternion().setFromEuler(new THREE.Euler(0, deg * RAD, 0, 'YXZ'));
+}
+
+/** Parent-local Z-euler delta (frontal/lateral) — for body-aligned bones whose
+ *  parent-local frame reads a clean tilt (lumbar + cervical lateralTilt, shoulder
+ *  abduction; rig-verified). Note the readout's lateral sign convention: spine +
+ *  neck lateralTilt carry latSign=−1, so those callers pass −deg. */
+function eulerZDelta(deg: number): THREE.Quaternion {
+  return new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, deg * RAD, 'YXZ'));
+}
+
 /** CANONICAL-frame delta for a ball/hinge sagittal swing — the same frame
  *  the ROM clamp recomposes in (`poseRomClamp.recomposeBallJoint`): swing the
  *  rest long axis (0,−1,0) toward −Z by `deg` about the medio-lateral axis,
@@ -272,15 +287,31 @@ interface SupportedMotionSpec {
  *    hinge readout signs anatomic flexion POSITIVE, so `fromReport` is
  *    identity.
  *
- *  SHOULDER (L/R_UpperArm.shoulderFlexion) was planned for v1 but is
- *  deliberately NOT shipped: on the real rig the clavicle/upper-arm local
- *  frames are twisted such that NO single-axis construction is both
- *  anatomically correct in world space and clean in the parent-local ball
- *  readout (a world-anterior 60° raise smears into ≈22° flex / 22° abd /
- *  −52° rot). Shipping a command whose visual contradicts its measured
- *  outcome would corrupt host grading, so shoulder commands refuse with
- *  'unsupported-motion' until the shoulder readout is live-calibrated
- *  (same workstream as enabling the ROM clamp in browsers). */
+ *  v1.3 EXPANSION (rig-verified, each with a movementCommand.test.ts case
+ *  asserting commanded == measured within ±2° and no off-plane smear):
+ *   - HIP (L/R_UpLeg.hipFlexion): ball swing in the rest frame like the knee, but
+ *     UN-negated — the readout measures the swing directly on the UpLeg (not a
+ *     child), so +deg lands the thigh anterior; extension is negative.
+ *   - ELBOW (L/R_Forearm.elbowFlexion): hinge, rest-frame ball swing +deg (flexes
+ *     anterior toward the biceps, opposite the knee).
+ *   - TRUNK (Spine_Lower.lateralTilt/rotation) + CERVICAL (Neck.flexion/rotation/
+ *     lateralTilt): body-aligned parent-local frames, so clean single-axis euler
+ *     deltas (X flex, Y rotation, Z lateral). lateralTilt carries latSign=−1 in
+ *     the readout, so those specs pass −deg. (Trunk EXTENSION already works as
+ *     negative Spine_Lower.flexion.)
+ *   - SHOULDER ABDUCTION (L/R_UpperArm.shoulderAbduction): parent-frame Z-euler.
+ *     Clavicle-Z ≈ world +Z (the true abduction axis) is perpendicular to the
+ *     readout's long axis, so it decomposes as a clean swing (L +deg, R −deg).
+ *
+ *  SHOULDER FLEXION (L/R_UpperArm.shoulderFlexion) remains deliberately NOT
+ *  shipped: true forward flexion rotates about the clavicle-Y axis, which IS the
+ *  swing-twist readout's long axis (0,−1,0) — so any world-correct raise is
+ *  measured as pure `shoulderRotation`, and any readout-clean construction barely
+ *  lifts the arm (≈41° world elevation for a commanded 90°). No single-axis
+ *  construction is both world-correct and self-consistent; it needs a 2-axis
+ *  build plus a world-frame readout redefinition. Shipping it would corrupt
+ *  grading, so it refuses with 'unsupported-motion' until the readout is
+ *  redefined (same workstream as enabling the ROM clamp in browsers). */
 const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (() => {
   const ankle: SupportedMotionSpec = {
     buildDelta: (deg) => eulerXDelta(deg),
@@ -289,6 +320,17 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   };
   const knee: SupportedMotionSpec = {
     buildDelta: (deg) => ballFlexDelta(-deg),
+    compose: 'rest',
+    fromReport: (deg) => deg,
+  };
+  // Hip + elbow: rest-frame ball swing, UN-negated (anterior). See the v1.3 note.
+  const hip: SupportedMotionSpec = {
+    buildDelta: (deg) => ballFlexDelta(deg),
+    compose: 'rest',
+    fromReport: (deg) => deg,
+  };
+  const elbow: SupportedMotionSpec = {
+    buildDelta: (deg) => ballFlexDelta(deg),
     compose: 'rest',
     fromReport: (deg) => deg,
   };
@@ -302,12 +344,57 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     compose: 'parent',
     fromReport: (deg) => deg,
   };
+  // Lumbar side-bend + axial rotation (v1.3): same body-aligned frame → Z/Y euler.
+  const lumbarLateral: SupportedMotionSpec = {
+    buildDelta: (deg) => eulerZDelta(-deg), // readout latSign=−1
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  };
+  const lumbarRotation: SupportedMotionSpec = {
+    buildDelta: (deg) => eulerYDelta(deg),
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  };
+  // Cervical (v1.3): Neck parent-local frame is body-aligned like the waist.
+  const cervicalFlex: SupportedMotionSpec = {
+    buildDelta: (deg) => eulerXDelta(deg),
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  };
+  const cervicalRotation: SupportedMotionSpec = {
+    buildDelta: (deg) => eulerYDelta(deg),
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  };
+  const cervicalLateral: SupportedMotionSpec = {
+    buildDelta: (deg) => eulerZDelta(-deg), // readout latSign=−1
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  };
+  // Shoulder abduction (v1.3): parent-frame Z-euler; readout mirrors on the right.
+  const shoulderAbdL: SupportedMotionSpec = {
+    buildDelta: (deg) => eulerZDelta(deg),
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  };
+  const shoulderAbdR: SupportedMotionSpec = {
+    buildDelta: (deg) => eulerZDelta(-deg),
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  };
   return {
     L_Foot: { ankleFlexion: ankle },
     R_Foot: { ankleFlexion: ankle },
     L_Leg: { kneeFlexion: knee },
     R_Leg: { kneeFlexion: knee },
-    Spine_Lower: { flexion: lumbar },
+    L_UpLeg: { hipFlexion: hip },
+    R_UpLeg: { hipFlexion: hip },
+    L_Forearm: { elbowFlexion: elbow },
+    R_Forearm: { elbowFlexion: elbow },
+    Spine_Lower: { flexion: lumbar, lateralTilt: lumbarLateral, rotation: lumbarRotation },
+    Neck: { flexion: cervicalFlex, rotation: cervicalRotation, lateralTilt: cervicalLateral },
+    L_UpperArm: { shoulderAbduction: shoulderAbdL },
+    R_UpperArm: { shoulderAbduction: shoulderAbdR },
   };
 })();
 

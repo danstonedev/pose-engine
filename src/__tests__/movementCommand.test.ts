@@ -229,21 +229,34 @@ describe('resolveCommandTarget', () => {
       expect(r.status).toBe('complied');
     });
 
-    it('exposes exactly the documented vocabulary (v1 hinges + v1.1 lumbar flexion)', () => {
+    it('exposes exactly the documented vocabulary (v1 hinges + v1.1 lumbar + v1.3 quarter)', () => {
       const list = listSupportedMovementCommands()
         .map((c) => `${c.joint}.${c.motion}`)
         .sort();
       expect(list).toEqual([
         'L_Foot.ankleFlexion',
+        'L_Forearm.elbowFlexion',
         'L_Leg.kneeFlexion',
+        'L_UpLeg.hipFlexion',
+        'L_UpperArm.shoulderAbduction',
+        'Neck.flexion',
+        'Neck.lateralTilt',
+        'Neck.rotation',
         'R_Foot.ankleFlexion',
+        'R_Forearm.elbowFlexion',
         'R_Leg.kneeFlexion',
+        'R_UpLeg.hipFlexion',
+        'R_UpperArm.shoulderAbduction',
         'Spine_Lower.flexion',
+        'Spine_Lower.lateralTilt',
+        'Spine_Lower.rotation',
       ]);
       expect(isMovementCommandSupported('R_Foot', 'ankleFlexion')).toBe(true);
-      expect(isMovementCommandSupported('Spine_Lower', 'flexion')).toBe(true);
-      // Non-sagittal trunk motions stay withheld until rig-verified like flexion.
-      expect(isMovementCommandSupported('Spine_Lower', 'lateralTilt')).toBe(false);
+      expect(isMovementCommandSupported('R_UpLeg', 'hipFlexion')).toBe(true);
+      expect(isMovementCommandSupported('Spine_Lower', 'lateralTilt')).toBe(true);
+      expect(isMovementCommandSupported('Neck', 'rotation')).toBe(true);
+      // Shoulder FLEXION stays withheld (readout long-axis degeneracy — see spec).
+      expect(isMovementCommandSupported('R_UpperArm', 'shoulderFlexion')).toBe(false);
       expect(isMovementCommandSupported('R_Foot', 'ankleInversion')).toBe(false);
     });
 
@@ -500,6 +513,119 @@ describe('buildCommandPose on the real male rig', () => {
     expect(outcome.status).toBe('modified');
     expect(outcome.limitedBy).toBe('scenario-constraint');
     expect(outcome.painful).toBe(true);
+  });
+
+  // ── v1.3 commanded joints: hip / elbow / trunk side-bend+rotation / cervical
+  //    / shoulder abduction — each reads back within ±2°, no off-plane smear,
+  //    correct world direction (rig-verified by the calibration team). ──────────
+
+  it('hip: flexion (+30) & extension (−15) land within ±2°, smear-free (both sides)', () => {
+    for (const [hipKey, kneeKey] of [
+      ['R_UpLeg', 'R_Leg'],
+      ['L_UpLeg', 'L_Leg'],
+    ] as const) {
+      for (const cmd of [30, -15]) {
+        resetToAnatomic();
+        const kneeBefore = boneLookup.get(kneeKey)!.getWorldPosition(new THREE.Vector3());
+        const command = setJoint(hipKey, 'hipFlexion', cmd);
+        const resolved = resolveCommandTarget(command, variantCfg);
+        expect(resolved.status).toBe('complied');
+        const pose = buildCommandPose(baselinePose, command, resolved.clampedDegrees!, variantCfg)!;
+        const report = applyAndMeasure(pose);
+        expect(Math.abs(measureCommandMotion(report, hipKey, 'hipFlexion')! - cmd)).toBeLessThan(2);
+        expect(Math.abs(report.joints[hipKey].hipAbduction)).toBeLessThan(5);
+        expect(Math.abs(report.joints[hipKey].hipRotation)).toBeLessThan(5);
+        // Flexion carries the thigh up; extension drops it back.
+        const kneeAfter = boneLookup.get(kneeKey)!.getWorldPosition(new THREE.Vector3());
+        if (cmd > 0) expect(kneeAfter.y).toBeGreaterThan(kneeBefore.y);
+      }
+    }
+  });
+
+  it('elbow: 60° flexion lands within ±2° and swings the hand toward the shoulder (both sides)', () => {
+    for (const [foreKey, armKey, handKey] of [
+      ['R_Forearm', 'R_UpperArm', 'R_Hand'],
+      ['L_Forearm', 'L_UpperArm', 'L_Hand'],
+    ] as const) {
+      resetToAnatomic();
+      const shoulder = boneLookup.get(armKey)!.getWorldPosition(new THREE.Vector3());
+      const handBefore = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
+      const cmd = setJoint(foreKey, 'elbowFlexion', 60);
+      const resolved = resolveCommandTarget(cmd, variantCfg);
+      expect(resolved.status).toBe('complied');
+      const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+      const report = applyAndMeasure(pose);
+      expect(Math.abs(measureCommandMotion(report, foreKey, 'elbowFlexion')! - 60)).toBeLessThan(2);
+      expect(Math.abs(report.joints[foreKey].forearmRotation)).toBeLessThan(5);
+      const handAfter = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
+      expect(handAfter.distanceTo(shoulder)).toBeLessThan(handBefore.distanceTo(shoulder));
+      expect(handAfter.y).toBeGreaterThan(handBefore.y);
+    }
+  });
+
+  it('trunk: side-bend (±25) and axial rotation (±10) read back exact, smear-free', () => {
+    for (const [motion, deg] of [
+      ['lateralTilt', 25],
+      ['lateralTilt', -25],
+      ['rotation', 10],
+      ['rotation', -10],
+    ] as const) {
+      resetToAnatomic();
+      const cmd = setJoint('Spine_Lower', motion, deg);
+      const resolved = resolveCommandTarget(cmd, variantCfg);
+      expect(resolved.status).toBe('complied');
+      const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+      const report = applyAndMeasure(pose);
+      expect(Math.abs(measureCommandMotion(report, 'Spine_Lower', motion)! - deg)).toBeLessThan(2);
+      for (const off of ['flexion', 'lateralTilt', 'rotation'] as const)
+        if (off !== motion) expect(Math.abs(report.joints.Spine_Lower[off])).toBeLessThan(2);
+    }
+  });
+
+  it('cervical: flexion / rotation / lateralTilt read back exact, smear-free', () => {
+    for (const [motion, deg] of [
+      ['flexion', 30],
+      ['flexion', -20],
+      ['rotation', 60],
+      ['rotation', -60],
+      ['lateralTilt', 25],
+      ['lateralTilt', -25],
+    ] as const) {
+      resetToAnatomic();
+      const cmd = setJoint('Neck', motion, deg);
+      const resolved = resolveCommandTarget(cmd, variantCfg);
+      expect(resolved.status).toBe('complied');
+      const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+      const report = applyAndMeasure(pose);
+      expect(Math.abs(measureCommandMotion(report, 'Neck', motion)! - deg)).toBeLessThan(2);
+      for (const off of ['flexion', 'lateralTilt', 'rotation'] as const)
+        if (off !== motion) expect(Math.abs(report.joints.Neck[off])).toBeLessThan(2);
+    }
+  });
+
+  it('shoulder abduction: 60° raises the arm laterally within ±2° (both sides)', () => {
+    for (const [armKey, handKey] of [
+      ['R_UpperArm', 'R_Hand'],
+      ['L_UpperArm', 'L_Hand'],
+    ] as const) {
+      resetToAnatomic();
+      const handBefore = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
+      const cmd = setJoint(armKey, 'shoulderAbduction', 60);
+      const resolved = resolveCommandTarget(cmd, variantCfg);
+      expect(resolved.status).toBe('complied');
+      const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
+      const report = applyAndMeasure(pose);
+      expect(Math.abs(measureCommandMotion(report, armKey, 'shoulderAbduction')! - 60)).toBeLessThan(2);
+      expect(Math.abs(report.joints[armKey].shoulderRotation)).toBeLessThan(5);
+      // The hand rises as the arm lifts away from the side.
+      const handAfter = boneLookup.get(handKey)!.getWorldPosition(new THREE.Vector3());
+      expect(handAfter.y).toBeGreaterThan(handBefore.y);
+    }
+  });
+
+  it('shoulder FLEXION stays refused — no supported spec (readout long-axis degeneracy)', () => {
+    expect(isMovementCommandSupported('R_UpperArm', 'shoulderFlexion')).toBe(false);
+    expect(isMovementCommandSupported('L_UpperArm', 'shoulderFlexion')).toBe(false);
   });
 
   it('preserves the rest of a fromPose (sequential commands compose)', () => {
