@@ -45,6 +45,7 @@ import {
   type ComposedMotion,
   type SequenceKeyframe,
 } from '../services/motionSequence';
+import { rootOrientQuatTuple } from '../services/rootMotion';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
@@ -259,25 +260,56 @@ describe('resolveComposedMotion', () => {
     expect(r.reason).toContain('too-many-keyframes');
   });
 
-  it(`refuses a keyframe with more than ${MAX_TARGETS_PER_KEYFRAME} targets`, () => {
-    const targets = [
-      'L_Foot',
-      'R_Foot',
-      'L_Leg',
-      'R_Leg',
-      'L_UpLeg',
-      'R_UpLeg',
-      'L_Forearm',
-      'R_Forearm',
-      'Spine_Lower',
-    ].map((joint) => ({
-      joint,
-      motion: joint === 'Spine_Lower' ? 'flexion' : 'ankleFlexion',
-      deg: 5,
-    }));
-    const r = resolveComposedMotion({ keyframes: [kf(targets, 500)] }, variantCfg);
-    expect(r.status).toBe('refused');
-    expect(r.reason).toContain('too many targets');
+  // A legitimate full-body keyframe: 2 hips + 2 knees + 2 ankles + trunk×2 +
+  // 2 elbows + 2 shoulders (12), plus the neck as the 13th (overflow).
+  const fullBodyTargets = [
+    ['L_UpLeg', 'hipFlexion'],
+    ['R_UpLeg', 'hipFlexion'],
+    ['L_Leg', 'kneeFlexion'],
+    ['R_Leg', 'kneeFlexion'],
+    ['L_Foot', 'ankleFlexion'],
+    ['R_Foot', 'ankleFlexion'],
+    ['Spine_Lower', 'flexion'],
+    ['Spine_Upper', 'flexion'],
+    ['L_Forearm', 'elbowFlexion'],
+    ['R_Forearm', 'elbowFlexion'],
+    ['L_UpperArm', 'shoulderFlexion'],
+    ['R_UpperArm', 'shoulderFlexion'],
+    ['Neck', 'flexion'],
+  ].map(([joint, motion]) => ({ joint: joint!, motion: motion!, deg: 5 }));
+
+  it(`a keyframe with exactly ${MAX_TARGETS_PER_KEYFRAME} targets resolves clean`, () => {
+    expect(MAX_TARGETS_PER_KEYFRAME).toBe(12);
+    const r = resolveComposedMotion(
+      { keyframes: [kf(fullBodyTargets.slice(0, 12), 500)] },
+      variantCfg,
+    );
+    expect(r.status).toBe('ok');
+    expect(r.keyframes[0]!.targets).toHaveLength(12);
+    expect(r.outcomes).toHaveLength(12);
+    expect(r.outcomes.every((o) => o.status !== 'refused')).toBe(true);
+  });
+
+  it(`overflow past ${MAX_TARGETS_PER_KEYFRAME} targets is NON-FATAL: first 12 play, the rest refuse as 'target-limit'`, () => {
+    const r = resolveComposedMotion({ keyframes: [kf(fullBodyTargets, 500)] }, variantCfg);
+    expect(r.status).toBe('ok'); // the keyframe/plan is never refused for overflow alone
+    // Deterministic order as received: the first 12 survive…
+    expect(r.keyframes[0]!.targets.map((t) => t.joint)).toEqual(
+      fullBodyTargets.slice(0, 12).map((t) => t.joint),
+    );
+    // …and the 13th (the neck) is refused-with-reason, still fully reported.
+    expect(r.outcomes).toHaveLength(13);
+    const dropped = r.outcomes.filter((o) => o.reason === 'target-limit');
+    expect(dropped).toEqual([
+      {
+        keyframe: 0,
+        joint: 'Neck',
+        motion: 'flexion',
+        status: 'refused',
+        requestedDegrees: 5,
+        reason: 'target-limit',
+      },
+    ]);
   });
 
   it('refuses malformed shapes (no keyframes / empty targets / bad duration)', () => {
@@ -301,6 +333,52 @@ describe('resolveComposedMotion', () => {
         variantCfg,
       ).status,
     ).toBe('refused');
+  });
+
+  it('accepts a ROOT-ONLY keyframe (lie supine: zero targets, root.orient pitch −90)', () => {
+    const r = resolveComposedMotion(
+      {
+        name: 'lie down on your back',
+        keyframes: [{ durationMs: 1500, root: { orient: { pitchDeg: -90 } } }],
+      },
+      variantCfg,
+    );
+    expect(r.status).toBe('ok');
+    expect(r.keyframes).toHaveLength(1);
+    expect(r.keyframes[0]!.targets).toEqual([]);
+    expect(r.keyframes[0]!.root).toEqual({ orient: { pitchDeg: -90 } });
+    expect(r.outcomes).toEqual([]);
+  });
+
+  it('accepts a STANCE-ONLY keyframe; a keyframe with nothing at all still refuses', () => {
+    const ok = resolveComposedMotion(
+      { keyframes: [{ durationMs: 500, stance: 'planted' }] },
+      variantCfg,
+    );
+    expect(ok.status).toBe('ok');
+    expect(ok.keyframes[0]!.stance).toBe('planted');
+    // Neither targets nor root nor stance → invalid, with the updated message.
+    const bad = resolveComposedMotion({ keyframes: [{ durationMs: 500 }] }, variantCfg);
+    expect(bad.status).toBe('refused');
+    expect(bad.reason).toBe('keyframe 0: needs at least one target, root, or stance change');
+  });
+
+  it('a root directive keeps the MOTION alive even when every joint target is refused', () => {
+    const r = resolveComposedMotion(
+      {
+        keyframes: [
+          {
+            targets: [{ joint: 'R_Foot', motion: 'wingFlap', targetDegrees: 10 }],
+            durationMs: 800,
+            root: { orient: { pitchDeg: -90 } },
+          },
+        ],
+      },
+      variantCfg,
+    );
+    expect(r.status).toBe('ok'); // posture still plays; the bogus target is reported
+    expect(r.keyframes[0]!.targets).toEqual([]);
+    expect(r.outcomes[0]!.status).toBe('refused');
   });
 
   it('carries name / loop / modifiers through', () => {
@@ -445,6 +523,53 @@ describe('buildSequencePoses on the real male rig', () => {
     )!;
     expect(o.status).toBe('modified');
     expect(o.limitedBy).toBe('scenario-constraint');
+  });
+
+  it('ROOT-ONLY keyframe on the rig: body goes horizontal (supine) while joints hold', () => {
+    resetToAnatomic();
+    const resolved = resolveComposedMotion(
+      {
+        name: 'lie down on your back',
+        keyframes: [
+          kf([{ joint: 'R_Leg', motion: 'kneeFlexion', deg: 30 }], 500),
+          { durationMs: 1500, root: { orient: { pitchDeg: -90 } } },
+        ],
+      },
+      variantCfg,
+    );
+    expect(resolved.status).toBe('ok');
+    const built = buildSequencePoses(baselinePose, resolved, variantCfg, rest);
+    expect(built.poses).toHaveLength(2);
+    // The target-less keyframe carries the previous JOINT pose forward verbatim…
+    expect(built.poses[1]).toEqual(built.poses[0]);
+    // …and applies its root directive (kf1 had none → identity carried in).
+    expect(built.roots[0]!.quat).toEqual([0, 0, 0, 1]);
+    expect(built.roots[1]!.quat).toEqual(rootOrientQuatTuple({ pitchDeg: -90 }));
+    expect(built.durationsMs).toEqual([500, 1500]);
+
+    // Joints hold: the knee from kf1 still measures 30° at the supine keyframe.
+    const report = applyAndMeasure(built.poses[1]!);
+    expect(Math.abs(measureCommandMotion(report, 'R_Leg', 'kneeFlexion')! - 30)).toBeLessThan(TOL);
+
+    // The body actually goes HORIZONTAL: applying the keyframe's root
+    // orientation to the model root drops the head from standing height to
+    // ~floor level (the engine's documented supine convention).
+    const head = skinned.skeleton.bones.find((b) => /head/i.test(b.name));
+    expect(head).toBeDefined();
+    const p = new THREE.Vector3();
+    const standingY = head!.getWorldPosition(p).y;
+    const savedQuat = root.quaternion.clone();
+    try {
+      const [qx, qy, qz, qw] = built.roots[1]!.quat;
+      root.quaternion.set(qx, qy, qz, qw);
+      root.updateMatrixWorld(true);
+      const supineY = head!.getWorldPosition(p).y;
+      expect(standingY).toBeGreaterThan(1); // sanity: the head starts at standing height
+      expect(supineY).toBeLessThan(standingY * 0.3); // supine: head near floor level
+    } finally {
+      root.quaternion.copy(savedQuat);
+      root.updateMatrixWorld(true);
+    }
   });
 
   it('a keyframe that survives a dropped sibling still builds and measures true', () => {

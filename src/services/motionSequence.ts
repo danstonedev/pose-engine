@@ -23,11 +23,15 @@
  * narrate honestly ("I did it, but not that fast").
  *
  * REFUSAL GRANULARITY — refused targets (unknown/unsupported motion, no
- * achievable travel) are DROPPED from their keyframe but fully REPORTED in
- * `outcomes`; the surviving siblings still play. The WHOLE motion refuses
- * only when the shape is invalid (limits, malformed keyframes) or when zero
- * targets survive anywhere — mirroring the single-command contract where the
- * patient does what they can and tells you what they couldn't.
+ * achievable travel, or overflow past {@link MAX_TARGETS_PER_KEYFRAME},
+ * reason 'target-limit') are DROPPED from their keyframe but fully REPORTED
+ * in `outcomes`; the surviving siblings still play. A POSTURE-ONLY keyframe
+ * (root orient/translate or a stance change, zero targets — e.g. "lie down")
+ * is valid: it carries the previous joint pose forward. The WHOLE motion
+ * refuses only when the shape is invalid (limits, malformed keyframes) or
+ * when zero targets survive anywhere AND no keyframe carries a root/stance
+ * directive — mirroring the single-command contract where the patient does
+ * what they can and tells you what they couldn't.
  */
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
@@ -77,7 +81,11 @@ export type StanceMode = 'floating' | 'planted';
 /** One timed keyframe: the targets to reach, how long the travel takes, and
  *  an optional hold at the reached position (assessment moments, end-range). */
 export interface SequenceKeyframe {
-  targets: SequenceTarget[];
+  /** Joint targets. OPTIONAL: a posture-only keyframe (lie down, roll, stance
+   *  change) may omit targets entirely — it carries the previous joint pose
+   *  forward and applies its `root`/`stance`. A keyframe must have at least
+   *  one target OR a root directive OR a stance change. */
+  targets?: SequenceTarget[];
   /** Travel time into this keyframe, ms (raised to a realistic floor). */
   durationMs: number;
   /** Optional dwell at the keyframe once reached, ms. */
@@ -124,8 +132,12 @@ export interface ComposedMotion {
 
 /** Most keyframes a composed motion may hold. */
 export const MAX_KEYFRAMES = 12;
-/** Most joint targets a single keyframe may hold. */
-export const MAX_TARGETS_PER_KEYFRAME = 8;
+/** Most joint targets a single keyframe may hold. 12 covers a legitimate
+ *  full-body keyframe (2 hips + 2 knees + 2 ankles + trunk×2 + 2 shoulders + 2
+ *  more); overflow beyond it is NON-FATAL — the first 12 play, the rest are
+ *  refused per-target with reason 'target-limit' (bake-off evidence: an 8-cap
+ *  with fatal overflow refused whole anatomically-reasonable plans). */
+export const MAX_TARGETS_PER_KEYFRAME = 12;
 /** Fast clinical motion bound — the DEFAULT ('deliberate') velocity-class cap;
  *  no commanded joint may be asked to travel faster than this unless a keyframe
  *  opts into a higher {@link VelocityClass}. Keyframe durations are raised to
@@ -152,7 +164,9 @@ export interface SequenceTargetOutcome {
   clampedDegrees?: number;
   limitedBy?: ExamMovementLimiter;
   painful?: boolean;
-  reason?: ExamMovementRefusalReason;
+  /** Command-level refusal reason, or 'target-limit' when the target overflowed
+   *  {@link MAX_TARGETS_PER_KEYFRAME} (the first 12 still play). */
+  reason?: ExamMovementRefusalReason | 'target-limit';
 }
 
 /** A keyframe after clamping + timing enforcement. `targets` carry the
@@ -268,14 +282,25 @@ export function resolveComposedMotion(
     }
   }
   let survivors = 0;
+  /** Keyframes carrying a root directive or explicit stance change — a motion
+   *  built only of those (e.g. "lie down on your back": root pitch −90, zero
+   *  joint targets) is a VALID posture-only movement, never a refusal. */
+  let postureDirectives = 0;
 
   for (const [ki, kf] of motion.keyframes.entries()) {
-    if (!kf || !Array.isArray(kf.targets) || kf.targets.length === 0) {
-      return refuse(motion, `keyframe ${ki}: needs at least one target`);
+    if (!kf || typeof kf !== 'object') {
+      return refuse(motion, `keyframe ${ki}: needs at least one target, root, or stance change`);
     }
-    if (kf.targets.length > MAX_TARGETS_PER_KEYFRAME) {
-      return refuse(motion, `keyframe ${ki}: too many targets (max ${MAX_TARGETS_PER_KEYFRAME})`);
+    const kfRoot = validateRoot(kf.root);
+    if (kfRoot === 'invalid') return refuse(motion, `keyframe ${ki}: malformed root transform`);
+    const hasStanceChange = kf.stance === 'planted' || kf.stance === 'floating';
+    const requestedTargets = Array.isArray(kf.targets) ? kf.targets : [];
+    // A keyframe is valid with ≥1 target OR a root directive OR a stance
+    // change (posture-only keyframes carry the previous joint pose forward).
+    if (requestedTargets.length === 0 && !kfRoot && !hasStanceChange) {
+      return refuse(motion, `keyframe ${ki}: needs at least one target, root, or stance change`);
     }
+    if (kfRoot || hasStanceChange) postureDirectives += 1;
     if (!isFiniteNum(kf.durationMs) || kf.durationMs < 0) {
       return refuse(motion, `keyframe ${ki}: durationMs must be a non-negative number`);
     }
@@ -285,13 +310,17 @@ export function resolveComposedMotion(
     if (kf.velocityClass != null && VELOCITY_CLASS_CAPS[kf.velocityClass] == null) {
       return refuse(motion, `keyframe ${ki}: unknown velocityClass`);
     }
-    const kfRoot = validateRoot(kf.root);
-    if (kfRoot === 'invalid') return refuse(motion, `keyframe ${ki}: malformed root transform`);
     const velCap = VELOCITY_CLASS_CAPS[kf.velocityClass ?? 'deliberate'];
+
+    // Overflow beyond MAX_TARGETS_PER_KEYFRAME is NON-FATAL: the first 12 (in
+    // the deterministic order received) play; the rest are refused per-target
+    // with reason 'target-limit' — the keyframe and plan survive.
+    const keptTargets = requestedTargets.slice(0, MAX_TARGETS_PER_KEYFRAME);
+    const overflowTargets = requestedTargets.slice(MAX_TARGETS_PER_KEYFRAME);
 
     const targets: ResolvedSequenceKeyframe['targets'] = [];
     let maxDeltaDeg = 0;
-    for (const t of kf.targets) {
+    for (const t of keptTargets) {
       if (!t || typeof t.joint !== 'string' || typeof t.motion !== 'string') {
         return refuse(motion, `keyframe ${ki}: malformed target`);
       }
@@ -324,6 +353,16 @@ export function resolveComposedMotion(
       targets.push({ joint: t.joint, motion: t.motion, clampedDegrees: r.clampedDegrees });
       survivors += 1;
     }
+    for (const t of overflowTargets) {
+      outcomes.push({
+        keyframe: ki,
+        joint: t && typeof t.joint === 'string' ? t.joint : '',
+        motion: t && typeof t.motion === 'string' ? t.motion : '',
+        status: 'refused',
+        requestedDegrees: t && typeof t.targetDegrees === 'number' ? t.targetDegrees : Number.NaN,
+        reason: 'target-limit',
+      });
+    }
 
     // Realistic timing: the fastest joint may not exceed this keyframe's
     // velocity-class cap (default 'deliberate' = 240°/s).
@@ -351,9 +390,10 @@ export function resolveComposedMotion(
     });
   }
 
-  if (survivors === 0) {
+  if (survivors === 0 && postureDirectives === 0) {
     // Whole-motion refusal — but every target's individual refusal is still
-    // reported so the caller can narrate WHY nothing was achievable.
+    // reported so the caller can narrate WHY nothing was achievable. A motion
+    // whose keyframes carry root/stance directives still plays (posture-only).
     return { ...refuse(motion, 'no-achievable-targets'), outcomes };
   }
 
