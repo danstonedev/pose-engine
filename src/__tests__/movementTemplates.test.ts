@@ -107,6 +107,11 @@ describe('movement templates — round-trip on the real rig (authored peaks are 
     'shoulder-flexion-elevation': ['R_UpperArm.shoulderFlexion'],
     'shoulder-abduction-elevation': ['R_UpperArm.shoulderAbduction'],
     'high-knee-march': ['R_UpLeg.hipFlexion', 'R_Leg.kneeFlexion'],
+    'sit-to-stand': ['L_UpLeg.hipFlexion', 'L_Leg.kneeFlexion'],
+    'forward-lunge': ['R_UpLeg.hipFlexion', 'R_Leg.kneeFlexion'],
+    'single-leg-stance': ['R_UpLeg.hipFlexion', 'R_Leg.kneeFlexion'],
+    'cervical-rotation': ['Neck.rotation'],
+    'lumbar-flexion-extension': ['Spine_Lower.flexion'],
   };
 
   for (const t of MOVEMENT_TEMPLATES) {

@@ -232,6 +232,198 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     ],
     source: VERIFY,
   },
+  {
+    id: 'sit-to-stand',
+    label: 'Sit-to-stand',
+    aliases: ['sit to stand', 'stand up from a chair', 'sit-to-stand', 'rise from sitting', 'get up from the chair'],
+    coordination:
+      'The defining feature is the forward trunk/hip lean ("nose over toes") that brings the centre of mass over the feet BEFORE the hips and knees extend to rise — flexion momentum first, then extension. Bilateral, planted. (No chair prop; the seated depth is the hip/knee flexion hold.)',
+    stance: 'planted',
+    phases: [
+      {
+        name: 'seated',
+        durationMs: 700,
+        holdMs: 300,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 85 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 85 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 90 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 90 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 12 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 12 },
+        ],
+      },
+      {
+        name: 'lean-forward',
+        durationMs: 500,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 90 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 90 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 18 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 18 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 25 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 10 },
+        ],
+      },
+      {
+        name: 'rise-to-stand',
+        durationMs: 800,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 0 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'forward-lunge',
+    label: 'Forward lunge / split squat',
+    aliases: ['lunge', 'split squat', 'forward lunge', 'stationary lunge'],
+    coordination:
+      'Split stance: the LEAD hip and knee flex (~55°/90°) while the TRAIL knee flexes ~90° with its hip near-neutral/slightly extended, and the trunk stays close to vertical. Shown with the right leg leading. Planted.',
+    stance: 'planted',
+    phases: [
+      {
+        name: 'descend',
+        durationMs: 900,
+        holdMs: 300,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 55 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 90 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 90 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 8 },
+        ],
+      },
+      {
+        name: 'rise',
+        durationMs: 900,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 0 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'single-leg-stance',
+    label: 'Single-leg stance (balance)',
+    aliases: ['single leg stance', 'stand on one leg', 'single-leg balance', 'balance on one foot', 'one-legged stance'],
+    coordination:
+      'Stand on the left leg and lift the right: the lifted hip flexes ~30° and its knee ~45°, while the trunk stays quiet and level over the stance foot. Long hold = the balance challenge. Planted (stance leg).',
+    stance: 'planted',
+    phases: [
+      {
+        name: 'lift-and-balance',
+        durationMs: 700,
+        holdMs: 1500,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 45 },
+        ],
+      },
+      {
+        name: 'lower',
+        durationMs: 700,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'cervical-rotation',
+    label: 'Cervical rotation (AROM screen)',
+    aliases: ['turn your head', 'cervical rotation', 'rotate your neck', 'look left and right', 'neck rotation'],
+    coordination:
+      'Pure axial rotation of the neck — rotate fully to one side, return to centre, then the other, keeping flexion and side-bend near zero. AROM ~70° each way (normative ~80°).',
+    stance: 'floating',
+    phases: [
+      {
+        name: 'rotate-left',
+        durationMs: 700,
+        holdMs: 300,
+        targets: [{ joint: 'Neck', motion: 'rotation', peakDeg: 70 }],
+      },
+      {
+        name: 'centre-1',
+        durationMs: 500,
+        targets: [{ joint: 'Neck', motion: 'rotation', peakDeg: 0 }],
+      },
+      {
+        name: 'rotate-right',
+        durationMs: 700,
+        holdMs: 300,
+        targets: [{ joint: 'Neck', motion: 'rotation', peakDeg: -70 }],
+      },
+      {
+        name: 'centre-2',
+        durationMs: 500,
+        targets: [{ joint: 'Neck', motion: 'rotation', peakDeg: 0 }],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'lumbar-flexion-extension',
+    label: 'Lumbar flexion / extension (AROM screen)',
+    aliases: ['bend your back', 'lumbar flexion', 'arch your back', 'lumbar extension', 'trunk flexion and extension', 'flex and extend your spine'],
+    coordination:
+      'Spine-dominant trunk AROM (distinct from the hip-hinge, which is hip-dominant): round forward into flexion through the lumbar then thoracic spine, return, then extend backward. Little hip motion.',
+    stance: 'planted',
+    phases: [
+      {
+        name: 'flex-forward',
+        durationMs: 1000,
+        holdMs: 300,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 55 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 25 },
+        ],
+      },
+      {
+        name: 'return-1',
+        durationMs: 800,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 0 },
+        ],
+      },
+      {
+        name: 'extend-back',
+        durationMs: 1000,
+        holdMs: 300,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: -20 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: -15 },
+        ],
+      },
+      {
+        name: 'return-2',
+        durationMs: 800,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
 ];
 
 /** Turn a template into a playable, measurable ComposedMotion (starts from
