@@ -29,6 +29,44 @@ change, I update in the template file and the tests re-verify it.
 - Neumann DA. *Kinesiology of the Musculoskeletal System.* (coordination, scapulohumeral rhythm ~2:1)
 - Bohannon RW. Sit-to-stand and functional-task norms.
 
+## Literature validation (completed — pending your SME sign-off)
+
+Every authored value was cross-checked against **published normative kinematics**
+(aggregate real-human data) and corrected where it fell outside the literature.
+Corrections applied:
+
+| Movement | Value | Was → Now | Basis |
+|---|---|---|---|
+| Squat | knee flexion | 115° → **120°** | Kim 2020 deep-squat knee ~119–125° |
+| Squat | lumbar flexion | 20° → **27°** | Kim 2020 ~30–44° lumbar in real squats |
+| Squat | ankle DF | 18° → **20°*** | Real deep-squat DF ~30° but engine caps AROM at 20° (binding constraint) |
+| Sit-to-stand | seated knee | 90° → **95°** | STS initiation knee ~95–98° |
+| Sit-to-stand | lean hip | 100° → **105°** | preserves the trunk-to-vertical lean once lumbar reduced |
+| **Sit-to-stand** | **lean lumbar** | **25° → 12°** | **Healthy STS leans with the HIPS and preserves lumbar lordosis; 25° modeled a faulty/compensatory pattern (Schenkman)** |
+| Lunge | lead hip flexion | 55° → **75°** | 55° too shallow for a 90° lead-knee bottom (split-squat literature ~75–90°) |
+| March | knee flexion | 70° → **80°** | more march-like shank hang |
+| March | contralateral arm | 25° → **38°** | 25° = normal-gait amplitude; an exaggerated march exaggerates the arm |
+| Lumbar AROM | thoracic extension | −15° → **−10°** | thoracic extension is rib-cage-limited to ~8–10° (CT: 8.5°) |
+
+Validated **within range as-authored** (no change): squat hip 100° (Kim ~99°),
+single-leg stance, shoulder flexion/abduction 120° functional (**Namdari 2012:
+flexion 121°, abduction 128°** — the best-cited functional-shoulder-ROM study),
+cervical rotation 70° (young-adult AROM; 80° is the textbook ceiling), lumbar
+flexion 55° / extension −20° (segmental, not conflated with total-trunk), thoracic
+flexion 25°. Shoulder scapulohumeral-rhythm guidance refined: the ~2:1 ratio
+applies *beyond* the first ~30° setting phase, and at 120° the split is ~85° GH +
+~35° scapular (Inman 1944; McQuade & Smidt 1998).
+
+**Every corrected value was re-verified on the real rig** (ROM clamp + round-trip
+measurement, 22 tests green). The values below reflect the validated set.
+
+**Primary sources:** Kim et al. 2020 *J Sports Sci Med* (PMC7429430); Schenkman et
+al. 1990 *Phys Ther*; Namdari et al. 2012 *J Shoulder Elbow Surg*; Inman 1944;
+McQuade & Smidt 1998 *JOSPT*; Troke et al. 2005 *Manual Therapy*; Youdas et al.
+1992 *Phys Ther*; Winter/Perry normative gait.
+
+---
+
 **Known measurement caveats (rig, not clinical):**
 
 - **Shoulder elevation** is measured *humerothoracic* (as a goniometer reads it),
@@ -45,35 +83,35 @@ change, I update in the template file and the tests re-verify it.
 ## Lower-quarter — functional
 
 ### Squat  ·  `squat`  ·  planted, bilateral
-**Coordination:** hip and knee flex together (~1:1.1), ankle dorsiflexes, trunk leans forward ~20° to keep COM over the mid-foot.
+**Coordination:** hip and knee flex together (~1:1.2 to a deep bottom), ankle dorsiflexes, trunk leans forward ~25° to keep COM over the mid-foot. (Ankle DF capped at the engine's 20° AROM limit; a true deep squat demands ~30° weight-bearing DF.)
 **Timing:** descent 1000 ms → hold 350 ms → ascent 1000 ms.
 
 | Phase | Hip flex | Knee flex | Ankle DF | Lumbar flex | Thoracic flex |
 |---|---|---|---|---|---|
-| bottom | 100° | 115° | 18° | 20° | 10° |
+| bottom | 100° | 120° | 20°* | 27° | 10° |
 | stand | 0° | 0° | 0° | 0° | 0° |
 
 **Status:** ☐ approved ☐ adjust → _______   **Notes:** ______________________
 
 ### Sit-to-stand  ·  `sit-to-stand`  ·  planted, bilateral
-**Coordination:** forward trunk/hip lean ("nose over toes") brings COM over the feet *before* hip/knee extension — flexion momentum first, then extension.
+**Coordination:** forward trunk/hip lean ("nose over toes") brings COM over the feet *before* hip/knee extension — flexion momentum first, then extension. The lean is HIP-driven with a preserved lumbar lordosis (only slight lumbar flexion); heavy lumbar flexion is a compensatory pattern.
 **Timing:** seated 700 ms (hold 300) → lean 500 ms → rise 800 ms.
 
 | Phase | Hip flex | Knee flex | Ankle DF | Lumbar flex | Thoracic flex |
 |---|---|---|---|---|---|
-| seated | 85° | 90° | 12° | — | — |
-| lean-forward | 100° | 90° | 18° | 25° | 10° |
+| seated | 85° | 95° | 12° | — | — |
+| lean-forward | 105° | 95° | 18° | 12° | 10° |
 | stand | 0° | 0° | 0° | 0° | 0° |
 
 **Status:** ☐ approved ☐ adjust → _______   **Notes:** ______________________
 
 ### Forward lunge / split squat  ·  `forward-lunge`  ·  planted, R lead
-**Coordination:** lead hip+knee flex (~55°/90°); trail knee flexes ~90° with its hip near-neutral / slightly extended; trunk near-vertical.
+**Coordination:** lead hip+knee flex (~75°/90°); trail knee flexes ~90° with its hip near-neutral / slightly extended; trunk near-vertical.
 **Timing:** descend 900 ms (hold 300) → rise 900 ms.
 
 | Phase | Lead hip | Lead knee | Trail hip | Trail knee | Lumbar flex |
 |---|---|---|---|---|---|
-| descend | 55° | 90° | −10° (ext) | 90° | 8° |
+| descend | 75° | 90° | −10° (ext) | 90° | 8° |
 | rise | 0° | 0° | 0° | 0° | 0° |
 
 **Status:** ☐ approved ☐ adjust → _______   **Notes:** ______________________
@@ -90,13 +128,13 @@ change, I update in the template file and the tests re-verify it.
 **Status:** ☐ approved ☐ adjust → _______   **Notes:** ______________________
 
 ### High-knee march (reciprocal)  ·  `high-knee-march`  ·  floating, in place
-**Coordination:** one hip+knee flex to lift the leg while the **contralateral** arm swings forward (~25° shoulder flexion); sides alternate — the cross-body coordination of gait, without travel.
+**Coordination:** one hip+knee flex to lift the leg while the **contralateral** arm swings forward (~38° shoulder flexion, an exaggerated march amplitude vs ~25° normal gait); sides alternate — the cross-body coordination of gait, without travel.
 **Timing:** knee-up 550 ms (hold 120) → down 450 ms, alternating.
 
 | Phase | Step hip | Step knee | Contralateral arm |
 |---|---|---|---|
-| right-knee-up | 60° | 70° | 25° (L shoulder flex) |
-| left-knee-up | 60° | 70° | 25° (R shoulder flex) |
+| right-knee-up | 60° | 80° | 38° (L shoulder flex) |
+| left-knee-up | 60° | 80° | 38° (R shoulder flex) |
 
 **Status:** ☐ approved ☐ adjust → _______   **Notes:** ______________________
 
@@ -148,7 +186,7 @@ change, I update in the template file and the tests re-verify it.
 | Phase | Lumbar | Thoracic |
 |---|---|---|
 | flex-forward | 55° | 25° |
-| extend-back | −20° (ext) | −15° (ext) |
+| extend-back | −20° (ext) | −10° (ext) |
 
 **Status:** ☐ approved ☐ adjust → _______   **Notes:** ______________________
 

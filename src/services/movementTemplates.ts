@@ -68,7 +68,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Bodyweight squat',
     aliases: ['squat', 'deep squat', 'bodyweight squat', 'sit back'],
     coordination:
-      'Hip and knee flex together (~1:1.1), the ankle dorsiflexes to keep the shin advancing, and the trunk leans forward ~20° so the centre of mass stays over the mid-foot. Bilateral, weight-bearing (planted).',
+      'Hip and knee flex together (~1:1.2 to a deep/parallel bottom), the ankle dorsiflexes to advance the shin, and the trunk leans forward ~25° to keep the centre of mass over the mid-foot. Bilateral, planted. Sequencing: peak ankle dorsiflexion and pelvic tilt occur slightly EARLIER in the descent (~86-90%) than peak knee/hip/lumbar flexion (~98-99%, at the bottom) [Kim 2020]. Note: a true deep squat demands ~30° weight-bearing dorsiflexion; the engine caps active ankle DF at 20° (a standing-AROM norm), so 20° is the binding constraint here, not the biological target.',
     stance: 'planted',
     phases: [
       {
@@ -78,11 +78,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 115 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 115 },
-          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 18 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 18 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 20 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 120 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 120 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 20 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 20 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 27 },
           { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 10 },
         ],
       },
@@ -144,7 +144,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Shoulder flexion (forward elevation)',
     aliases: ['raise your arm', 'reach overhead', 'shoulder flexion', 'lift your arm forward', 'arm overhead', 'forward elevation'],
     coordination:
-      'Humerothoracic (goniometric) forward elevation to ~120° functional; full physiologic range is ~160-170°. Underlying scapulohumeral rhythm ~2:1 — of that elevation roughly 2/3 is glenohumeral and 1/3 scapular upward rotation (do not command the scapula separately; the humerothoracic readout already includes it). Shown on the right; mirror for the left or do both.',
+      'Humerothoracic (goniometric) forward elevation to ~120° functional — this matches the mean forward elevation used across activities of daily living [Namdari 2012: 121°]; full physiologic range is ~160-170° (AAOS ideal 180°). Scapulohumeral rhythm averages ~2:1 (glenohumeral : scapular upward rotation) BEYOND the first ~30° "setting phase" (in which motion is predominantly glenohumeral and the scapula stabilises); the ratio varies with elevation and load [Inman 1944; Neumann; McQuade & Smidt 1998]. At the full 180° arc this yields ~120° GH + ~60° scapular; at this 120° functional target, ~85° GH + ~35° scapular upward rotation. Do NOT command the scapula separately — the humerothoracic readout already includes it. Shown on the right; mirror for the left or do both.',
     stance: 'floating',
     phases: [
       {
@@ -166,7 +166,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Shoulder abduction (lateral elevation)',
     aliases: ['abduct', 'lateral raise', 'raise your arm out to the side', 'shoulder abduction', 'arm out to the side'],
     coordination:
-      'Humerothoracic (goniometric) lateral elevation to ~120° functional; full physiologic range is ~160-170°. Same underlying scapulohumeral rhythm ~2:1 (≈2/3 glenohumeral, 1/3 scapular upward rotation) — do not command the scapula separately; the humerothoracic readout already includes it. Shown on the right.',
+      'Humerothoracic (goniometric) lateral elevation to ~120° functional — near the mean abduction used across activities of daily living [Namdari 2012: 128°]; full physiologic range is ~160-170° (AAOS ideal 180°). Same scapulohumeral rhythm ~2:1 BEYOND the first ~30° setting phase (predominantly glenohumeral early), varying with elevation and load; at this 120° target ~85° GH + ~35° scapular upward rotation. Do NOT command the scapula separately; the humerothoracic readout already includes it. Shown on the right.',
     stance: 'floating',
     phases: [
       {
@@ -188,7 +188,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'High-knee march (reciprocal, in place)',
     aliases: ['march', 'high knee', 'marching', 'step in place', 'lift your knees'],
     coordination:
-      'Reciprocal open-chain stepping: one hip and knee flex to lift the leg while the CONTRALATERAL arm swings forward (~25° shoulder flexion), then the sides alternate — the cross-body coordination of gait, without travel.',
+      'Reciprocal open-chain stepping, deliberately exaggerated vs normal gait (normal swing peaks ~30° hip / ~60° knee; arm swing ~20-25°): one hip and knee flex to lift the leg while the CONTRALATERAL arm swings forward (~38° — the amplified march arm), then the sides alternate — the cross-body coordination of gait, without travel.',
     stance: 'floating',
     phases: [
       {
@@ -197,8 +197,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         holdMs: 120,
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 60 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 70 },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 25 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 80 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 38 },
         ],
       },
       {
@@ -216,8 +216,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         holdMs: 120,
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 60 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 70 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 25 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 80 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 38 },
         ],
       },
       {
@@ -237,7 +237,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Sit-to-stand',
     aliases: ['sit to stand', 'stand up from a chair', 'sit-to-stand', 'rise from sitting', 'get up from the chair'],
     coordination:
-      'The defining feature is the forward trunk/hip lean ("nose over toes") that brings the centre of mass over the feet BEFORE the hips and knees extend to rise — flexion momentum first, then extension. Bilateral, planted. (No chair prop; the seated depth is the hip/knee flexion hold.)',
+      'The defining feature is the forward trunk/hip lean ("nose over toes") that brings the centre of mass over the feet BEFORE the hips and knees extend to rise — flexion momentum first, then extension [Schenkman 1990: flexion-momentum → momentum-transfer → extension]. The lean is HIP-DRIVEN with a relatively PRESERVED lumbar lordosis (only slight lumbar flexion) — heavy lumbar flexion is a compensatory/faulty pattern, not the healthy norm. Bilateral, planted. (No chair prop; the seated depth is the hip/knee flexion hold.)',
     stance: 'planted',
     phases: [
       {
@@ -247,8 +247,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 85 },
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 85 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 90 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 90 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 95 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 95 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 12 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 12 },
         ],
@@ -257,13 +257,13 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         name: 'lean-forward',
         durationMs: 500,
         targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 90 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 90 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 105 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 105 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 95 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 95 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 18 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 18 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 25 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 12 },
           { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 10 },
         ],
       },
@@ -289,7 +289,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Forward lunge / split squat',
     aliases: ['lunge', 'split squat', 'forward lunge', 'stationary lunge'],
     coordination:
-      'Split stance: the LEAD hip and knee flex (~55°/90°) while the TRAIL knee flexes ~90° with its hip near-neutral/slightly extended, and the trunk stays close to vertical. Shown with the right leg leading. Planted.',
+      'Split stance: the LEAD hip and knee flex (~75°/90° at a 90°-knee bottom) while the TRAIL knee flexes ~90° with its hip near-neutral/slightly extended, and the trunk stays close to vertical. Shown with the right leg leading. Planted.',
     stance: 'planted',
     phases: [
       {
@@ -297,7 +297,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         durationMs: 900,
         holdMs: 300,
         targets: [
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 55 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 75 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 90 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 90 },
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
@@ -410,7 +410,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         holdMs: 300,
         targets: [
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: -20 },
-          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: -15 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: -10 },
         ],
       },
       {
