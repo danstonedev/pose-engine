@@ -259,9 +259,17 @@ const CC_BONE_NAME_MAP: BoneNameMap = {
  * forearms slightly pronated, palms roughly forward. */
 /**
  * CC-base anatomic pose specified in world-space target directions, immune to
- * CC4/Blender's per-rig local-axis convention. Mannequin faces world -Z (toward
- * the camera by default). Model "left" is world +X (subject's left = viewer's
- * right). Down is world -Y. Forward (anterior) is world -Z.
+ * CC4/Blender's per-rig local-axis convention. Model "left" is world +X
+ * (subject's left = viewer's right). Down is world -Y.
+ *
+ * FACING: the applied anatomic pose PHYSICALLY faces world +Z — measured on the
+ * rig (toes point +Z; a forward arm-raise, hip flexion, and trunk flexion all
+ * carry the limb/head to +Z; see anatomicalPlanes.ts "faces +Z"). So world +Z
+ * is forward/anterior for MOTION and TRAVEL. (The clinical joint-angle readout
+ * in jointAngles.ts labels anterior as -Z — a self-consistent MEASUREMENT-frame
+ * naming choice used only to sign the angle readouts, NOT the physical facing.
+ * Do not use that label to choose a travel direction; conflating the two caused
+ * a forward/back reversal. See jointAngles.ts's TWO FRAMES note.)
  *
  * Targets describe where each bone's long axis should point in anatomic
  * position. Twist rotates about that target axis to bring palms forward.

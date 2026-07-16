@@ -240,14 +240,22 @@ function eulerZDelta(deg: number): THREE.Quaternion {
 
 /** CANONICAL-frame delta for a ball/hinge sagittal swing — the same frame
  *  the ROM clamp recomposes in (`poseRomClamp.recomposeBallJoint`): swing the
- *  rest long axis (0,−1,0) toward −Z by `deg` about the medio-lateral axis,
- *  no twist. On the real rig −Z is POSTERIOR (the toes point +Z), so callers
- *  pick the anatomic direction by sign — the knee passes −deg. The canonical delta relates rest→current
- *  WORLD orientation (`currentWorld = restWorld · delta`), so the world
- *  direction of the swing is guaranteed regardless of how the GLB binds the
+ *  rest long axis (0,−1,0) by `deg` about the medio-lateral axis, no twist.
+ *  A +deg swing re-aims the distal segment ANTERIORLY — the way the body
+ *  physically faces (world +Z on this rig; measured — hip flexion carries the
+ *  foot to +Z), i.e. a front-kick for the leg. Callers pick the anatomic
+ *  direction by SIGN: hip flexion passes +deg (thigh swings forward/anterior);
+ *  the knee passes −deg so its shin re-aims POSTERIORLY (anatomic flexion, heel
+ *  toward the buttock) rather than kicking forward, and the geometric hinge
+ *  readout then signs that flexion POSITIVE. (NB: the goniometric ANGLE readout
+ *  in jointAngles.ts labels anterior as −Z — a measurement-frame naming choice,
+ *  NOT the mesh's physical facing; the two frames are independent.) The
+ *  canonical delta relates rest→current WORLD orientation
+ *  (`currentWorld = restWorld · delta`), so the world direction of the swing is
+ *  DETERMINISTIC for a given sign regardless of how the GLB binds the
  *  bone-local frame — the thigh/clavicle local frames on the CC rig are
- *  twisted, which is why a parent-local construction moves the limb in the
- *  wrong world direction even while the parent-local readout looks right. */
+ *  twisted, which is why a parent-local construction moves the limb in an
+ *  unreliable world direction even while the parent-local readout looks right. */
 function ballFlexDelta(deg: number): THREE.Quaternion {
   const f = deg * RAD;
   const swung = new THREE.Vector3(0, -Math.cos(f), -Math.sin(f));
@@ -332,14 +340,13 @@ interface SupportedMotionSpec {
  *    readout, which decomposes exactly this delta; dorsi + = +X, plantar
  *    − = −X — the authored ankle-sprain axis convention).
  *  - kneeFlexion: canonical/rest-frame ball swing, NEGATED into the delta
- *    (v1.2 field fix): the rig's anterior is +Z — the toes point +Z, pinned
- *    convention-free by the trunk calibration — so the raw ballFlexDelta
- *    swing toward −Z is what anatomic knee flexion needs, and the original
- *    un-negated spec shipped a front-kick (founder field report). The
- *    direction test now derives anterior from the toes themselves instead
- *    of assuming a world facing. With the corrected direction the geometric
- *    hinge readout signs anatomic flexion POSITIVE, so `fromReport` is
- *    identity.
+ *    (v1.2 field fix): the raw ballFlexDelta(+deg) swing re-aims the shin
+ *    ANTERIORLY (the way the body faces — a FRONT-KICK), while anatomic knee
+ *    flexion is the OPPOSITE: the shin re-aiming POSTERIORLY (heel toward the
+ *    buttock). Passing −deg delivers that posterior flexion; the original
+ *    un-negated spec shipped a front-kick (founder field report). With the
+ *    corrected sign the geometric hinge readout signs anatomic flexion
+ *    POSITIVE, so `fromReport` is identity.
  *
  *  v1.3 EXPANSION (rig-verified, each with a movementCommand.test.ts case
  *  asserting commanded == measured within ±2° and no off-plane smear):

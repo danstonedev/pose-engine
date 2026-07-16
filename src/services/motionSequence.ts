@@ -55,6 +55,17 @@ export interface SequenceTarget {
   motion: string;
   /** Absolute target in the registry's clinical sign convention. */
   targetDegrees: number;
+  /**
+   * OPTIONAL intra-phase timing: the fraction (0..1] of THIS keyframe's travel at
+   * which this joint reaches its target and then HOLDS. Default 1 (arrive at the
+   * keyframe boundary — the current lockstep behavior). A value < 1 makes the
+   * joint LEAD the others within the phase — e.g. the ankle dorsiflexes to ~0.87
+   * while the knee/hip complete at ~0.99 in a squat descent. This is a declarative
+   * annotation only; it takes effect when the plan is run through
+   * {@link expandPeakTiming} (which realizes it as sub-keyframes on the existing
+   * trajectory), and is otherwise ignored, so back-compat is total.
+   */
+  peakAt?: number;
 }
 
 /** Angular-velocity CLASS for a keyframe — the cap the timing governor enforces.
@@ -78,6 +89,109 @@ export const VELOCITY_CLASS_CAPS: Record<VelocityClass, number> = {
  *  flexion a real hip-hinge toe-touch. Default 'floating' (back-compat). */
 export type StanceMode = 'floating' | 'planted';
 
+// ── Semantic direction vocabulary (the anti-reversal layer) ─────────────────
+// The model authors DIRECTIONS by clinical name ('forward', 'supine'), never a
+// raw signed root axis. resolveComposedMotion() is the ONE place the sign
+// convention is applied, so a model can never pick the wrong sign and send the
+// avatar the wrong way.
+//
+// TWO FRAMES — do not conflate them (conflating them WAS the reversal bug):
+//   1. PHYSICAL WORLD FACING of the loaded GLB — what TRAVEL uses. Measured on
+//      the male rig (toes point +Z; a forward arm-raise, hip flexion, and trunk
+//      flexion all carry the limb/head toward +Z): the mannequin FACES +Z.
+//        forward / anterior = +Z   (backward / posterior = −Z)
+//        superior / up      = +Y   (inferior  / down      = −Y)
+//        subject's LEFT     = +X   (subject's RIGHT       = −X)
+//   2. GONIOMETRIC READOUT convention in jointAngles.ts labels anterior as −Z.
+//      That is a MEASUREMENT-frame naming choice for the clinical angle readout;
+//      it does NOT match the mesh's physical facing and is NOT used for travel.
+// So "walk forward" must move the root the way the body faces (+Z). An earlier
+// build mapped forward→−Z (the readout label) and the avatar moonwalked — the
+// exact forward/back reversal this vocabulary exists to prevent. left/right and
+// up/down were always correct; only the sagittal (Z) sign was wrong.
+
+/** A whole-body TRAVEL direction, by anatomic name. Maps to a SIGNED world axis
+ *  in {@link TRAVEL_DIRECTION_AXIS} — the model never writes the sign itself. */
+export type TravelDirection = 'forward' | 'backward' | 'left' | 'right' | 'up' | 'down';
+
+/** A whole-body POSTURE, by clinical name. Maps to a root {@link RootOrient} in
+ *  {@link postureRootOrient} (supine face-up, prone face-down, side-lying). */
+export type SemanticPosture = 'upright' | 'supine' | 'prone' | 'sidelying-left' | 'sidelying-right';
+
+/** Every travel direction, for host capability discovery / tool enums. */
+export const TRAVEL_DIRECTIONS: readonly TravelDirection[] = [
+  'forward',
+  'backward',
+  'left',
+  'right',
+  'up',
+  'down',
+];
+
+/** Every posture, for host capability discovery / tool enums. */
+export const SEMANTIC_POSTURES: readonly SemanticPosture[] = [
+  'upright',
+  'supine',
+  'prone',
+  'sidelying-left',
+  'sidelying-right',
+];
+
+/**
+ * SIGNED unit world axis each travel direction moves the model root along, per
+ * the authoritative body-axis convention above. This is the ONLY table that
+ * turns a direction NAME into a Z/X/Y sign — resolveComposedMotion scales it by
+ * the requested meters, and {@link movementDirection} validates measured travel
+ * against it, so intent and check read the same signs.
+ */
+export const TRAVEL_DIRECTION_AXIS: Record<TravelDirection, readonly [number, number, number]> = {
+  forward: [0, 0, 1], // the way the body faces = +Z (physical rig facing, measured)
+  backward: [0, 0, -1], // away from facing = −Z
+  left: [1, 0, 0], // subject's left = +X
+  right: [-1, 0, 0], // subject's right = −X
+  up: [0, 1, 0], // superior = +Y
+  down: [0, -1, 0], // inferior = −Y
+};
+
+/** A semantic whole-body translation for a keyframe (sugar over root.translateM).
+ *  `meters` is the travel distance along the named direction's signed axis. */
+export interface SemanticTravel {
+  direction: TravelDirection;
+  /** Distance traveled along `direction`, meters (finite; may be 0). */
+  meters: number;
+}
+
+/** Roll SIGN (degrees, about the anterior-posterior Z axis) that lays the body
+ *  onto its LEFT side (left-side-down). PINNED EMPIRICALLY on the male rig in
+ *  movementDirection.test.ts, NOT guessed: a −90° roll about the A-P Z axis
+ *  rotates the subject's left (+X) toward the floor (−Y). sidelying-right is the
+ *  exact opposite sign. */
+export const SIDELYING_LEFT_ROLL_DEG = -90;
+
+/**
+ * The root {@link RootOrient} a semantic posture resolves to. supine/prone pitch
+ * the body about the medio-lateral X axis (−90 face-up / +90 face-down, matching
+ * {@link RootOrient}); side-lying rolls about the A-P Z axis by the empirically
+ * pinned {@link SIDELYING_LEFT_ROLL_DEG}. Every posture pins BOTH pitch and roll
+ * (yaw is left free — a body can face any direction while lying/standing), so
+ * re-posturing from one lie to another fully overrides the previous orientation
+ * rather than leaving a stale axis carried forward.
+ */
+export function postureRootOrient(posture: SemanticPosture): RootOrient {
+  switch (posture) {
+    case 'upright':
+      return { pitchDeg: 0, rollDeg: 0 };
+    case 'supine':
+      return { pitchDeg: -90, rollDeg: 0 };
+    case 'prone':
+      return { pitchDeg: 90, rollDeg: 0 };
+    case 'sidelying-left':
+      return { pitchDeg: 0, rollDeg: SIDELYING_LEFT_ROLL_DEG };
+    case 'sidelying-right':
+      return { pitchDeg: 0, rollDeg: -SIDELYING_LEFT_ROLL_DEG };
+  }
+}
+
 /** One timed keyframe: the targets to reach, how long the travel takes, and
  *  an optional hold at the reached position (assessment moments, end-range). */
 export interface SequenceKeyframe {
@@ -93,8 +207,22 @@ export interface SequenceKeyframe {
   /** Velocity class governing this keyframe's timing floor. Default 'deliberate'. */
   velocityClass?: VelocityClass;
   /** Whole-body root posture + travel for this keyframe (persists forward until
-   *  a later keyframe overrides it). Distinct from any joint AROM. */
+   *  a later keyframe overrides it). Distinct from any joint AROM. RAW, signed —
+   *  authoring this directly is fully supported (back-compat), but prefer the
+   *  semantic {@link SequenceKeyframe.travel}/{@link SequenceKeyframe.posture}
+   *  sugar below so the engine (not the model) owns the anatomic axis signs. */
   root?: RootTransform;
+  /** SEMANTIC travel sugar: move the whole body by name ('forward' 0.4 m) and
+   *  let resolveComposedMotion apply the signed axis (forward → −Z). Fills
+   *  `root.translateM` ONLY when this keyframe has no explicit raw translate —
+   *  a raw `root.translateM` on the same keyframe WINS (see the precedence note
+   *  on resolveComposedMotion). */
+  travel?: SemanticTravel;
+  /** SEMANTIC posture sugar: reorient the whole body by clinical name ('supine',
+   *  'sidelying-left') and let resolveComposedMotion apply the signed root
+   *  orient. Fills `root.orient` ONLY when this keyframe has no explicit raw
+   *  orient — a raw `root.orient` on the same keyframe WINS. */
+  posture?: SemanticPosture;
   /** Per-keyframe stance override (else the motion-level stance applies). */
   stance?: StanceMode;
 }
@@ -250,12 +378,219 @@ function validateRoot(root: RootTransform | undefined): RootTransform | undefine
   return Object.keys(out).length ? out : undefined;
 }
 
+/** Validate a keyframe's semantic {@link SemanticTravel} into a signed
+ *  translate, or 'invalid' for a malformed one (unknown direction / non-finite
+ *  meters) so the caller refuses through the SAME path as other shape errors. */
+function semanticTravelToTranslate(
+  travel: SemanticTravel | undefined,
+): [number, number, number] | undefined | 'invalid' {
+  if (travel == null) return undefined;
+  if (typeof travel !== 'object') return 'invalid';
+  const { direction, meters } = travel;
+  if (!(TRAVEL_DIRECTIONS as readonly string[]).includes(direction)) return 'invalid';
+  if (typeof meters !== 'number' || !Number.isFinite(meters)) return 'invalid';
+  const axis = TRAVEL_DIRECTION_AXIS[direction];
+  return [axis[0] * meters, axis[1] * meters, axis[2] * meters];
+}
+
+/**
+ * Resolve a keyframe's EFFECTIVE root transform from its raw {@link RootTransform}
+ * and its semantic {@link SequenceKeyframe.travel}/{@link SequenceKeyframe.posture}
+ * sugar. Returns the cleaned transform, `undefined` (no root directive), or
+ * `'invalid'` (malformed raw root OR malformed semantic input — the caller
+ * refuses through the same path as every other shape error).
+ *
+ * PRECEDENCE (documented contract): the explicit RAW value WINS per component.
+ * Semantic sugar only FILLS the component the keyframe left unspecified:
+ *   - orient    ← raw `root.orient`    when present, else `posture`'s orient
+ *   - translate ← raw `root.translateM` when present, else `travel`'s translate
+ * So a keyframe may combine e.g. `posture:'supine'` (fills orient) with a raw
+ * `root.translateM` (kept verbatim), and a keyframe that sets BOTH `travel` and
+ * a raw `root.translateM` keeps the raw one (the sugar is ignored for that
+ * component). This lets a host expose direction NAMES to the model while a
+ * calibration author can still pin a raw axis when needed.
+ */
+function resolveKeyframeRoot(kf: SequenceKeyframe): RootTransform | undefined | 'invalid' {
+  const raw = validateRoot(kf.root);
+  if (raw === 'invalid') return 'invalid';
+
+  const semTranslate = semanticTravelToTranslate(kf.travel);
+  if (semTranslate === 'invalid') return 'invalid';
+
+  let semOrient: RootOrient | undefined;
+  if (kf.posture != null) {
+    if (!(SEMANTIC_POSTURES as readonly string[]).includes(kf.posture)) return 'invalid';
+    semOrient = postureRootOrient(kf.posture);
+  }
+
+  const out: RootTransform = {};
+  const orient = raw?.orient ?? semOrient; // raw component wins over sugar
+  if (orient) out.orient = orient;
+  const translateM = raw?.translateM ?? semTranslate; // raw component wins over sugar
+  if (translateM) out.translateM = translateM;
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Host-facing description of the semantic direction vocabulary — the enum
+ *  lists plus ready-to-embed tool/prompt text — so a host exposes
+ *  'direction: forward|backward|…' to the LLM instead of a signed Z axis. */
+export interface SemanticMotionVocabulary {
+  travelDirections: readonly TravelDirection[];
+  postures: readonly SemanticPosture[];
+  /** One-line-per-concept prose a host can paste into a tool description /
+   *  system prompt. States the vocabulary WITHOUT ever exposing an axis sign. */
+  promptText: string;
+}
+
+/**
+ * Describe the semantic direction vocabulary for a host to surface to an LLM.
+ * The whole point of the vocabulary is that the MODEL names a direction and the
+ * ENGINE owns the sign, so this text deliberately never mentions X/Y/Z — it
+ * hands the model clinical words ('forward', 'supine') and nothing to get
+ * backwards.
+ */
+export function describeSemanticMotionVocabulary(): SemanticMotionVocabulary {
+  return {
+    travelDirections: TRAVEL_DIRECTIONS,
+    postures: SEMANTIC_POSTURES,
+    promptText: [
+      'Whole-body movement uses NAMED directions — never raw coordinates.',
+      "travel: move the body a distance by name — { direction: 'forward' | 'backward' | 'left' | 'right' | 'up' | 'down', meters: number }. " +
+        "'left'/'right' are the SUBJECT's left/right; the engine applies the correct anatomic axis, so just say the direction.",
+      "posture: reorient the whole body by name — 'upright' | 'supine' (lying face-up) | 'prone' (lying face-down) | 'sidelying-left' (on the left side) | 'sidelying-right' (on the right side).",
+      'Prefer these over any raw root translate/orient so travel can never come out reversed.',
+    ].join('\n'),
+  };
+}
+
+const stripPeak = (t: SequenceTarget): SequenceTarget => ({
+  joint: t.joint,
+  motion: t.motion,
+  targetDegrees: t.targetDegrees,
+});
+
+/**
+ * Expand a plan's intra-phase {@link SequenceTarget.peakAt} annotations into
+ * ordinary sub-keyframes on the EXISTING trajectory — the low-risk way to give a
+ * joint a within-phase LEAD (the ankle dorsiflexing ahead of the knee in a squat
+ * descent) without touching the SQUAD trajectory or the timing governor. Pure;
+ * returns a new motion.
+ *
+ * For each keyframe, the distinct `peakAt` fractions (plus the 1.0 boundary)
+ * become ordered sub-keyframes; at fraction τ each joint sits at
+ * `min(1, τ / peakAt_j)` of the way from its previous settled value toward its
+ * target, so a joint reaches its target at its OWN `peakAt` and holds. The final
+ * sub-keyframe is the original boundary (every joint at full target), so the
+ * SETTLED pose, holds, and goniometric measurements are UNCHANGED — only the path
+ * and timing BETWEEN keyframes shift. Keyframes with no `peakAt < 1` (or no
+ * targets) pass through untouched, so a plan that never sets `peakAt` is
+ * byte-identical to today.
+ *
+ * How directives ride the split (informed by an adversarial review):
+ *   - `stance` is a per-phase MODE (planted = closed-chain foot-pin), not a
+ *     boundary event, so it rides EVERY sub-keyframe — otherwise a planted squat
+ *     would descend un-pinned (floating) through the lead and snap at the end.
+ *   - `velocityClass` rides every sub (leads must not be throttled to the
+ *     default class); `holdMs` rides the final sub only.
+ *   - A keyframe carrying a WHOLE-BODY transform (`root`/`travel`/`posture`) is
+ *     NOT expanded (kept lockstep, directive intact): splitting would compress
+ *     the whole-body motion into the final slice and desync it from the limbs.
+ *     peakAt is for intra-phase JOINT coordination; author whole-body travel in
+ *     its own keyframe.
+ *
+ * BASELINE: the intermediate lead shape is measured from `opts.fromAngles` (keyed
+ * `joint.motion`) or neutral 0° when absent. Pass the live angles when the motion
+ * uses `startFrom:'current'`, else the first keyframe's lead is shaped from 0
+ * (final targets are exact regardless — this only affects the transient shape).
+ *
+ * LIMITS: expansion is budgeted against {@link MAX_KEYFRAMES} — a keyframe whose
+ * sub-frames wouldn't fit stays lockstep (its lead is dropped) so the motion
+ * stays valid instead of being refused. And each sub-duration is still subject to
+ * the velocity governor's floor in {@link resolveComposedMotion}, so an
+ * AGGRESSIVE lead (a large excursion crammed into a short slice) will be
+ * lengthened/reshaped by the governor and the phase total may grow; a subtle lead
+ * (the intended use — a few percent) is unaffected.
+ */
+export function expandPeakTiming(
+  motion: ComposedMotion,
+  opts?: { fromAngles?: Record<string, number> },
+): ComposedMotion {
+  if (!motion || !Array.isArray(motion.keyframes)) return motion;
+  const clampP = (p: number | undefined): number => {
+    const v = typeof p === 'number' && Number.isFinite(p) ? p : 1;
+    return v <= 0 || v > 1 ? 1 : v; // (0,1]; non-positive / absent / >1 → 1
+  };
+  const key = (t: SequenceTarget): string => `${t.joint}.${t.motion}`;
+  // Baseline for the lead interpolation: live angles for startFrom:'current',
+  // else neutral 0. Final targets are exact regardless of this seed.
+  const prev = new Map<string, number>();
+  for (const [k, v] of Object.entries(opts?.fromAngles ?? {})) {
+    if (typeof v === 'number' && Number.isFinite(v)) prev.set(k, v);
+  }
+  const out: SequenceKeyframe[] = [];
+  const kfs = motion.keyframes;
+
+  for (let idx = 0; idx < kfs.length; idx += 1) {
+    const kf = kfs[idx]!;
+    const targets = Array.isArray(kf.targets) ? kf.targets : [];
+    const wholeBody = !!(kf.root || kf.travel || kf.posture);
+    const hasLead = targets.some((t) => clampP(t.peakAt) < 1 - 1e-9);
+    const times = hasLead
+      ? (() => {
+          const s = [...new Set(targets.map((t) => clampP(t.peakAt)))];
+          if (!s.some((x) => Math.abs(x - 1) < 1e-9)) s.push(1);
+          return s.sort((a, b) => a - b);
+        })()
+      : [1];
+    // Budget: reserve one slot for each not-yet-emitted keyframe so the total
+    // never exceeds MAX_KEYFRAMES; a keyframe that wouldn't fit stays lockstep.
+    const remainingAfter = kfs.length - idx - 1;
+    const fits = out.length + times.length + remainingAfter <= MAX_KEYFRAMES;
+
+    if (targets.length === 0 || !hasLead || wholeBody || !fits) {
+      out.push(targets.length ? { ...kf, targets: targets.map(stripPeak) } : { ...kf });
+      for (const t of targets) prev.set(key(t), t.targetDegrees);
+      continue;
+    }
+
+    let prevT = 0;
+    for (let i = 0; i < times.length; i += 1) {
+      const tau = times[i]!;
+      const isLast = i === times.length - 1;
+      const subTargets: SequenceTarget[] = targets.map((t) => {
+        const p = clampP(t.peakAt);
+        const start = prev.get(key(t)) ?? 0;
+        const frac = Math.min(1, tau / p);
+        return { joint: t.joint, motion: t.motion, targetDegrees: start + (t.targetDegrees - start) * frac };
+      });
+      const sub: SequenceKeyframe = { targets: subTargets, durationMs: kf.durationMs * (tau - prevT) };
+      if (kf.velocityClass) sub.velocityClass = kf.velocityClass;
+      if (kf.stance) sub.stance = kf.stance; // per-phase mode → every sub
+      if (isLast && kf.holdMs != null) sub.holdMs = kf.holdMs;
+      out.push(sub);
+      prevT = tau;
+    }
+    for (const t of targets) prev.set(key(t), t.targetDegrees);
+  }
+  return { ...motion, keyframes: out };
+}
+
 /**
  * Validate a composed motion's shape + limits, clamp every target through
  * {@link resolveCommandTarget} (the SAME truth path as single commands:
  * normative ROM ∩ scenario constraints, refusal rule, painful arc), and
  * enforce realistic timing per keyframe. Pure — reads the module-level
  * scenario-constraint store, writes nothing.
+ *
+ * ROOT DIRECTIVES — each keyframe's whole-body posture/travel is resolved by
+ * {@link resolveKeyframeRoot}: the SEMANTIC sugar ({@link SequenceKeyframe.travel}
+ * / {@link SequenceKeyframe.posture}) is mapped to the correct SIGNED
+ * root.translateM / root.orient here (forward → +Z, the way the body faces;
+ * supine → pitch −90, …), so
+ * the model authors a direction NAME and never a raw axis sign. A raw
+ * `root` value WINS per component (semantic sugar only fills the component the
+ * keyframe left unspecified), keeping every existing raw-root plan working
+ * unchanged. Malformed semantic input refuses through the same shape-error path.
  */
 export function resolveComposedMotion(
   motion: ComposedMotion,
@@ -291,8 +626,14 @@ export function resolveComposedMotion(
     if (!kf || typeof kf !== 'object') {
       return refuse(motion, `keyframe ${ki}: needs at least one target, root, or stance change`);
     }
-    const kfRoot = validateRoot(kf.root);
-    if (kfRoot === 'invalid') return refuse(motion, `keyframe ${ki}: malformed root transform`);
+    // EFFECTIVE root = raw root.orient/translateM merged with the semantic
+    // travel/posture sugar (raw wins per component; see resolveKeyframeRoot).
+    // A malformed raw root OR a malformed semantic input refuses here, through
+    // the SAME shape-error path as everything else.
+    const kfRoot = resolveKeyframeRoot(kf);
+    if (kfRoot === 'invalid') {
+      return refuse(motion, `keyframe ${ki}: malformed root transform or travel/posture`);
+    }
     const hasStanceChange = kf.stance === 'planted' || kf.stance === 'floating';
     const requestedTargets = Array.isArray(kf.targets) ? kf.targets : [];
     // A keyframe is valid with ≥1 target OR a root directive OR a stance
