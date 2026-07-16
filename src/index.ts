@@ -71,6 +71,13 @@ export * from './services/movementTemplates';
 // export (angle + velocity series, trajectories, speeds, summaries, CSV).
 export * from './services/motionRecording';
 
+// Kinematic signatures + deterministic movement scorer (simMOVE Phase 1) — the
+// LLM-free half of the closed-loop critic: distills a recording's kinematic
+// export into a direction+shape fingerprint and scores a candidate against a
+// reference, rejecting per-joint sign flips, gross amplitude misses, coordination
+// (peak-order) scrambles, and reversed root travel.
+export * from './services/movementSignature';
+
 // Root motion (simMOVE full-body layer) — whole-body posture (orient), travel
 // (translate), and the PLANTED closed-chain foot-pin, all on the MODEL ROOT so
 // no clinical joint readout is disturbed. Pairs with motionSequence's per-
