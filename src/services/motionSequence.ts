@@ -480,39 +480,78 @@ const stripPeak = (t: SequenceTarget): SequenceTarget => ({
  * become ordered sub-keyframes; at fraction τ each joint sits at
  * `min(1, τ / peakAt_j)` of the way from its previous settled value toward its
  * target, so a joint reaches its target at its OWN `peakAt` and holds. The final
- * sub-keyframe is the original boundary (every joint at full target), so settled
- * poses, holds, and every goniometric measurement are UNCHANGED — only the path
- * and timing BETWEEN keyframes shift. Root/stance/posture/travel directives and
- * `holdMs` ride the final sub-keyframe (the phase boundary); `velocityClass`
- * rides all. Keyframes with no `peakAt < 1` (or no targets) pass through
- * untouched, so a plan that never sets `peakAt` is byte-identical to today.
+ * sub-keyframe is the original boundary (every joint at full target), so the
+ * SETTLED pose, holds, and goniometric measurements are UNCHANGED — only the path
+ * and timing BETWEEN keyframes shift. Keyframes with no `peakAt < 1` (or no
+ * targets) pass through untouched, so a plan that never sets `peakAt` is
+ * byte-identical to today.
  *
- * The intermediate LEAD shape is measured from a neutral (0°) previous value for
- * the first keyframe; final targets are exact regardless, so this only affects
- * naturalness, not correctness. Heavy use multiplies keyframe count — the result
- * still passes through the MAX_KEYFRAMES limit in {@link resolveComposedMotion}.
+ * How directives ride the split (informed by an adversarial review):
+ *   - `stance` is a per-phase MODE (planted = closed-chain foot-pin), not a
+ *     boundary event, so it rides EVERY sub-keyframe — otherwise a planted squat
+ *     would descend un-pinned (floating) through the lead and snap at the end.
+ *   - `velocityClass` rides every sub (leads must not be throttled to the
+ *     default class); `holdMs` rides the final sub only.
+ *   - A keyframe carrying a WHOLE-BODY transform (`root`/`travel`/`posture`) is
+ *     NOT expanded (kept lockstep, directive intact): splitting would compress
+ *     the whole-body motion into the final slice and desync it from the limbs.
+ *     peakAt is for intra-phase JOINT coordination; author whole-body travel in
+ *     its own keyframe.
+ *
+ * BASELINE: the intermediate lead shape is measured from `opts.fromAngles` (keyed
+ * `joint.motion`) or neutral 0° when absent. Pass the live angles when the motion
+ * uses `startFrom:'current'`, else the first keyframe's lead is shaped from 0
+ * (final targets are exact regardless — this only affects the transient shape).
+ *
+ * LIMITS: expansion is budgeted against {@link MAX_KEYFRAMES} — a keyframe whose
+ * sub-frames wouldn't fit stays lockstep (its lead is dropped) so the motion
+ * stays valid instead of being refused. And each sub-duration is still subject to
+ * the velocity governor's floor in {@link resolveComposedMotion}, so an
+ * AGGRESSIVE lead (a large excursion crammed into a short slice) will be
+ * lengthened/reshaped by the governor and the phase total may grow; a subtle lead
+ * (the intended use — a few percent) is unaffected.
  */
-export function expandPeakTiming(motion: ComposedMotion): ComposedMotion {
+export function expandPeakTiming(
+  motion: ComposedMotion,
+  opts?: { fromAngles?: Record<string, number> },
+): ComposedMotion {
   if (!motion || !Array.isArray(motion.keyframes)) return motion;
   const clampP = (p: number | undefined): number => {
     const v = typeof p === 'number' && Number.isFinite(p) ? p : 1;
     return v <= 0 || v > 1 ? 1 : v; // (0,1]; non-positive / absent / >1 → 1
   };
   const key = (t: SequenceTarget): string => `${t.joint}.${t.motion}`;
-  const prev = new Map<string, number>(); // last settled value per joint.motion
+  // Baseline for the lead interpolation: live angles for startFrom:'current',
+  // else neutral 0. Final targets are exact regardless of this seed.
+  const prev = new Map<string, number>();
+  for (const [k, v] of Object.entries(opts?.fromAngles ?? {})) {
+    if (typeof v === 'number' && Number.isFinite(v)) prev.set(k, v);
+  }
   const out: SequenceKeyframe[] = [];
+  const kfs = motion.keyframes;
 
-  for (const kf of motion.keyframes) {
+  for (let idx = 0; idx < kfs.length; idx += 1) {
+    const kf = kfs[idx]!;
     const targets = Array.isArray(kf.targets) ? kf.targets : [];
+    const wholeBody = !!(kf.root || kf.travel || kf.posture);
     const hasLead = targets.some((t) => clampP(t.peakAt) < 1 - 1e-9);
-    if (targets.length === 0 || !hasLead) {
+    const times = hasLead
+      ? (() => {
+          const s = [...new Set(targets.map((t) => clampP(t.peakAt)))];
+          if (!s.some((x) => Math.abs(x - 1) < 1e-9)) s.push(1);
+          return s.sort((a, b) => a - b);
+        })()
+      : [1];
+    // Budget: reserve one slot for each not-yet-emitted keyframe so the total
+    // never exceeds MAX_KEYFRAMES; a keyframe that wouldn't fit stays lockstep.
+    const remainingAfter = kfs.length - idx - 1;
+    const fits = out.length + times.length + remainingAfter <= MAX_KEYFRAMES;
+
+    if (targets.length === 0 || !hasLead || wholeBody || !fits) {
       out.push(targets.length ? { ...kf, targets: targets.map(stripPeak) } : { ...kf });
       for (const t of targets) prev.set(key(t), t.targetDegrees);
       continue;
     }
-    const times = [...new Set(targets.map((t) => clampP(t.peakAt)))];
-    if (!times.some((x) => Math.abs(x - 1) < 1e-9)) times.push(1);
-    times.sort((a, b) => a - b);
 
     let prevT = 0;
     for (let i = 0; i < times.length; i += 1) {
@@ -526,13 +565,8 @@ export function expandPeakTiming(motion: ComposedMotion): ComposedMotion {
       });
       const sub: SequenceKeyframe = { targets: subTargets, durationMs: kf.durationMs * (tau - prevT) };
       if (kf.velocityClass) sub.velocityClass = kf.velocityClass;
-      if (isLast) {
-        if (kf.holdMs != null) sub.holdMs = kf.holdMs;
-        if (kf.root) sub.root = kf.root;
-        if (kf.stance) sub.stance = kf.stance;
-        if (kf.travel) sub.travel = kf.travel;
-        if (kf.posture) sub.posture = kf.posture;
-      }
+      if (kf.stance) sub.stance = kf.stance; // per-phase mode → every sub
+      if (isLast && kf.holdMs != null) sub.holdMs = kf.holdMs;
       out.push(sub);
       prevT = tau;
     }

@@ -105,21 +105,81 @@ describe('expandPeakTiming realizes an intra-phase lead', () => {
     expect(checkCoordination(ex, ANKLE_LEADS_KNEE).accepted).toBe(false);
   });
 
-  it('preserves every joint final amplitude (the lead changes timing, not targets)', () => {
+  it('preserves every joint final amplitude both sides, and returns to neutral', () => {
     const ex = exportOf(expandPeakTiming(squat(true)));
-    expect(ex.summary.joints['L_Leg.kneeFlexion']!.peakDeg).toBeGreaterThan(115);
-    expect(ex.summary.joints['L_UpLeg.hipFlexion']!.peakDeg).toBeGreaterThan(95);
-    expect(ex.summary.joints['L_Foot.ankleFlexion']!.peakDeg).toBeGreaterThan(18);
+    for (const side of ['L', 'R']) {
+      const knee = ex.summary.joints[`${side}_Leg.kneeFlexion`]!;
+      const hip = ex.summary.joints[`${side}_UpLeg.hipFlexion`]!;
+      const ankle = ex.summary.joints[`${side}_Foot.ankleFlexion`]!;
+      expect(knee.peakDeg).toBeGreaterThan(115); // reaches ~120
+      expect(knee.peakDeg).toBeLessThan(125); // no overshoot corruption
+      expect(hip.peakDeg).toBeGreaterThan(95);
+      expect(ankle.peakDeg).toBeGreaterThan(18);
+      expect(knee.minDeg).toBeLessThan(5); // returns toward 0 on the ascent
+    }
   });
 });
 
-describe('expandPeakTiming is a no-op when no peakAt is set (back-compat)', () => {
-  it('returns keyframes with identical targets + durations', () => {
-    const plain = squat(false);
+describe('directives ride the split correctly (red-team fixes)', () => {
+  it('per-keyframe stance rides ALL sub-keyframes (planted stays planted through the lead)', () => {
+    const m: ComposedMotion = {
+      name: 'planted-lead',
+      startFrom: 'neutral',
+      keyframes: [
+        {
+          durationMs: 1000,
+          stance: 'planted',
+          targets: [
+            { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: 20, peakAt: 0.6 },
+            { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 120 },
+          ],
+        },
+      ],
+    };
+    const expanded = expandPeakTiming(m);
+    expect(expanded.keyframes.length).toBeGreaterThan(1); // it did split
+    expect(expanded.keyframes.every((k) => k.stance === 'planted')).toBe(true);
+  });
+
+  it('a keyframe carrying a whole-body directive is NOT expanded (posture preserved)', () => {
+    const m: ComposedMotion = {
+      startFrom: 'neutral',
+      keyframes: [
+        { durationMs: 1000, posture: 'supine', targets: [{ joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 90, peakAt: 0.5 }] },
+      ],
+    };
+    const e = expandPeakTiming(m);
+    expect(e.keyframes.length).toBe(1);
+    expect(e.keyframes[0]!.posture).toBe('supine');
+  });
+
+  it('expansion is budgeted against MAX_KEYFRAMES — stays valid instead of refusing', () => {
+    // 8 keyframes each wanting 2 sub-frames = 16 > 12; must stay ≤ 12 and resolve ok.
+    const many: ComposedMotion = {
+      startFrom: 'neutral',
+      keyframes: Array.from({ length: 8 }, (_, i) => ({
+        durationMs: 400,
+        targets: [
+          { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: i % 2 ? 40 : 0, peakAt: 0.5 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: i % 2 ? 30 : 0 },
+        ],
+      })),
+    };
+    const expanded = expandPeakTiming(many);
+    expect(expanded.keyframes.length).toBeLessThanOrEqual(12);
+    expect(resolveComposedMotion(expanded, variantCfg).status).toBe('ok');
+  });
+});
+
+describe('expandPeakTiming is byte-identical when no peakAt is set (back-compat)', () => {
+  it('preserves targets, durations, holdMs and stance on pass-through', () => {
+    const plain = squat(false); // has holdMs:200 on keyframe 0, motion-level stance
     const expanded = expandPeakTiming(plain);
     expect(expanded.keyframes.length).toBe(plain.keyframes.length);
     for (let i = 0; i < plain.keyframes.length; i += 1) {
       expect(expanded.keyframes[i]!.durationMs).toBe(plain.keyframes[i]!.durationMs);
+      expect(expanded.keyframes[i]!.holdMs).toBe(plain.keyframes[i]!.holdMs);
+      expect(expanded.keyframes[i]!.stance).toBe(plain.keyframes[i]!.stance);
       const a = (plain.keyframes[i]!.targets ?? []).map((t) => `${t.joint}.${t.motion}=${t.targetDegrees}`);
       const b = (expanded.keyframes[i]!.targets ?? []).map((t) => `${t.joint}.${t.motion}=${t.targetDegrees}`);
       expect(b).toEqual(a);
