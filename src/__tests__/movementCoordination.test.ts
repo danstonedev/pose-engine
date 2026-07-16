@@ -93,6 +93,11 @@ const SQUAT: CoordinationSpec = {
     { a: 'L_UpLeg.hipFlexion', b: 'L_Leg.kneeFlexion', ratio: 100 / 120, tolRel: 0.25 },
     { a: 'R_UpLeg.hipFlexion', b: 'R_Leg.kneeFlexion', ratio: 100 / 120, tolRel: 0.25 },
   ],
+  // Ratio is amplitude-only; pair with co-timing so hip+knee also flex together.
+  together: [
+    { a: 'L_UpLeg.hipFlexion', b: 'L_Leg.kneeFlexion', label: 'L hip+knee flex together' },
+    { a: 'R_UpLeg.hipFlexion', b: 'R_Leg.kneeFlexion', label: 'R hip+knee flex together' },
+  ],
 };
 const MARCH: CoordinationSpec = {
   name: 'high-knee-march',
@@ -106,10 +111,14 @@ const MARCH: CoordinationSpec = {
 };
 const STS: CoordinationSpec = {
   name: 'sit-to-stand',
-  // Trunk flexion momentum (the lean) leads the hip EXTENSION to rise.
+  // Trunk FLEXION momentum (the lean) leads the hip EXTENSION to rise. Uses
+  // directional velocity landmarks — the trunk's most-positive (flexion) velocity
+  // before the hip's most-negative (extension) velocity — so it (a) is robust to
+  // out-and-back argmax noise, and (b) has NO landmark when the trunk doesn't
+  // lean, which correctly FAILS a lean-less rise.
   order: [
-    { earlier: 'Spine_Lower.flexion', later: 'L_UpLeg.hipFlexion', by: 'maxVel', minLeadFrac: 0.05 },
-    { earlier: 'Spine_Lower.flexion', later: 'R_UpLeg.hipFlexion', by: 'maxVel', minLeadFrac: 0.05 },
+    { earlier: 'Spine_Lower.flexion', earlierAt: 'maxPosVel', later: 'L_UpLeg.hipFlexion', laterAt: 'maxNegVel', minLeadFrac: 0.05 },
+    { earlier: 'Spine_Lower.flexion', earlierAt: 'maxPosVel', later: 'R_UpLeg.hipFlexion', laterAt: 'maxNegVel', minLeadFrac: 0.05 },
   ],
 };
 
@@ -164,5 +173,20 @@ describe('the checker REJECTS broken coordination', () => {
       ratios: [{ a: 'No.joint', b: 'L_Leg.kneeFlexion', ratio: 1 }],
     });
     expect(res.accepted).toBe(false);
+  });
+
+  it('sit-to-stand with NO trunk lean fails flexion-before-extension (not a silent pass)', () => {
+    // The faulty "stand straight up, no nose-over-toes" pattern the STS note warns
+    // against. With the lean removed the trunk has no flexion-momentum landmark,
+    // so the order rule cannot be satisfied by its ABSENCE (red-team M#1).
+    const noLean = mapTargets(templateMotion('sit-to-stand'), 'Spine_Lower.flexion', () => 0);
+    const res = checkCoordination(exportOf(noLean), STS);
+    expect(res.accepted).toBe(false);
+    expect(res.results.find((r) => r.kind === 'order' && !r.ok)).toBeDefined();
+  });
+
+  it('a spec with no rules is NOT a vacuous accept', () => {
+    expect(checkCoordination(exportOf(templateMotion('squat')), { name: 'empty' }).accepted).toBe(false);
+    expect(checkCoordination(exportOf(templateMotion('squat')), { name: 'empty', order: [] }).accepted).toBe(false);
   });
 });
