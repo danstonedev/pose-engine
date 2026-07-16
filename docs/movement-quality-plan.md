@@ -134,7 +134,25 @@ coordination the engine genuinely produces: squat hip:knee ≈ 100:120, march re
 peaks WITH the contralateral arm, APART from the ipsilateral), sit-to-stand flexion-momentum-before-
 extension.
 
-**Measured finding (drove the next generation improvement):** INTER-phase coordination is real
+### Phase 3 — travel + contact via IK (`footContact` + sampler `contacts`)
+Closed-chain ground contact so a stance foot stays put while the body travels. `buildFootPlant` builds
+the leg CCD IK chain (foot → knee → hip, knee kept a hinge, ROM-clamped, best-effort when
+unreachable); `sampleComposedMotion` gained an **opt-in** `contacts` that pins each declared foot to
+its true first-frame world position each frame. `measureContactSlide` scores drift. Gate (real rig): a
+forward step drops the stance foot's horizontal slide from ~0.30 m (moonwalk) to **<0.08 m** while the
+body still travels +Z and the swing foot advances. Red-team hardened: the plant target is captured
+**lazily at the first frame** (correct for `startFrom:'current'` continuity, not just neutral — a
+baseline capture teleported the foot ~0.4 m); the vertical float is now gated; and the harness-root
+reset gotcha (each sample captures the current root as its rest) is handled.
+
+### Phase 4 — compound chains (`movementChain`)
+`sampleMotionChain` sequences validated primitives with cross-motion continuity — each segment after
+the first continues from the previous end pose + root (`startFrom:'current'`), the harness reset per
+segment so travel never double-counts. `measureSeamContinuity` gates "no teleport between segments."
+Gate: a chain of validated primitives is continuous (seams <3°) AND each sub-movement independently
+passes its own Phase-1 signature; a reset-to-neutral counter-example (arm snaps 90°→0°) is caught.
+
+**Measured finding (drove the intra-phase generation improvement):** INTER-phase coordination is real
 (authored as distinct keyframes — the march's reciprocal timing, the STS lean-before-rise), but
 INTRA-phase timing was **lockstep** — every joint in one keyframe peaked at the keyframe boundary, so a
 within-phase lead like "the ankle dorsiflexes ahead of the knee in a squat descent" (which the

@@ -36,7 +36,9 @@ import {
   applyCustomPose,
   blendCustomPose,
   buildBoneByPoseKey,
+  serializeCustomPose,
 } from './poseRig';
+import { buildFootPlant, solveFootPlant, type FootPlantSolver } from './footContact';
 import {
   buildSequencePoses,
   type ResolvedComposedMotion,
@@ -186,6 +188,14 @@ export interface SampleComposedOptions {
     quat?: [number, number, number, number];
     translateM?: [number, number, number];
   } | null;
+  /**
+   * Feet to keep planted in the world (Phase 3 closed-chain contact): each
+   * declared foot is IK-pinned to the world position it holds at the start of
+   * the motion, so it does NOT slide as the root travels. Applied per frame
+   * AFTER the FK pose + root transform (and after any planted floor-pin). Omit
+   * for the default open-chain behavior — existing recordings are unaffected.
+   */
+  contacts?: { foot: string }[];
 }
 
 interface SampleSegment {
@@ -247,6 +257,19 @@ export function sampleComposedMotion(
   root.updateMatrixWorld(true);
   const floorRef = captureFloorReference(skinned.skeleton, variantCfg);
 
+  // CONTACT PLANTS (Phase 3): build the leg IK chains now, but capture each
+  // foot's world target LAZILY at the first sampled frame (after that frame's FK
+  // pose + root transform). Capturing at the real first frame — not the baseline
+  // pose + root-at-rest — is what makes a plant correct for BOTH a neutral start
+  // AND the default startFrom:'current' continuity path (the foot pins where it
+  // actually IS at t=0, not where it would be at anatomic rest). Red-team Finding 1.
+  const plantSolvers: FootPlantSolver[] = [];
+  for (const c of opts.contacts ?? []) {
+    const solver = buildFootPlant(skinned, c.foot, variantCfg);
+    if (solver) plantSolvers.push(solver);
+  }
+  const plantTargets: (THREE.Vector3 | null)[] = plantSolvers.map(() => null);
+
   const built = buildSequencePoses(baselinePose, resolved, variantCfg, rest, {
     currentPose: opts.currentPose ?? null,
     currentRoot: opts.currentRoot ?? null,
@@ -293,6 +316,23 @@ export function sampleComposedMotion(
     root.updateMatrixWorld(true);
     if (sample.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
 
+    // CONTACT PLANTS: pin each declared foot back to its captured world target,
+    // so it does not slide as the root travels (the leg hip/knee flex to carry
+    // the pelvis over the fixed foot). Applied after the floor-pin; the measured
+    // angles + tracks below then reflect the IK'd leg, and `effPose` re-serializes
+    // it so the recorded pose stays consistent with the measurement.
+    let effPose = pose;
+    if (plantSolvers.length) {
+      for (let p = 0; p < plantSolvers.length; p += 1) {
+        // Lazily pin the target to where the foot IS at the first frame (post-FK,
+        // post-root), so continuity motions plant at the true start position.
+        if (!plantTargets[p]) plantTargets[p] = plantSolvers[p]!.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+        solveFootPlant(plantSolvers[p]!, plantTargets[p]!, rest);
+      }
+      root.updateMatrixWorld(true);
+      effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
+    }
+
     // Measure against the (possibly reoriented) rest reference — same as the
     // stage's activeRestRef().
     const orientQuat: [number, number, number, number] = [_sq.x, _sq.y, _sq.z, _sq.w];
@@ -314,7 +354,7 @@ export function sampleComposedMotion(
 
     return {
       tMs,
-      pose,
+      pose: effPose,
       angles: copyAngles(report.joints as Record<string, Record<string, number>>),
       root: {
         orientQuat,

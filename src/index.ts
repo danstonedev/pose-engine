@@ -85,6 +85,18 @@ export * from './services/movementSignature';
 // arm/leg, sit-to-stand flexion-momentum-before-extension) can be gated.
 export * from './services/movementCoordination';
 
+// Foot contact / IK plant (simMOVE Phase 3) — closed-chain ground contact for
+// travel: pin a stance foot to a world target via the leg CCD IK so it stays put
+// while the root translates over it (no moonwalk slide), plus the slide metric.
+export * from './services/footContact';
+
+// Compound motion chains (simMOVE Phase 4) — sequence validated primitives with
+// cross-motion continuity (each segment continues from the previous one's end
+// pose + root), plus the seam-continuity metric so "no teleport between segments"
+// is a measured gate. Composition over the existing sampler; nothing new in the
+// trajectory/measurement path.
+export * from './services/movementChain';
+
 // Root motion (simMOVE full-body layer) — whole-body posture (orient), travel
 // (translate), and the PLANTED closed-chain foot-pin, all on the MODEL ROOT so
 // no clinical joint readout is disturbed. Pairs with motionSequence's per-
