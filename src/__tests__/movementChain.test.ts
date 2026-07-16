@@ -18,7 +18,7 @@ import { resolveComposedMotion, type ComposedMotion } from '../services/motionSe
 import { sampleComposedMotion, exportKinematics } from '../services/motionRecording';
 import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
 import { buildSignatureFromExport, driverKeysOf, scoreAgainstSignature } from '../services/movementSignature';
-import { sampleMotionChain, measureSeamContinuity } from '../services/movementChain';
+import { sampleMotionChain, measureSeamContinuity, measureSeamRootDiscontinuity } from '../services/movementChain';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
@@ -114,5 +114,60 @@ describe('the seam metric catches a real teleport (non-vacuous)', () => {
     });
     const teleportSeam = measureSeamContinuity(raiseRec, cervicalReset);
     expect(teleportSeam).toBeGreaterThan(45); // the ~90° arm drop is caught
+  });
+
+  it('continuity is load-bearing THROUGH the chain runner (a displaced driver persists)', () => {
+    // Red-team #3: prove sampleMotionChain's asContinuation actually carries state
+    // — not just the hand-rolled counter-example. Chain raise-and-hold → cervical;
+    // the cervical segment's FIRST frame must still show the arm up (~90°). If
+    // asContinuation were a no-op (reset to neutral), it would read ~0°.
+    const segs = sampleMotionChain([raiseAndHold(), templateMotion('cervical-rotation')], harness());
+    const armAtSeam = segs[1]!.recording.frames[0]!.angles['R_UpperArm']?.['shoulderFlexion'] ?? 0;
+    expect(armAtSeam).toBeGreaterThan(80);
+  });
+});
+
+describe('root continuity is gated (joint angles alone are seam-blind)', () => {
+  const step = (): ComposedMotion => ({
+    name: 'step', stance: 'planted', startFrom: 'neutral',
+    keyframes: [{ durationMs: 700, travel: { direction: 'forward', meters: 0.3 }, targets: [
+      { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 25 }, { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 30 } ] }],
+  });
+
+  it('a traveling chain keeps the ROOT continuous at the seam', () => {
+    const segs = sampleMotionChain([step(), step()], harness());
+    expect(segs).toHaveLength(2);
+    expect(segs.every((s) => s.status === 'ok')).toBe(true);
+    // The root does not jump at the seam (the whole-body thread is intact) —
+    // something joint-angle continuity can't see.
+    expect(segs[1]!.seamRootTranslateM).toBeLessThan(0.05);
+  });
+
+  it('the root-seam metric CATCHES a dropped root thread (non-vacuous)', () => {
+    // Sample a step, then a continuation that does NOT thread currentRoot → the
+    // body snaps back to the origin while joint angles stay ~identical.
+    const first = sampleComposedMotion(resolveComposedMotion(step(), variantCfg), harness());
+    const cont: ComposedMotion = { ...step(), startFrom: 'current' };
+    const brokenRoot = sampleComposedMotion(resolveComposedMotion(cont, variantCfg), {
+      ...harness(), currentPose: first.frames[first.frames.length - 1]!.pose, // pose threaded…
+      // …but currentRoot deliberately omitted → the ~0.3 m of travel is dropped.
+    });
+    expect(measureSeamRootDiscontinuity(first, brokenRoot).translateM).toBeGreaterThan(0.2);
+    // Joint angles alone would call this seam "fine" — the whole point of the metric.
+    expect(measureSeamContinuity(first, brokenRoot)).toBeLessThan(5);
+  });
+});
+
+describe('a refused segment does not crash or silently pass the chain', () => {
+  it('marks the refused segment and keeps threading from the last OK one', () => {
+    const bad: ComposedMotion = { name: 'bogus', keyframes: [{ durationMs: 400, targets: [{ joint: 'Not_A_Joint', motion: 'nope', targetDegrees: 20 }] }] };
+    const segs = sampleMotionChain([templateMotion('cervical-rotation'), bad, templateMotion('single-leg-stance')], harness());
+    expect(segs).toHaveLength(3);
+    expect(segs[0]!.status).toBe('ok');
+    expect(segs[1]!.status).toBe('refused');
+    expect(segs[1]!.recording.frames).toHaveLength(0);
+    // The third segment still ran (continuing from the first OK segment), not crashed.
+    expect(segs[2]!.status).toBe('ok');
+    expect(segs[2]!.recording.frames.length).toBeGreaterThan(0);
   });
 });

@@ -15,7 +15,6 @@
  * existing sampler, so a chained segment is frame-for-frame identical to running
  * that segment standalone from the same start pose.
  */
-import * as THREE from 'three';
 import { sampleComposedMotion, type MotionRecording, type SampleComposedOptions } from './motionRecording';
 import { resolveComposedMotion, type ComposedMotion } from './motionSequence';
 import type { CustomPose } from '../types';
@@ -31,11 +30,25 @@ export function asContinuation(motion: ComposedMotion): ComposedMotion {
 export interface ChainedSegment {
   /** The (possibly continuation-forced) motion that was sampled. */
   motion: ComposedMotion;
-  /** The segment's recording, sampled from the previous segment's end state. */
+  /** The segment's recording, sampled from the previous segment's end state.
+   *  Empty (`frames: []`) when `status` is 'refused'. */
   recording: MotionRecording;
+  /** 'ok' when the segment resolved + sampled; 'refused' when it produced no
+   *  frames (unknown/unachievable motion) — the chain does NOT thread state
+   *  through a refused segment (it can't continue from nothing). */
+  status: 'ok' | 'refused';
   /** Max |joint-angle| discontinuity (deg) at this segment's START vs the
-   *  previous segment's END — 0 for the first segment; small = no teleport. */
+   *  previous OK segment's END — 0 for the first segment. NOTE: for a
+   *  continuation this is ~0 BY CONSTRUCTION (the segment is sampled FROM the
+   *  previous end pose), so it confirms the joint pose was threaded, not that the
+   *  motion is physically continuous — pair it with {@link seamRootTranslateM} /
+   *  {@link seamRootOrientDeg} for the whole-body seam. */
   seamDiscontinuityDeg: number;
+  /** World-space root TRANSLATION jump (m) at the seam — catches a broken root
+   *  thread that joint angles can't see (a body that snaps across the floor). */
+  seamRootTranslateM: number;
+  /** World-space root ORIENTATION jump (deg) at the seam. */
+  seamRootOrientDeg: number;
 }
 
 /** Flatten a frame's measured angles to a `joint.motion → deg` map (the shape
@@ -70,6 +83,34 @@ export function measureSeamContinuity(a: MotionRecording, b: MotionRecording): n
   return max;
 }
 
+/** Whole-body ROOT discontinuity at a seam: the world translation jump (m) and
+ *  orientation jump (deg) between `a`'s last frame and `b`'s first. Joint angles
+ *  are ~0 across a threaded seam by construction, but a dropped/incorrect root
+ *  thread snaps the whole body across the world without moving a single joint —
+ *  so this is the seam check that actually gates a TRAVELING/re-postured chain. */
+export function measureSeamRootDiscontinuity(
+  a: MotionRecording,
+  b: MotionRecording,
+): { translateM: number; orientDeg: number } {
+  const ra = a.frames[a.frames.length - 1]?.root;
+  const rb = b.frames[0]?.root;
+  if (!ra || !rb) return { translateM: 0, orientDeg: 0 };
+  const dt = Math.hypot(
+    rb.translateM[0] - ra.translateM[0],
+    rb.translateM[1] - ra.translateM[1],
+    rb.translateM[2] - ra.translateM[2],
+  );
+  // Angle between the two orientation quaternions: 2·acos(|dot|).
+  const dot = Math.abs(
+    ra.orientQuat[0] * rb.orientQuat[0] +
+      ra.orientQuat[1] * rb.orientQuat[1] +
+      ra.orientQuat[2] * rb.orientQuat[2] +
+      ra.orientQuat[3] * rb.orientQuat[3],
+  );
+  const orientDeg = (2 * Math.acos(Math.min(1, dot)) * 180) / Math.PI;
+  return { translateM: dt, orientDeg };
+}
+
 /**
  * Sample a chain of motions with cross-motion continuity: the first segment
  * starts as authored (typically from neutral/anatomic); every later segment is
@@ -77,6 +118,18 @@ export function measureSeamContinuity(a: MotionRecording, b: MotionRecording): n
  * pose + root, so the body flows through the chain without snapping back. Returns
  * one {@link ChainedSegment} per input, each with its recording and the measured
  * seam discontinuity. Uses the SAME sampler as a standalone motion.
+ *
+ * A segment that RESOLVES to refused (or otherwise samples no frames) is recorded
+ * with `status:'refused'` and does NOT advance the continuity state — the chain
+ * continues from the last OK segment rather than crashing on, or silently
+ * threading through, an empty recording.
+ *
+ * CAVEATS: the continuity origin is captured from the harness root AT CALL TIME
+ * (all threaded translations are relative to it), so pass a harness at its
+ * grounded rest. And per-segment SIGNATURE validation (Phase 1) is only
+ * apples-to-apples when a segment starts from ≈ the pose its reference signature
+ * was built from — true for return-to-neutral primitives; a segment whose driver
+ * joints start displaced needs a matched-start reference.
  */
 export function sampleMotionChain(
   segments: ComposedMotion[],
@@ -102,7 +155,10 @@ export function sampleMotionChain(
     harnessRoot.quaternion.copy(rest0Quat);
     harnessRoot.updateMatrixWorld(true);
     const motion = i === 0 ? segments[i]! : asContinuation(segments[i]!);
-    const currentAngles = prev ? flattenAngles(prev.frames[prev.frames.length - 1]!.angles) : undefined;
+    // Seed the velocity governor from the previous OK segment's end angles (guard
+    // against an empty previous recording — a refused segment leaves no frames).
+    const currentAngles =
+      prev && prev.frames.length > 0 ? flattenAngles(prev.frames[prev.frames.length - 1]!.angles) : undefined;
     const resolved = resolveComposedMotion(motion, baseOpts.variantCfg, currentAngles ? { currentAngles } : undefined);
     const recording = sampleComposedMotion(resolved, {
       ...baseOpts,
@@ -110,14 +166,24 @@ export function sampleMotionChain(
       currentRoot,
       name: motion.name,
     });
-    const seamDiscontinuityDeg = prev ? measureSeamContinuity(prev, recording) : 0;
-    out.push({ motion, recording, seamDiscontinuityDeg });
 
     const last = recording.frames[recording.frames.length - 1];
-    if (last) {
-      currentPose = last.pose;
-      currentRoot = { quat: last.root.orientQuat, translateM: last.root.translateM };
+    if (!last) {
+      // Refused / empty: record it and DO NOT advance continuity state.
+      out.push({ motion, recording, status: 'refused', seamDiscontinuityDeg: 0, seamRootTranslateM: 0, seamRootOrientDeg: 0 });
+      continue;
     }
+    const root = prev ? measureSeamRootDiscontinuity(prev, recording) : { translateM: 0, orientDeg: 0 };
+    out.push({
+      motion,
+      recording,
+      status: 'ok',
+      seamDiscontinuityDeg: prev ? measureSeamContinuity(prev, recording) : 0,
+      seamRootTranslateM: root.translateM,
+      seamRootOrientDeg: root.orientDeg,
+    });
+    currentPose = last.pose;
+    currentRoot = { quat: last.root.orientQuat, translateM: last.root.translateM };
     prev = recording;
   }
   return out;
