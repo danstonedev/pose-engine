@@ -204,7 +204,7 @@ describe('full-body motion battery on the real male rig', () => {
     };
     const { report } = playToLast(m);
     expect(Math.abs(worldPos('L_Foot')!.y - restFootY)).toBeLessThan(0.03);
-    // Head drops and moves anterior (−Z).
+    // Head drops and moves forward — the way the body faces (+Z, measured).
     expect(worldPos('Head')!.y).toBeLessThan(restHead.y - 0.2);
     expect(worldPos('Head')!.z).toBeGreaterThan(restHead.z + 0.1);
     expect(measureCommandMotion(report, 'Spine_Lower', 'flexion')!).toBeGreaterThan(25);
@@ -235,20 +235,23 @@ describe('full-body motion battery on the real male rig', () => {
     expect(worldPos('L_Foot')!.y).toBeGreaterThan(restFootY + 0.35);
   });
 
-  it('FORWARD STEP — root translate −Z (anterior) plus swing leg: body travels', () => {
+  it('FORWARD STEP — root translate +Z (the way the body faces) plus swing leg: body travels', () => {
     resetToAnatomic();
     const restHipZ = worldPos('Hips')!.z;
+    // The mesh physically FACES +Z (measured: toes point +Z; hip flexion swings
+    // the foot +Z). A forward step travels +Z — the SAME way the swing leg
+    // reaches — so root translate and limb swing are coherent.
     const m: ComposedMotion = {
       name: 'forward step',
       keyframes: [
-        { durationMs: 600, root: { translateM: [0, 0, -0.4] }, targets: [
+        { durationMs: 600, root: { translateM: [0, 0, 0.4] }, targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 30 },
           { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 25 },
         ] },
       ],
     };
     playToLast(m);
-    expect(worldPos('Hips')!.z).toBeLessThan(restHipZ - 0.3); // moved anterior
+    expect(worldPos('Hips')!.z).toBeGreaterThan(restHipZ + 0.3); // moved forward (+Z)
   });
 
   it('LIE SUPINE — root pitch −90: body horizontal (head ≈ foot height), face up', () => {
@@ -284,7 +287,7 @@ describe('full-body motion battery on the real male rig', () => {
       { durationMs: 800, root: { orient: { pitchDeg: 90 } }, targets: [{ joint: 'Neck', motion: 'flexion', targetDegrees: 0 }] },
     ] });
     const proneHeadZ = worldPos('Head')!.z;
-    // Supine head lies toward anterior (−Z), prone toward posterior (+Z): the roll flipped the body.
+    // Supine vs prone lay the head to OPPOSITE Z along the body's long axis: the pitch flipped the body.
     expect(Math.sign(proneHeadZ)).not.toBe(Math.sign(supineHeadZ));
     expect(prone.report).toBeDefined();
     void supine;

@@ -42,7 +42,13 @@ export interface RootOrient {
 /** Whole-body root transform for one keyframe (posture + travel). */
 export interface RootTransform {
   orient?: RootOrient;
-  /** Meters from the anatomic stance origin: [x (subject-left+), y (up+), z (posterior+)]. */
+  /** Meters from the anatomic stance origin, in WORLD space:
+   *  [x (subject-left+), y (up+), z (+ = the way the body faces / forward)].
+   *  The mesh physically faces world +Z (measured), so +z travels forward. (The
+   *  clinical joint-angle readout in jointAngles.ts labels this axis the other
+   *  way — a measurement-frame naming choice, not the physical facing; never use
+   *  that label to choose a travel sign. Prefer the semantic `travel` vocabulary
+   *  in motionSequence over a raw signed axis.) */
   translateM?: [number, number, number];
 }
 

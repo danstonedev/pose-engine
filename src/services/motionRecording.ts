@@ -606,7 +606,7 @@ const EXPORT_SCHEMA_DOC =
   "`timesMs` is the shared time axis (ms since recording start, uniformly sampled at meta.sampleHz). " +
   "`series['Joint.motion'][i]` is that joint motion's angle at timesMs[i]; " +
   "`angularVelocityDegS` is its central finite-difference derivative in deg/s (one-sided at the ends; ~0 during holds). " +
-  "`trajectories[bone][i]` is that bone's world position [x,y,z] in meters (x = subject-left+, y = up+, z = posterior+); " +
+  "`trajectories[bone][i]` is that bone's world position [x,y,z] in meters (x = subject-left+, y = up+, z+ = the way the body faces / forward — the mesh physically faces world +Z; NOTE the clinical angle readout labels this axis the opposite way, so use +z=forward when reasoning about travel/direction from these positions); " +
   '`speedsMs[bone]` is its finite-difference speed in m/s. ' +
   '`rootTranslateM[i]` is the whole-body model-root translation from its grounded stance origin (includes planted-stance floor pinning). ' +
   '`summary.joints` gives per joint.motion peak/min/excursion angle (deg), peak |angular velocity| (deg/s) and the time of the peak angle; ' +
