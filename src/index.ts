@@ -77,6 +77,14 @@ export * from './services/motionRecording';
 // keyframe root/stance to unlock lying, rolling, jumping, stepping, squatting.
 export * from './services/rootMotion';
 
+// Movement-direction validator (simMOVE Phase 0) — the deterministic
+// belt-and-suspenders check that MEASURED net root travel + ending orientation
+// match the intended semantic direction(s), with a raw-root auto-flip when a
+// plan reversed. Reuses motionSequence's one sign table, so intent and check
+// never drift. (The semantic vocabulary itself — travel/posture keyframe sugar
+// and describeSemanticMotionVocabulary — is exported via motionSequence above.)
+export * from './services/movementDirection';
+
 // Posed-geometry world-space baking
 export * from './services/posedGeometry';
 

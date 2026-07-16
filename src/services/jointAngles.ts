@@ -26,6 +26,17 @@
  *   (the negative direction is extension / adduction / external rotation /
  *    lean-right / look-right). The display layer can label them.
  *
+ * TWO FRAMES — do not conflate them (conflating them caused a forward/back
+ * travel reversal). The "anterior = -Z" above is this READOUT's clinical
+ * labeling frame, used only to sign the measured joint angles; it is
+ * self-consistent for the numbers and does NOT describe where the mesh points.
+ * The loaded GLB PHYSICALLY faces world +Z (measured on the rig: a forward
+ * arm-raise, hip flexion, and trunk flexion all carry the limb/head to +Z; the
+ * world-frame UpperArm readout below likewise signs +Z as forward flexion).
+ * Whole-body world MOTION and whole-body TRAVEL therefore use the PHYSICAL
+ * facing — forward = +Z — via motionSequence's TRAVEL_DIRECTION_AXIS. Never use
+ * a readout axis-label to choose a travel direction.
+ *
  * Side handling: right-side joints are mirrored before reporting so a
  * symmetric pose reads symmetric numbers (right-leg flexion is positive
  * for hip flexion; right-arm abduction is positive for true abduction).
