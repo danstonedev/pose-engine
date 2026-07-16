@@ -134,9 +134,17 @@ coordination the engine genuinely produces: squat hip:knee ≈ 100:120, march re
 peaks WITH the contralateral arm, APART from the ipsilateral), sit-to-stand flexion-momentum-before-
 extension.
 
-**Measured finding (drives the next generation improvement):** INTER-phase coordination is real
+**Measured finding (drove the next generation improvement):** INTER-phase coordination is real
 (authored as distinct keyframes — the march's reciprocal timing, the STS lean-before-rise), but
-INTRA-phase timing is **lockstep** — every joint in one keyframe peaks at the keyframe boundary, so a
+INTRA-phase timing was **lockstep** — every joint in one keyframe peaked at the keyframe boundary, so a
 within-phase lead like "the ankle dorsiflexes ahead of the knee in a squat descent" (which the
-templates *describe* in prose) is not realized. Closing that is a generation change (`peakAt` /
-sub-phase authoring) rather than a critic change, and is scoped as Phase 2b.
+templates *describe* in prose) was not realized.
+
+### Phase 2b — intra-phase `peakAt` timing (generation)
+`SequenceTarget.peakAt` (0..1) declares the fraction of a keyframe's travel at which a joint reaches
+its target and holds; `expandPeakTiming(motion)` realizes it as ordered **sub-keyframes on the
+existing SQUAD trajectory** — no trajectory/timing-governor change. The final sub-keyframe holds every
+joint at full target, so **settled poses/holds/measurements are unchanged**; a plan with no `peakAt`
+is byte-identical (opt-in, back-compat). Gate: with `peakAt` the ankle peaks **before** the knee (the
+Phase-2 coordination critic confirms the lead); without it, lockstep. This is the mechanism the AI (or
+the SME templates, with sign-off) uses to author natural within-phase leads.

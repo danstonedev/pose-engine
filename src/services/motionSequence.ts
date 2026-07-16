@@ -55,6 +55,17 @@ export interface SequenceTarget {
   motion: string;
   /** Absolute target in the registry's clinical sign convention. */
   targetDegrees: number;
+  /**
+   * OPTIONAL intra-phase timing: the fraction (0..1] of THIS keyframe's travel at
+   * which this joint reaches its target and then HOLDS. Default 1 (arrive at the
+   * keyframe boundary — the current lockstep behavior). A value < 1 makes the
+   * joint LEAD the others within the phase — e.g. the ankle dorsiflexes to ~0.87
+   * while the knee/hip complete at ~0.99 in a squat descent. This is a declarative
+   * annotation only; it takes effect when the plan is run through
+   * {@link expandPeakTiming} (which realizes it as sub-keyframes on the existing
+   * trajectory), and is otherwise ignored, so back-compat is total.
+   */
+  peakAt?: number;
 }
 
 /** Angular-velocity CLASS for a keyframe — the cap the timing governor enforces.
@@ -450,6 +461,84 @@ export function describeSemanticMotionVocabulary(): SemanticMotionVocabulary {
       'Prefer these over any raw root translate/orient so travel can never come out reversed.',
     ].join('\n'),
   };
+}
+
+const stripPeak = (t: SequenceTarget): SequenceTarget => ({
+  joint: t.joint,
+  motion: t.motion,
+  targetDegrees: t.targetDegrees,
+});
+
+/**
+ * Expand a plan's intra-phase {@link SequenceTarget.peakAt} annotations into
+ * ordinary sub-keyframes on the EXISTING trajectory — the low-risk way to give a
+ * joint a within-phase LEAD (the ankle dorsiflexing ahead of the knee in a squat
+ * descent) without touching the SQUAD trajectory or the timing governor. Pure;
+ * returns a new motion.
+ *
+ * For each keyframe, the distinct `peakAt` fractions (plus the 1.0 boundary)
+ * become ordered sub-keyframes; at fraction τ each joint sits at
+ * `min(1, τ / peakAt_j)` of the way from its previous settled value toward its
+ * target, so a joint reaches its target at its OWN `peakAt` and holds. The final
+ * sub-keyframe is the original boundary (every joint at full target), so settled
+ * poses, holds, and every goniometric measurement are UNCHANGED — only the path
+ * and timing BETWEEN keyframes shift. Root/stance/posture/travel directives and
+ * `holdMs` ride the final sub-keyframe (the phase boundary); `velocityClass`
+ * rides all. Keyframes with no `peakAt < 1` (or no targets) pass through
+ * untouched, so a plan that never sets `peakAt` is byte-identical to today.
+ *
+ * The intermediate LEAD shape is measured from a neutral (0°) previous value for
+ * the first keyframe; final targets are exact regardless, so this only affects
+ * naturalness, not correctness. Heavy use multiplies keyframe count — the result
+ * still passes through the MAX_KEYFRAMES limit in {@link resolveComposedMotion}.
+ */
+export function expandPeakTiming(motion: ComposedMotion): ComposedMotion {
+  if (!motion || !Array.isArray(motion.keyframes)) return motion;
+  const clampP = (p: number | undefined): number => {
+    const v = typeof p === 'number' && Number.isFinite(p) ? p : 1;
+    return v <= 0 || v > 1 ? 1 : v; // (0,1]; non-positive / absent / >1 → 1
+  };
+  const key = (t: SequenceTarget): string => `${t.joint}.${t.motion}`;
+  const prev = new Map<string, number>(); // last settled value per joint.motion
+  const out: SequenceKeyframe[] = [];
+
+  for (const kf of motion.keyframes) {
+    const targets = Array.isArray(kf.targets) ? kf.targets : [];
+    const hasLead = targets.some((t) => clampP(t.peakAt) < 1 - 1e-9);
+    if (targets.length === 0 || !hasLead) {
+      out.push(targets.length ? { ...kf, targets: targets.map(stripPeak) } : { ...kf });
+      for (const t of targets) prev.set(key(t), t.targetDegrees);
+      continue;
+    }
+    const times = [...new Set(targets.map((t) => clampP(t.peakAt)))];
+    if (!times.some((x) => Math.abs(x - 1) < 1e-9)) times.push(1);
+    times.sort((a, b) => a - b);
+
+    let prevT = 0;
+    for (let i = 0; i < times.length; i += 1) {
+      const tau = times[i]!;
+      const isLast = i === times.length - 1;
+      const subTargets: SequenceTarget[] = targets.map((t) => {
+        const p = clampP(t.peakAt);
+        const start = prev.get(key(t)) ?? 0;
+        const frac = Math.min(1, tau / p);
+        return { joint: t.joint, motion: t.motion, targetDegrees: start + (t.targetDegrees - start) * frac };
+      });
+      const sub: SequenceKeyframe = { targets: subTargets, durationMs: kf.durationMs * (tau - prevT) };
+      if (kf.velocityClass) sub.velocityClass = kf.velocityClass;
+      if (isLast) {
+        if (kf.holdMs != null) sub.holdMs = kf.holdMs;
+        if (kf.root) sub.root = kf.root;
+        if (kf.stance) sub.stance = kf.stance;
+        if (kf.travel) sub.travel = kf.travel;
+        if (kf.posture) sub.posture = kf.posture;
+      }
+      out.push(sub);
+      prevT = tau;
+    }
+    for (const t of targets) prev.set(key(t), t.targetDegrees);
+  }
+  return { ...motion, keyframes: out };
 }
 
 /**
