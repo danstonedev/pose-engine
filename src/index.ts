@@ -78,6 +78,13 @@ export * from './services/motionRecording';
 // (peak-order) scrambles, and reversed root travel.
 export * from './services/movementSignature';
 
+// Movement coordination checks (simMOVE Phase 2) — the "combination with the
+// other joints" half of the critic: declarative cross-joint relations (excursion
+// ratios, peak/velocity ordering, together/apart phase timing) measured off a
+// recording, so natural coordination (squat hip:knee ratio, march reciprocal
+// arm/leg, sit-to-stand flexion-momentum-before-extension) can be gated.
+export * from './services/movementCoordination';
+
 // Root motion (simMOVE full-body layer) — whole-body posture (orient), travel
 // (translate), and the PLANTED closed-chain foot-pin, all on the MODEL ROOT so
 // no clinical joint readout is disturbed. Pairs with motionSequence's per-

@@ -95,3 +95,48 @@ auto-correct or one targeted retry → ship.** The intelligence is in the signat
 
 The harness is headless and deterministic, so "test/retest" is re-running vitest — no visual
 inspection required.
+
+---
+
+## Implementation log (as built)
+
+### Key discovery — the reversal was a two-frame conflation
+Direct measurement on the male rig (toes; forward arm-raise; hip flexion; trunk flexion — all move
+**+Z**) proves the mesh **physically faces world +Z**. The clinical joint-angle readout in
+`jointAngles.ts` labels anterior `−Z`, but that is a *measurement-frame naming choice*, not the
+physical facing. The reversal was the composer using the readout label (`−Z`) to decide **travel**;
+travel must use physical facing (`+Z` = forward). Only the **sagittal (Z)** axis was ever wrong —
+left/right (+X), up/down (+Y), supine/prone (pitch), side-lying (roll) were always correct — which
+is exactly why it read as "forward/backward reversed." The engine's `−Z`-facing docs (`rootMotion`,
+`motionRecording` export schema, `bodyVariants`, the mislabeled `FORWARD STEP` test) were reconciled
+to `+Z` so nothing re-introduces it. `jointAngles.ts` carries a **TWO FRAMES** note as the source of
+truth.
+
+### Phase 0 — DONE (2 commits, red-team + direct-measurement verified)
+Semantic `travel`/`posture` vocabulary (`motionSequence`), deterministic direction validator +
+auto-flip (`movementDirection`), the two-frame reconciliation, and a rig-sampled gate test that
+asserts **facing-relative** travel. The first pass mapped `forward → −Z` (trusting the readout
+label); the red-team + measurement caught it before it shipped.
+
+### Phase 1 — DONE (red-team hardened)
+`movementSignature.ts`: distill a recording's kinematic export into a direction+shape fingerprint
+and `scoreAgainstSignature` — rejects per-joint sign-flips (one-way via dominant sign;
+symmetric-bidirectional via peak↔trough **order**), gross amplitude misses, coordination scrambles,
+and reversed travel; tolerates jitter. A **driver allowlist** (`driverKeysOf`) fingerprints only the
+joints the plan commands, so the world-frame shoulder readout's coupling (a pure flexion also reads
+as abduction; trunk flexion induces phantom arm motion) can't pollute a signature. Hardened after
+review: a vacuity guard (an empty/allowlist-matched-nothing reference can never become accept-all).
+
+### Phase 2 — coordination checker
+`movementCoordination.ts`: declarative cross-joint relations (excursion **ratios**, peak/velocity
+**ordering**, **together**/**apart** phase timing) measured off the export. Gates the natural
+coordination the engine genuinely produces: squat hip:knee ≈ 100:120, march reciprocal (stepping leg
+peaks WITH the contralateral arm, APART from the ipsilateral), sit-to-stand flexion-momentum-before-
+extension.
+
+**Measured finding (drives the next generation improvement):** INTER-phase coordination is real
+(authored as distinct keyframes — the march's reciprocal timing, the STS lean-before-rise), but
+INTRA-phase timing is **lockstep** — every joint in one keyframe peaks at the keyframe boundary, so a
+within-phase lead like "the ankle dorsiflexes ahead of the knee in a squat descent" (which the
+templates *describe* in prose) is not realized. Closing that is a generation change (`peakAt` /
+sub-phase authoring) rather than a critic change, and is scoped as Phase 2b.
