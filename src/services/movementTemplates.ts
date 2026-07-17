@@ -36,6 +36,14 @@ export interface TemplateTarget {
   joint: string;
   motion: string;
   peakDeg: number;
+  /** OPTIONAL intra-phase LEAD: the fraction (0..1] of this phase's travel at
+   *  which this joint reaches its peak and holds. Default 1 (arrive at the phase
+   *  boundary, lockstep). A value < 1 makes the joint LEAD its phase-mates — e.g.
+   *  the ankle dorsiflexes to ~0.87 while the knee/hip complete at ~0.99 in a
+   *  squat descent. Realized by `expandPeakTiming` (run inside
+   *  resolveComposedMotion) as ordered sub-keyframes; the settled peak is
+   *  unchanged, so ROM validation and goniometric measurement are untouched. */
+  peakAt?: number;
 }
 
 /** One timed phase of a movement: the joint peaks reached by its end, how long
@@ -79,13 +87,19 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         name: 'descent-to-bottom',
         durationMs: 1000,
         holdMs: 350,
+        // INTRA-PHASE LEAD (Kim 2020: ankle ~86-90% vs knee/hip ~98-99% of the
+        // descent): the ankle dorsiflexion peaks EARLIER (~80%) — the shin
+        // advances over the foot to carry the COM forward — while the knee/hip/
+        // trunk complete at the bottom. Without this the descent is lockstep and
+        // reads robotic over its 1 s travel. A single lead keeps the sub-phase gap
+        // (~200 ms) above the velocity floor so phase timing stays exact.
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 120 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 120 },
-          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 20 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 20 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 20, peakAt: 0.8 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 20, peakAt: 0.8 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 27 },
           { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 10 },
         ],
@@ -119,13 +133,19 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         name: 'bend-down',
         durationMs: 1200,
         holdMs: 350,
+        // INTRA-PHASE LEAD: a hip-dominant hinge initiates at the HIPS — the hips
+        // (and the soft knee unlock) lead (~80%) while the lumbar then thoracic
+        // spine round to reach for the floor at the end of range. Realizes the
+        // "hinge first, then round the spine" sequence the coordination note
+        // describes, instead of hip and spine folding in lockstep. The ~240 ms
+        // sub-phase gap stays above the velocity floor so phase timing is exact.
         targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 70 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 70 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 70, peakAt: 0.8 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 70, peakAt: 0.8 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 40 },
           { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 20 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 12 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 12 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 12, peakAt: 0.8 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 12, peakAt: 0.8 },
         ],
       },
       {
@@ -562,6 +582,7 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
       joint: x.joint,
       motion: x.motion,
       targetDegrees: x.peakDeg,
+      ...(x.peakAt != null ? { peakAt: x.peakAt } : {}),
     })),
     durationMs: p.durationMs,
     ...(p.holdMs ? { holdMs: p.holdMs } : {}),

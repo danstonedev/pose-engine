@@ -76,10 +76,24 @@ function frameNearest(rec: MotionRecording, tMs: number): RecordedFrame {
   return best;
 }
 
+// Strip intra-phase `peakAt` so the resolved keyframes map 1:1 to the authored
+// phases — ROM validation is about the PEAK values (timing-independent), and a
+// template with leads would otherwise expand into sub-keyframes (that behaviour
+// is covered by the round-trip + peak-timing gates).
+function lockstep(m: ReturnType<typeof templateToComposedMotion>) {
+  return {
+    ...m,
+    keyframes: m.keyframes.map((kf) => ({
+      ...kf,
+      targets: (kf.targets ?? []).map(({ peakAt, ...rest }) => rest),
+    })),
+  };
+}
+
 describe('movement templates — ROM-validated (nothing exceeds normative range)', () => {
   for (const t of MOVEMENT_TEMPLATES) {
     it(`${t.id}: resolves ok and every authored peak survives the ROM clamp unchanged`, () => {
-      const resolved = resolveComposedMotion(templateToComposedMotion(t), variantCfg);
+      const resolved = resolveComposedMotion(lockstep(templateToComposedMotion(t)), variantCfg);
       expect(resolved.status, `resolve ${t.id}`).toBe('ok');
       // Every authored target must appear in the resolved keyframe AND be clamped
       // to exactly its authored value — i.e. it was already within normative ROM.
@@ -127,23 +141,28 @@ describe('movement templates — round-trip on the real rig (authored peaks are 
         skeletonHarness: { root, skinned },
         sampleHz: 60,
       });
-      // Settle time of phase i = Σ durations ≤ i + Σ holds < i.
+      // Settle time of a phase = Σ durations ≤ it + Σ holds < it. Computed from
+      // the TEMPLATE phases (not resolved keyframes) so it is robust to a
+      // template whose peakAt leads expanded into sub-keyframes: expansion
+      // preserves each phase boundary's absolute time AND settles every joint at
+      // its full peak there (a leading joint reached its peak earlier and HOLDS),
+      // so the boundary sample still measures the authored peaks.
       let settle = 0;
       const primary = new Set(PRIMARY[t.id] ?? []);
-      resolved.keyframes.forEach((kf, i) => {
-        settle += kf.durationMs;
+      t.phases.forEach((phase, i) => {
+        settle += phase.durationMs;
         const frame = frameNearest(rec, settle);
-        for (const target of t.phases[i]!.targets) {
+        for (const target of phase.targets) {
           const key = `${target.joint}.${target.motion}`;
           if (!primary.has(key)) continue;
           const measured = frameAngle(frame, target.joint, target.motion);
           expect(measured, `${t.id} ${key} measurable`).toBeDefined();
           expect(
             Math.abs(measured! - target.peakDeg),
-            `${t.id} phase '${t.phases[i]!.name}' ${key}: authored ${target.peakDeg}° vs measured ${measured}°`,
+            `${t.id} phase '${phase.name}' ${key}: authored ${target.peakDeg}° vs measured ${measured}°`,
           ).toBeLessThan(6);
         }
-        settle += kf.holdMs;
+        settle += phase.holdMs ?? 0;
       });
     });
   }

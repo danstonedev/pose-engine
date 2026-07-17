@@ -603,7 +603,22 @@ export function resolveComposedMotion(
     return refuse(motion, `too-many-keyframes (max ${MAX_KEYFRAMES})`);
   }
 
+  // INTRA-PHASE TIMING: realize any `peakAt` leads NOW, before validation, so a
+  // within-phase joint lead (the ankle dorsiflexing ahead of the knee in a squat
+  // descent) becomes ordered sub-keyframes on the same trajectory — the SAME
+  // truth path (ROM clamp, velocity floor, measurement) then runs on the
+  // expanded plan. `expandPeakTiming` is budget-guarded (never exceeds
+  // MAX_KEYFRAMES, which the check above already guaranteed for the input) and
+  // its output carries no `peakAt`, so this is idempotent and a plan that sets
+  // no lead is byte-identical. The lead's transient shape is seeded from the
+  // live angles on a startFrom:'current' composition (final peaks are exact
+  // regardless).
   const startFrom: 'current' | 'neutral' = motion.startFrom === 'neutral' ? 'neutral' : 'current';
+  motion =
+    startFrom === 'current' && opts?.currentAngles
+      ? expandPeakTiming(motion, { fromAngles: opts.currentAngles })
+      : expandPeakTiming(motion);
+
   const motionStance: StanceMode = motion.stance === 'planted' ? 'planted' : 'floating';
   const outcomes: SequenceTargetOutcome[] = [];
   const resolvedKeyframes: ResolvedSequenceKeyframe[] = [];

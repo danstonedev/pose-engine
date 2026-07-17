@@ -21,7 +21,7 @@ live path.
 |---|---|---|---|
 | 1 | Looping snapped back through the standing pose every cycle (~30° hip jump) | High | **Fixed** |
 | 2 | Looping stalled to ~0 velocity at the wrap (stop-and-go each cycle) | High | **Fixed** |
-| 3 | Intra-phase lockstep — joints in a phase arrive together (no ankle→knee→hip lead) | Medium | Open |
+| 3 | Intra-phase lockstep — joints in a phase arrive together (no ankle→knee→hip lead) | Medium | **Fixed** (squat, hip-hinge; see note) |
 | 4 | Feet not ground-true on the live stage (IK contact unused) | Medium | Open |
 | 5 | AI free-form locomotion has no runtime gate (2-keyframe sketch still possible off-template) | Medium | Open |
 | 6 | Fixed cadence/amplitude — no stride-length ↔ speed coupling | Low | Open |
@@ -86,16 +86,31 @@ Two paths, one engine:
 
 ### Residual realism gaps in creation
 
-**3 — Intra-phase lockstep (Medium).** Within a 200 ms gait phase, joint
-peak-velocity times cluster: hip @200 ms, knee @283 ms, ankle @283 ms — they
-essentially arrive **together**. Real gait has a continuous distal→proximal
-relay (ankle push-off *leads* knee swing *leads* hip). The engine already ships
-the mechanism — `SequenceTarget.peakAt` + `expandPeakTiming` (Phase 2b) — but
-**nothing calls `expandPeakTiming` at runtime and no template sets `peakAt`.**
-This is the biggest remaining "robotic within a phase" contributor now that the
-stop-start-per-keyframe and loop-seam problems are solved. *Fix:* author `peakAt`
-leads on the gait (and squat/STS) templates and run `expandPeakTiming` in the
-resolve/build path.
+**3 — Intra-phase lockstep (Medium) — FIXED for the coarse planted movements.**
+Every target in a keyframe used to arrive **together** (lockstep), so a
+within-phase relay like "the ankle dorsiflexes ahead of the knee in a squat
+descent" (which the templates *describe* in prose) was not realized. The engine
+shipped the mechanism — `SequenceTarget.peakAt` + `expandPeakTiming` (Phase 2b) —
+but nothing called it at runtime.
+
+*Fixed:* `expandPeakTiming` now runs inside `resolveComposedMotion` (one point;
+idempotent — its output carries no `peakAt`; a plan with no lead is
+byte-identical), so both template and any future AI `peakAt` are realized on the
+live path. Leads are authored where the template's own prose specifies a
+sequence and the lead fits the velocity floor: the **squat** descent (ankle
+dorsiflexion leads at ~80%, Kim 2020) and the **forward-hip-hinge** (hips
+initiate at ~80%, spine rounds to end-range). Gated by `peakTiming.test.ts`: the
+squat template's ankle now leads the knee, and the hinge's hip leads the thoracic
+spine — measured on the rig, through `resolveComposedMotion` with no explicit
+expand call.
+
+*Note — the walk was intentionally left lockstep-per-phase.* Its 8 fine phases
+(200 ms each) already encode the distal→proximal relay **inter-phase**
+(heel-strike → loading → push-off → swing), so an intra-phase sub-lead within a
+200 ms slice is below the visual threshold. It also would not fit: expanding an
+8-phase cycle into sub-keyframes exceeds `MAX_KEYFRAMES` (12), so the budget
+guard would drop leads asymmetrically. Raising the cap for gait is a separate
+decision (it also widens the AI's authoring budget) — deferred.
 
 **4 — Feet not ground-true (Medium).** The live stage plants only *vertically*
 (`pinRootToFloor`); the closed-chain IK stance-plant (`buildFootPlant` /
@@ -142,10 +157,11 @@ loop-seam fix to keep the existing recording gates stable.)
 - **The loop seam** (this pass).
 
 ## Recommended next order
-1. **`peakAt` intra-phase leads** (Finding 3) — highest realism-per-effort; the
-   mechanism already exists and is tested.
+1. ~~**`peakAt` intra-phase leads** (Finding 3)~~ — **done** (squat, hip-hinge).
 2. **IK foot contact on the live stage** (Finding 4) — unlocks ground-true and
-   travel gait.
+   travel gait; the biggest remaining realism lever for the walk specifically.
 3. **Runtime AI-locomotion gate** (Finding 5) — closes the off-template
    2-keyframe hole.
 4. Cadence/amplitude coupling (6) and clean recording cycles (7) — polish.
+   Author `peakAt` leads on sit-to-stand / lunge if SME confirms an intra-phase
+   order for them (their current relay is inter-phase only).

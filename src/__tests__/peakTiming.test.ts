@@ -17,6 +17,7 @@ import { captureJointAngleRestReference, type JointAngleRestReference } from '..
 import { expandPeakTiming, resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, exportKinematics } from '../services/motionRecording';
 import { checkCoordination, type CoordinationSourceExport } from '../services/movementCoordination';
+import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
@@ -168,6 +169,61 @@ describe('directives ride the split correctly (red-team fixes)', () => {
     const expanded = expandPeakTiming(many);
     expect(expanded.keyframes.length).toBeLessThanOrEqual(12);
     expect(resolveComposedMotion(expanded, variantCfg).status).toBe('ok');
+  });
+});
+
+describe('template leads are realized through resolveComposedMotion (runtime wiring)', () => {
+  const templateExport = (id: string): CoordinationSourceExport => {
+    const t = MOVEMENT_TEMPLATES.find((x) => x.id === id)!;
+    // NOTE: no explicit expandPeakTiming call — resolveComposedMotion now runs it.
+    const resolved = resolveComposedMotion(templateToComposedMotion(t), variantCfg);
+    expect(resolved.status, `resolve ${id}`).toBe('ok');
+    const rec = sampleComposedMotion(resolved, {
+      baselinePose,
+      variantCfg,
+      rest,
+      skeletonHarness: { root, skinned },
+      sampleHz: 60,
+    });
+    return exportKinematics(rec);
+  };
+
+  it('squat template: the ankle now LEADS the knee in the descent (no explicit expand call)', () => {
+    const ex = templateExport('squat');
+    for (const side of ['L', 'R']) {
+      const res = checkCoordination(ex, {
+        name: `${side} ankle leads knee`,
+        order: [
+          {
+            earlier: `${side}_Foot.ankleFlexion`,
+            later: `${side}_Leg.kneeFlexion`,
+            by: 'peak',
+            minLeadFrac: 0.05,
+          },
+        ],
+      });
+      expect(res.accepted, `${side}: ${res.reasons.join('; ')}`).toBe(true);
+    }
+  });
+
+  it('hip-hinge template: the hip LEADS the thoracic spine into the reach', () => {
+    const res = checkCoordination(templateExport('forward-hip-hinge'), {
+      name: 'hip leads thoracic',
+      order: [
+        { earlier: 'L_UpLeg.hipFlexion', later: 'Spine_Upper.flexion', by: 'peak', minLeadFrac: 0.05 },
+      ],
+    });
+    expect(res.accepted, res.reasons.join('; ')).toBe(true);
+  });
+
+  it('a template WITHOUT leads is not expanded (walk keeps its authored keyframe count)', () => {
+    const walk = MOVEMENT_TEMPLATES.find((x) => x.id === 'walk')!;
+    const authored = templateToComposedMotion(walk);
+    // resolveComposedMotion runs expandPeakTiming, but with no peakAt it is a
+    // no-op — the resolved keyframe count equals the authored phase count.
+    const resolved = resolveComposedMotion(authored, variantCfg);
+    expect(resolved.status).toBe('ok');
+    expect(resolved.keyframes.length).toBe(walk.phases.length);
   });
 });
 
