@@ -292,7 +292,11 @@ export function sampleComposedMotion(
     target: THREE.Vector3 | null;
   }
   const footPlants: FootPlant[] = [];
-  for (const c of opts.contacts ?? []) {
+  // Honour contacts the MOTION declares (resolved.contacts) when the caller
+  // doesn't pass an explicit override — so a travel-gait motion plants its feet
+  // the same way in the sampler as on the live stage.
+  const activeContacts = opts.contacts ?? resolved.contacts ?? [];
+  for (const c of activeContacts) {
     const solver = buildFootPlant(skinned, c.foot, variantCfg);
     if (solver) {
       footPlants.push({

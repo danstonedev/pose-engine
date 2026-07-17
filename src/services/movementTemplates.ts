@@ -597,6 +597,50 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
   };
 }
 
+/**
+ * Build a FORWARD-TRAVELING gait from the authored walk cycle — the movement
+ * that makes closed-chain foot contact visible. Where the `walk` template is an
+ * in-place looping cycle (the loop can't accumulate root travel — it would
+ * teleport at the seam), THIS is a one-shot walk that advances the body +Z over
+ * one stride (two steps) with the SAME 8-phase kinematics, and declares
+ * ALTERNATING stance-foot contacts so each foot stays world-planted while the
+ * body passes over it (the leg extends behind), instead of moonwalking.
+ *
+ * Reuses the walk phases verbatim (ROM-validated, coordination-gated) and adds:
+ *  • cumulative `travel` forward per keyframe (one stride over the cycle);
+ *  • `contacts`: the RIGHT foot is stance for the first half (right initial-
+ *    contact → terminal-stance), the LEFT foot for the second half.
+ * Non-looping and `startFrom:'current'`, so repeating it walks further from
+ * wherever the body already is. Fixed cadence (timeScale 1) so the contact
+ * windows — authored in phase time — line up with playback.
+ */
+export function buildTravelWalk(opts: { stepLengthM?: number } = {}): ComposedMotion {
+  const walk = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk');
+  if (!walk) throw new Error('walk template missing');
+  const base = templateToComposedMotion(walk); // 8 phases, planted, looping
+  const n = base.keyframes.length;
+  const strideM = (opts.stepLengthM ?? 0.35) * 2; // two steps advance one stride
+  // Phase-boundary times (authored ms) and the right→left stance handoff.
+  let cursor = 0;
+  const boundaryMs = base.keyframes.map((kf) => (cursor += kf.durationMs));
+  const totalMs = cursor;
+  const halfMs = boundaryMs[Math.floor(n / 2) - 1] ?? totalMs / 2;
+  const keyframes: SequenceKeyframe[] = base.keyframes.map((kf, i) => ({
+    ...kf,
+    travel: { direction: 'forward', meters: (strideM * (i + 1)) / n },
+  }));
+  return {
+    name: 'walk-forward',
+    startFrom: 'current',
+    stance: 'planted',
+    keyframes,
+    contacts: [
+      { foot: 'R_Foot', fromMs: 0, toMs: halfMs }, // right stance (phases 1–4)
+      { foot: 'L_Foot', fromMs: halfMs, toMs: totalMs }, // left stance (phases 5–8)
+    ],
+  };
+}
+
 /** Sagittal joints whose EXCURSION defines stride length — scaled by pace. The
  *  reciprocal arm swing scales with the legs (arm swing grows with gait speed). */
 const GAIT_STRIDE_MOTIONS = new Set(['hipFlexion', 'kneeFlexion', 'ankleFlexion', 'shoulderFlexion']);
