@@ -22,10 +22,14 @@ live path.
 | 1 | Looping snapped back through the standing pose every cycle (~30° hip jump) | High | **Fixed** |
 | 2 | Looping stalled to ~0 velocity at the wrap (stop-and-go each cycle) | High | **Fixed** |
 | 3 | Intra-phase lockstep — joints in a phase arrive together (no ankle→knee→hip lead) | Medium | **Fixed** (squat, hip-hinge; see note) |
-| 4 | Feet not ground-true on the live stage (IK contact unused) | Medium | Open |
-| 5 | AI free-form locomotion has no runtime gate (2-keyframe sketch still possible off-template) | Medium | Open |
-| 6 | Fixed cadence/amplitude — no stride-length ↔ speed coupling | Low | Open |
-| 7 | Saved recordings capture one pass from standing, not a clean cycle | Low | Open |
+| 4 | Feet not ground-true on the live stage (IK contact unused) | Medium | **Fixed** (windowed contacts + live wiring) |
+| 5 | AI free-form locomotion has no runtime gate (2-keyframe sketch still possible off-template) | Medium | **Fixed** (structural gate → retry → fallback) |
+| 6 | Fixed cadence/amplitude — no stride-length ↔ speed coupling | Low | **Fixed** (paceGait) |
+| 7 | Saved recordings capture one pass from standing, not a clean cycle | Low | **Fixed** (loopCycle + rail trim) |
+
+**All seven findings are now addressed.** Details below; the remaining open work
+is the follow-on noted under Finding 4 (a travel-gait consumer for the live IK)
+and SME sign-off on the authored values.
 
 ---
 
@@ -112,37 +116,49 @@ expand call.
 guard would drop leads asymmetrically. Raising the cap for gait is a separate
 decision (it also widens the AI's authoring budget) — deferred.
 
-**4 — Feet not ground-true (Medium).** The live stage plants only *vertically*
-(`pinRootToFloor`); the closed-chain IK stance-plant (`buildFootPlant` /
-sampler `contacts`, Phase 3) is used **only in `footContact.test.ts`** — never on
-the live stage or by simMOVE's sampler. Consequence: an "in-place" walk is FK
-legs over a vertical pin (reads as treadmill stepping, acceptable but not
-ground-true), and **actual-travel gait** (stance foot world-fixed while the body
-passes over it) is unreachable on the live stage. *Fix:* thread `contacts` into
-the stage playback for planted phases; unlocks real forward-travel walks.
+**4 — Feet not ground-true (Medium) — FIXED.** The live stage planted only
+*vertically* (`pinRootToFloor`); the closed-chain IK stance-plant was used only
+in `footContact.test.ts`. Now: `contacts` gained a per-foot stance **window**
+(`fromMs`/`toMs`), re-capturing the plant target on window entry so an
+**alternating** gait pins each foot only while it bears weight (gated:
+a 2-step travel walk keeps each stance foot < 8 cm slide while the body advances
++Z, vs the un-pinned moonwalk). `contacts` thread through `ComposedMotion` →
+`resolveComposedMotion` → the **live stage**, which IK-plants declared feet per
+frame mirroring the sampler (source-pinned in `stageReliability.test.ts`).
+*Remaining follow-on:* the in-place looping walk declares no contacts (no travel
+= no moonwalk), so the live IK is inert until a **travel-gait** instruction
+(root moves forward, alternating stance windows) is added to consume it — that
+new movement is the concrete next feature, and the plumbing + gated IK are ready
+for it.
 
-**5 — No runtime gate on AI locomotion (Medium).** The signature + coordination
-validators (`scoreAgainstSignature`, `checkCoordination`) that *reject* a
-2-keyframe walk run **only in tests**. For any off-template locomotion ("walk
-with a limp", "shuffling gait") the compose planner's output ships unvalidated —
-the original 2-keyframe failure mode is prevented for template *words* but still
-structurally possible for variants. *Fix:* after a compose result for a
-locomotion-shaped request, sample headlessly and score against the nearest
-template signature; auto-reject/retry degenerate plans (the "model proposes →
-engine scores → one targeted retry" loop the quality plan describes).
+**5 — No runtime gate on AI locomotion (Medium) — FIXED.** For any off-template
+locomotion ("walk with a limp", "shuffling gait") the compose planner's output
+shipped unvalidated. Now simMOVE's `locomotionGate` runs a fast **structural**
+plausibility check on the planned `ComposedMotion` (no rig sampling needed):
+keyframe floor (≥ 6), bilateral hip+knee involvement, and reciprocal
+stance/swing alternation. On a degenerate plan it retries the planner **once**
+with a targeted hint, then falls back to the deterministic **paced walk**
+template — so a locomotion request can never again ship a 2-keyframe sketch
+(gated in `locomotionGate.test.ts`; wiring source-pinned in
+`motionStage.test.ts`). A structural gate (vs. rig-sampling the browser can't
+do off-stage) is the right tool: the regression is a *shape* defect.
 
-**6 — Fixed cadence/amplitude (Low).** 1.6 s cycle, ±20° arm swing, scaled only
-by `timeScale`. No stride-length ↔ cadence ↔ speed coupling, so a "fast walk" is
-the same stride played faster rather than longer+quicker. *Fix:* parameterize the
-gait template (cadence, step amplitude, arm gain) and derive them from the speed
-modifier.
+**6 — Fixed cadence/amplitude (Low) — FIXED.** A "fast walk" used to be the same
+stride played faster (`timeScale` only). `paceGait` now splits the requested
+speed evenly between **stride** (sagittal leg + arm amplitude) and **cadence**
+(`timeScale`), each ∝ √speed so stride × cadence = speed exactly: a fast walk
+takes longer, quicker steps; a slow walk shuffles (gated: faster ⇒ bigger
+hip/knee excursion AND shorter period). simMOVE's interpreter applies it for the
+walk when a speed is detected; other movements (no stride) keep a plain
+`timeScale`.
 
-**7 — Recordings capture one pass from standing (Low).** `sampleComposedMotion`
-records `standing → cycle → last keyframe`, so a saved/replayed walk on the
-Recordings rail still starts from standing and has the old seam when the rail
-loops it. *Fix:* when `loop`, sample exactly one period of `buildLoopTrajectory`
-so the saved clip is itself a clean, replayable cycle. (Deferred from the
-loop-seam fix to keep the existing recording gates stable.)
+**7 — Recordings capture one pass from standing (Low) — FIXED.**
+`sampleComposedMotion` gained an opt-in `loopCycle` that samples exactly one
+seamless period of `buildLoopTrajectory` (no intro pose, velocity-continuous
+wrap) — a clean, replayable cycle for offline/GLB export (gated in
+`loopCycleRecording.test.ts`). On the live rail, simMOVE **trims the standing
+intro** off a looping motion's captured recording, so the saved clip starts at
+the gait cycle and loops without the standing snap.
 
 ---
 
@@ -156,12 +172,20 @@ loop-seam fix to keep the existing recording gates stable.)
   core movements).
 - **The loop seam** (this pass).
 
-## Recommended next order
-1. ~~**`peakAt` intra-phase leads** (Finding 3)~~ — **done** (squat, hip-hinge).
-2. **IK foot contact on the live stage** (Finding 4) — unlocks ground-true and
-   travel gait; the biggest remaining realism lever for the walk specifically.
-3. **Runtime AI-locomotion gate** (Finding 5) — closes the off-template
-   2-keyframe hole.
-4. Cadence/amplitude coupling (6) and clean recording cycles (7) — polish.
-   Author `peakAt` leads on sit-to-stand / lunge if SME confirms an intra-phase
-   order for them (their current relay is inter-phase only).
+## Status & remaining follow-ons
+All seven findings are addressed and gated. What's left is **new feature work**,
+not fixes:
+
+1. **Travel-gait instruction** — a forward-walking movement (root travels +Z,
+   alternating stance windows) to *consume* the now-plumbed live-stage foot IK
+   (Finding 4). This is where ground-true feet become visible; the in-place
+   looping walk doesn't need them.
+2. **SME sign-off** on the authored values — the walk template, the squat/hinge
+   `peakAt` leads, and the `paceGait` stride/cadence split are clinician-authored
+   and flagged for verification (`movement-templates-reference.md`).
+3. **Optional `peakAt` leads on sit-to-stand / lunge** if SME confirms an
+   intra-phase order (their current relay is inter-phase only).
+4. **Velocity-continuous rail recordings** — the live rail currently *trims* the
+   intro (pose-continuous); wiring the rail through the engine's `loopCycle`
+   sampler would make it velocity-continuous too (needs offline sampling on the
+   stage skeleton with save/restore).
