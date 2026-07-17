@@ -173,19 +173,27 @@ the gait cycle and loops without the standing snap.
 - **The loop seam** (this pass).
 
 ## Status & remaining follow-ons
-All seven findings are addressed and gated. What's left is **new feature work**,
-not fixes:
+All seven findings are addressed and gated, and the travel-gait consumer that
+makes the live foot IK visible is now built too:
 
-1. **Travel-gait instruction** — a forward-walking movement (root travels +Z,
-   alternating stance windows) to *consume* the now-plumbed live-stage foot IK
-   (Finding 4). This is where ground-true feet become visible; the in-place
-   looping walk doesn't need them.
-2. **SME sign-off** on the authored values — the walk template, the squat/hinge
-   `peakAt` leads, and the `paceGait` stride/cadence split are clinician-authored
-   and flagged for verification (`movement-templates-reference.md`).
+- **Travel gait — DONE.** `buildTravelWalk` is a forward-traveling gait (root
+  advances +Z over one stride, alternating stance-foot contacts) that consumes
+  the Finding-4 live IK: each stance foot stays world-planted while the body
+  passes over it (gated in `gaitTravel.test.ts`). simMOVE routes "walk forward /
+  ahead / across" to it; plain "walk" stays the in-place looping cycle.
+
+What's left is genuinely optional / needs a clinician, not fixes:
+
+1. **SME sign-off** on the authored values — the walk template, the squat/hinge
+   `peakAt` leads, the `paceGait` stride/cadence split, and the travel-walk
+   step length — all clinician-authored, flagged for verification
+   (`movement-templates-reference.md`).
+2. **Paced travel gait** — the travel walk is fixed-cadence (its contact windows
+   are authored in phase time); coupling it to speed needs the contact windows
+   scaled by `timeScale`.
 3. **Optional `peakAt` leads on sit-to-stand / lunge** if SME confirms an
    intra-phase order (their current relay is inter-phase only).
 4. **Velocity-continuous rail recordings** — the live rail currently *trims* the
-   intro (pose-continuous); wiring the rail through the engine's `loopCycle`
-   sampler would make it velocity-continuous too (needs offline sampling on the
-   stage skeleton with save/restore).
+   intro (pose-continuous); routing it through the engine's `loopCycle` sampler
+   would make it velocity-continuous too (needs offline sampling on the stage
+   skeleton with save/restore).
