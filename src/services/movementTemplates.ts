@@ -56,6 +56,10 @@ export interface MovementTemplate {
   /** One-line clinician note on the coordination the template teaches. */
   coordination: string;
   stance: StanceMode;
+  /** Cycle the phases until stopped (locomotion / repetitive movements). The
+   *  LAST phase must flow back into the FIRST — the loop seam is a real
+   *  transition the stage tweens through. Default false (one-shot). */
+  loop?: boolean;
   phases: TemplatePhase[];
   source: string;
 }
@@ -227,6 +231,130 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 0 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'walk',
+    label: 'Walk (gait cycle, in place)',
+    aliases: ['walk', 'walking', 'gait', 'ambulate', 'stroll'],
+    coordination:
+      'One full gait cycle authored as 8 phases (both steps), looping. Sagittal peaks per normal free gait [Perry & Burnfield; Neumann]: hip 30° flexion at initial contact → −10° extension at terminal stance; knee ~5° at contact, ~18° loading-response shock absorption, ~40° at pre-swing, ~60° peak in initial swing; ankle rockers — plantarflexion to foot-flat after contact (−8°), dorsiflexion to 10° as the tibia advances over the stance foot, push-off plantarflexion −15° at pre-swing. Reciprocal arm swing ~±20° shoulder flexion, each arm peaking WITH the contralateral leg. Presented IN PLACE (treadmill convention — no root travel) so the looping cycle stays on stage; the pre-swing knee flexion + push-off happens across the loop seam (last phase flows back into the first). Planted.',
+    stance: 'planted',
+    loop: true,
+    phases: [
+      {
+        name: 'right-initial-contact',
+        durationMs: 200,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 40 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -15 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
+        ],
+      },
+      {
+        name: 'right-loading-response',
+        durationMs: 200,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 25 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 18 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -8 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 60 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -5 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 12 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -12 },
+        ],
+      },
+      {
+        name: 'right-mid-stance',
+        durationMs: 200,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 8 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 5 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 20 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 45 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+        ],
+      },
+      {
+        name: 'right-terminal-stance',
+        durationMs: 200,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 10 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
+        ],
+      },
+      {
+        name: 'left-initial-contact',
+        durationMs: 200,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 40 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -15 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
+        ],
+      },
+      {
+        name: 'left-loading-response',
+        durationMs: 200,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 25 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 18 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -8 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 60 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -5 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 12 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -12 },
+        ],
+      },
+      {
+        name: 'left-mid-stance',
+        durationMs: 200,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 8 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 5 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 20 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 45 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+        ],
+      },
+      {
+        name: 'left-terminal-stance',
+        durationMs: 200,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 10 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
         ],
       },
     ],
@@ -439,7 +567,13 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
     ...(p.holdMs ? { holdMs: p.holdMs } : {}),
     ...(p.stance ? { stance: p.stance } : {}),
   }));
-  return { name: t.id, startFrom: 'neutral', stance: t.stance, keyframes };
+  return {
+    name: t.id,
+    startFrom: 'neutral',
+    stance: t.stance,
+    ...(t.loop ? { loop: true } : {}),
+    keyframes,
+  };
 }
 
 /** Select the template whose aliases best match a free-text instruction, or null. */
@@ -472,7 +606,9 @@ export function describeMovementTemplates(): string {
         return `${p.name} (${p.durationMs}ms${hold}): ${peaks}`;
       })
       .join(' | ');
-    lines.push(`• ${t.label} [${t.stance}] — ${t.coordination} PHASES: ${phases}`);
+    lines.push(
+      `• ${t.label} [${t.stance}${t.loop ? ', loops' : ''}] — ${t.coordination} PHASES: ${phases}`,
+    );
   }
   return lines.join('\n');
 }
