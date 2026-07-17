@@ -130,6 +130,79 @@ describe('IK foot plant keeps the stance foot from sliding during travel', () =>
   });
 });
 
+describe('alternating-stance gait — each foot pins only while it bears weight (windowed contacts)', () => {
+  // A 2-step forward walk: the body travels +Z over two steps; the LEFT foot is
+  // stance for step 1 (0–800 ms) while the right swings, then the RIGHT foot is
+  // stance for step 2 (800–1600 ms) while the left swings.
+  const twoStepWalk = (): ComposedMotion => ({
+    name: 'two-step walk',
+    stance: 'planted',
+    startFrom: 'neutral',
+    keyframes: [
+      {
+        durationMs: 800,
+        travel: { direction: 'forward', meters: 0.3 },
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 25 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 30 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 5 },
+        ],
+      },
+      {
+        durationMs: 800,
+        travel: { direction: 'forward', meters: 0.6 },
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 25 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 30 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 5 },
+        ],
+      },
+    ],
+  });
+
+  const sampleWalk = (contacts?: { foot: string; fromMs?: number; toMs?: number }[]): MotionRecording => {
+    resetHarness();
+    const resolved = resolveComposedMotion(twoStepWalk(), variantCfg);
+    expect(resolved.status).toBe('ok');
+    return sampleComposedMotion(resolved, {
+      baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
+      ...(contacts ? { contacts } : {}),
+    });
+  };
+
+  it('with alternating windows, each foot stays planted during ITS stance — far less than un-pinned', () => {
+    const none = sampleWalk();
+    const rec = sampleWalk([
+      { foot: 'L_Foot', fromMs: 0, toMs: 800 }, // stance for step 1
+      { foot: 'R_Foot', fromMs: 800, toMs: 1600 }, // stance for step 2
+    ]);
+    // The LEFT stance foot rides the root the full step when un-pinned (moonwalk)…
+    const lNone = measureContactSlide(none, 'L_Foot', 0, 800).horizontalM;
+    expect(lNone, 'un-pinned L stance slides').toBeGreaterThan(0.2);
+    // …and the plant keeps each foot nearly still WITHIN its own stance window…
+    expect(measureContactSlide(rec, 'L_Foot', 0, 800).horizontalM, 'L stance slide').toBeLessThan(0.08);
+    expect(measureContactSlide(rec, 'R_Foot', 800, 1600).horizontalM, 'R stance slide').toBeLessThan(0.08);
+    // …materially less than the un-pinned R (whose mixed swing→stance motion
+    // partly masks the moonwalk, so the contrast is relative)…
+    const rNone = measureContactSlide(none, 'R_Foot', 800, 1600).horizontalM;
+    expect(measureContactSlide(rec, 'R_Foot', 800, 1600).horizontalM).toBeLessThan(rNone * 0.7);
+    // …yet the body still travelled forward across both steps (+Z).
+    expect(hipsDz(rec), 'body travels over two steps').toBeGreaterThan(0.45);
+  });
+
+  it('a foot is free to swing OUTSIDE its stance window (the plant does not freeze it)', () => {
+    const rec = sampleWalk([
+      { foot: 'L_Foot', fromMs: 0, toMs: 800 },
+      { foot: 'R_Foot', fromMs: 800, toMs: 1600 },
+    ]);
+    // The LEFT foot swings forward during step 2 (its non-stance window).
+    const lFootStep2 = measureContactSlide(rec, 'L_Foot', 800, 1600).horizontalM;
+    expect(lFootStep2, 'L foot swings in step 2').toBeGreaterThan(0.15);
+  });
+});
+
 describe('measureContactSlide + buildFootPlant units', () => {
   it('reports ~0 horizontal slide for a planted track and the drift for a sliding one', () => {
     const planted = { frames: [

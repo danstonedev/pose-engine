@@ -237,6 +237,18 @@ export interface ComposedMotionModifiers {
   balanceSway?: number;
 }
 
+/** A weight-bearing foot contact: pin `foot` to the ground while it bears
+ *  weight. `fromMs`/`toMs` scope it to a stance WINDOW (heel-strike → toe-off)
+ *  so an alternating gait declares one entry per stance phase; omit both for a
+ *  whole-motion pin. Consumed by the offline sampler (`contacts`) AND the live
+ *  stage, which IK-plants each declared foot per frame so it does not slide as
+ *  the body travels over it (closed-chain ground truth). */
+export interface StanceContact {
+  foot: string;
+  fromMs?: number;
+  toMs?: number;
+}
+
 /** A novel movement composed as timed keyframes over the command vocabulary. */
 export interface ComposedMotion {
   /** Short human label the author/AI gives its creation. */
@@ -254,6 +266,12 @@ export interface ComposedMotion {
   /** Default grounding for every keyframe that doesn't set its own `stance`.
    *  Default 'floating' (back-compat open-chain behavior). */
   stance?: StanceMode;
+  /** Weight-bearing foot contacts to IK-plant during playback (closed-chain
+   *  ground truth: the stance foot stays world-fixed while the body travels over
+   *  it, instead of sliding). Alternating gait declares one windowed entry per
+   *  stance phase. Consumed by the live stage and the offline sampler; omit for
+   *  the default open-chain / vertical-pin behaviour. */
+  contacts?: StanceContact[];
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
@@ -321,6 +339,9 @@ export interface ResolvedComposedMotion {
   modifiers?: ComposedMotionModifiers;
   /** Resolved start mode ('current' unless the motion asked for 'neutral'). */
   startFrom: 'current' | 'neutral';
+  /** Weight-bearing foot contacts to IK-plant during playback (pass-through from
+   *  the authored motion; the stage/sampler pin each declared foot per frame). */
+  contacts?: StanceContact[];
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -761,6 +782,9 @@ export function resolveComposedMotion(
     loop: !!motion.loop,
     startFrom,
     ...(motion.modifiers ? { modifiers: motion.modifiers } : {}),
+    ...(Array.isArray(motion.contacts) && motion.contacts.length
+      ? { contacts: motion.contacts.filter((c) => c && typeof c.foot === 'string') }
+      : {}),
   };
 }
 
