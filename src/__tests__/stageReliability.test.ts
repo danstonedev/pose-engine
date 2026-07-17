@@ -78,3 +78,33 @@ describe('M4 — background tab (visibilitychange) finishes tweens instead of st
     expect(stageSource).toContain('const hidden = stageHidden;');
   });
 });
+
+describe('Finding 4 — the live stage applies closed-chain foot contacts (source pins)', () => {
+  // The per-frame IK plant is the SAME code the offline sampler runs (buildFootPlant
+  // / solveFootPlant), which footContact.test.ts gates headlessly (windowed
+  // alternating-stance stays planted while the body travels). Here we pin the LIVE
+  // wiring so a refactor can't silently drop it.
+  it('imports the foot-plant IK helpers the sampler uses', () => {
+    expect(stageSource).toContain("await import('./services/footContact')");
+    expect(stageSource).toMatch(/buildFootPlant\s*,\s*solveFootPlant/);
+  });
+
+  it('rebuilds the plants from the starting motion’s contacts', () => {
+    expect(stageSource).toContain('setComposedContacts(resolved.contacts)');
+    // setComposedContacts builds one solver per declared contact.
+    expect(stageSource).toMatch(/function setComposedContacts[\s\S]{0,400}buildFootPlant\(skinnedRef, c\.foot, variantCfgRef\)/);
+  });
+
+  it('solves the plants per frame, only within each foot’s stance window', () => {
+    // applyFootPlants honours the [fromMs,toMs] window and re-captures on entry.
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,600}tMs >= fp\.fromMs/);
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,600}solveFootPlant\(fp\.solver, fp\.target, restRef\)/);
+    // …and it is called from the live frame step AND the parked path.
+    expect(stageSource).toContain('applyFootPlants(elapsed)');
+    expect(stageSource).toContain('applyFootPlants(trajectory.totalMs)');
+  });
+
+  it('drops the plants when the motion ends (no stale IK on the next motion)', () => {
+    expect(stageSource).toMatch(/function cancelComposed[\s\S]{0,200}composedPlants = \[\]/);
+  });
+});

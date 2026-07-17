@@ -597,6 +597,39 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
   };
 }
 
+/** Sagittal joints whose EXCURSION defines stride length — scaled by pace. The
+ *  reciprocal arm swing scales with the legs (arm swing grows with gait speed). */
+const GAIT_STRIDE_MOTIONS = new Set(['hipFlexion', 'kneeFlexion', 'ankleFlexion', 'shoulderFlexion']);
+
+/**
+ * Couple a gait motion's STRIDE and CADENCE to a target walking speed.
+ *
+ * Real walking speed = stride length × cadence: a faster walk takes longer AND
+ * quicker steps, not the same step played faster (which is all a bare `timeScale`
+ * did — the Finding 6 gap). This splits the requested `speed` evenly between the
+ * two (each ∝ √speed, so stride × cadence = speed exactly): the sagittal leg
+ * angles and reciprocal arm swing are scaled by √speed (longer stride), and
+ * `modifiers.timeScale` is set to √speed (quicker cadence). Over-range targets
+ * are clamped by the normal ROM path on resolve. Pure; returns a new motion.
+ * Speed 1 is (near-)identity. Intended for the looping gait template; a movement
+ * without a stride (squat, reach) should just use `timeScale`.
+ */
+export function paceGait(motion: ComposedMotion, speed: number): ComposedMotion {
+  const s = Math.min(1.5, Math.max(0.4, Number.isFinite(speed) ? speed : 1));
+  const f = Math.sqrt(s); // even stride/cadence split so stride × cadence = speed
+  const keyframes = motion.keyframes.map((kf) => ({
+    ...kf,
+    ...(kf.targets
+      ? {
+          targets: kf.targets.map((t) =>
+            GAIT_STRIDE_MOTIONS.has(t.motion) ? { ...t, targetDegrees: t.targetDegrees * f } : t,
+          ),
+        }
+      : {}),
+  }));
+  return { ...motion, keyframes, modifiers: { ...motion.modifiers, timeScale: f } };
+}
+
 /** Select the template whose aliases best match a free-text instruction, or null. */
 export function findMovementTemplate(instruction: string): MovementTemplate | null {
   const text = instruction.toLowerCase();

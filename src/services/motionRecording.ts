@@ -195,7 +195,26 @@ export interface SampleComposedOptions {
    * AFTER the FK pose + root transform (and after any planted floor-pin). Omit
    * for the default open-chain behavior — existing recordings are unaffected.
    */
-  contacts?: { foot: string }[];
+  contacts?: {
+    foot: string;
+    /** Stance WINDOW: pin this foot only while `fromMs ≤ t ≤ toMs` (heel-strike
+     *  to toe-off). The plant target is (re)captured at the first frame the foot
+     *  ENTERS its window, so alternating steps each pin at their own contact
+     *  point. Omit both for a whole-motion pin (the original single-stance
+     *  behaviour). A foot that alternates (real gait) is passed as several
+     *  windowed entries — one per stance phase. */
+    fromMs?: number;
+    toMs?: number;
+  }[];
+  /**
+   * For a LOOPING motion (`resolved.loop`), sample ONE seamless period of the
+   * periodic loop trajectory ({@link buildLoopTrajectory}) instead of the
+   * one-shot pass. The result is a clean, replayable cycle — no standing/intro
+   * pose, velocity-continuous across the wrap — so a saved recording loops
+   * without the per-cycle snap. Ignored for non-looping motions or a
+   * single-keyframe cycle. Off by default (existing recordings unaffected).
+   */
+  loopCycle?: boolean;
 }
 
 interface SampleSegment {
@@ -263,12 +282,27 @@ export function sampleComposedMotion(
   // pose + root-at-rest — is what makes a plant correct for BOTH a neutral start
   // AND the default startFrom:'current' continuity path (the foot pins where it
   // actually IS at t=0, not where it would be at anatomic rest). Red-team Finding 1.
-  const plantSolvers: FootPlantSolver[] = [];
+  interface FootPlant {
+    solver: FootPlantSolver;
+    /** Stance window [fromMs, toMs]; ±Infinity = pin for the whole motion. */
+    fromMs: number;
+    toMs: number;
+    /** World target, captured lazily when the foot first enters its window; reset
+     *  on leaving so the NEXT stance window re-pins at the new contact point. */
+    target: THREE.Vector3 | null;
+  }
+  const footPlants: FootPlant[] = [];
   for (const c of opts.contacts ?? []) {
     const solver = buildFootPlant(skinned, c.foot, variantCfg);
-    if (solver) plantSolvers.push(solver);
+    if (solver) {
+      footPlants.push({
+        solver,
+        fromMs: typeof c.fromMs === 'number' ? c.fromMs : -Infinity,
+        toMs: typeof c.toMs === 'number' ? c.toMs : Infinity,
+        target: null,
+      });
+    }
   }
-  const plantTargets: (THREE.Vector3 | null)[] = plantSolvers.map(() => null);
 
   const built = buildSequencePoses(baselinePose, resolved, variantCfg, rest, {
     currentPose: opts.currentPose ?? null,
@@ -288,12 +322,20 @@ export function sampleComposedMotion(
   // spline that FLOWS THROUGH the keyframe waypoints instead of the old
   // stop-at-every-keyframe segment tween. Built by the SAME shared function the
   // live stage uses, so a recording is frame-for-frame what the stage shows.
-  const { trajectory } = buildComposedTrajectory(built, {
-    startPose: prevPose,
-    startQuat: prevQuat,
-    startTranslate: prevTranslate,
-    timeScale,
-  });
+  // A LOOPING motion recorded with `loopCycle` captures ONE seamless period of
+  // the periodic loop trajectory (no intro pose, velocity-continuous wrap) so
+  // the saved clip is itself a clean, replayable cycle. Otherwise the one-shot
+  // pass is recorded (start pose → keyframes), exactly as before.
+  const useLoopCycle =
+    opts.loopCycle === true && resolved.loop === true && built.poses.length >= 2;
+  const { trajectory } = useLoopCycle
+    ? buildLoopTrajectory(built, { timeScale })
+    : buildComposedTrajectory(built, {
+        startPose: prevPose,
+        startQuat: prevQuat,
+        startTranslate: prevTranslate,
+        timeScale,
+      });
   const totalMs = trajectory.totalMs;
   const dtMs = 1000 / hz;
   const boneByKey = buildBoneByPoseKey(skinned.skeleton, variantCfg);
@@ -322,13 +364,21 @@ export function sampleComposedMotion(
     // angles + tracks below then reflect the IK'd leg, and `effPose` re-serializes
     // it so the recorded pose stays consistent with the measurement.
     let effPose = pose;
-    if (plantSolvers.length) {
-      for (let p = 0; p < plantSolvers.length; p += 1) {
-        // Lazily pin the target to where the foot IS at the first frame (post-FK,
-        // post-root), so continuity motions plant at the true start position.
-        if (!plantTargets[p]) plantTargets[p] = plantSolvers[p]!.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
-        solveFootPlant(plantSolvers[p]!, plantTargets[p]!, rest);
+    let anyPlant = false;
+    for (const fp of footPlants) {
+      const inWindow = tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
+      if (!inWindow) {
+        fp.target = null; // left the window — the next stance phase re-captures
+        continue;
       }
+      // Lazily pin the target to where the foot IS as it ENTERS its window
+      // (post-FK, post-root): frame 0 for a whole-motion pin, or heel-strike for
+      // a windowed stance phase, so each alternating step plants at its own point.
+      if (!fp.target) fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+      solveFootPlant(fp.solver, fp.target, rest);
+      anyPlant = true;
+    }
+    if (anyPlant) {
       root.updateMatrixWorld(true);
       effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
     }
@@ -374,7 +424,7 @@ export function sampleComposedMotion(
   if (steps * dtMs < totalMs - 1e-3) frames.push(sampleAt(totalMs));
 
   return {
-    id: `rec-${fnv(JSON.stringify(resolved) + '|' + hz + '|' + variantCfg.id + '|' + name)}`,
+    id: `rec-${fnv(JSON.stringify(resolved) + '|' + hz + '|' + variantCfg.id + '|' + name + (useLoopCycle ? '|loop' : ''))}`,
     name,
     variant: variantCfg.id,
     sourceKind: opts.sourceKind ?? 'composed',

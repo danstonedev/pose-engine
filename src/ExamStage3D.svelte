@@ -497,6 +497,7 @@
       const { captureFloorReference, pinRootToFloor, rotateRestReferenceByRoot } = await import(
         './services/rootMotion'
       );
+      const { buildFootPlant, solveFootPlant } = await import('./services/footContact');
       const { resolveMotionCommand } = await import('./services/motionCommand');
       const { normalizeRigBoneName } = await import('./services/movementClipSampling');
       const { createClinicalCameraControls } = await import('./services/clinicalCameraControls');
@@ -703,6 +704,7 @@
       function cancelComposed() {
         composedSeq += 1;
         composedActive = false;
+        composedPlants = []; // drop any foot-contact IK for the ended motion
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
@@ -1056,6 +1058,57 @@
       }
       let activeTrajectory: ActiveTrajectory | null = null;
 
+      /** CLOSED-CHAIN FOOT CONTACT (Finding 4): the IK plants for the ACTIVE
+       *  composed motion's `contacts`, mirroring the offline sampler. Each foot
+       *  is pinned to the world position it holds as it ENTERS its stance window,
+       *  so it stays put while the body travels over it (no moonwalk) — and an
+       *  alternating gait re-pins per stance phase. Rebuilt per playback. */
+      interface StageFootPlant {
+        solver: ReturnType<typeof buildFootPlant>;
+        fromMs: number;
+        toMs: number;
+        target: import('three').Vector3 | null;
+      }
+      let composedPlants: StageFootPlant[] = [];
+
+      /** Rebuild the foot-plant contexts for a starting composed motion. */
+      function setComposedContacts(
+        contacts: { foot: string; fromMs?: number; toMs?: number }[] | undefined,
+      ): void {
+        composedPlants = [];
+        if (!contacts?.length || !skinnedRef || !variantCfgRef) return;
+        for (const c of contacts) {
+          const solver = buildFootPlant(skinnedRef, c.foot, variantCfgRef);
+          if (solver) {
+            composedPlants.push({
+              solver,
+              fromMs: typeof c.fromMs === 'number' ? c.fromMs : -Infinity,
+              toMs: typeof c.toMs === 'number' ? c.toMs : Infinity,
+              target: null,
+            });
+          }
+        }
+      }
+
+      /** Apply the active foot plants at composed-motion time `tMs` — called
+       *  AFTER the FK pose + root transform each frame (mirrors the sampler). */
+      function applyFootPlants(tMs: number): void {
+        if (!composedPlants.length || !restRef || !modelRoot) return;
+        let solved = false;
+        for (const fp of composedPlants) {
+          if (!fp.solver) continue;
+          const inWindow = tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
+          if (!inWindow) {
+            fp.target = null; // left the window — next stance phase re-captures
+            continue;
+          }
+          if (!fp.target) fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+          solveFootPlant(fp.solver, fp.target, restRef);
+          solved = true;
+        }
+        if (solved) modelRoot.updateMatrixWorld(true);
+      }
+
       /** Set the whole-body root from an absolute trajectory sample, then (planted)
        *  pin the lower foot to the floor. */
       function applyTrajectoryRoot(
@@ -1089,6 +1142,7 @@
           if (skinnedRef && variantCfgRef)
             applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
           applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted);
+          applyFootPlants(at.settleAtMs[at.nextSettle]!);
           at.onSettle(at.nextSettle);
           at.nextSettle += 1;
         }
@@ -1098,6 +1152,8 @@
         if (skinnedRef && variantCfgRef) applyCustomPose(skinnedRef.skeleton, variantCfgRef, s.pose);
         currentPose = s.pose;
         applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted);
+        // Closed-chain foot contact for this frame (pins declared stance feet).
+        applyFootPlants(elapsed);
         requestRender();
         if (done && !at.finished) {
           at.finished = true;
@@ -1344,6 +1400,10 @@
         const timeScale = Math.min(1.5, Math.max(0.4, mods.timeScale ?? 1));
         setMotionOverlaysImpl?.({ guarding: mods.guarding, balanceSway: mods.balanceSway });
         composedActive = true;
+        // Closed-chain foot contacts declared by this motion (Finding 4): rebuild
+        // the IK plants so declared stance feet stay world-fixed as the body
+        // travels. No-op when the motion declares none (open-chain default).
+        setComposedContacts(resolved.contacts);
         startLoop();
 
         // CROSS-MOTION CONTINUITY: fold onto the CURRENT on-stage pose + root, so
@@ -1406,6 +1466,7 @@
               if (skinnedRef && variantCfgRef)
                 applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
               applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted);
+              applyFootPlants(settleAtMs[i]!);
               measureSettle(i);
             }
             const end = trajectory.sampleAt(trajectory.totalMs);
@@ -1413,6 +1474,7 @@
               applyCustomPose(skinnedRef.skeleton, variantCfgRef, end.pose);
             currentPose = end.pose;
             applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted);
+            applyFootPlants(trajectory.totalMs);
             resolve();
             return;
           }
