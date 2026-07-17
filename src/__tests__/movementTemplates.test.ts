@@ -107,6 +107,7 @@ describe('movement templates — round-trip on the real rig (authored peaks are 
     'shoulder-flexion-elevation': ['R_UpperArm.shoulderFlexion'],
     'shoulder-abduction-elevation': ['R_UpperArm.shoulderAbduction'],
     'high-knee-march': ['R_UpLeg.hipFlexion', 'R_Leg.kneeFlexion'],
+    walk: ['R_UpLeg.hipFlexion', 'R_Leg.kneeFlexion', 'L_UpLeg.hipFlexion', 'L_Leg.kneeFlexion'],
     'sit-to-stand': ['L_UpLeg.hipFlexion', 'L_Leg.kneeFlexion'],
     'forward-lunge': ['R_UpLeg.hipFlexion', 'R_Leg.kneeFlexion'],
     'single-leg-stance': ['R_UpLeg.hipFlexion', 'R_Leg.kneeFlexion'],
@@ -154,6 +155,8 @@ describe('movement templates — lookup + prompt rendering', () => {
     expect(findMovementTemplate('bend forward and touch your toes')?.id).toBe('forward-hip-hinge');
     expect(findMovementTemplate('raise your right arm overhead')?.id).toBe('shoulder-flexion-elevation');
     expect(findMovementTemplate('march in place')?.id).toBe('high-knee-march');
+    expect(findMovementTemplate('walk')?.id).toBe('walk');
+    expect(findMovementTemplate('show me their gait')?.id).toBe('walk');
     expect(findMovementTemplate('wiggle your nose')).toBeNull();
   });
 

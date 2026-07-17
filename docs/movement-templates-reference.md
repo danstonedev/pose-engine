@@ -140,6 +140,32 @@ McQuade & Smidt 1998 *JOSPT*; Troke et al. 2005 *Manual Therapy*; Youdas et al.
 
 ---
 
+### Walk — gait cycle  ·  `walk`  ·  planted, in place, loops
+**Coordination:** one full gait cycle authored as 8 phases (both steps), looping
+continuously. Sagittal peaks per normal free gait (Perry & Burnfield; Neumann):
+hip 30° flexion at initial contact → −10° extension at terminal stance; knee ~5°
+at contact → ~18° loading-response shock absorption → ~40° pre-swing → ~60° peak
+in initial swing; ankle rockers — plantarflexion to foot-flat (−8°) after contact,
+dorsiflexion to 10° as the tibia advances, push-off plantarflexion −15° at
+pre-swing. Reciprocal arm swing ±20° shoulder flexion, each arm peaking with the
+**contralateral** leg. Presented **in place** (treadmill convention — the looping
+stage cannot accumulate root travel), so the stance foot sweeps backward under
+the body while the swing foot advances, exactly as on a treadmill.
+**Timing:** 8 × 200 ms phases → 1.6 s cycle (~75 steps/min, a deliberate
+observation cadence; the speed modifier scales it 0.4–1.5×).
+
+| Phase (per side) | Hip | Knee | Ankle | Contralateral arm |
+|---|---|---|---|---|
+| initial contact | 30° | 5° | 0° | 20° shoulder flex |
+| loading response | 25° | 18° | −8° | 12° |
+| mid-stance | 5° | 8° | 5° | 0° |
+| terminal stance | −10° | 5° | 10° | −20° |
+| (swing values are the opposite side's stance phases: pre-swing knee 40°/ankle −15°, initial-swing knee 60°, mid-swing hip 20°/knee 45°, terminal-swing hip 30°/knee 5°) |||||
+
+**Status:** ☐ approved ☐ adjust → _______   **Notes:** ______________________
+
+---
+
 ## Upper-quarter
 
 ### Shoulder flexion — forward elevation  ·  `shoulder-flexion-elevation`  ·  R
