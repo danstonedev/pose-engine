@@ -354,6 +354,120 @@ export function buildComposedTrajectory(
   return { trajectory: buildPoseTrajectory(knots), settleAtMs };
 }
 
+export interface LoopTrajectory {
+  /** A PERIODIC trajectory: `totalMs` is one cycle, and sampling wraps
+   *  seamlessly (sampleAt(period⁻) flows into sampleAt(0) with matched
+   *  velocity). Sample it with `elapsed = rawMs % totalMs`. */
+  trajectory: PoseTrajectory;
+  /** Phase time (ms) of the LAST keyframe within the cycle — where a first
+   *  pass (start → … → last keyframe) leaves the body. The stage enters the
+   *  loop clock here so the very first wrap (last → first) is the smooth
+   *  cycle transition, not a snap. */
+  enterAtMs: number;
+}
+
+/**
+ * Build a SEAMLESS, velocity-continuous LOOP trajectory over a resolved
+ * keyframe cycle — the fix for the looping-motion seam.
+ *
+ * The open {@link buildComposedTrajectory} is right for a one-shot motion but
+ * wrong to loop: it prepends the (often neutral) START pose as knot 0 and marks
+ * both ends STOPS, so `rawMs % total` playback snaps the body back through the
+ * start pose and stalls to zero velocity once per cycle (a standing "hitch" for
+ * gait). This builder instead treats the N keyframe poses as a periodic ring:
+ *   • the start/intro pose is NOT part of the cycle (no snap-to-standing);
+ *   • the wrap segment last→first is a real fly-through (the authored cycle
+ *     transition — e.g. gait terminal-stance → next initial-contact), so the
+ *     motion keeps flowing across the seam instead of stopping;
+ *   • a keyframe that HOLDS stays a genuine per-cycle pause (a held rep top).
+ *
+ * Mechanism: lay the N keyframes at phase times within one period (the wrap
+ * last→first takes the "into-first" duration), then PAD one wrapped keyframe on
+ * each side so the underlying open SQUAD + PCHIP time-warp compute the correct
+ * PERIODIC tangents at the seam. Sampling maps `t mod period` into that padded
+ * window, so the first and last real anchors carry identical two-sided tangents
+ * → C¹ across the wrap. Pure; both stage and (future) sampler can share it.
+ */
+export function buildLoopTrajectory(
+  built: SequenceBuildLike,
+  opts: { timeScale: number },
+): LoopTrajectory {
+  const { timeScale } = opts;
+  const n = built.poses.length;
+  const ts = Math.min(1.5, Math.max(0.4, timeScale || 1));
+  // Per-cycle segment durations (travel INTO each keyframe) and dwells, scaled
+  // and floored so the time-warp never divides by zero.
+  const dur = built.durationsMs.map((d) => Math.max(1e-3, (d ?? 0) / ts));
+  const hold = built.holdsMs.map((h) => Math.min(Math.max(0, (h ?? 0)) / ts, 10_000));
+
+  // Degenerate cycles can't loop meaningfully — a constant pose is the honest
+  // answer (the caller only reaches here when resolved.loop is true).
+  if (n < 2) {
+    const only = built.poses[0];
+    const root0 = built.roots[0];
+    const flat: PoseTrajectory = {
+      totalMs: dur[0] ?? 1,
+      sampleAt: () => ({
+        pose: only ? clonePose(only) : emptyPose(),
+        rootQuat: root0 ? [...root0.quat] : [0, 0, 0, 1],
+        rootTranslate: root0 ? [...root0.translateM] : [0, 0, 0],
+        planted: root0?.stance === 'planted',
+      }),
+    };
+    return { trajectory: flat, enterAtMs: 0 };
+  }
+
+  const knotAt = (i: number, timeMs: number, stop: boolean): TrajectoryKnot => {
+    const rs = built.roots[i]!;
+    return {
+      timeMs,
+      pose: built.poses[i]!,
+      rootQuat: rs.quat,
+      rootTranslate: rs.translateM,
+      stop,
+      planted: rs.stance === 'planted',
+    };
+  };
+
+  // Lay the cycle out in phase time, first keyframe at τ=0. A held keyframe adds
+  // a second (stop) knot at the end of its dwell. The wrap last→first takes
+  // dur[0] (travel into the first keyframe), added after the last keyframe.
+  const cycle: TrajectoryKnot[] = [];
+  let cursor = 0;
+  let enterAtMs = 0;
+  for (let i = 0; i < n; i += 1) {
+    if (i > 0) cursor += dur[i]!;
+    if (i === n - 1) enterAtMs = cursor; // where a first pass leaves the body
+    cycle.push(knotAt(i, cursor, hold[i]! > 0));
+    if (hold[i]! > 0) {
+      cursor += hold[i]!;
+      cycle.push(knotAt(i, cursor, true));
+    }
+  }
+  const period = cursor + dur[0]!; // + the wrap segment back into the first knot
+
+  // PERIODIC PADDING: one wrapped keyframe on each side seeds the correct
+  // two-sided tangents at the seam. Left = the last keyframe placed dur[0]
+  // before τ=0; right = the first keyframe placed at τ=period (closing the wrap
+  // segment) plus the second keyframe one step further for the first knot's
+  // right neighbour.
+  const lastIdx = n - 1;
+  const leftPad = knotAt(lastIdx, -dur[0]!, hold[lastIdx]! > 0);
+  const closeFirst = knotAt(0, period, hold[0]! > 0);
+  const rightPad = knotAt(1 % n, period + dur[1 % n]!, hold[1 % n]! > 0);
+  const padded = [leftPad, ...cycle, closeFirst, rightPad];
+
+  const inner = buildPoseTrajectory(padded);
+  const wrap = (t: number): number => ((t % period) + period) % period;
+  return {
+    trajectory: {
+      totalMs: period,
+      sampleAt: (tMs: number) => inner.sampleAt(wrap(tMs)),
+    },
+    enterAtMs,
+  };
+}
+
 function clonePose(p: CustomPose): CustomPose {
   const bones: Record<string, [number, number, number, number]> = {};
   for (const [k, v] of Object.entries(p.bones ?? {})) bones[k] = [v[0], v[1], v[2], v[3]];

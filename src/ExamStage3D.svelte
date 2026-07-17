@@ -491,6 +491,7 @@
         composedTweenEase,
         stagedBlendWithBaseline,
         buildComposedTrajectory,
+        buildLoopTrajectory,
         DEFAULT_TRACKED_BONES,
       } = await import('./services/motionRecording');
       const { captureFloorReference, pinRootToFloor, rotateRestReferenceByRoot } = await import(
@@ -1449,11 +1450,18 @@
         };
         if (resolved.loop && token === composedSeq) {
           // Detached continuous cycle OUTSIDE the command chain: keep flowing
-          // through the keyframes (velocity-continuous) until a newer command
-          // bumps the token. First-pass measurements above are the narration.
+          // through the keyframes until a newer command bumps the token. The
+          // first pass above eased from the start pose through the cycle once
+          // (and measured it); the LOOP now runs a SEAMLESS periodic trajectory
+          // that excludes the start/intro pose and makes the last→first wrap a
+          // velocity-continuous fly-through — no snap back through standing, no
+          // per-cycle stall (the loop-seam fix). We enter the loop clock at the
+          // last keyframe's phase (`enterAtMs`), where the first pass left the
+          // body, so the very first wrap is the smooth cycle transition.
+          const { trajectory: loopTraj, enterAtMs } = buildLoopTrajectory(built, { timeScale });
           activeTrajectory = {
-            traj: trajectory,
-            start: performance.now(),
+            traj: loopTraj,
+            start: performance.now() - enterAtMs,
             settleAtMs: [],
             nextSettle: 0,
             onSettle: () => {},

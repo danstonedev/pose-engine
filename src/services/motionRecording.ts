@@ -50,8 +50,8 @@ import {
 } from './rootMotion';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
 export { stagedBlendWithBaseline };
-import { buildComposedTrajectory } from './motionTrajectory';
-export { buildComposedTrajectory };
+import { buildComposedTrajectory, buildLoopTrajectory } from './motionTrajectory';
+export { buildComposedTrajectory, buildLoopTrajectory };
 
 // ── Shared easing (the ONE tween curve stage + sampler use) ─────────────────
 
