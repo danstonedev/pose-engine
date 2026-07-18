@@ -732,40 +732,53 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
   };
 }
 
+/** Real free-gait COM vertical excursion is ~4-5 cm peak-to-peak at a comfortable
+ *  cadence [Perry & Burnfield; Gard & Childress]. This is the calibrated NORMAL
+ *  target; {@link gaitBounce} scales around it. */
+export const NORMAL_GAIT_VERTICAL_CM = 5;
+
+/**
+ * CALIBRATE a gait's vertical COM excursion to a centimetre target.
+ *
+ * The engine grounds a planted walk with a vertical floor-pin, which makes the
+ * pelvis a geometric slave of the lowest foot — a COMPASS-GAIT vault whose
+ * emergent excursion (~9 cm for the authored walk) is about DOUBLE real free gait
+ * (~4-5 cm). The classic *determinants of gait* narrative blames the pelvic
+ * rotation/list for the difference, but the modern biomechanics literature shows
+ * those contribute little to vertical COM — the excursion is essentially the
+ * inverted-pendulum vault, reshaped by stance-knee yield and the ankle/foot
+ * rockers [Gard & Childress 2001; Kuo 2007]. Rather than fake a pelvic DOF, this
+ * flags the motion so the sampler/stage MEASURE the emergent grounded arc and
+ * SCALE it about its mean to `targetCm` — an exact, mean-preserving, ROOT-ONLY
+ * reshape that leaves every clinical joint angle exactly as authored (a foot-lock
+ * IK, by contrast, corrupts the stance hip). Only takes effect on a planted gait.
+ * Pure; returns a new motion.
+ */
+export function calibrateGaitVertical(motion: ComposedMotion, targetCm: number): ComposedMotion {
+  const cm = Math.max(1, Math.min(12, Number.isFinite(targetCm) ? targetCm : NORMAL_GAIT_VERTICAL_CM));
+  return { ...motion, verticalCalibrationCm: cm };
+}
+
 /**
  * Adjust a gait's VERTICAL BOUNCE — the "spring vs glide" quality. Some people
- * bounce (a springy, high-knee, vaulting gait with a large pelvis rise-and-fall
- * per step); others glide (a smooth, low-knee, level-pelvis walk). The pelvis
- * vertical excursion is driven — through the closed-chain floor contact — by how
- * much the knees flex and lift through the cycle, so this scales knee flexion by
- * `amount` (0 = glide / smooth & low, 1 = the authored normal, 2 = a pronounced
- * bounce): a glider's shorter, lower knee lift keeps the pelvis level; a
- * bouncer's springy high knee lift vaults it. Hip/ankle and the reciprocal arm
- * swing are untouched (stride and cadence are `paceGait`'s job, kept orthogonal).
- * ROM-clamped on resolve. Pure.
+ * bounce (a springy gait with a large pelvis rise-and-fall per step); others
+ * glide (a smooth, level-pelvis walk). This is precisely the COM vertical
+ * excursion, so `gaitBounce` sets the calibrated centimetre target
+ * ({@link calibrateGaitVertical}): `amount` 0 = a calm ~3 cm glide, 1 = the
+ * normal ~5 cm, 2 = a pronounced ~8 cm bounce. Stride and cadence (`paceGait`'s
+ * job) and every joint angle are left untouched — bounce is orthogonal to speed
+ * and does not distort the clinical readout.
  *
- * NOTE: the current engine grounds the walk with a vertical floor-pin (not the
- * gait "determinants" — pelvic tilt/rotation, controlled stance-knee wave), so
- * this is a believable qualitative knob rather than a calibrated centimetre
- * target; a determinant model is the follow-on for clinical-grade COM excursion.
+ * (Supersedes the old knee-flexion scaling, which conflated swing-foot CLEARANCE
+ * with pelvis bounce: it flung the swing foot to ~30 cm and clipped the stance
+ * foot ~5 cm THROUGH the floor while barely moving the COM. The calibrated arc
+ * moves the COM by the requested amount and keeps the feet grounded.)
  */
 export function gaitBounce(motion: ComposedMotion, amount: number): ComposedMotion {
   const a = Math.max(0, Math.min(2, Number.isFinite(amount) ? amount : 1));
-  if (a === 1) return motion;
-  const kneeScale = 0.7 + 0.3 * a; // a=0 → 0.70 (glide), 1 → 1.0, 2 → 1.30 (bounce)
-  return {
-    ...motion,
-    keyframes: motion.keyframes.map((kf) => ({
-      ...kf,
-      ...(kf.targets
-        ? {
-            targets: kf.targets.map((t) =>
-              t.motion === 'kneeFlexion' ? { ...t, targetDegrees: t.targetDegrees * kneeScale } : t,
-            ),
-          }
-        : {}),
-    })),
-  };
+  // Piecewise so amount 1 lands exactly on the normal target: 0→3, 1→5, 2→8 cm.
+  const cm = a <= 1 ? 3 + a * (NORMAL_GAIT_VERTICAL_CM - 3) : NORMAL_GAIT_VERTICAL_CM + (a - 1) * 3;
+  return calibrateGaitVertical(motion, cm);
 }
 
 /** Sagittal joints whose EXCURSION defines stride length — scaled by pace. The

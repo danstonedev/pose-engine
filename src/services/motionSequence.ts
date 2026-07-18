@@ -279,6 +279,15 @@ export interface ComposedMotion {
    *  stance phase. Consumed by the live stage and the offline sampler; omit for
    *  the default open-chain / vertical-pin behaviour. */
   contacts?: StanceContact[];
+  /** CALIBRATED GAIT VERTICAL, cm: reshape the emergent floor-pinned pelvis
+   *  excursion (the compass-gait vault the pin produces — ~9 cm for the walk) to
+   *  this peak-to-peak target. Realized as a MEAN-PRESERVING per-frame scale of
+   *  the grounded root-Y (a root-only reshape: every clinical joint angle is left
+   *  exactly as authored, unlike a foot-lock IK which would corrupt the stance
+   *  hip). Real free-gait COM excursion is ~4-5 cm [Perry & Burnfield; Gard &
+   *  Childress]; `gaitBounce` sets this (glide ≈ 3, normal ≈ 5, bounce ≈ 8). Only
+   *  applied when the motion has planted keyframes. Omit for no calibration. */
+  verticalCalibrationCm?: number;
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
@@ -356,6 +365,10 @@ export interface ResolvedComposedMotion {
   /** Weight-bearing foot contacts to IK-plant during playback (pass-through from
    *  the authored motion; the stage/sampler pin each declared foot per frame). */
   contacts?: StanceContact[];
+  /** Calibrated gait vertical (cm), pass-through from the authored motion — the
+   *  stage/sampler measure the emergent grounded pelvis arc and scale it to this
+   *  peak-to-peak target. Absent = no calibration. */
+  verticalCalibrationCm?: number;
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -805,6 +818,12 @@ export function resolveComposedMotion(
     ...(motion.modifiers ? { modifiers: motion.modifiers } : {}),
     ...(Array.isArray(motion.contacts) && motion.contacts.length
       ? { contacts: motion.contacts.filter((c) => c && typeof c.foot === 'string') }
+      : {}),
+    // CALIBRATED GAIT VERTICAL: clamped to a believable band (1-12 cm) so a
+    // request can never flatten the walk to a slide or balloon it to a hop.
+    ...(typeof motion.verticalCalibrationCm === 'number' &&
+    Number.isFinite(motion.verticalCalibrationCm)
+      ? { verticalCalibrationCm: Math.max(1, Math.min(12, motion.verticalCalibrationCm)) }
       : {}),
   };
 }

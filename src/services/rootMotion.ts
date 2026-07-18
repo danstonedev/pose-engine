@@ -196,3 +196,51 @@ export function pinRootToFloor(
   root.updateMatrixWorld(true);
   return lift;
 }
+
+// ── Calibrated gait vertical (mean-preserving reshape) ───────────────────────
+
+/** A calibration that reshapes an emergent grounded pelvis arc to a target
+ *  excursion: `root.y ← mean + gain·(root.y − mean)`. gain 1 = identity. */
+export interface VerticalCalibration {
+  meanY: number;
+  gain: number;
+}
+
+/** Identity — leaves the grounded root untouched. */
+export const NO_VERTICAL_CALIBRATION: VerticalCalibration = { meanY: 0, gain: 1 };
+
+/**
+ * Derive a MEAN-PRESERVING vertical calibration from the emergent grounded
+ * pelvis arc. `groundedRootYAtPhase(u)` must return the floor-pinned model-root
+ * Y at cycle phase u∈[0,1) (the caller poses the rig + floor-pins + reads
+ * root.position.y). Samples `steps` phases, then scales the arc's peak-to-peak to
+ * `targetM` about its mean — so the mean (grounding) is preserved and only the
+ * extremes deviate from the floor by (1−gain)·½·excursion. The SAME function is
+ * used by the offline sampler and the live stage, so they cannot diverge.
+ */
+export function deriveVerticalCalibration(
+  groundedRootYAtPhase: (u01: number) => number,
+  targetM: number,
+  steps = 48,
+): VerticalCalibration {
+  let sum = 0;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 0; i < steps; i += 1) {
+    const y = groundedRootYAtPhase(i / steps);
+    sum += y;
+    if (y < lo) lo = y;
+    if (y > hi) hi = y;
+  }
+  const meanY = sum / Math.max(1, steps);
+  const p2p = hi - lo;
+  // Clamp so a request can only calm the vault or amplify it within a believable
+  // band — never invert or explode it; a degenerate flat arc stays identity.
+  const gain = p2p > 1e-4 ? Math.max(0.1, Math.min(1.6, targetM / p2p)) : 1;
+  return { meanY, gain };
+}
+
+/** Apply a vertical calibration to a grounded root-Y. */
+export function applyVerticalCalibration(y: number, cal: VerticalCalibration): number {
+  return cal.gain === 1 ? y : cal.meanY + cal.gain * (y - cal.meanY);
+}
