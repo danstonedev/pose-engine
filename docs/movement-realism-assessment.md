@@ -261,30 +261,29 @@ arc extremes (vs the old knee-scaling knob's ~5 cm floor-clipping). `gaitBounce`
 sets the target (3 / 5 / 8 cm); simMOVE calibrates every in-place walk to ~5 cm.
 Gated in `gaitBounce.test.ts`.
 
-### Travel walk — needs a root-motion-from-foot-placement rework (diagnosed)
-The forward `buildTravelWalk` has a real defect the horizontal-only `gaitTravel`
-gate doesn't catch: the stance foot slides **vertically** (~7 cm R, ~18 cm L in a
-window that includes the landing). Measured root cause — it is a **two sources of
-truth** problem (the red-team's #3.3), NOT a tuning knob:
+### Travel walk — DONE (root motion from foot placement)
+The forward `buildTravelWalk` had a real defect the horizontal-only `gaitTravel`
+gate didn't catch: the stance foot slid ~30 cm HORIZONTALLY and ~7-18 cm
+VERTICALLY. Measured root cause — a **two sources of truth** problem (the
+red-team's #3.3): the gait FK swept a foot ~**97 cm** fore-aft while the authored
+root travelled only ~35 cm/step, so the planted foot was dragged; and the FK pose
+doesn't bring the swing foot to the floor at heel-strike, so the foot-lock captured
+each foot **airborne** (y ≈ 24 cm) and the "slide" was the foot descending. Raising
+the stride to match made it *worse*.
 
-- The gait FK swings a foot ~**97 cm** fore-aft, but the authored root travel is
-  only ~35 cm/step — they are independent numbers. Increasing the stride to match
-  makes the slide **worse** (R vertical 7 → 21 cm across 0.35 → 0.75 m/step),
-  because it is not a magnitude mismatch alone.
-- The deeper issue: the FK gait pose does **not bring the swing foot to the floor
-  at heel-strike**. The L foot's contact window opens at L-initial-contact
-  (t 800), but at that instant the foot is still airborne (y ≈ 24 cm) — so the
-  foot-lock captures an **elevated** target and the "slide" is the foot descending
-  to the floor. The plant is being captured before the foot lands.
-
-**What it needs:** derive the root trajectory FROM the foot placement (author root
-motion so the planted foot lands at the floor at heel-strike and the body advances
-exactly one step over it — the industry root-motion approach), or re-time the
-contact windows to each foot's TRUE plant + project the capture to the floor. A
-real rework, not a session tuning pass — deliberately left un-rushed so it doesn't
-ship a regression. The travel walk also keeps its emergent ~10 cm vertical (the
-in-place calibration is scoped to the looping walk; calibration + foot-lock want
-their own pass once the plant is fixed).
+**The fix (shipped): one source of truth — `footDrivenTravel`.** The stride is no
+longer authored and the feet are no longer IK-locked. Instead the sampler and stage
+(one shared `deriveFootDrivenTravel` in `rootMotion`, so they can't diverge) do a
+PRE-PASS over the in-place FK + floor-pin, read the feet, and derive the forward
+(+Z) root motion that cancels the **planted (lower) foot's** backward body-space
+sweep each frame — so the stance foot is world-fixed BY CONSTRUCTION and the swing
+foot rides the body forward. A handoff (the lower foot changes → the new foot has
+landed) makes no advance that frame. Vertical grounding stays with the floor-pin.
+Measured on the rig: stance-foot horizontal slide **0.2-0.4 cm** (was ~30 cm), body
+travels ~1.1 m/stride, joints pristine (hip 32°, knee 61°), and speed couples — a
+`paceGait` fast walk has a bigger swing → a longer *emergent* stride AND a shorter
+cycle (1.29 m in 1.35 s). No capture timing to get wrong, no IK to corrupt the hip.
+Gated in `gaitTravel.test.ts`.
 3. **Optional `peakAt` leads on sit-to-stand / lunge** if SME confirms an
    intra-phase order (their current relay is inter-phase only).
 4. **Velocity-continuous rail recordings** — the live rail currently *trims* the

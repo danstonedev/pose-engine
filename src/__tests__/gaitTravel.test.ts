@@ -1,10 +1,11 @@
 /**
  * TRAVEL-GAIT GATE — buildTravelWalk advances the body forward with GROUND-TRUE
- * feet: the same authored 8-phase walk kinematics + cumulative +Z root travel +
- * ALTERNATING stance-foot contacts. Each stance foot stays world-planted while
- * the body passes over it (no moonwalk), the swing foot advances, and the whole
- * thing is a non-degenerate gait. This is the consumer that makes the live-stage
- * foot IK (Finding 4) visible.
+ * feet via ROOT MOTION FROM FOOT PLACEMENT (`footDrivenTravel`): the same authored
+ * 8-phase walk kinematics, and the sampler/stage derive the +Z root travel from
+ * the FK so the PLANTED foot stays world-fixed — no authored stride, no foot-lock
+ * IK. Each stance foot barely slides (the old authored-stride + IK-capture version
+ * dragged it ~30 cm horizontally and let it float ~18 cm at heel-strike), the
+ * swing foot advances, the stride emerges from the ROM, and speed couples.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -61,75 +62,80 @@ function resetHarness(): void {
   root.updateMatrixWorld(true);
 }
 
-function sampleTravel(withContacts = true): MotionRecording {
+function sampleTravel(opts: { speed?: number } = {}): MotionRecording {
   resetHarness();
-  const motion = buildTravelWalk();
-  // Prove the contrast: sample with the motion's declared contacts (default) or
-  // with contacts explicitly disabled.
-  const resolved = resolveComposedMotion(withContacts ? motion : { ...motion, contacts: [] }, variantCfg);
+  const resolved = resolveComposedMotion(buildTravelWalk(opts), variantCfg);
   expect(resolved.status).toBe('ok');
   return sampleComposedMotion(resolved, {
-    baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
+    baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 120,
   });
 }
 
 const hipsDz = (rec: MotionRecording) =>
   rec.frames[rec.frames.length - 1]!.worldTracks!['Hips']![2] - rec.frames[0]!.worldTracks!['Hips']![2];
+const durOf = (rec: MotionRecording) => rec.frames[rec.frames.length - 1]!.tMs;
 
-describe('buildTravelWalk — a non-degenerate forward gait', () => {
-  it('is the full 8-phase cycle, planted, non-looping, with alternating contacts', () => {
+/** Horizontal slide of a foot over the LONGEST contiguous run in which it is the
+ *  lower (weight-bearing/planted) foot — the honest "did the stance foot stay put"
+ *  metric for an alternating gait, independent of any authored window. */
+function plantedSlideM(rec: MotionRecording, foot: 'R_Foot' | 'L_Foot'): number {
+  const other = foot === 'R_Foot' ? 'L_Foot' : 'R_Foot';
+  const low = rec.frames.map((f) => f.worldTracks![foot]![1] <= f.worldTracks![other]![1]);
+  let bestStart = 0;
+  let bestLen = 0;
+  let curStart = -1;
+  for (let i = 0; i <= rec.frames.length; i += 1) {
+    if (i < rec.frames.length && low[i]) {
+      if (curStart < 0) curStart = i;
+    } else if (curStart >= 0) {
+      if (i - curStart > bestLen) {
+        bestLen = i - curStart;
+        bestStart = curStart;
+      }
+      curStart = -1;
+    }
+  }
+  const run = rec.frames.slice(bestStart, bestStart + bestLen);
+  return measureContactSlide({ frames: run }, foot).horizontalM;
+}
+
+describe('buildTravelWalk — a forward gait driven by foot placement', () => {
+  it('is the 8-phase walk, planted, non-looping, foot-driven (no authored stride, no contacts)', () => {
     const m = buildTravelWalk();
     expect(m.keyframes.length).toBe(8);
     expect(m.loop ?? false).toBe(false); // travel can't loop (would teleport)
     expect(m.stance).toBe('planted');
-    expect(m.contacts?.map((c) => c.foot)).toEqual(['R_Foot', 'L_Foot']);
-    // Cumulative forward travel grows monotonically to one stride.
-    const travels = m.keyframes.map((k) => k.travel!.meters);
-    for (let i = 1; i < travels.length; i += 1) expect(travels[i]!).toBeGreaterThan(travels[i - 1]!);
-    expect(m.keyframes.at(-1)!.travel!.meters).toBeCloseTo(0.7, 1);
+    expect(m.footDrivenTravel).toBe(true);
+    expect(m.contacts ?? []).toEqual([]); // no foot-lock IK contacts
+    expect(m.keyframes.every((k) => k.travel == null), 'no authored per-keyframe stride').toBe(true);
   });
 
-  it('travels the body forward (+Z) over the stride', () => {
+  it('travels the body forward (+Z) — the stride EMERGES from the FK', () => {
     expect(hipsDz(sampleTravel()), 'body advances +Z').toBeGreaterThan(0.5);
   });
 
-  it('keeps each stance foot planted DURING ITS window — far less than un-pinned', () => {
-    const pinned = sampleTravel(true);
-    const free = sampleTravel(false);
-    // Right foot is stance for the first half (0–800 ms), left for the second.
-    const rPin = measureContactSlide(pinned, 'R_Foot', 0, 800).horizontalM;
-    const lPin = measureContactSlide(pinned, 'L_Foot', 800, 1600).horizontalM;
-    expect(rPin, 'R stance slide').toBeLessThan(0.09);
-    expect(lPin, 'L stance slide').toBeLessThan(0.09);
-    // …materially less than the moonwalking un-pinned feet in the same windows.
-    const rFree = measureContactSlide(free, 'R_Foot', 0, 800).horizontalM;
-    expect(rPin).toBeLessThan(rFree * 0.5);
+  it('each stance foot stays world-fixed — barely slides (the derived root cancels the FK sweep)', () => {
+    const rec = sampleTravel();
+    expect(plantedSlideM(rec, 'R_Foot'), 'R stance slide').toBeLessThan(0.03);
+    expect(plantedSlideM(rec, 'L_Foot'), 'L stance slide').toBeLessThan(0.03);
   });
 
   it('paced travel: a faster walk travels farther per stride AND keeps feet planted', () => {
-    const normal = sampleTravel(true);
-    resetHarness();
-    const fastMotion = buildTravelWalk({ speed: 1.45 });
-    const fastResolved = resolveComposedMotion(fastMotion, variantCfg);
-    expect(fastResolved.status).toBe('ok');
-    const fast = sampleComposedMotion(fastResolved, {
-      baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
-    });
-    // Faster ⇒ longer stride (more body travel) AND a shorter cycle (quicker cadence).
+    const normal = sampleTravel();
+    const fast = sampleTravel({ speed: 1.45 });
+    // Faster ⇒ bigger leg swing ⇒ longer stride (more body travel) AND a shorter
+    // cycle (quicker cadence) — all from paceGait, with the stride still emergent.
     expect(hipsDz(fast), 'faster travels farther').toBeGreaterThan(hipsDz(normal) + 0.1);
-    const dur = (rec: MotionRecording) => rec.frames[rec.frames.length - 1]!.tMs;
-    expect(dur(fast), 'faster cycle is shorter').toBeLessThan(dur(normal) - 100);
-    // Contact windows scaled with cadence, so the stance feet still stay planted.
-    const half = dur(fast) / 2;
-    expect(measureContactSlide(fast, 'R_Foot', 0, half).horizontalM, 'R stays planted when fast').toBeLessThan(0.1);
+    expect(durOf(fast), 'faster cycle is shorter').toBeLessThan(durOf(normal) - 100);
+    expect(plantedSlideM(fast, 'R_Foot'), 'R stays planted when fast').toBeLessThan(0.04);
   });
 
   it('the swing foot still advances forward (the plant does not freeze the gait)', () => {
-    const rec = sampleTravel(true);
+    const rec = sampleTravel();
+    const dur = durOf(rec);
     // The RIGHT foot swings forward during the second half (its non-stance window).
-    const rSwing =
-      rec.frames.find((f) => Math.abs(f.tMs - 1580) < 20)!.worldTracks!['R_Foot']![2] -
-      rec.frames.find((f) => Math.abs(f.tMs - 820) < 20)!.worldTracks!['R_Foot']![2];
-    expect(rSwing, 'R foot advances in swing').toBeGreaterThan(0.1);
+    const zAt = (t: number) =>
+      rec.frames.reduce((b, f) => (Math.abs(f.tMs - t) < Math.abs(b.tMs - t) ? f : b)).worldTracks!['R_Foot']![2];
+    expect(zAt(dur * 0.98) - zAt(dur * 0.55), 'R foot advances in swing').toBeGreaterThan(0.1);
   });
 });

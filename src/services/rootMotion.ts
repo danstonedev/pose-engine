@@ -244,3 +244,81 @@ export function deriveVerticalCalibration(
 export function applyVerticalCalibration(y: number, cal: VerticalCalibration): number {
   return cal.gain === 1 ? y : cal.meanY + cal.gain * (y - cal.meanY);
 }
+
+// ── Foot-driven forward travel (root motion FROM foot placement) ──────────────
+
+/** A precomputed forward-travel (world +Z) offset curve over one motion, sampled
+ *  at `stepMs` and lerped in between. */
+export interface FootDrivenTravel {
+  totalMs: number;
+  /** Forward (+Z) root offset, meters, at absolute time tMs. */
+  zAt(tMs: number): number;
+}
+
+/** The world Z (forward) of each foot at a phase — what the derivation reads. */
+export interface FeetZ {
+  rz: number;
+  lz: number;
+  /** World Y of each foot (to pick the planted/lower one). */
+  ry: number;
+  ly: number;
+}
+
+/**
+ * Derive a forward-travel curve that keeps the PLANTED foot world-fixed — the
+ * industry "root motion from foot placement" done right, and the fix for the
+ * travel walk's foot-slide.
+ *
+ * The gait FK sweeps the stance foot backward in body space; a real walk keeps
+ * that foot planted and moves the BODY forward by the same amount. So instead of
+ * authoring an independent stride (which never matches the FK and drags the foot),
+ * we MEASURE the FK foot sweep and advance the root to cancel it: each frame, the
+ * lower (weight-bearing) foot is the planted one, and the root steps forward by
+ * exactly that foot's backward body-space motion since the previous frame — so it
+ * does not move in the world. At a handoff (the lower foot changes, i.e. the new
+ * foot has landed) the root makes no advance that frame, then tracks the new foot.
+ * No foot-lock IK, no capture timing to get wrong: the stance foot is fixed by
+ * construction, the swing foot rides the body forward, and the stride EMERGES from
+ * the authored hip/knee ROM (so a paced walk's bigger swing travels farther too).
+ *
+ * `sampleFeetAtPhase(tMs)` poses the rig at tMs (FK + floor-pin, NO travel) and
+ * returns the feet world Z/Y. Sampled in time order over `steps`; returns a
+ * piecewise-linear lookup. Vertical grounding stays with the floor-pin — this only
+ * owns the forward axis.
+ */
+export function deriveFootDrivenTravel(
+  sampleFeetAtPhase: (tMs: number) => FeetZ,
+  totalMs: number,
+  steps = 120,
+): FootDrivenTravel {
+  const n = Math.max(2, steps);
+  const dt = totalMs / (n - 1);
+  const z = new Array<number>(n).fill(0);
+  let prev = sampleFeetAtPhase(0);
+  let planted: 'R' | 'L' = prev.ry <= prev.ly ? 'R' : 'L';
+  for (let i = 1; i < n; i += 1) {
+    const cur = sampleFeetAtPhase(i * dt);
+    const lower: 'R' | 'L' = cur.ry <= cur.ly ? 'R' : 'L';
+    if (lower === planted) {
+      // Advance the root by the planted foot's backward body-space step, so its
+      // world position does not change.
+      const back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
+      z[i] = z[i - 1]! + back;
+    } else {
+      // Handoff: the new foot just landed — no advance this frame, then track it.
+      z[i] = z[i - 1]!;
+      planted = lower;
+    }
+    prev = cur;
+  }
+  return {
+    totalMs,
+    zAt(tMs: number): number {
+      if (tMs <= 0) return z[0]!;
+      if (tMs >= totalMs) return z[n - 1]!;
+      const u = tMs / dt;
+      const k = Math.min(n - 2, Math.floor(u));
+      return z[k]! + (z[k + 1]! - z[k]!) * (u - k);
+    },
+  };
+}
