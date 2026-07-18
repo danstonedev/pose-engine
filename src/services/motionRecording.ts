@@ -40,6 +40,12 @@ import {
 } from './poseRig';
 import { buildFootPlant, solveFootPlant, type FootPlantSolver } from './footContact';
 import {
+  applyBalanceCorrection,
+  buildBalanceController,
+  computeBodyCoMFromBones,
+  type BalanceController,
+} from './centerOfMass';
+import {
   buildSequencePoses,
   type ResolvedComposedMotion,
 } from './motionSequence';
@@ -109,7 +115,10 @@ export interface MotionRecording {
   createdAtIso?: string;
 }
 
-/** Canonical bones tracked by default (world trajectories). */
+/** Canonical bones tracked by default (world trajectories). Feet AND forefeet
+ *  are tracked so the balance post-pass ({@link computeBalanceTimeline}) can
+ *  rebuild the base of support from the recording alone. The whole-body centre of
+ *  mass is added per frame under the reserved key `CoM` (not a bone). */
 export const DEFAULT_TRACKED_BONES = [
   'Hips',
   'Head',
@@ -117,6 +126,8 @@ export const DEFAULT_TRACKED_BONES = [
   'R_Hand',
   'L_Foot',
   'R_Foot',
+  'L_Toes',
+  'R_Toes',
 ] as const;
 
 /** Total duration of a recording, ms (last frame's timestamp). */
@@ -409,6 +420,17 @@ export function sampleComposedMotion(
     }
   }
 
+  // BALANCE CONTROLLER (the balance-ability lever). When a PLANTED, non-travelling
+  // motion asks for it, hold the whole-body COM over the base each frame by
+  // planting the bearing feet and shifting the pelvis — `balanceControl` 1 = fully
+  // steady, 0 = raw drift (impaired-balance abnormality). Skipped for travelling
+  // gait (its balance is the stepping strategy, owned by footDrivenTravel).
+  const balanceControl = resolved.modifiers?.balanceControl;
+  const balanceController: BalanceController | null =
+    balanceControl != null && !resolved.footDrivenTravel && built.roots.some((r) => r.stance === 'planted')
+      ? buildBalanceController(skinned, variantCfg)
+      : null;
+
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
     const sample = trajectory.sampleAt(tMs);
@@ -467,6 +489,16 @@ export function sampleComposedMotion(
       effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
     }
 
+    // BALANCE CORRECTION: plant the bearing feet and shift the pelvis so the COM
+    // stays over the base (`balanceControl` fraction). Runs after the floor-pin +
+    // any declared plants; re-serializes the pose so the measured angles/tracks
+    // reflect the balanced posture.
+    if (balanceController) {
+      applyBalanceCorrection(balanceController, root, skinned, variantCfg, rest, balanceControl!);
+      root.updateMatrixWorld(true);
+      effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
+    }
+
     // Measure against the (possibly reoriented) rest reference — same as the
     // stage's activeRestRef().
     const orientQuat: [number, number, number, number] = [_sq.x, _sq.y, _sq.z, _sq.w];
@@ -485,6 +517,10 @@ export function sampleComposedMotion(
       bone.getWorldPosition(_sv);
       worldTracks[key] = [_sv.x, _sv.y, _sv.z];
     }
+    // Whole-body centre of mass (gravity's grip): the mass-weighted summary of
+    // the pose, under the reserved key `CoM`. Tracked every frame so the balance
+    // margin (COM projection vs base of support) is derivable from the recording.
+    worldTracks.CoM = computeBodyCoMFromBones(boneByKey).world;
 
     return {
       tMs,
