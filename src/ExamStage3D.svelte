@@ -501,6 +501,7 @@
         deriveVerticalCalibration,
         applyVerticalCalibration,
         NO_VERTICAL_CALIBRATION,
+        deriveFootDrivenTravel,
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant } = await import('./services/footContact');
       const { resolveMotionCommand } = await import('./services/motionCommand');
@@ -711,6 +712,7 @@
         composedActive = false;
         composedPlants = []; // drop any foot-contact IK for the ended motion
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
+        composedFootDriven = null; // drop any foot-driven travel
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
@@ -1110,6 +1112,39 @@
         }, targetCm / 100);
       }
 
+      /** FOOT-DRIVEN forward travel for the ACTIVE composed motion — the derived
+       *  +Z offset that keeps the planted foot world-fixed, mirroring the sampler
+       *  via the SAME shared helper. Null unless the motion requests it. */
+      let composedFootDriven: ReturnType<typeof deriveFootDrivenTravel> | null = null;
+
+      /** Pre-pass the starting motion's trajectory (FK + floor-pin, no travel),
+       *  read the feet, and derive the forward-travel curve that keeps the planted
+       *  foot fixed. Resets to null otherwise. */
+      function setComposedFootDriven(traj: PoseTrajectory, enabled: boolean, hasPlanted: boolean): void {
+        composedFootDriven = null;
+        if (!enabled || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
+        const bones = buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef);
+        const rBone = bones.get('R_Foot');
+        const lBone = bones.get('L_Foot');
+        if (!rBone || !lBone) return;
+        composedFootDriven = deriveFootDrivenTravel((tMs) => {
+          const s = traj.sampleAt(tMs);
+          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
+          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
+          modelRoot!.position.set(
+            rootRestPos.x + s.rootTranslate[0],
+            rootRestPos.y + s.rootTranslate[1],
+            rootRestPos.z + s.rootTranslate[2],
+          );
+          modelRoot!.updateMatrixWorld(true);
+          if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+          const rp = rBone.getWorldPosition(new THREE.Vector3());
+          const lp = lBone.getWorldPosition(new THREE.Vector3());
+          return { rz: rp.z, ry: rp.y, lz: lp.z, ly: lp.y };
+        }, traj.totalMs);
+      }
+
       /** Rebuild the foot-plant contexts for a starting composed motion. */
       function setComposedContacts(
         contacts: { foot: string; fromMs?: number; toMs?: number }[] | undefined,
@@ -1154,6 +1189,7 @@
         rootQuat: [number, number, number, number],
         rootTranslate: [number, number, number],
         planted: boolean,
+        tMs = 0,
       ): void {
         if (!modelRoot) return;
         _rootQA.set(rootQuat[0], rootQuat[1], rootQuat[2], rootQuat[3]);
@@ -1174,6 +1210,12 @@
             modelRoot.updateMatrixWorld(true);
           }
         }
+        // Foot-driven forward travel: advance the root (+Z) so the planted foot
+        // stays world-fixed (horizontal only — independent of the vertical pin).
+        if (composedFootDriven) {
+          modelRoot.position.z += composedFootDriven.zAt(tMs);
+          modelRoot.updateMatrixWorld(true);
+        }
       }
 
       function stepTrajectory(now: number): void {
@@ -1187,7 +1229,7 @@
           const st = at.traj.sampleAt(at.settleAtMs[at.nextSettle]!);
           if (skinnedRef && variantCfgRef)
             applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
-          applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted);
+          applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, at.settleAtMs[at.nextSettle]!);
           applyFootPlants(at.settleAtMs[at.nextSettle]!);
           at.onSettle(at.nextSettle);
           at.nextSettle += 1;
@@ -1197,7 +1239,7 @@
         const s = at.traj.sampleAt(elapsed);
         if (skinnedRef && variantCfgRef) applyCustomPose(skinnedRef.skeleton, variantCfgRef, s.pose);
         currentPose = s.pose;
-        applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted);
+        applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed);
         // Closed-chain foot contact for this frame (pins declared stance feet).
         applyFootPlants(elapsed);
         requestRender();
@@ -1496,6 +1538,9 @@
           resolved.verticalCalibrationCm,
           composedHasPlanted,
         );
+        // FOOT-DRIVEN forward travel: derive the +Z curve that keeps the planted
+        // foot world-fixed from the same one-shot trajectory the stage plays.
+        setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted);
 
         // Per-keyframe settle: MEASURE what the patient actually did (off the exact
         // settle pose the player applies for us, frame-timing-independent).
@@ -1524,7 +1569,7 @@
               const st = trajectory.sampleAt(settleAtMs[i]!);
               if (skinnedRef && variantCfgRef)
                 applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
-              applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted);
+              applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, settleAtMs[i]!);
               applyFootPlants(settleAtMs[i]!);
               measureSettle(i);
             }
@@ -1532,7 +1577,7 @@
             if (skinnedRef && variantCfgRef)
               applyCustomPose(skinnedRef.skeleton, variantCfgRef, end.pose);
             currentPose = end.pose;
-            applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted);
+            applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs);
             applyFootPlants(trajectory.totalMs);
             resolve();
             return;

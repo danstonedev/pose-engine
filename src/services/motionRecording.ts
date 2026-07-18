@@ -46,10 +46,12 @@ import {
 import {
   applyVerticalCalibration,
   captureFloorReference,
+  deriveFootDrivenTravel,
   deriveVerticalCalibration,
   NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
   rotateRestReferenceByRoot,
+  type FootDrivenTravel,
   type VerticalCalibration,
 } from './rootMotion';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
@@ -378,6 +380,35 @@ export function sampleComposedMotion(
     }, vcalTargetM);
   }
 
+  // FOOT-DRIVEN FORWARD TRAVEL (root motion from foot placement). A PRE-PASS poses
+  // the in-place FK + floor-pin over the cycle and reads the feet, then derives a
+  // forward (+Z) offset that keeps the planted (lower) foot world-fixed — so the
+  // stance foot never slides and the swing foot rides the body forward, with the
+  // stride emerging from the authored ROM (no independent stride, no foot-lock IK).
+  let footDriven: FootDrivenTravel | null = null;
+  if (resolved.footDrivenTravel && built.roots.some((r) => r.stance === 'planted')) {
+    const rBone = boneByKey.get('R_Foot');
+    const lBone = boneByKey.get('L_Foot');
+    if (rBone && lBone) {
+      footDriven = deriveFootDrivenTravel((tMs) => {
+        const s = trajectory.sampleAt(tMs);
+        applyCustomPose(skinned.skeleton, variantCfg, s.pose);
+        _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+        root.quaternion.copy(rootRestQuat).multiply(_sq);
+        root.position.set(
+          rootRestPos.x + s.rootTranslate[0],
+          rootRestPos.y + s.rootTranslate[1],
+          rootRestPos.z + s.rootTranslate[2],
+        );
+        root.updateMatrixWorld(true);
+        if (s.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+        rBone.getWorldPosition(_sv);
+        lBone.getWorldPosition(_svB);
+        return { rz: _sv.z, ry: _sv.y, lz: _svB.z, ly: _svB.y };
+      }, totalMs);
+    }
+  }
+
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
     const sample = trajectory.sampleAt(tMs);
@@ -403,6 +434,12 @@ export function sampleComposedMotion(
         root.position.y = applyVerticalCalibration(root.position.y, vcal);
         root.updateMatrixWorld(true);
       }
+    }
+    // Foot-driven forward travel: advance the root (+Z) so the planted foot stays
+    // world-fixed. Horizontal only — independent of the vertical pin/calibration.
+    if (footDriven) {
+      root.position.z += footDriven.zAt(tMs);
+      root.updateMatrixWorld(true);
     }
 
     // CONTACT PLANTS: pin each declared foot back to its captured world target,

@@ -614,58 +614,43 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
 }
 
 /**
- * Build a FORWARD-TRAVELING gait from the authored walk cycle — the movement
- * that makes closed-chain foot contact visible. Where the `walk` template is an
- * in-place looping cycle (the loop can't accumulate root travel — it would
- * teleport at the seam), THIS is a one-shot walk that advances the body +Z over
- * one stride (two steps) with the SAME 8-phase kinematics, and declares
- * ALTERNATING stance-foot contacts so each foot stays world-planted while the
- * body passes over it (the leg extends behind), instead of moonwalking.
+ * Build a FORWARD-TRAVELING gait from the authored walk cycle — the same 8-phase
+ * kinematics as the in-place `walk`, but advancing across the floor with
+ * **ground-true feet via root motion FROM foot placement** (`footDrivenTravel`).
  *
- * Reuses the walk phases verbatim (ROM-validated, coordination-gated) and adds:
- *  • cumulative `travel` forward per keyframe (one stride over the cycle);
- *  • `contacts`: the RIGHT foot is stance for the first half (right initial-
- *    contact → terminal-stance), the LEFT foot for the second half.
- * Non-looping and `startFrom:'current'`, so repeating it walks further from
- * wherever the body already is.
+ * The earlier version authored an INDEPENDENT stride (a guessed 0.35 m/step) and
+ * IK-locked the feet to it. That is the classic "two sources of truth" bug: the FK
+ * sweeps the foot ~1 m while the root advanced only 0.35 m, so the planted foot was
+ * dragged and — worse — the foot-lock captured each foot at its window start, when
+ * the swing foot was still airborne (heel-strike hadn't happened), leaving it
+ * sliding ~7-18 cm vertically. Increasing the stride made it worse.
  *
- * SPEED (paced travel): `speed` couples stride and cadence the same way
- * {@link paceGait} does (each ∝ √speed) — a faster walk takes LONGER steps
- * (bigger leg swing AND more root travel) AND a quicker cadence (timeScale). The
- * stance-contact windows are authored in phase time, so they are scaled by
- * 1/cadence to stay aligned with the sped-up playback (playback time =
- * authored / timeScale). Default speed 1 = the comfortable cadence.
+ * Now there is ONE source of truth. The sampler/stage measure the FK foot sweep
+ * and advance the root to cancel the planted (lower) foot's backward motion, so the
+ * stance foot is world-fixed BY CONSTRUCTION (no capture timing, no IK) and the
+ * swing foot rides the body forward. The **stride emerges from the authored hip/
+ * knee ROM** — and from `paceGait` for a faster walk (bigger swing → longer stride
+ * AND quicker cadence). Vertical grounding stays with the floor-pin.
+ *
+ * Reuses the walk phases verbatim (ROM-validated, coordination-gated, incl. the
+ * elbow follow-through). Non-looping, `startFrom:'current'`, so repeating it walks
+ * further from wherever the body already is.
  */
-export function buildTravelWalk(opts: { stepLengthM?: number; speed?: number } = {}): ComposedMotion {
+export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
   const walk = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk');
   if (!walk) throw new Error('walk template missing');
   const speed = opts.speed;
-  const cadence = speed != null ? Math.sqrt(Math.min(1.5, Math.max(0.4, speed))) : 1; // = timeScale
-  // Leg swing + cadence via paceGait; root stride scales with the same factor so
-  // the foot placement matches the (longer) leg reach.
-  const base = speed != null && speed !== 1 ? paceGait(templateToComposedMotion(walk), speed) : templateToComposedMotion(walk);
-  const n = base.keyframes.length;
-  const strideM = (opts.stepLengthM ?? 0.35) * 2 * cadence; // longer stride at speed
-  // Phase-boundary times (authored ms) and the right→left stance handoff, scaled
-  // to PLAYBACK time (durations are divided by the cadence at playback).
-  let cursor = 0;
-  const boundaryMs = base.keyframes.map((kf) => (cursor += kf.durationMs));
-  const totalMs = cursor / cadence;
-  const halfMs = (boundaryMs[Math.floor(n / 2) - 1] ?? cursor / 2) / cadence;
-  const keyframes: SequenceKeyframe[] = base.keyframes.map((kf, i) => ({
-    ...kf,
-    travel: { direction: 'forward', meters: (strideM * (i + 1)) / n },
-  }));
+  const base =
+    speed != null && speed !== 1
+      ? paceGait(templateToComposedMotion(walk), speed)
+      : templateToComposedMotion(walk);
   return {
     name: 'walk-forward',
     startFrom: 'current',
     stance: 'planted',
     ...(base.modifiers ? { modifiers: base.modifiers } : {}),
-    keyframes,
-    contacts: [
-      { foot: 'R_Foot', fromMs: 0, toMs: halfMs }, // right stance (phases 1–4)
-      { foot: 'L_Foot', fromMs: halfMs, toMs: totalMs }, // left stance (phases 5–8)
-    ],
+    keyframes: base.keyframes,
+    footDrivenTravel: true,
   };
 }
 

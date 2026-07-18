@@ -288,6 +288,14 @@ export interface ComposedMotion {
    *  Childress]; `gaitBounce` sets this (glide ≈ 3, normal ≈ 5, bounce ≈ 8). Only
    *  applied when the motion has planted keyframes. Omit for no calibration. */
   verticalCalibrationCm?: number;
+  /** FOOT-DRIVEN forward travel: derive the root's forward (+Z) motion from the
+   *  gait FK so the PLANTED foot stays world-fixed (root motion from foot
+   *  placement), instead of authoring an independent stride + IK-locking the feet.
+   *  The stride emerges from the authored hip/knee ROM; the swing foot rides the
+   *  body forward; the stance foot never slides. Vertical grounding stays with the
+   *  floor-pin. For an in-place looping gait turned into a one-shot forward walk.
+   *  Omit for the in-place / authored-travel behaviour. */
+  footDrivenTravel?: boolean;
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
@@ -369,6 +377,9 @@ export interface ResolvedComposedMotion {
    *  stage/sampler measure the emergent grounded pelvis arc and scale it to this
    *  peak-to-peak target. Absent = no calibration. */
   verticalCalibrationCm?: number;
+  /** Foot-driven forward travel (pass-through) — the sampler/stage derive the
+   *  root's +Z motion from the FK so the planted foot stays world-fixed. */
+  footDrivenTravel?: boolean;
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -825,6 +836,7 @@ export function resolveComposedMotion(
     Number.isFinite(motion.verticalCalibrationCm)
       ? { verticalCalibrationCm: Math.max(1, Math.min(12, motion.verticalCalibrationCm)) }
       : {}),
+    ...(motion.footDrivenTravel ? { footDrivenTravel: true } : {}),
   };
 }
 
