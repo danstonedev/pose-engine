@@ -501,6 +501,9 @@
         deriveFootDrivenTravel,
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant } = await import('./services/footContact');
+      const { buildBalanceController, applyBalanceCorrection } = await import(
+        './services/centerOfMass'
+      );
       const { resolveMotionCommand } = await import('./services/motionCommand');
       const { normalizeRigBoneName } = await import('./services/movementClipSampling');
       const { createClinicalCameraControls } = await import('./services/clinicalCameraControls');
@@ -708,6 +711,7 @@
         composedSeq += 1;
         composedActive = false;
         composedPlants = []; // drop any foot-contact IK for the ended motion
+        composedBalance = null; // drop any balance controller
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
         composedFootDriven = null; // drop any foot-driven travel
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
@@ -1074,6 +1078,14 @@
       }
       let composedPlants: StageFootPlant[] = [];
 
+      /** BALANCE CONTROLLER for the ACTIVE composed motion — holds the whole-body
+       *  COM over the base each frame (plants the bearing feet + shifts the pelvis)
+       *  via the SAME shared helper the offline sampler uses, so live and recorded
+       *  balance cannot diverge. Null unless the motion set `balanceControl`. */
+      let composedBalance: ReturnType<typeof buildBalanceController> | null = null;
+      /** The balance-ability knob (0..1) for the active motion (0 = raw drift). */
+      let composedBalanceControl = 0;
+
       /** CALIBRATED GAIT VERTICAL for the ACTIVE composed motion — the
        *  mean-preserving reshape of the emergent grounded pelvis arc to a cm
        *  target (root-only; joints untouched), mirroring the offline sampler via
@@ -1178,6 +1190,21 @@
         if (solved) modelRoot.updateMatrixWorld(true);
       }
 
+      /** Apply the active balance correction (plant the bearing feet + shift the
+       *  pelvis so the COM stays over the base) — called AFTER applyFootPlants each
+       *  frame. No-op unless the motion set balanceControl (mirrors the sampler). */
+      function applyBalance(): void {
+        if (!composedBalance || !skinnedRef || !variantCfgRef || !modelRoot) return;
+        applyBalanceCorrection(
+          composedBalance,
+          modelRoot,
+          skinnedRef,
+          variantCfgRef,
+          restRef,
+          composedBalanceControl,
+        );
+      }
+
       /** Set the whole-body root from an absolute trajectory sample, then (planted)
        *  pin the lower foot to the floor. */
       function applyTrajectoryRoot(
@@ -1226,6 +1253,7 @@
             applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
           applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, at.settleAtMs[at.nextSettle]!);
           applyFootPlants(at.settleAtMs[at.nextSettle]!);
+          applyBalance();
           at.onSettle(at.nextSettle);
           at.nextSettle += 1;
         }
@@ -1237,6 +1265,8 @@
         applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed);
         // Closed-chain foot contact for this frame (pins declared stance feet).
         applyFootPlants(elapsed);
+        // Balance correction: hold the COM over the base (balance-ability lever).
+        applyBalance();
         requestRender();
         if (done && !at.finished) {
           at.finished = true;
@@ -1536,6 +1566,15 @@
         // FOOT-DRIVEN forward travel: derive the +Z curve that keeps the planted
         // foot world-fixed from the same one-shot trajectory the stage plays.
         setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted);
+        // BALANCE CONTROLLER: for a PLANTED, non-travelling motion that asked for
+        // it, hold the COM over the base each frame (the balance-ability lever).
+        // Same gate as the offline sampler so live playback and recordings match.
+        const composedBalCtrl = resolved.modifiers?.balanceControl;
+        composedBalance =
+          composedBalCtrl != null && !resolved.footDrivenTravel && composedHasPlanted && skinnedRef && variantCfgRef
+            ? buildBalanceController(skinnedRef, variantCfgRef)
+            : null;
+        composedBalanceControl = composedBalCtrl ?? 0;
 
         // Per-keyframe settle: MEASURE what the patient actually did (off the exact
         // settle pose the player applies for us, frame-timing-independent).
@@ -1566,6 +1605,7 @@
                 applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
               applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, settleAtMs[i]!);
               applyFootPlants(settleAtMs[i]!);
+              applyBalance();
               measureSettle(i);
             }
             const end = trajectory.sampleAt(trajectory.totalMs);
@@ -1574,6 +1614,7 @@
             currentPose = end.pose;
             applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs);
             applyFootPlants(trajectory.totalMs);
+            applyBalance();
             resolve();
             return;
           }

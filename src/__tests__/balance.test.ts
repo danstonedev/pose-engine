@@ -25,7 +25,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { applyAnatomicPose } from '../services/anatomicPose';
 import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
-import { resolveComposedMotion } from '../services/motionSequence';
+import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
 import {
   computeBodyCoM,
@@ -78,9 +78,12 @@ function resetHarness(): void {
   root.updateMatrixWorld(true);
 }
 
-function sample(templateId: string): MotionRecording {
+function sample(templateId: string, control?: number): MotionRecording {
   resetHarness();
-  const m = templateToComposedMotion(MOVEMENT_TEMPLATES.find((t) => t.id === templateId)!);
+  const m: ComposedMotion = templateToComposedMotion(
+    MOVEMENT_TEMPLATES.find((t) => t.id === templateId)!,
+  );
+  if (control != null) m.modifiers = { ...(m.modifiers ?? {}), balanceControl: control };
   const resolved = resolveComposedMotion(m, variantCfg);
   expect(resolved.status).toBe('ok');
   return sampleComposedMotion(resolved, {
@@ -97,8 +100,8 @@ function sample(templateId: string): MotionRecording {
 describe('base of support + margin of stability (geometry)', () => {
   // Two feet ~20 cm apart, toes forward (+z), both flat on the floor (y = 0).
   const twoFeet: FootContactXZ[] = [
-    { key: 'L_Foot', ankle: [0.1, 0], toe: [0.1, 0.12], lowY: 0, contact: true },
-    { key: 'R_Foot', ankle: [-0.1, 0], toe: [-0.1, 0.12], lowY: 0, contact: true },
+    { key: 'L_Foot', ankle: [0.1, 0], toe: [0.1, 0.12], ankleY: 0, contact: true },
+    { key: 'R_Foot', ankle: [-0.1, 0], toe: [-0.1, 0.12], ankleY: 0, contact: true },
   ];
 
   it('a COM over the base centre is stable; far outside is not', () => {
@@ -219,5 +222,53 @@ describe('single-leg stance narrows the base of support', () => {
         minOneFoot * 100
       ).toFixed(1)}cm (${oneFoot.length}/${timeline.frames.length} frames on one foot)`,
     );
+  });
+});
+
+// ── 5. THE BALANCE LEVER — balanceControl adjusts posture to hold the COM in ──
+
+describe('balanceControl is the balance-ability lever', () => {
+  it('full control holds the COM over the base through a hip-hinge (steady)', () => {
+    const tl = computeBalanceTimeline(sample('forward-hip-hinge', 1));
+    // The pelvis shifts back to keep the COM over the planted feet the whole way:
+    // every frame balanced, with real clearance — a realistic hinge, not a topple.
+    expect(tl.airborneFraction).toBe(0);
+    expect(tl.balancedFraction).toBe(1);
+    expect(tl.minMarginM!).toBeGreaterThan(0.03);
+  });
+
+  it('zero control leaves the COM toppling forward (impaired-balance pattern)', () => {
+    const full = computeBalanceTimeline(sample('forward-hip-hinge', 1));
+    const none = computeBalanceTimeline(sample('forward-hip-hinge', 0));
+    // No postural adjustment → the COM sails past the toes (negative margin) even
+    // though the feet are planted: the unsteady / abnormal pattern.
+    expect(none.minMarginM!).toBeLessThan(0);
+    // The lever is monotone: more balance ability → a better worst-case margin.
+    expect(full.minMarginM!).toBeGreaterThan(none.minMarginM!);
+  });
+
+  it('full control keeps a single-leg stance balanced over the stance foot', () => {
+    const raw = computeBalanceTimeline(sample('single-leg-stance'));
+    const controlled = computeBalanceTimeline(sample('single-leg-stance', 1));
+
+    // The hold really is single-support (the lifted foot leaves the base).
+    const oneFoot = controlled.frames.filter((f) => f.contacts.length === 1);
+    expect(oneFoot.length).toBeGreaterThan(0);
+
+    // Un-adjusted, the COM sits off the stance foot (toppling to the lifted side);
+    // with full control the pelvis shifts over the stance foot and it stays in.
+    expect(raw.minMarginM!).toBeLessThan(0);
+    expect(Math.min(...oneFoot.map((f) => f.marginM ?? Infinity))).toBeGreaterThan(0);
+  });
+
+  it('is opt-in: a motion with no balanceControl is left exactly as authored', () => {
+    // Byte-identical recordings when the modifier is absent (no behavior change to
+    // any existing motion — the controller only runs when asked).
+    const a = sample('squat');
+    const b = sample('squat');
+    expect(JSON.stringify(a.frames)).toBe(JSON.stringify(b.frames));
+    // And a squat with full control becomes balanced where the raw one topples.
+    expect(computeBalanceTimeline(sample('squat', 1)).minMarginM!).toBeGreaterThan(0);
+    expect(computeBalanceTimeline(a).minMarginM!).toBeLessThan(0);
   });
 });

@@ -233,8 +233,19 @@ export interface ComposedMotionModifiers {
   guarding?: number;
   /** Playback speed: 1 = normal, <1 slower, >1 faster (scales durations). */
   timeScale?: number;
-  /** 0..1 slow postural wobble over the planted feet. */
+  /** 0..1 slow postural wobble over the planted feet. COSMETIC (a sinusoidal
+   *  lean); superseded by {@link balanceControl} for physics-based balance. */
   balanceSway?: number;
+  /**
+   * BALANCE ABILITY, 0..1 — the physics-based postural adjustment that holds the
+   * whole-body centre of mass over the base of support through the movement.
+   * 1 = fully balanced (the pelvis shifts to keep the COM over the planted feet,
+   * a realistic steady movement); 0 = no correction (the COM drifts out past the
+   * feet — an unsteady / impaired-balance abnormality); between = partial
+   * counterbalance. Applied to PLANTED, non-travelling motions (hinge, squat,
+   * reach, single-leg, sit-to-stand), where "maintain balance" is the visible
+   * behaviour. Omit for no balance adjustment (the raw authored kinematics). */
+  balanceControl?: number;
 }
 
 /** A weight-bearing foot contact: pin `foot` to the ground while it bears

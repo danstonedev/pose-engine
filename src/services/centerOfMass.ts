@@ -21,7 +21,9 @@
  */
 import * as THREE from 'three';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
+import type { JointAngleRestReference } from './jointAngles';
 import { buildBoneByPoseKey } from './poseRig';
+import { buildFootPlant, solveFootPlant, type FootPlantSolver } from './footContact';
 
 /** One body segment: the two joints that bound it, its share of body mass, and
  *  where its COM sits along it (fraction of length from the PROXIMAL joint). */
@@ -138,9 +140,13 @@ export function computeBodyCoM(skeleton: THREE.Skeleton, variantCfg: BodyVariant
 const FOOT_HALF_WIDTH_M = 0.045; // ~9 cm sole width
 const HEEL_BEHIND_M = 0.06; // heel ~6 cm behind the ankle
 const TOE_AHEAD_M = 0.03; // toe tip ~3 cm ahead of the toe-base bone
-/** A foot whose lowest point sits within this band of the floor bears weight and
- *  contributes to the base; higher than this it is a swing/lifted foot. */
-const CONTACT_BAND_M = 0.04;
+/** A foot whose ANKLE sits within this band of the floor bears weight and
+ *  contributes to the base; a higher ankle is a swing/lifted foot. Keyed to the
+ *  ankle, not the lowest point: a lifted, knee-flexed leg leaves its toe dangling
+ *  near the floor, which the lowest point would misread as still bearing. 5 cm
+ *  clears the lifted foot of a single-leg stance (ankle rises ~8 cm) while
+ *  tolerating a moderate heel-raise (ankle up, forefoot still planted). */
+const CONTACT_BAND_M = 0.05;
 
 /** The foot bones that bound each foot's sole (ankle → forefoot). */
 const FEET: { key: string; foot: string; toe: string }[] = [
@@ -156,8 +162,10 @@ export interface FootContactXZ {
   ankle: [number, number];
   /** World [x, z] of the forefoot (Toes bone; falls back to the ankle). */
   toe: [number, number];
-  /** Lowest world-Y of the foot (min of ankle/toe) — floor-proximity test. */
-  lowY: number;
+  /** World-Y of the ANKLE — the floor reference AND weight-bearing test. Toes can
+   *  rotate below the floor in a deep pose and dangle near it on a lifted leg, so
+   *  the ankle (not the lowest point) is the reliable ground/contact signal. */
+  ankleY: number;
   contact: boolean;
 }
 
@@ -348,16 +356,15 @@ function readFeetFromBones(bones: Map<string, THREE.Bone>): FootContactXZ[] {
     if (tb) {
       tb.getWorldPosition(_d);
       toeXZ = [_d.x, _d.z];
-      toeY = _d.y;
     }
-    out.push({ key, ankle, toe: toeXZ, lowY: Math.min(_p.y, toeY), contact: false });
+    out.push({ key, ankle, toe: toeXZ, ankleY: _p.y, contact: false });
   }
   return out;
 }
 
-/** Flag which feet bear weight, given the floor level. */
+/** Flag which feet bear weight, given the floor level (ankle within the band). */
 function flagContacts(feet: FootContactXZ[], floorY: number): void {
-  for (const f of feet) f.contact = f.lowY <= floorY + CONTACT_BAND_M;
+  for (const f of feet) f.contact = f.ankleY <= floorY + CONTACT_BAND_M;
 }
 
 /**
@@ -379,7 +386,7 @@ export function computeBalanceState(
   const bones = buildBoneByPoseKey(skeleton, variantCfg);
   const com = computeBodyCoMFromBones(bones).world;
   const feet = readFeetFromBones(bones);
-  const floorY = opts.floorY ?? feet.reduce((m, f) => Math.min(m, f.lowY), Infinity);
+  const floorY = opts.floorY ?? feet.reduce((m, f) => Math.min(m, f.ankleY), Infinity);
   flagContacts(feet, Number.isFinite(floorY) ? floorY : 0);
   const base = baseOfSupport(feet, Number.isFinite(floorY) ? floorY : 0);
   const comGround: [number, number] = [com[0], com[2]];
@@ -418,7 +425,8 @@ export interface BalanceTimeline {
   airborneFraction: number;
 }
 
-const BALANCE_FEET_KEYS = ['L_Foot', 'R_Foot', 'L_Toes', 'R_Toes'] as const;
+/** Ankle tracks — the stable floor reference (see the floor note below). */
+const BALANCE_ANKLE_KEYS = ['L_Foot', 'R_Foot'] as const;
 
 /** Read both feet from a frame's world tracks (same shape as {@link readFeetFromBones}). */
 function readFeetFromTracks(tracks: Record<string, [number, number, number]>): FootContactXZ[] {
@@ -428,13 +436,9 @@ function readFeetFromTracks(tracks: Record<string, [number, number, number]>): F
     if (!fp) continue;
     const ankle: [number, number] = [fp[0], fp[2]];
     let toeXZ: [number, number] = ankle;
-    let toeY = fp[1];
     const tp = tracks[toe];
-    if (tp) {
-      toeXZ = [tp[0], tp[2]];
-      toeY = tp[1];
-    }
-    out.push({ key, ankle, toe: toeXZ, lowY: Math.min(fp[1], toeY), contact: false });
+    if (tp) toeXZ = [tp[0], tp[2]];
+    out.push({ key, ankle, toe: toeXZ, ankleY: fp[1], contact: false });
   }
   return out;
 }
@@ -455,11 +459,14 @@ export function computeBalanceTimeline(
 ): BalanceTimeline {
   let floorY = opts.floorY;
   if (floorY == null) {
+    // Floor = lowest ANKLE over the clip. Ankles are the stable ground reference;
+    // toes can rotate below the floor in a deep hinge/squat, which would drag a
+    // whole-clip minimum below the true floor and read planted feet as "lifted".
     let m = Infinity;
     for (const f of src.frames) {
       const t = f.worldTracks;
       if (!t) continue;
-      for (const k of BALANCE_FEET_KEYS) {
+      for (const k of BALANCE_ANKLE_KEYS) {
         const p = t[k];
         if (p) m = Math.min(m, p[1]);
       }
@@ -508,4 +515,133 @@ export function computeBalanceTimeline(
     balancedFraction: balancedCount / n,
     airborneFraction: airborneCount / n,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BALANCE CONTROLLER (the adjustment lever) — posture that holds the COM over the
+// base through a movement, and a knob that degrades it into unsteady patterns.
+//
+// A raw joint-pose movement is blind to gravity: a forward hinge folds the trunk
+// forward and the COM sails out past the toes; a leg lift leaves the COM between
+// where both feet were, off the single stance foot. A real body ADJUSTS — it
+// plants the stance feet and shifts the pelvis so the COM stays over the base
+// (the ankle/hip postural strategy). This controller injects that adjustment:
+//
+//   1. Plant the bearing feet at the world positions they hold (a FIXED base —
+//      also removes the horizontal foot-slide a floor-pin alone leaves behind).
+//   2. Shift the model root horizontally so the COM projection moves `control` of
+//      the way from where the raw pose left it to the base centre, re-solving the
+//      planted legs so the feet stay put while the pelvis carries the mass back.
+//
+// `control` ∈ [0,1] is the "ability to balance": 1 = fully holds the COM over the
+// base (steady, realistic); 0 = no correction (the raw drift — the COM topples
+// out, the abnormal / impaired-balance pattern); between = partial counterbalance.
+// The SAME helper runs in the offline sampler and the live stage, so recorded and
+// on-screen balance cannot diverge. Applied per frame AFTER the FK pose + root
+// transform + floor pin, in the quasi-static (planted, non-travelling) regime
+// where "maintain balance" is the visible, clinically-relevant behaviour.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Prepared leg IK plants (one per foot) + the world targets they currently
+ *  hold. Build once per motion; the per-frame corrector updates the targets. */
+export interface BalanceController {
+  solvers: Map<string, FootPlantSolver>;
+  /** World target each bearing foot is pinned to (captured when it starts
+   *  bearing, released when it lifts). */
+  targets: Map<string, THREE.Vector3>;
+}
+
+/** Build a balance controller: a leg IK plant for each foot present in the rig. */
+export function buildBalanceController(
+  skinned: THREE.SkinnedMesh,
+  variantCfg: BodyVariantConfig,
+): BalanceController {
+  const solvers = new Map<string, FootPlantSolver>();
+  for (const { key } of FEET) {
+    const solver = buildFootPlant(skinned, key, variantCfg);
+    if (solver) solvers.set(key, solver);
+  }
+  return { solvers, targets: new Map() };
+}
+
+const _bc = new THREE.Vector3();
+
+/**
+ * Apply one frame of postural balance correction. Plants the bearing feet at the
+ * positions they hold, then shifts the model root horizontally so the COM
+ * projection moves `control` of the way to the base centre, re-solving the
+ * planted legs each step so the feet stay world-fixed. Mutates `root.position`
+ * and the leg joint quaternions; call AFTER the frame's FK pose + root transform
+ * + floor pin.
+ *
+ * Returns the resulting {@link BalanceState} (or null when airborne — nothing to
+ * balance on). `control` is clamped to [0,1]; 0 still plants the feet (a fixed
+ * base) but makes no pelvis correction, so the raw COM drift is preserved and
+ * measurable — the impaired-balance pattern.
+ */
+export function applyBalanceCorrection(
+  ctrl: BalanceController,
+  root: THREE.Object3D,
+  skinned: THREE.SkinnedMesh,
+  variantCfg: BodyVariantConfig,
+  rest: JointAngleRestReference | null | undefined,
+  control: number,
+  opts: { floorY?: number; iterations?: number } = {},
+): BalanceState | null {
+  const c = Math.max(0, Math.min(1, control));
+  const bones = buildBoneByPoseKey(skinned.skeleton, variantCfg);
+  const feet = readFeetFromBones(bones);
+  const floorY = opts.floorY ?? feet.reduce((m, f) => Math.min(m, f.ankleY), Infinity);
+  const fY = Number.isFinite(floorY) ? floorY : 0;
+  flagContacts(feet, fY);
+  const bearing = feet.filter((f) => f.contact).map((f) => f.key);
+
+  // Release plants for feet that lifted; a released foot re-captures its target
+  // when it next bears weight (so a lowered leg re-plants at its new contact).
+  for (const key of [...ctrl.targets.keys()]) {
+    if (!bearing.includes(key)) ctrl.targets.delete(key);
+  }
+  if (bearing.length === 0) return null; // airborne — no base to balance on
+
+  // Capture a world target for each newly-bearing foot (where it is right now).
+  for (const key of bearing) {
+    if (ctrl.targets.has(key)) continue;
+    const solver = ctrl.solvers.get(key);
+    if (solver) ctrl.targets.set(key, solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3()));
+  }
+
+  const plantFeet = (): void => {
+    for (const [key, target] of ctrl.targets) {
+      const solver = ctrl.solvers.get(key);
+      if (solver) solveFootPlant(solver, target, rest);
+    }
+    root.updateMatrixWorld(true);
+  };
+
+  // Plant the feet at their held targets first — this alone fixes the horizontal
+  // foot-slide a floor-pin leaves, giving a stable base to balance over.
+  plantFeet();
+
+  // Iterate the pelvis shift that carries the COM toward the base centre. The
+  // base is re-read from the (pinned) feet each pass, so it stays fixed while the
+  // root moves — which is what makes the shift actually change the margin (a rigid
+  // whole-body translation would move COM and base together and change nothing).
+  const iters = Math.max(0, opts.iterations ?? 2);
+  for (let i = 0; i < iters && c > 0; i += 1) {
+    const com = computeBodyCoMFromBones(bones).world;
+    const f2 = readFeetFromBones(bones);
+    flagContacts(f2, fY);
+    const base = baseOfSupport(f2, fY);
+    if (base.airborne) break;
+    const dx = c * (base.center[0] - com[0]);
+    const dz = c * (base.center[1] - com[2]);
+    if (Math.hypot(dx, dz) < 5e-4) break;
+    root.position.x += dx;
+    root.position.z += dz;
+    root.updateMatrixWorld(true);
+    plantFeet();
+  }
+  void _bc;
+
+  return computeBalanceState(skinned.skeleton, variantCfg, { floorY: fY });
 }

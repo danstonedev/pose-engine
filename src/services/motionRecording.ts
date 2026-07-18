@@ -39,7 +39,12 @@ import {
   serializeCustomPose,
 } from './poseRig';
 import { buildFootPlant, solveFootPlant, type FootPlantSolver } from './footContact';
-import { computeBodyCoMFromBones } from './centerOfMass';
+import {
+  applyBalanceCorrection,
+  buildBalanceController,
+  computeBodyCoMFromBones,
+  type BalanceController,
+} from './centerOfMass';
 import {
   buildSequencePoses,
   type ResolvedComposedMotion,
@@ -415,6 +420,17 @@ export function sampleComposedMotion(
     }
   }
 
+  // BALANCE CONTROLLER (the balance-ability lever). When a PLANTED, non-travelling
+  // motion asks for it, hold the whole-body COM over the base each frame by
+  // planting the bearing feet and shifting the pelvis — `balanceControl` 1 = fully
+  // steady, 0 = raw drift (impaired-balance abnormality). Skipped for travelling
+  // gait (its balance is the stepping strategy, owned by footDrivenTravel).
+  const balanceControl = resolved.modifiers?.balanceControl;
+  const balanceController: BalanceController | null =
+    balanceControl != null && !resolved.footDrivenTravel && built.roots.some((r) => r.stance === 'planted')
+      ? buildBalanceController(skinned, variantCfg)
+      : null;
+
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
     const sample = trajectory.sampleAt(tMs);
@@ -469,6 +485,16 @@ export function sampleComposedMotion(
       anyPlant = true;
     }
     if (anyPlant) {
+      root.updateMatrixWorld(true);
+      effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
+    }
+
+    // BALANCE CORRECTION: plant the bearing feet and shift the pelvis so the COM
+    // stays over the base (`balanceControl` fraction). Runs after the floor-pin +
+    // any declared plants; re-serializes the pose so the measured angles/tracks
+    // reflect the balanced posture.
+    if (balanceController) {
+      applyBalanceCorrection(balanceController, root, skinned, variantCfg, rest, balanceControl!);
       root.updateMatrixWorld(true);
       effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
     }
