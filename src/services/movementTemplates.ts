@@ -1077,6 +1077,55 @@ export function applyAsymmetry(motion: ComposedMotion, asym: MovementAsymmetry |
   return { ...motion, keyframes };
 }
 
+/** Add a CONSTANT angle to a joint.motion across every keyframe (a sustained
+ *  offset held through the whole movement) — additive on an existing target,
+ *  else appended. The engine ROM-clamps + measures it on resolve, so the offset
+ *  reads back on the goniometry chart. Shared by the gait-deviation transforms. */
+function addSustainedTargets(
+  motion: ComposedMotion,
+  additions: { joint: string; motion: string; deg: number }[],
+): ComposedMotion {
+  const keyframes = motion.keyframes.map((kf) => {
+    const targets = [...(kf.targets ?? [])];
+    for (const a of additions) {
+      if (a.deg === 0) continue;
+      const i = targets.findIndex((t) => t.joint === a.joint && t.motion === a.motion);
+      if (i >= 0) targets[i] = { ...targets[i]!, targetDegrees: targets[i]!.targetDegrees + a.deg };
+      else targets.push({ joint: a.joint, motion: a.motion, targetDegrees: a.deg });
+    }
+    return { ...kf, targets };
+  });
+  return { ...motion, keyframes };
+}
+
+/**
+ * WIDER-BASED gait — hold both hips in `deg` of abduction throughout, so the feet
+ * plant wider apart (an ataxic / unsteady wide base, or a compensation for poor
+ * balance). Pure; ROM-clamped on resolve. Identity at 0.
+ */
+export function widenStep(motion: ComposedMotion, deg = 12): ComposedMotion {
+  const d = Math.max(0, Math.min(30, Number.isFinite(deg) ? deg : 0));
+  return addSustainedTargets(motion, [
+    { joint: 'L_UpLeg', motion: 'hipAbduction', deg: d },
+    { joint: 'R_UpLeg', motion: 'hipAbduction', deg: d },
+  ]);
+}
+
+/**
+ * ANTALGIC / compensated-Trendelenburg trunk lean — hold a sustained lateral trunk
+ * lean TOWARD `side` (over the involved/painful stance limb, shifting the COM to
+ * unload it) through the whole movement. Lumbar leads, thoracic follows at half.
+ * `lateralTilt` + = left, so a left lean is positive. Pure; ROM-clamped on resolve.
+ */
+export function antalgicLean(motion: ComposedMotion, side: 'left' | 'right', deg = 12): ComposedMotion {
+  const d = Math.max(0, Math.min(25, Number.isFinite(deg) ? deg : 0));
+  const sign = side === 'left' ? 1 : -1;
+  return addSustainedTargets(motion, [
+    { joint: 'Spine_Lower', motion: 'lateralTilt', deg: sign * d },
+    { joint: 'Spine_Upper', motion: 'lateralTilt', deg: sign * Math.round(d * 0.5) },
+  ]);
+}
+
 /** Select the template whose aliases best match a free-text instruction, or null. */
 export function findMovementTemplate(instruction: string): MovementTemplate | null {
   const text = instruction.toLowerCase();
