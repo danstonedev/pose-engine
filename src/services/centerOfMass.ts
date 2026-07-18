@@ -5,9 +5,9 @@
  * the body's mass: whether a movement keeps the centre of mass (COM) balanced over
  * the feet, or is about to topple. This is the measurable foundation for that — the
  * whole-body COM, the base of support (BoS) under the feet, and the margin of
- * stability (how far the COM's ground projection sits inside the BoS). A balance
- * CONTROLLER (posture adjustments that hold the COM over the base, and a knob to
- * degrade it into unsteady / abnormal patterns) builds on these.
+ * stability (how far the COM's ground projection sits inside the BoS). The
+ * closed-chain foot-rooted planting (services/rootMotion) that keeps quasi-static
+ * movements balanced is graded against these measurements.
  *
  * The COM is the mass-weighted sum of each body segment's COM, using standard
  * anthropometric segment parameters [Winter, *Biomechanics and Motor Control of
@@ -21,9 +21,7 @@
  */
 import * as THREE from 'three';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
-import type { JointAngleRestReference } from './jointAngles';
 import { buildBoneByPoseKey } from './poseRig';
-import { buildFootPlant, solveFootPlant, type FootPlantSolver } from './footContact';
 
 /** One body segment: the two joints that bound it, its share of body mass, and
  *  where its COM sits along it (fraction of length from the PROXIMAL joint). */
@@ -126,8 +124,8 @@ export function computeBodyCoM(skeleton: THREE.Skeleton, variantCfg: BodyVariant
 // to the base boundary is the MARGIN OF STABILITY (+ inside / stable, − outside /
 // toppling). This is the physics the movement system was blind to: a deep
 // forward hinge drives the COM out over the toes (margin → 0 and past), and a
-// real body must shift the hips back to keep it in — the adjustment the balance
-// controller will make.
+// real body must keep the pelvis over planted feet to hold it in — exactly what
+// closed-chain foot-rooted planting (services/rootMotion) produces.
 //
 // The rig carries an ankle (Foot) and a toe-base (Toes) bone per foot but no
 // heel/sole edges, so each foot's sole is reconstructed as a rectangle around
@@ -515,133 +513,4 @@ export function computeBalanceTimeline(
     balancedFraction: balancedCount / n,
     airborneFraction: airborneCount / n,
   };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BALANCE CONTROLLER (the adjustment lever) — posture that holds the COM over the
-// base through a movement, and a knob that degrades it into unsteady patterns.
-//
-// A raw joint-pose movement is blind to gravity: a forward hinge folds the trunk
-// forward and the COM sails out past the toes; a leg lift leaves the COM between
-// where both feet were, off the single stance foot. A real body ADJUSTS — it
-// plants the stance feet and shifts the pelvis so the COM stays over the base
-// (the ankle/hip postural strategy). This controller injects that adjustment:
-//
-//   1. Plant the bearing feet at the world positions they hold (a FIXED base —
-//      also removes the horizontal foot-slide a floor-pin alone leaves behind).
-//   2. Shift the model root horizontally so the COM projection moves `control` of
-//      the way from where the raw pose left it to the base centre, re-solving the
-//      planted legs so the feet stay put while the pelvis carries the mass back.
-//
-// `control` ∈ [0,1] is the "ability to balance": 1 = fully holds the COM over the
-// base (steady, realistic); 0 = no correction (the raw drift — the COM topples
-// out, the abnormal / impaired-balance pattern); between = partial counterbalance.
-// The SAME helper runs in the offline sampler and the live stage, so recorded and
-// on-screen balance cannot diverge. Applied per frame AFTER the FK pose + root
-// transform + floor pin, in the quasi-static (planted, non-travelling) regime
-// where "maintain balance" is the visible, clinically-relevant behaviour.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Prepared leg IK plants (one per foot) + the world targets they currently
- *  hold. Build once per motion; the per-frame corrector updates the targets. */
-export interface BalanceController {
-  solvers: Map<string, FootPlantSolver>;
-  /** World target each bearing foot is pinned to (captured when it starts
-   *  bearing, released when it lifts). */
-  targets: Map<string, THREE.Vector3>;
-}
-
-/** Build a balance controller: a leg IK plant for each foot present in the rig. */
-export function buildBalanceController(
-  skinned: THREE.SkinnedMesh,
-  variantCfg: BodyVariantConfig,
-): BalanceController {
-  const solvers = new Map<string, FootPlantSolver>();
-  for (const { key } of FEET) {
-    const solver = buildFootPlant(skinned, key, variantCfg);
-    if (solver) solvers.set(key, solver);
-  }
-  return { solvers, targets: new Map() };
-}
-
-const _bc = new THREE.Vector3();
-
-/**
- * Apply one frame of postural balance correction. Plants the bearing feet at the
- * positions they hold, then shifts the model root horizontally so the COM
- * projection moves `control` of the way to the base centre, re-solving the
- * planted legs each step so the feet stay world-fixed. Mutates `root.position`
- * and the leg joint quaternions; call AFTER the frame's FK pose + root transform
- * + floor pin.
- *
- * Returns the resulting {@link BalanceState} (or null when airborne — nothing to
- * balance on). `control` is clamped to [0,1]; 0 still plants the feet (a fixed
- * base) but makes no pelvis correction, so the raw COM drift is preserved and
- * measurable — the impaired-balance pattern.
- */
-export function applyBalanceCorrection(
-  ctrl: BalanceController,
-  root: THREE.Object3D,
-  skinned: THREE.SkinnedMesh,
-  variantCfg: BodyVariantConfig,
-  rest: JointAngleRestReference | null | undefined,
-  control: number,
-  opts: { floorY?: number; iterations?: number } = {},
-): BalanceState | null {
-  const c = Math.max(0, Math.min(1, control));
-  const bones = buildBoneByPoseKey(skinned.skeleton, variantCfg);
-  const feet = readFeetFromBones(bones);
-  const floorY = opts.floorY ?? feet.reduce((m, f) => Math.min(m, f.ankleY), Infinity);
-  const fY = Number.isFinite(floorY) ? floorY : 0;
-  flagContacts(feet, fY);
-  const bearing = feet.filter((f) => f.contact).map((f) => f.key);
-
-  // Release plants for feet that lifted; a released foot re-captures its target
-  // when it next bears weight (so a lowered leg re-plants at its new contact).
-  for (const key of [...ctrl.targets.keys()]) {
-    if (!bearing.includes(key)) ctrl.targets.delete(key);
-  }
-  if (bearing.length === 0) return null; // airborne — no base to balance on
-
-  // Capture a world target for each newly-bearing foot (where it is right now).
-  for (const key of bearing) {
-    if (ctrl.targets.has(key)) continue;
-    const solver = ctrl.solvers.get(key);
-    if (solver) ctrl.targets.set(key, solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3()));
-  }
-
-  const plantFeet = (): void => {
-    for (const [key, target] of ctrl.targets) {
-      const solver = ctrl.solvers.get(key);
-      if (solver) solveFootPlant(solver, target, rest);
-    }
-    root.updateMatrixWorld(true);
-  };
-
-  // Plant the feet at their held targets first — this alone fixes the horizontal
-  // foot-slide a floor-pin leaves, giving a stable base to balance over.
-  plantFeet();
-
-  // Iterate the pelvis shift that carries the COM toward the base centre. The
-  // base is re-read from the (pinned) feet each pass, so it stays fixed while the
-  // root moves — which is what makes the shift actually change the margin (a rigid
-  // whole-body translation would move COM and base together and change nothing).
-  const iters = Math.max(0, opts.iterations ?? 2);
-  for (let i = 0; i < iters && c > 0; i += 1) {
-    const com = computeBodyCoMFromBones(bones).world;
-    const f2 = readFeetFromBones(bones);
-    flagContacts(f2, fY);
-    const base = baseOfSupport(f2, fY);
-    if (base.airborne) break;
-    const dx = c * (base.center[0] - com[0]);
-    const dz = c * (base.center[1] - com[2]);
-    if (Math.hypot(dx, dz) < 5e-4) break;
-    root.position.x += dx;
-    root.position.z += dz;
-    root.updateMatrixWorld(true);
-    plantFeet();
-  }
-  void _bc;
-
-  return computeBalanceState(skinned.skeleton, variantCfg, { floorY: fY });
 }

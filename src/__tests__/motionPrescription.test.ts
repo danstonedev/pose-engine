@@ -3,6 +3,7 @@ import {
   buildPrescribeMotionTool,
   toolArgsToPrescription,
   mergeAuthoredPrescription,
+  resolveMotionPrescription,
   type MotionCapJoint,
   type MotionPrescription,
 } from '../services/motionPrescription';
@@ -130,5 +131,67 @@ describe('mergeAuthoredPrescription (the exam merge)', () => {
     };
     const merged = mergeAuthoredPrescription(base, { guarding: 0.7 });
     expect(merged.modifiers).toEqual({ guarding: 0.7, balanceSway: 0.3, timeScale: 0.8 });
+  });
+});
+
+describe('resolveMotionPrescription (residual overlays)', () => {
+  it('folds timeScale into command.speed and carries guarding/balanceSway as overlays', () => {
+    const resolved = resolveMotionPrescription({
+      motion: 'walk',
+      mode: 'modify',
+      modifiers: { timeScale: 0.7, guarding: 0.5, balanceSway: 0.3 },
+    });
+    expect(resolved.command).toEqual({ action: 'play-motion', motion: 'walk', speed: 0.7 });
+    expect(resolved.overlays).toEqual({ guarding: 0.5, balanceSway: 0.3 });
+  });
+
+  it('resolves pelvisShiftCm into overlays (the live lateral root offset)', () => {
+    const resolved = resolveMotionPrescription({
+      motion: 'walk',
+      mode: 'modify',
+      modifiers: { pelvisShiftCm: 8 },
+    });
+    expect(resolved.overlays).toEqual({ pelvisShiftCm: 8 });
+  });
+
+  it('clamps pelvisShiftCm to ±15 cm on BOTH sides (+ = the patient\'s left)', () => {
+    const left = resolveMotionPrescription({
+      motion: 'walk',
+      mode: 'modify',
+      modifiers: { pelvisShiftCm: 40 },
+    });
+    expect(left.overlays.pelvisShiftCm).toBe(15);
+    const right = resolveMotionPrescription({
+      motion: 'walk',
+      mode: 'modify',
+      modifiers: { pelvisShiftCm: -40 },
+    });
+    expect(right.overlays.pelvisShiftCm).toBe(-15);
+  });
+
+  it('play mode drops modifiers entirely — empty overlays', () => {
+    const resolved = resolveMotionPrescription({
+      motion: 'idle',
+      mode: 'play',
+      modifiers: { guarding: 0.9, pelvisShiftCm: 10 },
+    });
+    expect(resolved.overlays).toEqual({});
+    expect(resolved.command).toEqual({ action: 'play-motion', motion: 'idle' });
+  });
+
+  it('parked fields (weightBearing / assistiveSupport) are NOT carried into overlays', () => {
+    // Overlays are the runtime surface — only fields the stage actually consumes
+    // may ride it; parked contract fields stay on ClinicalModifiers alone.
+    const resolved = resolveMotionPrescription({
+      motion: 'walk',
+      mode: 'modify',
+      modifiers: {
+        guarding: 0.4,
+        weightBearing: { left: 'reduced' },
+        assistiveSupport: ['cane'],
+      },
+    });
+    expect(resolved.overlays).toEqual({ guarding: 0.4 });
+    expect(resolved.romCaps).toEqual([]);
   });
 });

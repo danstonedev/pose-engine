@@ -39,12 +39,7 @@ import {
   serializeCustomPose,
 } from './poseRig';
 import { buildFootPlant, solveFootPlant, type FootPlantSolver } from './footContact';
-import {
-  applyBalanceCorrection,
-  buildBalanceController,
-  computeBodyCoMFromBones,
-  type BalanceController,
-} from './centerOfMass';
+import { computeBodyCoMFromBones } from './centerOfMass';
 import {
   buildSequencePoses,
   type ResolvedComposedMotion,
@@ -449,8 +444,7 @@ export function sampleComposedMotion(
   // over the base — balance for free), every joint angle untouched. Used INSTEAD
   // of the vertical-only floor pin for a planted, non-travelling, non-looping
   // motion that declares no explicit foot contacts (a travel gait owns its foot
-  // placement via footDrivenTravel/contacts; a loop is cyclic). Supersedes the
-  // pelvis-shifting balance controller for this set, so that is gated off below.
+  // placement via footDrivenTravel/contacts; a loop is cyclic).
   //
   // In-place ONLY: a motion that travels (authored root translate) places its
   // feet at NEW ground positions, so restoring the stance foot to its ORIGINAL
@@ -466,21 +460,6 @@ export function sampleComposedMotion(
     !travels &&
     activeContacts.length === 0 &&
     built.roots.some((r) => r.stance === 'planted');
-
-  // BALANCE CONTROLLER (the legacy balance-ability lever) — superseded by
-  // foot-rooting for the planted set above, so it is gated off whenever that runs.
-  // It survives only for a PLANTED, non-travelling motion that opts in via the
-  // (now parked) `balanceControl` modifier and is NOT foot-rooted: it holds the
-  // COM over the base by planting the bearing feet and shifting the pelvis.
-  const balanceControl = resolved.modifiers?.balanceControl;
-  const balanceController: BalanceController | null =
-    balanceControl != null &&
-    !useFootRoot &&
-    !resolved.footDrivenTravel &&
-    !resolved.loop &&
-    built.roots.some((r) => r.stance === 'planted')
-      ? buildBalanceController(skinned, variantCfg)
-      : null;
 
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
@@ -549,16 +528,6 @@ export function sampleComposedMotion(
       anyPlant = true;
     }
     if (anyPlant) {
-      root.updateMatrixWorld(true);
-      effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
-    }
-
-    // BALANCE CORRECTION: plant the bearing feet and shift the pelvis so the COM
-    // stays over the base (`balanceControl` fraction). Runs after the floor-pin +
-    // any declared plants; re-serializes the pose so the measured angles/tracks
-    // reflect the balanced posture.
-    if (balanceController) {
-      applyBalanceCorrection(balanceController, root, skinned, variantCfg, rest, balanceControl!);
       root.updateMatrixWorld(true);
       effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
     }
