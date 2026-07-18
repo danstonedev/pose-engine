@@ -261,7 +261,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Walk (gait cycle, in place)',
     aliases: ['walk', 'walking', 'gait', 'ambulate', 'stroll'],
     coordination:
-      'One full gait cycle authored as 8 phases (both steps), looping. Sagittal peaks per normal free gait [Perry & Burnfield; Neumann]: hip 30° flexion at initial contact → −10° extension at terminal stance; knee ~5° at contact, ~18° loading-response shock absorption, ~40° at pre-swing, ~60° peak in initial swing; ankle rockers — plantarflexion to foot-flat after contact (−8°), dorsiflexion to 10° as the tibia advances over the stance foot, push-off plantarflexion −15° at pre-swing. Reciprocal arm swing ~±20° shoulder flexion, each arm peaking WITH the contralateral leg. Presented IN PLACE (treadmill convention — no root travel) so the looping cycle stays on stage; the pre-swing knee flexion + push-off happens across the loop seam (last phase flows back into the first). Planted.',
+      'One full gait cycle authored as 8 phases (both steps), looping. Sagittal peaks per normal free gait [Perry & Burnfield; Neumann]: hip 30° flexion at initial contact → −10° extension at terminal stance; knee ~5° at contact, ~18° loading-response shock absorption, ~40° at pre-swing, ~60° peak in initial swing; ankle rockers — plantarflexion to foot-flat after contact (−8°), dorsiflexion to 10° as the tibia advances over the stance foot, push-off plantarflexion −15° at pre-swing. Reciprocal arm swing ~±20° shoulder flexion, each arm peaking WITH the contralateral leg. The elbows are NOT rigid: they carry ~20° flexion and pump through the swing (overlapping action — more flexion on the backswing, unwinding as the arm comes forward, ~11-30°), so the forearms swing dynamically instead of marching stiff-armed [Elftman 1939; normal arm-swing elbow excursion ~10-20°]. Presented IN PLACE (treadmill convention — no root travel) so the looping cycle stays on stage; the pre-swing knee flexion + push-off happens across the loop seam (last phase flows back into the first). Planted.',
     stance: 'planted',
     loop: true,
     phases: [
@@ -277,6 +277,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -15 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 11 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 29 },
         ],
       },
       {
@@ -291,6 +293,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -5 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 12 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -12 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 15 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 25 },
         ],
       },
       {
@@ -305,6 +309,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 20 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 20 },
         ],
       },
       {
@@ -319,6 +325,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 29 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 11 },
         ],
       },
       {
@@ -333,6 +341,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -15 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 11 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 29 },
         ],
       },
       {
@@ -347,6 +357,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -5 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 12 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -12 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 15 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 25 },
         ],
       },
       {
@@ -361,6 +373,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 20 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 20 },
         ],
       },
       {
@@ -375,6 +389,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 29 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 11 },
         ],
       },
     ],
@@ -694,8 +710,18 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
     durationMs: 380, holdMs: 90, stance: 'planted',
     targets: [...legs(40, 60, 15), ...arms(-25), ...trunk(15)],
   });
+  // TAKEOFF CONTINUITY: propulsion is planted (the feet drive the ground), so
+  // its rendered pelvis is floor-pinned — and the toe push-off (ankle −25°) heel-
+  // raises the body ~6 cm above standing. The apex that follows is FLOATING, so
+  // without this its authored `travel.up` lerp would start from 0 and the pelvis
+  // would DROP ~6 cm at the planted→floating pin toggle (a visible takeoff hitch).
+  // Seeding the propulsion knot with that ~6 cm up makes the floating rise start
+  // where the pin left the body — a continuous launch. (Planted rendering is
+  // unaffected: the pin cancels this on the propulsion frames themselves; it only
+  // seeds the interpolation INTO the floating apex.)
   const propulsion = (): SequenceKeyframe => ({
     durationMs: 160, velocityClass: 'ballistic', stance: 'planted',
+    travel: { direction: 'up', meters: 0.06 },
     targets: [...legs(0, 0, -25), ...arms(150), ...trunk(0)],
   });
   const apex = (): SequenceKeyframe => ({

@@ -103,6 +103,27 @@ describe('buildJump — real vertical jump physics', () => {
     expect(Math.max(...yOf(rec, 'R_Foot')) - standingFootY).toBeGreaterThan(0.3);
   });
 
+  it('launches cleanly — the COM rises monotonically from load-bottom to apex (no takeoff hitch)', () => {
+    // Regression: the planted propulsion heel-raises the pinned pelvis, then the
+    // floating apex used to start its travel-up lerp from 0 → a ~2 cm COM DROP at
+    // the planted→floating pin toggle (a visible takeoff hitch). The propulsion
+    // travel-up seed removes it: the launch is one smooth rise.
+    const rec = sampleJump();
+    const hips = yOf(rec, 'Hips');
+    const t = rec.frames.map((f) => f.tMs);
+    let bot = 0;
+    for (let i = 0; i < hips.length && t[i]! < 600; i += 1) if (hips[i]! < hips[bot]!) bot = i;
+    let apex = bot;
+    for (let i = bot; i < hips.length && t[i]! < 1050; i += 1) if (hips[i]! > hips[apex]!) apex = i;
+    let peak = -Infinity;
+    let worstDrop = 0;
+    for (let i = bot; i <= apex; i += 1) {
+      if (hips[i]! > peak) peak = hips[i]!;
+      else worstDrop = Math.max(worstDrop, peak - hips[i]!);
+    }
+    expect(worstDrop, 'no COM dip during the launch rise').toBeLessThan(0.01);
+  });
+
   it('loads BEFORE the peak and ABSORBS after it (distinct landing flexion)', () => {
     const rec = sampleJump();
     const hips = yOf(rec, 'Hips');
