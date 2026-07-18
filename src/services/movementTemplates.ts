@@ -29,7 +29,6 @@
  * reviewed reference, not mocap.
  */
 
-import { MAX_KEYFRAMES } from './motionSequence';
 import type { ComposedMotion, SequenceKeyframe, StanceMode } from './motionSequence';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
@@ -707,21 +706,17 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
     targets: [...legs(0, 0, 0), ...arms(0), ...trunk(0)],
   });
 
-  // REPS: rebounding jumps — each rep's landing flows straight into the next
-  // load (no intermediate stand), with ONE final recovery. 5·reps + 1 keyframes,
-  // capped to the keyframe budget so a big "twenty jumps" clamps instead of
-  // refusing.
-  const maxReps = Math.floor((MAX_KEYFRAMES - 1) / 5);
-  const reps = Math.max(1, Math.min(maxReps, Math.round(opts.reps ?? 1)));
-  const keyframes: SequenceKeyframe[] = [];
-  for (let i = 0; i < reps; i += 1) keyframes.push(load(), propulsion(), apex(), descent(), landing());
-  keyframes.push(recovery());
+  // REPS via the playback-time `reps` field — the 6-keyframe cycle replays N
+  // times at trajectory time, so the plan stays tiny regardless of N (no
+  // keyframe duplication, no MAX_KEYFRAMES ceiling). Clamped to a sane set size.
+  const reps = Math.max(1, Math.min(50, Math.round(opts.reps ?? 1)));
 
   return {
     name: reps > 1 ? `vertical jump ×${reps}` : 'vertical jump',
     startFrom: 'neutral',
     stance: 'planted',
-    keyframes,
+    ...(reps > 1 ? { reps } : {}),
+    keyframes: [load(), propulsion(), apex(), descent(), landing(), recovery()],
   };
 }
 

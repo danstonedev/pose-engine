@@ -257,6 +257,13 @@ export interface ComposedMotion {
   /** Cycle the keyframes until stopped (the last keyframe tweens back into
    *  the first). Default false: play once and settle at the last keyframe. */
   loop?: boolean;
+  /** FINITE repetition: play the whole keyframe sequence this many times, then
+   *  settle — WITHOUT duplicating keyframes (the repeat happens at playback, so
+   *  a "50 jumps" stays a 6-keyframe plan and never hits MAX_KEYFRAMES).
+   *  Default 1. Ignored when `loop` is true (loop is infinite). Best for
+   *  IN-PLACE reps (jumps, in-place exercises) whose root returns to origin each
+   *  cycle; a traveling motion would replay from the origin each rep. */
+  reps?: number;
   modifiers?: ComposedMotionModifiers;
   /** Where the motion begins. 'current' (DEFAULT): compose onto the CURRENT
    *  on-stage pose — unmentioned joints hold where they are, so a second motion
@@ -343,6 +350,9 @@ export interface ResolvedComposedMotion {
   modifiers?: ComposedMotionModifiers;
   /** Resolved start mode ('current' unless the motion asked for 'neutral'). */
   startFrom: 'current' | 'neutral';
+  /** Finite repetition count (≥1; 1 unless the motion asked for more). Ignored
+   *  when `loop`. The trajectory replays the cycle this many times at playback. */
+  reps: number;
   /** Weight-bearing foot contacts to IK-plant during playback (pass-through from
    *  the authored motion; the stage/sampler pin each declared foot per frame). */
   contacts?: StanceContact[];
@@ -370,6 +380,7 @@ function refuse(motion: ComposedMotion | null | undefined, reason: string): Reso
     keyframes: [],
     outcomes: [],
     loop: !!motion?.loop,
+    reps: 1,
     startFrom: motion?.startFrom === 'neutral' ? 'neutral' : 'current',
     reason,
   };
@@ -784,6 +795,12 @@ export function resolveComposedMotion(
     keyframes: resolvedKeyframes,
     outcomes,
     loop: !!motion.loop,
+    // FINITE reps: clamped to a sane ceiling (a long set, not an accidental
+    // forever-run); 1 when unset. Ignored downstream when `loop` is true.
+    reps:
+      typeof motion.reps === 'number' && Number.isFinite(motion.reps)
+        ? Math.max(1, Math.min(50, Math.round(motion.reps)))
+        : 1,
     startFrom,
     ...(motion.modifiers ? { modifiers: motion.modifiers } : {}),
     ...(Array.isArray(motion.contacts) && motion.contacts.length

@@ -339,6 +339,7 @@ export function sampleComposedMotion(
         startQuat: prevQuat,
         startTranslate: prevTranslate,
         timeScale,
+        reps: resolved.reps,
       });
   const totalMs = trajectory.totalMs;
   const dtMs = 1000 / hz;

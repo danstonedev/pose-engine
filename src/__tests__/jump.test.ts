@@ -131,33 +131,42 @@ describe('buildJump — real vertical jump physics', () => {
     expect(kneeAt(rec, last.tMs), 'knees extended at rest').toBeLessThan(10);
   });
 
-  it('REPS — "five jumps" is one motion with five airborne peaks (fits the keyframe budget)', () => {
+  it('REPS — "five jumps" stays a 6-keyframe plan but plays FIVE airborne peaks', () => {
     resetHarness();
     const five = resolveComposedMotion(buildJump({ reps: 5 }), variantCfg);
     expect(five.status, five.reason).toBe('ok');
-    expect(five.keyframes.length, 'five reps fit under the cap').toBe(5 * 5 + 1); // 26
+    // No keyframe duplication — the plan is the single jump; reps live at playback.
+    expect(five.keyframes.length, 'plan stays tiny').toBe(6);
+    expect(five.reps).toBe(5);
     const rec = sampleComposedMotion(five, {
       baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
     });
-    // Count airborne peaks: local maxima of Hips Y that clear standing by >20cm.
+    // Count airborne peaks: local maxima of Hips Y clearing standing by >20cm,
+    // de-duped by time so each jump counts once.
     const hips = yOf(rec, 'Hips');
     let peaks = 0;
+    let lastPeakMs = -1e9;
     for (let i = 2; i < hips.length - 2; i += 1) {
-      if (hips[i]! - standingHipsY > 0.2 && hips[i]! >= hips[i - 2]! && hips[i]! > hips[i + 2]!) {
-        // de-dupe adjacent samples of the same peak
-        if (peaks === 0 || rec.frames[i]!.tMs - (rec as unknown as { _lastPeak?: number })._lastPeak! > 400) {
-          peaks += 1;
-          (rec as unknown as { _lastPeak?: number })._lastPeak = rec.frames[i]!.tMs;
-        }
+      if (
+        hips[i]! - standingHipsY > 0.2 &&
+        hips[i]! >= hips[i - 2]! &&
+        hips[i]! > hips[i + 2]! &&
+        rec.frames[i]!.tMs - lastPeakMs > 400
+      ) {
+        peaks += 1;
+        lastPeakMs = rec.frames[i]!.tMs;
       }
     }
     expect(peaks, `expected 5 airborne peaks, saw ${peaks}`).toBe(5);
   });
 
-  it('REPS clamp to the keyframe budget instead of refusing (a huge count still plays)', () => {
+  it('REPS never inflate the keyframe count and clamp to a sane ceiling', () => {
+    // Even a huge count stays a 6-keyframe plan (reps are a playback field).
     const many = resolveComposedMotion(buildJump({ reps: 100 }), variantCfg);
     expect(many.status).toBe('ok');
-    expect(many.keyframes.length).toBeLessThanOrEqual(48);
+    expect(many.keyframes.length).toBe(6);
+    expect(many.reps).toBeLessThanOrEqual(50);
+    expect(many.reps).toBeGreaterThan(1);
   });
 
   it('CONTRAST — a squat only ever drops; the jump rises far above it', () => {

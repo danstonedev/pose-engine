@@ -108,3 +108,12 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     expect(stageSource).toMatch(/function cancelComposed[\s\S]{0,200}composedPlants = \[\]/);
   });
 });
+
+describe('finite reps expand at playback (source pin)', () => {
+  it('the stage passes resolved.reps to the trajectory builder', () => {
+    // reps replay the cycle at trajectory time — the plan is never duplicated,
+    // so the stage must forward the count (a refactor dropping it would silently
+    // play one rep).
+    expect(stageSource).toMatch(/buildComposedTrajectory\(built, \{[\s\S]{0,200}reps: resolved\.reps/);
+  });
+});
