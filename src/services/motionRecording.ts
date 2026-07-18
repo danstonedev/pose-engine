@@ -564,15 +564,23 @@ export function sampleComposedMotion(
     }
 
     // Measure against the (possibly reoriented) rest reference — same as the
-    // stage's activeRestRef(). `_sqB` = the ACTUAL world-frame root delta from
-    // rest (`root.quaternion · rootRestQuat⁻¹`), which the angle measurement
-    // always uses. The recorded `orientQuat` stays the authored spin (`_sq`) on
-    // the pin-only path (byte-identical to before); a foot-rooted plant rigidly
-    // re-roots the body, so there it IS that actual world delta.
+    // stage's activeRestRef(). `_sqB` = the WORLD-frame root delta from rest
+    // (`root.quaternion · rootRestQuat⁻¹`), the convention rotateRestReferenceByRoot
+    // (and the stage's rootOrientDelta) measures with. `_sqC` is left holding
+    // rootRestQuat⁻¹ for the orientQuat below.
     _sqB.copy(root.quaternion).multiply(_sqC.copy(rootRestQuat).invert());
-    const orientQuat: [number, number, number, number] = footRooted
-      ? [_sqB.x, _sqB.y, _sqB.z, _sqB.w]
-      : [_sq.x, _sq.y, _sq.z, _sq.w];
+    // The recorded `orientQuat` is the LOCAL delta (rootRestQuat⁻¹ · root.quaternion)
+    // — the convention the stage's applyRootState replays and its recording tap
+    // captures. On the pin-only path that is exactly the authored spin `_sq`
+    // (byte-identical to before); a foot-rooted plant re-roots the body, so
+    // recompute it from the live root (_sqC already holds rootRestQuat⁻¹).
+    let orientQuat: [number, number, number, number];
+    if (footRooted) {
+      _sqC.multiply(root.quaternion); // rootRestQuat⁻¹ · root.quaternion
+      orientQuat = [_sqC.x, _sqC.y, _sqC.z, _sqC.w];
+    } else {
+      orientQuat = [_sq.x, _sq.y, _sq.z, _sq.w];
+    }
     const measureRest = isIdentityQuat(orientQuat)
       ? rest
       : rotateRestReferenceByRoot(rest, _sqB);

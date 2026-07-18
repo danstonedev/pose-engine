@@ -493,7 +493,10 @@
       } = await import('./services/motionRecording');
       const {
         captureFloorReference,
+        captureFootFrames,
         pinRootToFloor,
+        plantStanceFoot,
+        stanceFootDrift,
         rotateRestReferenceByRoot,
         deriveVerticalCalibration,
         applyVerticalCalibration,
@@ -568,8 +571,20 @@
       // compositions for continuity and reset when a clip / exam command takes
       // over.
       let floorRef: ReturnType<typeof captureFloorReference> | null = null;
+      // Rest WORLD frame of each ankle — the target closed-chain foot-rooted
+      // planting restores the stance foot to (services/rootMotion). Captured with
+      // floorRef at grounding; used for the quasi-static planted set below.
+      let footFrames: ReturnType<typeof captureFootFrames> | null = null;
       const rootRestPos = new THREE.Vector3();
       const rootRestQuat = new THREE.Quaternion();
+      // Foot-rooted planting re-roots via applyMatrix4, which re-decomposes the
+      // root matrix a hair off scale-neutral; scale is reset per frame (in
+      // applyTrajectoryRoot) from this rest so the drift can never accumulate.
+      const rootRestScale = new THREE.Vector3(1, 1, 1);
+      /** Stance-foot drift (m) above which a planted, in-place composed frame is
+       *  re-rooted at the foot; below it (a single-leg stance) the vertical pin is
+       *  enough and a re-root would only perturb the measurement frame. */
+      const FOOT_ROOT_DRIFT_M = 0.05;
       /** Current composed root state (meters-from-origin translate + orient quat). */
       let composedRootQuat: [number, number, number, number] = [0, 0, 0, 1];
       let composedRootTranslate: [number, number, number] = [0, 0, 0];
@@ -712,6 +727,7 @@
         composedActive = false;
         composedPlants = []; // drop any foot-contact IK for the ended motion
         composedBalance = null; // drop any balance controller
+        composedUseFootRoot = false; // drop foot-rooted planting for the ended motion
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
         composedFootDriven = null; // drop any foot-driven travel
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
@@ -900,9 +916,11 @@
           // reference; composed root motion rides relative to these.
           rootRestPos.copy(root.position);
           rootRestQuat.copy(root.quaternion);
+          rootRestScale.copy(root.scale);
           composedRootQuat = [0, 0, 0, 1];
           composedRootTranslate = [0, 0, 0];
           floorRef = skinned ? captureFloorReference(skinned.skeleton, variantCfg) : null;
+          footFrames = skinned ? captureFootFrames(skinned.skeleton, variantCfg) : null;
           frameCamera();
 
           // 7) Wire the command surface to the fresh skeleton.
@@ -1085,6 +1103,12 @@
       let composedBalance: ReturnType<typeof buildBalanceController> | null = null;
       /** The balance-ability knob (0..1) for the active motion (0 = raw drift). */
       let composedBalanceControl = 0;
+      /** CLOSED-CHAIN FOOT-ROOTED PLANTING for the ACTIVE composed motion — true
+       *  for the quasi-static planted set (squat/hinge/sit-to-stand): each planted
+       *  frame is re-rooted at the stance foot so the body folds/drops over PLANTED
+       *  feet (COM over the base — balance for free), instead of the feet swinging
+       *  forward. Same gate as the offline sampler so live and recordings match. */
+      let composedUseFootRoot = false;
 
       /** CALIBRATED GAIT VERTICAL for the ACTIVE composed motion — the
        *  mean-preserving reshape of the emergent grounded pelvis arc to a cm
@@ -1221,8 +1245,23 @@
           rootRestPos.y + rootTranslate[1],
           rootRestPos.z + rootTranslate[2],
         );
+        modelRoot.scale.copy(rootRestScale); // clear any prior-frame plant scale drift
         modelRoot.updateMatrixWorld(true);
-        if (planted && skinnedRef && variantCfgRef && floorRef) {
+        if (
+          planted &&
+          composedUseFootRoot &&
+          skinnedRef &&
+          variantCfgRef &&
+          footFrames &&
+          (stanceFootDrift(modelRoot, skinnedRef.skeleton, variantCfgRef, footFrames) ?? 0) >
+            FOOT_ROOT_DRIFT_M
+        ) {
+          // Re-root the rigid body at the stance foot: the SAME authored angles read
+          // as the real closed-chain movement — feet planted, pelvis placed by the
+          // chain, COM over the base. The rotation is picked up by rootOrientDelta()
+          // (measurement) and the recording tap, which read the live modelRoot.
+          plantStanceFoot(modelRoot, skinnedRef.skeleton, variantCfgRef, footFrames);
+        } else if (planted && skinnedRef && variantCfgRef && floorRef) {
           pinRootToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, floorRef);
           // Calibrated gait vertical: scale the grounded pelvis arc about its
           // cycle mean to the requested excursion (root-only; joints untouched).
@@ -1566,12 +1605,30 @@
         // FOOT-DRIVEN forward travel: derive the +Z curve that keeps the planted
         // foot world-fixed from the same one-shot trajectory the stage plays.
         setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted);
-        // BALANCE CONTROLLER: for a PLANTED, non-travelling motion that asked for
-        // it, hold the COM over the base each frame (the balance-ability lever).
-        // Same gate as the offline sampler so live playback and recordings match.
+        // CLOSED-CHAIN FOOT-ROOTED PLANTING: for a PLANTED, in-place, non-looping
+        // motion with no declared contacts, re-root each planted frame at the stance
+        // foot (the quasi-static planted set). Same gate as the offline sampler —
+        // in-place ONLY (a travel motion places its feet anew, so restoring the
+        // original foot frame would fight the step). Supersedes the balance
+        // controller for this set, so that is gated off below.
+        const composedTravels = built.roots.some(
+          (r) => Math.hypot(r.translateM[0], r.translateM[2]) > 0.02,
+        );
+        composedUseFootRoot =
+          !resolved.footDrivenTravel &&
+          !resolved.loop &&
+          !composedTravels &&
+          !(resolved.contacts?.length ?? 0) &&
+          composedHasPlanted &&
+          !!footFrames;
+        // BALANCE CONTROLLER: the legacy lever, superseded by foot-rooting for the
+        // planted set — so gated off whenever that runs. It survives only for a
+        // PLANTED, non-travelling, non-foot-rooted motion that opted in via the
+        // (now parked) balanceControl modifier. Same gate as the offline sampler.
         const composedBalCtrl = resolved.modifiers?.balanceControl;
         composedBalance =
           composedBalCtrl != null &&
+          !composedUseFootRoot &&
           !resolved.footDrivenTravel &&
           !resolved.loop &&
           composedHasPlanted &&
