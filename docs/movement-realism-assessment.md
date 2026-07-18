@@ -206,14 +206,35 @@ What's left is genuinely optional / needs a clinician, not fixes:
    `peakAt` leads, the `paceGait` stride/cadence split, and the travel-walk
    step length — all clinician-authored, flagged for verification
    (`movement-templates-reference.md`).
-2. **Paced travel gait** — the travel walk is fixed-cadence (its contact windows
-   are authored in phase time); coupling it to speed needs the contact windows
-   scaled by `timeScale`.
-2b. **Gait determinants for true COM excursion** — model pelvic tilt/rotation and
-   the controlled stance-knee wave so the walk's vertical bounce is a calibrated
-   ~4-5 cm (and `gaitBounce` a cm-accurate knob), instead of the floor-pin's
-   emergent ~9 cm. Would also let the pelvis vertical be authored directly (via
-   foot-contact IK + root Y) rather than emerge from the pin.
+2. ~~**Paced travel gait**~~ — **done.** `buildTravelWalk({ speed })` couples
+   stride + cadence (each ∝ √speed) and scales the stance-contact windows by
+   1/cadence so the feet stay planted at speed (gated in `gaitTravel.test.ts`).
+
+### Gait determinants for a calibrated vertical — investigated; needs rig work
+Targeting a true ~4-5 cm pelvis excursion (and a cm-accurate `gaitBounce`) was
+attempted and is **blocked by rig/model limits**, not effort — documented here so
+the next attempt starts informed. Two approaches were measured on the rig:
+
+- **Direct pelvis-Y authoring** (floating stance + foot-contact IK + authored
+  root Y): the Hips vertical matches the authored target **exactly** (4.5 cm →
+  4.5 cm) and horizontal foot slide stays ~0, **but the stance foot slides ~6 cm
+  *vertically*** — the stance leg rolls heel→toe *while* the pelvis bobs, and the
+  CCD leg IK can't hold the foot through both at once.
+- **Reducing the floor-pin's emergent ~9 cm** via leg kinematics: the levers are
+  coupled/counter-intuitive — mid-stance knee flexion *raises* the range, trunk
+  tilt doesn't touch the pelvis (it bends above the hips), and reducing contact
+  hip flexion shortens the stride (stride and bounce are coupled without pelvic
+  rotation).
+
+**What it actually needs:** the classic *determinants of gait* — **transverse
+pelvic rotation** (to decouple stride length from vertical dip) and **pelvic
+list**, plus a **stance-leg-roll-aware IK** that holds the foot while both the
+leg rolls and the pelvis bobs. Transverse pelvic rotation can't be authored today
+(the model root's `orient` is *whole-body* — it would swivel the feet too; there
+is no pelvis-relative transverse joint wired). So this is a **rig capability
+project** (add a pelvis/transverse DOF + a two-constraint foot IK), not a tuning
+pass. Until then, `gaitBounce` is the honest *qualitative* knob and the walk's
+default vertical is the floor-pin's ~9 cm.
 3. **Optional `peakAt` leads on sit-to-stand / lunge** if SME confirms an
    intra-phase order (their current relay is inter-phase only).
 4. **Velocity-continuous rail recordings** — the live rail currently *trims* the

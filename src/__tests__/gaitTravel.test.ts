@@ -106,6 +106,24 @@ describe('buildTravelWalk — a non-degenerate forward gait', () => {
     expect(rPin).toBeLessThan(rFree * 0.5);
   });
 
+  it('paced travel: a faster walk travels farther per stride AND keeps feet planted', () => {
+    const normal = sampleTravel(true);
+    resetHarness();
+    const fastMotion = buildTravelWalk({ speed: 1.45 });
+    const fastResolved = resolveComposedMotion(fastMotion, variantCfg);
+    expect(fastResolved.status).toBe('ok');
+    const fast = sampleComposedMotion(fastResolved, {
+      baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
+    });
+    // Faster ⇒ longer stride (more body travel) AND a shorter cycle (quicker cadence).
+    expect(hipsDz(fast), 'faster travels farther').toBeGreaterThan(hipsDz(normal) + 0.1);
+    const dur = (rec: MotionRecording) => rec.frames[rec.frames.length - 1]!.tMs;
+    expect(dur(fast), 'faster cycle is shorter').toBeLessThan(dur(normal) - 100);
+    // Contact windows scaled with cadence, so the stance feet still stay planted.
+    const half = dur(fast) / 2;
+    expect(measureContactSlide(fast, 'R_Foot', 0, half).horizontalM, 'R stays planted when fast').toBeLessThan(0.1);
+  });
+
   it('the swing foot still advances forward (the plant does not freeze the gait)', () => {
     const rec = sampleTravel(true);
     // The RIGHT foot swings forward during the second half (its non-stance window).
