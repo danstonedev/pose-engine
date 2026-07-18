@@ -150,6 +150,79 @@ export function captureFloorReference(
   return { restY };
 }
 
+// ── Closed-chain foot-rooted planting (feet stay planted, body folds over them) ─
+
+/** Full rest WORLD frame (position + orientation) of each ankle (Foot) bone,
+ *  captured at anatomic stance — the target a foot-rooted plant restores the
+ *  stance foot to. Call after applyAnatomicPose with world matrices current. */
+export interface FootFrameReference {
+  restFrame: Record<string, THREE.Matrix4>;
+}
+
+export function captureFootFrames(
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+): FootFrameReference {
+  const restFrame: Record<string, THREE.Matrix4> = {};
+  for (const { key, bone } of contactBones(skeleton, variantCfg)) {
+    if (key.endsWith('Foot')) restFrame[key] = bone.matrixWorld.clone();
+  }
+  return { restFrame };
+}
+
+const _mInv = new THREE.Matrix4();
+const _mT = new THREE.Matrix4();
+
+/**
+ * CLOSED-CHAIN foot-rooted planting — the fix for planted movements whose feet
+ * swing forward. A keyframe's pelvis-rooted FK treats the pelvis as the chain
+ * root, so the stance leg's authored hip/knee flexion swings the FOOT forward
+ * (a leg-raise), not the pelvis over a planted foot. This RE-ROOTS the whole
+ * rigid body so the STANCE foot returns to its rest world frame — planted flat
+ * at its standing position — turning the leg-swing into the real closed-chain
+ * movement: a hip-hinge folds the trunk over planted feet (hips travel back,
+ * pelvis stays at hip height), a squat drops the pelvis over planted feet, and
+ * the COM lands over the base by construction (balance for free).
+ *
+ * Every authored JOINT angle is UNTOUCHED — this is a rigid transform of the
+ * whole body, so only the pelvis PLACEMENT changes (exactly what a fixed foot
+ * determines). The stance foot is the LOWEST ankle (single-leg → the
+ * weight-bearing foot; a symmetric bilateral stance → either, both land
+ * planted). Supersedes the vertical-only {@link pinRootToFloor} for the
+ * quasi-static planted set (it grounds vertically too). Mutates `root` and
+ * refreshes world matrices. Returns the planted foot key, or null when none
+ * resolve.
+ */
+export function plantStanceFoot(
+  root: THREE.Object3D,
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+  frames: FootFrameReference,
+): string | null {
+  root.updateMatrixWorld(true);
+  let stanceKey: string | null = null;
+  let stanceBone: THREE.Bone | null = null;
+  let minY = Infinity;
+  for (const { key, bone } of contactBones(skeleton, variantCfg)) {
+    if (!key.endsWith('Foot') || !frames.restFrame[key]) continue;
+    const y = bone.getWorldPosition(_fp).y;
+    if (y < minY) {
+      minY = y;
+      stanceKey = key;
+      stanceBone = bone;
+    }
+  }
+  if (!stanceKey || !stanceBone) return null;
+  // T = restFrame · currentFrame⁻¹ maps the stance foot from where the FK left
+  // it back onto its rest frame; applied to the whole body, it re-roots at the
+  // foot (feet planted, pelvis placed by the chain).
+  _mInv.copy(stanceBone.matrixWorld).invert();
+  _mT.copy(frames.restFrame[stanceKey]).multiply(_mInv);
+  root.applyMatrix4(_mT);
+  root.updateMatrixWorld(true);
+  return stanceKey;
+}
+
 /** Lowest foot (ankle) world-Y at the current pose. Caller must have updated
  *  world matrices. Returns null when no foot bone resolves. */
 export function lowestFootWorldY(
