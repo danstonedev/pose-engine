@@ -181,6 +181,14 @@ makes the live foot IK visible is now built too:
   the Finding-4 live IK: each stance foot stays world-planted while the body
   passes over it (gated in `gaitTravel.test.ts`). simMOVE routes "walk forward /
   ahead / across" to it; plain "walk" stays the in-place looping cycle.
+- **Jump physics — DONE.** `buildJump` replaces the old quick-squat "jump" (2
+  keyframes that rose and never landed) with a real countermovement jump: load →
+  explosive propulsion → **floating airborne apex** (root travels up to a peak
+  with hang time — the whole body incl. feet leaves the floor) → descent →
+  **planted landing absorption** → recovery (gated in `jump.test.ts`: COM peaks
+  >30 cm above standing MID-motion, feet clear the ground, a distinct landing
+  knee-flex follows the apex, NOT a squat). simMOVE routes "jump / hop / leap"
+  (height cues scale the apex); a directional/obstacle jump goes to the AI.
 
 What's left is genuinely optional / needs a clinician, not fixes:
 
