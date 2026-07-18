@@ -29,6 +29,7 @@
  * reviewed reference, not mocap.
  */
 
+import { MAX_KEYFRAMES } from './motionSequence';
 import type { ComposedMotion, SequenceKeyframe, StanceMode } from './motionSequence';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
@@ -661,7 +662,7 @@ export function buildTravelWalk(opts: { stepLengthM?: number } = {}): ComposedMo
  * Non-looping, `startFrom:'neutral'` (jump from standing). `heightM` sets the
  * apex COM rise (ROM-clamped joints, honest vertical via root translate).
  */
-export function buildJump(opts: { heightM?: number } = {}): ComposedMotion {
+export function buildJump(opts: { heightM?: number; reps?: number } = {}): ComposedMotion {
   const apexM = Math.max(0.1, Math.min(0.7, opts.heightM ?? 0.4));
   const legs = (hip: number, knee: number, ankle: number) => [
     { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: hip },
@@ -676,58 +677,51 @@ export function buildJump(opts: { heightM?: number } = {}): ComposedMotion {
     { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
   ];
   const trunk = (deg: number) => [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: deg }];
+  // One jump = 5 driving phases (load → propulsion → apex → descent → landing);
+  // a fresh factory per keyframe so repeated reps never share a mutable object.
+  const load = (): SequenceKeyframe => ({
+    durationMs: 380, holdMs: 90, stance: 'planted',
+    targets: [...legs(40, 60, 15), ...arms(-25), ...trunk(15)],
+  });
+  const propulsion = (): SequenceKeyframe => ({
+    durationMs: 160, velocityClass: 'ballistic', stance: 'planted',
+    targets: [...legs(0, 0, -25), ...arms(150), ...trunk(0)],
+  });
+  const apex = (): SequenceKeyframe => ({
+    durationMs: 260, holdMs: 110, velocityClass: 'ballistic', stance: 'floating',
+    travel: { direction: 'up', meters: apexM },
+    targets: [...legs(5, 25, 0), ...arms(150)],
+  });
+  const descent = (): SequenceKeyframe => ({
+    durationMs: 200, velocityClass: 'ballistic', stance: 'floating',
+    travel: { direction: 'up', meters: 0.03 },
+    targets: [...legs(0, 12, -5), ...arms(45)],
+  });
+  const landing = (): SequenceKeyframe => ({
+    durationMs: 240, holdMs: 80, velocityClass: 'functional', stance: 'planted',
+    travel: { direction: 'up', meters: 0 },
+    targets: [...legs(45, 65, 15), ...arms(20), ...trunk(10)],
+  });
+  const recovery = (): SequenceKeyframe => ({
+    durationMs: 340, stance: 'planted',
+    targets: [...legs(0, 0, 0), ...arms(0), ...trunk(0)],
+  });
+
+  // REPS: rebounding jumps — each rep's landing flows straight into the next
+  // load (no intermediate stand), with ONE final recovery. 5·reps + 1 keyframes,
+  // capped to the keyframe budget so a big "twenty jumps" clamps instead of
+  // refusing.
+  const maxReps = Math.floor((MAX_KEYFRAMES - 1) / 5);
+  const reps = Math.max(1, Math.min(maxReps, Math.round(opts.reps ?? 1)));
+  const keyframes: SequenceKeyframe[] = [];
+  for (let i = 0; i < reps; i += 1) keyframes.push(load(), propulsion(), apex(), descent(), landing());
+  keyframes.push(recovery());
+
   return {
-    name: 'vertical jump',
+    name: reps > 1 ? `vertical jump ×${reps}` : 'vertical jump',
     startFrom: 'neutral',
     stance: 'planted',
-    keyframes: [
-      // 1. LOAD — countermovement dip.
-      {
-        durationMs: 380,
-        holdMs: 90,
-        stance: 'planted',
-        targets: [...legs(40, 60, 15), ...arms(-25), ...trunk(15)],
-      },
-      // 2. PROPULSION — explosive triple extension + arm drive; toe push-off.
-      {
-        durationMs: 160,
-        velocityClass: 'ballistic',
-        stance: 'planted',
-        targets: [...legs(0, 0, -25), ...arms(150), ...trunk(0)],
-      },
-      // 3. APEX — airborne peak with hang time; legs tuck for clearance.
-      {
-        durationMs: 260,
-        holdMs: 110,
-        velocityClass: 'ballistic',
-        stance: 'floating',
-        travel: { direction: 'up', meters: apexM },
-        targets: [...legs(5, 25, 0), ...arms(150)],
-      },
-      // 4. DESCENT — the fall; legs extend to reach for the ground.
-      {
-        durationMs: 200,
-        velocityClass: 'ballistic',
-        stance: 'floating',
-        travel: { direction: 'up', meters: 0.03 },
-        targets: [...legs(0, 12, -5), ...arms(45)],
-      },
-      // 5. LANDING — feet contact and absorb (soft, flexed).
-      {
-        durationMs: 240,
-        holdMs: 80,
-        velocityClass: 'functional',
-        stance: 'planted',
-        travel: { direction: 'up', meters: 0 },
-        targets: [...legs(45, 65, 15), ...arms(20), ...trunk(10)],
-      },
-      // 6. RECOVERY — quiet stand.
-      {
-        durationMs: 340,
-        stance: 'planted',
-        targets: [...legs(0, 0, 0), ...arms(0), ...trunk(0)],
-      },
-    ],
+    keyframes,
   };
 }
 

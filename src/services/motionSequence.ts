@@ -276,8 +276,12 @@ export interface ComposedMotion {
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
 
-/** Most keyframes a composed motion may hold. */
-export const MAX_KEYFRAMES = 12;
+/** Most keyframes a composed motion may hold. Sized for MULTI-REP and
+ *  multi-cycle movements, not just a single one: a jump is 6 keyframes, a gait
+ *  cycle 8, so 12 (the old bound) refused "five vertical jumps" (30) and even
+ *  two jumps. 48 covers ~8 jumps / 6 gait cycles / a long exercise set while
+ *  still bounding an AI plan's size + token cost. */
+export const MAX_KEYFRAMES = 48;
 /** Most joint targets a single keyframe may hold. 12 covers a legitimate
  *  full-body keyframe (2 hips + 2 knees + 2 ankles + trunk×2 + 2 shoulders + 2
  *  more); overflow beyond it is NON-FATAL — the first 12 play, the rest are

@@ -252,7 +252,7 @@ describe('resolveComposedMotion', () => {
   });
 
   it(`refuses more than ${MAX_KEYFRAMES} keyframes`, () => {
-    const frames = Array.from({ length: 13 }, () =>
+    const frames = Array.from({ length: MAX_KEYFRAMES + 1 }, () =>
       kf([{ joint: 'R_Foot', motion: 'ankleFlexion', deg: 5 }], 300),
     );
     const r = resolveComposedMotion({ keyframes: frames }, variantCfg);
