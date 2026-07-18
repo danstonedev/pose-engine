@@ -461,14 +461,11 @@
       // Bare 'three' specifiers only — a second three instance would break
       // the instanceof checks inside the pose services.
       const THREE = await import('three');
-      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
-      const { MeshoptDecoder } = await import('three/examples/jsm/libs/meshopt_decoder.module.js');
       // Services via relative paths (not the barrel) — the barrel re-exports
       // this component, so importing it here would be circular.
       const { getBodyVariant } = await import('./anatomy/bodyVariants');
-      const { createMannequinRenderer, addMannequinLights, loadVariantModel } = await import(
-        './services/sceneBoot'
-      );
+      const { createMannequinRenderer, addMannequinLights, loadVariantModel, loadGltfWithRetry } =
+        await import('./services/sceneBoot');
       const { applyAnatomicPose } = await import('./services/anatomicPose');
       const { resolveCameraViewSetpoint } = await import('./services/cameraTween');
       const {
@@ -831,9 +828,7 @@
           let root: import('three').Object3D;
           let skinned: import('three').SkinnedMesh | null;
           if (url) {
-            const gltfLoader = new GLTFLoader();
-            gltfLoader.setMeshoptDecoder(MeshoptDecoder);
-            const gltf = await gltfLoader.loadAsync(url);
+            const gltf = await loadGltfWithRetry(url);
             root = gltf.scene;
             root.scale.setScalar(variantCfg.pose.rootScale);
             skinned = findFirstSkinnedMesh(root);
