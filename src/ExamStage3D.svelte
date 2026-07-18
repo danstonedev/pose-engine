@@ -1571,7 +1571,12 @@
         // Same gate as the offline sampler so live playback and recordings match.
         const composedBalCtrl = resolved.modifiers?.balanceControl;
         composedBalance =
-          composedBalCtrl != null && !resolved.footDrivenTravel && composedHasPlanted && skinnedRef && variantCfgRef
+          composedBalCtrl != null &&
+          !resolved.footDrivenTravel &&
+          !resolved.loop &&
+          composedHasPlanted &&
+          skinnedRef &&
+          variantCfgRef
             ? buildBalanceController(skinnedRef, variantCfgRef)
             : null;
         composedBalanceControl = composedBalCtrl ?? 0;

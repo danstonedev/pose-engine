@@ -427,7 +427,10 @@ export function sampleComposedMotion(
   // gait (its balance is the stepping strategy, owned by footDrivenTravel).
   const balanceControl = resolved.modifiers?.balanceControl;
   const balanceController: BalanceController | null =
-    balanceControl != null && !resolved.footDrivenTravel && built.roots.some((r) => r.stance === 'planted')
+    balanceControl != null &&
+    !resolved.footDrivenTravel &&
+    !resolved.loop &&
+    built.roots.some((r) => r.stance === 'planted')
       ? buildBalanceController(skinned, variantCfg)
       : null;
 
