@@ -44,9 +44,13 @@ import {
   type ResolvedComposedMotion,
 } from './motionSequence';
 import {
+  applyVerticalCalibration,
   captureFloorReference,
+  deriveVerticalCalibration,
+  NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
   rotateRestReferenceByRoot,
+  type VerticalCalibration,
 } from './rootMotion';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
 export { stagedBlendWithBaseline };
@@ -345,6 +349,35 @@ export function sampleComposedMotion(
   const dtMs = 1000 / hz;
   const boneByKey = buildBoneByPoseKey(skinned.skeleton, variantCfg);
 
+  // CALIBRATED GAIT VERTICAL (mean-preserving reshape). When the motion asks for
+  // a target excursion, do a cheap PRE-PASS over one cycle to measure the
+  // EMERGENT floor-pinned pelvis arc (the compass-gait vault the pin produces),
+  // then derive a scale that maps its peak-to-peak to the target while HOLDING
+  // its mean (so the feet stay grounded on average and only deviate by
+  // (1-gain)·½-excursion at the extremes). Applied per frame to root.y ONLY —
+  // every clinical joint angle is left exactly as authored (contrast a foot-lock
+  // IK, which would corrupt the stance hip). Skipped unless the motion is planted
+  // (a floating motion has no floor-pin arc to reshape).
+  let vcal: VerticalCalibration = NO_VERTICAL_CALIBRATION;
+  const vcalTargetM =
+    resolved.verticalCalibrationCm != null ? resolved.verticalCalibrationCm / 100 : null;
+  if (vcalTargetM != null && built.roots.some((r) => r.stance === 'planted')) {
+    vcal = deriveVerticalCalibration((u01) => {
+      const s = trajectory.sampleAt(u01 * totalMs);
+      applyCustomPose(skinned.skeleton, variantCfg, s.pose);
+      _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+      root.quaternion.copy(rootRestQuat).multiply(_sq);
+      root.position.set(
+        rootRestPos.x + s.rootTranslate[0],
+        rootRestPos.y + s.rootTranslate[1],
+        rootRestPos.z + s.rootTranslate[2],
+      );
+      root.updateMatrixWorld(true);
+      if (s.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+      return root.position.y;
+    }, vcalTargetM);
+  }
+
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
     const sample = trajectory.sampleAt(tMs);
@@ -361,7 +394,16 @@ export function sampleComposedMotion(
       rootRestPos.z + sample.rootTranslate[2],
     );
     root.updateMatrixWorld(true);
-    if (sample.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+    if (sample.planted) {
+      pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+      // Calibrated gait vertical: scale the grounded pelvis arc about its cycle
+      // mean to the requested excursion (root-only; joints untouched). Identity
+      // for every uncalibrated motion, so they are byte-identical.
+      if (vcal.gain !== 1) {
+        root.position.y = applyVerticalCalibration(root.position.y, vcal);
+        root.updateMatrixWorld(true);
+      }
+    }
 
     // CONTACT PLANTS: pin each declared foot back to its captured world target,
     // so it does not slide as the root travels (the leg hip/knee flex to carry

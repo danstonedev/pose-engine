@@ -111,10 +111,10 @@ expand call.
 *Note — the walk was intentionally left lockstep-per-phase.* Its 8 fine phases
 (200 ms each) already encode the distal→proximal relay **inter-phase**
 (heel-strike → loading → push-off → swing), so an intra-phase sub-lead within a
-200 ms slice is below the visual threshold. It also would not fit: expanding an
-8-phase cycle into sub-keyframes exceeds `MAX_KEYFRAMES` (12), so the budget
-guard would drop leads asymmetrically. Raising the cap for gait is a separate
-decision (it also widens the AI's authoring budget) — deferred.
+200 ms slice is below the visual threshold. (An earlier note here also cited the
+`MAX_KEYFRAMES` budget as a reason not to expand the gait leads — that cap is now
+**48**, so the budget no longer binds; the visual-threshold argument is the one
+that stands.)
 
 **4 — Feet not ground-true (Medium) — FIXED.** The live stage planted only
 *vertically* (`pinRootToFloor`); the closed-chain IK stance-plant was used only
@@ -189,16 +189,18 @@ makes the live foot IK visible is now built too:
   >30 cm above standing MID-motion, feet clear the ground, a distinct landing
   knee-flex follows the apex, NOT a squat). simMOVE routes "jump / hop / leap"
   (height cues scale the apex); a directional/obstacle jump goes to the AI.
-- **Gait spring-vs-glide — DONE.** `gaitBounce` tunes the vertical bounce quality
-  (0 = a smooth, low-knee glide with a flatter pelvis; 1 = normal; 2 = a springy,
-  high-knee bounce) by scaling the knee-flexion/lift wave that drives the pelvis
-  vertical through the floor contact, leaving stride and cadence untouched (gated
-  in `gaitBounce.test.ts`). simMOVE routes "bouncy / springy" and "gliding /
-  smooth" walk. **Caveat:** the walk is grounded by a vertical floor-pin, not the
-  gait *determinants* (pelvic tilt/rotation, controlled stance-knee wave), so the
-  measured excursion is believable-qualitative (~9 cm normal, bouncier than a
-  real ~4-5 cm) rather than a calibrated centimetre target — a determinant model
-  is the follow-on for clinical-grade COM excursion (added to the list below).
+- **Gait spring-vs-glide + calibrated vertical — DONE (calibrated).** `gaitBounce`
+  now sets a **centimetre target** for the walk's COM vertical excursion
+  (0 = a calm ~3 cm glide, 1 = the normal ~5 cm, 2 = a springy ~8 cm bounce),
+  realized by `calibrateGaitVertical` as a **mean-preserving reshape** of the
+  emergent floor-pin arc (see the calibrated-vertical section below). Stride,
+  cadence, **and every clinical joint angle are untouched** — it is a root-only
+  reshape. simMOVE routes "bouncy / springy" and "gliding / smooth" walk, and
+  calibrates a *plain* walk to the normal ~5 cm too. Gated in `gaitBounce.test.ts`
+  (excursion lands on target, joints identical to the uncalibrated walk, feet stay
+  grounded). Supersedes the old knee-scaling knob, which flung the swing foot to
+  ~30 cm and clipped the stance foot ~5 cm *through* the floor while barely moving
+  the COM.
 
 What's left is genuinely optional / needs a clinician, not fixes:
 
@@ -210,31 +212,45 @@ What's left is genuinely optional / needs a clinician, not fixes:
    stride + cadence (each ∝ √speed) and scales the stance-contact windows by
    1/cadence so the feet stay planted at speed (gated in `gaitTravel.test.ts`).
 
-### Gait determinants for a calibrated vertical — investigated; needs rig work
-Targeting a true ~4-5 cm pelvis excursion (and a cm-accurate `gaitBounce`) was
-attempted and is **blocked by rig/model limits**, not effort — documented here so
-the next attempt starts informed. Two approaches were measured on the rig:
+### Calibrated gait vertical — DONE (was mis-scoped as "needs a rig project")
+Targeting a true ~4-5 cm pelvis excursion (and a cm-accurate `gaitBounce`) is now
+**shipped and gated**. An earlier pass declared this blocked and prescribed a rig
+project — **add a transverse pelvic-rotation DOF + pelvic list + a two-constraint
+foot IK** — on the classic *determinants of gait* reasoning. A red-team against
+the biomechanics literature found that prescription **points at the wrong lever**:
+Gard & Childress (2001) and Kuo (2007, the inverted-pendulum analysis) show
+**pelvic rotation and pelvic list contribute little to vertical COM** at any
+walking speed — the excursion is essentially the inverted-pendulum vault, so
+faking a pelvic DOF would have burned a project chasing a few millimetres.
 
-- **Direct pelvis-Y authoring** (floating stance + foot-contact IK + authored
-  root Y): the Hips vertical matches the authored target **exactly** (4.5 cm →
-  4.5 cm) and horizontal foot slide stays ~0, **but the stance foot slides ~6 cm
-  *vertically*** — the stance leg rolls heel→toe *while* the pelvis bobs, and the
-  CCD leg IK can't hold the foot through both at once.
-- **Reducing the floor-pin's emergent ~9 cm** via leg kinematics: the levers are
-  coupled/counter-intuitive — mid-stance knee flexion *raises* the range, trunk
-  tilt doesn't touch the pelvis (it bends above the hips), and reducing contact
-  hip flexion shortens the stride (stride and bounce are coupled without pelvic
-  rotation).
+**What was actually true (measured on the rig):**
+- The floor-pin makes the pelvis a geometric slave of the lowest foot — a
+  **compass-gait vault**, and its ~9 cm emergent excursion is close to the classic
+  rigid-compass number (~9.5 cm). The **phase is already correct**: pelvis peaks
+  at mid-stance / single support and troughs at double support (a proper
+  double-bump), so only the **amplitude** (≈2× real) was wrong.
+- Direct pelvis-Y authoring **with a foot-lock IK** does calibrate the pelvis
+  exactly, but on the *in-place* walk the foot-lock is invalid (a world-locked
+  foot only makes sense when the body travels over it) and it corrupts the stance
+  **hip** (30° → 54°). That — not a missing pelvic joint — was the real blocker.
 
-**What it actually needs:** the classic *determinants of gait* — **transverse
-pelvic rotation** (to decouple stride length from vertical dip) and **pelvic
-list**, plus a **stance-leg-roll-aware IK** that holds the foot while both the
-leg rolls and the pelvis bobs. Transverse pelvic rotation can't be authored today
-(the model root's `orient` is *whole-body* — it would swivel the feet too; there
-is no pelvis-relative transverse joint wired). So this is a **rig capability
-project** (add a pelvis/transverse DOF + a two-constraint foot IK), not a tuning
-pass. Until then, `gaitBounce` is the honest *qualitative* knob and the walk's
-default vertical is the floor-pin's ~9 cm.
+**The fix (shipped):** a **mean-preserving, root-only reshape.** The sampler and
+the live stage (via one shared `deriveVerticalCalibration` / `applyVerticalCalibration`
+in `rootMotion`, so they cannot diverge) do a cheap pre-pass to measure the
+emergent grounded arc over one cycle, then scale its deviation **about its mean**
+to the requested `verticalCalibrationCm`. Because it only touches `root.y` (never a
+joint), **every clinical angle is left exactly as authored** — the opposite of the
+foot-lock approach. Measured on the rig: target 5 cm → **5.00 cm**, hip/knee peaks
+**identical** to the uncalibrated walk, feet stay within ~2 cm of the floor at the
+arc extremes (vs the old knee-scaling knob's ~5 cm floor-clipping). `gaitBounce`
+sets the target (3 / 5 / 8 cm); simMOVE calibrates every in-place walk to ~5 cm.
+Gated in `gaitBounce.test.ts`.
+
+*Residual / scoped out:* the **travel** walk keeps its emergent vertical for now
+(it plants feet by IK; calibration + foot-lock interact and want their own pass),
+and it carries a pre-existing large *vertical* foot-slide the horizontal-only
+`gaitTravel` gate doesn't catch — both are follow-ons, not part of the in-place
+calibration.
 3. **Optional `peakAt` leads on sit-to-stand / lunge** if SME confirms an
    intra-phase order (their current relay is inter-phase only).
 4. **Velocity-continuous rail recordings** — the live rail currently *trims* the

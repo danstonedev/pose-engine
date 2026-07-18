@@ -494,9 +494,14 @@
         buildLoopTrajectory,
         DEFAULT_TRACKED_BONES,
       } = await import('./services/motionRecording');
-      const { captureFloorReference, pinRootToFloor, rotateRestReferenceByRoot } = await import(
-        './services/rootMotion'
-      );
+      const {
+        captureFloorReference,
+        pinRootToFloor,
+        rotateRestReferenceByRoot,
+        deriveVerticalCalibration,
+        applyVerticalCalibration,
+        NO_VERTICAL_CALIBRATION,
+      } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant } = await import('./services/footContact');
       const { resolveMotionCommand } = await import('./services/motionCommand');
       const { normalizeRigBoneName } = await import('./services/movementClipSampling');
@@ -705,6 +710,7 @@
         composedSeq += 1;
         composedActive = false;
         composedPlants = []; // drop any foot-contact IK for the ended motion
+        composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
@@ -1071,6 +1077,39 @@
       }
       let composedPlants: StageFootPlant[] = [];
 
+      /** CALIBRATED GAIT VERTICAL for the ACTIVE composed motion — the
+       *  mean-preserving reshape of the emergent grounded pelvis arc to a cm
+       *  target (root-only; joints untouched), mirroring the offline sampler via
+       *  the SAME shared helper. Identity unless a planted motion requests it. */
+      let composedVcal = NO_VERTICAL_CALIBRATION;
+
+      /** Measure the emergent grounded pelvis arc of a starting composed motion's
+       *  trajectory and set `composedVcal` to hit its requested excursion. Called
+       *  once when a calibrated planted motion begins; resets to identity
+       *  otherwise. Poses the rig transiently (the player re-poses every frame). */
+      function setComposedVerticalCalibration(
+        traj: PoseTrajectory,
+        targetCm: number | undefined,
+        hasPlanted: boolean,
+      ): void {
+        composedVcal = NO_VERTICAL_CALIBRATION;
+        if (targetCm == null || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
+        composedVcal = deriveVerticalCalibration((u01) => {
+          const s = traj.sampleAt(u01 * traj.totalMs);
+          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
+          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
+          modelRoot!.position.set(
+            rootRestPos.x + s.rootTranslate[0],
+            rootRestPos.y + s.rootTranslate[1],
+            rootRestPos.z + s.rootTranslate[2],
+          );
+          modelRoot!.updateMatrixWorld(true);
+          if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+          return modelRoot!.position.y;
+        }, targetCm / 100);
+      }
+
       /** Rebuild the foot-plant contexts for a starting composed motion. */
       function setComposedContacts(
         contacts: { foot: string; fromMs?: number; toMs?: number }[] | undefined,
@@ -1127,6 +1166,13 @@
         modelRoot.updateMatrixWorld(true);
         if (planted && skinnedRef && variantCfgRef && floorRef) {
           pinRootToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, floorRef);
+          // Calibrated gait vertical: scale the grounded pelvis arc about its
+          // cycle mean to the requested excursion (root-only; joints untouched).
+          // Identity unless the active motion requested calibration.
+          if (composedVcal.gain !== 1) {
+            modelRoot.position.y = applyVerticalCalibration(modelRoot.position.y, composedVcal);
+            modelRoot.updateMatrixWorld(true);
+          }
         }
       }
 
@@ -1438,6 +1484,18 @@
           composedRootQuat = [...lastRoot.quat];
           composedRootTranslate = [...lastRoot.translateM];
         }
+
+        // CALIBRATED GAIT VERTICAL: measure the emergent grounded pelvis arc of
+        // the CYCLE that actually sustains on stage — the periodic loop trajectory
+        // for a looping gait (its arc; the one-shot's standing intro would inflate
+        // the range), else the one-shot — and reshape it to the requested cm
+        // excursion. Root-only, so every measured joint angle stays as authored.
+        const composedHasPlanted = built.roots.some((r) => r.stance === 'planted');
+        setComposedVerticalCalibration(
+          resolved.loop ? buildLoopTrajectory(built, { timeScale }).trajectory : trajectory,
+          resolved.verticalCalibrationCm,
+          composedHasPlanted,
+        );
 
         // Per-keyframe settle: MEASURE what the patient actually did (off the exact
         // settle pose the player applies for us, frame-timing-independent).
