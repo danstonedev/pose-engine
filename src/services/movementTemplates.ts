@@ -29,7 +29,7 @@
  * reviewed reference, not mocap.
  */
 
-import type { ComposedMotion, SequenceKeyframe, StanceMode } from './motionSequence';
+import type { ComposedMotion, MovementAsymmetry, SequenceKeyframe, StanceMode } from './motionSequence';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
 export interface TemplateTarget {
@@ -616,6 +616,160 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     ],
     source: VERIFY,
   },
+  // ── Frontal / transverse-plane AROM screens ─────────────────────────────────
+  // The command layer already carries these tri-planar DOF; these templates expose
+  // them as goniometry screens (the sagittal library was near-complete, the
+  // frontal/transverse plane was not). Each is a bidirectional AROM sweep.
+  {
+    id: 'shoulder-rotation',
+    label: 'Shoulder rotation (IR / ER AROM screen)',
+    aliases: ['shoulder rotation', 'shoulder internal rotation', 'shoulder external rotation', 'rotate your shoulder', 'shoulder ir and er'],
+    coordination:
+      'Shoulder held at the side / 90° abducted: rotate the arm internally then externally through the available range, keeping the scapula quiet. AROM ~70° internal, ~90° external (transverse plane).',
+    stance: 'floating',
+    phases: [
+      { name: 'internal', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: 65 }] },
+      { name: 'centre-1', durationMs: 500, targets: [{ joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: 0 }] },
+      { name: 'external', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: -80 }] },
+      { name: 'centre-2', durationMs: 500, targets: [{ joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: 0 }] },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'hip-rotation',
+    label: 'Hip rotation (IR / ER AROM screen)',
+    aliases: ['hip rotation', 'hip internal rotation', 'hip external rotation', 'rotate your hip', 'rotate the leg inward and outward'],
+    coordination:
+      'Open-chain hip rotation: turn the thigh internally then externally through the available range, pelvis level. AROM ~45° each way (transverse plane).',
+    stance: 'floating',
+    phases: [
+      { name: 'internal', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_UpLeg', motion: 'hipRotation', peakDeg: 40 }] },
+      { name: 'centre-1', durationMs: 500, targets: [{ joint: 'R_UpLeg', motion: 'hipRotation', peakDeg: 0 }] },
+      { name: 'external', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_UpLeg', motion: 'hipRotation', peakDeg: -40 }] },
+      { name: 'centre-2', durationMs: 500, targets: [{ joint: 'R_UpLeg', motion: 'hipRotation', peakDeg: 0 }] },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'forearm-rotation',
+    label: 'Forearm pronation / supination (AROM screen)',
+    aliases: ['forearm rotation', 'pronation and supination', 'pronate and supinate', 'turn your palm up and down', 'forearm pronation supination'],
+    coordination:
+      'Elbow flexed 90° at the side: rotate the forearm to supination (palm up) then pronation (palm down). AROM ~85° supination, ~80° pronation (transverse plane).',
+    stance: 'floating',
+    phases: [
+      { name: 'supinate', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: 80 }] },
+      { name: 'centre-1', durationMs: 500, targets: [{ joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: 0 }] },
+      { name: 'pronate', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: -75 }] },
+      { name: 'centre-2', durationMs: 500, targets: [{ joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: 0 }] },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'wrist-flexion-extension',
+    label: 'Wrist flexion / extension (AROM screen)',
+    aliases: ['wrist flexion', 'wrist extension', 'wrist flexion and extension', 'bend your wrist', 'flex and extend your wrist'],
+    coordination:
+      'Forearm supported, hand free: flex the wrist then extend it through the available range. AROM ~80° flexion, ~70° extension (sagittal plane).',
+    stance: 'floating',
+    phases: [
+      { name: 'flex', durationMs: 600, holdMs: 300, targets: [{ joint: 'R_Hand', motion: 'wristFlexion', peakDeg: 75 }] },
+      { name: 'centre-1', durationMs: 450, targets: [{ joint: 'R_Hand', motion: 'wristFlexion', peakDeg: 0 }] },
+      { name: 'extend', durationMs: 600, holdMs: 300, targets: [{ joint: 'R_Hand', motion: 'wristFlexion', peakDeg: -65 }] },
+      { name: 'centre-2', durationMs: 450, targets: [{ joint: 'R_Hand', motion: 'wristFlexion', peakDeg: 0 }] },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'wrist-deviation',
+    label: 'Wrist deviation (radial / ulnar AROM screen)',
+    aliases: ['wrist deviation', 'radial deviation', 'ulnar deviation', 'radial and ulnar deviation'],
+    coordination:
+      'Forearm pronated, hand free: deviate the wrist radially then ulnarly. AROM ~20° radial, ~30° ulnar (frontal plane).',
+    stance: 'floating',
+    phases: [
+      { name: 'radial', durationMs: 550, holdMs: 250, targets: [{ joint: 'R_Hand', motion: 'wristDeviation', peakDeg: 18 }] },
+      { name: 'centre-1', durationMs: 400, targets: [{ joint: 'R_Hand', motion: 'wristDeviation', peakDeg: 0 }] },
+      { name: 'ulnar', durationMs: 550, holdMs: 250, targets: [{ joint: 'R_Hand', motion: 'wristDeviation', peakDeg: -28 }] },
+      { name: 'centre-2', durationMs: 400, targets: [{ joint: 'R_Hand', motion: 'wristDeviation', peakDeg: 0 }] },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'tibial-rotation',
+    label: 'Tibial rotation (knee IR / ER AROM screen)',
+    aliases: ['tibial rotation', 'knee rotation', 'rotate your shin', 'tibial internal and external rotation'],
+    coordination:
+      'Knee flexed ~90°, thigh fixed: rotate the tibia internally then externally. AROM ~25° internal, ~35° external (transverse plane).',
+    stance: 'floating',
+    phases: [
+      { name: 'internal', durationMs: 600, holdMs: 250, targets: [{ joint: 'R_Leg', motion: 'kneeRotation', peakDeg: 22 }] },
+      { name: 'centre-1', durationMs: 450, targets: [{ joint: 'R_Leg', motion: 'kneeRotation', peakDeg: 0 }] },
+      { name: 'external', durationMs: 600, holdMs: 250, targets: [{ joint: 'R_Leg', motion: 'kneeRotation', peakDeg: -30 }] },
+      { name: 'centre-2', durationMs: 450, targets: [{ joint: 'R_Leg', motion: 'kneeRotation', peakDeg: 0 }] },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'trunk-side-bend',
+    label: 'Trunk lateral flexion (side-bend AROM screen)',
+    aliases: ['trunk side bend', 'side bend', 'lateral flexion', 'bend to the side', 'lateral trunk flexion', 'side-bend left and right'],
+    coordination:
+      'Standing, pelvis level: side-bend the trunk left then right, sliding the hand down the thigh, through the lumbar then thoracic spine. AROM ~25° each way (frontal plane). Planted.',
+    stance: 'planted',
+    phases: [
+      {
+        name: 'bend-left',
+        durationMs: 800,
+        holdMs: 300,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 22 },
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 12 },
+        ],
+      },
+      {
+        name: 'centre-1',
+        durationMs: 600,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 0 },
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 0 },
+        ],
+      },
+      {
+        name: 'bend-right',
+        durationMs: 800,
+        holdMs: 300,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: -22 },
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: -12 },
+        ],
+      },
+      {
+        name: 'centre-2',
+        durationMs: 600,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 0 },
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'cervical-lateral-flexion',
+    label: 'Cervical lateral flexion (side-bend AROM screen)',
+    aliases: ['cervical lateral flexion', 'neck side bend', 'ear to shoulder', 'tilt your head side to side', 'head side bend'],
+    coordination:
+      'Bring the ear toward the shoulder on each side, keeping rotation and flexion near zero. AROM ~45° each way (frontal plane).',
+    stance: 'floating',
+    phases: [
+      { name: 'left', durationMs: 700, holdMs: 300, targets: [{ joint: 'Neck', motion: 'lateralTilt', peakDeg: 40 }] },
+      { name: 'centre-1', durationMs: 500, targets: [{ joint: 'Neck', motion: 'lateralTilt', peakDeg: 0 }] },
+      { name: 'right', durationMs: 700, holdMs: 300, targets: [{ joint: 'Neck', motion: 'lateralTilt', peakDeg: -40 }] },
+      { name: 'centre-2', durationMs: 500, targets: [{ joint: 'Neck', motion: 'lateralTilt', peakDeg: 0 }] },
+    ],
+    source: VERIFY,
+  },
 ];
 
 /** Turn a template into a playable, measurable ComposedMotion (starts from
@@ -876,6 +1030,47 @@ export function scaleArmSwing(motion: ComposedMotion, amount: number): ComposedM
           targets: kf.targets.map((t) =>
             ARM_SWING_MOTIONS.has(t.motion) ? { ...t, targetDegrees: t.targetDegrees * a } : t,
           ),
+        }
+      : {}),
+  }));
+  return { ...motion, keyframes };
+}
+
+/** The involved LEG's sagittal stride joints — scaled by an asymmetry's `stepLength`. */
+const ASYMMETRY_STRIDE_MOTIONS = new Set(['hipFlexion', 'kneeFlexion', 'ankleFlexion']);
+const clamp01 = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 1));
+
+/**
+ * Reshape ONE side's targets for a unilateral (involved-vs-uninvolved) asymmetry —
+ * the core of a PT movement exam, where the finding is a between-side comparison.
+ * The involved side is `asym.side`; each scale multiplies only that side's targets
+ * (matched by the `L_`/`R_` joint-key prefix), leaving the uninvolved side as the
+ * authored reference:
+ *   - `rom`        → the whole involved side's excursion (a stiff / hypomobile limb)
+ *   - `stepLength` → the involved LEG's sagittal stride joints (a short step)
+ *   - `armSwing`   → the involved ARM's shoulder swing (reduced arm swing)
+ * Scales compose multiplicatively where they overlap. Pure; returns a new motion;
+ * ROM-clamped on resolve so the asymmetry is measurable. Identity when nothing applies.
+ */
+export function applyAsymmetry(motion: ComposedMotion, asym: MovementAsymmetry | undefined): ComposedMotion {
+  if (!asym) return motion;
+  const prefix = asym.side === 'left' ? 'L_' : 'R_';
+  const rom = asym.rom != null && asym.rom < 1 ? clamp01(asym.rom) : null;
+  const step = asym.stepLength != null && asym.stepLength < 1 ? clamp01(asym.stepLength) : null;
+  const arm = asym.armSwing != null && asym.armSwing < 1 ? clamp01(asym.armSwing) : null;
+  if (rom == null && step == null && arm == null) return motion;
+  const keyframes = motion.keyframes.map((kf) => ({
+    ...kf,
+    ...(kf.targets
+      ? {
+          targets: kf.targets.map((t) => {
+            if (!t.joint.startsWith(prefix)) return t;
+            let f = 1;
+            if (rom != null) f *= rom;
+            if (step != null && ASYMMETRY_STRIDE_MOTIONS.has(t.motion)) f *= step;
+            if (arm != null && ARM_SWING_MOTIONS.has(t.motion)) f *= arm;
+            return f === 1 ? t : { ...t, targetDegrees: t.targetDegrees * f };
+          }),
         }
       : {}),
   }));

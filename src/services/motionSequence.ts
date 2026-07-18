@@ -227,6 +227,25 @@ export interface SequenceKeyframe {
   stance?: StanceMode;
 }
 
+/** A unilateral (involved-vs-uninvolved) asymmetry — the substance of a PT movement
+ *  exam, where the finding is a comparison BETWEEN sides. `side` is the INVOLVED
+ *  limb; each scale reshapes only that side's authored targets, leaving the
+ *  uninvolved side as the reference. Spatial / amplitude only — every scaled target
+ *  is still ROM-clamped and goniometrically measured on resolve, so the asymmetry
+ *  reads back on the chart. (Per-side stance TIME is a separate, deferred timing
+ *  transform.) Realized by `applyAsymmetry` (services/movementTemplates). */
+export interface MovementAsymmetry {
+  /** The involved (affected) side. */
+  side: 'left' | 'right';
+  /** 0..1 scale on the involved side's overall joint excursion (a globally stiff /
+   *  reduced-ROM, hypomobile side). */
+  rom?: number;
+  /** 0..1 scale on the involved LEG's sagittal stride excursion (a short step). */
+  stepLength?: number;
+  /** 0..1 scale on the involved ARM's shoulder swing amplitude (reduced arm swing). */
+  armSwing?: number;
+}
+
 /** Qualitative overlay modifiers — same semantics as prescribe_motion's. */
 export interface ComposedMotionModifiers {
   /** 0..1 trunk + arm stiffness (guarded, protective pattern). */
@@ -246,6 +265,9 @@ export interface ComposedMotionModifiers {
    * reach, single-leg, sit-to-stand), where "maintain balance" is the visible
    * behaviour. Omit for no balance adjustment (the raw authored kinematics). */
   balanceControl?: number;
+  /** A per-side asymmetry (involved-vs-uninvolved), applied as a build-time reshape
+   *  of only the involved side's targets. See {@link MovementAsymmetry}. */
+  asymmetry?: MovementAsymmetry;
 }
 
 /** A weight-bearing foot contact: pin `foot` to the ground while it bears
