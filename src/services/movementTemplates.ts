@@ -770,6 +770,76 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     ],
     source: VERIFY,
   },
+  {
+    id: 'kick',
+    label: 'Forward leg kick (dynamic hip flexion / knee extension)',
+    aliases: ['kick', 'kicks', 'kicking', 'leg kick', 'front kick', 'kick forward'],
+    coordination:
+      'Stand on the left leg and kick the right forward: a brief wind-up (hip extends ~15°, knee flexes ~40°) then a powerful strike where the hip flexes ~65° while the knee whips toward extension (~5°), then recover to neutral. The knee LEADS the hip late in the strike (peakAt) — the shank snaps out after the thigh. Planted (stance leg). Shown kicking with the right leg.',
+    stance: 'planted',
+    phases: [
+      {
+        name: 'wind-up',
+        durationMs: 450,
+        holdMs: 120,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -15 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 40 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: -6 },
+        ],
+      },
+      {
+        name: 'strike',
+        durationMs: 380,
+        holdMs: 100,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 65 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5, peakAt: 0.75 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 6 },
+        ],
+      },
+      {
+        name: 'recover',
+        durationMs: 520,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'endpoint-reach',
+    label: 'Functional forward/overhead reach (endpoint reach)',
+    aliases: ['reach', 'reaching', 'reach forward', 'reach up', 'functional reach', 'reach for something', 'reach overhead'],
+    coordination:
+      'Reach the right arm forward and up toward a target: the shoulder flexes ~140° as the elbow extends toward straight (~5°), with a small forward trunk lean (~10°) carrying the reach to its endpoint; hold at the target, then return to rest. A functional upper-extremity reach envelope. Planted. Shown reaching with the right arm.',
+    stance: 'planted',
+    phases: [
+      {
+        name: 'reach-to-target',
+        durationMs: 800,
+        holdMs: 500,
+        targets: [
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 140 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 5 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 10 },
+        ],
+      },
+      {
+        name: 'return',
+        durationMs: 800,
+        targets: [
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 0 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
 ];
 
 /** Turn a template into a playable, measurable ComposedMotion (starts from
@@ -918,6 +988,152 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
 
   return {
     name: reps > 1 ? `vertical jump ×${reps}` : 'vertical jump',
+    startFrom: 'neutral',
+    stance: 'planted',
+    ...(reps > 1 ? { reps } : {}),
+    keyframes: [load(), propulsion(), apex(), descent(), landing(), recovery()],
+  };
+}
+
+/**
+ * A real kinematic RUN — a looping, in-place running gait with a genuine FLIGHT
+ * phase (both feet off the ground between steps, unlike walk's double-support).
+ * Each cycle: stance-drive on one leg (deep knee absorption + toe push) → FLIGHT
+ * (floating, the body rises ~12 cm and BOTH feet are airborne) → stance on the
+ * other leg → flight. Higher hip/knee flexion + a forward trunk lean give running
+ * form; arms pump reciprocally (opposite the swinging leg). `speed` couples stride
+ * amplitude and cadence (√speed each, like paceGait). Loops seamlessly. The floating
+ * phases are NOT floor-pinned, so the up-travel genuinely lifts the body — the feet
+ * leave the ground (contrast the in-place walk, which keeps one foot planted).
+ */
+export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
+  const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
+  const f = Math.sqrt(s);
+  const RISE_M = 0.12; // COM rise during flight — both feet clear the ground
+  const A = (deg: number) => Math.round(deg * f); // stride/amplitude scale
+  const leg = (side: 'L' | 'R', hip: number, knee: number, ankle: number) => [
+    { joint: `${side}_UpLeg`, motion: 'hipFlexion', targetDegrees: A(hip) },
+    { joint: `${side}_Leg`, motion: 'kneeFlexion', targetDegrees: A(knee) },
+    { joint: `${side}_Foot`, motion: 'ankleFlexion', targetDegrees: ankle },
+  ];
+  const arm = (side: 'L' | 'R', sh: number) => [
+    { joint: `${side}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: A(sh) },
+    { joint: `${side}_Forearm`, motion: 'elbowFlexion', targetDegrees: 85 },
+  ];
+  const trunk = [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: 8 }];
+  const durStance = Math.round(150 / f);
+  const durFlight = Math.round(120 / f);
+
+  // Stance on `st`: that leg supports (mild flex + toe push); the other swings with
+  // a high knee; the arm OPPOSITE the swing leg drives forward (reciprocal).
+  const stance = (st: 'L' | 'R'): SequenceKeyframe => {
+    const sw = st === 'L' ? 'R' : 'L'; // swing leg
+    return {
+      durationMs: durStance,
+      holdMs: 20,
+      stance: 'planted',
+      velocityClass: 'functional',
+      travel: { direction: 'up', meters: 0 },
+      targets: [
+        ...leg(st, 14, 38, -8), // support leg: absorb + push off
+        ...leg(sw, 58, 95, 0), // swing leg: high knee
+        ...arm(st, 48), // arm opposite the swing leg (= the stance side) forward
+        ...arm(sw, -18), // the other arm back
+        ...trunk,
+      ],
+    };
+  };
+  // Flight after `pushed` leg drove off: it trails behind (hip extension), the other
+  // leads and descends toward the next contact. FLOATING + up-travel → airborne.
+  const flight = (pushed: 'L' | 'R'): SequenceKeyframe => {
+    const lead = pushed === 'L' ? 'R' : 'L';
+    return {
+      durationMs: durFlight,
+      velocityClass: 'ballistic',
+      stance: 'floating',
+      travel: { direction: 'up', meters: RISE_M },
+      targets: [
+        ...leg(pushed, -18, 28, -15), // trailing leg: extended behind, plantarflexed
+        ...leg(lead, 45, 55, 0), // leading leg: descending from the high-knee
+        ...arm(pushed, 18),
+        ...arm(lead, 5),
+        ...trunk,
+      ],
+    };
+  };
+
+  return {
+    name: 'run',
+    startFrom: 'neutral',
+    stance: 'planted',
+    loop: true,
+    keyframes: [stance('R'), flight('R'), stance('L'), flight('L')],
+  };
+}
+
+/**
+ * A single-leg HOP — hop in place ON one leg while the other stays lifted. Like
+ * {@link buildJump} but single-support: the SUPPORT leg loads (hip/knee flex,
+ * ankle dorsiflex) → drives off (toe push) → the body goes FLOATING and rises
+ * (~15 cm) so its foot leaves the ground too → lands back on the same foot. The
+ * OTHER leg is held flexed (hip ~30° / knee ~45°) throughout, so at the airborne
+ * apex BOTH feet are clear of the floor. A return-to-sport / hop-test screen.
+ * `reps` replays the cycle at playback time (no keyframe duplication).
+ */
+export function buildSingleLegHop(
+  opts: { stance?: 'L' | 'R'; heightM?: number; reps?: number } = {},
+): ComposedMotion {
+  const sup = opts.stance === 'R' ? 'R' : 'L'; // support / hopping leg
+  const up = sup === 'L' ? 'R' : 'L'; // the leg held up throughout
+  const apexM = Math.max(0.08, Math.min(0.4, opts.heightM ?? 0.15));
+  const held = () => [
+    { joint: `${up}_UpLeg`, motion: 'hipFlexion', targetDegrees: 30 },
+    { joint: `${up}_Leg`, motion: 'kneeFlexion', targetDegrees: 45 },
+  ];
+  const supLeg = (hip: number, knee: number, ankle: number) => [
+    { joint: `${sup}_UpLeg`, motion: 'hipFlexion', targetDegrees: hip },
+    { joint: `${sup}_Leg`, motion: 'kneeFlexion', targetDegrees: knee },
+    { joint: `${sup}_Foot`, motion: 'ankleFlexion', targetDegrees: ankle },
+  ];
+  const arms = (sh: number) => [
+    { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
+    { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
+  ];
+  const trunk = (deg: number) => [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: deg }];
+
+  const load = (): SequenceKeyframe => ({
+    durationMs: 360, holdMs: 80, stance: 'planted',
+    targets: [...supLeg(28, 50, 15), ...held(), ...arms(-20), ...trunk(12)],
+  });
+  // Toe push-off while still planted seeds the floating rise (see buildJump).
+  const propulsion = (): SequenceKeyframe => ({
+    durationMs: 150, velocityClass: 'ballistic', stance: 'planted',
+    travel: { direction: 'up', meters: 0.05 },
+    targets: [...supLeg(5, 12, -25), ...held(), ...arms(60), ...trunk(2)],
+  });
+  const apex = (): SequenceKeyframe => ({
+    durationMs: 220, holdMs: 60, velocityClass: 'ballistic', stance: 'floating',
+    travel: { direction: 'up', meters: apexM },
+    targets: [...supLeg(18, 32, -5), ...held(), ...arms(40)],
+  });
+  const descent = (): SequenceKeyframe => ({
+    durationMs: 170, velocityClass: 'ballistic', stance: 'floating',
+    travel: { direction: 'up', meters: 0.04 },
+    targets: [...supLeg(12, 22, 0), ...held(), ...arms(25)],
+  });
+  const landing = (): SequenceKeyframe => ({
+    durationMs: 220, holdMs: 70, velocityClass: 'functional', stance: 'planted',
+    travel: { direction: 'up', meters: 0 },
+    targets: [...supLeg(32, 52, 12), ...held(), ...arms(15), ...trunk(10)],
+  });
+  const recovery = (): SequenceKeyframe => ({
+    durationMs: 300, stance: 'planted',
+    targets: [...supLeg(20, 40, 0), ...held(), ...arms(0), ...trunk(0)],
+  });
+
+  const reps = Math.max(1, Math.min(50, Math.round(opts.reps ?? 1)));
+  return {
+    name: reps > 1 ? `single-leg hop ×${reps}` : 'single-leg hop',
     startFrom: 'neutral',
     stance: 'planted',
     ...(reps > 1 ? { reps } : {}),
@@ -1124,6 +1340,120 @@ export function antalgicLean(motion: ComposedMotion, side: 'left' | 'right', deg
     { joint: 'Spine_Lower', motion: 'lateralTilt', deg: sign * d },
     { joint: 'Spine_Upper', motion: 'lateralTilt', deg: sign * Math.round(d * 0.5) },
   ]);
+}
+
+// ─── Compensatory-fault taxonomy ────────────────────────────────────────────
+// A buildable set of movement FAULTS a clinician can request as a deviation to
+// overlay on any movement. Each writes SUSTAINED, ROM-clamped targets on
+// live-commandable DOF (via addSustainedTargets), so the fault reads back on the
+// goniometry chart — it is a real authored angle, not a cosmetic overlay. Faults
+// on DOF without a large commandable frontal/rotary axis (e.g. knee valgus) are
+// authored at their true PROXIMAL driver (the hip). Pure; compose freely.
+
+/** A named compensatory fault the interpreter maps to one of the transforms below. */
+export type CompensatoryFault =
+  | 'knee-valgus'
+  | 'forward-head'
+  | 'circumduction'
+  | 'compensated-trendelenburg'
+  | 'genu-recurvatum';
+
+const sidePrefix = (side: 'left' | 'right') => (side === 'left' ? 'L_' : 'R_');
+
+/**
+ * DYNAMIC KNEE VALGUS via the hip (medial knee collapse). The knee has no large
+ * commandable frontal DOF (`kneeDeviation` is a ±5° readout), so valgus is authored
+ * at its true proximal driver: the femur ADDUCTS and INTERNALLY ROTATES, carrying
+ * the knee medially. Sustained on the given side, or BOTH legs when omitted (the
+ * classic bilateral squat/landing collapse). `hipAbduction` − = adduction;
+ * `hipRotation` + = internal. Pure; ROM-clamped on resolve.
+ */
+export function kneeValgus(motion: ComposedMotion, side?: 'left' | 'right', deg = 12): ComposedMotion {
+  const d = Math.max(0, Math.min(25, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  const legs = side ? [sidePrefix(side)] : ['L_', 'R_'];
+  const add = legs.flatMap((p) => [
+    { joint: `${p}UpLeg`, motion: 'hipAbduction', deg: -d }, // adduction
+    { joint: `${p}UpLeg`, motion: 'hipRotation', deg: Math.round(d * 0.8) }, // internal
+  ]);
+  return addSustainedTargets(motion, add);
+}
+
+/**
+ * FORWARD-HEAD posture — sustained cervical flexion with a rounded upper back, so
+ * the head juts anteriorly. Neck flexion `deg`, thoracic flexion at half. Pure;
+ * ROM-clamped on resolve. A postural fault to overlay on any movement.
+ */
+export function forwardHead(motion: ComposedMotion, deg = 15): ComposedMotion {
+  const d = Math.max(0, Math.min(35, Number.isFinite(deg) ? deg : 0));
+  return addSustainedTargets(motion, [
+    { joint: 'Neck', motion: 'flexion', deg: d },
+    { joint: 'Spine_Upper', motion: 'flexion', deg: Math.round(d * 0.5) },
+  ]);
+}
+
+/**
+ * CIRCUMDUCTION + contralateral VAULT — a swing-phase gait deviation compensating
+ * for a functionally long / stiff swing leg (reduced knee flexion): the swing hip
+ * ABDUCTS to arc the foot around and clear the floor, while the STANCE side vaults
+ * (plantarflexes to lift the body over the planted foot). `side` = the swinging /
+ * involved leg. Sustained hip abduction on `side` + plantarflexion (negative
+ * ankleFlexion) on the contralateral ankle. Pure; ROM-clamped on resolve. Best over
+ * a gait (needs a swing leg).
+ */
+export function circumduction(motion: ComposedMotion, side: 'left' | 'right' = 'right', deg = 15): ComposedMotion {
+  const d = Math.max(0, Math.min(30, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  const swing = sidePrefix(side);
+  const stance = side === 'left' ? 'R_' : 'L_';
+  return addSustainedTargets(motion, [
+    { joint: `${swing}UpLeg`, motion: 'hipAbduction', deg: d }, // arc the swing leg out
+    { joint: `${stance}Foot`, motion: 'ankleFlexion', deg: -Math.round(d * 0.6) }, // vault (plantarflex)
+  ]);
+}
+
+/**
+ * GENU RECURVATUM — sustained knee HYPEREXTENSION (the knee bows backward past 0).
+ * Adds a negative `kneeFlexion` on the given knee, or BOTH when omitted. Relies on
+ * the widened `kneeFlexion` ROM min (romRegistry) so the hyperextension isn't
+ * clamped away. Pure; ROM-clamped on resolve. A stance / gait posture fault.
+ */
+export function genuRecurvatum(motion: ComposedMotion, side?: 'left' | 'right', deg = 10): ComposedMotion {
+  const d = Math.max(0, Math.min(15, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  const legs = side ? [sidePrefix(side)] : ['L_', 'R_'];
+  return addSustainedTargets(
+    motion,
+    legs.map((p) => ({ joint: `${p}Leg`, motion: 'kneeFlexion', deg: -d })),
+  );
+}
+
+/**
+ * Apply a named compensatory fault to a motion. `compensated-trendelenburg` reuses
+ * {@link antalgicLean} (the trunk lean over the involved stance limb). `side` steers
+ * the unilateral faults (circumduction, compensated-trendelenburg); knee-valgus and
+ * genu-recurvatum go BILATERAL when `side` is omitted. Pure; ROM-clamped on resolve.
+ */
+export function applyFault(
+  motion: ComposedMotion,
+  fault: CompensatoryFault,
+  side?: 'left' | 'right',
+  deg?: number,
+): ComposedMotion {
+  switch (fault) {
+    case 'knee-valgus':
+      return kneeValgus(motion, side, deg);
+    case 'forward-head':
+      return forwardHead(motion, deg);
+    case 'circumduction':
+      return circumduction(motion, side ?? 'right', deg);
+    case 'compensated-trendelenburg':
+      return antalgicLean(motion, side ?? 'right', deg ?? 12);
+    case 'genu-recurvatum':
+      return genuRecurvatum(motion, side, deg);
+    default:
+      return motion;
+  }
 }
 
 /** Select the template whose aliases best match a free-text instruction, or null. */
