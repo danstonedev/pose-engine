@@ -39,6 +39,7 @@ import {
   serializeCustomPose,
 } from './poseRig';
 import { buildFootPlant, solveFootPlant, type FootPlantSolver } from './footContact';
+import { computeBodyCoMFromBones } from './centerOfMass';
 import {
   buildSequencePoses,
   type ResolvedComposedMotion,
@@ -109,7 +110,10 @@ export interface MotionRecording {
   createdAtIso?: string;
 }
 
-/** Canonical bones tracked by default (world trajectories). */
+/** Canonical bones tracked by default (world trajectories). Feet AND forefeet
+ *  are tracked so the balance post-pass ({@link computeBalanceTimeline}) can
+ *  rebuild the base of support from the recording alone. The whole-body centre of
+ *  mass is added per frame under the reserved key `CoM` (not a bone). */
 export const DEFAULT_TRACKED_BONES = [
   'Hips',
   'Head',
@@ -117,6 +121,8 @@ export const DEFAULT_TRACKED_BONES = [
   'R_Hand',
   'L_Foot',
   'R_Foot',
+  'L_Toes',
+  'R_Toes',
 ] as const;
 
 /** Total duration of a recording, ms (last frame's timestamp). */
@@ -485,6 +491,10 @@ export function sampleComposedMotion(
       bone.getWorldPosition(_sv);
       worldTracks[key] = [_sv.x, _sv.y, _sv.z];
     }
+    // Whole-body centre of mass (gravity's grip): the mass-weighted summary of
+    // the pose, under the reserved key `CoM`. Tracked every frame so the balance
+    // margin (COM projection vs base of support) is derivable from the recording.
+    worldTracks.CoM = computeBodyCoMFromBones(boneByKey).world;
 
     return {
       tMs,

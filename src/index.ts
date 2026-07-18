@@ -90,6 +90,9 @@ export * from './services/movementCoordination';
 // while the root translates over it (no moonwalk slide), plus the slide metric.
 export * from './services/footContact';
 
+// ── Whole-body center of mass + balance (base of support, margin of stability) ──
+export * from './services/centerOfMass';
+
 // Compound motion chains (simMOVE Phase 4) — sequence validated primitives with
 // cross-motion continuity (each segment continues from the previous one's end
 // pose + root), plus the seam-continuity metric so "no teleport between segments"
