@@ -2,17 +2,17 @@
  * BALANCE MEASUREMENT — the effect of gravity on movement, made measurable.
  *
  * The pose/measure system knew every joint angle but nothing about whether a
- * movement keeps the body's mass over its feet. This proves the foundation the
- * balance controller builds on:
+ * movement keeps the body's mass over its feet. This proves the foundation
+ * closed-chain foot-rooted planting (services/rootMotion) is graded against:
  *
  *  1. Pure geometry — base of support from footprints, signed margin of stability
  *     (COM projection inside/outside the support polygon).
  *  2. On the rig — a quiet upright stance is balanced (COM over the base, positive
  *     margin near the base centre).
- *  3. THE PHYSICS THAT MOTIVATES A CONTROLLER — a forward hip-hinge drives the COM
- *     forward toward/over the toe edge (margin collapses): un-corrected, the body
- *     is toppling. A real body shifts the hips back to hold the COM in; that is
- *     the adjustment the controller will make.
+ *  3. THE PHYSICS FOOT-ROOTING ANSWERS — a forward hip-hinge drives the COM
+ *     forward toward/over the toe edge (margin collapses): pelvis-rooted FK is
+ *     toppling. A real body folds over PLANTED feet so the pelvis placement holds
+ *     the COM in; re-rooting at the stance foot produces exactly that.
  *  4. Single-leg stance shrinks the base to one foot — a smaller margin, the
  *     balance challenge the movement is named for.
  */
@@ -91,11 +91,10 @@ function sampleMotion(m: ComposedMotion): MotionRecording {
   });
 }
 
-function sample(templateId: string, control?: number): MotionRecording {
+function sample(templateId: string): MotionRecording {
   const m: ComposedMotion = templateToComposedMotion(
     MOVEMENT_TEMPLATES.find((t) => t.id === templateId)!,
   );
-  if (control != null) m.modifiers = { ...(m.modifiers ?? {}), balanceControl: control };
   return sampleMotion(m);
 }
 
@@ -232,9 +231,9 @@ describe('single-leg stance narrows the base of support', () => {
   });
 });
 
-// ── 5. Foot-rooting OWNS balance; the old balanceControl lever is parked ──────
+// ── 5. Foot-rooting OWNS balance ─────────────────────────────────────────────
 
-describe('foot-rooted planting owns balance (the balanceControl modifier is parked)', () => {
+describe('foot-rooted planting owns balance', () => {
   it('a sampled squat stays grounded with its COM near the base (planted, not toppling)', () => {
     const tl = computeBalanceTimeline(sample('squat'));
     expect(tl.airborneFraction).toBe(0);
@@ -244,15 +243,13 @@ describe('foot-rooted planting owns balance (the balanceControl modifier is park
     expect(tl.minMarginM!).toBeGreaterThan(-0.12);
   });
 
-  it('is deterministic and unaffected by the parked balanceControl modifier', () => {
-    // Balance now emerges from CORRECT closed-chain kinematics (foot-rooting), not
-    // a pelvis-shifting IK controller — so the old balanceControl lever is parked:
-    // two samples are byte-identical, and setting the modifier changes nothing.
+  it('is deterministic (two samples byte-identical)', () => {
+    // Balance emerges from CORRECT closed-chain kinematics (foot-rooting), not a
+    // stateful pelvis-shifting IK controller — the deleted balanceControl lever
+    // must never come back as hidden state: two samples are byte-identical.
     const a = sample('squat');
     const b = sample('squat');
     expect(JSON.stringify(a.frames)).toBe(JSON.stringify(b.frames)); // deterministic
-    const asked = sample('squat', 1);
-    expect(JSON.stringify(asked.frames)).toBe(JSON.stringify(a.frames)); // modifier inert
   });
 
   it('single-leg stance stays a genuine one-foot balance challenge (not auto-corrected)', () => {
@@ -267,19 +264,19 @@ describe('foot-rooted planting owns balance (the balanceControl modifier is park
   });
 });
 
-// ── 6. Cyclic motions are never re-rooted or balance-adjusted ────────────────
+// ── 6. Cyclic motions are never re-rooted ────────────────────────────────────
 
-describe('cyclic (looping) motions are never re-rooted or balance-adjusted', () => {
-  it('the in-place walk (planted + looping) is byte-identical with balanceControl set', () => {
+describe('cyclic (looping) motions are never re-rooted', () => {
+  it('the in-place walk (planted + looping) samples deterministically', () => {
     // The in-place walk is planted and non-travelling, so without the loop gate
     // foot-rooted planting would engage and re-root it onto a single stance foot —
     // freezing the gait. It LOOPS (cyclic, not quasi-static), so useFootRoot skips
-    // it; and the parked balanceControl modifier is inert. Either way, setting
-    // balanceControl leaves the recording untouched.
+    // it, and the sampler carries no per-motion adjustment state: two samples of
+    // the same walk are byte-identical.
     const walk = templateToComposedMotion(MOVEMENT_TEMPLATES.find((t) => t.id === 'walk')!);
     expect(walk.loop).toBe(true);
     const plain = sampleMotion(walk);
-    const controlled = sampleMotion({ ...walk, modifiers: { ...walk.modifiers, balanceControl: 1 } });
-    expect(JSON.stringify(controlled.frames)).toBe(JSON.stringify(plain.frames));
+    const again = sampleMotion(walk);
+    expect(JSON.stringify(again.frames)).toBe(JSON.stringify(plain.frames));
   });
 });

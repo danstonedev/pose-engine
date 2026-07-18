@@ -20,6 +20,7 @@
 
 import type { MovementClipId } from '../types';
 import type { MotionCommand } from './motionCommand';
+import type { QualitativeOverlayModifiers } from './motionSequence';
 import { getRomJointDefinition, getRomFieldDefinition } from './romRegistry';
 import type { RomScenarioConstraints } from './romConstraints';
 
@@ -48,29 +49,26 @@ export interface RomCap {
 }
 
 /**
- * Deterministic clinical modifiers. Only `timeScale` and `romCaps` are wired in
- * the first runtime pass (Build B); the rest are typed now so the schema is the
- * stable contract as later builds implement them.
+ * Deterministic clinical modifiers. The qualitative trio (timeScale / guarding /
+ * balanceSway) comes from the shared {@link QualitativeOverlayModifiers} base —
+ * the SAME vocabulary composed motions use, so the two surfaces can't drift.
+ * The parked fields are typed now so the schema is the stable contract as later
+ * builds implement them.
  */
-export interface ClinicalModifiers {
+export interface ClinicalModifiers extends QualitativeOverlayModifiers {
   // ── APPLIED by the runtime ──
-  /** Playback speed: 1 = normal, <1 slower, >1 faster. Folds into MotionCommand.speed. */
-  timeScale?: number;
   /** Per-joint excursion limits enforced each frame during playback. */
   romCaps?: RomCap[];
-  /** 0..1 trunk + arm stiffness (guarded, reduced-excursion). Applied as a live
-   *  overlay (ExamStage3D setMotionOverlays). */
-  guarding?: number;
-  /** 0..1 slow postural wobble over the planted feet (cosmetic). Applied as a live
-   *  overlay (ExamStage3D setMotionOverlays). */
-  balanceSway?: number;
-  // ── PLANNED: carried through `overlays` but NOT yet consumed by the runtime.
-  //    These record intended clinical modifiers; wire each where noted. ──
+  /** Lateral pelvis shift in cm — the antalgic weight-shift OFF a painful limb.
+   *  POSITIVE = toward the patient's LEFT (+X, the engine's lateral travel axis;
+   *  same + = Left convention as `lateralTilt`). Clamped to ±15 cm on resolve and
+   *  applied as a constant model-root X offset — a live overlay (ExamStage3D
+   *  setMotionOverlays). */
+  pelvisShiftCm?: number;
+  // ── PLANNED: typed on the contract for schema stability but NOT resolved into
+  //    `overlays` yet; wire each where noted. ──
   /** Per-side weight-bearing bias. PLANNED. */
   weightBearing?: Partial<Record<Side, 'reduced' | 'normal' | 'increased'>>;
-  /** Lateral pelvis shift in cm (weight-shift away from a painful limb) — would ride
-   *  the model root (rootMotion). PLANNED. */
-  pelvisShiftCm?: number;
   /** Props the hands/feet contact during the motion — would drive IK contact targets
    *  (footContact). PLANNED. */
   assistiveSupport?: ('armrests' | 'walker' | 'cane' | 'table' | 'rail')[];
@@ -100,10 +98,12 @@ export interface ResolvedPrescription {
   command: MotionCommand;
   /** ROM caps to enforce each frame (validated against the registry). */
   romCaps: RomCap[];
-  /** Residual overlay modifiers. `guarding` + `balanceSway` are applied live by
-   *  the stage; the weight-bearing / pelvis-shift / assistive-support fields are
-   *  carried but not yet consumed (see ClinicalModifiers). */
-  overlays: Omit<ClinicalModifiers, 'timeScale' | 'romCaps'>;
+  /** Residual overlay modifiers — ONLY the fields the stage actually consumes
+   *  (ExamStage3D setMotionOverlays): `guarding` + `balanceSway` live per-frame,
+   *  `pelvisShiftCm` as a constant root-X offset (clamped ±15 cm, + = patient's
+   *  left). The parked weight-bearing / assistive-support fields stay on the
+   *  contract but are NOT carried here until they are wired. */
+  overlays: Pick<ClinicalModifiers, 'guarding' | 'balanceSway' | 'pelvisShiftCm'>;
   sequence: MovementClipId[];
 }
 
@@ -167,20 +167,34 @@ export function romCapJointKeys(caps: RomCap[]): string[] {
   return [...new Set(caps.map((c) => c.joint))];
 }
 
+/** Widest lateral pelvis shift the resolver honors, cm — a plausible antalgic
+ *  weight-shift; anything larger reads as a stagger, not a stance. */
+const PELVIS_SHIFT_MAX_CM = 15;
+
 /**
  * Resolve a prescription into what the runtime executes: a base
  * `play-motion` command (with timing folded into `speed`), the validated ROM
  * caps, and the residual overlays. `play` mode drops modifiers entirely.
+ * Overlays are built EXPLICITLY (not rest-spread) so parked fields can never
+ * leak into the runtime surface, and `pelvisShiftCm` is clamped here — the
+ * stage trusts the resolved value.
  */
 export function resolveMotionPrescription(rx: MotionPrescription): ResolvedPrescription {
   const mods = rx.mode === 'modify' ? (rx.modifiers ?? {}) : {};
-  const { timeScale, romCaps, ...overlays } = mods;
+  const { timeScale, romCaps } = mods;
   const command: MotionCommand = {
     action: 'play-motion',
     motion: rx.motion,
     // Timing folds into the existing speed override; the definition's default
     // speed still applies when timeScale is absent.
     ...(timeScale != null ? { speed: timeScale } : {}),
+  };
+  const overlays: ResolvedPrescription['overlays'] = {
+    ...(mods.guarding != null ? { guarding: mods.guarding } : {}),
+    ...(mods.balanceSway != null ? { balanceSway: mods.balanceSway } : {}),
+    ...(mods.pelvisShiftCm != null
+      ? { pelvisShiftCm: clampNum(mods.pelvisShiftCm, -PELVIS_SHIFT_MAX_CM, PELVIS_SHIFT_MAX_CM) }
+      : {}),
   };
   return {
     command,

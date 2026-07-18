@@ -246,25 +246,23 @@ export interface MovementAsymmetry {
   armSwing?: number;
 }
 
-/** Qualitative overlay modifiers — same semantics as prescribe_motion's. */
-export interface ComposedMotionModifiers {
-  /** 0..1 trunk + arm stiffness (guarded, protective pattern). */
+/** The qualitative overlay modifiers shared by prescription (ClinicalModifiers)
+ *  and composition ({@link ComposedMotionModifiers}) — ONE vocabulary, so the
+ *  two surfaces can never drift. */
+export interface QualitativeOverlayModifiers {
+  /** 0..1 trunk + arm stiffness (guarded, protective, reduced-excursion
+   *  pattern). Applied as a live overlay (ExamStage3D setMotionOverlays). */
   guarding?: number;
-  /** Playback speed: 1 = normal, <1 slower, >1 faster (scales durations). */
+  /** Playback speed: 1 = normal, <1 slower, >1 faster. Prescriptions fold it
+   *  into MotionCommand.speed; composed motions scale their durations. */
   timeScale?: number;
-  /** 0..1 slow postural wobble over the planted feet. COSMETIC (a sinusoidal
-   *  lean); superseded by {@link balanceControl} for physics-based balance. */
+  /** 0..1 slow postural wobble over the planted feet (a cosmetic sinusoidal
+   *  lean). Applied as a live overlay (ExamStage3D setMotionOverlays). */
   balanceSway?: number;
-  /**
-   * BALANCE ABILITY, 0..1 — the physics-based postural adjustment that holds the
-   * whole-body centre of mass over the base of support through the movement.
-   * 1 = fully balanced (the pelvis shifts to keep the COM over the planted feet,
-   * a realistic steady movement); 0 = no correction (the COM drifts out past the
-   * feet — an unsteady / impaired-balance abnormality); between = partial
-   * counterbalance. Applied to PLANTED, non-travelling motions (hinge, squat,
-   * reach, single-leg, sit-to-stand), where "maintain balance" is the visible
-   * behaviour. Omit for no balance adjustment (the raw authored kinematics). */
-  balanceControl?: number;
+}
+
+/** Qualitative overlay modifiers — same semantics as prescribe_motion's. */
+export interface ComposedMotionModifiers extends QualitativeOverlayModifiers {
   /** A per-side asymmetry (involved-vs-uninvolved), applied as a build-time reshape
    *  of only the involved side's targets. See {@link MovementAsymmetry}. */
   asymmetry?: MovementAsymmetry;

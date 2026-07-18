@@ -185,7 +185,7 @@
   // joints to clamp each frame while a capped motion plays.
   let setMotionRomCapsImpl: ((keys: string[]) => void) | null = null;
   let setMotionOverlaysImpl:
-    | ((overlays: { guarding?: number; balanceSway?: number } | null) => void)
+    | ((overlays: { guarding?: number; balanceSway?: number; pelvisShiftCm?: number } | null) => void)
     | null = null;
   let resolveBoot: () => void = () => {};
   const bootDone = new Promise<void>((r) => (resolveBoot = r));
@@ -344,10 +344,14 @@
    * `guarding` (0..1) stiffens the trunk and arms toward neutral — reduced
    * excursion, the guarded/protective movement pattern. `balanceSway` (0..1) adds
    * a slow postural wobble (lateral + AP lean at the low back) over the planted
-   * base — the unsteady/reduced-balance pattern. Pass `null`/0 to clear.
+   * base — the unsteady/reduced-balance pattern. `pelvisShiftCm` offsets the
+   * model root laterally by a constant amount (+ = the patient's LEFT, +X;
+   * clamped to ±15 cm) — the antalgic weight-shift off a painful limb; it
+   * composes with any root travel/pin and fully resets on clear. Pass `null`/0
+   * to clear.
    */
   export function setMotionOverlays(
-    overlays: { guarding?: number; balanceSway?: number } | null,
+    overlays: { guarding?: number; balanceSway?: number; pelvisShiftCm?: number } | null,
   ): void {
     setMotionOverlaysImpl?.(overlays);
   }
@@ -504,9 +508,7 @@
         deriveFootDrivenTravel,
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant } = await import('./services/footContact');
-      const { buildBalanceController, applyBalanceCorrection, computeBodyCoMFromBones } = await import(
-        './services/centerOfMass'
-      );
+      const { computeBodyCoMFromBones } = await import('./services/centerOfMass');
       const { resolveMotionCommand } = await import('./services/motionCommand');
       const { normalizeRigBoneName } = await import('./services/movementClipSampling');
       const { createClinicalCameraControls } = await import('./services/clinicalCameraControls');
@@ -608,6 +610,7 @@
           rootRestPos.y + translate[1],
           rootRestPos.z + translate[2],
         );
+        pelvisShiftBakedM = 0; // absolute write — any baked pelvis shift is gone
         modelRoot.updateMatrixWorld(true);
       }
 
@@ -619,6 +622,7 @@
         if (!modelRoot) return;
         modelRoot.quaternion.copy(rootRestQuat);
         modelRoot.position.copy(rootRestPos);
+        pelvisShiftBakedM = 0; // absolute write — any baked pelvis shift is gone
         modelRoot.updateMatrixWorld(true);
       }
 
@@ -711,9 +715,34 @@
       const SWAY_AP_HZ = 0.7;
       const SWAY_ML_DEG = 8; // max lateral lean at balanceSway = 1
       const SWAY_AP_DEG = 5; // max A/P lean at balanceSway = 1
-      setMotionOverlaysImpl = (overlays: { guarding?: number; balanceSway?: number } | null) => {
+      // Pelvis-shift overlay: a CONSTANT lateral offset on the MODEL ROOT X — the
+      // antalgic weight-shift off a painful limb. + = the patient's left (+X, the
+      // TRAVEL_DIRECTION_AXIS lateral sign). It must COMPOSE with the per-frame
+      // root writes (trajectory travel, floor-pin, foot-rooting) rather than fight
+      // them: `pelvisShiftBakedM` tracks what is currently baked into the root X;
+      // every ABSOLUTE root write zeroes the tracker, and bakePelvisShift() re-adds
+      // the delta — so the offset lands exactly once per frame and un-bakes on clear.
+      let motionPelvisShiftM = 0; // requested shift, meters (clamped ±0.15)
+      let pelvisShiftBakedM = 0; // shift currently baked into modelRoot.position.x
+      const PELVIS_SHIFT_MAX_M = 0.15;
+      function bakePelvisShift(): void {
+        if (!modelRoot || pelvisShiftBakedM === motionPelvisShiftM) return;
+        modelRoot.position.x += motionPelvisShiftM - pelvisShiftBakedM;
+        pelvisShiftBakedM = motionPelvisShiftM;
+        modelRoot.updateMatrixWorld(true);
+      }
+      setMotionOverlaysImpl = (
+        overlays: { guarding?: number; balanceSway?: number; pelvisShiftCm?: number } | null,
+      ) => {
         motionGuarding = Math.max(0, Math.min(1, overlays?.guarding ?? 0));
         motionSway = Math.max(0, Math.min(1, overlays?.balanceSway ?? 0));
+        motionPelvisShiftM = Math.max(
+          -PELVIS_SHIFT_MAX_M,
+          Math.min(PELVIS_SHIFT_MAX_M, (overlays?.pelvisShiftCm ?? 0) / 100),
+        );
+        // Re-bake immediately: a cleared overlay must never leave a shifted root
+        // (mid-clip changes land here too; per-frame paths keep it composed).
+        bakePelvisShift();
       };
       // ── Composed-motion (generative keyframe sequence) playback state ─────
       // Pose-tween driven (NOT the mixer). `composedActive` gates the same
@@ -726,7 +755,6 @@
         composedSeq += 1;
         composedActive = false;
         composedPlants = []; // drop any foot-contact IK for the ended motion
-        composedBalance = null; // drop any balance controller
         composedUseFootRoot = false; // drop foot-rooted planting for the ended motion
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
         composedFootDriven = null; // drop any foot-driven travel
@@ -792,6 +820,8 @@
         motionGuarding = 0;
         motionSway = 0;
         swayTime = 0;
+        motionPelvisShiftM = 0;
+        bakePelvisShift(); // un-bake any lateral pelvis-shift residue from the root
         setRomClampEnabled(null);
         if (motionFinishResolve) {
           const r = motionFinishResolve;
@@ -1022,6 +1052,7 @@
           rootRestPos.y + _rootPosA.y,
           rootRestPos.z + _rootPosA.z,
         );
+        pelvisShiftBakedM = 0; // absolute write — any baked pelvis shift is gone
         modelRoot.updateMatrixWorld(true);
         if (rt.planted && skinnedRef && variantCfgRef && floorRef) {
           pinRootToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, floorRef);
@@ -1096,13 +1127,6 @@
       }
       let composedPlants: StageFootPlant[] = [];
 
-      /** BALANCE CONTROLLER for the ACTIVE composed motion — holds the whole-body
-       *  COM over the base each frame (plants the bearing feet + shifts the pelvis)
-       *  via the SAME shared helper the offline sampler uses, so live and recorded
-       *  balance cannot diverge. Null unless the motion set `balanceControl`. */
-      let composedBalance: ReturnType<typeof buildBalanceController> | null = null;
-      /** The balance-ability knob (0..1) for the active motion (0 = raw drift). */
-      let composedBalanceControl = 0;
       /** CLOSED-CHAIN FOOT-ROOTED PLANTING for the ACTIVE composed motion — true
        *  for the quasi-static planted set (squat/hinge/sit-to-stand): each planted
        *  frame is re-rooted at the stance foot so the body folds/drops over PLANTED
@@ -1137,6 +1161,7 @@
             rootRestPos.y + s.rootTranslate[1],
             rootRestPos.z + s.rootTranslate[2],
           );
+          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
           modelRoot!.updateMatrixWorld(true);
           if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
           return modelRoot!.position.y;
@@ -1168,6 +1193,7 @@
             rootRestPos.y + s.rootTranslate[1],
             rootRestPos.z + s.rootTranslate[2],
           );
+          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
           modelRoot!.updateMatrixWorld(true);
           if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
           const rp = rBone.getWorldPosition(new THREE.Vector3());
@@ -1214,21 +1240,6 @@
         if (solved) modelRoot.updateMatrixWorld(true);
       }
 
-      /** Apply the active balance correction (plant the bearing feet + shift the
-       *  pelvis so the COM stays over the base) — called AFTER applyFootPlants each
-       *  frame. No-op unless the motion set balanceControl (mirrors the sampler). */
-      function applyBalance(): void {
-        if (!composedBalance || !skinnedRef || !variantCfgRef || !modelRoot) return;
-        applyBalanceCorrection(
-          composedBalance,
-          modelRoot,
-          skinnedRef,
-          variantCfgRef,
-          restRef,
-          composedBalanceControl,
-        );
-      }
-
       /** Set the whole-body root from an absolute trajectory sample, then (planted)
        *  pin the lower foot to the floor. */
       function applyTrajectoryRoot(
@@ -1245,6 +1256,7 @@
           rootRestPos.y + rootTranslate[1],
           rootRestPos.z + rootTranslate[2],
         );
+        pelvisShiftBakedM = 0; // absolute write — the shift re-bakes at the end
         modelRoot.scale.copy(rootRestScale); // clear any prior-frame plant scale drift
         modelRoot.updateMatrixWorld(true);
         if (
@@ -1277,6 +1289,9 @@
           modelRoot.position.z += composedFootDriven.zAt(tMs);
           modelRoot.updateMatrixWorld(true);
         }
+        // Pelvis-shift overlay LAST, so it composes over the travel/pin/foot-root
+        // writes above instead of being overwritten by them.
+        bakePelvisShift();
       }
 
       function stepTrajectory(now: number): void {
@@ -1292,7 +1307,6 @@
             applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
           applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, at.settleAtMs[at.nextSettle]!);
           applyFootPlants(at.settleAtMs[at.nextSettle]!);
-          applyBalance();
           at.onSettle(at.nextSettle);
           at.nextSettle += 1;
         }
@@ -1304,8 +1318,6 @@
         applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed);
         // Closed-chain foot contact for this frame (pins declared stance feet).
         applyFootPlants(elapsed);
-        // Balance correction: hold the COM over the base (balance-ability lever).
-        applyBalance();
         requestRender();
         if (done && !at.finished) {
           at.finished = true;
@@ -1613,8 +1625,7 @@
         // motion with no declared contacts, re-root each planted frame at the stance
         // foot (the quasi-static planted set). Same gate as the offline sampler —
         // in-place ONLY (a travel motion places its feet anew, so restoring the
-        // original foot frame would fight the step). Supersedes the balance
-        // controller for this set, so that is gated off below.
+        // original foot frame would fight the step).
         const composedTravels = built.roots.some(
           (r) => Math.hypot(r.translateM[0], r.translateM[2]) > 0.02,
         );
@@ -1625,22 +1636,6 @@
           !(resolved.contacts?.length ?? 0) &&
           composedHasPlanted &&
           !!footFrames;
-        // BALANCE CONTROLLER: the legacy lever, superseded by foot-rooting for the
-        // planted set — so gated off whenever that runs. It survives only for a
-        // PLANTED, non-travelling, non-foot-rooted motion that opted in via the
-        // (now parked) balanceControl modifier. Same gate as the offline sampler.
-        const composedBalCtrl = resolved.modifiers?.balanceControl;
-        composedBalance =
-          composedBalCtrl != null &&
-          !composedUseFootRoot &&
-          !resolved.footDrivenTravel &&
-          !resolved.loop &&
-          composedHasPlanted &&
-          skinnedRef &&
-          variantCfgRef
-            ? buildBalanceController(skinnedRef, variantCfgRef)
-            : null;
-        composedBalanceControl = composedBalCtrl ?? 0;
 
         // Per-keyframe settle: MEASURE what the patient actually did (off the exact
         // settle pose the player applies for us, frame-timing-independent).
@@ -1671,7 +1666,6 @@
                 applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
               applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, settleAtMs[i]!);
               applyFootPlants(settleAtMs[i]!);
-              applyBalance();
               measureSettle(i);
             }
             const end = trajectory.sampleAt(trajectory.totalMs);
@@ -1680,7 +1674,6 @@
             currentPose = end.pose;
             applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs);
             applyFootPlants(trajectory.totalMs);
-            applyBalance();
             resolve();
             return;
           }
@@ -1991,6 +1984,12 @@
               modelRoot.updateMatrixWorld();
             }
           }
+          // Pelvis-shift overlay: re-bake the constant lateral root offset.
+          // Composed playback already re-baked inside applyTrajectoryRoot (a
+          // no-op here); the clip (mixer) path is bones-only and never rewrites
+          // the root per frame, so this is where the shift lands for clips —
+          // and where a mid-clip setMotionOverlays change takes effect.
+          bakePelvisShift();
           // Composed playback refreshes world matrices here (the mixer path
           // already did right after mixer.update) so streaming measures fresh.
           if (composedActive && modelRoot) modelRoot.updateMatrixWorld();
