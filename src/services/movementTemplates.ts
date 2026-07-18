@@ -611,20 +611,31 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
  *  • `contacts`: the RIGHT foot is stance for the first half (right initial-
  *    contact → terminal-stance), the LEFT foot for the second half.
  * Non-looping and `startFrom:'current'`, so repeating it walks further from
- * wherever the body already is. Fixed cadence (timeScale 1) so the contact
- * windows — authored in phase time — line up with playback.
+ * wherever the body already is.
+ *
+ * SPEED (paced travel): `speed` couples stride and cadence the same way
+ * {@link paceGait} does (each ∝ √speed) — a faster walk takes LONGER steps
+ * (bigger leg swing AND more root travel) AND a quicker cadence (timeScale). The
+ * stance-contact windows are authored in phase time, so they are scaled by
+ * 1/cadence to stay aligned with the sped-up playback (playback time =
+ * authored / timeScale). Default speed 1 = the comfortable cadence.
  */
-export function buildTravelWalk(opts: { stepLengthM?: number } = {}): ComposedMotion {
+export function buildTravelWalk(opts: { stepLengthM?: number; speed?: number } = {}): ComposedMotion {
   const walk = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk');
   if (!walk) throw new Error('walk template missing');
-  const base = templateToComposedMotion(walk); // 8 phases, planted, looping
+  const speed = opts.speed;
+  const cadence = speed != null ? Math.sqrt(Math.min(1.5, Math.max(0.4, speed))) : 1; // = timeScale
+  // Leg swing + cadence via paceGait; root stride scales with the same factor so
+  // the foot placement matches the (longer) leg reach.
+  const base = speed != null && speed !== 1 ? paceGait(templateToComposedMotion(walk), speed) : templateToComposedMotion(walk);
   const n = base.keyframes.length;
-  const strideM = (opts.stepLengthM ?? 0.35) * 2; // two steps advance one stride
-  // Phase-boundary times (authored ms) and the right→left stance handoff.
+  const strideM = (opts.stepLengthM ?? 0.35) * 2 * cadence; // longer stride at speed
+  // Phase-boundary times (authored ms) and the right→left stance handoff, scaled
+  // to PLAYBACK time (durations are divided by the cadence at playback).
   let cursor = 0;
   const boundaryMs = base.keyframes.map((kf) => (cursor += kf.durationMs));
-  const totalMs = cursor;
-  const halfMs = boundaryMs[Math.floor(n / 2) - 1] ?? totalMs / 2;
+  const totalMs = cursor / cadence;
+  const halfMs = (boundaryMs[Math.floor(n / 2) - 1] ?? cursor / 2) / cadence;
   const keyframes: SequenceKeyframe[] = base.keyframes.map((kf, i) => ({
     ...kf,
     travel: { direction: 'forward', meters: (strideM * (i + 1)) / n },
@@ -633,6 +644,7 @@ export function buildTravelWalk(opts: { stepLengthM?: number } = {}): ComposedMo
     name: 'walk-forward',
     startFrom: 'current',
     stance: 'planted',
+    ...(base.modifiers ? { modifiers: base.modifiers } : {}),
     keyframes,
     contacts: [
       { foot: 'R_Foot', fromMs: 0, toMs: halfMs }, // right stance (phases 1–4)
