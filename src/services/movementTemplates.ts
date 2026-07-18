@@ -641,6 +641,96 @@ export function buildTravelWalk(opts: { stepLengthM?: number } = {}): ComposedMo
   };
 }
 
+/**
+ * Build a real COUNTERMOVEMENT VERTICAL JUMP — the physics the old "jump"
+ * lacked (it was a quick squat that rose and never landed). Full ballistic
+ * sequence with a genuine airborne peak and a landing absorption:
+ *   1. LOAD — countermovement dip (hip/knee flex, ankle dorsiflex, arms swing
+ *      back), COM drops. Planted.
+ *   2. PROPULSION — explosive triple extension (hip/knee to 0, ankle
+ *      plantarflexes into a toe push-off) + arms drive UP. Ballistic, planted
+ *      (feet still driving the ground).
+ *   3. APEX — the body leaves the floor: root travels UP to the peak with a
+ *      brief hang time, legs tuck for clearance. FLOATING (no floor pin — the
+ *      whole body, feet included, rises). Ballistic.
+ *   4. DESCENT — the fall: root comes back down, legs extend to reach for the
+ *      ground. Floating.
+ *   5. LANDING — feet contact and ABSORB (hip/knee/ankle flex to cushion), COM
+ *      dips. Planted (the pin re-grounds the feet).
+ *   6. RECOVERY — extend back to a quiet stand. Planted.
+ * Non-looping, `startFrom:'neutral'` (jump from standing). `heightM` sets the
+ * apex COM rise (ROM-clamped joints, honest vertical via root translate).
+ */
+export function buildJump(opts: { heightM?: number } = {}): ComposedMotion {
+  const apexM = Math.max(0.1, Math.min(0.7, opts.heightM ?? 0.4));
+  const legs = (hip: number, knee: number, ankle: number) => [
+    { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: hip },
+    { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: hip },
+    { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: knee },
+    { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: knee },
+    { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: ankle },
+    { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: ankle },
+  ];
+  const arms = (sh: number) => [
+    { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
+    { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
+  ];
+  const trunk = (deg: number) => [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: deg }];
+  return {
+    name: 'vertical jump',
+    startFrom: 'neutral',
+    stance: 'planted',
+    keyframes: [
+      // 1. LOAD — countermovement dip.
+      {
+        durationMs: 380,
+        holdMs: 90,
+        stance: 'planted',
+        targets: [...legs(40, 60, 15), ...arms(-25), ...trunk(15)],
+      },
+      // 2. PROPULSION — explosive triple extension + arm drive; toe push-off.
+      {
+        durationMs: 160,
+        velocityClass: 'ballistic',
+        stance: 'planted',
+        targets: [...legs(0, 0, -25), ...arms(150), ...trunk(0)],
+      },
+      // 3. APEX — airborne peak with hang time; legs tuck for clearance.
+      {
+        durationMs: 260,
+        holdMs: 110,
+        velocityClass: 'ballistic',
+        stance: 'floating',
+        travel: { direction: 'up', meters: apexM },
+        targets: [...legs(5, 25, 0), ...arms(150)],
+      },
+      // 4. DESCENT — the fall; legs extend to reach for the ground.
+      {
+        durationMs: 200,
+        velocityClass: 'ballistic',
+        stance: 'floating',
+        travel: { direction: 'up', meters: 0.03 },
+        targets: [...legs(0, 12, -5), ...arms(45)],
+      },
+      // 5. LANDING — feet contact and absorb (soft, flexed).
+      {
+        durationMs: 240,
+        holdMs: 80,
+        velocityClass: 'functional',
+        stance: 'planted',
+        travel: { direction: 'up', meters: 0 },
+        targets: [...legs(45, 65, 15), ...arms(20), ...trunk(10)],
+      },
+      // 6. RECOVERY — quiet stand.
+      {
+        durationMs: 340,
+        stance: 'planted',
+        targets: [...legs(0, 0, 0), ...arms(0), ...trunk(0)],
+      },
+    ],
+  };
+}
+
 /** Sagittal joints whose EXCURSION defines stride length — scaled by pace. The
  *  reciprocal arm swing scales with the legs (arm swing grows with gait speed). */
 const GAIT_STRIDE_MOTIONS = new Set(['hipFlexion', 'kneeFlexion', 'ankleFlexion', 'shoulderFlexion']);
