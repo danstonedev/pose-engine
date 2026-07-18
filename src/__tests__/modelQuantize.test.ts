@@ -52,7 +52,7 @@ beforeAll(async () => {
 });
 
 async function measure(bytes: Uint8Array): Promise<KinematicExport> {
-  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const gltf = await new Promise<{ scene: THREE.Group }>((res, rej) => {
     const l = new GLTFLoader();
     l.setMeshoptDecoder(MeshoptDecoder);
