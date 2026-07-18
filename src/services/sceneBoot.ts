@@ -155,6 +155,31 @@ export interface LoadedVariantModel {
  * insertion, and `serializeCustomPose(...)` capture — because those vary
  * between consumers.
  */
+/**
+ * Load a GLB with a few retries + backoff. A single transient failure (a dropped
+ * request on a flaky mobile network, a stall during app boot) would otherwise
+ * leave the stage stuck on "Failed to load the 3D model" until a full page reload
+ * — the "loads slowly, if at all" symptom. A fresh loader per attempt avoids any
+ * half-populated internal state, and the decoder is registered each time.
+ */
+export async function loadGltfWithRetry(url: string, attempts = 3): Promise<GLTF> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const loader = new GLTFLoader();
+      loader.setMeshoptDecoder(MeshoptDecoder);
+      return (await loader.loadAsync(url)) as GLTF;
+    } catch (err) {
+      lastErr = err;
+      // 400 ms, then 1600 ms — recovers a blip without stalling a real 404 long.
+      if (attempt < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1) * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export async function loadVariantModel(
   variant: BodyVariantConfig,
   base: string,
@@ -162,9 +187,7 @@ export async function loadVariantModel(
   const url = variant.modelUrl(base);
   // Runtime mannequin GLBs are EXT_meshopt_compression-encoded; the decoder is
   // backward-compatible (uncompressed GLBs still load with it registered).
-  const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  const gltf = (await loader.loadAsync(url)) as GLTF;
+  const gltf = await loadGltfWithRetry(url);
   const root = gltf.scene;
   root.scale.setScalar(variant.pose.rootScale);
 
