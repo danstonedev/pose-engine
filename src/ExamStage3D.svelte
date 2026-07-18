@@ -504,7 +504,7 @@
         deriveFootDrivenTravel,
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant } = await import('./services/footContact');
-      const { buildBalanceController, applyBalanceCorrection } = await import(
+      const { buildBalanceController, applyBalanceCorrection, computeBodyCoMFromBones } = await import(
         './services/centerOfMass'
       );
       const { resolveMotionCommand } = await import('./services/motionCommand');
@@ -1401,6 +1401,10 @@
             bone.getWorldPosition(_recPos);
             worldTracks[key] = [_recPos.x, _recPos.y, _recPos.z];
           }
+          // Whole-body centre of mass — mirrors the offline sampler, so a LIVE rail
+          // recording carries the same CoM track the balance timeline reads (the
+          // measure-only balance readout; never repositions the body).
+          worldTracks.CoM = computeBodyCoMFromBones(motionCapBones).world;
         }
         return {
           tMs: Math.max(0, tMs),
