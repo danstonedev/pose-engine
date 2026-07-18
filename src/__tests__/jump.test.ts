@@ -131,6 +131,35 @@ describe('buildJump — real vertical jump physics', () => {
     expect(kneeAt(rec, last.tMs), 'knees extended at rest').toBeLessThan(10);
   });
 
+  it('REPS — "five jumps" is one motion with five airborne peaks (fits the keyframe budget)', () => {
+    resetHarness();
+    const five = resolveComposedMotion(buildJump({ reps: 5 }), variantCfg);
+    expect(five.status, five.reason).toBe('ok');
+    expect(five.keyframes.length, 'five reps fit under the cap').toBe(5 * 5 + 1); // 26
+    const rec = sampleComposedMotion(five, {
+      baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
+    });
+    // Count airborne peaks: local maxima of Hips Y that clear standing by >20cm.
+    const hips = yOf(rec, 'Hips');
+    let peaks = 0;
+    for (let i = 2; i < hips.length - 2; i += 1) {
+      if (hips[i]! - standingHipsY > 0.2 && hips[i]! >= hips[i - 2]! && hips[i]! > hips[i + 2]!) {
+        // de-dupe adjacent samples of the same peak
+        if (peaks === 0 || rec.frames[i]!.tMs - (rec as unknown as { _lastPeak?: number })._lastPeak! > 400) {
+          peaks += 1;
+          (rec as unknown as { _lastPeak?: number })._lastPeak = rec.frames[i]!.tMs;
+        }
+      }
+    }
+    expect(peaks, `expected 5 airborne peaks, saw ${peaks}`).toBe(5);
+  });
+
+  it('REPS clamp to the keyframe budget instead of refusing (a huge count still plays)', () => {
+    const many = resolveComposedMotion(buildJump({ reps: 100 }), variantCfg);
+    expect(many.status).toBe('ok');
+    expect(many.keyframes.length).toBeLessThanOrEqual(48);
+  });
+
   it('CONTRAST — a squat only ever drops; the jump rises far above it', () => {
     const rec = sampleJump();
     resetHarness();

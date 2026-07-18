@@ -14,7 +14,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { applyAnatomicPose } from '../services/anatomicPose';
 import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
-import { expandPeakTiming, resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
+import { expandPeakTiming, resolveComposedMotion, MAX_KEYFRAMES, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, exportKinematics } from '../services/motionRecording';
 import { checkCoordination, type CoordinationSourceExport } from '../services/movementCoordination';
 import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
@@ -155,10 +155,11 @@ describe('directives ride the split correctly (red-team fixes)', () => {
   });
 
   it('expansion is budgeted against MAX_KEYFRAMES — stays valid instead of refusing', () => {
-    // 8 keyframes each wanting 2 sub-frames = 16 > 12; must stay ≤ 12 and resolve ok.
+    // MAX_KEYFRAMES keyframes each wanting a sub-frame would double to
+    // 2·MAX_KEYFRAMES > MAX_KEYFRAMES; expansion must stay ≤ MAX_KEYFRAMES.
     const many: ComposedMotion = {
       startFrom: 'neutral',
-      keyframes: Array.from({ length: 8 }, (_, i) => ({
+      keyframes: Array.from({ length: MAX_KEYFRAMES }, (_, i) => ({
         durationMs: 400,
         targets: [
           { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: i % 2 ? 40 : 0, peakAt: 0.5 },
@@ -167,7 +168,7 @@ describe('directives ride the split correctly (red-team fixes)', () => {
       })),
     };
     const expanded = expandPeakTiming(many);
-    expect(expanded.keyframes.length).toBeLessThanOrEqual(12);
+    expect(expanded.keyframes.length).toBeLessThanOrEqual(MAX_KEYFRAMES);
     expect(resolveComposedMotion(expanded, variantCfg).status).toBe('ok');
   });
 });
