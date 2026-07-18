@@ -731,6 +731,42 @@ export function buildJump(opts: { heightM?: number } = {}): ComposedMotion {
   };
 }
 
+/**
+ * Adjust a gait's VERTICAL BOUNCE — the "spring vs glide" quality. Some people
+ * bounce (a springy, high-knee, vaulting gait with a large pelvis rise-and-fall
+ * per step); others glide (a smooth, low-knee, level-pelvis walk). The pelvis
+ * vertical excursion is driven — through the closed-chain floor contact — by how
+ * much the knees flex and lift through the cycle, so this scales knee flexion by
+ * `amount` (0 = glide / smooth & low, 1 = the authored normal, 2 = a pronounced
+ * bounce): a glider's shorter, lower knee lift keeps the pelvis level; a
+ * bouncer's springy high knee lift vaults it. Hip/ankle and the reciprocal arm
+ * swing are untouched (stride and cadence are `paceGait`'s job, kept orthogonal).
+ * ROM-clamped on resolve. Pure.
+ *
+ * NOTE: the current engine grounds the walk with a vertical floor-pin (not the
+ * gait "determinants" — pelvic tilt/rotation, controlled stance-knee wave), so
+ * this is a believable qualitative knob rather than a calibrated centimetre
+ * target; a determinant model is the follow-on for clinical-grade COM excursion.
+ */
+export function gaitBounce(motion: ComposedMotion, amount: number): ComposedMotion {
+  const a = Math.max(0, Math.min(2, Number.isFinite(amount) ? amount : 1));
+  if (a === 1) return motion;
+  const kneeScale = 0.7 + 0.3 * a; // a=0 → 0.70 (glide), 1 → 1.0, 2 → 1.30 (bounce)
+  return {
+    ...motion,
+    keyframes: motion.keyframes.map((kf) => ({
+      ...kf,
+      ...(kf.targets
+        ? {
+            targets: kf.targets.map((t) =>
+              t.motion === 'kneeFlexion' ? { ...t, targetDegrees: t.targetDegrees * kneeScale } : t,
+            ),
+          }
+        : {}),
+    })),
+  };
+}
+
 /** Sagittal joints whose EXCURSION defines stride length — scaled by pace. The
  *  reciprocal arm swing scales with the legs (arm swing grows with gait speed). */
 const GAIT_STRIDE_MOTIONS = new Set(['hipFlexion', 'kneeFlexion', 'ankleFlexion', 'shoulderFlexion']);

@@ -189,6 +189,16 @@ makes the live foot IK visible is now built too:
   >30 cm above standing MID-motion, feet clear the ground, a distinct landing
   knee-flex follows the apex, NOT a squat). simMOVE routes "jump / hop / leap"
   (height cues scale the apex); a directional/obstacle jump goes to the AI.
+- **Gait spring-vs-glide — DONE.** `gaitBounce` tunes the vertical bounce quality
+  (0 = a smooth, low-knee glide with a flatter pelvis; 1 = normal; 2 = a springy,
+  high-knee bounce) by scaling the knee-flexion/lift wave that drives the pelvis
+  vertical through the floor contact, leaving stride and cadence untouched (gated
+  in `gaitBounce.test.ts`). simMOVE routes "bouncy / springy" and "gliding /
+  smooth" walk. **Caveat:** the walk is grounded by a vertical floor-pin, not the
+  gait *determinants* (pelvic tilt/rotation, controlled stance-knee wave), so the
+  measured excursion is believable-qualitative (~9 cm normal, bouncier than a
+  real ~4-5 cm) rather than a calibrated centimetre target — a determinant model
+  is the follow-on for clinical-grade COM excursion (added to the list below).
 
 What's left is genuinely optional / needs a clinician, not fixes:
 
@@ -199,6 +209,11 @@ What's left is genuinely optional / needs a clinician, not fixes:
 2. **Paced travel gait** — the travel walk is fixed-cadence (its contact windows
    are authored in phase time); coupling it to speed needs the contact windows
    scaled by `timeScale`.
+2b. **Gait determinants for true COM excursion** — model pelvic tilt/rotation and
+   the controlled stance-knee wave so the walk's vertical bounce is a calibrated
+   ~4-5 cm (and `gaitBounce` a cm-accurate knob), instead of the floor-pin's
+   emergent ~9 cm. Would also let the pelvis vertical be authored directly (via
+   foot-contact IK + root Y) rather than emerge from the pin.
 3. **Optional `peakAt` leads on sit-to-stand / lunge** if SME confirms an
    intra-phase order (their current relay is inter-phase only).
 4. **Velocity-continuous rail recordings** — the live rail currently *trims* the
