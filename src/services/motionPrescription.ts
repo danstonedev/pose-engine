@@ -53,20 +53,26 @@ export interface RomCap {
  * stable contract as later builds implement them.
  */
 export interface ClinicalModifiers {
+  // ── APPLIED by the runtime ──
   /** Playback speed: 1 = normal, <1 slower, >1 faster. Folds into MotionCommand.speed. */
   timeScale?: number;
   /** Per-joint excursion limits enforced each frame during playback. */
   romCaps?: RomCap[];
-  // ── typed for later builds (not yet applied by the runtime) ──
-  /** 0..1 trunk stiffness + reduced angular velocity. */
+  /** 0..1 trunk + arm stiffness (guarded, reduced-excursion). Applied as a live
+   *  overlay (ExamStage3D setMotionOverlays). */
   guarding?: number;
-  /** Per-side weight-bearing bias. */
-  weightBearing?: Partial<Record<Side, 'reduced' | 'normal' | 'increased'>>;
-  /** Lateral pelvis shift in cm (weight-shift away from a painful limb). */
-  pelvisShiftCm?: number;
-  /** 0..1 low-frequency postural sway. */
+  /** 0..1 slow postural wobble over the planted feet (cosmetic). Applied as a live
+   *  overlay (ExamStage3D setMotionOverlays). */
   balanceSway?: number;
-  /** Props the hands/feet contact during the motion (drives IK contact targets). */
+  // ── PLANNED: carried through `overlays` but NOT yet consumed by the runtime.
+  //    These record intended clinical modifiers; wire each where noted. ──
+  /** Per-side weight-bearing bias. PLANNED. */
+  weightBearing?: Partial<Record<Side, 'reduced' | 'normal' | 'increased'>>;
+  /** Lateral pelvis shift in cm (weight-shift away from a painful limb) — would ride
+   *  the model root (rootMotion). PLANNED. */
+  pelvisShiftCm?: number;
+  /** Props the hands/feet contact during the motion — would drive IK contact targets
+   *  (footContact). PLANNED. */
   assistiveSupport?: ('armrests' | 'walker' | 'cane' | 'table' | 'rail')[];
 }
 
@@ -78,7 +84,10 @@ export interface MotionPrescription {
   motion: MovementClipId;
   /** 'play' = unmodified catalog clip; 'modify' = apply {@link modifiers}. */
   mode: MotionExecutionMode;
-  /** Optional multi-step transfer (sit → side-lying → supine). Played in order. */
+  /** Optional multi-step transfer (sit → side-lying → supine), played in order.
+   *  Resolved here (each step validated), but the simMOVE host currently plays
+   *  only the base `motion`; a host that iterates
+   *  {@link ResolvedPrescription.sequence} enables multi-step transfers. */
   sequence?: MovementClipId[];
   modifiers?: ClinicalModifiers;
   /** Human-readable clinical label for logging/telemetry — never an answer. */
@@ -91,7 +100,9 @@ export interface ResolvedPrescription {
   command: MotionCommand;
   /** ROM caps to enforce each frame (validated against the registry). */
   romCaps: RomCap[];
-  /** Residual overlay modifiers (guarding / sway / weight-shift) for later builds. */
+  /** Residual overlay modifiers. `guarding` + `balanceSway` are applied live by
+   *  the stage; the weight-bearing / pelvis-shift / assistive-support fields are
+   *  carried but not yet consumed (see ClinicalModifiers). */
   overlays: Omit<ClinicalModifiers, 'timeScale' | 'romCaps'>;
   sequence: MovementClipId[];
 }
