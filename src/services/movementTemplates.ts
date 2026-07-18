@@ -511,6 +511,34 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     source: VERIFY,
   },
   {
+    id: 'heel-raise',
+    label: 'Heel raise (bilateral calf raise)',
+    aliases: ['heel raise', 'heel raises', 'calf raise', 'calf raises', 'go up on your toes', 'rise onto your toes', 'up on your toes'],
+    coordination:
+      'Bilateral ankle plantarflexion: rise up onto the balls of the feet so both heels lift, hold at the top, then lower under control back to flat. A gastrocnemius-soleus screen. Planted (the forefoot/toes stay grounded as the pivot; the closed-chain floor-pin lifts the body so the heels rise). Normative standing plantarflexion AROM ~50°; ~35° is a full functional raise.',
+    stance: 'planted',
+    phases: [
+      {
+        name: 'rise-to-toes',
+        durationMs: 800,
+        holdMs: 500,
+        targets: [
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -35 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -35 },
+        ],
+      },
+      {
+        name: 'lower-to-flat',
+        durationMs: 800,
+        targets: [
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
     id: 'cervical-rotation',
     label: 'Cervical rotation (AROM screen)',
     aliases: ['turn your head', 'cervical rotation', 'rotate your neck', 'look left and right', 'neck rotation'],
@@ -823,6 +851,35 @@ export function paceGait(motion: ComposedMotion, speed: number): ComposedMotion 
       : {}),
   }));
   return { ...motion, keyframes, modifiers: { ...motion.modifiers, timeScale: f } };
+}
+
+/** The joints whose amplitude IS the arm swing — scaled by {@link scaleArmSwing}. */
+const ARM_SWING_MOTIONS = new Set(['shoulderFlexion']);
+
+/**
+ * Scale a gait motion's ARM SWING amplitude by `amount` (0..1), holding cadence
+ * and every leg/trunk angle. `amount` 1 = the authored reciprocal swing;
+ * 0 = arms held still at the side (the reduced/absent arm swing of Parkinsonian
+ * or hemiplegic gait). Multiplies only the `shoulderFlexion` targets — so unlike
+ * `paceGait` it sets NO `timeScale` (the walk keeps its speed; only the arms
+ * quiet down) and leaves the reciprocal elbow pump and every leg angle untouched.
+ * Pure; returns a new motion; over/under-range values are clamped by the normal
+ * ROM path on resolve, so the clinical readout stays honest.
+ */
+export function scaleArmSwing(motion: ComposedMotion, amount: number): ComposedMotion {
+  const a = Math.max(0, Math.min(1, Number.isFinite(amount) ? amount : 1));
+  if (a === 1) return motion; // identity — keep it byte-for-byte
+  const keyframes = motion.keyframes.map((kf) => ({
+    ...kf,
+    ...(kf.targets
+      ? {
+          targets: kf.targets.map((t) =>
+            ARM_SWING_MOTIONS.has(t.motion) ? { ...t, targetDegrees: t.targetDegrees * a } : t,
+          ),
+        }
+      : {}),
+  }));
+  return { ...motion, keyframes };
 }
 
 /** Select the template whose aliases best match a free-text instruction, or null. */
