@@ -169,10 +169,10 @@ describe('balance on the rig', () => {
   });
 });
 
-// ── 3. The hinge drives the COM out — why a controller is needed ─────────────
+// ── 3. Foot-rooted planting keeps a folding body balanced (the fix, end to end) ─
 
-describe('a forward hip-hinge challenges balance', () => {
-  it('pushes the COM forward toward/over the toe edge (margin collapses)', () => {
+describe('a forward hip-hinge stays balanced over planted feet', () => {
+  it('folds the COM to the toe edge (a real balance demand) but keeps it ON the base', () => {
     resetHarness();
     const neutral = computeBalanceState(skinned.skeleton, variantCfg);
 
@@ -182,16 +182,19 @@ describe('a forward hip-hinge challenges balance', () => {
     // Grounded throughout — never airborne.
     expect(timeline.airborneFraction).toBe(0);
 
-    // The COM travels forward (+z) as the trunk folds over the feet.
+    // The COM really travels forward (+z) as the trunk folds over the feet — a
+    // genuine deep hinge, not a stiff bow.
     const comZ = timeline.frames.map((f) => f.comGround[1]);
     const maxComZ = Math.max(...comZ);
     expect(maxComZ).toBeGreaterThan(neutral.comGround[1] + 0.05);
 
-    // Balance is challenged: the worst margin is far below the quiet-stance
-    // margin and comes to (or past) the edge — the un-corrected hinge is toppling
-    // forward, which is exactly what the balance controller must hold back.
-    expect(timeline.minMarginM!).toBeLessThan(neutral.marginM! - 0.05);
-    expect(timeline.minMarginM!).toBeLessThan(0.03);
+    // The deep fold brings the COM to the toe edge (the real balance demand of a
+    // toe-touch), but closed-chain foot-rooting places the pelvis over PLANTED
+    // feet, so the COM stays ON the base — near the edge, not toppling. Contrast
+    // the pelvis-rooted FK, whose feet swing forward and whose COM sails ~57 cm
+    // off the base (before/after proven in plantStanceFoot.test.ts).
+    expect(timeline.minMarginM!).toBeLessThan(neutral.marginM!); // challenged (near the edge)…
+    expect(timeline.minMarginM!).toBeGreaterThan(-0.05); // …but not toppling off the base
 
     // eslint-disable-next-line no-console
     console.log(
@@ -229,62 +232,50 @@ describe('single-leg stance narrows the base of support', () => {
   });
 });
 
-// ── 5. THE BALANCE LEVER — balanceControl adjusts posture to hold the COM in ──
+// ── 5. Foot-rooting OWNS balance; the old balanceControl lever is parked ──────
 
-describe('balanceControl is the balance-ability lever', () => {
-  it('full control holds the COM over the base through a hip-hinge (steady)', () => {
-    const tl = computeBalanceTimeline(sample('forward-hip-hinge', 1));
-    // The pelvis shifts back to keep the COM over the planted feet the whole way:
-    // every frame balanced, with real clearance — a realistic hinge, not a topple.
+describe('foot-rooted planting owns balance (the balanceControl modifier is parked)', () => {
+  it('a sampled squat stays grounded with its COM near the base (planted, not toppling)', () => {
+    const tl = computeBalanceTimeline(sample('squat'));
     expect(tl.airborneFraction).toBe(0);
-    expect(tl.balancedFraction).toBe(1);
-    expect(tl.minMarginM!).toBeGreaterThan(0.03);
+    // The pelvis drops over PLANTED feet, so the COM stays near the base through
+    // the descent. (A pelvis-rooted squat swings the feet out — no stable base at
+    // all; the deepest frame is a genuinely near-edge COM, hence the tolerance.)
+    expect(tl.minMarginM!).toBeGreaterThan(-0.12);
   });
 
-  it('zero control leaves the COM toppling forward (impaired-balance pattern)', () => {
-    const full = computeBalanceTimeline(sample('forward-hip-hinge', 1));
-    const none = computeBalanceTimeline(sample('forward-hip-hinge', 0));
-    // No postural adjustment → the COM sails past the toes (negative margin) even
-    // though the feet are planted: the unsteady / abnormal pattern.
-    expect(none.minMarginM!).toBeLessThan(0);
-    // The lever is monotone: more balance ability → a better worst-case margin.
-    expect(full.minMarginM!).toBeGreaterThan(none.minMarginM!);
-  });
-
-  it('full control keeps a single-leg stance balanced over the stance foot', () => {
-    const raw = computeBalanceTimeline(sample('single-leg-stance'));
-    const controlled = computeBalanceTimeline(sample('single-leg-stance', 1));
-
-    // The hold really is single-support (the lifted foot leaves the base).
-    const oneFoot = controlled.frames.filter((f) => f.contacts.length === 1);
-    expect(oneFoot.length).toBeGreaterThan(0);
-
-    // Un-adjusted, the COM sits off the stance foot (toppling to the lifted side);
-    // with full control the pelvis shifts over the stance foot and it stays in.
-    expect(raw.minMarginM!).toBeLessThan(0);
-    expect(Math.min(...oneFoot.map((f) => f.marginM ?? Infinity))).toBeGreaterThan(0);
-  });
-
-  it('is opt-in: a motion with no balanceControl is left exactly as authored', () => {
-    // Byte-identical recordings when the modifier is absent (no behavior change to
-    // any existing motion — the controller only runs when asked).
+  it('is deterministic and unaffected by the parked balanceControl modifier', () => {
+    // Balance now emerges from CORRECT closed-chain kinematics (foot-rooting), not
+    // a pelvis-shifting IK controller — so the old balanceControl lever is parked:
+    // two samples are byte-identical, and setting the modifier changes nothing.
     const a = sample('squat');
     const b = sample('squat');
-    expect(JSON.stringify(a.frames)).toBe(JSON.stringify(b.frames));
-    // And a squat with full control becomes balanced where the raw one topples.
-    expect(computeBalanceTimeline(sample('squat', 1)).minMarginM!).toBeGreaterThan(0);
-    expect(computeBalanceTimeline(a).minMarginM!).toBeLessThan(0);
+    expect(JSON.stringify(a.frames)).toBe(JSON.stringify(b.frames)); // deterministic
+    const asked = sample('squat', 1);
+    expect(JSON.stringify(asked.frames)).toBe(JSON.stringify(a.frames)); // modifier inert
+  });
+
+  it('single-leg stance stays a genuine one-foot balance challenge (not auto-corrected)', () => {
+    // Single-leg leaves the bearing leg untouched, so its stance foot never drifts
+    // — foot-rooting is a no-op and the narrow one-foot base is preserved. The COM
+    // sits off the stance foot: the balance demand the movement is named for, left
+    // honest (a future balance-strategy lever owns it, not a silent correction).
+    const tl = computeBalanceTimeline(sample('single-leg-stance'));
+    const oneFoot = tl.frames.filter((f) => f.contacts.length === 1);
+    expect(oneFoot.length).toBeGreaterThan(0);
+    expect(Math.min(...oneFoot.map((f) => f.marginM ?? Infinity))).toBeLessThan(0);
   });
 });
 
-// ── 6. Cyclic motions are out of scope — balance never freezes a gait ────────
+// ── 6. Cyclic motions are never re-rooted or balance-adjusted ────────────────
 
-describe('balanceControl is ignored for looping (cyclic) motions', () => {
+describe('cyclic (looping) motions are never re-rooted or balance-adjusted', () => {
   it('the in-place walk (planted + looping) is byte-identical with balanceControl set', () => {
     // The in-place walk is planted and non-travelling, so without the loop gate
-    // the balance controller would engage and PLANT its feet — freezing the gait.
-    // It LOOPS (cyclic, not quasi-static), so the gate must skip it: setting
-    // balanceControl must leave the recording untouched.
+    // foot-rooted planting would engage and re-root it onto a single stance foot —
+    // freezing the gait. It LOOPS (cyclic, not quasi-static), so useFootRoot skips
+    // it; and the parked balanceControl modifier is inert. Either way, setting
+    // balanceControl leaves the recording untouched.
     const walk = templateToComposedMotion(MOVEMENT_TEMPLATES.find((t) => t.id === 'walk')!);
     expect(walk.loop).toBe(true);
     const plain = sampleMotion(walk);
