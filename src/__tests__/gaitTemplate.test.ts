@@ -296,9 +296,10 @@ describe('walk template — the 2-keyframe degenerate walk is rejected', () => {
     const signature = buildSignatureFromExport(exportKinematics(authoredRec), {
       joints: drivers,
     });
-    // The reference itself is substantial: all 8 commanded joint.motions are
-    // primary movers (this also guards against a vacuous signature).
-    expect(signature.primary.length).toBe(8);
+    // The reference itself is substantial: all 10 commanded joint.motions are
+    // primary movers (hips, knees, ankle rockers, shoulder swing AND the elbow
+    // follow-through carry) — this also guards against a vacuous signature.
+    expect(signature.primary.length).toBe(10);
 
     const thinRec = sampleMotion(THIN_TWO_KEYFRAME_WALK);
     const thinEx = exportKinematics(thinRec);
