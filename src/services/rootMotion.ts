@@ -172,6 +172,43 @@ export function captureFootFrames(
 
 const _mInv = new THREE.Matrix4();
 const _mT = new THREE.Matrix4();
+const _fp2 = new THREE.Vector3();
+
+/**
+ * Positional drift (meters) of the LOWEST foot from its rest world frame — how
+ * far a pelvis-rooted FK has swung the stance foot off its planted position.
+ * ~0 when the stance foot is already planted (a single-leg stance leaves the
+ * bearing leg untouched), large for a squat / hip-hinge / sit-to-stand whose
+ * feet swing forward. This is the signal for WHETHER a foot-rooted re-plant
+ * ({@link plantStanceFoot}) does real work: below a small epsilon the body is
+ * already correctly grounded and re-rooting is a pure no-op (worse, its tiny
+ * measurement-frame rotation only adds noise), so the caller should skip it.
+ * Returns null when no foot frame resolves. Caller must have updated world
+ * matrices; picks the SAME lowest foot as {@link plantStanceFoot}.
+ */
+export function stanceFootDrift(
+  root: THREE.Object3D,
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+  frames: FootFrameReference,
+): number | null {
+  root.updateMatrixWorld(true);
+  let stanceKey: string | null = null;
+  let stanceBone: THREE.Bone | null = null;
+  let minY = Infinity;
+  for (const { key, bone } of contactBones(skeleton, variantCfg)) {
+    if (!key.endsWith('Foot') || !frames.restFrame[key]) continue;
+    const y = bone.getWorldPosition(_fp).y;
+    if (y < minY) {
+      minY = y;
+      stanceKey = key;
+      stanceBone = bone;
+    }
+  }
+  if (!stanceKey || !stanceBone) return null;
+  _fp2.setFromMatrixPosition(frames.restFrame[stanceKey]!);
+  return stanceBone.getWorldPosition(_fp).distanceTo(_fp2);
+}
 
 /**
  * CLOSED-CHAIN foot-rooted planting — the fix for planted movements whose feet

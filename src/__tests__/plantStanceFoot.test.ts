@@ -96,12 +96,23 @@ function deepestPose(templateId: string): CustomPose {
     skeletonHarness: { root, skinned },
     sampleHz: 60,
   });
+  // Plant-invariant DEPTH = total lower-body + trunk flexion. (CoM.z can no
+  // longer be the depth proxy: the sampler now foot-roots the deep frames, so the
+  // COM sits over the base at every depth — max CoM.z would pick a shallow frame.
+  // A rigid re-root leaves every joint angle untouched, so joint flexion is the
+  // stable measure of "how deep".)
   let deep = rec.frames[0]!;
   let mx = -Infinity;
   for (const f of rec.frames) {
-    const z = f.worldTracks!.CoM![2];
-    if (z > mx) {
-      mx = z;
+    const a = f.angles as Record<string, Record<string, number>>;
+    const depth =
+      Math.abs(a.L_Leg?.kneeFlexion ?? 0) +
+      Math.abs(a.R_Leg?.kneeFlexion ?? 0) +
+      Math.abs(a.L_UpLeg?.hipFlexion ?? 0) +
+      Math.abs(a.R_UpLeg?.hipFlexion ?? 0) +
+      Math.abs(a.Spine_Lower?.flexion ?? 0);
+    if (depth > mx) {
+      mx = depth;
       deep = f;
     }
   }

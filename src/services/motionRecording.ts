@@ -52,11 +52,14 @@ import {
 import {
   applyVerticalCalibration,
   captureFloorReference,
+  captureFootFrames,
   deriveFootDrivenTravel,
   deriveVerticalCalibration,
   NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
+  plantStanceFoot,
   rotateRestReferenceByRoot,
+  stanceFootDrift,
   type FootDrivenTravel,
   type VerticalCalibration,
 } from './rootMotion';
@@ -248,8 +251,16 @@ interface SampleSegment {
 
 const _sq = new THREE.Quaternion();
 const _sqB = new THREE.Quaternion();
+const _sqC = new THREE.Quaternion();
 const _sv = new THREE.Vector3();
 const _svB = new THREE.Vector3();
+
+/** Stance-foot drift (m) above which a planted, in-place frame is re-rooted at
+ *  the foot (services/rootMotion.plantStanceFoot). A squat/hinge/sit-to-stand
+ *  swings the foot tens of cm off its rest frame (well above this); a single-leg
+ *  stance leaves the bearing foot home (~0), so it stays on the cheap vertical
+ *  pin and its measurement frame is never perturbed. */
+const FOOT_ROOT_DRIFT_M = 0.05;
 
 /**
  * Offline-sample a RESOLVED composed motion: replay the exact per-keyframe
@@ -286,12 +297,21 @@ export function sampleComposedMotion(
   // composed root state rides on (mirrors the stage's rootRestPos/Quat).
   const rootRestPos = root.position.clone();
   const rootRestQuat = root.quaternion.clone();
+  // Foot-rooted planting re-roots via root.applyMatrix4, which re-decomposes the
+  // root matrix — and that is not perfectly scale-neutral, so root.scale drifts a
+  // hair each plant. The sampler already sets root position/quaternion per frame
+  // authoritatively; scale is reset alongside them (below) so the drift can never
+  // accumulate across frames or leak into a later sample on the same harness.
+  const rootRestScale = root.scale.clone();
 
   // Floor reference is captured at anatomic rest (upright, baseline pose) —
-  // same as the stage capturing it right after boot grounding.
+  // same as the stage capturing it right after boot grounding. The foot FRAMES
+  // (full rest world transform of each ankle) are captured here too, for
+  // closed-chain foot-rooted planting of the quasi-static planted set.
   applyCustomPose(skinned.skeleton, variantCfg, baselinePose);
   root.updateMatrixWorld(true);
   const floorRef = captureFloorReference(skinned.skeleton, variantCfg);
+  const footFrames = captureFootFrames(skinned.skeleton, variantCfg);
 
   // CONTACT PLANTS (Phase 3): build the leg IK chains now, but capture each
   // foot's world target LAZILY at the first sampled frame (after that frame's FK
@@ -420,14 +440,42 @@ export function sampleComposedMotion(
     }
   }
 
-  // BALANCE CONTROLLER (the balance-ability lever). When a PLANTED, non-travelling
-  // motion asks for it, hold the whole-body COM over the base each frame by
-  // planting the bearing feet and shifting the pelvis — `balanceControl` 1 = fully
-  // steady, 0 = raw drift (impaired-balance abnormality). Skipped for travelling
-  // gait (its balance is the stepping strategy, owned by footDrivenTravel).
+  // CLOSED-CHAIN FOOT-ROOTED PLANTING (services/rootMotion.plantStanceFoot) — the
+  // real fix for the quasi-static planted set (squat, hip-hinge, sit-to-stand,
+  // single-leg). A pelvis-rooted FK swings the stance leg forward, so those
+  // movements kick the feet out 35–94 cm; re-rooting the rigid body at the stance
+  // foot restores it to its standing frame, so the SAME authored angles read as
+  // the real closed-chain movement (feet planted, pelvis placed by the chain, COM
+  // over the base — balance for free), every joint angle untouched. Used INSTEAD
+  // of the vertical-only floor pin for a planted, non-travelling, non-looping
+  // motion that declares no explicit foot contacts (a travel gait owns its foot
+  // placement via footDrivenTravel/contacts; a loop is cyclic). Supersedes the
+  // pelvis-shifting balance controller for this set, so that is gated off below.
+  //
+  // In-place ONLY: a motion that travels (authored root translate) places its
+  // feet at NEW ground positions, so restoring the stance foot to its ORIGINAL
+  // rest frame would fight the travel (moonwalk the body backward). Foot-rooting
+  // is for the body FOLDING/DROPPING over stationary feet, not for stepping.
+  const HORIZ_TRAVEL_EPS = 0.02; // 2 cm — below this the root is "in place"
+  const travels = built.roots.some(
+    (r) => Math.hypot(r.translateM[0], r.translateM[2]) > HORIZ_TRAVEL_EPS,
+  );
+  const useFootRoot =
+    !resolved.footDrivenTravel &&
+    !resolved.loop &&
+    !travels &&
+    activeContacts.length === 0 &&
+    built.roots.some((r) => r.stance === 'planted');
+
+  // BALANCE CONTROLLER (the legacy balance-ability lever) — superseded by
+  // foot-rooting for the planted set above, so it is gated off whenever that runs.
+  // It survives only for a PLANTED, non-travelling motion that opts in via the
+  // (now parked) `balanceControl` modifier and is NOT foot-rooted: it holds the
+  // COM over the base by planting the bearing feet and shifting the pelvis.
   const balanceControl = resolved.modifiers?.balanceControl;
   const balanceController: BalanceController | null =
     balanceControl != null &&
+    !useFootRoot &&
     !resolved.footDrivenTravel &&
     !resolved.loop &&
     built.roots.some((r) => r.stance === 'planted')
@@ -449,8 +497,21 @@ export function sampleComposedMotion(
       rootRestPos.y + sample.rootTranslate[1],
       rootRestPos.z + sample.rootTranslate[2],
     );
+    root.scale.copy(rootRestScale); // clear any prior-frame plant scale drift
     root.updateMatrixWorld(true);
-    if (sample.planted) {
+    let footRooted = false;
+    // Re-root at the stance foot only when the pelvis-rooted FK actually swung it
+    // off its planted position (a squat/hinge/sit-to-stand folds the body over the
+    // feet — big drift). When the stance foot is already home (a single-leg stance
+    // leaves the bearing leg untouched — ~0 drift), the vertical pin is enough and
+    // a re-root would only perturb the measurement frame, so fall through to it.
+    if (useFootRoot && sample.planted && (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M) {
+      // The SAME authored angles now read as the real closed-chain movement — feet
+      // planted, pelvis placed by the chain, COM over the base (balance for free).
+      // This RIGIDLY rotates the root (not just Y), so orientation is recomputed below.
+      plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames);
+      footRooted = true;
+    } else if (sample.planted) {
       pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
       // Calibrated gait vertical: scale the grounded pelvis arc about its cycle
       // mean to the requested excursion (root-only; joints untouched). Identity
@@ -503,14 +564,18 @@ export function sampleComposedMotion(
     }
 
     // Measure against the (possibly reoriented) rest reference — same as the
-    // stage's activeRestRef().
-    const orientQuat: [number, number, number, number] = [_sq.x, _sq.y, _sq.z, _sq.w];
+    // stage's activeRestRef(). `_sqB` = the ACTUAL world-frame root delta from
+    // rest (`root.quaternion · rootRestQuat⁻¹`), which the angle measurement
+    // always uses. The recorded `orientQuat` stays the authored spin (`_sq`) on
+    // the pin-only path (byte-identical to before); a foot-rooted plant rigidly
+    // re-roots the body, so there it IS that actual world delta.
+    _sqB.copy(root.quaternion).multiply(_sqC.copy(rootRestQuat).invert());
+    const orientQuat: [number, number, number, number] = footRooted
+      ? [_sqB.x, _sqB.y, _sqB.z, _sqB.w]
+      : [_sq.x, _sq.y, _sq.z, _sq.w];
     const measureRest = isIdentityQuat(orientQuat)
       ? rest
-      : rotateRestReferenceByRoot(
-          rest,
-          _sqB.copy(root.quaternion).multiply(_sq.copy(rootRestQuat).invert()),
-        );
+      : rotateRestReferenceByRoot(rest, _sqB);
     const report = computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, measureRest);
 
     const worldTracks: Record<string, [number, number, number]> = {};
@@ -545,6 +610,15 @@ export function sampleComposedMotion(
   const steps = Math.floor(totalMs / dtMs + 1e-6);
   for (let k = 0; k <= steps; k += 1) frames.push(sampleAt(k * dtMs));
   if (steps * dtMs < totalMs - 1e-3) frames.push(sampleAt(totalMs));
+
+  // Leave the shared harness root as we found it (grounded rest). The sampler
+  // mutates root.position/quaternion every frame — and a foot-rooted plant also
+  // ROTATES it — so without this a later sample on the same harness would capture
+  // a mutated root as its "rest", poisoning rootRestQuat + the foot frames.
+  root.position.copy(rootRestPos);
+  root.quaternion.copy(rootRestQuat);
+  root.scale.copy(rootRestScale);
+  root.updateMatrixWorld(true);
 
   return {
     id: `rec-${fnv(JSON.stringify(resolved) + '|' + hz + '|' + variantCfg.id + '|' + name + (useLoopCycle ? '|loop' : ''))}`,
