@@ -309,9 +309,17 @@ export function buildComposedTrajectory(
     startQuat: [number, number, number, number];
     startTranslate: [number, number, number];
     timeScale: number;
+    /** FINITE reps: replay the whole cycle this many times (default 1) — the
+     *  repeat happens HERE, at trajectory time, so the authored plan stays small
+     *  (a "50 jumps" is a 6-keyframe motion). Each rep flows into the next
+     *  (interior rep boundaries are fly-throughs unless the last keyframe holds);
+     *  only the FINAL keyframe of the LAST rep is the settle stop. */
+    reps?: number;
   },
 ): ComposedTrajectory {
   const { startPose, startQuat, startTranslate, timeScale } = opts;
+  const reps = Math.max(1, Math.floor(opts.reps ?? 1));
+  const n = built.poses.length;
   const knots: TrajectoryKnot[] = [
     {
       timeMs: 0,
@@ -322,33 +330,37 @@ export function buildComposedTrajectory(
       planted: built.roots[0]?.stance === 'planted',
     },
   ];
+  // Settle instants for the FIRST rep only — the stage measures one cycle (all
+  // reps replay the same keyframes), so `settleAtMs` maps 1:1 to resolved.keyframes.
   const settleAtMs: number[] = [];
   let tCursor = 0;
-  for (let i = 0; i < built.poses.length; i += 1) {
-    const rs = built.roots[i]!;
-    const planted = rs.stance === 'planted';
-    const isLast = i === built.poses.length - 1;
-    const holdMs = Math.min((built.holdsMs[i] ?? 0) / timeScale, 10_000);
-    tCursor += built.durationsMs[i]! / timeScale;
-    settleAtMs.push(tCursor);
-    knots.push({
-      timeMs: tCursor,
-      pose: built.poses[i]!,
-      rootQuat: rs.quat,
-      rootTranslate: rs.translateM,
-      stop: holdMs > 0 || isLast,
-      planted,
-    });
-    if (holdMs > 0) {
-      tCursor += holdMs;
+  for (let r = 0; r < reps; r += 1) {
+    for (let i = 0; i < n; i += 1) {
+      const rs = built.roots[i]!;
+      const planted = rs.stance === 'planted';
+      const isVeryLast = r === reps - 1 && i === n - 1;
+      const holdMs = Math.min((built.holdsMs[i] ?? 0) / timeScale, 10_000);
+      tCursor += built.durationsMs[i]! / timeScale;
+      if (r === 0) settleAtMs.push(tCursor);
       knots.push({
         timeMs: tCursor,
         pose: built.poses[i]!,
         rootQuat: rs.quat,
         rootTranslate: rs.translateM,
-        stop: true,
+        stop: holdMs > 0 || isVeryLast,
         planted,
       });
+      if (holdMs > 0) {
+        tCursor += holdMs;
+        knots.push({
+          timeMs: tCursor,
+          pose: built.poses[i]!,
+          rootQuat: rs.quat,
+          rootTranslate: rs.translateM,
+          stop: true,
+          planted,
+        });
+      }
     }
   }
   return { trajectory: buildPoseTrajectory(knots), settleAtMs };

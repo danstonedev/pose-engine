@@ -1430,6 +1430,7 @@
           startQuat: [...composedRootQuat],
           startTranslate: [...composedRootTranslate],
           timeScale,
+          reps: resolved.reps,
         });
         // Advance the continuity/root state to the final keyframe for the NEXT motion.
         const lastRoot = built.roots[built.roots.length - 1];
