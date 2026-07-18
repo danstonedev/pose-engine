@@ -78,12 +78,8 @@ function resetHarness(): void {
   root.updateMatrixWorld(true);
 }
 
-function sample(templateId: string, control?: number): MotionRecording {
+function sampleMotion(m: ComposedMotion): MotionRecording {
   resetHarness();
-  const m: ComposedMotion = templateToComposedMotion(
-    MOVEMENT_TEMPLATES.find((t) => t.id === templateId)!,
-  );
-  if (control != null) m.modifiers = { ...(m.modifiers ?? {}), balanceControl: control };
   const resolved = resolveComposedMotion(m, variantCfg);
   expect(resolved.status).toBe('ok');
   return sampleComposedMotion(resolved, {
@@ -93,6 +89,14 @@ function sample(templateId: string, control?: number): MotionRecording {
     skeletonHarness: { root, skinned },
     sampleHz: 60,
   });
+}
+
+function sample(templateId: string, control?: number): MotionRecording {
+  const m: ComposedMotion = templateToComposedMotion(
+    MOVEMENT_TEMPLATES.find((t) => t.id === templateId)!,
+  );
+  if (control != null) m.modifiers = { ...(m.modifiers ?? {}), balanceControl: control };
+  return sampleMotion(m);
 }
 
 // ── 1. Pure geometry ─────────────────────────────────────────────────────────
@@ -270,5 +274,21 @@ describe('balanceControl is the balance-ability lever', () => {
     // And a squat with full control becomes balanced where the raw one topples.
     expect(computeBalanceTimeline(sample('squat', 1)).minMarginM!).toBeGreaterThan(0);
     expect(computeBalanceTimeline(a).minMarginM!).toBeLessThan(0);
+  });
+});
+
+// ── 6. Cyclic motions are out of scope — balance never freezes a gait ────────
+
+describe('balanceControl is ignored for looping (cyclic) motions', () => {
+  it('the in-place walk (planted + looping) is byte-identical with balanceControl set', () => {
+    // The in-place walk is planted and non-travelling, so without the loop gate
+    // the balance controller would engage and PLANT its feet — freezing the gait.
+    // It LOOPS (cyclic, not quasi-static), so the gate must skip it: setting
+    // balanceControl must leave the recording untouched.
+    const walk = templateToComposedMotion(MOVEMENT_TEMPLATES.find((t) => t.id === 'walk')!);
+    expect(walk.loop).toBe(true);
+    const plain = sampleMotion(walk);
+    const controlled = sampleMotion({ ...walk, modifiers: { ...walk.modifiers, balanceControl: 1 } });
+    expect(JSON.stringify(controlled.frames)).toBe(JSON.stringify(plain.frames));
   });
 });
