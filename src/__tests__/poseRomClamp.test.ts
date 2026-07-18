@@ -458,10 +458,12 @@ describe('clampBoneToRom', () => {
       expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(-100, 0);
     });
 
-    it('rejects anti-anatomic "knee flex" (lower leg anterior) — snaps to 0°', () => {
+    it('clamps anti-anatomic "knee flex" (lower leg anterior) to the 15° hyperextension limit', () => {
       const { skeleton, bones, rest } = setup();
-      // Rotation about +X by +90° swings the lower leg ANTERIORLY — knees
-      // can't bend forward, so this should clamp back to extension (0°).
+      // Rotation about +X by +90° swings the lower leg ANTERIORLY (hyperextension).
+      // The knee ROM now allows genu recurvatum up to 15°, so a large forward swing
+      // clamps to that hyperextension limit (report reads hyperextension as +15°),
+      // NOT all the way back to neutral 0°.
       bones.L_Leg.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
       bones.Hips.updateMatrixWorld(true);
 
@@ -470,7 +472,7 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(0, 0);
+      expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(15, 0);
     });
 
     it('allows anatomic hip flex 90° (thigh anterior, in range up to 120°)', () => {

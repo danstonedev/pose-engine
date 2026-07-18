@@ -208,7 +208,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     canonicalKey: 'L_Leg',
     label: 'L Knee',
     fields: [
-      field('kneeFlexion', 'Flex', 'Flex', 'Ext', { min: 0, max: 140 }, 'sagittal', {
+      field('kneeFlexion', 'Flex', 'Flex', 'Ext', { min: -15, max: 140 }, 'sagittal', {
         warningMarginDeg: 8,
       }),
       field('kneeRotation', 'Rotate', 'Int', 'Ext', { min: -35, max: 25 }, 'transverse'),
@@ -219,7 +219,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     canonicalKey: 'R_Leg',
     label: 'R Knee',
     fields: [
-      field('kneeFlexion', 'Flex', 'Flex', 'Ext', { min: 0, max: 140 }, 'sagittal', {
+      field('kneeFlexion', 'Flex', 'Flex', 'Ext', { min: -15, max: 140 }, 'sagittal', {
         warningMarginDeg: 8,
       }),
       field('kneeRotation', 'Rotate', 'Int', 'Ext', { min: -35, max: 25 }, 'transverse'),
