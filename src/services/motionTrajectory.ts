@@ -40,6 +40,9 @@ export interface TrajectoryKnot {
   /** Zero-velocity here: the motion start, a held keyframe, and the final knot. */
   stop: boolean;
   planted: boolean;
+  /** Grounding posture the body rests in at this knot (sitting/quadruped/…), or
+   *  undefined for the default feet floor-pin. */
+  groundingPosture?: string;
 }
 
 export interface TrajectorySample {
@@ -47,6 +50,8 @@ export interface TrajectorySample {
   rootQuat: [number, number, number, number];
   rootTranslate: [number, number, number];
   planted: boolean;
+  /** Grounding posture the body rests in for this frame, or undefined = feet-pin. */
+  groundingPosture?: string;
 }
 
 export interface PoseTrajectory {
@@ -338,6 +343,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
         rootQuat: rootQ,
         rootTranslate,
         planted,
+        groundingPosture: knots[k + 1]!.groundingPosture,
       };
     },
   };
@@ -346,7 +352,12 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
 /** Minimal shape of buildSequencePoses' output that the trajectory needs. */
 export interface SequenceBuildLike {
   poses: CustomPose[];
-  roots: { quat: [number, number, number, number]; translateM: [number, number, number]; stance?: string }[];
+  roots: {
+    quat: [number, number, number, number];
+    translateM: [number, number, number];
+    stance?: string;
+    groundingPosture?: string;
+  }[];
   durationsMs: number[];
   holdsMs: number[];
 }
@@ -391,6 +402,7 @@ export function buildComposedTrajectory(
       rootTranslate: startTranslate,
       stop: true,
       planted: built.roots[0]?.stance === 'planted',
+      groundingPosture: built.roots[0]?.groundingPosture,
     },
   ];
   // Settle instants for the FIRST rep only — the stage measures one cycle (all
@@ -412,6 +424,7 @@ export function buildComposedTrajectory(
         rootTranslate: rs.translateM,
         stop: holdMs > 0 || isVeryLast,
         planted,
+        groundingPosture: rs.groundingPosture,
       });
       if (holdMs > 0) {
         tCursor += holdMs;
@@ -421,6 +434,7 @@ export function buildComposedTrajectory(
           rootQuat: rs.quat,
           rootTranslate: rs.translateM,
           stop: true,
+          groundingPosture: rs.groundingPosture,
           planted,
         });
       }

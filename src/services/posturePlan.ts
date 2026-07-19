@@ -8,7 +8,7 @@
  * Phase 2 wires the standing ↔ supine edges (lying on the back). Prone / side-lying
  * rolls and the Phase-3 sitting / quadruped / plank nodes extend the same graph.
  */
-import { buildLieDown, buildGetUp } from './movementTemplates';
+import { buildLieDown, buildGetUp, buildSitDown, buildStandFromSit } from './movementTemplates';
 import type { ComposedMotion, PostureNode } from './motionSequence';
 
 export interface PostureEdge {
@@ -23,6 +23,8 @@ export interface PostureEdge {
 export const POSTURE_EDGES: PostureEdge[] = [
   { from: 'standing', to: 'supine', build: buildLieDown },
   { from: 'supine', to: 'standing', build: buildGetUp },
+  { from: 'standing', to: 'sitting', build: buildSitDown },
+  { from: 'sitting', to: 'standing', build: buildStandFromSit },
 ];
 
 /**

@@ -133,7 +133,13 @@ export const TRAVEL_DIRECTIONS: readonly TravelDirection[] = [
  *  Phase-3 contact rework, sitting/quadruped/kneeling/plank). A movement may declare
  *  the posture it STARTS and ENDS in so the executor can bridge between them; default
  *  (undefined) means 'standing' — back-compatible for every existing movement. */
-export type PostureNode = 'standing' | 'supine' | 'prone' | 'sidelying-left' | 'sidelying-right';
+export type PostureNode =
+  | 'standing'
+  | 'sitting'
+  | 'supine'
+  | 'prone'
+  | 'sidelying-left'
+  | 'sidelying-right';
 
 /** Every posture, for host capability discovery / tool enums. */
 export const SEMANTIC_POSTURES: readonly SemanticPosture[] = [
@@ -232,6 +238,13 @@ export interface SequenceKeyframe {
   posture?: SemanticPosture;
   /** Per-keyframe stance override (else the motion-level stance applies). */
   stance?: StanceMode;
+  /** GROUNDING posture for this keyframe: which support the body rests on (e.g.
+   *  'sitting' grounds the PELVIS on a seat, 'quadruped' the shins+hands on the
+   *  floor) — distinct from the SemanticPosture root orient. Default (undefined) =
+   *  the feet, i.e. the standard floor-pin. Consumed by the sampler/stage grounding
+   *  step (posture-scoped contact); lets a sit-down switch the pin from feet to the
+   *  pelvis at the seated keyframe. */
+  groundingPosture?: PostureNode;
 }
 
 /** A unilateral (involved-vs-uninvolved) asymmetry — the substance of a PT movement
@@ -399,6 +412,9 @@ export interface ResolvedSequenceKeyframe {
   root?: RootTransform;
   /** Resolved effective stance for this keyframe. */
   stance: StanceMode;
+  /** Grounding posture for this keyframe (pass-through), or undefined for the
+   *  default feet floor-pin. */
+  groundingPosture?: PostureNode;
 }
 
 export interface ResolvedComposedMotion {
@@ -847,6 +863,7 @@ export function resolveComposedMotion(
       ...(timingAdjusted ? { timingAdjusted: true } : {}),
       ...(kfRoot ? { root: kfRoot } : {}),
       stance: kf.stance === 'planted' || kf.stance === 'floating' ? kf.stance : motionStance,
+      ...(kf.groundingPosture ? { groundingPosture: kf.groundingPosture } : {}),
     });
   }
 
@@ -927,6 +944,9 @@ export interface KeyframeRootState {
   translateM: [number, number, number];
   /** Effective stance for this keyframe. */
   stance: StanceMode;
+  /** Grounding posture for this keyframe (which support the body rests on), or
+   *  undefined for the default feet floor-pin. */
+  groundingPosture?: PostureNode;
 }
 
 /** The built playback plan: one target CustomPose per keyframe plus its
@@ -1033,7 +1053,12 @@ export function buildSequencePoses(
     if (kf.root?.translateM) curTranslate = [...kf.root.translateM];
 
     poses.push(pose);
-    roots.push({ quat: [...curQuat], translateM: [...curTranslate], stance: kf.stance });
+    roots.push({
+      quat: [...curQuat],
+      translateM: [...curTranslate],
+      stance: kf.stance,
+      ...(kf.groundingPosture ? { groundingPosture: kf.groundingPosture } : {}),
+    });
     durationsMs.push(kf.durationMs);
     holdsMs.push(kf.holdMs);
     prev = pose;

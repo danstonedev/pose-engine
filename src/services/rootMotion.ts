@@ -132,6 +132,10 @@ function contactBones(
  *  returns to under a PLANTED stance. Captured once at anatomic rest. */
 export interface FloorReference {
   restY: Record<string, number>;
+  /** The ground-plane world-Y (the lowest foot contact's rest-Y) — the level a
+   *  NON-foot contact (a hand in a push-up, a knee in quadruped) is grounded to,
+   *  and the datum a seat height is measured up from. */
+  floorY: number;
 }
 
 const _fp = new THREE.Vector3();
@@ -147,7 +151,87 @@ export function captureFloorReference(
   for (const { key, bone } of contactBones(skeleton, variantCfg)) {
     restY[key] = bone.getWorldPosition(_fp).y;
   }
-  return { restY };
+  const feet = Object.values(restY);
+  const floorY = feet.length ? Math.min(...feet) : 0;
+  return { restY, floorY };
+}
+
+/** One grounding contact: a bone that should meet a support plane at `targetY`.
+ *  'vertical' contributes to the whole-body max-lift Y pin; 'reach' is a secondary
+ *  contact left for a per-limb IK reach (Tier B). */
+export interface GroundContact {
+  bone: string;
+  targetY: number;
+  mode?: 'vertical' | 'reach';
+}
+
+/** Height (m) the PELVIS BONE grounds to above the floor when seated — a normal
+ *  chair seat (~0.45 m) plus the pelvis centre's rise above the ischial contact
+ *  (~0.15 m). Chosen so the seated pelvis matches the foot-grounded seated flex
+ *  (hip ~85° / knee ~95°) → the feet→pelvis grounding switch stays seam-free. */
+export const SEAT_HEIGHT_M = 0.59;
+
+/** Resolve the canonical pose key → live bone map once (any bone, not just feet). */
+function boneByCanonicalKey(
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+): Map<string, THREE.Bone> {
+  const out = new Map<string, THREE.Bone>();
+  for (const bone of skeleton.bones) {
+    const norm = normalizeBoneNameForVariant(bone.name, variantCfg.boneNameMap);
+    if (!norm.canonical) continue;
+    const side = norm.side === 'Left' ? 'L_' : norm.side === 'Right' ? 'R_' : '';
+    out.set(`${side}${norm.canonical}`, bone);
+  }
+  return out;
+}
+
+/**
+ * The ordered contact set that grounds a named grounding posture, resolved against
+ * the captured {@link FloorReference}. 'standing' (and any unknown) → the feet at
+ * their rest-Y (identical to {@link pinRootToFloor}). 'sitting' → the PELVIS at seat
+ * height (a chair/bed under the measured pelvis) — NOT a foot-grounded squat — with
+ * the feet at the floor as a co-lift reference. Phase-3 postures (kneeling/quadruped/
+ * plank) extend this table.
+ */
+export function groundingContactsFor(posture: string, floor: FloorReference): GroundContact[] {
+  switch (posture) {
+    case 'sitting':
+      return [
+        { bone: 'Hips', targetY: floor.floorY + SEAT_HEIGHT_M, mode: 'vertical' },
+      ];
+    default:
+      return Object.entries(floor.restY).map(([bone, targetY]) => ({ bone, targetY, mode: 'vertical' }));
+  }
+}
+
+/**
+ * Vertical whole-body pin over an EXPLICIT contact list with EXPLICIT targets — the
+ * generalisation of {@link pinRootToFloor} to non-foot contacts (a seated pelvis, a
+ * planted hand). Lifts the root so the DEEPEST-penetrating 'vertical' contact meets
+ * its target-Y, exactly as the feet-only pin does; orientation-agnostic (moves
+ * `root.position.y` only). Returns the Y shift; no-op (0) when no vertical contact
+ * resolves.
+ */
+export function pinContactsToFloor(
+  root: THREE.Object3D,
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+  contacts: GroundContact[],
+): number {
+  root.updateMatrixWorld(true);
+  const bones = boneByCanonicalKey(skeleton, variantCfg);
+  let lift = -Infinity;
+  for (const c of contacts) {
+    if (c.mode === 'reach') continue;
+    const bone = bones.get(c.bone);
+    if (!bone || !Number.isFinite(c.targetY)) continue;
+    lift = Math.max(lift, c.targetY - bone.getWorldPosition(_fp).y);
+  }
+  if (!Number.isFinite(lift)) return 0;
+  root.position.y += lift;
+  root.updateMatrixWorld(true);
+  return lift;
 }
 
 // ── Closed-chain foot-rooted planting (feet stay planted, body folds over them) ─

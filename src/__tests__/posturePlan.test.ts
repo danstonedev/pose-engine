@@ -22,7 +22,13 @@ import {
   movementStartPosture,
   movementEndPosture,
 } from '../services/posturePlan';
-import { buildLieDown, buildGetUp, buildSupineLegRaise } from '../services/movementTemplates';
+import {
+  buildLieDown,
+  buildGetUp,
+  buildSupineLegRaise,
+  buildSitDown,
+  buildStandFromSit,
+} from '../services/movementTemplates';
 import { measureCommandMotion } from '../services/movementCommand';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
@@ -122,5 +128,73 @@ describe('posture transfers on the rig', () => {
     // eslint-disable-next-line no-console
     console.log(`stand up: end pitch ${endPitch.toFixed(0)}°`);
     expect(Math.abs(endPitch), 'upright again after standing up').toBeLessThan(20);
+  });
+});
+
+describe('posture graph — sitting (Phase 3 Tier A)', () => {
+  it('routes standing↔sitting to the sit-down / stand-from-sit transfers', () => {
+    const down = planPosturePath('standing', 'sitting');
+    expect(down?.length).toBe(1);
+    expect(down![0]!.endPosture).toBe('sitting');
+    const up = planPosturePath('sitting', 'standing');
+    expect(up?.length).toBe(1);
+    expect(up![0]!.startPosture).toBe('sitting');
+    expect(up![0]!.endPosture).toBe('standing');
+  });
+});
+
+describe('sitting grounds on the pelvis (Phase 3 Tier A, on the rig)', () => {
+  const variantCfg = BODY_VARIANTS.male;
+  const GLB_URL = new URL('../../models/painmap3D_male.runtime.glb', import.meta.url);
+  let root: THREE.Object3D;
+  let skinned: THREE.SkinnedMesh;
+  let rest: JointAngleRestReference;
+  let baselinePose: CustomPose;
+
+  beforeAll(async () => {
+    const buf = readFileSync(fileURLToPath(GLB_URL));
+    const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    const gltf = await new Promise<{ scene: THREE.Group }>((res, rej) => {
+      const l = new GLTFLoader();
+      l.setMeshoptDecoder(MeshoptDecoder);
+      l.parse(ab, '', res as never, rej);
+    });
+    root = gltf.scene;
+    root.scale.setScalar(variantCfg.pose.rootScale);
+    root.traverse((o) => {
+      if ((o as THREE.SkinnedMesh).isSkinnedMesh && !skinned) skinned = o as THREE.SkinnedMesh;
+    });
+    root.updateMatrixWorld(true);
+    applyAnatomicPose(root, variantCfg);
+    root.updateMatrixWorld(true);
+    rest = captureJointAngleRestReference(skinned.skeleton, variantCfg);
+    baselinePose = serializeCustomPose(skinned.skeleton, variantCfg, 'male');
+  });
+
+  it('sit down lands the pelvis at seat height, and the sit↔stand chain is smooth', () => {
+    const chain = sampleMotionChain([buildSitDown(), buildStandFromSit()], {
+      baselinePose,
+      variantCfg,
+      rest,
+      skeletonHarness: { root, skinned },
+      sampleHz: 30,
+    });
+    expect(chain.map((c) => c.status)).toEqual(['ok', 'ok']);
+    const sit = chain[0]!.recording;
+    const hipsY = (f: (typeof sit.frames)[number]) => f.worldTracks!.Hips![1];
+    const standHipsY = hipsY(sit.frames[0]!);
+    const seatedHipsY = hipsY(sit.frames.at(-1)!);
+    // Seated pelvis is well below standing but well above the floor — on a seat.
+    expect(seatedHipsY, 'pelvis drops toward a seat').toBeLessThan(standHipsY - 0.35);
+    expect(seatedHipsY, 'pelvis is at seat height, not on the floor').toBeGreaterThan(0.4);
+    // The grounding switch (feet → pelvis) does not pop.
+    const sy = sit.frames.map(hipsY);
+    let maxJump = 0;
+    for (let i = 1; i < sy.length; i += 1) maxJump = Math.max(maxJump, Math.abs(sy[i]! - sy[i - 1]!));
+    expect(maxJump, 'no pop at the grounding switch').toBeLessThan(0.05);
+    // Stand-up returns the pelvis to standing height with no seam teleport.
+    expect(chain[1]!.seamRootTranslateM, 'sit→stand seam has no teleport').toBeLessThan(0.05);
+    const standEndHipsY = hipsY(chain[1]!.recording.frames.at(-1)!);
+    expect(standEndHipsY, 'back to standing pelvis height').toBeGreaterThan(standHipsY - 0.08);
   });
 });

@@ -522,6 +522,8 @@
         captureFloorReference,
         captureFootFrames,
         pinRootToFloor,
+        pinContactsToFloor,
+        groundingContactsFor,
         plantStanceFoot,
         stanceFootDrift,
         rotateRestReferenceByRoot,
@@ -1337,6 +1339,7 @@
         rootTranslate: [number, number, number],
         planted: boolean,
         tMs = 0,
+        groundingPosture?: string,
       ): void {
         if (!modelRoot) return;
         _rootQA.set(rootQuat[0], rootQuat[1], rootQuat[2], rootQuat[3]);
@@ -1349,7 +1352,16 @@
         pelvisShiftBakedM = 0; // absolute write — the shift re-bakes at the end
         modelRoot.scale.copy(rootRestScale); // clear any prior-frame plant scale drift
         modelRoot.updateMatrixWorld(true);
-        if (
+        if (planted && groundingPosture && skinnedRef && variantCfgRef && floorRef) {
+          // POSTURE-SCOPED GROUNDING: rest on the posture's contact set (the pelvis on
+          // a seat for 'sitting') via the explicit-target vertical pin — not the feet.
+          pinContactsToFloor(
+            modelRoot,
+            skinnedRef.skeleton,
+            variantCfgRef,
+            groundingContactsFor(groundingPosture, floorRef),
+          );
+        } else if (
           planted &&
           composedUseFootRoot &&
           skinnedRef &&
@@ -1395,7 +1407,7 @@
           const st = at.traj.sampleAt(at.settleAtMs[at.nextSettle]!);
           if (skinnedRef && variantCfgRef)
             applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
-          applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, at.settleAtMs[at.nextSettle]!);
+          applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, at.settleAtMs[at.nextSettle]!, st.groundingPosture);
           applyFootPlants(at.settleAtMs[at.nextSettle]!);
           at.onSettle(at.nextSettle);
           at.nextSettle += 1;
@@ -1425,7 +1437,7 @@
         const s = at.traj.sampleAt(elapsed);
         if (skinnedRef && variantCfgRef) applyCustomPose(skinnedRef.skeleton, variantCfgRef, s.pose);
         currentPose = s.pose;
-        applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed);
+        applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed, s.groundingPosture);
         // Closed-chain foot contact for this frame (pins declared stance feet).
         applyFootPlants(elapsed);
         requestRender();
@@ -1780,12 +1792,16 @@
         // the supine/prone/side-lying orientation. Lying grounds on the plain vertical
         // pin (feet co-planar with the back). Mirrors the sampler's `!reorients` gate.
         const composedReorients = built.roots.some((r) => Math.abs(r.quat[3]) < 0.999);
+        // A grounding posture (sitting/quadruped/…) grounds on its own contact set
+        // via pinContactsToFloor — never the foot-root. Mirrors the sampler gate.
+        const composedHasGrounding = built.roots.some((r) => r.groundingPosture != null);
         composedUseFootRoot =
           !resolved.footDrivenTravel &&
           !resolved.loop &&
           !composedTravels &&
           !composedHasFloating &&
           !composedReorients &&
+          !composedHasGrounding &&
           !(resolved.contacts?.length ?? 0) &&
           composedHasPlanted &&
           !!footFrames;
@@ -1817,7 +1833,7 @@
               const st = trajectory.sampleAt(settleAtMs[i]!);
               if (skinnedRef && variantCfgRef)
                 applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
-              applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, settleAtMs[i]!);
+              applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, settleAtMs[i]!, st.groundingPosture);
               applyFootPlants(settleAtMs[i]!);
               measureSettle(i);
             }
@@ -1825,7 +1841,7 @@
             if (skinnedRef && variantCfgRef)
               applyCustomPose(skinnedRef.skeleton, variantCfgRef, end.pose);
             currentPose = end.pose;
-            applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs);
+            applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs, end.groundingPosture);
             applyFootPlants(trajectory.totalMs);
             resolve();
             return;
