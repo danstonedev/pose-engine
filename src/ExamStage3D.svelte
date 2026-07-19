@@ -542,6 +542,35 @@
 
       const scene = new THREE.Scene();
       scene.background = null; // transparent → the CSS backdrop shows through
+
+      // SEAT PROP: a simple bench under the pelvis while the body is grounded
+      // 'sitting', so the seated model rests on something instead of floating at
+      // seat height. Positioned at the model's horizontal location each sitting
+      // frame; hidden otherwise. Cosmetic — grounding/measurement are unaffected.
+      const SEAT_SURFACE_M = 0.45; // seat-top world Y (above the ~0 floor)
+      const seatProp = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, SEAT_SURFACE_M, 0.42),
+        new THREE.MeshStandardMaterial({ color: 0x8a8f98, roughness: 0.9, metalness: 0 }),
+      );
+      seatProp.visible = false;
+      scene.add(seatProp);
+      /** Show/place the bench under the seated pelvis, or hide it. */
+      function updateSeatProp(sitting: boolean): void {
+        if (!sitting || !modelRoot) {
+          if (seatProp.visible) {
+            seatProp.visible = false;
+            requestRender();
+          }
+          return;
+        }
+        const floorY = floorRef?.floorY ?? 0;
+        const top = floorY + SEAT_SURFACE_M;
+        // Centre the bench box between floor and seat-top, at the model's x,z
+        // (a touch forward so the pelvis sits toward its back edge).
+        seatProp.scale.set(1, Math.max(0.05, top - floorY) / SEAT_SURFACE_M, 1);
+        seatProp.position.set(modelRoot.position.x, (floorY + top) / 2, modelRoot.position.z + 0.05);
+        seatProp.visible = true;
+      }
       const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 100);
       const renderer = createMannequinRenderer({ container, alpha: true });
       renderer.domElement.style.width = '100%';
@@ -644,6 +673,7 @@
       function resetRootToRest(): void {
         composedRootQuat = [0, 0, 0, 1];
         composedRootTranslate = [0, 0, 0];
+        updateSeatProp(false); // upright at origin ⇒ no seat
         if (!modelRoot) return;
         modelRoot.quaternion.copy(rootRestQuat);
         modelRoot.position.copy(rootRestPos);
@@ -840,6 +870,7 @@
       function cancelComposed() {
         composedSeq += 1;
         composedActive = false;
+        updateSeatProp(false); // hide the seat when a motion ends / is taken over
         composedPlants = []; // drop any foot-contact IK for the ended motion
         composedUseFootRoot = false; // drop foot-rooted planting for the ended motion
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
@@ -1394,6 +1425,8 @@
         // Pelvis-shift overlay LAST, so it composes over the travel/pin/foot-root
         // writes above instead of being overwritten by them.
         bakePelvisShift();
+        // Seat prop: show the bench under the pelvis while grounded 'sitting'.
+        updateSeatProp(groundingPosture === 'sitting');
       }
 
       function stepTrajectory(now: number): void {
