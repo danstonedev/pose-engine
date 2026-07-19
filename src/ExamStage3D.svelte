@@ -61,7 +61,7 @@
   } from './services/romConstraints';
   // liveliness is three-free (pure angle math) — static import stays SSR-safe;
   // it feeds the live rAF overlay only, never the offline sampler.
-  import { breathingLean, livelinessSwayDeg } from './services/liveliness';
+  import { breathingLean, livelinessSwayDeg, cadenceRate } from './services/liveliness';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -1144,6 +1144,12 @@
         loop: boolean;
         resolve: () => void;
         finished: boolean;
+        /** WARPED loop clock (ms) — the phase clock a looping motion is sampled at,
+         *  advanced per frame at `cadenceRate` so the cadence drifts naturally cycle
+         *  to cycle. Lazily seeded to the entry phase on the first frame (undefined
+         *  until then); a fresh trajectory object resets it. Live-only. */
+        warpClock?: number;
+        warpPrevNow?: number;
       }
       let activeTrajectory: ActiveTrajectory | null = null;
 
@@ -1344,7 +1350,27 @@
           at.nextSettle += 1;
         }
         const done = !at.loop && raw >= total;
-        const elapsed = at.loop && total > 0 ? raw % total : Math.min(total, raw);
+        // Loop phase clock. A LOOPING motion advances a WARPED clock at `cadenceRate`
+        // so its cadence drifts gently cycle to cycle (natural stride-time
+        // variability) instead of metronomic repetition. The rate is exactly 1 when
+        // liveliness is 0, so a clean loop is byte-identical to the plain `raw % total`;
+        // it's continuous, so the wrap stays seamless; and it's timing-only, so poses,
+        // foot placement and every measured angle are unchanged. Seeded to the entry
+        // phase on the first frame. (One-shot playback — incl. the recorded first pass —
+        // is not looped, so it and grading are untouched.)
+        let elapsed: number;
+        if (at.loop && total > 0) {
+          if (at.warpClock == null) {
+            at.warpClock = raw;
+            at.warpPrevNow = now;
+          }
+          const dt = Math.max(0, Math.min(200, now - (at.warpPrevNow ?? now)));
+          at.warpPrevNow = now;
+          at.warpClock += dt * cadenceRate(raw / 1000, motionLiveliness);
+          elapsed = at.warpClock % total;
+        } else {
+          elapsed = Math.min(total, raw);
+        }
         const s = at.traj.sampleAt(elapsed);
         if (skinnedRef && variantCfgRef) applyCustomPose(skinnedRef.skeleton, variantCfgRef, s.pose);
         currentPose = s.pose;
@@ -1599,7 +1625,15 @@
         // scales the (already velocity-floored) durations; guarding/sway run
         // through the identical per-frame overlay machinery clips use.
         const timeScale = Math.min(1.5, Math.max(0.4, mods.timeScale ?? 1));
-        setMotionOverlaysImpl?.({ guarding: mods.guarding, balanceSway: mods.balanceSway });
+        // PRESERVE the host-set liveliness (breathing + cadence variability): this
+        // path applies the MOTION's own guarding/sway, but must not zero liveliness
+        // (the setter defaults an omitted key to 0), or AI-composed gait would never
+        // breathe or vary. `motionLiveliness` currently holds what the host set.
+        setMotionOverlaysImpl?.({
+          guarding: mods.guarding,
+          balanceSway: mods.balanceSway,
+          liveliness: motionLiveliness,
+        });
         composedActive = true;
         // Closed-chain foot contacts declared by this motion (Finding 4): rebuild
         // the IK plants so declared stance feet stay world-fixed as the body

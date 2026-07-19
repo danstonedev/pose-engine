@@ -76,3 +76,38 @@ export function livelinessSwayDeg(
     apDeg: a * SWAY_AP_PEAK_DEG * Math.sin(2 * Math.PI * SWAY_AP_HZ * tSec + SWAY_AP_PHASE),
   };
 }
+
+// Cadence variability: real gait is not metronomic — stride TIME drifts cycle to
+// cycle with a coefficient of variation of ~2–4% in healthy adults (and MORE with
+// age / neurological disease — a future clinical dial). `cadenceRate` is a slow,
+// bounded multiplier on how fast a LOOPING motion's phase clock advances, so the
+// cadence gently speeds/slows and no two cycles take the same time. Two
+// incommensurate low frequencies (mean 0) drift over ~12–27 s — far slower than a
+// ~1 s gait cycle — so it never reads as a single wobble and the loop seam stays
+// smooth (the rate is continuous, so the warped clock is C¹).
+/** Cadence drift frequencies, Hz (incommensurate — no shared period). */
+const CADENCE_HZ_A = 0.08;
+const CADENCE_HZ_B = 0.037;
+const CADENCE_PHASE_B = 1.7;
+/** Peak fractional cadence deviation at amount = 1 (±6%); at the ~0.4 natural
+ *  default this is ±~2.4%, squarely in the healthy stride-time CV band. */
+export const CADENCE_CV_MAX = 0.06;
+
+/**
+ * Bounded, slowly-drifting multiplier (mean 1) for a LOOPING motion's phase-clock
+ * advance — natural stride-time variability. `amount` 0 ⇒ exactly 1 (a perfectly
+ * metronomic clean loop); otherwise strictly within `1 ± amount·CADENCE_CV_MAX`.
+ * Continuous in `tSec`, so the warped loop clock stays C¹ and the seam is smooth.
+ * Timing only — it warps WHEN the pose is reached, never the pose itself, so foot
+ * placement and every measured angle are untouched.
+ */
+export function cadenceRate(tSec: number, amount: number): number {
+  const a = safeAmount(amount);
+  if (a === 0 || !Number.isFinite(tSec)) return 1;
+  // ½·(sinA + sinB) ∈ [−1, 1] ⇒ the deviation is bounded by a·CADENCE_CV_MAX.
+  const drift =
+    0.5 *
+    (Math.sin(2 * Math.PI * CADENCE_HZ_A * tSec) +
+      Math.sin(2 * Math.PI * CADENCE_HZ_B * tSec + CADENCE_PHASE_B));
+  return 1 + a * CADENCE_CV_MAX * drift;
+}
