@@ -77,6 +77,12 @@
     MotionRecordingSourceKind,
     RecordedFrame,
   } from './services/motionRecording';
+  import {
+    READY_SETTLE_MS,
+    READY_HOLD_MS,
+    maxPoseAngleDiffDeg,
+    readyTransitionNeeded,
+  } from './services/readyTransition';
   import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
 
   let {
@@ -643,6 +649,47 @@
         modelRoot.updateMatrixWorld(true);
       }
 
+      /** Is the body off its neutral ready stance (in pose, travel, or orientation)
+       *  enough to warrant a visible return-to-ready before the next command? */
+      function needsReadySettle(): boolean {
+        if (!currentPose || !baselinePoseRef) return false;
+        return readyTransitionNeeded({
+          poseAngleDiffDeg: maxPoseAngleDiffDeg(currentPose, baselinePoseRef),
+          rootHorizontalM: Math.hypot(composedRootTranslate[0], composedRootTranslate[2]),
+          rootUprightW: Math.abs(composedRootQuat[3]),
+        });
+      }
+
+      /** The "pause at a ready stance" beat between two directed commands. */
+      async function holdReadyBeat(token: number): Promise<void> {
+        if (READY_HOLD_MS <= 0 || token !== composedSeq || stageHidden()) return;
+        await new Promise<void>((resolve) => setTimeout(resolve, READY_HOLD_MS));
+      }
+
+      /** NATURAL RETURN-TO-READY between two directed movements: ease the current
+       *  pose back to the anatomic neutral stance and settle the root UPRIGHT + IN
+       *  PLACE (keep the horizontal position — the person stands up where they are,
+       *  they do not teleport/slide back to the origin), then hold a brief beat.
+       *  Reuses the proven staged pose tween; guarded by the command token so a new
+       *  command mid-settle supersedes it. */
+      async function playReadySettle(token: number): Promise<void> {
+        if (!baselinePoseRef) return;
+        const keepX = composedRootTranslate[0];
+        const keepZ = composedRootTranslate[2];
+        await tweenTo(baselinePoseRef, READY_SETTLE_MS, {
+          fromQuat: [...composedRootQuat],
+          toQuat: [0, 0, 0, 1],
+          fromTranslate: [...composedRootTranslate],
+          toTranslate: [keepX, 0, keepZ],
+          planted: true,
+        });
+        // The body now stands ready in place; carry that root state forward so the
+        // next motion continues from here rather than snapping to the origin.
+        composedRootQuat = [0, 0, 0, 1];
+        composedRootTranslate = [keepX, 0, keepZ];
+        await holdReadyBeat(token);
+      }
+
       /** The orientation delta the model root currently carries vs its rest —
        *  null when upright (so measurement uses the plain rest reference). */
       function rootOrientDelta(): import('three').Quaternion | null {
@@ -784,6 +831,10 @@
       // playback (including a detached loop cycle) stops at its next check.
       let composedActive = false;
       let composedSeq = 0;
+      // True once at least one composed movement has played this session — gates the
+      // between-command "pause at a ready stance" beat (the first command starts
+      // promptly; subsequent ones get the directed pause).
+      let composedHasPlayed = false;
       function cancelComposed() {
         composedSeq += 1;
         composedActive = false;
@@ -1641,15 +1692,37 @@
         setComposedContacts(resolved.contacts);
         startLoop();
 
-        // CROSS-MOTION CONTINUITY: fold onto the CURRENT on-stage pose + root, so
-        // a second motion holds unmentioned joints and continues from the live
-        // posture (unless the motion asked to start from neutral, which the build
-        // honors by folding onto the anatomic baseline / upright root instead).
-        const built = buildSequencePoses(baselinePoseRef, resolved, variantCfgRef, restRef, {
+        // NATURAL RETURN-TO-READY between two directed movements. A template/neutral
+        // movement used to reset INSTANTLY to anatomic standing at the origin — a
+        // robotic teleport. Instead: if the last move left the body off its ready
+        // stance, ease it back IN PLACE and pause a beat (the person returns to
+        // ready, then does the next move); if it's already at ready, just hold the
+        // between-command beat. After the settle the movement CONTINUES from that
+        // ready pose (startFrom 'current'), so it plays where the person is standing
+        // and never snaps to the origin. AI motions already start 'current'.
+        let effectiveResolved = resolved;
+        if (resolved.startFrom === 'neutral') {
+          if (needsReadySettle()) {
+            await playReadySettle(token);
+            if (token !== composedSeq) return refusedResult('superseded');
+            effectiveResolved = { ...resolved, startFrom: 'current' as const };
+          } else {
+            resetRootToRest();
+            if (composedHasPlayed) {
+              await holdReadyBeat(token);
+              if (token !== composedSeq) return refusedResult('superseded');
+            }
+          }
+        }
+
+        composedHasPlayed = true; // a movement is playing → future commands get the ready beat
+
+        // CROSS-MOTION CONTINUITY: fold onto the CURRENT on-stage pose + root (after
+        // any ready settle above), so the motion continues from the live posture.
+        const built = buildSequencePoses(baselinePoseRef, effectiveResolved, variantCfgRef, restRef, {
           currentPose,
           currentRoot: { quat: composedRootQuat, translateM: composedRootTranslate },
         });
-        if (resolved.startFrom === 'neutral') resetRootToRest();
         const measurements: ComposedMotionPlaybackResult['measurements'] = [];
         const finalAngles: Record<string, number> = {};
         const hidden = stageHidden;
