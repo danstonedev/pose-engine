@@ -200,6 +200,19 @@ export function groundingContactsFor(posture: string, floor: FloorReference): Gr
       return [
         { bone: 'Hips', targetY: floor.floorY + SEAT_HEIGHT_M, mode: 'vertical' },
       ];
+    case 'plank':
+      // PLANK / PUSH-UP: the body is a straight prone-frame line held on the TOES
+      // (behind) and the HANDS (front). The toes are the PRIMARY vertical pin (they
+      // set the whole-body height, exactly like the feet do standing); each hand is
+      // a REACH contact left for the per-arm hand-plant IK, so it stays planted on
+      // the floor as the chest lowers (the arm folds — the push-up). floorY is the
+      // ground plane for BOTH ends.
+      return [
+        { bone: 'L_Toes', targetY: floor.floorY, mode: 'vertical' },
+        { bone: 'R_Toes', targetY: floor.floorY, mode: 'vertical' },
+        { bone: 'L_Hand', targetY: floor.floorY, mode: 'reach' },
+        { bone: 'R_Hand', targetY: floor.floorY, mode: 'reach' },
+      ];
     default:
       return Object.entries(floor.restY).map(([bone, targetY]) => ({ bone, targetY, mode: 'vertical' }));
   }

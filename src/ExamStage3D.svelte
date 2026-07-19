@@ -532,7 +532,8 @@
         NO_VERTICAL_CALIBRATION,
         deriveFootDrivenTravel,
       } = await import('./services/rootMotion');
-      const { buildFootPlant, solveFootPlant } = await import('./services/footContact');
+      const { buildFootPlant, solveFootPlant, buildHandPlant, solveHandReach } =
+        await import('./services/footContact');
       const { computeBodyCoMFromBones } = await import('./services/centerOfMass');
       const { resolveMotionCommand } = await import('./services/motionCommand');
       const { normalizeRigBoneName } = await import('./services/movementClipSampling');
@@ -872,6 +873,7 @@
         composedActive = false;
         updateSeatProp(false); // hide the seat when a motion ends / is taken over
         composedPlants = []; // drop any foot-contact IK for the ended motion
+        composedHandPlants = []; // drop any hand-contact IK for the ended motion
         composedUseFootRoot = false; // drop foot-rooted planting for the ended motion
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
         composedFootDriven = null; // drop any foot-driven travel
@@ -1250,6 +1252,17 @@
       }
       let composedPlants: StageFootPlant[] = [];
 
+      /** HAND PLANTS (Phase 3 Tier B): for a grounding posture that declares a hand
+       *  as a 'reach' contact (plank/push-up), an arm IK chain that pins the hand to
+       *  a FIXED floor point so it stays planted as the chest lowers (the arm folds).
+       *  Mirror of {@link composedPlants} on the arm chain. Rebuilt per playback. */
+      interface StageHandPlant {
+        solver: ReturnType<typeof buildFootPlant>;
+        bone: string;
+        target: import('three').Vector3 | null;
+      }
+      let composedHandPlants: StageHandPlant[] = [];
+
       /** CLOSED-CHAIN FOOT-ROOTED PLANTING for the ACTIVE composed motion — true
        *  for the quasi-static planted set (squat/hinge/sit-to-stand): each planted
        *  frame is re-rooted at the stance foot so the body folds/drops over PLANTED
@@ -1344,6 +1357,27 @@
         }
       }
 
+      /** Rebuild the hand-plant contexts for a starting composed motion — one per
+       *  hand any grounding keyframe declares as a 'reach' contact. Mirrors the
+       *  offline sampler's handPlants setup. */
+      function setComposedHandPlants(
+        roots: { groundingPosture?: string | null }[],
+      ): void {
+        composedHandPlants = [];
+        if (!skinnedRef || !variantCfgRef || !floorRef) return;
+        const reachBones = new Set<string>();
+        for (const r of roots) {
+          if (!r.groundingPosture) continue;
+          for (const c of groundingContactsFor(r.groundingPosture, floorRef)) {
+            if (c.mode === 'reach') reachBones.add(c.bone);
+          }
+        }
+        for (const bone of reachBones) {
+          const solver = buildHandPlant(skinnedRef, bone, variantCfgRef);
+          if (solver) composedHandPlants.push({ solver, bone, target: null });
+        }
+      }
+
       /** Apply the active foot plants at composed-motion time `tMs` — called
        *  AFTER the FK pose + root transform each frame (mirrors the sampler). */
       function applyFootPlants(tMs: number): void {
@@ -1385,13 +1419,28 @@
         modelRoot.updateMatrixWorld(true);
         if (planted && groundingPosture && skinnedRef && variantCfgRef && floorRef) {
           // POSTURE-SCOPED GROUNDING: rest on the posture's contact set (the pelvis on
-          // a seat for 'sitting') via the explicit-target vertical pin — not the feet.
-          pinContactsToFloor(
-            modelRoot,
-            skinnedRef.skeleton,
-            variantCfgRef,
-            groundingContactsFor(groundingPosture, floorRef),
-          );
+          // a seat for 'sitting', the toes+hands on the floor for a plank) via the
+          // explicit-target vertical pin — not the feet.
+          const contacts = groundingContactsFor(groundingPosture, floorRef);
+          pinContactsToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, contacts);
+          // REACH CONTACTS: bring each planted hand to the floor and LATCH it there,
+          // so it stays put as the body lowers over it — the arm folds (the push-up).
+          // Mirrors the sampler's latch-on-contact reach solve.
+          if (composedHandPlants.length && restRef) {
+            const reach = new Set(
+              contacts.filter((c) => c.mode === 'reach').map((c) => c.bone),
+            );
+            let solved = false;
+            for (const hp of composedHandPlants) {
+              if (!hp.solver || !reach.has(hp.bone)) {
+                hp.target = null;
+                continue;
+              }
+              solveHandReach(hp.solver, hp, floorRef.floorY, restRef);
+              solved = true;
+            }
+            if (solved) modelRoot.updateMatrixWorld(true);
+          }
         } else if (
           planted &&
           composedUseFootRoot &&
@@ -1806,6 +1855,9 @@
         // FOOT-DRIVEN forward travel: derive the +Z curve that keeps the planted
         // foot world-fixed from the same one-shot trajectory the stage plays.
         setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted);
+        // HAND PLANTS: build the arm IK chains for any grounding-posture reach
+        // contacts (a plank's hands), so they stay planted as the chest lowers.
+        setComposedHandPlants(built.roots);
         // CLOSED-CHAIN FOOT-ROOTED PLANTING: for a PLANTED, in-place, non-looping
         // motion with no declared contacts, re-root each planted frame at the stance
         // foot (the quasi-static planted set). Same gate as the offline sampler —

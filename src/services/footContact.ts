@@ -74,6 +74,97 @@ export function solveFootPlant(
   solveIKChain(solver.ctx, targetWorldPos, { rest, hinges: new Set([solver.kneeKey]) });
 }
 
+// ── Hand plant (Phase 3 Tier B) — the arm analog of the foot plant ───────────
+// Quadruped / plank / push-up rest on the HANDS. As the body lowers (elbows bend)
+// the hand must stay pinned to the floor, exactly as a stance foot stays put while
+// the pelvis travels — so the same CCD IK, on the arm chain hand → elbow → shoulder,
+// the elbow kept a hinge and every joint ROM-clamped. The hand is already declared
+// an ik-effector (chainParentCount 2), so this is a direct mirror of the foot plant.
+
+/** Parents of the hand up to the shoulder: Hand → Forearm(elbow) → UpperArm. */
+const ARM_CHAIN_PARENTS = 2;
+
+/** The elbow key for a hand key ('L_Hand' → 'L_Forearm'). */
+export function elbowKeyForHand(handKey: string): string {
+  return handKey.replace(/Hand$/, 'Forearm');
+}
+
+/** Build an arm IK chain that will pin `handKey` to a world target. Returns null
+ *  when the hand bone isn't present or the chain can't be built. */
+export function buildHandPlant(
+  skinnedMesh: THREE.SkinnedMesh,
+  handKey: string,
+  variantCfg: BodyVariantConfig,
+): FootPlantSolver | null {
+  const hand = buildBoneByPoseKey(skinnedMesh.skeleton, variantCfg).get(handKey);
+  if (!hand) return null;
+  const ctx = buildIKChainContext(skinnedMesh, hand, ARM_CHAIN_PARENTS, variantCfg);
+  if (!ctx) return null;
+  return { ctx, footKey: handKey, kneeKey: elbowKeyForHand(handKey) };
+}
+
+/** Solve the arm so its hand returns to `targetWorldPos` — elbow hinge, ROM-clamped
+ *  (best-effort when unreachable). Call AFTER the frame's FK + root are applied. */
+export function solveHandPlant(
+  solver: FootPlantSolver,
+  targetWorldPos: THREE.Vector3,
+  rest: JointAngleRestReference | null | undefined,
+): void {
+  solveIKChain(solver.ctx, targetWorldPos, { rest, hinges: new Set([solver.kneeKey]) });
+}
+
+/** Latch state for a floor reach — null `target` = still descending, non-null =
+ *  planted (frozen) point. Reset `target` to null when the reach contact releases. */
+export interface HandReachState {
+  target: THREE.Vector3 | null;
+}
+
+/** How close (m) the hand must get to the floor plane before it LATCHES to a fixed
+ *  planted point. Until then it tracks the floor directly below the (descending)
+ *  hand; capturing only ON CONTACT avoids freezing a bad point mid-transition (when
+ *  the grounding posture is already active but the body hasn't reached the plank). */
+const HAND_LATCH_M = 0.03;
+
+/** CCD passes per frame for a planted hand — a stance hand must hold firm against a
+ *  body that moves fast (the chest lowers ~0.3 m in a rep), so it needs more than the
+ *  single pass a slow-moving stance foot gets. */
+const HAND_REACH_PASSES = 4;
+
+const _reachLive = new THREE.Vector3();
+const _reachTarget = new THREE.Vector3();
+
+/**
+ * FLOOR REACH with latch-on-contact — the hand analog of a stance plant for a
+ * secondary (non-height-setting) contact. While the hand is still above the floor
+ * (the body descending into a plank), it is pulled straight DOWN toward the floor
+ * plane below its live position; the instant it reaches the floor it FREEZES that
+ * point, so from then on it stays planted while the body lowers over it and the arm
+ * folds — which is exactly the push-up. Mutates `state.target`; call each frame the
+ * hand is a reach contact, and reset `state.target = null` when it releases.
+ */
+export function solveHandReach(
+  solver: FootPlantSolver,
+  state: HandReachState,
+  floorY: number,
+  rest: JointAngleRestReference | null | undefined,
+): void {
+  if (state.target) {
+    // A few CCD passes so the pinned hand holds against the (fast-moving) body as
+    // the chest lowers — one pass under-converges and lets the hand punch through
+    // the floor at the bottom of a rep.
+    for (let i = 0; i < HAND_REACH_PASSES; i += 1) solveHandPlant(solver, state.target, rest);
+    return;
+  }
+  const eff = solver.ctx.bones[0]!;
+  eff.getWorldPosition(_reachLive);
+  _reachTarget.set(_reachLive.x, floorY, _reachLive.z);
+  for (let i = 0; i < HAND_REACH_PASSES; i += 1) solveHandPlant(solver, _reachTarget, rest);
+  eff.getWorldPosition(_reachLive); // where it ended (best-effort)
+  if (_reachLive.y <= floorY + HAND_LATCH_M) {
+    state.target = new THREE.Vector3(_reachLive.x, floorY, _reachLive.z);
+  }
+}
+
 // ── slide measurement ────────────────────────────────────────────────────────
 
 /** Structural view of a recording the slide validator needs (decoupled from

@@ -1377,6 +1377,101 @@ export function buildSeatedKneeExtension(opts: { side?: 'L' | 'R'; reps?: number
   };
 }
 
+// ─── Posture transfers: standing ↔ plank + push-up (Phase 3 Tier B) ──────────
+// A PLANK is a straight PRONE-FRAME line held on the TOES (behind) and the HANDS
+// (front). It grounds on groundingPosture 'plank' → the toes are the vertical pin
+// (they set the whole-body height, like the feet standing) and each hand is a REACH
+// contact the hand-plant IK keeps FIXED on the floor. The push-up rep is authored as
+// a body-PITCH oscillation about the toe pivot (chest down/up); the hand-plant IK
+// folds the arms to keep the hands planted, so the elbow bend is emergent — no per-rep
+// arm authoring. The get-down/-up rotate the whole body between upright and the prone
+// frame via a raw root pitch (SQUAD-interpolated). All startFrom:'current'.
+
+/** Body pitch (deg) of the plank TOP — near-level, shoulders ~an arm-length up so
+ *  the straight arms drop to the floor (empirically hands ≈ coplanar with the toes). */
+const PLANK_TOP_PITCH = 76;
+/** Body pitch (deg) of the push-up BOTTOM — the body flattened toward horizontal so
+ *  the chest lowers toward the floor about the toe pivot. */
+const PLANK_LOW_PITCH = 86;
+
+/** Prone-frame arms reaching down to the floor (a seed for the hand-plant IK, which
+ *  overrides the arm while grounded) + straight legs with the toes tucked under (the
+ *  toe vertical pin). */
+const plankLimbs = (shoulder: number, elbow: number): SequenceTarget[] => [
+  { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: shoulder },
+  { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: shoulder },
+  { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: elbow },
+  { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: elbow },
+  ...bilatLeg(0, 0, 40),
+];
+
+/** GET INTO A PLANK — standing → plank. Crouch and hinge forward with the hands
+ *  reaching to the floor, then pitch the body to the prone-frame plank line (weight
+ *  on the toes + hands). Ends 'plank'. */
+export function buildGetDownToPlank(): ComposedMotion {
+  return {
+    name: 'get into a plank',
+    startFrom: 'current',
+    stance: 'planted',
+    endPosture: 'plank',
+    keyframes: [
+      // Crouch + hinge forward, reaching the hands toward the floor (feet grounded).
+      { durationMs: 700, stance: 'planted', targets: [...bilatLeg(75, 100, 15), ...trunkFlex(35, 20), ...plankLimbs(120, 15)] },
+      // Pitch to the plank line; grounding switches to the toes+hands as they reach
+      // the floor (the toe vertical pin + the hand-plant IK take over from the feet).
+      {
+        durationMs: 800,
+        holdMs: 150,
+        stance: 'planted',
+        groundingPosture: 'plank',
+        root: { orient: { pitchDeg: PLANK_TOP_PITCH } },
+        targets: [...plankLimbs(90, 5), ...trunkFlex(0, 0)],
+      },
+    ],
+  };
+}
+
+/** PUSH-UP — plank → plank. Lower the chest toward the floor (flatten the body about
+ *  the toe pivot; the hand-plant IK folds the arms to keep the hands planted) and
+ *  press back up. Starts + ends 'plank' (grounded on toes+hands throughout). */
+export function buildPushUp(opts: { reps?: number } = {}): ComposedMotion {
+  const reps = Math.max(1, Math.min(20, Math.round(opts.reps ?? 3)));
+  const top = (): SequenceTarget[] => plankLimbs(90, 5);
+  return {
+    name: reps > 1 ? `push-up ×${reps}` : 'push-up',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'plank',
+    endPosture: 'plank',
+    ...(reps > 1 ? { reps } : {}),
+    keyframes: [
+      { durationMs: 350, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_TOP_PITCH } }, targets: top() },
+      // Lower: flatten the body; the chest descends toward the floor.
+      { durationMs: 550, holdMs: 120, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_LOW_PITCH } }, targets: plankLimbs(90, 90) },
+      // Press back up to the top.
+      { durationMs: 450, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_TOP_PITCH } }, targets: top() },
+    ],
+  };
+}
+
+/** STAND UP FROM A PLANK — plank → standing. Pike the hips up and back to bring the
+ *  feet under the body, then rise to a quiet stand. Ends 'standing'. */
+export function buildStandFromPlank(): ComposedMotion {
+  return {
+    name: 'stand up',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'plank',
+    endPosture: 'standing',
+    keyframes: [
+      // Pike up: hips back and up, trunk folding, feet regain the ground.
+      { durationMs: 700, stance: 'planted', root: { orient: { pitchDeg: 35 } }, targets: [...bilatLeg(80, 95, 15), ...trunkFlex(40, 20), ...plankLimbs(150, 5)] },
+      // Rise to a quiet stand (upright, feet grounding).
+      { durationMs: 800, holdMs: 150, stance: 'planted', posture: 'upright', targets: [...bilatLeg(0, 0, 0), ...trunkFlex(0, 0), ...plankLimbs(0, 0)] },
+    ],
+  };
+}
+
 /** Real free-gait COM vertical excursion is ~4-5 cm peak-to-peak at a comfortable
  *  cadence [Perry & Burnfield; Gard & Childress]. This is the calibrated NORMAL
  *  target; {@link gaitBounce} scales around it. */
