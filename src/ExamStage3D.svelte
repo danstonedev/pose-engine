@@ -59,6 +59,9 @@
     getEffectiveRomRange,
     type RomScenarioConstraints,
   } from './services/romConstraints';
+  // liveliness is three-free (pure angle math) — static import stays SSR-safe;
+  // it feeds the live rAF overlay only, never the offline sampler.
+  import { breathingLean, livelinessSwayDeg } from './services/liveliness';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -185,7 +188,14 @@
   // joints to clamp each frame while a capped motion plays.
   let setMotionRomCapsImpl: ((keys: string[]) => void) | null = null;
   let setMotionOverlaysImpl:
-    | ((overlays: { guarding?: number; balanceSway?: number; pelvisShiftCm?: number } | null) => void)
+    | ((
+        overlays: {
+          guarding?: number;
+          balanceSway?: number;
+          pelvisShiftCm?: number;
+          liveliness?: number;
+        } | null,
+      ) => void)
     | null = null;
   let resolveBoot: () => void = () => {};
   const bootDone = new Promise<void>((r) => (resolveBoot = r));
@@ -347,11 +357,18 @@
    * base — the unsteady/reduced-balance pattern. `pelvisShiftCm` offsets the
    * model root laterally by a constant amount (+ = the patient's LEFT, +X;
    * clamped to ±15 cm) — the antalgic weight-shift off a painful limb; it
-   * composes with any root travel/pin and fully resets on clear. Pass `null`/0
-   * to clear.
+   * composes with any root travel/pin and fully resets on clear. `liveliness`
+   * (0..1) adds an always-on naturalistic prior — breathing at the thorax +
+   * micro-sway at the low back — so a looped motion never reads as frozen;
+   * 0 = clean/repeatable, ~0.4 = natural. Pass `null`/0 to clear.
    */
   export function setMotionOverlays(
-    overlays: { guarding?: number; balanceSway?: number; pelvisShiftCm?: number } | null,
+    overlays: {
+      guarding?: number;
+      balanceSway?: number;
+      pelvisShiftCm?: number;
+      liveliness?: number;
+    } | null,
   ): void {
     setMotionOverlaysImpl?.(overlays);
   }
@@ -715,6 +732,16 @@
       const SWAY_AP_HZ = 0.7;
       const SWAY_ML_DEG = 8; // max lateral lean at balanceSway = 1
       const SWAY_AP_DEG = 5; // max A/P lean at balanceSway = 1
+      // Liveliness overlay: an always-on naturalistic prior (breathing at the
+      // thorax + a small postural micro-sway at the low back) so a looped motion
+      // never reads as frozen or robotic. Wall-clock phase (advanced by
+      // motionDelta, exactly like swayTime) is incommensurate with the motion
+      // loop, so cycle K ≠ K+1 for free. Angle math lives in the pure, testable
+      // ./services/liveliness module; here we only accumulate time + apply it as
+      // additive premultiplied trunk rotations. Reuses the sway axes below.
+      let motionLiveliness = 0;
+      let livelinessTime = 0;
+      const _liveQ = new THREE.Quaternion();
       // Pelvis-shift overlay: a CONSTANT lateral offset on the MODEL ROOT X — the
       // antalgic weight-shift off a painful limb. + = the patient's left (+X, the
       // TRAVEL_DIRECTION_AXIS lateral sign). It must COMPOSE with the per-frame
@@ -732,10 +759,16 @@
         modelRoot.updateMatrixWorld(true);
       }
       setMotionOverlaysImpl = (
-        overlays: { guarding?: number; balanceSway?: number; pelvisShiftCm?: number } | null,
+        overlays: {
+          guarding?: number;
+          balanceSway?: number;
+          pelvisShiftCm?: number;
+          liveliness?: number;
+        } | null,
       ) => {
         motionGuarding = Math.max(0, Math.min(1, overlays?.guarding ?? 0));
         motionSway = Math.max(0, Math.min(1, overlays?.balanceSway ?? 0));
+        motionLiveliness = Math.max(0, Math.min(1, overlays?.liveliness ?? 0));
         motionPelvisShiftM = Math.max(
           -PELVIS_SHIFT_MAX_M,
           Math.min(PELVIS_SHIFT_MAX_M, (overlays?.pelvisShiftCm ?? 0) / 100),
@@ -1983,6 +2016,33 @@
               bone.quaternion.premultiply(_swayQ);
               modelRoot.updateMatrixWorld();
             }
+          }
+          // Liveliness overlay: an always-on naturalistic prior layered ON TOP of
+          // guarding/sway (same premultiply-onto-trunk approach, so it composes
+          // additively and never overwrites them). Breathing rides the THORAX
+          // (Spine_Upper) as a slow flex/extend about the A/P axis (a chest
+          // rise/fall); the micro-sway rides the LOW BACK (Spine_Lower) as ML roll
+          // + A/P pitch about the same sway axes. Feet/legs and every measured
+          // driver joint are untouched → the plant, goniometry and balance readout
+          // are unaffected; only these two trunk bones move. Wall-clock phase
+          // (livelinessTime) is incommensurate with the loop, so no cycle repeats.
+          if (motionLiveliness > 0 && motionCapBones && modelRoot) {
+            livelinessTime += motionDelta;
+            const thorax = motionCapBones.get('Spine_Upper');
+            if (thorax) {
+              const breathDeg = breathingLean(livelinessTime, motionLiveliness);
+              _liveQ.setFromAxisAngle(_swayAxisAP, (breathDeg * Math.PI) / 180);
+              thorax.quaternion.premultiply(_liveQ);
+            }
+            const lowBack = motionCapBones.get('Spine_Lower');
+            if (lowBack) {
+              const { mlDeg, apDeg } = livelinessSwayDeg(livelinessTime, motionLiveliness);
+              _liveQ.setFromAxisAngle(_swayAxisML, (mlDeg * Math.PI) / 180);
+              lowBack.quaternion.premultiply(_liveQ);
+              _liveQ.setFromAxisAngle(_swayAxisAP, (apDeg * Math.PI) / 180);
+              lowBack.quaternion.premultiply(_liveQ);
+            }
+            modelRoot.updateMatrixWorld();
           }
           // Pelvis-shift overlay: re-bake the constant lateral root offset.
           // Composed playback already re-baked inside applyTrajectoryRoot (a
