@@ -460,11 +460,18 @@ export function sampleComposedMotion(
   // planted↔floating transition. Those use the plain vertical floor-pin (planted) +
   // free flight (floating). Foot-rooting is for quasi-static PLANTED folds only.
   const hasFloating = built.roots.some((r) => r.stance === 'floating');
+  // REORIENTED (lying) postures must NOT foot-root either: plantStanceFoot restores
+  // the stance foot to its UPRIGHT-standing rest frame, which rigidly rotates the
+  // body back toward standing and clobbers the authored supine/prone/side-lying
+  // orientation. A lying body grounds on the plain vertical floor-pin (its feet are
+  // co-planar with the back), which touches only Y and leaves the orient intact.
+  const reorients = built.roots.some((r) => Math.abs(r.quat[3]) < 0.999);
   const useFootRoot =
     !resolved.footDrivenTravel &&
     !resolved.loop &&
     !travels &&
     !hasFloating &&
+    !reorients &&
     activeContacts.length === 0 &&
     built.roots.some((r) => r.stance === 'planted');
 

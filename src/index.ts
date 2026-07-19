@@ -100,6 +100,10 @@ export * from './services/centerOfMass';
 // trajectory/measurement path.
 export * from './services/movementChain';
 
+// Posture transition graph — plan the ordered transfers (lie down / stand up …)
+// that carry the body from one movement's posture into the next.
+export * from './services/posturePlan';
+
 // Root motion (simMOVE full-body layer) — whole-body posture (orient), travel
 // (translate), and the PLANTED closed-chain foot-pin, all on the MODEL ROOT so
 // no clinical joint readout is disturbed. Pairs with motionSequence's per-

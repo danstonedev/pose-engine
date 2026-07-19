@@ -1201,6 +1201,97 @@ export function buildSingleLegHop(
   };
 }
 
+// ─── Posture transfers: standing ↔ supine (Phase 2) ─────────────────────────
+// Kinematic transfers between standing and lying on the back, using the engine's
+// SemanticPosture root reorientation (supine = root pitch −90). Feet stay the ONLY
+// ground contact (the engine models foot contact only), so the supine body rests on
+// the feet-pin's co-planar geometry and the transitions read as "get down and lie
+// back" / "curl up and stand". A truly natural sit-down-then-recline (via ischial /
+// hand contact) awaits the Phase-3 multi-contact rework. All `startFrom:'current'`
+// so they continue from the live posture with no teleport.
+
+const bilatLeg = (hip: number, knee: number, ankle: number): SequenceTarget[] => [
+  { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: hip },
+  { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: hip },
+  { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: knee },
+  { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: knee },
+  { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: ankle },
+  { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: ankle },
+];
+const trunkFlex = (lower: number, upper: number): SequenceTarget[] => [
+  { joint: 'Spine_Lower', motion: 'flexion', targetDegrees: lower },
+  { joint: 'Spine_Upper', motion: 'flexion', targetDegrees: upper },
+];
+
+/** LIE DOWN — standing → supine. Lower into a deep crouch (feet planted, the
+ *  floor-pin drops the pelvis), then recline the trunk to horizontal and settle the
+ *  legs out flat. Ends 'supine'. */
+export function buildLieDown(): ComposedMotion {
+  return {
+    name: 'lie down',
+    startFrom: 'current',
+    stance: 'planted',
+    endPosture: 'supine',
+    keyframes: [
+      { durationMs: 800, stance: 'planted', targets: [...bilatLeg(95, 115, 20), ...trunkFlex(25, 15)] },
+      {
+        durationMs: 900,
+        holdMs: 200,
+        stance: 'planted',
+        posture: 'supine',
+        targets: [...bilatLeg(5, 8, 0), ...trunkFlex(0, 0)],
+      },
+    ],
+  };
+}
+
+/** STAND UP — supine → standing. Curl/tuck up from lying, then rise through a
+ *  crouch to a quiet stand (posture back upright). Ends 'standing'. */
+export function buildGetUp(): ComposedMotion {
+  return {
+    name: 'stand up',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'supine',
+    endPosture: 'standing',
+    keyframes: [
+      { durationMs: 700, stance: 'planted', posture: 'supine', targets: [...bilatLeg(95, 115, 20), ...trunkFlex(25, 15)] },
+      {
+        durationMs: 900,
+        holdMs: 150,
+        stance: 'planted',
+        posture: 'upright',
+        targets: [...bilatLeg(0, 0, 0), ...trunkFlex(0, 0)],
+      },
+    ],
+  };
+}
+
+/** SUPINE STRAIGHT-LEG RAISE — a supine exercise: lying on the back, raise one
+ *  straight leg (hip flexion, knee extended), hold, lower. Starts + ends 'supine'
+ *  (carries the supine orientation on every keyframe so it is self-contained). */
+export function buildSupineLegRaise(opts: { side?: 'L' | 'R'; reps?: number } = {}): ComposedMotion {
+  const side = opts.side === 'L' ? 'L' : 'R';
+  const reps = Math.max(1, Math.min(20, Math.round(opts.reps ?? 1)));
+  const raise = (hip: number, knee: number): SequenceTarget[] => [
+    { joint: `${side}_UpLeg`, motion: 'hipFlexion', targetDegrees: hip },
+    { joint: `${side}_Leg`, motion: 'kneeFlexion', targetDegrees: knee },
+  ];
+  return {
+    name: reps > 1 ? `supine straight-leg raise ×${reps}` : 'supine straight-leg raise',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'supine',
+    endPosture: 'supine',
+    ...(reps > 1 ? { reps } : {}),
+    keyframes: [
+      { durationMs: 400, stance: 'planted', posture: 'supine', targets: raise(0, 0) },
+      { durationMs: 800, holdMs: 300, stance: 'planted', posture: 'supine', targets: raise(70, 0) },
+      { durationMs: 700, stance: 'planted', posture: 'supine', targets: raise(0, 0) },
+    ],
+  };
+}
+
 /** Real free-gait COM vertical excursion is ~4-5 cm peak-to-peak at a comfortable
  *  cadence [Perry & Burnfield; Gard & Childress]. This is the calibrated NORMAL
  *  target; {@link gaitBounce} scales around it. */
