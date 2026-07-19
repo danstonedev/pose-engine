@@ -65,6 +65,13 @@ export interface ClinicalModifiers extends QualitativeOverlayModifiers {
    *  applied as a constant model-root X offset — a live overlay (ExamStage3D
    *  setMotionOverlays). */
   pelvisShiftCm?: number;
+  /** 0..1 naturalistic-life dial — an always-on breathing + postural micro-sway
+   *  prior so a looped motion never reads as frozen/robotic. A REALISM overlay,
+   *  not a clinical finding: LIVE-ONLY (the offline sampler never sees it, so
+   *  determinism/byte-identity is untouched), 0 = clean/repeatable (today's exact
+   *  behavior), ~0.4 = natural. Clamped to [0,1] on resolve and applied as
+   *  additive trunk rotations — a live overlay (ExamStage3D setMotionOverlays). */
+  liveliness?: number;
   // ── PLANNED: typed on the contract for schema stability but NOT resolved into
   //    `overlays` yet; wire each where noted. ──
   /** Per-side weight-bearing bias. PLANNED. */
@@ -101,9 +108,13 @@ export interface ResolvedPrescription {
   /** Residual overlay modifiers — ONLY the fields the stage actually consumes
    *  (ExamStage3D setMotionOverlays): `guarding` + `balanceSway` live per-frame,
    *  `pelvisShiftCm` as a constant root-X offset (clamped ±15 cm, + = patient's
-   *  left). The parked weight-bearing / assistive-support fields stay on the
-   *  contract but are NOT carried here until they are wired. */
-  overlays: Pick<ClinicalModifiers, 'guarding' | 'balanceSway' | 'pelvisShiftCm'>;
+   *  left), `liveliness` (clamped [0,1]) as the live-only breathing + micro-sway
+   *  realism prior. The parked weight-bearing / assistive-support fields stay on
+   *  the contract but are NOT carried here until they are wired. */
+  overlays: Pick<
+    ClinicalModifiers,
+    'guarding' | 'balanceSway' | 'pelvisShiftCm' | 'liveliness'
+  >;
   sequence: MovementClipId[];
 }
 
@@ -195,6 +206,7 @@ export function resolveMotionPrescription(rx: MotionPrescription): ResolvedPresc
     ...(mods.pelvisShiftCm != null
       ? { pelvisShiftCm: clampNum(mods.pelvisShiftCm, -PELVIS_SHIFT_MAX_CM, PELVIS_SHIFT_MAX_CM) }
       : {}),
+    ...(mods.liveliness != null ? { liveliness: clampNum(mods.liveliness, 0, 1) } : {}),
   };
   return {
     command,

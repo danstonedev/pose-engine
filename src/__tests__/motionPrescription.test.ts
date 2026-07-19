@@ -169,11 +169,32 @@ describe('resolveMotionPrescription (residual overlays)', () => {
     expect(right.overlays.pelvisShiftCm).toBe(-15);
   });
 
-  it('play mode drops modifiers entirely — empty overlays', () => {
+  it('resolves liveliness into overlays and clamps it to [0,1]', () => {
+    const ok = resolveMotionPrescription({
+      motion: 'walk',
+      mode: 'modify',
+      modifiers: { liveliness: 0.4 },
+    });
+    expect(ok.overlays).toEqual({ liveliness: 0.4 });
+    const over = resolveMotionPrescription({
+      motion: 'walk',
+      mode: 'modify',
+      modifiers: { liveliness: 5 },
+    });
+    expect(over.overlays.liveliness).toBe(1);
+    const under = resolveMotionPrescription({
+      motion: 'walk',
+      mode: 'modify',
+      modifiers: { liveliness: -2 },
+    });
+    expect(under.overlays.liveliness).toBe(0);
+  });
+
+  it('play mode drops modifiers entirely — empty overlays (liveliness too)', () => {
     const resolved = resolveMotionPrescription({
       motion: 'idle',
       mode: 'play',
-      modifiers: { guarding: 0.9, pelvisShiftCm: 10 },
+      modifiers: { guarding: 0.9, pelvisShiftCm: 10, liveliness: 0.4 },
     });
     expect(resolved.overlays).toEqual({});
     expect(resolved.command).toEqual({ action: 'play-motion', motion: 'idle' });
