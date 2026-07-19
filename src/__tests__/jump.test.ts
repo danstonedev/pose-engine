@@ -152,12 +152,13 @@ describe('buildJump — real vertical jump physics', () => {
     expect(kneeAt(rec, last.tMs), 'knees extended at rest').toBeLessThan(10);
   });
 
-  it('REPS — "five jumps" stays a 6-keyframe plan but plays FIVE airborne peaks', () => {
+  it('REPS — "five jumps" stays a 7-keyframe plan but plays FIVE airborne peaks', () => {
     resetHarness();
     const five = resolveComposedMotion(buildJump({ reps: 5 }), variantCfg);
     expect(five.status, five.reason).toBe('ok');
     // No keyframe duplication — the plan is the single jump; reps live at playback.
-    expect(five.keyframes.length, 'plan stays tiny').toBe(6);
+    // (7 knots: load → propulsion → apex → descent → touchdown → absorb → recovery.)
+    expect(five.keyframes.length, 'plan stays tiny').toBe(7);
     expect(five.reps).toBe(5);
     const rec = sampleComposedMotion(five, {
       baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
@@ -182,10 +183,10 @@ describe('buildJump — real vertical jump physics', () => {
   });
 
   it('REPS never inflate the keyframe count and clamp to a sane ceiling', () => {
-    // Even a huge count stays a 6-keyframe plan (reps are a playback field).
+    // Even a huge count stays a 7-keyframe plan (reps are a playback field).
     const many = resolveComposedMotion(buildJump({ reps: 100 }), variantCfg);
     expect(many.status).toBe('ok');
-    expect(many.keyframes.length).toBe(6);
+    expect(many.keyframes.length).toBe(7);
     expect(many.reps).toBeLessThanOrEqual(50);
     expect(many.reps).toBeGreaterThan(1);
   });
