@@ -38,7 +38,13 @@ import {
   buildBoneByPoseKey,
   serializeCustomPose,
 } from './poseRig';
-import { buildFootPlant, solveFootPlant, type FootPlantSolver } from './footContact';
+import {
+  buildFootPlant,
+  solveFootPlant,
+  buildHandPlant,
+  solveHandReach,
+  type FootPlantSolver,
+} from './footContact';
 import { computeBodyCoMFromBones } from './centerOfMass';
 import {
   buildSequencePoses,
@@ -347,6 +353,32 @@ export function sampleComposedMotion(
     currentRoot: opts.currentRoot ?? null,
   });
 
+  // HAND PLANTS (Phase 3 Tier B): a grounding posture may declare a hand as a
+  // 'reach' contact (plank/push-up rest on the hands). Build an arm IK chain per
+  // such hand once; per frame it pins the hand to a fixed floor point so it stays
+  // planted as the chest lowers — the arm folds (elbow flexes), which IS the
+  // push-up. Mirror of the foot plant, on the arm chain. Empty for every motion
+  // that declares no reach contact (all pre-Tier-B content), so they are unchanged.
+  interface HandPlant {
+    solver: FootPlantSolver;
+    bone: string;
+    target: THREE.Vector3 | null;
+  }
+  const handPlants: HandPlant[] = [];
+  {
+    const reachBones = new Set<string>();
+    for (const r of built.roots) {
+      if (!r.groundingPosture) continue;
+      for (const c of groundingContactsFor(r.groundingPosture, floorRef)) {
+        if (c.mode === 'reach') reachBones.add(c.bone);
+      }
+    }
+    for (const bone of reachBones) {
+      const solver = buildHandPlant(skinned, bone, variantCfg);
+      if (solver) handPlants.push({ solver, bone, target: null });
+    }
+  }
+
   const timeScale = Math.min(1.5, Math.max(0.4, resolved.modifiers?.timeScale ?? 1));
   const startNeutral = resolved.startFrom === 'neutral';
   let prevPose: CustomPose =
@@ -503,6 +535,7 @@ export function sampleComposedMotion(
     root.scale.copy(rootRestScale); // clear any prior-frame plant scale drift
     root.updateMatrixWorld(true);
     let footRooted = false;
+    let groundReachSolved = false;
     // Re-root at the stance foot only when the pelvis-rooted FK actually swung it
     // off its planted position (a squat/hinge/sit-to-stand folds the body over the
     // feet — big drift). When the stance foot is already home (a single-leg stance
@@ -510,9 +543,25 @@ export function sampleComposedMotion(
     // a re-root would only perturb the measurement frame, so fall through to it.
     if (sample.planted && sample.groundingPosture) {
       // POSTURE-SCOPED GROUNDING: rest on the posture's contact set (the pelvis on a
-      // seat for 'sitting', the shins/hands on the floor for quadruped) via the
+      // seat for 'sitting', the toes+hands on the floor for a plank) via the
       // explicit-target vertical pin — not the feet.
-      pinContactsToFloor(root, skinned.skeleton, variantCfg, groundingContactsFor(sample.groundingPosture, floorRef));
+      const contacts = groundingContactsFor(sample.groundingPosture, floorRef);
+      pinContactsToFloor(root, skinned.skeleton, variantCfg, contacts);
+      // REACH CONTACTS: bring each declared reach bone (a planted hand) to the floor
+      // and LATCH it there, so it stays put as the body lowers over it (the arm folds
+      // — the push-up). Latch-on-contact avoids freezing a bad point mid-transition.
+      if (handPlants.length) {
+        const reach = new Set(contacts.filter((c) => c.mode === 'reach').map((c) => c.bone));
+        for (const hp of handPlants) {
+          if (!reach.has(hp.bone)) {
+            hp.target = null; // this posture doesn't plant this hand — release it
+            continue;
+          }
+          solveHandReach(hp.solver, hp, floorRef.floorY, rest);
+          groundReachSolved = true;
+        }
+        if (groundReachSolved) root.updateMatrixWorld(true);
+      }
     } else if (useFootRoot && sample.planted && (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M) {
       // The SAME authored angles now read as the real closed-chain movement — feet
       // planted, pelvis placed by the chain, COM over the base (balance for free).
@@ -556,7 +605,9 @@ export function sampleComposedMotion(
       solveFootPlant(fp.solver, fp.target, rest);
       anyPlant = true;
     }
-    if (anyPlant) {
+    if (anyPlant || groundReachSolved) {
+      // A foot plant OR a grounding-posture hand reach re-solved a limb — re-read
+      // the pose so the recorded angles/tracks reflect the IK'd limb.
       root.updateMatrixWorld(true);
       effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
     }

@@ -139,7 +139,8 @@ export type PostureNode =
   | 'supine'
   | 'prone'
   | 'sidelying-left'
-  | 'sidelying-right';
+  | 'sidelying-right'
+  | 'plank';
 
 /** Every posture, for host capability discovery / tool enums. */
 export const SEMANTIC_POSTURES: readonly SemanticPosture[] = [
