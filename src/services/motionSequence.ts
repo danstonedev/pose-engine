@@ -128,6 +128,13 @@ export const TRAVEL_DIRECTIONS: readonly TravelDirection[] = [
   'down',
 ];
 
+/** A whole-body POSTURE NODE in the transition graph (posturePlan.ts). A superset
+ *  of the lying {@link SemanticPosture} reorientations plus 'standing' (and, in the
+ *  Phase-3 contact rework, sitting/quadruped/kneeling/plank). A movement may declare
+ *  the posture it STARTS and ENDS in so the executor can bridge between them; default
+ *  (undefined) means 'standing' — back-compatible for every existing movement. */
+export type PostureNode = 'standing' | 'supine' | 'prone' | 'sidelying-left' | 'sidelying-right';
+
 /** Every posture, for host capability discovery / tool enums. */
 export const SEMANTIC_POSTURES: readonly SemanticPosture[] = [
   'upright',
@@ -327,6 +334,12 @@ export interface ComposedMotion {
    *  floor-pin. For an in-place looping gait turned into a one-shot forward walk.
    *  Omit for the in-place / authored-travel behaviour. */
   footDrivenTravel?: boolean;
+  /** The body POSTURE this movement assumes at its START / leaves at its END, for
+   *  the transition executor to bridge between commands (e.g. a supine exercise
+   *  starts+ends 'supine'; a lie-down ends 'supine'; a get-up ends 'standing').
+   *  Default (undefined) = 'standing' — back-compatible for every existing movement. */
+  startPosture?: PostureNode;
+  endPosture?: PostureNode;
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────

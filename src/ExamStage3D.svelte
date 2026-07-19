@@ -1775,11 +1775,17 @@
         // the plain floor-pin (planted) + free arc (floating) — never foot-rooting.
         // Mirrors the offline sampler's `!hasFloating` gate so stage and export agree.
         const composedHasFloating = built.roots.some((r) => r.stance === 'floating');
+        // Likewise a REORIENTED (lying) posture: foot-rooting restores the stance foot
+        // to its upright rest frame and rotates the body back toward standing, clobbering
+        // the supine/prone/side-lying orientation. Lying grounds on the plain vertical
+        // pin (feet co-planar with the back). Mirrors the sampler's `!reorients` gate.
+        const composedReorients = built.roots.some((r) => Math.abs(r.quat[3]) < 0.999);
         composedUseFootRoot =
           !resolved.footDrivenTravel &&
           !resolved.loop &&
           !composedTravels &&
           !composedHasFloating &&
+          !composedReorients &&
           !(resolved.contacts?.length ?? 0) &&
           composedHasPlanted &&
           !!footFrames;
