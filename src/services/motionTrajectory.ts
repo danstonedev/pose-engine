@@ -282,12 +282,19 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     if (apexY <= Math.max(y0, y1) + 1e-4) continue; // a flat float, not a hop — leave it
     flights.push({ startMs, endMs, y0, y1, apexY });
   }
-  const ballisticY = (tMs: number): number | null => {
+  // In a flight span: the airborne vertical (parabola) AND whether the floor-pin
+  // must be suppressed. `airborne` is the STRICT interior — the flanking contact
+  // knots (take-off, landing) keep their own planted state so the pin grounds them;
+  // everything in between is a projectile and must NOT be pinned (otherwise the
+  // segment travelling INTO the planted landing pins the body while it is still
+  // metres up the arc — a hard drop-snap on contact).
+  const ballistic = (tMs: number): { y: number; airborne: boolean } | null => {
     for (const f of flights) {
       if (tMs < f.startMs || tMs > f.endMs) continue;
       const tau = (tMs - f.startMs) / (f.endMs - f.startMs);
       const A = f.apexY - (f.y0 + f.y1) / 2;
-      return f.y0 + (f.y1 - f.y0) * tau + 4 * A * tau * (1 - tau);
+      const y = f.y0 + (f.y1 - f.y0) * tau + 4 * A * tau * (1 - tau);
+      return { y, airborne: tMs > f.startMs && tMs < f.endMs };
     }
     return null;
   };
@@ -313,13 +320,18 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
         a[1] + (b[1] - a[1]) * local,
         a[2] + (b[2] - a[2]) * local,
       ];
-      // Airborne vertical follows the gravity parabola, not the linear lerp.
-      if (flights.length) {
-        const by = ballisticY(tClamped);
-        if (by != null) rootTranslate[1] = by;
-      }
       // Planted state follows the segment we are travelling INTO.
-      const planted = knots[k + 1]!.planted;
+      let planted = knots[k + 1]!.planted;
+      // Airborne vertical follows the gravity parabola, not the linear lerp — and a
+      // body in flight is NOT floor-pinned (else it snaps to the ground the instant
+      // the segment into the planted landing begins, while still up the arc).
+      if (flights.length) {
+        const b = ballistic(tClamped);
+        if (b != null) {
+          rootTranslate[1] = b.y;
+          if (b.airborne) planted = false;
+        }
+      }
 
       return {
         pose: { variant: knots[k]!.pose.variant, bones, schemaVersion: POSE_SCHEMA_VERSION },

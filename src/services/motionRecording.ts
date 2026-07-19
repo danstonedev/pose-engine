@@ -454,10 +454,17 @@ export function sampleComposedMotion(
   const travels = built.roots.some(
     (r) => Math.hypot(r.translateM[0], r.translateM[2]) > HORIZ_TRAVEL_EPS,
   );
+  // AIRBORNE motions (a jump/hop with a floating phase) must NOT foot-root: the feet
+  // genuinely leave the ground, so re-rooting the rigid body to hold the stance foot
+  // at its rest frame fights the flight and snaps the body tens of cm at each
+  // planted↔floating transition. Those use the plain vertical floor-pin (planted) +
+  // free flight (floating). Foot-rooting is for quasi-static PLANTED folds only.
+  const hasFloating = built.roots.some((r) => r.stance === 'floating');
   const useFootRoot =
     !resolved.footDrivenTravel &&
     !resolved.loop &&
     !travels &&
+    !hasFloating &&
     activeContacts.length === 0 &&
     built.roots.some((r) => r.stance === 'planted');
 

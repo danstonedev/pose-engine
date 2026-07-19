@@ -995,12 +995,23 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
     targets: [...legs(5, 25, 0), ...arms(150)],
   });
   const descent = (): SequenceKeyframe => ({
-    durationMs: Math.round(flightMs * 0.2), velocityClass: 'ballistic', stance: 'floating',
+    durationMs: Math.round(flightMs * 0.3), velocityClass: 'ballistic', stance: 'floating',
     travel: { direction: 'up', meters: apexM * 0.5 },
-    targets: [...legs(0, 12, -5), ...arms(45)],
+    targets: [...legs(3, 15, -5), ...arms(45)], // legs reaching DOWN toward contact
   });
-  const landing = (): SequenceKeyframe => ({
-    durationMs: Math.round(flightMs * 0.3), holdMs: 80, velocityClass: 'functional', stance: 'planted',
+  // TOUCHDOWN is the contact instant: legs NEAR-EXTENDED so the feet reach the floor
+  // at root Y≈0, where the ballistic parabola lands the body. If the contact pose
+  // were the deep absorption crouch (knees bent → feet pulled UP), the floor-pin
+  // would have to yank the body down ~17 cm to ground it on contact — a hard snap.
+  // Landing extended, THEN absorbing (below) lets the pin lower the body SMOOTHLY as
+  // the knees bend, which is also the correct landing mechanics (reach → absorb).
+  const touchdown = (): SequenceKeyframe => ({
+    durationMs: Math.round(flightMs * 0.2), velocityClass: 'ballistic', stance: 'planted',
+    travel: { direction: 'up', meters: 0 },
+    targets: [...legs(10, 18, 0), ...arms(30)],
+  });
+  const absorb = (): SequenceKeyframe => ({
+    durationMs: 180, holdMs: 70, velocityClass: 'functional', stance: 'planted',
     travel: { direction: 'up', meters: 0 },
     targets: [...legs(45, 65, 15), ...arms(20), ...trunk(10)],
   });
@@ -1009,7 +1020,7 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
     targets: [...legs(0, 0, 0), ...arms(0), ...trunk(0)],
   });
 
-  // REPS via the playback-time `reps` field — the 6-keyframe cycle replays N
+  // REPS via the playback-time `reps` field — the 7-keyframe cycle replays N
   // times at trajectory time, so the plan stays tiny regardless of N (no
   // keyframe duplication, no MAX_KEYFRAMES ceiling). Clamped to a sane set size.
   const reps = Math.max(1, Math.min(50, Math.round(opts.reps ?? 1)));
@@ -1019,7 +1030,7 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
     startFrom: 'neutral',
     stance: 'planted',
     ...(reps > 1 ? { reps } : {}),
-    keyframes: [load(), propulsion(), apex(), descent(), landing(), recovery()],
+    keyframes: [load(), propulsion(), apex(), descent(), touchdown(), absorb(), recovery()],
   };
 }
 
@@ -1152,12 +1163,20 @@ export function buildSingleLegHop(
     targets: [...supLeg(18, 32, -5), ...held(), ...arms(40)],
   });
   const descent = (): SequenceKeyframe => ({
-    durationMs: Math.round(flightMs * 0.2), velocityClass: 'ballistic', stance: 'floating',
+    durationMs: Math.round(flightMs * 0.3), velocityClass: 'ballistic', stance: 'floating',
     travel: { direction: 'up', meters: apexM * 0.5 },
-    targets: [...supLeg(12, 22, 0), ...held(), ...arms(25)],
+    targets: [...supLeg(15, 20, 0), ...held(), ...arms(25)], // reaching DOWN toward contact
   });
-  const landing = (): SequenceKeyframe => ({
-    durationMs: Math.round(flightMs * 0.3), holdMs: 70, velocityClass: 'functional', stance: 'planted',
+  // TOUCHDOWN: near-extended support leg so the foot reaches the floor where the
+  // parabola lands (root Y≈0), THEN absorb — else the pin snaps the body down to
+  // ground a deep-crouch contact (see buildJump).
+  const touchdown = (): SequenceKeyframe => ({
+    durationMs: Math.round(flightMs * 0.2), velocityClass: 'ballistic', stance: 'planted',
+    travel: { direction: 'up', meters: 0 },
+    targets: [...supLeg(20, 24, 0), ...held(), ...arms(18)],
+  });
+  const absorb = (): SequenceKeyframe => ({
+    durationMs: 170, holdMs: 60, velocityClass: 'functional', stance: 'planted',
     travel: { direction: 'up', meters: 0 },
     targets: [...supLeg(32, 52, 12), ...held(), ...arms(15), ...trunk(10)],
   });
@@ -1172,7 +1191,7 @@ export function buildSingleLegHop(
     startFrom: 'neutral',
     stance: 'planted',
     ...(reps > 1 ? { reps } : {}),
-    keyframes: [load(), propulsion(), apex(), descent(), landing(), recovery()],
+    keyframes: [load(), propulsion(), apex(), descent(), touchdown(), absorb(), recovery()],
   };
 }
 

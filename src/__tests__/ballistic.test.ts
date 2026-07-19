@@ -15,7 +15,7 @@ import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
 import { resolveComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion } from '../services/motionRecording';
-import { buildJump, ballisticFlightMs, GRAVITY_M_S2 } from '../services/movementTemplates';
+import { buildJump, buildSingleLegHop, ballisticFlightMs, GRAVITY_M_S2 } from '../services/movementTemplates';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
@@ -80,14 +80,20 @@ describe('buildJump — gravity-true ballistic vertical', () => {
     expect(airborne.length, 'a real flight window').toBeGreaterThan(12);
     const i0 = airborne[0]!;
     const i1 = airborne[airborne.length - 1]!;
-    // Second difference of pelvis Y across the flight = vertical acceleration × dt².
-    // A projectile has it CONSTANT and negative; the old linear-lerp+hang did not.
+    // The FALL (apex → contact) is pure free-fall, so its pelvis-Y 2nd difference =
+    // vertical acceleration × dt² is CONSTANT and negative. (The RISE deliberately is
+    // NOT measured: it includes the leg-driven push-off — real upward acceleration,
+    // not gravity — which is exactly the launch realism we want.) The old linear-
+    // lerp+hang had no constant-g fall at all.
+    let iPeak = i0;
+    for (let i = i0; i <= i1; i += 1) if (y[i]! > y[iPeak]!) iPeak = i;
     const d2: number[] = [];
-    for (let i = i0 + 1; i < i1; i += 1) d2.push(y[i + 1]! - 2 * y[i]! + y[i - 1]!);
+    for (let i = iPeak + 2; i < i1 - 1; i += 1) d2.push(y[i + 1]! - 2 * y[i]! + y[i - 1]!);
+    expect(d2.length, 'a measurable free-fall').toBeGreaterThan(8);
     const mean = d2.reduce((a, b) => a + b, 0) / d2.length;
     expect(mean, 'downward acceleration (concave-down arc)').toBeLessThan(0);
     // Constancy: the spread of the 2nd difference is small vs its magnitude — i.e.
-    // it's one parabola, not a lerp-up/hang/lerp-down with acceleration spikes.
+    // the fall is one parabola, not a lerp-down with acceleration spikes/snaps.
     const maxDev = Math.max(...d2.map((v) => Math.abs(v - mean)));
     // eslint-disable-next-line no-console
     console.log(`jump 0.5m: flight ${airborne.length} frames, mean d²y=${mean.toExponential(2)}, maxDev/|mean|=${(maxDev / Math.abs(mean)).toFixed(2)}`);
@@ -124,5 +130,43 @@ describe('buildJump — gravity-true ballistic vertical', () => {
     }
     // Monotonic in height.
     expect(ballisticFlightMs(0.6)).toBeGreaterThan(ballisticFlightMs(0.2));
+  });
+
+  it('the whole jump/hop is SMOOTH — no per-frame root snaps (the "glitchy" regression)', () => {
+    // Two failure modes this pins: (1) foot-rooting an airborne motion snapped the
+    // root ~40 cm horizontally per frame; (2) the floor-pin grounded a deep-crouch
+    // contact, snapping ~30 cm vertically. A real jump's peak vertical speed is only
+    // ~3 m/s ⇒ ~5 cm/frame at 60 Hz, so an 8 cm per-frame cap is comfortably smooth
+    // yet far below any snap. In-place ⇒ ~0 horizontal drift.
+    const worst = (rec: ReturnType<typeof sampleComposedMotion>) => {
+      const h = rec.frames.map((f) => f.worldTracks!.Hips!);
+      let maxY = 0;
+      let maxXZ = 0;
+      for (let i = 1; i < h.length; i += 1) {
+        maxY = Math.max(maxY, Math.abs(h[i]![1] - h[i - 1]![1]));
+        maxXZ = Math.max(maxXZ, Math.hypot(h[i]![0] - h[i - 1]![0], h[i]![2] - h[i - 1]![2]));
+      }
+      return { maxY, maxXZ };
+    };
+    const cases: [string, ReturnType<typeof buildJump>][] = [
+      ['jump', buildJump()],
+      ['jump ×3', buildJump({ reps: 3 })],
+      ['jump high', buildJump({ heightM: 0.6 })],
+      ['single-leg hop', buildSingleLegHop()],
+    ];
+    for (const [label, motion] of cases) {
+      const rec = sampleComposedMotion(resolveComposedMotion(motion, variantCfg), {
+        baselinePose,
+        variantCfg,
+        rest,
+        skeletonHarness: { root, skinned },
+        sampleHz: 60,
+      });
+      const { maxY, maxXZ } = worst(rec);
+      // eslint-disable-next-line no-console
+      console.log(`${label}: max per-frame Hips step Y=${(maxY * 100).toFixed(1)}cm XZ=${(maxXZ * 100).toFixed(1)}cm`);
+      expect(maxY, `${label}: no vertical snap`).toBeLessThan(0.08);
+      expect(maxXZ, `${label}: no horizontal snap (in-place)`).toBeLessThan(0.03);
+    }
   });
 });
