@@ -52,6 +52,8 @@ import {
   deriveVerticalCalibration,
   NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
+  pinContactsToFloor,
+  groundingContactsFor,
   plantStanceFoot,
   rotateRestReferenceByRoot,
   stanceFootDrift,
@@ -466,12 +468,20 @@ export function sampleComposedMotion(
   // orientation. A lying body grounds on the plain vertical floor-pin (its feet are
   // co-planar with the back), which touches only Y and leaves the orient intact.
   const reorients = built.roots.some((r) => Math.abs(r.quat[3]) < 0.999);
+  // A motion with a GROUNDING POSTURE (sitting / quadruped / …) grounds on a
+  // posture-scoped contact set (the pelvis on a seat, hands on the floor) via the
+  // vertical pinContactsToFloor — never the foot-root, whose re-root to the upright
+  // foot frame would fight the seated/quadruped placement. Both are Y-only pins, so
+  // switching between the feet-pin and the posture-pin across the transition stays
+  // smooth (no rigid re-root jump).
+  const hasGroundingPosture = built.roots.some((r) => r.groundingPosture != null);
   const useFootRoot =
     !resolved.footDrivenTravel &&
     !resolved.loop &&
     !travels &&
     !hasFloating &&
     !reorients &&
+    !hasGroundingPosture &&
     activeContacts.length === 0 &&
     built.roots.some((r) => r.stance === 'planted');
 
@@ -498,7 +508,12 @@ export function sampleComposedMotion(
     // feet — big drift). When the stance foot is already home (a single-leg stance
     // leaves the bearing leg untouched — ~0 drift), the vertical pin is enough and
     // a re-root would only perturb the measurement frame, so fall through to it.
-    if (useFootRoot && sample.planted && (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M) {
+    if (sample.planted && sample.groundingPosture) {
+      // POSTURE-SCOPED GROUNDING: rest on the posture's contact set (the pelvis on a
+      // seat for 'sitting', the shins/hands on the floor for quadruped) via the
+      // explicit-target vertical pin — not the feet.
+      pinContactsToFloor(root, skinned.skeleton, variantCfg, groundingContactsFor(sample.groundingPosture, floorRef));
+    } else if (useFootRoot && sample.planted && (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M) {
       // The SAME authored angles now read as the real closed-chain movement — feet
       // planted, pelvis placed by the chain, COM over the base (balance for free).
       // This RIGIDLY rotates the root (not just Y), so orientation is recomputed below.

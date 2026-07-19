@@ -1292,6 +1292,91 @@ export function buildSupineLegRaise(opts: { side?: 'L' | 'R'; reps?: number } = 
   };
 }
 
+// ─── Posture transfers: standing ↔ sitting (Phase 3 Tier A) ─────────────────
+// Sitting is grounded on the PELVIS at seat height (groundingPosture 'sitting' →
+// pinContactsToFloor Hips@seatY) — NOT a foot-grounded squat. The transfer lowers
+// into a deep flex whose pelvis is already near seat height (feet-pinned), then the
+// SEATED keyframe switches the grounding to the pelvis (both are Y-only pins, so the
+// swap stays smooth). A chair/bed prop is placed app-side at the measured pelvis.
+
+/** SIT DOWN — standing → sitting. Reach the hips back and lower to the seat, then
+ *  settle onto it (pelvis grounded at seat height). Ends 'sitting'. */
+export function buildSitDown(): ComposedMotion {
+  return {
+    name: 'sit down',
+    startFrom: 'current',
+    stance: 'planted',
+    endPosture: 'sitting',
+    keyframes: [
+      // Reach back + begin to lower (feet grounded).
+      { durationMs: 600, stance: 'planted', targets: [...bilatLeg(45, 55, 12), ...trunkFlex(15, 8)] },
+      // Descend so the pelvis arrives at ~seat height (still feet-grounded).
+      { durationMs: 600, stance: 'planted', targets: [...bilatLeg(85, 95, 12), ...trunkFlex(12, 6)] },
+      // Settle onto the seat — grounding switches to the pelvis; trunk comes upright.
+      {
+        durationMs: 400,
+        holdMs: 300,
+        stance: 'planted',
+        groundingPosture: 'sitting',
+        targets: [...bilatLeg(85, 95, 8), ...trunkFlex(0, 0)],
+      },
+    ],
+  };
+}
+
+/** STAND UP FROM SITTING — sitting → standing. Lean forward to bring the COM over
+ *  the feet, then rise to a quiet stand (grounding hands back to the feet). Ends
+ *  'standing'. (The clinical sit-to-stand.) */
+export function buildStandFromSit(): ComposedMotion {
+  return {
+    name: 'stand up',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'sitting',
+    endPosture: 'standing',
+    keyframes: [
+      // Seated, lean forward (nose over toes) — COM shifts over the feet.
+      {
+        durationMs: 500,
+        stance: 'planted',
+        groundingPosture: 'sitting',
+        targets: [...bilatLeg(100, 95, 12), ...trunkFlex(28, 12)],
+      },
+      // Rise to a quiet stand — weight is on the feet now (feet grounding).
+      {
+        durationMs: 800,
+        holdMs: 150,
+        stance: 'planted',
+        targets: [...bilatLeg(0, 0, 0), ...trunkFlex(0, 0)],
+      },
+    ],
+  };
+}
+
+/** SEATED KNEE EXTENSION — a sitting exercise: seated, extend one knee to straight,
+ *  hold, lower. Starts + ends 'sitting' (grounded on the pelvis throughout). */
+export function buildSeatedKneeExtension(opts: { side?: 'L' | 'R'; reps?: number } = {}): ComposedMotion {
+  const side = opts.side === 'L' ? 'L' : 'R';
+  const reps = Math.max(1, Math.min(20, Math.round(opts.reps ?? 1)));
+  const knee = (deg: number): SequenceTarget[] => [
+    { joint: `${side}_UpLeg`, motion: 'hipFlexion', targetDegrees: 85 },
+    { joint: `${side}_Leg`, motion: 'kneeFlexion', targetDegrees: deg },
+  ];
+  return {
+    name: reps > 1 ? `seated knee extension ×${reps}` : 'seated knee extension',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'sitting',
+    endPosture: 'sitting',
+    ...(reps > 1 ? { reps } : {}),
+    keyframes: [
+      { durationMs: 400, stance: 'planted', groundingPosture: 'sitting', targets: knee(90) },
+      { durationMs: 700, holdMs: 300, stance: 'planted', groundingPosture: 'sitting', targets: knee(5) },
+      { durationMs: 600, stance: 'planted', groundingPosture: 'sitting', targets: knee(90) },
+    ],
+  };
+}
+
 /** Real free-gait COM vertical excursion is ~4-5 cm peak-to-peak at a comfortable
  *  cadence [Perry & Burnfield; Gard & Childress]. This is the calibrated NORMAL
  *  target; {@link gaitBounce} scales around it. */
