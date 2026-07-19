@@ -926,8 +926,31 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
  * Non-looping, `startFrom:'neutral'` (jump from standing). `heightM` sets the
  * apex COM rise (ROM-clamped joints, honest vertical via root translate).
  */
+
+/** Standard gravity (m/s²) — the one physical constant the kinematic realism
+ *  layer uses. It shapes timing/arcs; it is NOT a force integrator. */
+export const GRAVITY_M_S2 = 9.81;
+
+/**
+ * PHYSICAL AIRTIME for a projectile that rises to `apexM` and falls back — the
+ * total time feet-off to feet-on, `t = 2·√(2h/g)`. Used to set a ballistic
+ * motion's floating-phase durations so airtime SCALES with height (a taller jump
+ * hangs longer) and, paired with the trajectory's gravity parabola, the vertical
+ * acceleration equals real g. Kinematic: it derives a duration from a height, no
+ * forces. Returns ms.
+ */
+export function ballisticFlightMs(apexM: number): number {
+  const h = Math.max(0.02, Number.isFinite(apexM) ? apexM : 0.4);
+  return Math.round(2 * Math.sqrt((2 * h) / GRAVITY_M_S2) * 1000);
+}
+
 export function buildJump(opts: { heightM?: number; reps?: number } = {}): ComposedMotion {
   const apexM = Math.max(0.1, Math.min(0.7, opts.heightM ?? 0.4));
+  // Airborne interval (propulsion push-off → landing contact) is a real projectile:
+  // its duration is set from the apex height so airtime scales with height, and the
+  // trajectory shapes the rise/fall as a constant-g parabola (no authored hang).
+  // Symmetric rise:fall so the apex POSE sits at the vertical peak.
+  const flightMs = ballisticFlightMs(apexM);
   const legs = (hip: number, knee: number, ankle: number) => [
     { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: hip },
     { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: hip },
@@ -961,18 +984,23 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
     travel: { direction: 'up', meters: 0.06 },
     targets: [...legs(0, 0, -25), ...arms(150), ...trunk(0)],
   });
+  // No authored hold at the apex — the gravity parabola's near-zero vertical
+  // velocity near the top IS the hang. Rise = flight/2 (propulsion→apex) so the
+  // apex pose lands at the vertical peak; the fall (apex→descent→landing) takes
+  // the other half. `descent`'s travel.up stays below apexM so the apex remains the
+  // peak the trajectory reshapes toward.
   const apex = (): SequenceKeyframe => ({
-    durationMs: 260, holdMs: 110, velocityClass: 'ballistic', stance: 'floating',
+    durationMs: Math.round(flightMs * 0.5), velocityClass: 'ballistic', stance: 'floating',
     travel: { direction: 'up', meters: apexM },
     targets: [...legs(5, 25, 0), ...arms(150)],
   });
   const descent = (): SequenceKeyframe => ({
-    durationMs: 200, velocityClass: 'ballistic', stance: 'floating',
-    travel: { direction: 'up', meters: 0.03 },
+    durationMs: Math.round(flightMs * 0.2), velocityClass: 'ballistic', stance: 'floating',
+    travel: { direction: 'up', meters: apexM * 0.5 },
     targets: [...legs(0, 12, -5), ...arms(45)],
   });
   const landing = (): SequenceKeyframe => ({
-    durationMs: 240, holdMs: 80, velocityClass: 'functional', stance: 'planted',
+    durationMs: Math.round(flightMs * 0.3), holdMs: 80, velocityClass: 'functional', stance: 'planted',
     travel: { direction: 'up', meters: 0 },
     targets: [...legs(45, 65, 15), ...arms(20), ...trunk(10)],
   });
@@ -1022,7 +1050,11 @@ export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
   ];
   const trunk = [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: 8 }];
   const durStance = Math.round(150 / f);
-  const durFlight = Math.round(120 / f);
+  // Flight duration derives from the physical airtime of the rise (half the full
+  // 2√(2h/g) — the flight keyframe is half the airborne interval, the stance
+  // transitions carry the rest), then speed-scaled. The trajectory shapes the arc
+  // as a constant-g parabola.
+  const durFlight = Math.round((ballisticFlightMs(RISE_M) * 0.5) / f);
 
   // Stance on `st`: that leg supports (mild flex + toe push); the other swings with
   // a high knee; the arm OPPOSITE the swing leg drives forward (reciprocal).
@@ -1086,6 +1118,9 @@ export function buildSingleLegHop(
   const sup = opts.stance === 'R' ? 'R' : 'L'; // support / hopping leg
   const up = sup === 'L' ? 'R' : 'L'; // the leg held up throughout
   const apexM = Math.max(0.08, Math.min(0.4, opts.heightM ?? 0.15));
+  // Airborne interval derived from apex height (see buildJump); the trajectory
+  // shapes the rise/fall as a constant-g parabola, so no authored apex hold.
+  const flightMs = ballisticFlightMs(apexM);
   const held = () => [
     { joint: `${up}_UpLeg`, motion: 'hipFlexion', targetDegrees: 30 },
     { joint: `${up}_Leg`, motion: 'kneeFlexion', targetDegrees: 45 },
@@ -1112,17 +1147,17 @@ export function buildSingleLegHop(
     targets: [...supLeg(5, 12, -25), ...held(), ...arms(60), ...trunk(2)],
   });
   const apex = (): SequenceKeyframe => ({
-    durationMs: 220, holdMs: 60, velocityClass: 'ballistic', stance: 'floating',
+    durationMs: Math.round(flightMs * 0.5), velocityClass: 'ballistic', stance: 'floating',
     travel: { direction: 'up', meters: apexM },
     targets: [...supLeg(18, 32, -5), ...held(), ...arms(40)],
   });
   const descent = (): SequenceKeyframe => ({
-    durationMs: 170, velocityClass: 'ballistic', stance: 'floating',
-    travel: { direction: 'up', meters: 0.04 },
+    durationMs: Math.round(flightMs * 0.2), velocityClass: 'ballistic', stance: 'floating',
+    travel: { direction: 'up', meters: apexM * 0.5 },
     targets: [...supLeg(12, 22, 0), ...held(), ...arms(25)],
   });
   const landing = (): SequenceKeyframe => ({
-    durationMs: 220, holdMs: 70, velocityClass: 'functional', stance: 'planted',
+    durationMs: Math.round(flightMs * 0.3), holdMs: 70, velocityClass: 'functional', stance: 'planted',
     travel: { direction: 'up', meters: 0 },
     targets: [...supLeg(32, 52, 12), ...held(), ...arms(15), ...trunk(10)],
   });
