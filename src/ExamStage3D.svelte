@@ -1696,10 +1696,17 @@
         const composedTravels = built.roots.some(
           (r) => Math.hypot(r.translateM[0], r.translateM[2]) > 0.02,
         );
+        // A motion with ANY floating span is a dynamic airborne movement (jump/hop):
+        // re-rooting a planted crouch phase to its rest foot frame fights the ballistic
+        // arc and snaps the body tens of cm at the flight↔plant transition. Those use
+        // the plain floor-pin (planted) + free arc (floating) — never foot-rooting.
+        // Mirrors the offline sampler's `!hasFloating` gate so stage and export agree.
+        const composedHasFloating = built.roots.some((r) => r.stance === 'floating');
         composedUseFootRoot =
           !resolved.footDrivenTravel &&
           !resolved.loop &&
           !composedTravels &&
+          !composedHasFloating &&
           !(resolved.contacts?.length ?? 0) &&
           composedHasPlanted &&
           !!footFrames;
