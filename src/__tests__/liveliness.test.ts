@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { breathingLean, livelinessSwayDeg } from '../services/liveliness';
+import { breathingLean, livelinessSwayDeg, cadenceRate, CADENCE_CV_MAX } from '../services/liveliness';
 
 // The stated peaks (mirror the module constants so the bounds are asserted
 // against the CONTRACT, not re-derived from it).
@@ -71,5 +71,39 @@ describe('livelinessSwayDeg', () => {
     expect(livelinessSwayDeg(2, 9)).toEqual(livelinessSwayDeg(2, 1));
     expect(livelinessSwayDeg(2, -1)).toEqual({ mlDeg: 0, apDeg: 0 });
     expect(livelinessSwayDeg(Number.NaN, 1)).toEqual({ mlDeg: 0, apDeg: 0 });
+  });
+});
+
+describe('cadenceRate — natural stride-time variability', () => {
+  it('amount 0 ⇒ exactly 1 (a perfectly metronomic clean loop)', () => {
+    for (const t of SWEEP) expect(cadenceRate(t, 0)).toBe(1);
+  });
+
+  it('is strictly bounded within 1 ± amount·CADENCE_CV_MAX', () => {
+    for (const amount of [0.4, 1]) {
+      for (const t of SWEEP) {
+        expect(Math.abs(cadenceRate(t, amount) - 1)).toBeLessThanOrEqual(amount * CADENCE_CV_MAX + 1e-9);
+      }
+    }
+  });
+
+  it('has mean ≈ 1 over a long sweep (zero-mean drift — no cumulative speed-up/slow-down)', () => {
+    const vals = SWEEP.map((t) => cadenceRate(t, 1));
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    expect(Math.abs(mean - 1)).toBeLessThan(0.01);
+  });
+
+  it('actually drifts (not constant) and stays continuous frame-to-frame', () => {
+    const vals = SWEEP.map((t) => cadenceRate(t, 1));
+    expect(Math.max(...vals) - Math.min(...vals)).toBeGreaterThan(CADENCE_CV_MAX); // it varies
+    // Continuity: adjacent 0.05 s steps never jump more than a small bound (C¹ clock).
+    for (let i = 1; i < vals.length; i += 1) expect(Math.abs(vals[i]! - vals[i - 1]!)).toBeLessThan(0.01);
+  });
+
+  it('deterministic + guards non-finite / clamps amount', () => {
+    expect(cadenceRate(7.5, 0.4)).toBe(cadenceRate(7.5, 0.4));
+    expect(cadenceRate(Number.NaN, 1)).toBe(1);
+    expect(cadenceRate(3, 9)).toBe(cadenceRate(3, 1));
+    expect(cadenceRate(3, -1)).toBe(1);
   });
 });
