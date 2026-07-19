@@ -247,10 +247,56 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
         : squadControl(rq[Math.max(0, i - 1)]!, rq[i]!, rq[Math.min(n - 1, i + 1)]!),
     );
 
+  // ── Gravity-true ballistic vertical ────────────────────────────────────────
+  // A FLOATING span (airborne — no floor pin) is a projectile: its vertical must
+  // follow a constant-g PARABOLA, not the linear knot lerp (which makes a jump
+  // read as an eased hang instead of an accelerating fall). Find each maximal run
+  // of floating knots flanked by planted knots (a complete take-off→landing) and,
+  // during it, drive root-Y from an endpoint-preserving parabola peaking at the
+  // authored apex: y(τ) = y0 + (y1−y0)·τ + 4·A·τ(1−τ), A = apex − (y0+y1)/2. Then
+  // d²y/dτ² = −8A is constant (constant acceleration = gravity's shape); with the
+  // builders setting the flight DURATION to 2√(2·apex/g) (see ballisticFlightMs)
+  // that acceleration equals real g, and the "hang" emerges naturally from the low
+  // vertical velocity near the apex. ROOT-Y ONLY — joint angles, planted spans, and
+  // every knot pose/time are untouched, so it's a pure, deterministic reshape and a
+  // strict no-op for grounded motion (no floating knots ⇒ empty `flights`).
+  const flights: { startMs: number; endMs: number; y0: number; y1: number; apexY: number }[] = [];
+  for (let i = 0; i < n; i += 1) {
+    if (knots[i]!.planted) continue;
+    const j0 = i;
+    let j1 = i;
+    while (j1 + 1 < n && !knots[j1 + 1]!.planted) j1 += 1;
+    i = j1; // skip past this floating run
+    const before = j0 - 1;
+    const after = j1 + 1;
+    // Both planted flanks required — a complete flight. Incomplete runs at the very
+    // ends (e.g. a loop trajectory's wrapped padding) are left to the linear lerp.
+    if (before < 0 || after >= n) continue;
+    const startMs = knots[before]!.timeMs;
+    const endMs = knots[after]!.timeMs;
+    if (endMs <= startMs) continue;
+    let apexY = -Infinity;
+    for (let m = j0; m <= j1; m += 1) apexY = Math.max(apexY, knots[m]!.rootTranslate[1]);
+    const y0 = knots[before]!.rootTranslate[1];
+    const y1 = knots[after]!.rootTranslate[1];
+    if (apexY <= Math.max(y0, y1) + 1e-4) continue; // a flat float, not a hop — leave it
+    flights.push({ startMs, endMs, y0, y1, apexY });
+  }
+  const ballisticY = (tMs: number): number | null => {
+    for (const f of flights) {
+      if (tMs < f.startMs || tMs > f.endMs) continue;
+      const tau = (tMs - f.startMs) / (f.endMs - f.startMs);
+      const A = f.apexY - (f.y0 + f.y1) / 2;
+      return f.y0 + (f.y1 - f.y0) * tau + 4 * A * tau * (1 - tau);
+    }
+    return null;
+  };
+
   return {
     totalMs,
     sampleAt(tMs: number): TrajectorySample {
-      const u = warp(Math.min(totalMs, Math.max(0, tMs)));
+      const tClamped = Math.min(totalMs, Math.max(0, tMs));
+      const u = warp(tClamped);
       const k = Math.min(n - 2, Math.max(0, Math.floor(u)));
       const local = Math.min(1, Math.max(0, u - k));
 
@@ -267,6 +313,11 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
         a[1] + (b[1] - a[1]) * local,
         a[2] + (b[2] - a[2]) * local,
       ];
+      // Airborne vertical follows the gravity parabola, not the linear lerp.
+      if (flights.length) {
+        const by = ballisticY(tClamped);
+        if (by != null) rootTranslate[1] = by;
+      }
       // Planted state follows the segment we are travelling INTO.
       const planted = knots[k + 1]!.planted;
 
