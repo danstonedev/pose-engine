@@ -29,7 +29,7 @@
  * reviewed reference, not mocap.
  */
 
-import type { ComposedMotion, MovementAsymmetry, SequenceKeyframe, StanceMode } from './motionSequence';
+import type { ComposedMotion, MovementAsymmetry, SequenceKeyframe, SequenceTarget, StanceMode } from './motionSequence';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
 export interface TemplateTarget {
@@ -896,12 +896,15 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     speed != null && speed !== 1
       ? paceGait(templateToComposedMotion(walk), speed)
       : templateToComposedMotion(walk);
+  // Natural trunk coordination — thoracic counter-rotation with the arm swing +
+  // lateral sway toward the stance leg. Root/feet untouched (spine is above the hips).
+  const coordinated = spinalGaitCoordination(base);
   return {
     name: 'walk-forward',
     startFrom: 'current',
     stance: 'planted',
-    ...(base.modifiers ? { modifiers: base.modifiers } : {}),
-    keyframes: base.keyframes,
+    ...(coordinated.modifiers ? { modifiers: coordinated.modifiers } : {}),
+    keyframes: coordinated.keyframes,
     footDrivenTravel: true,
   };
 }
@@ -1105,13 +1108,16 @@ export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
     };
   };
 
-  return {
+  // Natural trunk coordination — thoracic counter-rotation with the pumping arms +
+  // lateral sway toward the stance leg. Bigger arm swing at speed ⇒ bigger trunk
+  // rotation, for free. Root/feet untouched (spine is above the hips).
+  return spinalGaitCoordination({
     name: 'run',
     startFrom: 'neutral',
     stance: 'planted',
     loop: true,
     keyframes: [stance('R'), flight('R'), stance('L'), flight('L')],
-  };
+  });
 }
 
 /**
@@ -1394,6 +1400,77 @@ export function antalgicLean(motion: ComposedMotion, side: 'left' | 'right', deg
     { joint: 'Spine_Lower', motion: 'lateralTilt', deg: sign * d },
     { joint: 'Spine_Upper', motion: 'lateralTilt', deg: sign * Math.round(d * 0.5) },
   ]);
+}
+
+// ─── Natural spinal gait coordination ───────────────────────────────────────
+// Physiologic caps (well inside the AROM in romRegistry): the excursions stay in
+// the believable-normal band, never near end-range.
+const SPINE_AXIAL_MAX = 14; // thoracic rotation cap (ROM ±35)
+const SPINE_LUMBAR_AXIAL_MAX = 8; // lumbar rotation cap (tight ROM ±10)
+const SPINE_NECK_MAX = 12; // cervical rotation cap (ROM ±80)
+const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
+
+/**
+ * NATURAL SPINAL GAIT COORDINATION — the reciprocal trunk motion that makes gait
+ * read as a human instead of a rigid torso riding on moving legs. Per keyframe it
+ * ADDS three physiologic, ROM-safe spine excursions DERIVED from the motion the
+ * keyframe already commands, so they stay phase-locked to the stride and scale with
+ * its vigour for free (no cycle clock needed):
+ *   • Axial counter-rotation — the thorax/shoulder girdle rotates with the arm
+ *     swing (its angular-momentum partner), driven by the reciprocal shoulder-flexion
+ *     asymmetry. A damped arm swing (Parkinsonian/hemiplegic) therefore yields a
+ *     damped trunk rotation automatically. Lumbar follows at a third; the neck
+ *     counter-rotates to hold the gaze forward (vestibulo-collic head stabilisation).
+ *   • Lateral trunk sway — a few degrees of lateral flexion TOWARD the stance
+ *     (less-flexed) hip each step, damped through any airborne phase.
+ * Only `rotation` + `lateralTilt` on the spine — NEVER sagittal `flexion`, which
+ * would shift the world-anchored shoulderFlexion motor (trunkSum). Feet, leg angles
+ * and every graded driver are untouched (the spine sits above the hips). Additive on
+ * any existing spine target (e.g. an antalgic lean), ROM-clamped on resolve. Identity
+ * when both gains are 0. Sign of `rotation` follows romRegistry (+ = toward-R); the
+ * chosen phase brings the leading arm's shoulder forward — a visual-tuning choice.
+ */
+export function spinalGaitCoordination(
+  motion: ComposedMotion,
+  opts: { axial?: number; lateral?: number; headStabilize?: number } = {},
+): ComposedMotion {
+  const kAx = Math.max(0, opts.axial ?? 0.16);
+  const kLat = Math.max(0, opts.lateral ?? 0.09);
+  const headStab = Math.max(0, Math.min(1, opts.headStabilize ?? 0.5));
+  if (kAx === 0 && kLat === 0) return motion;
+  const cap = (v: number, m: number): number => Math.max(-m, Math.min(m, v));
+  const at = (ts: SequenceTarget[], joint: string, mo: string): number =>
+    ts.find((t) => t.joint === joint && t.motion === mo)?.targetDegrees ?? 0;
+  const keyframes = motion.keyframes.map((kf) => {
+    const ts = kf.targets;
+    if (!ts || !ts.length) return kf;
+    // Reciprocal arm-swing asymmetry drives the thoracic axial rotation; loaded-leg
+    // asymmetry drives the lateral lean. Both are already present in the keyframe, so
+    // the result is intrinsically in phase with the stride.
+    const armDiff = at(ts, 'R_UpperArm', 'shoulderFlexion') - at(ts, 'L_UpperArm', 'shoulderFlexion');
+    const hipDiff = at(ts, 'L_UpLeg', 'hipFlexion') - at(ts, 'R_UpLeg', 'hipFlexion');
+    const airborne = kf.stance === 'floating' ? 0.35 : 1;
+    const thoracic = cap(-kAx * armDiff, SPINE_AXIAL_MAX); // thorax rotates with the girdle
+    const lumbar = cap(-kAx * 0.3 * armDiff, SPINE_LUMBAR_AXIAL_MAX); // lumbar follows
+    const neck = cap(headStab * kAx * 1.3 * armDiff, SPINE_NECK_MAX); // counter → gaze forward
+    const lean = -kLat * hipDiff * airborne; // lean toward the stance (less-flexed) hip
+    const additions: { joint: string; motion: string; deg: number }[] = [
+      { joint: 'Spine_Upper', motion: 'rotation', deg: thoracic },
+      { joint: 'Spine_Lower', motion: 'rotation', deg: lumbar },
+      { joint: 'Neck', motion: 'rotation', deg: neck },
+      { joint: 'Spine_Lower', motion: 'lateralTilt', deg: cap(lean, SPINE_LATERAL_MAX) },
+      { joint: 'Spine_Upper', motion: 'lateralTilt', deg: cap(0.5 * lean, SPINE_LATERAL_MAX) },
+    ];
+    const targets = [...ts];
+    for (const a of additions) {
+      if (Math.abs(a.deg) < 1e-6) continue;
+      const i = targets.findIndex((t) => t.joint === a.joint && t.motion === a.motion);
+      if (i >= 0) targets[i] = { ...targets[i]!, targetDegrees: targets[i]!.targetDegrees + a.deg };
+      else targets.push({ joint: a.joint, motion: a.motion, targetDegrees: a.deg });
+    }
+    return { ...kf, targets };
+  });
+  return { ...motion, keyframes };
 }
 
 // ─── Compensatory-fault taxonomy ────────────────────────────────────────────
