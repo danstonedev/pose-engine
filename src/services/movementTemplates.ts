@@ -1404,13 +1404,15 @@ const trunkFlex = (lower: number, upper: number): SequenceTarget[] => [
 
 /** LIE DOWN — standing → supine. Lower into a deep crouch (feet planted, the
  *  floor-pin drops the pelvis), then recline the trunk to horizontal and settle the
- *  legs out flat. Ends 'supine'. */
+ *  legs out flat. Ends 'supine'. The get-DOWN crouch is a weighted lower —
+ *  gravity-shaped descent re-timing applies (see {@link buildSitDown}). */
 export function buildLieDown(): ComposedMotion {
   return {
     name: 'lie down',
     startFrom: 'current',
     stance: 'planted',
     endPosture: 'supine',
+    weightedDescent: true,
     keyframes: [
       { durationMs: 800, stance: 'planted', targets: [...bilatLeg(95, 115, 20), ...trunkFlex(25, 15)] },
       {
@@ -1479,13 +1481,23 @@ export function buildSupineLegRaise(opts: { side?: 'L' | 'R'; reps?: number } = 
 // swap stays smooth). A chair/bed prop is placed app-side at the measured pelvis.
 
 /** SIT DOWN — standing → sitting. Reach the hips back and lower to the seat, then
- *  settle onto it (pelvis grounded at seat height). Ends 'sitting'. */
+ *  settle onto it (pelvis grounded at seat height). Ends 'sitting'.
+ *
+ *  WEIGHTED DESCENT (roadmap 3.3): the sit-DOWN direction is a bodyweight
+ *  lower — gravity does the work and the seat provides the catch — so it opts
+ *  into the gravity-shaped descent re-timing (slow early, accelerating into
+ *  the seat; the authored knee flexion at the bottom is the yield). The
+ *  stand-UP direction ({@link buildStandFromSit}) is a concentric RISE and
+ *  stays unflagged, as does the clinical squat template: a squat is a
+ *  CONTROLLED ECCENTRIC whose deliberate symmetric tempo is the clinically
+ *  correct behaviour, not a defect. */
 export function buildSitDown(): ComposedMotion {
   return {
     name: 'sit down',
     startFrom: 'current',
     stance: 'planted',
     endPosture: 'sitting',
+    weightedDescent: true,
     keyframes: [
       // Reach back + begin to lower (feet grounded).
       { durationMs: 600, stance: 'planted', targets: [...bilatLeg(45, 55, 12), ...trunkFlex(15, 8)] },
@@ -1591,13 +1603,18 @@ const plankLimbs = (shoulder: number, elbow: number): SequenceTarget[] => [
 
 /** GET INTO A PLANK — standing → plank. Crouch and hinge forward with the hands
  *  reaching to the floor, then pitch the body to the prone-frame plank line (weight
- *  on the toes + hands). Ends 'plank'. */
+ *  on the toes + hands). Ends 'plank'. Flagged as a weighted lower with the rest
+ *  of the get-down family; today its root-Y descent lives almost entirely in the
+ *  pitch transfer (a grounding-switch step, which the span detector correctly
+ *  refuses to reshape), so the flag is an identity until a real crouch descent
+ *  is authored — asserted in the rig gates. */
 export function buildGetDownToPlank(): ComposedMotion {
   return {
     name: 'get into a plank',
     startFrom: 'current',
     stance: 'planted',
     endPosture: 'plank',
+    weightedDescent: true,
     keyframes: [
       // Crouch + hinge forward, reaching the hands toward the floor (feet grounded).
       { durationMs: 700, stance: 'planted', targets: [...bilatLeg(75, 100, 15), ...trunkFlex(35, 20), ...plankLimbs(120, 15)] },
@@ -1681,13 +1698,17 @@ const quadArms = (): SequenceTarget[] => [
 
 /** GET ONTO HANDS AND KNEES — standing → quadruped. Crouch and hinge forward with the
  *  hands reaching to the floor, then lower to the prone-frame quadruped (knees + hands
- *  grounded). Ends 'quadruped'. */
+ *  grounded). Ends 'quadruped'. The get-DOWN crouch is a weighted lower —
+ *  gravity-shaped descent re-timing applies (see {@link buildSitDown}); the
+ *  quadruped grounding-switch step is a discontinuity the span detector never
+ *  crosses, so only the real crouch is reshaped. */
 export function buildGetDownToQuadruped(): ComposedMotion {
   return {
     name: 'get onto hands and knees',
     startFrom: 'current',
     stance: 'planted',
     endPosture: 'quadruped',
+    weightedDescent: true,
     keyframes: [
       // Crouch + hinge forward, reaching the hands toward the floor (feet grounded).
       { durationMs: 700, stance: 'planted', targets: [...bilatLeg(95, 115, 15), ...trunkFlex(40, 25), { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115 }, { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115 }] },

@@ -387,6 +387,20 @@ export interface ComposedMotion {
    *  and grounding-posture motions are hard-excluded even when flagged.
    *  Default off (back-compat: unflagged motions are byte-identical). */
   balanceAssist?: boolean;
+  /** GRAVITY-SHAPED GROUNDED DESCENT (opt-in): the sampler/stage pre-pass
+   *  measures the grounded (floor-pinned) root-Y arc and RE-TIMES each
+   *  monotone-descending span toward a gravity-consistent profile — slow
+   *  early, fast late (a quarter-parabola capped at a physiologic terminal
+   *  speed), arrested at the bottom by the existing grounding — so a weighted
+   *  lower (sit-down, floor get-down) reads as bodyweight caught instead of a
+   *  hydraulic ease (services/rootMotion `deriveWeightedDescent`). ROOT-Y
+   *  ONLY: joint angles, knot times and every settle measurement are
+   *  untouched. Grounded one-shots only — airborne motions (ballistic arcs
+   *  own their vertical), gait/travel, loops, calibrated verticals and
+   *  declared IK contacts are hard-excluded even when flagged. For CONTROLLED
+   *  eccentrics (the clinical squat) leave this off — the symmetric authored
+   *  tempo IS the movement. Default off (unflagged motions byte-identical). */
+  weightedDescent?: boolean;
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
@@ -492,6 +506,11 @@ export interface ResolvedComposedMotion {
    *  resolved keyframes through `balanceCoordination` before building the
    *  trajectory. See {@link ComposedMotion.balanceAssist}. */
   balanceAssist?: boolean;
+  /** Gravity-shaped grounded descent (pass-through) — the sampler/stage derive
+   *  the root-Y descent re-timing pre-pass when the exclusion gate
+   *  (`weightedDescentApplies`, services/rootMotion) admits the motion. See
+   *  {@link ComposedMotion.weightedDescent}. */
+  weightedDescent?: boolean;
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -1234,6 +1253,7 @@ export function resolveComposedMotion(
       : {}),
     ...(motion.footDrivenTravel ? { footDrivenTravel: true } : {}),
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
+    ...(motion.weightedDescent ? { weightedDescent: true } : {}),
   };
 }
 
