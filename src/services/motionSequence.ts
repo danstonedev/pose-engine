@@ -144,6 +144,21 @@ export type PostureNode =
   | 'quadruped'
   | 'kneeling';
 
+/** Every posture node, as a runtime list — for host tool enums (the compose_motion
+ *  startPosture/endPosture schema is generated from this, so it can never drift from
+ *  the graph the executor bridges over). Keep in sync with {@link PostureNode}. */
+export const POSTURE_NODES: readonly PostureNode[] = [
+  'standing',
+  'sitting',
+  'supine',
+  'prone',
+  'sidelying-left',
+  'sidelying-right',
+  'plank',
+  'quadruped',
+  'kneeling',
+];
+
 /** Which support CONTACT SET grounds a keyframe (consumed by groundingContactsFor).
  *  A superset of {@link PostureNode}: most grounding sets ARE a posture, but a few are
  *  transient sub-states of one — e.g. 'quadruped-hand-L' grounds only the left hand so
