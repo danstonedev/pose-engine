@@ -399,6 +399,34 @@ export interface ComposedMotion {
    *  exists for gaits whose first/last keyframes are mid-stride poses). Ignored
    *  unless `footDrivenTravel` is set. */
   settleEnds?: boolean;
+  /** HEEL-STRIKE TRANSIENT opt-OUT: a foot-driven gait with a planned stance
+   *  schedule (`gaitStanceWindowsMs`) gets a small footfall accent BY DEFAULT —
+   *  a brief dip-and-recover on the calibrated root-Y at each contact instant
+   *  (window start), amplitude from the pre-contact descent rate
+   *  (services/rootMotion `deriveHeelStrikeAccents`). Set false to suppress it
+   *  (a control sample, a deliberately glidey demo). Motions without a stance
+   *  schedule never accent, so this flag is meaningless (and harmless) there. */
+  heelStrikeAccent?: boolean;
+  /** TRAVEL HEADING, degrees about the vertical axis (0 = straight ahead +Z;
+   *  + toward the subject's left, matching root `yawDeg`). The gait builder
+   *  authors the SAME angle as per-keyframe root yaw (the body orients before
+   *  walking off), and the sampler/stage pass it to the foot-driven-travel /
+   *  lateral-shuttle derivations so the derived root ride goes ALONG the
+   *  rotated heading (offset·(sinH, cosH)) with the shuttle perpendicular to
+   *  it. Only meaningful with `footDrivenTravel`; omit (or 0) for the default
+   *  straight-ahead walk — which stays byte-identical. */
+  headingDeg?: number;
+  /** MOMENTUM-PRESERVING SEAM (opt-in, roadmap 4.4): a chained motion normally
+   *  eases in from rest — the trajectory's first knot is a stop, so every
+   *  cross-command seam (walk→squat, kick→step) brakes to zero before the next
+   *  motion begins. When set, the trajectory's FIRST knot becomes a fly-through
+   *  (the cyclicEnds boundary mechanics, applied to the entry only): the motion
+   *  ENTERS with velocity, carrying the previous motion's momentum across the
+   *  seam, while its FINAL keyframe still settles to a genuine stop. Purely an
+   *  entry-shape change — knot times, holds, the final pose and every settle
+   *  measurement are untouched; unflagged motions are byte-identical. This is
+   *  the ENGINE primitive: chain authors/hosts opt in per motion. */
+  flowIn?: boolean;
   /** The body POSTURE this movement assumes at its START / leaves at its END, for
    *  the transition executor to bridge between commands (e.g. a supine exercise
    *  starts+ends 'supine'; a lie-down ends 'supine'; a get-up ends 'standing').
@@ -540,6 +568,18 @@ export interface ResolvedComposedMotion {
   /** Authored initiation/termination (pass-through) — trajectory ends are real
    *  stops, not the footDrivenTravel cyclic fly-throughs. */
   settleEnds?: boolean;
+  /** Heel-strike transient opt-out (pass-through). `false` suppresses the
+   *  default footfall accent of a stance-scheduled gait; absent = accent on.
+   *  See {@link ComposedMotion.heelStrikeAccent}. */
+  heelStrikeAccent?: boolean;
+  /** Travel heading, degrees (pass-through; absent = 0 = straight ahead) — the
+   *  sampler/stage hand it to the travel/shuttle derivations. See
+   *  {@link ComposedMotion.headingDeg}. */
+  headingDeg?: number;
+  /** Momentum-preserving seam (pass-through) — the trajectory's FIRST knot is a
+   *  fly-through so a chained motion enters with velocity; the final settle
+   *  still stops. See {@link ComposedMotion.flowIn}. */
+  flowIn?: boolean;
   /** COM-driven postural control (pass-through) — the sampler/stage run the
    *  resolved keyframes through `balanceCoordination` before building the
    *  trajectory. See {@link ComposedMotion.balanceAssist}. */
@@ -1311,6 +1351,17 @@ export function resolveComposedMotion(
         }
       : {}),
     ...(motion.settleEnds ? { settleEnds: true } : {}),
+    // Heel-strike accent: only the explicit opt-OUT survives resolution (the
+    // default-on behaviour is the absence of the flag).
+    ...(motion.heelStrikeAccent === false ? { heelStrikeAccent: false } : {}),
+    // TRAVEL HEADING: pass through only a finite, non-zero heading (0 IS the
+    // default straight-ahead — omitting it keeps heading-0 plans byte-identical).
+    ...(typeof motion.headingDeg === 'number' &&
+    Number.isFinite(motion.headingDeg) &&
+    motion.headingDeg !== 0
+      ? { headingDeg: motion.headingDeg }
+      : {}),
+    ...(motion.flowIn ? { flowIn: true } : {}),
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
     ...(motion.weightedDescent ? { weightedDescent: true } : {}),
   };

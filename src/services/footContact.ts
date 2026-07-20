@@ -65,13 +65,28 @@ export function buildFootPlant(
  * to a hinge and every joint ROM-clamped (best-effort when unreachable). Mutates
  * the leg's local quaternions and refreshes their world matrices. Call AFTER the
  * frame's FK pose + root transform are applied.
+ *
+ * `rest` frames the ROM clamps: the hip/knee clamp strategies decompose bone
+ * WORLD quaternions against it, so for a body walking a ROTATED heading the
+ * caller must pass the heading-rotated reference (rotateRestReferenceByRoot) —
+ * the un-rotated one would read the whole-body yaw as spurious hip
+ * abduction/rotation and mangle the solve. When it does, `hingeAxisRest` must
+ * carry the ORIGINAL (un-rotated) reference: the knee's hinge axis is a LOCAL
+ * axis picked by quantizing the rest-world quat against world +X, which only
+ * names the anatomical ML axis in the un-rotated frame. Both default to the
+ * legacy behaviour when omitted/equal.
  */
 export function solveFootPlant(
   solver: FootPlantSolver,
   targetWorldPos: THREE.Vector3,
   rest: JointAngleRestReference | null | undefined,
+  hingeAxisRest?: JointAngleRestReference | null,
 ): void {
-  solveIKChain(solver.ctx, targetWorldPos, { rest, hinges: new Set([solver.kneeKey]) });
+  solveIKChain(solver.ctx, targetWorldPos, {
+    rest,
+    hinges: new Set([solver.kneeKey]),
+    ...(hingeAxisRest ? { hingeAxisRest } : {}),
+  });
 }
 
 // ── Hand plant (Phase 3 Tier B) — the arm analog of the foot plant ───────────

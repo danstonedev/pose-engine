@@ -550,6 +550,8 @@
         NO_VERTICAL_CALIBRATION,
         deriveFootDrivenTravel,
         deriveGaitLateralShuttle,
+        deriveHeelStrikeAccents,
+        heelStrikeOffsetAt,
         deriveWeightedDescent,
         applyWeightedDescent,
         weightedDescentApplies,
@@ -990,11 +992,14 @@
         composedActive = false;
         updateSeatProp(false); // hide the seat when a motion ends / is taken over
         composedPlants = []; // drop any foot-contact IK for the ended motion
+        composedPlantRest = null; // drop any heading-rotated plant-clamp frame
         composedHandPlants = []; // drop any hand-contact IK for the ended motion
         composedUseFootRoot = false; // drop foot-rooted planting for the ended motion
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
         composedFootDriven = null; // drop any foot-driven travel
         composedLateralShuttle = null; // drop any medio-lateral shuttle
+        composedHeelStrike = null; // drop any footfall accents
+        composedHeelStrikeY = 0;
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
@@ -1379,6 +1384,16 @@
       }
       let composedPlants: StageFootPlant[] = [];
 
+      /** PLANT-CLAMP REST FRAME for the active composed motion: the leg-IK ROM
+       *  clamps decompose bone WORLD quats against the rest reference, so a walk
+       *  on a ROTATED heading clamps against the heading-rotated reference (the
+       *  un-rotated one reads the yaw as spurious hip angles and drags the
+       *  planted foot). Null — the legacy `restRef` path — unless the motion
+       *  carries a non-zero heading. The knee hinge axis always keeps the
+       *  ORIGINAL restRef (solveFootPlant's hingeAxisRest). Mirrors the offline
+       *  sampler's plantRest. */
+      let composedPlantRest: ReturnType<typeof captureJointAngleRestReference> | null = null;
+
       /** HAND PLANTS (Phase 3 Tier B): for a grounding posture that declares a hand
        *  as a 'reach' contact (plank/push-up), an arm IK chain that pins the hand to
        *  a FIXED floor point so it stays planted as the chest lowers (the arm folds).
@@ -1469,13 +1484,15 @@
       }
 
       /** Pre-pass the starting motion's trajectory (FK + floor-pin, no travel),
-       *  read the feet, and derive the forward-travel curve that keeps the planted
-       *  foot fixed. Resets to null otherwise. */
+       *  read the feet, and derive the travel curve that keeps the planted foot
+       *  fixed — along the motion's heading (0 = straight ahead, the
+       *  byte-identical legacy +Z ride). Resets to null otherwise. */
       function setComposedFootDriven(
         traj: PoseTrajectory,
         enabled: boolean,
         hasPlanted: boolean,
         stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+        headingDeg = 0,
       ): void {
         composedFootDriven = null;
         if (!enabled || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
@@ -1498,8 +1515,11 @@
           if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
           const rp = rBone.getWorldPosition(new THREE.Vector3());
           const lp = lBone.getWorldPosition(new THREE.Vector3());
-          return { rz: rp.z, ry: rp.y, lz: lp.z, ly: lp.y };
-        }, traj.totalMs, stanceWindows);
+          // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
+          // airborne): the travel derivation holds its advance through it
+          // (mirrors the offline sampler's closure exactly).
+          return { rz: rp.z, ry: rp.y, rx: rp.x, lz: lp.z, ly: lp.y, lx: lp.x, bothAirborne: !s.planted };
+        }, traj.totalMs, stanceWindows, 120, headingDeg);
       }
 
       /** MEDIO-LATERAL SHUTTLE for the ACTIVE composed motion — the derived ±X
@@ -1509,13 +1529,15 @@
       let composedLateralShuttle: ReturnType<typeof deriveGaitLateralShuttle> | null = null;
 
       /** Pre-pass the starting motion's trajectory (FK + floor-pin, no travel),
-       *  read the feet, and derive the stance-phase-locked lateral shuttle.
-       *  Resets to null otherwise. Mirrors setComposedFootDriven. */
+       *  read the feet, and derive the stance-phase-locked lateral shuttle —
+       *  perpendicular to the motion's heading (0 = the byte-identical legacy
+       *  world-X ride). Resets to null otherwise. Mirrors setComposedFootDriven. */
       function setComposedLateralShuttle(
         traj: PoseTrajectory,
         shuttleCm: number | undefined,
         hasPlanted: boolean,
         stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+        headingDeg = 0,
       ): void {
         composedLateralShuttle = null;
         if (!shuttleCm || shuttleCm <= 0 || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
@@ -1538,8 +1560,58 @@
           if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
           const rp = rBone.getWorldPosition(new THREE.Vector3());
           const lp = lBone.getWorldPosition(new THREE.Vector3());
-          return { rx: rp.x, ry: rp.y, lx: lp.x, ly: lp.y };
-        }, traj.totalMs, shuttleCm / 100, stanceWindows);
+          return { rx: rp.x, ry: rp.y, rz: rp.z, lx: lp.x, ly: lp.y, lz: lp.z };
+        }, traj.totalMs, shuttleCm / 100, stanceWindows, 120, headingDeg);
+      }
+
+      /** HEEL-STRIKE TRANSIENT for the ACTIVE composed motion — the brief
+       *  footfall dip-and-recover on the calibrated root-Y at each stance-window
+       *  contact instant, mirroring the offline sampler via the SAME shared
+       *  derivation (services/rootMotion). Null — the strict identity — unless
+       *  the motion is a foot-driven gait with a planned stance schedule. */
+      let composedHeelStrike: ReturnType<typeof deriveHeelStrikeAccents> = null;
+      /** The accent's root-Y offset applied on the CURRENT frame (≤ 0, m) — read
+       *  by the foot-plant capture so a target captured mid-accent pins at the
+       *  natural (un-dipped) contact point and the dip is absorbed by the leg IK. */
+      let composedHeelStrikeY = 0;
+
+      /** Pre-pass the starting gait's trajectory through the SAME pin + vertical
+       *  calibration applyTrajectoryRoot uses (the smoothed arc the accent rides
+       *  on) and derive the footfall accents from the stance-window starts. Must
+       *  run AFTER setComposedVerticalCalibration for the motion. Resets to null
+       *  otherwise. Poses the rig transiently (the player re-poses every frame). */
+      function setComposedHeelStrike(
+        traj: PoseTrajectory,
+        enabled: boolean,
+        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+      ): void {
+        composedHeelStrike = null;
+        composedHeelStrikeY = 0;
+        if (!enabled || !stanceWindows?.length || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
+        composedHeelStrike = deriveHeelStrikeAccents(
+          (tMs) => {
+            const s = traj.sampleAt(tMs);
+            applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
+            _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+            modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
+            modelRoot!.position.set(
+              rootRestPos.x + s.rootTranslate[0],
+              rootRestPos.y + s.rootTranslate[1],
+              rootRestPos.z + s.rootTranslate[2],
+            );
+            pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
+            modelRoot!.updateMatrixWorld(true);
+            if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+            let y = modelRoot!.position.y;
+            if (s.planted && (composedVcal.gain !== 1 || composedVcal.smoothed)) {
+              const u01 = composedVcalCycleMs > 0 ? tMs / composedVcalCycleMs : 0;
+              y = applyVerticalCalibration(y, composedVcal, u01);
+            }
+            return y;
+          },
+          stanceWindows.map((w) => w.fromMs),
+          traj.totalMs,
+        );
       }
 
       /** GRAVITY-SHAPED GROUNDED DESCENT for the ACTIVE composed motion — the
@@ -1592,12 +1664,25 @@
         }, traj.totalMs);
       }
 
-      /** Rebuild the foot-plant contexts for a starting composed motion. */
+      /** Rebuild the foot-plant contexts for a starting composed motion. A
+       *  non-zero travel heading also derives the heading-rotated plant-clamp
+       *  rest frame (see composedPlantRest; mirrors the sampler's plantRest). */
       function setComposedContacts(
         contacts: { foot: string; fromMs?: number; toMs?: number }[] | undefined,
+        headingDeg = 0,
       ): void {
         composedPlants = [];
+        composedPlantRest = null;
         if (!contacts?.length || !skinnedRef || !variantCfgRef) return;
+        if (headingDeg !== 0 && restRef) {
+          composedPlantRest = rotateRestReferenceByRoot(
+            restRef,
+            new THREE.Quaternion().setFromAxisAngle(
+              new THREE.Vector3(0, 1, 0),
+              (headingDeg * Math.PI) / 180,
+            ),
+          );
+        }
         for (const c of contacts) {
           const solver = buildFootPlant(skinnedRef, c.foot, variantCfgRef);
           if (solver) {
@@ -1633,7 +1718,11 @@
       }
 
       /** Apply the active foot plants at composed-motion time `tMs` — called
-       *  AFTER the FK pose + root transform each frame (mirrors the sampler). */
+       *  AFTER the FK pose + root transform each frame (mirrors the sampler).
+       *  A target captured while a heel-strike accent is dipping the root is
+       *  compensated by the applied offset (`composedHeelStrikeY`), so the
+       *  landing foot pins at its NATURAL floor contact and the transient dip
+       *  is absorbed by the leg IK instead of burying the foot for the stance. */
       function applyFootPlants(tMs: number): void {
         if (!composedPlants.length || !restRef || !modelRoot) return;
         let solved = false;
@@ -1644,8 +1733,13 @@
             fp.target = null; // left the window — next stance phase re-captures
             continue;
           }
-          if (!fp.target) fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
-          solveFootPlant(fp.solver, fp.target, restRef);
+          if (!fp.target) {
+            fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+            fp.target.y -= composedHeelStrikeY; // un-dip → natural contact (see doc)
+          }
+          // Heading-rotated clamp frame when the motion travels a rotated
+          // heading; the ORIGINAL restRef always names the knee hinge axis.
+          solveFootPlant(fp.solver, fp.target, composedPlantRest ?? restRef, restRef);
           solved = true;
         }
         if (solved) modelRoot.updateMatrixWorld(true);
@@ -1732,14 +1826,40 @@
             modelRoot.updateMatrixWorld(true);
           }
         }
-        // Foot-driven forward travel: advance the root (+Z) so the planted foot
-        // stays world-fixed (horizontal only — independent of the vertical pin).
-        // The medio-lateral shuttle rides the root (X) toward the stance foot the
-        // same way; both precede the foot plants below, which hold each stance
-        // foot fixed while the pelvis travels over it.
+        // Heel-strike transient (gait only): the brief footfall dip-and-recover
+        // ON TOP of the smoothed vertical at each stance-window contact instant
+        // — root-Y only, exactly 0 outside every accent span (and null for every
+        // non-gait motion), mirroring the offline sampler at the same pipeline
+        // point. The applied offset is tracked so applyFootPlants can capture a
+        // mid-accent plant target at the natural (un-dipped) contact point.
+        composedHeelStrikeY = 0;
+        if (planted && composedHeelStrike) {
+          composedHeelStrikeY = heelStrikeOffsetAt(composedHeelStrike, tMs);
+          if (composedHeelStrikeY !== 0) {
+            modelRoot.position.y += composedHeelStrikeY;
+            modelRoot.updateMatrixWorld(true);
+          }
+        }
+        // Foot-driven travel: advance the root ALONG THE HEADING (offset·(sinH,
+        // cosH); heading 0 is the byte-identical legacy +Z ride) so the planted
+        // foot stays world-fixed (horizontal only — independent of the vertical
+        // pin). The medio-lateral shuttle rides the root along the heading's
+        // PERPENDICULAR toward the stance foot the same way; both precede the
+        // foot plants below, which hold each stance foot fixed while the pelvis
+        // travels over it. Mirrors the offline sampler exactly.
         if (composedFootDriven || composedLateralShuttle) {
-          if (composedFootDriven) modelRoot.position.z += composedFootDriven.zAt(tMs);
-          if (composedLateralShuttle) modelRoot.position.x += composedLateralShuttle.xAt(tMs);
+          if (composedFootDriven) {
+            const off = composedFootDriven.zAt(tMs);
+            modelRoot.position.z += off * composedFootDriven.heading[1];
+            if (composedFootDriven.heading[0] !== 0)
+              modelRoot.position.x += off * composedFootDriven.heading[0];
+          }
+          if (composedLateralShuttle) {
+            const lat = composedLateralShuttle.xAt(tMs);
+            modelRoot.position.x += lat * composedLateralShuttle.lateral[0];
+            if (composedLateralShuttle.lateral[1] !== 0)
+              modelRoot.position.z += lat * composedLateralShuttle.lateral[1];
+          }
           modelRoot.updateMatrixWorld(true);
         }
         // Pelvis-shift overlay LAST, so it composes over the travel/pin/foot-root
@@ -2074,7 +2194,7 @@
         // Closed-chain foot contacts declared by this motion (Finding 4): rebuild
         // the IK plants so declared stance feet stay world-fixed as the body
         // travels. No-op when the motion declares none (open-chain default).
-        setComposedContacts(resolved.contacts);
+        setComposedContacts(resolved.contacts, resolved.headingDeg ?? 0);
         startLoop();
 
         // NATURAL RETURN-TO-READY between two directed movements. A template/neutral
@@ -2150,6 +2270,9 @@
           // it authors its own initiation/termination ramps (`settleEnds`): then the ends
           // are genuine stops (ease from standstill, brake to quiet standing).
           cyclicEnds: resolved.footDrivenTravel === true && resolved.settleEnds !== true,
+          // MOMENTUM-PRESERVING SEAM (opt-in): the first knot is a fly-through so a
+          // chained motion enters with velocity; the final settle still stops.
+          flowIn: resolved.flowIn === true,
         });
         // Advance the continuity/root state to the final keyframe for the NEXT motion.
         const lastRoot = built.roots[built.roots.length - 1];
@@ -2169,15 +2292,31 @@
           resolved.verticalCalibrationCm,
           composedHasPlanted,
         );
-        // FOOT-DRIVEN forward travel: derive the +Z curve that keeps the planted
-        // foot world-fixed from the same one-shot trajectory the stage plays,
-        // following the motion's planned stance schedule when it authors one.
+        // FOOT-DRIVEN travel: derive the curve that keeps the planted foot
+        // world-fixed from the same one-shot trajectory the stage plays,
+        // following the motion's planned stance schedule when it authors one —
+        // along the motion's heading (0 = the legacy straight-ahead +Z).
         const stanceWindows = scaledStanceWindows(trajectory, effectiveResolved);
-        setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted, stanceWindows);
-        // MEDIO-LATERAL SHUTTLE: derive the stance-phase-locked ±X pelvis ride
+        const travelHeadingDeg = resolved.headingDeg ?? 0;
+        setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted, stanceWindows, travelHeadingDeg);
+        // MEDIO-LATERAL SHUTTLE: derive the stance-phase-locked pelvis ride
         // toward the planted foot (per-step weight transfer) from the same
-        // trajectory — the lateral sibling of the foot-driven travel.
-        setComposedLateralShuttle(trajectory, resolved.lateralShuttleCm, composedHasPlanted, stanceWindows);
+        // trajectory — the lateral sibling of the foot-driven travel, kept
+        // perpendicular to the same heading.
+        setComposedLateralShuttle(trajectory, resolved.lateralShuttleCm, composedHasPlanted, stanceWindows, travelHeadingDeg);
+        // HEEL-STRIKE TRANSIENT: derive the footfall accents (a brief root-Y
+        // dip-and-recover at each stance-window contact instant, amplitude from
+        // the pre-contact descent of the smoothed vertical) for a foot-driven
+        // gait with a planned stance schedule — AFTER the vertical calibration
+        // above, whose smoothed arc the accent reads and rides on. Null (the
+        // strict identity) for every other motion and on explicit opt-out.
+        setComposedHeelStrike(
+          trajectory,
+          resolved.footDrivenTravel === true &&
+            composedHasPlanted &&
+            effectiveResolved.heelStrikeAccent !== false,
+          stanceWindows,
+        );
         // HAND PLANTS: build the arm IK chains for any grounding-posture reach
         // contacts (a plank's hands), so they stay planted as the chest lowers.
         setComposedHandPlants(built.roots);

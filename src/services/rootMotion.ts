@@ -567,12 +567,19 @@ export function applyVerticalCalibration(y: number, cal: VerticalCalibration, u0
 
 // ── Foot-driven forward travel (root motion FROM foot placement) ──────────────
 
-/** A precomputed forward-travel (world +Z) offset curve over one motion, sampled
- *  at `stepMs` and lerped in between. */
+/** A precomputed travel offset curve over one motion, sampled at fixed steps and
+ *  lerped in between. The scalar offset rides ALONG the derivation's heading
+ *  unit vector (`heading`): for the default heading 0 that is world +Z (the
+ *  original forward-travel behaviour, and why the lookup keeps its `zAt` name). */
 export interface FootDrivenTravel {
   totalMs: number;
-  /** Forward (+Z) root offset, meters, at absolute time tMs. */
+  /** Travel offset ALONG THE HEADING, meters, at absolute time tMs. Heading 0
+   *  ⇒ this is exactly the forward (+Z) root offset (back-compat). */
   zAt(tMs: number): number;
+  /** Heading unit vector [x, z] the offset rides: root += offset·(x, z).
+   *  [0, 1] (straight ahead, +Z) for the default heading 0 — applying it there
+   *  is byte-identical to the old z-only ride. */
+  heading: [number, number];
 }
 
 /** The world Z (forward) of each foot at a phase — what the derivation reads. */
@@ -582,6 +589,18 @@ export interface FeetZ {
   /** World Y of each foot (to pick the planted/lower one). */
   ry: number;
   ly: number;
+  /** World X of each foot — REQUIRED when a non-zero heading is derived (the
+   *  planted foot's backward sweep is projected onto the heading unit vector);
+   *  ignored for the default heading 0. */
+  rx?: number;
+  lx?: number;
+  /** BOTH feet airborne at this sample (a run's ballistic FLIGHT gap — the
+   *  trajectory sample was un-pinned). No grounded reference exists, so the
+   *  forward-travel derivation HOLDS the last grounded advance through the gap
+   *  and resumes at touchdown (the swing feet sweeping in body space mid-air
+   *  must not advance — or retreat — the root). Omit/false for grounded gait:
+   *  back-compat, the derivation is then byte-identical to before. */
+  bothAirborne?: boolean;
 }
 
 /** The world X (medio-lateral) + Y of each foot at a phase — what the lateral
@@ -593,6 +612,11 @@ export interface FeetLateral {
   /** World Y of each foot (to pick the planted/lower one). */
   ry: number;
   ly: number;
+  /** World Z of each foot — REQUIRED when a non-zero heading is derived (the
+   *  lateral coordinate is the projection onto the heading's perpendicular);
+   *  ignored for the default heading 0. */
+  rz?: number;
+  lz?: number;
 }
 
 /** Vertical separation (m) one foot must rise above the other before the
@@ -665,20 +689,51 @@ function scheduledStance(
  * authored braking step; the schedule keeps the advance on the weight-bearing
  * foot. Outside every window — and without the option — the measured feet
  * decide (with hysteresis so near-tie spans can't flutter the choice).
+ *
+ * `headingDeg` (optional) rotates the travel direction about the vertical axis
+ * (0 = straight ahead +Z; + toward subject-left, matching root yawDeg): the
+ * planted foot's backward sweep is measured as its projection onto the heading
+ * unit vector (sinH, cosH) — which needs the feet world X in {@link FeetZ} —
+ * and the returned `heading` tells the applier which (x, z) ride the offset
+ * takes. The caller authors the SAME heading as the body's root yaw, so the FK
+ * sweep and the derived cancellation stay collinear. Heading 0 keeps the
+ * legacy z-only measurement verbatim (byte-identical).
+ * FLIGHT GAPS (a run): a sample whose {@link FeetZ.bothAirborne} is set has NO
+ * planted foot — the derivation holds the last grounded advance through the
+ * gap and treats the first grounded sample after it as a touchdown handoff
+ * (no advance that frame, then track the landing foot). Samples that never
+ * set the flag (every walking gait) take the exact pre-existing path.
  */
 export function deriveFootDrivenTravel(
   sampleFeetAtPhase: (tMs: number) => FeetZ,
   totalMs: number,
   stanceWindows?: GaitStanceWindow[],
   steps = 120,
+  headingDeg = 0,
 ): FootDrivenTravel {
   const n = Math.max(2, steps);
   const dt = totalMs / (n - 1);
   const z = new Array<number>(n).fill(0);
+  // Heading unit vector (x, z): (0, 1) = straight ahead. Math.sin(0)/cos(0) are
+  // exactly 0/1, so the heading-0 path stays byte-identical to the old +Z ride.
+  const hx = Math.sin(headingDeg * RAD);
+  const hz = Math.cos(headingDeg * RAD);
   let prev = sampleFeetAtPhase(0);
   let planted: 'R' | 'L' = scheduledStance(stanceWindows, 0, true) ?? (prev.ry <= prev.ly ? 'R' : 'L');
+  // Inside a FLIGHT gap (both feet airborne — a run's ballistic interval) the
+  // advance is HELD; the first grounded sample after it is a touchdown handoff.
+  let airborne = prev.bothAirborne === true;
   for (let i = 1; i < n; i += 1) {
     const cur = sampleFeetAtPhase(i * dt);
+    // FLIGHT GAP: no foot is planted, so there is no grounded reference to
+    // advance against — the swing legs sweeping in body space mid-air would
+    // otherwise advance/retreat the root. Hold the last grounded advance.
+    if (cur.bothAirborne === true) {
+      z[i] = z[i - 1]!;
+      airborne = true;
+      prev = cur;
+      continue;
+    }
     // Travel-locked schedule first; else HYSTERESIS on the measured decision:
     // hand off only when the other foot is clearly lower. In the cycle the
     // swing foot crosses decisively (tens of cm), but near-tie spans — a
@@ -686,6 +741,16 @@ export function deriveFootDrivenTravel(
     // used to flip-flop the choice per sample, and every flip is a "handoff:
     // no advance" frame that froze the derived travel mid-step.
     const scheduled = scheduledStance(stanceWindows, i * dt, true);
+    if (airborne) {
+      // TOUCHDOWN after a flight gap: the landing foot only just arrived, so
+      // its prev→cur body-space delta spans the airborne sweep — a handoff
+      // frame (no advance), then track the newly grounded foot.
+      airborne = false;
+      planted = scheduled ?? (cur.ry <= cur.ly ? 'R' : 'L');
+      z[i] = z[i - 1]!;
+      prev = cur;
+      continue;
+    }
     let lower: 'R' | 'L' | null = scheduled;
     if (lower == null) {
       lower = planted;
@@ -698,7 +763,17 @@ export function deriveFootDrivenTravel(
       // stance foot can briefly move forward (the physical handoff hasn't
       // completed) — that is a handoff frame, not a retreat, so the advance is
       // floored at 0 (the walking root never backs up mid-window).
-      let back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
+      // For a rotated heading the backward step is the sweep's projection onto
+      // the heading unit vector; heading 0 keeps the legacy z-only expression.
+      let back: number;
+      if (headingDeg === 0) {
+        back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
+      } else {
+        back =
+          planted === 'R'
+            ? (prev.rz - cur.rz) * hz + ((prev.rx ?? 0) - (cur.rx ?? 0)) * hx
+            : (prev.lz - cur.lz) * hz + ((prev.lx ?? 0) - (cur.lx ?? 0)) * hx;
+      }
       if (scheduled != null) back = Math.max(0, back);
       z[i] = z[i - 1]! + back;
     } else {
@@ -717,18 +792,26 @@ export function deriveFootDrivenTravel(
       const k = Math.min(n - 2, Math.floor(u));
       return z[k]! + (z[k + 1]! - z[k]!) * (u - k);
     },
+    heading: [hx, hz],
   };
 }
 
 // ── Medio-lateral root shuttle (root motion FROM foot placement, X axis) ──────
 
-/** A precomputed medio-lateral (world X) pelvis-shuttle offset curve over one
- *  motion, sampled at fixed steps and lerped in between — the lateral sibling of
- *  {@link FootDrivenTravel}. */
+/** A precomputed medio-lateral pelvis-shuttle offset curve over one motion,
+ *  sampled at fixed steps and lerped in between — the lateral sibling of
+ *  {@link FootDrivenTravel}. The scalar offset rides along the derivation's
+ *  LATERAL unit vector (`lateral` — the heading's left-perpendicular); for the
+ *  default heading 0 that is world +X (the original behaviour). */
 export interface LateralShuttle {
   totalMs: number;
-  /** Medio-lateral (world X, subject-left+) root offset, meters, at tMs. */
+  /** Medio-lateral (stance-side+, subject-left+ at heading 0) root offset,
+   *  meters, at tMs — applied along `lateral`. */
   xAt(tMs: number): number;
+  /** Lateral unit vector [x, z] the offset rides: root += offset·(x, z).
+   *  [1, 0] (world +X, subject-left) for the default heading 0 — applying it
+   *  there is byte-identical to the old x-only ride. */
+  lateral: [number, number];
 }
 
 /**
@@ -755,8 +838,15 @@ export interface LateralShuttle {
  * phase-locked to the same schedule any authored trunk counter-lean was
  * authored against, so root ride and absorb can never drift apart. Without it
  * the windows are the measured contiguous planted-foot runs. Returns a
- * piecewise-linear lookup applied to root X only — vertical grounding and
- * forward travel keep their own channels.
+ * piecewise-linear lookup applied along the heading's LATERAL unit only —
+ * vertical grounding and forward travel keep their own channels.
+ *
+ * `headingDeg` (optional) keeps the shuttle PERPENDICULAR to a rotated travel
+ * heading (same convention as {@link deriveFootDrivenTravel}): the feet's
+ * lateral coordinate is their projection onto the heading's left-perpendicular
+ * (cosH, −sinH) — which needs the feet world Z in {@link FeetLateral} — and
+ * the returned `lateral` tells the applier which (x, z) ride the offset takes.
+ * Heading 0 keeps the legacy world-X measurement verbatim (byte-identical).
  */
 export function deriveGaitLateralShuttle(
   sampleFeetAtPhase: (tMs: number) => FeetLateral,
@@ -764,11 +854,20 @@ export function deriveGaitLateralShuttle(
   amplitudeM: number,
   stanceWindows?: GaitStanceWindow[],
   steps = 120,
+  headingDeg = 0,
 ): LateralShuttle {
   const n = Math.max(2, steps);
   const dt = totalMs / (n - 1);
   const x = new Array<number>(n).fill(0);
   const amp = Math.max(0, amplitudeM);
+  // Lateral unit vector (x, z) = the heading's left-perpendicular: (1, 0) for
+  // heading 0 (world +X — the legacy axis; sin(0)/cos(0) are exact, so the
+  // heading-0 path is byte-identical to the old x-only measurement).
+  const hx = Math.sin(headingDeg * RAD);
+  const hz = Math.cos(headingDeg * RAD);
+  /** Lateral (left-perpendicular-to-heading) coordinate of a foot. */
+  const latOf = (fx: number, fz: number | undefined): number =>
+    headingDeg === 0 ? fx : fx * hz - (fz ?? 0) * hx;
   if (amp > 0) {
     const feet: FeetLateral[] = [];
     for (let i = 0; i < n; i += 1) feet.push(sampleFeetAtPhase(i * dt));
@@ -782,7 +881,7 @@ export function deriveGaitLateralShuttle(
     }
     // Body centre line = mean of the two feet across the cycle.
     let centerX = 0;
-    for (const f of feet) centerX += (f.rx + f.lx) / 2;
+    for (const f of feet) centerX += (latOf(f.rx, f.rz) + latOf(f.lx, f.lz)) / 2;
     centerX /= n;
     // Stance windows in sample indices: the planned schedule when supplied,
     // else the measured contiguous planted-foot runs.
@@ -809,7 +908,8 @@ export function deriveGaitLateralShuttle(
       for (let k = i0; k <= i1; k += 1) if (planted[k] === 'R') rCount += 1;
       const foot: 'R' | 'L' = schedFoot ?? (rCount * 2 >= i1 - i0 + 1 ? 'R' : 'L');
       let stanceX = 0;
-      for (let k = i0; k <= i1; k += 1) stanceX += foot === 'R' ? feet[k]!.rx : feet[k]!.lx;
+      for (let k = i0; k <= i1; k += 1)
+        stanceX += foot === 'R' ? latOf(feet[k]!.rx, feet[k]!.rz) : latOf(feet[k]!.lx, feet[k]!.lz);
       stanceX = stanceX / (i1 - i0 + 1) - centerX;
       // Toward the stance foot, capped inside the half-stance-width (60%) so a
       // narrow stance can never be over-shuttled past its own base edge.
@@ -828,6 +928,7 @@ export function deriveGaitLateralShuttle(
       const k = Math.min(n - 2, Math.floor(u));
       return x[k]! + (x[k + 1]! - x[k]!) * (u - k);
     },
+    lateral: [hz, -hx],
   };
 }
 
@@ -1077,4 +1178,129 @@ export function weightedDescentApplies(resolved: WeightedDescentMotionLike): boo
   if (resolved.contacts?.length) return false;
   if (resolved.keyframes.some((kf) => kf.stance === 'floating')) return false;
   return resolved.keyframes.some((kf) => kf.stance === 'planted');
+}
+
+// ── Heel-strike transient (footfall accent — roadmap 4.6) ────────────────────
+//
+// The audit's "no impact transient" finding: the calibrated + smoothed gait
+// vertical glides through each footfall — the double-support valley is
+// deliberately rounded (do NOT reduce that smoothing) — so contact carries no
+// weight. This section is the additive accent ON TOP of the smoothed arc: at
+// each foot-CONTACT instant (the starts of the same planned stance schedule
+// the shuttle/travel derivations follow — a window opens when its foot lands),
+// a brief downward DIP-AND-RECOVER on root Y, shaped by a critically-damped
+// (non-oscillating) bump kernel with compact support: zero at contact, fast
+// drop to the full dip ~40% into the span, damped recovery to exactly zero by
+// the span's end — an impact caught by the loading-response knee, never a
+// bounce. Amplitude scales with the PRE-CONTACT DESCENT RATE of the smoothed
+// arc (faster arrival = firmer accent), clamped to a subtle 0.5–1 cm band.
+//
+// KINEMATIC CHARTER + LOCKSTEP. Root-Y ONLY, derived in a deterministic
+// pre-pass over the built trajectory (the vertical-calibration pattern: the
+// sampler and the live stage run the SAME derivation on the same smoothed arc
+// and apply the same offset per frame). Gait-only: the sampler/stage derive it
+// only for a foot-driven motion with a planned stance schedule; every other
+// motion is byte-identical. The foot-plant IK after it absorbs the dip in the
+// stance knee (the plant target compensates the offset at capture, so the
+// stance foot still pins ON the floor — see the sampler/stage apply sites).
+
+/** Kernel span (ms): the dip fully rises and recovers within this window after
+ *  the contact instant — a brief transient, not a bounce (~80–120 ms in life). */
+export const HEEL_STRIKE_SPAN_MS = 110;
+/** Softest accent dip (m) — a footfall always lands with SOME weight. */
+export const HEEL_STRIKE_MIN_DIP_M = 0.005;
+/** Firmest accent dip (m) — subtle; the smoothed arc stays the star. */
+export const HEEL_STRIKE_MAX_DIP_M = 0.01;
+/** Pre-contact descent rate (m/s) of the smoothed arc at which the accent
+ *  saturates at {@link HEEL_STRIKE_MAX_DIP_M}. The walk's smoothed vertical
+ *  descends O(0.1 m/s) into double support; a faster (paced) arrival firms the
+ *  accent toward the cap. */
+export const HEEL_STRIKE_REF_DESCENT_M_S = 0.25;
+/** Window (ms) BEFORE the contact instant over which the smoothed arc's
+ *  descent rate is read (finite difference). */
+const HEEL_STRIKE_RATE_WINDOW_MS = 80;
+/** Peak position + normalization of the compact critically-damped bump
+ *  u²(1−u)³ over u∈[0,1]: peak 1 at u = 2/5 (44 ms into the 110 ms span). */
+const HEEL_STRIKE_KERNEL_NORM = 3125 / 108;
+
+/** One derived footfall accent: a dip of `dipM` metres starting at `atMs`. */
+export interface HeelStrikeAccent {
+  atMs: number;
+  dipM: number;
+}
+
+/** The derived accent schedule for one motion: identity outside every span. */
+export interface HeelStrikeAccents {
+  totalMs: number;
+  accents: HeelStrikeAccent[];
+}
+
+/**
+ * Derive the footfall accent schedule from the SMOOTHED grounded arc.
+ * `smoothedRootYAt(tMs)` must return the pipeline's post-calibration root-Y at
+ * absolute time tMs (the caller poses the rig, floor-pins and applies its
+ * vertical calibration — exactly what its playback shows before the accent).
+ * `contactInstantsMs` are the foot-contact instants — the STARTS of the same
+ * planned stance schedule (gaitStanceWindowsMs, trajectory time base) the
+ * shuttle/travel derivations follow. A start at t≈0 is the standing entry (no
+ * arrival to accent) and is skipped; each remaining contact gets a dip
+ * amplitude lerped {@link HEEL_STRIKE_MIN_DIP_M}→{@link HEEL_STRIKE_MAX_DIP_M}
+ * by its pre-contact descent rate. Returns null when no contact qualifies
+ * (the identity). Deterministic: same arc + instants → same accents.
+ */
+export function deriveHeelStrikeAccents(
+  smoothedRootYAt: (tMs: number) => number,
+  contactInstantsMs: number[],
+  totalMs: number,
+): HeelStrikeAccents | null {
+  if (!(totalMs > 0)) return null;
+  const accents: HeelStrikeAccent[] = [];
+  for (const c of contactInstantsMs) {
+    if (!Number.isFinite(c) || c < 1 || c >= totalMs) continue; // t≈0 = standing entry
+    const w = Math.min(HEEL_STRIKE_RATE_WINDOW_MS, c);
+    if (w <= 0) continue;
+    // Descent rate of the smoothed arc INTO this contact (+ = descending, m/s).
+    const rate = Math.max(0, (smoothedRootYAt(c - w) - smoothedRootYAt(c)) / (w / 1000));
+    const firmness = Math.min(1, rate / HEEL_STRIKE_REF_DESCENT_M_S);
+    accents.push({
+      atMs: c,
+      dipM: HEEL_STRIKE_MIN_DIP_M + (HEEL_STRIKE_MAX_DIP_M - HEEL_STRIKE_MIN_DIP_M) * firmness,
+    });
+  }
+  return accents.length ? { totalMs, accents } : null;
+}
+
+/**
+ * The accent's root-Y OFFSET (≤ 0, metres) at time tMs — the critically-damped
+ * bump evaluated over every accent span covering tMs (spans of a symmetric
+ * gait never overlap; summing keeps the lookup total-order-free anyway).
+ * Exactly 0 outside every span and for a null schedule, so unaccented playback
+ * is byte-identical. The caller adds this to the calibrated root-Y — and
+ * subtracts it from a foot-plant target captured while it is non-zero, so the
+ * landing foot pins at its natural floor contact and the dip is absorbed by
+ * the leg IK (the loading-response knee) instead of burying the foot.
+ */
+export function heelStrikeOffsetAt(
+  accents: HeelStrikeAccents | null | undefined,
+  tMs: number,
+): number {
+  if (!accents) return 0;
+  let off = 0;
+  for (const a of accents.accents) {
+    const u = (tMs - a.atMs) / HEEL_STRIKE_SPAN_MS;
+    if (u <= 0 || u >= 1) continue;
+    off -= a.dipM * HEEL_STRIKE_KERNEL_NORM * u * u * (1 - u) ** 3;
+  }
+  return off;
+}
+
+/** Apply the footfall accent to the calibrated root-Y at tMs — identity for a
+ *  null schedule and outside every span (mirrors applyVerticalCalibration's
+ *  role in the vertical pipeline: pin → vcal → accent → travel/shuttle). */
+export function applyHeelStrikeAccent(
+  y: number,
+  accents: HeelStrikeAccents | null | undefined,
+  tMs: number,
+): number {
+  return y + heelStrikeOffsetAt(accents, tMs);
 }
