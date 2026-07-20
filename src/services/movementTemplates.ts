@@ -293,10 +293,10 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 60 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -5 },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 12 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -12 },
-          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 15 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 25 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 14 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -14 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 26 },
         ],
       },
       {
@@ -325,10 +325,10 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
-          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 29 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 11 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -14 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 14 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 26 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
         ],
       },
       {
@@ -357,10 +357,10 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 60 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -5 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 12 },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -12 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 15 },
-          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 25 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 14 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -14 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 26 },
         ],
       },
       {
@@ -389,10 +389,10 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 29 },
-          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 11 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -14 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 14 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 26 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
         ],
       },
     ],
@@ -2049,6 +2049,11 @@ const SCAP_PROT_GAIN = 0.35; // scapular protraction/retraction: the shoulder GI
 const SCAP_PROT_MAX = 10; // fore/aft on the ribcage WITH the arm swing (protract on the
 // forward swing, retract on the backswing) — arm swing isn't purely glenohumeral. Coupled
 // to the same arm's flexion, so the two scapulae counter-phase like a real girdle.
+const WRIST_FLEX_BASE = 10; // a relaxed swinging hand isn't a rigid paddle: the wrist carries
+const WRIST_DRAG = 0.28; // a slight resting flexion and DRAGS behind the forearm — trailing
+const WRIST_FLEX_MAX = 22; // (less flexion on the forward swing, more on the backswing).
+const FINGER_CURL_DEG = 32; // the fingers rest gently CURLED (a loose relaxed hand), not
+// splayed straight. Constant posture (carried across the cycle), applied per digit.
 const HIP_ADD_GAIN = 0.18; // the SWING leg ADducts toward the midline (a narrow base) as it
 const HIP_FLEX_MEAN = 10; // advances — the feet track near the line of progression, NOT
 const HIP_ADD_MAX = 6; // splayed out (abduction, which reads as a wide waddle/circumduction)
@@ -2174,6 +2179,13 @@ export function spinalGaitCoordination(
         // Scapular girdle glides fore/aft WITH the arm: protract on the forward swing
         // (sh > 0), retract on the backswing (sh < 0). + protraction = Pro (romRegistry).
         additions.push({ joint: `${S}_Shoulder`, motion: 'protraction', deg: cap(SCAP_PROT_GAIN * sh, SCAP_PROT_MAX) });
+        // WRIST: a relaxed hand isn't a rigid paddle — it holds a slight resting flexion and
+        // DRAGS behind the forearm (less flexion as the arm swings forward, more on the
+        // backswing), so the hand passively wobbles with the swing instead of locking stiff.
+        additions.push({ joint: `${S}_Hand`, motion: 'wristFlexion', deg: cap(WRIST_FLEX_BASE - WRIST_DRAG * sh, WRIST_FLEX_MAX) });
+        // FINGERS: rest gently curled (a loose relaxed hand), not splayed rigid-straight.
+        for (const fk of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const)
+          additions.push({ joint: `${S}_${fk}`, motion: 'fingerFlexion', deg: FINGER_CURL_DEG });
       }
       // LEG: the SWING leg ADducts toward the midline as it advances (the feet track near
       // the line of progression — a narrow base), NOT abducts (a wide, waddling splay); the

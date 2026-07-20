@@ -387,15 +387,16 @@ export interface ComposedMotion {
  *  two jumps. 48 covers ~8 jumps / 6 gait cycles / a long exercise set while
  *  still bounding an AI plan's size + token cost. */
 export const MAX_KEYFRAMES = 48;
-/** Most joint targets a single keyframe may hold. 32 covers a FULLY-COORDINATED gait
+/** Most joint targets a single keyframe may hold. 48 covers a FULLY-COORDINATED gait
  *  keyframe: 6 legs + 4 arms (10 sagittal) + the spinal set (thoracic/lumbar rotation,
  *  spine + neck lateral tilt, neck gaze counter, + the 2 hip counter-rotations — 8) + the
- *  limb NON-SAGITTAL set (per-arm shoulder abduction + forearm rotation, per-leg hip
- *  abduction + knee rotation + ankle inversion — 10) = 28, with headroom for a fault
- *  overlay. (Was 20, before the limb non-sagittal coordination; 12 before the spinal.)
+ *  limb NON-SAGITTAL / DISTAL set (per-arm shoulder abduction + forearm rotation + scapular
+ *  protraction + wrist flexion + 5 finger curls, per-leg hip abduction + knee rotation +
+ *  ankle inversion — 24) = 42, with headroom for a fault overlay. (Was 32 before the
+ *  scapular/wrist/finger detail; 20 before the limb non-sagittal; 12 before the spinal.)
  *  Overflow beyond it is NON-FATAL — the first N play, the rest are refused per-target
  *  with reason 'target-limit'. */
-export const MAX_TARGETS_PER_KEYFRAME = 32;
+export const MAX_TARGETS_PER_KEYFRAME = 48;
 /** Fast clinical motion bound — the DEFAULT ('deliberate') velocity-class cap;
  *  no commanded joint may be asked to travel faster than this unless a keyframe
  *  opts into a higher {@link VelocityClass}. Keyframe durations are raised to
