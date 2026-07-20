@@ -19,9 +19,15 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { ComposedMotionPlaybackResult } from '../services/motionSequence';
+import { GAIT_VERTICAL_MAX_RISE_M } from '../services/motionRecording';
+import { applyVerticalCalibration, deriveVerticalCalibration } from '../services/rootMotion';
 
 const stageSource = readFileSync(
   fileURLToPath(new URL('../ExamStage3D.svelte', import.meta.url)),
+  'utf8',
+);
+const samplerSource = readFileSync(
+  fileURLToPath(new URL('../services/motionRecording.ts', import.meta.url)),
   'utf8',
 );
 
@@ -128,6 +134,66 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
 
   it('drops the plants when the motion ends (no stale IK on the next motion)', () => {
     expect(stageSource).toMatch(/function cancelComposed[\s\S]{0,200}composedPlants = \[\]/);
+  });
+});
+
+describe('DET-LOCK-01 — the live vcal passes the gait vertical rise clamp (lockstep)', () => {
+  // The smoothed gait vertical rounds the double-support valley by RAISING the
+  // pelvis; unclamped, a foot-plant-IK'd stance leg over-reaches and the foot
+  // skates — live-only, since the offline sampler always clamped. Both call
+  // sites must pass the SAME exported constant under the SAME plants-active
+  // condition, or live playback silently diverges from every recording/test.
+  it('the sampler clamps the smoothed rise when foot plants are active', () => {
+    expect(samplerSource).toContain(
+      'footPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined',
+    );
+  });
+
+  it('the stage imports the sampler’s clamp constant (one shared value, not a copy)', () => {
+    expect(stageSource).toMatch(
+      /GAIT_VERTICAL_MAX_RISE_M,\s*\n\s*\} = await import\('\.\/services\/motionRecording'\)/,
+    );
+  });
+
+  it('the stage’s deriveVerticalCalibration mirrors the sampler’s clamp argument', () => {
+    // The exact 5th argument: clamp iff this motion built foot plants (the
+    // travelling walk), mirroring the sampler's footPlants gate.
+    expect(stageSource).toContain(
+      "}, targetCm / 100, 48, true, composedPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined);",
+    );
+    // …and that tail belongs to setComposedVerticalCalibration's derive call.
+    // (Window 2100: the derive closure body + the lockstep comment block sit
+    // between the function head and the argument tail.)
+    expect(stageSource).toMatch(
+      /function setComposedVerticalCalibration[\s\S]{0,2100}composedPlants\.length > 0 \? GAIT_VERTICAL_MAX_RISE_M : undefined/,
+    );
+  });
+
+  it('numerically: the clamped calibration never lifts the pelvis more than the rise limit above the pin', () => {
+    // A gait-like floor-pin arc: flat single-stance plateaus with two sharp
+    // V-valleys (double support) per cycle — the sawtooth shape the smoothing
+    // was built to round. Depth 6 cm, width 5% of the cycle.
+    const valley = (u: number, c: number, w: number) => Math.max(0, 1 - Math.abs(u - c) / w);
+    const pinY = (u01: number) => 0.95 - 0.06 * (valley(u01, 0.25, 0.05) + valley(u01, 0.75, 0.05));
+    const targetM = 0.03; // a typical requested vertical excursion (3 cm)
+
+    const unclamped = deriveVerticalCalibration(pinY, targetM, 48, true);
+    const clamped = deriveVerticalCalibration(pinY, targetM, 48, true, GAIT_VERTICAL_MAX_RISE_M);
+
+    let worstUnclamped = -Infinity;
+    let worstClamped = -Infinity;
+    for (let i = 0; i < 480; i += 1) {
+      const u = i / 480;
+      const pin = pinY(u);
+      worstUnclamped = Math.max(worstUnclamped, applyVerticalCalibration(pin, unclamped, u) - pin);
+      worstClamped = Math.max(worstClamped, applyVerticalCalibration(pin, clamped, u) - pin);
+    }
+    // Without the clamp the smoothed valley rides well above the pin — the exact
+    // live-only over-reach DET-LOCK-01 measured (stage omitted the 5th argument).
+    expect(worstUnclamped).toBeGreaterThan(GAIT_VERTICAL_MAX_RISE_M + 0.005);
+    // With it, the calibrated vertical never exceeds pin + 2.5 cm (+ float eps).
+    expect(worstClamped).toBeLessThanOrEqual(GAIT_VERTICAL_MAX_RISE_M + 1e-9);
+    expect(GAIT_VERTICAL_MAX_RISE_M).toBeCloseTo(0.025, 10);
   });
 });
 

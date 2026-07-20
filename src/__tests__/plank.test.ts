@@ -19,6 +19,7 @@ import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
 import { sampleMotionChain } from '../services/movementChain';
 import { planPosturePath } from '../services/posturePlan';
+import { resolveComposedMotion } from '../services/motionSequence';
 import { buildGetDownToPlank, buildPushUp, buildStandFromPlank } from '../services/movementTemplates';
 import { measureCommandMotion } from '../services/movementCommand';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
@@ -38,6 +39,28 @@ describe('planPosturePath — plank edges (pure)', () => {
     expect(up?.length).toBe(1);
     expect(up![0]!.startPosture).toBe('plank');
     expect(up![0]!.endPosture).toBe('standing');
+  });
+});
+
+describe('DET-RES-02 — plank family authors the ankle WITHIN ROM (no silent clamp)', () => {
+  // The toe-tuck used to author 40° plantarflexion against the 20° ankleFlexion
+  // ROM limit — resolution silently clamped it, so authored intent and what
+  // actually played disagreed. The family now authors AT the limit; this pins
+  // that every ankle target survives resolution unchanged.
+  it('every ankleFlexion target in get-down/push-up/stand resolves to exactly its authored value', () => {
+    for (const motion of [buildGetDownToPlank(), buildPushUp({ reps: 2 }), buildStandFromPlank()]) {
+      const resolved = resolveComposedMotion(motion, BODY_VARIANTS.male);
+      expect(resolved.status, motion.name).toBe('ok');
+      const ankles = resolved.outcomes.filter((o) => o.motion === 'ankleFlexion');
+      expect(ankles.length, `${motion.name} authors ankle targets`).toBeGreaterThan(0);
+      for (const o of ankles) {
+        expect(o.status, `${motion.name} kf${o.keyframe} ${o.joint}.ankleFlexion`).not.toBe('refused');
+        expect(
+          Math.abs((o.clampedDegrees ?? NaN) - o.requestedDegrees),
+          `${motion.name} kf${o.keyframe} ${o.joint}.ankleFlexion: authored ${o.requestedDegrees}° clamped to ${o.clampedDegrees}° (exceeds ROM)`,
+        ).toBeLessThan(1e-6);
+      }
+    }
   });
 });
 

@@ -2628,7 +2628,10 @@ const plankLimbs = (shoulder: number, elbow: number): SequenceTarget[] => [
   // hand-plant IK, which rotates only the shoulder/elbow. (Neg wristFlexion = extension.)
   { joint: 'L_Hand', motion: 'wristFlexion', targetDegrees: -45 },
   { joint: 'R_Hand', motion: 'wristFlexion', targetDegrees: -45 },
-  ...bilatLeg(0, 0, 40),
+  // Ankle plantarflexed so the toes tuck under for the toe pin — authored AT the
+  // 20° ankleFlexion ROM limit (DET-RES-02: the old 40° was silently clamped to
+  // 20 at resolution, so intent and outcome disagreed; 20 is what actually plays).
+  ...bilatLeg(0, 0, 20),
 ];
 
 /** GET INTO A PLANK — standing → plank. Crouch and hinge forward with the hands

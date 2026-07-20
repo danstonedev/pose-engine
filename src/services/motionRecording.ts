@@ -277,8 +277,11 @@ const _svB = new THREE.Vector3();
 /** How far (m) the SMOOTHED gait vertical may raise the pelvis above the live floor-pin
  *  when the stance feet are foot-plant IK'd. Rounding the double-support valley raises
  *  the pelvis; too much makes a planted stance leg over-reach and slide the foot. This
- *  bounds the over-reach so the smoothing stays foot-safe (rig-swept vs the slide gate). */
-const GAIT_VERTICAL_MAX_RISE_M = 0.025;
+ *  bounds the over-reach so the smoothing stays foot-safe (rig-swept vs the slide gate).
+ *  Exported because the live stage's mirror deriveVerticalCalibration call MUST pass the
+ *  SAME clamp under the same plants-active condition (DET-LOCK-01 lockstep — source-pinned
+ *  in stageReliability.test.ts), or live playback diverges from every recording. */
+export const GAIT_VERTICAL_MAX_RISE_M = 0.025;
 
 /**
  * Offline-sample a RESOLVED composed motion: replay the exact per-keyframe

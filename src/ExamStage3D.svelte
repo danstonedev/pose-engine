@@ -541,6 +541,7 @@
         buildComposedTrajectory,
         buildLoopTrajectory,
         DEFAULT_TRACKED_BONES,
+        GAIT_VERTICAL_MAX_RISE_M,
       } = await import('./services/motionRecording');
       const {
         captureFloorReference,
@@ -1653,7 +1654,13 @@
           modelRoot!.updateMatrixWorld(true);
           if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
           return modelRoot!.position.y;
-        }, targetCm / 100, 48, true); // smooth: round the sharp double-support valley
+          // smooth: round the sharp double-support valley. When feet are foot-plant IK'd
+          // (the travelling walk), clamp how far the smoothed pelvis may rise above the pin
+          // so a planted stance leg doesn't over-reach and slide the foot — the SAME
+          // maxRiseM the offline sampler passes, under the SAME plants-active condition
+          // (DET-LOCK-01 lockstep); the contact-free in-place walk (treadmill) has no such
+          // foot to over-reach, so no clamp.
+        }, targetCm / 100, 48, true, composedPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined);
       }
 
       /** FOOT-DRIVEN forward travel for the ACTIVE composed motion — the derived
