@@ -260,8 +260,10 @@ describe('resolveComposedMotion', () => {
     expect(r.reason).toContain('too-many-keyframes');
   });
 
-  // A legitimate full-body keyframe: 2 hips + 2 knees + 2 ankles + trunk×2 +
-  // 2 elbows + 2 shoulders (12), plus the neck as the 13th (overflow).
+  // A coordinated full-body keyframe: 6 legs + 4 arms + the spinal-coordination set
+  // (thoracic/lumbar rotation, spine + neck lateral tilt, neck gaze counter) = 20 that
+  // all survive, plus a Neck flexion as the (MAX+1)th (overflow). Order matters: the
+  // overflow one is LAST so it's the one deterministically dropped.
   const fullBodyTargets = [
     ['L_UpLeg', 'hipFlexion'],
     ['R_UpLeg', 'hipFlexion'],
@@ -269,36 +271,44 @@ describe('resolveComposedMotion', () => {
     ['R_Leg', 'kneeFlexion'],
     ['L_Foot', 'ankleFlexion'],
     ['R_Foot', 'ankleFlexion'],
-    ['Spine_Lower', 'flexion'],
-    ['Spine_Upper', 'flexion'],
     ['L_Forearm', 'elbowFlexion'],
     ['R_Forearm', 'elbowFlexion'],
     ['L_UpperArm', 'shoulderFlexion'],
     ['R_UpperArm', 'shoulderFlexion'],
-    ['Neck', 'flexion'],
+    ['Spine_Lower', 'flexion'],
+    ['Spine_Upper', 'flexion'],
+    ['Spine_Lower', 'rotation'],
+    ['Spine_Upper', 'rotation'],
+    ['Spine_Lower', 'lateralTilt'],
+    ['Spine_Upper', 'lateralTilt'],
+    ['Neck', 'rotation'],
+    ['Neck', 'lateralTilt'],
+    ['L_UpLeg', 'hipAbduction'],
+    ['R_UpLeg', 'hipAbduction'],
+    ['Neck', 'flexion'], // the (MAX+1)th — overflow
   ].map(([joint, motion]) => ({ joint: joint!, motion: motion!, deg: 5 }));
 
   it(`a keyframe with exactly ${MAX_TARGETS_PER_KEYFRAME} targets resolves clean`, () => {
-    expect(MAX_TARGETS_PER_KEYFRAME).toBe(12);
+    expect(MAX_TARGETS_PER_KEYFRAME).toBe(20);
     const r = resolveComposedMotion(
-      { keyframes: [kf(fullBodyTargets.slice(0, 12), 500)] },
+      { keyframes: [kf(fullBodyTargets.slice(0, MAX_TARGETS_PER_KEYFRAME), 500)] },
       variantCfg,
     );
     expect(r.status).toBe('ok');
-    expect(r.keyframes[0]!.targets).toHaveLength(12);
-    expect(r.outcomes).toHaveLength(12);
+    expect(r.keyframes[0]!.targets).toHaveLength(MAX_TARGETS_PER_KEYFRAME);
+    expect(r.outcomes).toHaveLength(MAX_TARGETS_PER_KEYFRAME);
     expect(r.outcomes.every((o) => o.status !== 'refused')).toBe(true);
   });
 
-  it(`overflow past ${MAX_TARGETS_PER_KEYFRAME} targets is NON-FATAL: first 12 play, the rest refuse as 'target-limit'`, () => {
+  it(`overflow past ${MAX_TARGETS_PER_KEYFRAME} targets is NON-FATAL: first N play, the rest refuse as 'target-limit'`, () => {
     const r = resolveComposedMotion({ keyframes: [kf(fullBodyTargets, 500)] }, variantCfg);
     expect(r.status).toBe('ok'); // the keyframe/plan is never refused for overflow alone
-    // Deterministic order as received: the first 12 survive…
+    // Deterministic order as received: the first MAX survive…
     expect(r.keyframes[0]!.targets.map((t) => t.joint)).toEqual(
-      fullBodyTargets.slice(0, 12).map((t) => t.joint),
+      fullBodyTargets.slice(0, MAX_TARGETS_PER_KEYFRAME).map((t) => t.joint),
     );
-    // …and the 13th (the neck) is refused-with-reason, still fully reported.
-    expect(r.outcomes).toHaveLength(13);
+    // …and the (MAX+1)th (the neck flexion) is refused-with-reason, still fully reported.
+    expect(r.outcomes).toHaveLength(MAX_TARGETS_PER_KEYFRAME + 1);
     const dropped = r.outcomes.filter((o) => o.reason === 'target-limit');
     expect(dropped).toEqual([
       {

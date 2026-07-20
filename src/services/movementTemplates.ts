@@ -1402,6 +1402,11 @@ const plankLimbs = (shoulder: number, elbow: number): SequenceTarget[] => [
   { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: shoulder },
   { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: elbow },
   { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: elbow },
+  // Wrist EXTENDED so the palm lays flat on the floor (fingers forward) instead of
+  // the hand hanging fingers-down and resting on the fingertips. Preserved through the
+  // hand-plant IK, which rotates only the shoulder/elbow. (Neg wristFlexion = extension.)
+  { joint: 'L_Hand', motion: 'wristFlexion', targetDegrees: -45 },
+  { joint: 'R_Hand', motion: 'wristFlexion', targetDegrees: -45 },
   ...bilatLeg(0, 0, 40),
 ];
 
@@ -1678,7 +1683,11 @@ export function antalgicLean(motion: ComposedMotion, side: 'left' | 'right', deg
 // the believable-normal band, never near end-range.
 const SPINE_AXIAL_MAX = 14; // thoracic rotation cap (ROM ±35)
 const SPINE_LUMBAR_AXIAL_MAX = 8; // lumbar rotation cap (tight ROM ±10)
-const SPINE_NECK_MAX = 12; // cervical rotation cap (ROM ±80)
+// Cervical caps large enough to FULLY counter the trunk the head inherits (thoracic
+// 14 + lumbar 8 = 22 axial; lateral 8 + 8 = 16) so gaze stabilization is never clipped
+// short — well within cervical ROM (rotation ±80, lateral flexion ±45).
+const SPINE_NECK_MAX = 24; // cervical rotation cap
+const SPINE_NECK_LATERAL_MAX = 18; // cervical lateral-flexion cap
 const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
 
 /**
@@ -1707,7 +1716,7 @@ export function spinalGaitCoordination(
 ): ComposedMotion {
   const kAx = Math.max(0, opts.axial ?? 0.16);
   const kLat = Math.max(0, opts.lateral ?? 0.09);
-  const headStab = Math.max(0, Math.min(1, opts.headStabilize ?? 0.5));
+  const headStab = Math.max(0, Math.min(1, opts.headStabilize ?? 1));
   if (kAx === 0 && kLat === 0) return motion;
   const cap = (v: number, m: number): number => Math.max(-m, Math.min(m, v));
   const at = (ts: SequenceTarget[], joint: string, mo: string): number =>
@@ -1723,14 +1732,24 @@ export function spinalGaitCoordination(
     const airborne = kf.stance === 'floating' ? 0.35 : 1;
     const thoracic = cap(-kAx * armDiff, SPINE_AXIAL_MAX); // thorax rotates with the girdle
     const lumbar = cap(-kAx * 0.3 * armDiff, SPINE_LUMBAR_AXIAL_MAX); // lumbar follows
-    const neck = cap(headStab * kAx * 1.3 * armDiff, SPINE_NECK_MAX); // counter → gaze forward
     const lean = -kLat * hipDiff * airborne; // lean toward the stance (less-flexed) hip
+    const leanLower = cap(lean, SPINE_LATERAL_MAX);
+    const leanUpper = cap(0.5 * lean, SPINE_LATERAL_MAX);
+    // GAZE STABILIZATION (vestibulo-ocular): the head hangs off the top of the spine,
+    // so without correction it inherits the WHOLE trunk's axial rotation (thoracic +
+    // lumbar) and lateral tilt and the eyes swing off the line of travel. Counter-rotate
+    // the neck by exactly what the head would inherit, so the gaze stays level and
+    // forward through the stride (headStab 1 = fully stable; 0 = head rides the trunk).
+    // A motion that drives the neck itself (e.g. "look left") isn't run through here.
+    const neckAxial = cap(-headStab * (thoracic + lumbar), SPINE_NECK_MAX);
+    const neckLateral = cap(-headStab * (leanLower + leanUpper), SPINE_NECK_LATERAL_MAX);
     const additions: { joint: string; motion: string; deg: number }[] = [
       { joint: 'Spine_Upper', motion: 'rotation', deg: thoracic },
       { joint: 'Spine_Lower', motion: 'rotation', deg: lumbar },
-      { joint: 'Neck', motion: 'rotation', deg: neck },
-      { joint: 'Spine_Lower', motion: 'lateralTilt', deg: cap(lean, SPINE_LATERAL_MAX) },
-      { joint: 'Spine_Upper', motion: 'lateralTilt', deg: cap(0.5 * lean, SPINE_LATERAL_MAX) },
+      { joint: 'Neck', motion: 'rotation', deg: neckAxial },
+      { joint: 'Spine_Lower', motion: 'lateralTilt', deg: leanLower },
+      { joint: 'Spine_Upper', motion: 'lateralTilt', deg: leanUpper },
+      { joint: 'Neck', motion: 'lateralTilt', deg: neckLateral },
     ];
     const targets = [...ts];
     for (const a of additions) {
