@@ -412,6 +412,9 @@ export function sampleComposedMotion(
         startTranslate: prevTranslate,
         timeScale,
         reps: resolved.reps,
+        // A foot-driven travelling gait is a steady cadence, not a gesture: keep the
+        // limb swing uniform at the ends (no ease-in whip / halt).
+        cyclicEnds: resolved.footDrivenTravel === true,
       });
   const totalMs = trajectory.totalMs;
   const dtMs = 1000 / hz;

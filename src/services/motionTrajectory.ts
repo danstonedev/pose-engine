@@ -389,10 +389,19 @@ export function buildComposedTrajectory(
      *  (interior rep boundaries are fly-throughs unless the last keyframe holds);
      *  only the FINAL keyframe of the LAST rep is the settle stop. */
     reps?: number;
+    /** CYCLIC ends (locomotion): a travelling gait is a steady rhythm, not a
+     *  gesture — easing to zero velocity at the start (the neutral→gait entry) and
+     *  end makes the limbs whip in to catch up and halt at the finish, so the arm
+     *  swing reads as ACCELERATED at both ends. When set, the first and last knots
+     *  are fly-throughs (non-stop): the entry begins already at swing velocity and
+     *  the exit doesn't brake, so the cadence stays uniform. Knot TIMES are
+     *  unchanged (foot contacts / footDrivenTravel stay in sync). */
+    cyclicEnds?: boolean;
   },
 ): ComposedTrajectory {
   const { startPose, startQuat, startTranslate, timeScale } = opts;
   const reps = Math.max(1, Math.floor(opts.reps ?? 1));
+  const cyclicEnds = opts.cyclicEnds === true;
   const n = built.poses.length;
   const knots: TrajectoryKnot[] = [
     {
@@ -400,7 +409,7 @@ export function buildComposedTrajectory(
       pose: startPose,
       rootQuat: startQuat,
       rootTranslate: startTranslate,
-      stop: true,
+      stop: !cyclicEnds,
       planted: built.roots[0]?.stance === 'planted',
       groundingPosture: built.roots[0]?.groundingPosture,
     },
@@ -422,7 +431,7 @@ export function buildComposedTrajectory(
         pose: built.poses[i]!,
         rootQuat: rs.quat,
         rootTranslate: rs.translateM,
-        stop: holdMs > 0 || isVeryLast,
+        stop: holdMs > 0 || (isVeryLast && !cyclicEnds),
         planted,
         groundingPosture: rs.groundingPosture,
       });

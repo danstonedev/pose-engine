@@ -1840,6 +1840,9 @@
           startTranslate: [...composedRootTranslate],
           timeScale,
           reps: resolved.reps,
+          // A travelling gait keeps a steady cadence — no ease-in whip / halt at the ends
+          // (mirrors the offline sampler so live playback and recordings match).
+          cyclicEnds: resolved.footDrivenTravel === true,
         });
         // Advance the continuity/root state to the final keyframe for the NEXT motion.
         const lastRoot = built.roots[built.roots.length - 1];
