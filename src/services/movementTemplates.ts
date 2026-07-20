@@ -2006,9 +2006,9 @@ const PELVIS_YAW_MAX = 6;
 // as a robotic 2-D walker. These add SUBTLE frontal + transverse components — physiologic
 // amounts, well inside ROM — derived per-limb from that limb's own sagittal phase, so the
 // arms and legs carry natural out-of-plane motion. ROM-clamped on resolve.
-const ARM_ABD_BASE = 7; // shoulder abduction: the arm hangs a little off the ribs…
-const ARM_ABD_SWING = 0.12; // …and abducts a touch more on the backswing
-const ARM_ABD_MAX = 14;
+const ARM_ADD_BASE = 5; // shoulder ADduction: the arm hangs IN close to the body…
+const ARM_ADD_SWING = 0.1; // …and comes a touch more across on the forward swing
+const ARM_ADD_MAX = 12; // (not winged OUT — abduction reads as a stiff gunslinger carriage)
 const ARM_PRO_BASE = 12; // forearm pronation: palm toward the thigh, not a rigid stick
 const ARM_PRO_SWING = 0.12;
 const ARM_PRO_MAX = 28;
@@ -2110,11 +2110,12 @@ export function spinalGaitCoordination(
     // keyframe, never a spine-only motion run through here).
     const has = (joint: string, mo: string): boolean => ts.some((t) => t.joint === joint && t.motion === mo);
     for (const S of ['L', 'R'] as const) {
-      // ARM: hangs a little ABDUCTED off the ribs (more on the backswing) and semi-PRONATED
-      // (palm toward the thigh) — the resting arm carriage a rigid straight swing lacks.
+      // ARM: hangs IN close to the body — a slight ADduction (−shoulderAbduction), a touch
+      // more across on the forward swing — NOT winged out; and semi-PRONATED (palm toward
+      // the thigh). The resting arm carriage a rigid straight swing lacks.
       if (has(`${S}_UpperArm`, 'shoulderFlexion')) {
         const sh = at(ts, `${S}_UpperArm`, 'shoulderFlexion');
-        additions.push({ joint: `${S}_UpperArm`, motion: 'shoulderAbduction', deg: cap(ARM_ABD_BASE + ARM_ABD_SWING * -sh, ARM_ABD_MAX) });
+        additions.push({ joint: `${S}_UpperArm`, motion: 'shoulderAbduction', deg: cap(-(ARM_ADD_BASE + ARM_ADD_SWING * sh), ARM_ADD_MAX) });
         if (has(`${S}_Forearm`, 'elbowFlexion'))
           additions.push({ joint: `${S}_Forearm`, motion: 'forearmRotation', deg: cap(ARM_PRO_BASE + ARM_PRO_SWING * sh, ARM_PRO_MAX) });
       }
