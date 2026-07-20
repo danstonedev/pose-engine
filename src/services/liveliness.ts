@@ -180,3 +180,230 @@ export function cadenceRate(tSec: number, amount: number): number {
       Math.sin(2 * Math.PI * CADENCE_HZ_B * tSec + CADENCE_PHASE_B));
   return 1 + a * CADENCE_CV_MAX * drift;
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// EXERTION-SCALED BREATHING (Wave 5 · life-signals). The audit's finding:
+// breathing is context-blind — "identical 15 bpm at rest and mid-run". Real
+// respiration follows recent WORK: rate and depth climb during vigorous motion
+// and recover over tens of seconds of rest. Three pure pieces supply that:
+//
+//  1. `motionWorkIntensity` — a 0..1 intensity signal derived from a motion's
+//     keyframes (mean joint speed + ballistic share), computed once when the
+//     stage starts a composed motion (the stage knows what's playing).
+//  2. `stepExertion` — a first-order accumulator the stage feeds per frame:
+//     rises toward the playing motion's intensity over ~EXERTION_RISE_TAU_S,
+//     decays toward 0 over ~EXERTION_DECAY_TAU_S (~30–60 s) at rest.
+//  3. Frequency-modulated breathing — `advanceBreathPhase` INTEGRATES phase
+//     (φ += 2π·hz(exertion)·dt) so a rate change mid-breath is PHASE-
+//     CONTINUOUS; `breathingLeanFM(φ, …)` maps the phase to degrees. Never
+//     multiply wall time by the current rate — sin(2π·hz(t)·t) jumps when hz
+//     changes; the integral formulation cannot.
+//
+// All pure + deterministic (same inputs ⇒ same outputs); `amount` 0 (clean
+// mode) still yields EXACTLY 0 lean regardless of exertion.
+
+/** Resting breathing rate, Hz. 0.23 Hz ≈ 13.8 bpm — inside the 12–15 bpm
+ *  resting band (slightly under the legacy fixed 15 bpm: rest reads calmer). */
+export const BREATH_REST_HZ = 0.23;
+/** Full-exertion breathing rate, Hz. 0.45 Hz = 27 bpm — mid the 24–30 bpm
+ *  vigorous band. */
+export const BREATH_MAX_HZ = 0.45;
+/** Breathing amplitude multiplier at full exertion (rest = 1). */
+export const BREATH_AMP_MAX_SCALE = 1.6;
+/** Exertion accumulator rise time constant, s — vigorous work "gets you
+ *  breathing hard" over roughly this horizon. */
+export const EXERTION_RISE_TAU_S = 8;
+/** Exertion accumulator decay time constant, s — at rest the level falls to
+ *  ~51% in 30 s and ~26% in 60 s (the audit's ~30–60 s recovery window). */
+export const EXERTION_DECAY_TAU_S = 45;
+
+/** Clamp a unit-interval signal; non-finite coerces to 0. */
+function safeUnit(v: number): number {
+  if (!Number.isFinite(v)) return 0;
+  return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/**
+ * Advance the exertion accumulator one frame: a first-order lag of `level`
+ * toward `intensity` (both 0..1) with an ASYMMETRIC time constant — quick to
+ * rise while working (EXERTION_RISE_TAU_S), slow to recover at rest
+ * (EXERTION_DECAY_TAU_S). Exact exponential step, so the result is
+ * frame-rate-independent (two 1/120 s steps ≡ one 1/60 s step). Pure +
+ * deterministic; a non-finite/negative dt returns `level` unchanged.
+ */
+export function stepExertion(level: number, intensity: number, dtSec: number): number {
+  const lv = safeUnit(level);
+  const it = safeUnit(intensity);
+  if (!Number.isFinite(dtSec) || dtSec <= 0) return lv;
+  const tau = it > lv ? EXERTION_RISE_TAU_S : EXERTION_DECAY_TAU_S;
+  return lv + (it - lv) * (1 - Math.exp(-dtSec / tau));
+}
+
+/** Breathing rate at an exertion level: linear BREATH_REST_HZ → BREATH_MAX_HZ.
+ *  Exertion 0 ⇒ the resting rate exactly. */
+export function breathHz(exertion: number): number {
+  return BREATH_REST_HZ + (BREATH_MAX_HZ - BREATH_REST_HZ) * safeUnit(exertion);
+}
+
+/** Breathing amplitude scale at an exertion level: 1 → BREATH_AMP_MAX_SCALE. */
+export function breathAmpScale(exertion: number): number {
+  return 1 + (BREATH_AMP_MAX_SCALE - 1) * safeUnit(exertion);
+}
+
+/**
+ * Integrate the breath phase one frame at the exertion-scaled rate:
+ * φ' = φ + 2π·breathHz(exertion)·dt. Because the RATE is what varies and the
+ * PHASE is accumulated, any exertion change bends the breath's frequency
+ * mid-cycle without a positional jump (phase-continuous FM). Pure; a
+ * non-finite/negative dt (or non-finite phase) returns the phase unchanged
+ * (a fresh accumulator should start at 0).
+ */
+export function advanceBreathPhase(phaseRad: number, dtSec: number, exertion: number): number {
+  const p = Number.isFinite(phaseRad) ? phaseRad : 0;
+  if (!Number.isFinite(dtSec) || dtSec <= 0) return p;
+  return p + 2 * Math.PI * breathHz(exertion) * dtSec;
+}
+
+/**
+ * Exertion-scaled respiration lean for the thorax, DEGREES, from an
+ * ACCUMULATED phase (see {@link advanceBreathPhase}) — the FM sibling of
+ * {@link breathingLean}. Amplitude = amount · BREATH_PEAK_DEG ·
+ * breathAmpScale(exertion) (≤ 1.6× the resting peak). `amount` 0 ⇒ exactly 0
+ * (clean mode) regardless of exertion. At exertion 0 and φ = 2π·BREATH_REST_HZ·t
+ * this reproduces a plain resting breath.
+ */
+export function breathingLeanFM(phaseRad: number, amount: number, exertion: number): number {
+  const a = safeAmount(amount);
+  if (a === 0 || !Number.isFinite(phaseRad)) return 0;
+  return a * BREATH_PEAK_DEG * breathAmpScale(exertion) * Math.sin(phaseRad);
+}
+
+/** Top-channel mean joint speed (deg/s) at which a motion reads as VIGOROUS
+ *  (intensity 1). The travelling walk's busiest joints (hips/knees/shoulders)
+ *  average ~50-75 deg/s; a run's touchdown→drive cycle well above 150. */
+const INTENSITY_FULL_DEG_S = 150;
+/** Top-channel mean joint speed at/below which a motion is restful (0). */
+const INTENSITY_REST_DEG_S = 25;
+/** Intensity boost per unit BALLISTIC time share (explosive motions read more
+ *  strenuous than their mean joint speed alone suggests). */
+const INTENSITY_BALLISTIC_BOOST = 0.25;
+/** How many of the motion's BUSIEST channels the mean is taken over. Resolved
+ *  gait keyframes carry dozens of near-constant decorative channels (finger
+ *  curl, pronation, scapular glide…) that would dilute an all-channel mean to
+ *  ~0; the locomotor effort lives in the few big movers. */
+const INTENSITY_TOP_CHANNELS = 6;
+
+/** The minimal keyframe shape {@link motionWorkIntensity} reads — matches both
+ *  authored (`targetDegrees`) and resolved (`clampedDegrees`) keyframes, so the
+ *  stage can feed whichever it holds without importing this module's deps. */
+export interface WorkIntensityKeyframe {
+  durationMs?: number;
+  holdMs?: number;
+  velocityClass?: string;
+  targets?: readonly {
+    joint: string;
+    motion: string;
+    targetDegrees?: number;
+    clampedDegrees?: number;
+  }[];
+}
+
+/**
+ * Derive a 0..1 WORK-INTENSITY signal from a motion's keyframes — the simple
+ * "how hard is the body working" scalar the exertion accumulator is fed while
+ * the motion plays. Two ingredients:
+ *   • the mean speed of the motion's BUSIEST joint channels: per channel
+ *     ("joint.motion", carry-forward semantics — an unmentioned channel holds
+ *     its last value), the total |Δ°| across the whole motion over the total
+ *     motion time (travel + holds — a long dwell after a fast move correctly
+ *     dilutes the intensity), averaged over the INTENSITY_TOP_CHANNELS
+ *     fastest channels and mapped linearly from INTENSITY_REST_DEG_S →
+ *     INTENSITY_FULL_DEG_S;
+ *   • ballistic share: the fraction of motion time in 'ballistic' keyframes,
+ *     as a small additive boost.
+ * Pure + deterministic; [] ⇒ 0; non-finite fields are ignored.
+ */
+export function motionWorkIntensity(keyframes: readonly WorkIntensityKeyframe[]): number {
+  if (!Array.isArray(keyframes) || keyframes.length === 0) return 0;
+  const last = new Map<string, number>();
+  const travelDeg = new Map<string, number>(); // per-channel Σ|Δ°| over the motion
+  let totalS = 0;
+  let ballisticS = 0;
+  for (const kf of keyframes) {
+    const travelS = Math.max(0, Number.isFinite(kf.durationMs ?? 0) ? (kf.durationMs ?? 0) : 0) / 1000;
+    const holdS = Math.max(0, Number.isFinite(kf.holdMs ?? 0) ? (kf.holdMs ?? 0) : 0) / 1000;
+    for (const t of kf.targets ?? []) {
+      const raw = t.clampedDegrees ?? t.targetDegrees;
+      if (!Number.isFinite(raw)) continue;
+      const key = `${t.joint}.${t.motion}`;
+      travelDeg.set(key, (travelDeg.get(key) ?? 0) + Math.abs((raw as number) - (last.get(key) ?? 0)));
+      last.set(key, raw as number);
+    }
+    totalS += travelS + holdS;
+    if (kf.velocityClass === 'ballistic') ballisticS += travelS + holdS;
+  }
+  if (totalS <= 0 || travelDeg.size === 0) return 0;
+  const speeds = [...travelDeg.values()].map((deg) => deg / totalS).sort((a, b) => b - a);
+  const top = speeds.slice(0, INTENSITY_TOP_CHANNELS);
+  const meanDegPerSec = top.reduce((s, v) => s + v, 0) / top.length;
+  const speedTerm =
+    (meanDegPerSec - INTENSITY_REST_DEG_S) / (INTENSITY_FULL_DEG_S - INTENSITY_REST_DEG_S);
+  return safeUnit(speedTerm + INTENSITY_BALLISTIC_BOOST * (ballisticS / totalS));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ANKLE-PIVOT IDLE SWAY (Wave 5 · life-signals). The audit's finding: "rest
+// sway is lumbar angle-noise above a dead-still pelvis, not an ankle-pivot
+// inverted pendulum". Real quiet-stance sway IS an inverted pendulum: the body
+// rotates as a near-rigid column about the ANKLES, so the pelvis (and COM)
+// translates while the ankle angle changes by atan(shift/height) — the lumbar
+// spine barely participates. `idleSwaySplit` re-shapes the existing idle sway
+// accordingly: the SAME bounded livelinessSwayDeg signal is split into
+//   • an ankle-pivot component (IDLE_ANKLE_PIVOT_SHARE) the stage applies as a
+//     whole-body roll/pitch about the ankle line (root rotation at floor level
+//     with the feet counter-rotated so the soles stay flat — the ankle joint
+//     angle changes by exactly the pivot angle and the pelvis rides
+//     ~tan(angle)·height laterally), and
+//   • a residual lumbar component (the remainder — real sway keeps some
+//     spinal texture; it is not a perfectly rigid column).
+// The split PARTITIONS the original amplitudes (shares sum to 1), so the total
+// lean stays inside the pre-existing idle bounds; composes with the (slower,
+// unchanged) idleWeightShift. Pure, deterministic, amount 0 ⇒ all zeros.
+
+/** Share of the idle sway carried at the ankles (the rest stays lumbar). */
+export const IDLE_ANKLE_PIVOT_SHARE = 0.6;
+/** Effective inverted-pendulum height, m (ankle → COM, ~55% of stature): the
+ *  lateral COM travel predicted from a pivot angle θ is ≈ tan(θ)·this. */
+export const IDLE_PIVOT_HEIGHT_M = 0.95;
+
+/**
+ * Split the idle micro-sway into its ankle-pivot and residual-lumbar parts.
+ * `ankleRollDeg` (+ about the A/P axis — same _swayAxisML convention as the
+ * lumbar term) and `anklePitchDeg` are the whole-body pivot angles;
+ * `lumbarMlDeg`/`lumbarApDeg` the remaining spinal texture; `comShiftM` the
+ * lateral COM travel the roll pivot implies (tan(roll)·IDLE_PIVOT_HEIGHT_M) —
+ * exported so the rig gate can assert the atan(shift/height) relation.
+ * Bounds: |ankle + lumbar| per axis ≤ the original livelinessSwayDeg peaks ×
+ * amount. `amount` 0 ⇒ exactly all-zero (clean mode).
+ */
+export function idleSwaySplit(
+  tSec: number,
+  amount: number,
+): {
+  ankleRollDeg: number;
+  anklePitchDeg: number;
+  lumbarMlDeg: number;
+  lumbarApDeg: number;
+  comShiftM: number;
+} {
+  const { mlDeg, apDeg } = livelinessSwayDeg(tSec, amount);
+  const s = IDLE_ANKLE_PIVOT_SHARE;
+  const ankleRollDeg = s * mlDeg;
+  return {
+    ankleRollDeg,
+    anklePitchDeg: s * apDeg,
+    lumbarMlDeg: (1 - s) * mlDeg,
+    lumbarApDeg: (1 - s) * apDeg,
+    comShiftM: Math.tan((ankleRollDeg * Math.PI) / 180) * IDLE_PIVOT_HEIGHT_M,
+  };
+}
