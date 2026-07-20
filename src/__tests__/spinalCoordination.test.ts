@@ -96,8 +96,8 @@ describe('spinalGaitCoordination — trunk counter-rotation authoring', () => {
       out.keyframes.some((kf) => kf.targets?.some((t) => t.joint === joint && t.motion === motion && Math.abs(t.targetDegrees) > 0.5));
     const maxAbs = (joint: string, motion: string) =>
       Math.max(...out.keyframes.map((kf) => Math.abs(kf.targets?.find((t) => t.joint === joint && t.motion === motion)?.targetDegrees ?? 0)));
-    // Arms: abducted off the ribs (frontal) + forearm pronation (transverse).
-    expect(present('R_UpperArm', 'shoulderAbduction'), 'arm abduction').toBe(true);
+    // Arms: hang IN close to the body — a slight ADduction (frontal) + forearm pronation.
+    expect(present('R_UpperArm', 'shoulderAbduction'), 'arm frontal motion').toBe(true);
     expect(present('R_Forearm', 'forearmRotation'), 'forearm rotation').toBe(true);
     // Legs: swing hip ADduction (frontal), tibial rotation (transverse), subtalar roll (frontal).
     expect(present('R_UpLeg', 'hipAbduction'), 'hip frontal motion').toBe(true);
@@ -112,8 +112,11 @@ describe('spinalGaitCoordination — trunk counter-rotation authoring', () => {
       return ext;
     };
     expect(signedExtreme('R_UpLeg', 'hipAbduction'), 'legs ADduct toward the midline, not abduct').toBeLessThan(0);
+    // The arms hang IN close to the body — the shoulder frontal target is NEGATIVE
+    // (adduction), not winged out (abduction).
+    expect(signedExtreme('R_UpperArm', 'shoulderAbduction'), 'arms ADduct in, not winged out').toBeLessThan(0);
     // …all SUBTLE — physiologic, well inside ROM, never exaggerated.
-    expect(maxAbs('R_UpperArm', 'shoulderAbduction'), 'abduction stays subtle').toBeLessThan(16);
+    expect(maxAbs('R_UpperArm', 'shoulderAbduction'), 'arm adduction stays subtle').toBeLessThan(16);
     expect(maxAbs('R_UpLeg', 'hipAbduction'), 'hip adduction stays subtle').toBeLessThan(8);
     expect(maxAbs('R_Foot', 'ankleInversion'), 'ankle roll stays subtle').toBeLessThan(10);
   });
