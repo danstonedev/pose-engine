@@ -822,6 +822,164 @@ export function stabilizeGaze(motion: ComposedMotion): ComposedMotion {
   return changed ? { ...motion, keyframes } : motion;
 }
 
+// ── UNIVERSAL RELAXED HANDS ─────────────────────────────────────────────────
+
+/** Every hand-complex joint the relaxed-hand transform owns (wrist + digits,
+ *  both sides). A motion that authors ANY target on ANY of these — a grip, a
+ *  wrist AROM screen, gait's coordinated dragging wrist — is left exactly as
+ *  authored ("…unless otherwise specified"). */
+export const HAND_JOINT_KEYS: readonly string[] = (['L_', 'R_'] as const).flatMap((s) => [
+  `${s}Hand`,
+  `${s}Thumb1`,
+  `${s}Index1`,
+  `${s}Mid1`,
+  `${s}Ring1`,
+  `${s}Pinky1`,
+]);
+const HAND_JOINT_SET = new Set(HAND_JOINT_KEYS);
+
+/** Resting wrist flexion of a relaxed hanging hand, deg (a slight drop — not a
+ *  rigid extended paddle, not a flexed claw). */
+export const RELAXED_WRIST_FLEX_DEG = 8;
+/** Graded per-digit resting curl, deg — a LOOSE open hand (radial digits
+ *  straighter, ulnar digits more curled — the natural cascade), NOT a fist.
+ *  Registry fingerFlexion is a composite 0..160 curl, so these sit well inside
+ *  ROM. */
+export const RELAXED_FINGER_CURL_DEG: Readonly<Record<string, number>> = {
+  Thumb1: 20,
+  Index1: 24,
+  Mid1: 30,
+  Ring1: 36,
+  Pinky1: 40,
+};
+
+/** The full relaxed-hand target set (both sides): slight wrist flexion + the
+ *  graded digit cascade. 12 targets. */
+export const RELAXED_HAND_TARGETS: readonly SequenceTarget[] = (['L_', 'R_'] as const).flatMap(
+  (s) => [
+    { joint: `${s}Hand`, motion: 'wristFlexion', targetDegrees: RELAXED_WRIST_FLEX_DEG },
+    ...Object.entries(RELAXED_FINGER_CURL_DEG).map(([digit, deg]) => ({
+      joint: `${s}${digit}`,
+      motion: 'fingerFlexion',
+      targetDegrees: deg,
+    })),
+  ],
+);
+
+/** Postures in which the hands may BEAR WEIGHT (planted on the floor in plank /
+ *  quadruped, or resting under/against the body when lying) — a relaxed curl
+ *  there would float the palm off its support. Lying nodes are included as a
+ *  JUDGEMENT CALL: no per-hand contact signal exists for supine/prone/side-lying,
+ *  and a lying patient's hands often rest against the plinth, so we leave them
+ *  as authored rather than curl a hand that may be bearing. */
+const HANDS_MAY_BEAR: readonly PostureNode[] = [
+  'supine',
+  'prone',
+  'sidelying-left',
+  'sidelying-right',
+  'quadruped',
+  'plank',
+];
+/** Grounding contact sets that PLANT one or both hands (or lay the body down).
+ *  Superset of {@link HANDS_MAY_BEAR}: includes the one-hand quadruped variants
+ *  (bird-dog — even the free hand stays as authored; splitting sides would
+ *  desync the transform's symmetric set for a marginal win). */
+const HAND_PLANT_GROUNDING: readonly GroundingPosture[] = [
+  ...HANDS_MAY_BEAR,
+  'quadruped-hand-L',
+  'quadruped-hand-R',
+];
+
+/** Targets ADDED by {@link relaxedHands} (fresh per-keyframe clones), so the
+ *  resolver can tell a cosmetic background add from an AUTHORED target. The
+ *  refusal contract must not change: a motion whose authored targets all refuse
+ *  still refuses 'no-achievable-targets' (the resting hand may never rescue a
+ *  bogus plan into 'ok'), and its outcome report stays authored-only. WeakSet:
+ *  entries are released with the transient motion objects. */
+const RELAXED_ADDED_TARGETS = new WeakSet<SequenceTarget>();
+
+/**
+ * UNIVERSAL RELAXED HANDS. Anatomical-position rest leaves the hands as flat
+ * supinated paddles, so every motion that doesn't author the hands — a squat, a
+ * reach, a kick, sit-to-stand — performs with splayed rigid fingers. This adds a
+ * RESTING HAND to every keyframe of such motions: a slight wrist flexion plus a
+ * graded per-digit curl (thumb least, pinky most — a LOOSE hand, not a fist), for
+ * both sides. Kinematic and pure; the added targets resolve on the same truth
+ * path (ROM clamp, velocity governor, measurement) as any authored target.
+ *
+ * Applied automatically in {@link resolveComposedMotion}, but ONLY when the
+ * motion leaves the hands unspecified and unloaded:
+ *   - a motion that authors ANY wrist/finger target anywhere (a grip, a wrist
+ *     AROM screen, gait's coordinated dragging wrist + finger curl) is left
+ *     byte-identical — the author owns the hands;
+ *   - a motion that PLANTS a hand (plank / push-up / quadruped grounding, or a
+ *     declared hand contact) keeps its flat weight-bearing palm;
+ *   - a lying / rolling motion (posture sugar, start/end posture, or a large
+ *     root pitch/roll) is skipped — the hands may bear against the support
+ *     (see {@link HANDS_MAY_BEAR} for the judgement call).
+ * Constant across keyframes, so after the first keyframe's transition the hands
+ * hold their rest posture and add zero angular velocity.
+ */
+export function relaxedHands(motion: ComposedMotion): ComposedMotion {
+  if (!motion || !Array.isArray(motion.keyframes)) return motion;
+  // "…unless otherwise specified" — any authored hand-complex target anywhere in
+  // the motion means the author owns the hands (this also makes the transform
+  // idempotent with gait's coordination, which writes wrist + finger targets).
+  const authorsHands = motion.keyframes.some((kf) =>
+    kf.targets?.some((t) => HAND_JOINT_SET.has(t.joint)),
+  );
+  if (authorsHands) return motion;
+  // Declared hand contacts (the `foot` field names the contact BONE — a hand in
+  // a push-up is a legal entry): the hand bears weight, keep the flat palm.
+  const plantsHandContact = motion.contacts?.some(
+    (c) => c && (c.foot === 'L_Hand' || c.foot === 'R_Hand'),
+  );
+  if (plantsHandContact) return motion;
+  // Weight-bearing / lying postures — grounding sets that plant a hand, lying
+  // start/end postures, per-keyframe lying posture sugar, or a large raw root
+  // reorientation (same thresholds as stabilizeGaze's upright check).
+  const bearing =
+    (motion.startPosture != null && HANDS_MAY_BEAR.includes(motion.startPosture)) ||
+    (motion.endPosture != null && HANDS_MAY_BEAR.includes(motion.endPosture)) ||
+    motion.keyframes.some(
+      (kf) =>
+        (kf.groundingPosture != null && HAND_PLANT_GROUNDING.includes(kf.groundingPosture)) ||
+        (kf.posture != null && kf.posture !== 'upright') ||
+        (kf.root?.orient != null &&
+          (kf.root.orient.quat != null ||
+            Math.abs(kf.root.orient.pitchDeg ?? 0) > 20 ||
+            Math.abs(kf.root.orient.rollDeg ?? 0) > 20)),
+    );
+  if (bearing) return motion;
+
+  const keyframes = motion.keyframes.map((kf) => {
+    if (!kf || typeof kf !== 'object') return kf;
+    const ts = kf.targets ?? [];
+    // An INVALID keyframe (no targets AND no root/travel/posture/stance
+    // directive) is left alone so the resolver's shape refusal still fires —
+    // the resting hand must never turn a malformed keyframe into a valid one.
+    const hasDirective =
+      kf.root != null || kf.travel != null || kf.posture != null ||
+      kf.stance === 'planted' || kf.stance === 'floating';
+    if (ts.length === 0 && !hasDirective) return kf;
+    // Respect the per-keyframe target budget: if the 12-target hand set wouldn't
+    // fit, leave this keyframe alone rather than push targets that would
+    // overflow-drop (carry-forward keeps the hands posed from earlier keyframes).
+    if (ts.length + RELAXED_HAND_TARGETS.length > MAX_TARGETS_PER_KEYFRAME) return kf;
+    // authorsHands guaranteed no existing hand target above, so plain appends
+    // never dupe. Fresh clones per keyframe (no shared target objects), each
+    // TAGGED as a background add so the resolver's refusal contract and outcome
+    // report stay authored-only (see RELAXED_ADDED_TARGETS).
+    const adds = RELAXED_HAND_TARGETS.map((t) => {
+      const clone = { ...t };
+      RELAXED_ADDED_TARGETS.add(clone);
+      return clone;
+    });
+    return { ...kf, targets: [...ts, ...adds] };
+  });
+  return { ...motion, keyframes };
+}
+
 /**
  * Validate a composed motion's shape + limits, clamp every target through
  * {@link resolveCommandTarget} (the SAME truth path as single commands:
@@ -872,8 +1030,22 @@ export function resolveComposedMotion(
       ? expandPeakTiming(motion, { fromAngles: opts.currentAngles })
       : expandPeakTiming(motion);
 
+  // HANDS: give every motion that leaves the hands unspecified (and unloaded) a
+  // relaxed resting hand instead of the anatomical-position flat paddle —
+  // automatic for every caller, gated to skip motions that author or plant the
+  // hands (gait's coordination authors wrist+fingers, so it passes through
+  // byte-identical). AFTER stabilizeGaze so the gaze counters keep first claim
+  // on the per-keyframe target budget, and AFTER peak-timing expansion so the
+  // added targets keep their background-add tag into the resolve loop below
+  // (expandPeakTiming rebuilds target objects); still BEFORE validation, so the
+  // hand targets clamp + time on the same truth path as authored targets.
+  motion = relaxedHands(motion);
+
   const motionStance: StanceMode = motion.stance === 'planted' ? 'planted' : 'floating';
   const outcomes: SequenceTargetOutcome[] = [];
+  /** Outcomes belonging to relaxedHands background adds — excluded from the
+   *  achievability contract and from a refused motion's outcome report. */
+  const relaxedOutcomes = new Set<SequenceTargetOutcome>();
   const resolvedKeyframes: ResolvedSequenceKeyframe[] = [];
   /** Last clamped value per `joint.motion` — the previous keyframe's position
    *  for the velocity check. Seeded from the CURRENT measured angle (cross-motion
@@ -948,6 +1120,8 @@ export function resolveComposedMotion(
       if (r.limitedBy != null) outcome.limitedBy = r.limitedBy;
       if (r.painful != null) outcome.painful = r.painful;
       if (r.reason != null) outcome.reason = r.reason;
+      const isRelaxedAdd = RELAXED_ADDED_TARGETS.has(t);
+      if (isRelaxedAdd) relaxedOutcomes.add(outcome);
       outcomes.push(outcome);
 
       if (r.status === 'refused' || r.clampedDegrees == null) continue; // dropped, reported
@@ -960,7 +1134,10 @@ export function resolveComposedMotion(
       const dup = targets.findIndex((x) => x.joint === t.joint && x.motion === t.motion);
       if (dup >= 0) targets.splice(dup, 1);
       targets.push({ joint: t.joint, motion: t.motion, clampedDegrees: r.clampedDegrees });
-      survivors += 1;
+      // A relaxedHands background add never counts toward achievability — a
+      // motion whose AUTHORED targets all refuse must still refuse as a whole
+      // (the cosmetic resting hand cannot rescue a bogus plan into 'ok').
+      if (!isRelaxedAdd) survivors += 1;
     }
     for (const t of overflowTargets) {
       outcomes.push({
@@ -1004,7 +1181,13 @@ export function resolveComposedMotion(
     // Whole-motion refusal — but every target's individual refusal is still
     // reported so the caller can narrate WHY nothing was achievable. A motion
     // whose keyframes carry root/stance directives still plays (posture-only).
-    return { ...refuse(motion, 'no-achievable-targets'), outcomes };
+    // relaxedHands background adds are dropped from the report: the refusal is
+    // about the AUTHORED plan, and phantom complied hand targets would obscure
+    // it (pre-relaxedHands callers saw exactly the authored outcomes here).
+    return {
+      ...refuse(motion, 'no-achievable-targets'),
+      outcomes: outcomes.filter((o) => !relaxedOutcomes.has(o)),
+    };
   }
 
   return {
