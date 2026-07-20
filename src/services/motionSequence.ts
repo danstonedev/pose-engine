@@ -416,6 +416,19 @@ export interface ComposedMotion {
    *  it. Only meaningful with `footDrivenTravel`; omit (or 0) for the default
    *  straight-ahead walk — which stays byte-identical. */
   headingDeg?: number;
+  /** CURVED TRAVEL HEADING (roadmap 6.2): a piecewise-linear heading PROFILE in
+   *  AUTHORED ms (the same time base as `gaitStanceWindowsMs` / `contacts`),
+   *  degrees per the `headingDeg` convention. When present, the sampler/stage
+   *  hand the travel/shuttle derivations a per-time heading lookup
+   *  (services/rootMotion `headingProfileLookup`) instead of the constant, so
+   *  each derived per-step advance rides the heading AT THAT TIME (an arc walk)
+   *  with the shuttle on the instantaneous perpendicular — and each foot-plant
+   *  window's IK clamp frame is rotated by the heading at the WINDOW's start.
+   *  The builder must author the SAME progression as per-keyframe root yaw
+   *  (buildTravelWalk turnDeg does). Points must be time-ordered; lookups clamp
+   *  at the ends. Only meaningful with `footDrivenTravel`; omit for a constant
+   *  heading — which stays byte-identical. */
+  headingProfileMs?: { tMs: number; headingDeg: number }[];
   /** MOMENTUM-PRESERVING SEAM (opt-in, roadmap 4.4): a chained motion normally
    *  eases in from rest — the trajectory's first knot is a stop, so every
    *  cross-command seam (walk→squat, kick→step) brakes to zero before the next
@@ -576,6 +589,11 @@ export interface ResolvedComposedMotion {
    *  sampler/stage hand it to the travel/shuttle derivations. See
    *  {@link ComposedMotion.headingDeg}. */
   headingDeg?: number;
+  /** Curved travel-heading profile (authored ms, pass-through) — the
+   *  sampler/stage build a per-time heading lookup for the travel/shuttle
+   *  derivations and per-window plant-clamp frames. See
+   *  {@link ComposedMotion.headingProfileMs}. */
+  headingProfileMs?: { tMs: number; headingDeg: number }[];
   /** Momentum-preserving seam (pass-through) — the trajectory's FIRST knot is a
    *  fly-through so a chained motion enters with velocity; the final settle
    *  still stops. See {@link ComposedMotion.flowIn}. */
@@ -1362,6 +1380,24 @@ export function resolveComposedMotion(
     motion.headingDeg !== 0
       ? { headingDeg: motion.headingDeg }
       : {}),
+    // CURVED TRAVEL HEADING: pass through only a well-formed profile — ≥2
+    // finite, time-ordered points (anything less is not a curve; the constant
+    // headingDeg above already covers it). Malformed entries drop the whole
+    // profile rather than curving along garbage.
+    ...(() => {
+      const prof = motion.headingProfileMs;
+      if (!Array.isArray(prof) || prof.length < 2) return {};
+      const ok = prof.every(
+        (p, i) =>
+          p != null &&
+          Number.isFinite(p.tMs) &&
+          Number.isFinite(p.headingDeg) &&
+          (i === 0 || p.tMs >= prof[i - 1]!.tMs),
+      );
+      return ok
+        ? { headingProfileMs: prof.map((p) => ({ tMs: p.tMs, headingDeg: p.headingDeg })) }
+        : {};
+    })(),
     ...(motion.flowIn ? { flowIn: true } : {}),
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
     ...(motion.weightedDescent ? { weightedDescent: true } : {}),

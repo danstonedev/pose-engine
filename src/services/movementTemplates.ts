@@ -1400,7 +1400,7 @@ export function gaitFootContacts(motion: ComposedMotion): StanceContact[] {
 }
 
 export function buildTravelWalk(
-  opts: { speed?: number; headingDeg?: number; asymmetry?: number | false } = {},
+  opts: { speed?: number; headingDeg?: number; turnDeg?: number; asymmetry?: number | false } = {},
 ): ComposedMotion {
   const walk = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk');
   if (!walk) throw new Error('walk template missing');
@@ -1415,6 +1415,20 @@ export function buildTravelWalk(
   // byte-identical output (asserted in gaitHeading.test.ts).
   const headingDeg =
     typeof opts.headingDeg === 'number' && Number.isFinite(opts.headingDeg) ? opts.headingDeg : 0;
+  // ARC WALK (roadmap 6.2): a gentle CONSTANT-RATE curve over the CYCLE portion
+  // — the authored root yaw progresses linearly from the initiation heading to
+  // heading + turnDeg across the 8 cycle keyframes (the braking step and the
+  // settle HOLD the final heading), and the same progression is published as a
+  // piecewise heading profile (`ComposedMotion.headingProfileMs`) so the
+  // sampler/stage travel derivation advances along the heading AT EACH TIME
+  // (an arc, +90 ≈ a quarter-circle to the subject's left) with the shuttle on
+  // the instantaneous perpendicular. Clamped to the gentle-arc band (±120°:
+  // ≤ ~26°/s at the stock ~4.6 s cycle — a guided curve, never a spin; sharper
+  // re-orientation is buildTurnInPlace's job). turnDeg 0 takes the EXACT
+  // straight/constant-heading path — byte-identical (gaitCurvedWalk.test.ts).
+  const turnDegRaw =
+    typeof opts.turnDeg === 'number' && Number.isFinite(opts.turnDeg) ? opts.turnDeg : 0;
+  const turnDeg = Math.max(-GAIT_TURN_MAX_DEG, Math.min(GAIT_TURN_MAX_DEG, turnDegRaw));
   const hRad = (headingDeg * Math.PI) / 180;
   const hSin = Math.sin(hRad);
   const hCos = Math.cos(hRad);
@@ -1627,14 +1641,31 @@ export function buildTravelWalk(
   // entry slerp IS the pre-walk pivot; the cycle then carries heading + pelvic
   // yaw. Explicit on every keyframe — carry-forward is never relied on.
   // Heading 0 skips the fold entirely (byte-identical keyframes).
+  //
+  // ARC WALK (turnDeg): the folded yaw PROGRESSES across the cycle instead of
+  // holding constant — each keyframe carries the heading at its own ARRIVAL
+  // time (linear in cumulative authored ms across the cycle keyframes: a
+  // constant turn rate), with the braking step and settle holding the exit
+  // heading. The trajectory's inter-knot slerp then approximates the same
+  // linear progression the published heading profile describes, so the derived
+  // travel and the authored body yaw stay collinear (same wave-4 contract,
+  // per-time). turnDeg 0 reduces headingAtKf to the constant headingDeg
+  // exactly (0·u adds nothing), keeping heading-only walks byte-identical.
+  const cycleStartMs = endOf(0);
+  const cycleEndMs = endOf(8);
+  const headingAtKf = (k: number): number => {
+    if (turnDeg === 0) return headingDeg;
+    const u = Math.min(1, Math.max(0, (endOf(k) - cycleStartMs) / (cycleEndMs - cycleStartMs)));
+    return headingDeg + turnDeg * u;
+  };
   const headed =
-    headingDeg === 0
+    headingDeg === 0 && turnDeg === 0
       ? coordinated.keyframes
-      : coordinated.keyframes.map((kf) => ({
+      : coordinated.keyframes.map((kf, k) => ({
           ...kf,
           root: {
             ...(kf.root ?? {}),
-            orient: { ...(kf.root?.orient ?? {}), yawDeg: (kf.root?.orient?.yawDeg ?? 0) + headingDeg },
+            orient: { ...(kf.root?.orient ?? {}), yawDeg: (kf.root?.orient?.yawDeg ?? 0) + headingAtKf(k) },
           },
         }));
   return {
@@ -1647,6 +1678,22 @@ export function buildTravelWalk(
     // The heading the derived travel rides along (and the shuttle stays
     // perpendicular to) — omitted at 0 so the straight walk is byte-identical.
     ...(headingDeg !== 0 ? { headingDeg } : {}),
+    // ARC WALK: the per-time heading curve — flat at the entry heading through
+    // the initiation, linear (constant turn rate) across the cycle, holding
+    // heading + turnDeg through the braking step and settle. EXACTLY the
+    // per-keyframe yaw progression folded above, so the sampler/stage
+    // derivations (which ride this profile) and the authored body orientation
+    // can never diverge. Omitted at turnDeg 0 (byte-identical).
+    ...(turnDeg !== 0
+      ? {
+          headingProfileMs: [
+            { tMs: 0, headingDeg },
+            { tMs: cycleStartMs, headingDeg },
+            { tMs: cycleEndMs, headingDeg: headingDeg + turnDeg },
+            { tMs: total, headingDeg: headingDeg + turnDeg },
+          ],
+        }
+      : {}),
     // The walk now authors its own initiation/termination ramps, so the
     // trajectory ends are REAL stops (ease from standstill, brake to quiet
     // standing) instead of the steady-cadence fly-throughs.
@@ -1670,6 +1717,55 @@ export function buildTravelWalk(
     // is reshaped. (The in-place walk gets the same target via gaitBounce.)
     verticalCalibrationCm: NORMAL_GAIT_VERTICAL_CM,
   };
+}
+
+/**
+ * A FIGURE-OF-EIGHT walk as a SEQUENCE of two arc walks (roadmap 6.2).
+ *
+ * CONTRACT: play the segments IN ORDER, threading cross-motion continuity the
+ * way any chain does (`sampleMotionChain` / the stage's composed playback —
+ * each later segment `startFrom:'current'` with the previous end pose + root).
+ * Segment 1 curves `+lobe` (toward the subject's left); segment 2 ENTERS at
+ * segment 1's exit heading (`headingDeg: lobe` — the body is already facing
+ * it, so its initiation pivot is a no-op at the seam) and REVERSES the turn
+ * (`turnDeg: −lobe`), ending back at heading 0. Each segment is a complete,
+ * self-grounding walk (own APA initiation, braking step and settle), so the
+ * crossover between lobes is a genuine quiet-standing weight transfer — the
+ * clinical figure-of-eight's midpoint — not a mid-stride hairpin.
+ *
+ * WHY A SEQUENCE, NOT ONE MOTION: both segments' 22 keyframes would fit
+ * MAX_KEYFRAMES (48), but a single ComposedMotion carries ONE heading profile,
+ * ONE stance-window schedule and ONE initiation/termination pair — fusing two
+ * opposite lobes would mean authoring a non-monotonic profile plus a doubled
+ * schedule for no gain over the composition primitives the engine already
+ * gates (movementChain). And WHY ±120, not the half-circle ±180: the
+ * gentle-arc clamp (see GAIT_TURN_MAX_DEG) caps a single cycle's curve at the
+ * rate a stance leg can absorb, so the figure-of-eight's lobes are the maximal
+ * gentle arcs — the walked path still crosses into two opposite loops, just
+ * with straighter entries/exits than a compass-drawn 8.
+ */
+export type FigureEightWalk = [ComposedMotion, ComposedMotion];
+
+/** Build the two-segment figure-of-eight walk (see {@link FigureEightWalk} for
+ *  the playback contract). `lobeDeg` (default the maximal gentle arc, 120)
+ *  sets each lobe's curve magnitude; `speed`/`asymmetry` pass to both
+ *  segments. */
+export function buildFigureEightWalk(
+  opts: { speed?: number; asymmetry?: number | false; lobeDeg?: number } = {},
+): FigureEightWalk {
+  const lobeRaw =
+    typeof opts.lobeDeg === 'number' && Number.isFinite(opts.lobeDeg)
+      ? Math.abs(opts.lobeDeg)
+      : GAIT_TURN_MAX_DEG;
+  const lobe = Math.max(15, Math.min(GAIT_TURN_MAX_DEG, lobeRaw));
+  const base: { speed?: number; asymmetry?: number | false } = {
+    ...(opts.speed != null ? { speed: opts.speed } : {}),
+    ...(opts.asymmetry !== undefined ? { asymmetry: opts.asymmetry } : {}),
+  };
+  return [
+    { ...buildTravelWalk({ ...base, turnDeg: lobe }), name: 'figure-eight-a' },
+    { ...buildTravelWalk({ ...base, headingDeg: lobe, turnDeg: -lobe }), name: 'figure-eight-b' },
+  ];
 }
 
 // ─── Turn-in-place (step turn) — roadmap 4.1 ─────────────────────────────────
@@ -3136,6 +3232,14 @@ const GAIT_INITIATION_MS = 300; // APA lead keyframe travel time
  *  keyframe, and the pivot should read as a calm weight-shifted turn, not a
  *  whip (90° ⇒ ~315 ms, 180° ⇒ ~630 ms). Heading 0 is unaffected. */
 const GAIT_HEADING_TURN_MS_PER_DEG = 3.5;
+/** ARC-WALK clamp (roadmap 6.2): the most a single travel walk may CURVE over
+ *  its cycle (deg; sign = direction, + toward the subject's left). ±120 over
+ *  the stock ~4.6 s cycle is ≤ ~26°/s — the gentle guided curve of a walking
+ *  track / figure-of-eight lobe. Beyond it a "walk" is really a pivot: the
+ *  per-stance heading change outgrows what the stance leg can absorb (the
+ *  planted foot would have to swivel), so sharper re-orientation belongs to
+ *  buildTurnInPlace's step turn instead. */
+const GAIT_TURN_MAX_DEG = 120;
 /** The R ankle's rest offset from the root axis, m (rig-measured on the male
  *  runtime GLB at anatomic stance) — the pivot centre of a headed walk's
  *  initiation: the root translate t = p_R − R(heading)·p_R re-centres the
