@@ -17,7 +17,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { applyAnatomicPose } from '../services/anatomicPose';
 import { serializeCustomPose, buildBoneByPoseKey, applyCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
-import { resolveComposedMotion } from '../services/motionSequence';
+import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion } from '../services/motionRecording';
 import {
   buildRun,
@@ -192,5 +192,48 @@ describe('spinalGaitCoordination — measured on the rig', () => {
       expect(headSwing, 'the head stays looking forward').toBeLessThan(7);
       expect(headSwing).toBeLessThan(thoraxSwing * 0.4);
     }
+  });
+
+  it('UNIVERSAL gaze: a NON-GAIT trunk rotation also holds the eyes forward (automatic)', () => {
+    const yaw = (b: THREE.Bone): number => {
+      const q = new THREE.Quaternion();
+      b.getWorldQuaternion(q);
+      return (new THREE.Euler().setFromQuaternion(q, 'YXZ').y * 180) / Math.PI;
+    };
+    // A plain upright trunk twist — no gait, no arm swing, no neck authored. stabilizeGaze
+    // (automatic in resolveComposedMotion) should keep the head world-forward while the
+    // thorax rotates. (16 thoracic + 6 lumbar = 22°, within the 24° cervical counter cap.)
+    const twist: ComposedMotion = {
+      name: 'trunk rotation',
+      keyframes: [
+        { targets: [
+          { joint: 'Spine_Upper', motion: 'rotation', targetDegrees: 16 },
+          { joint: 'Spine_Lower', motion: 'rotation', targetDegrees: 6 },
+        ], durationMs: 900, holdMs: 200 },
+        { targets: [
+          { joint: 'Spine_Upper', motion: 'rotation', targetDegrees: 0 },
+          { joint: 'Spine_Lower', motion: 'rotation', targetDegrees: 0 },
+        ], durationMs: 900 },
+      ],
+    };
+    const rec = sampleComposedMotion(resolveComposedMotion(twist, variantCfg), {
+      baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 30,
+    });
+    const bones = buildBoneByPoseKey(skinned.skeleton, variantCfg);
+    const head = bones.get('Head')!, thorax = bones.get('Spine_Upper')!;
+    let hMin = Infinity, hMax = -Infinity, tMin = Infinity, tMax = -Infinity;
+    for (const f of rec.frames) {
+      applyCustomPose(skinned.skeleton, variantCfg, f.pose);
+      root.updateMatrixWorld(true);
+      const hy = yaw(head), ty = yaw(thorax);
+      hMin = Math.min(hMin, hy); hMax = Math.max(hMax, hy);
+      tMin = Math.min(tMin, ty); tMax = Math.max(tMax, ty);
+    }
+    const headSwing = hMax - hMin, thoraxSwing = tMax - tMin;
+    // eslint-disable-next-line no-console
+    console.log(`non-gait trunk rotation: HEAD yaw swing ${headSwing.toFixed(1)}° vs THORAX ${thoraxSwing.toFixed(1)}°`);
+    expect(thoraxSwing, 'the trunk visibly rotates').toBeGreaterThan(15);
+    expect(headSwing, 'the head/gaze stays forward — not riding the spine').toBeLessThan(7);
+    expect(headSwing).toBeLessThan(thoraxSwing * 0.4);
   });
 });
