@@ -70,6 +70,7 @@ import {
   plantStanceFoot,
   rotateRestReferenceByRoot,
   stanceFootDrift,
+  VCAL_HANDOFF_BLEND_MS,
   weightedDescentApplies,
   type FootDrivenTravel,
   type HeelStrikeAccents,
@@ -518,11 +519,41 @@ export function sampleComposedMotion(
   // IK, which would corrupt the stance hip). Skipped unless the motion is planted
   // (a floating motion has no floor-pin arc to reshape).
   let vcal: VerticalCalibration = NO_VERTICAL_CALIBRATION;
+  // Phase base for the smoothed-table lookup: the cycle length of the trajectory
+  // the table was DERIVED from, plus the phase offset + entry ramp that map
+  // one-shot playback time onto that cycle. Identity values (totalMs, 0, 0) for
+  // every non-looping motion keep the pre-loop-form behaviour byte-identical.
+  let vcalCycleMs = totalMs;
+  let vcalPhaseOffsetMs = 0;
+  let vcalRampMs = 0;
   const vcalTargetM =
     resolved.verticalCalibrationCm != null ? resolved.verticalCalibrationCm / 100 : null;
   if (vcalTargetM != null && built.roots.some((r) => r.stance === 'planted')) {
+    // LOOP-FORM CALIBRATION (DET-LOCK-02): a LOOPING motion sustains the PERIODIC
+    // loop-form cycle, not the one-shot pass — deriving the table from the
+    // one-shot lets its standing intro/final brake inflate the measured arc
+    // (walk: gain 0.853 vs the loop's 0.989), so the applied vertical differed
+    // from the loop the stage settles into (~3.4 cm pelvis step at loop engage;
+    // 2.0 cm mean live-vs-recording on the first pass). Derive from the SAME
+    // loop trajectory the stage loops (and a loopCycle recording samples). The
+    // one-shot first pass reaches keyframe i at τ_i + dur₀ while the loop
+    // indexes it at phase τ_i, so the applied phase subtracts the first
+    // keyframe's arrival (vcalPhaseOffsetMs) — making the table phase
+    // CONTINUOUS across the loop-engage boundary — and the table is ramped in
+    // over ≤VCAL_HANDOFF_BLEND_MS at the entry (phase 0⁻ of the loop table is
+    // the wrap segment, not the standing start). Mirrored by the live stage.
+    const vcalLoopForm =
+      resolved.loop === true && !useLoopCycle && built.poses.length >= 2
+        ? buildLoopTrajectory(built, { timeScale })
+        : null;
+    const vcalTraj = vcalLoopForm ? vcalLoopForm.trajectory : trajectory;
+    vcalCycleMs = vcalTraj.totalMs;
+    if (vcalLoopForm) {
+      vcalPhaseOffsetMs = (built.durationsMs[0] ?? 0) / timeScale;
+      vcalRampMs = Math.max(1, Math.min(VCAL_HANDOFF_BLEND_MS, vcalPhaseOffsetMs));
+    }
     vcal = deriveVerticalCalibration((u01) => {
-      const s = trajectory.sampleAt(u01 * totalMs);
+      const s = vcalTraj.sampleAt(u01 * vcalCycleMs);
       applyCustomPose(skinned.skeleton, variantCfg, s.pose);
       _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
       root.quaternion.copy(rootRestQuat).multiply(_sq);
@@ -635,7 +666,12 @@ export function sampleComposedMotion(
             if (s.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
             let y = root.position.y;
             if (s.planted && (vcal.gain !== 1 || vcal.smoothed)) {
-              y = applyVerticalCalibration(y, vcal, totalMs > 0 ? tMs / totalMs : 0);
+              // Same phase mapping + entry ramp as sampleAt below (loop-form
+              // table alignment, DET-LOCK-02) — identity for non-loop gaits.
+              const u01 = vcalCycleMs > 0 ? (tMs - vcalPhaseOffsetMs) / vcalCycleMs : 0;
+              let yc = applyVerticalCalibration(y, vcal, u01);
+              if (vcalRampMs > 0 && tMs < vcalRampMs) yc = y + (yc - y) * (tMs / vcalRampMs);
+              y = yc;
             }
             return y;
           },
@@ -797,8 +833,16 @@ export function sampleComposedMotion(
       // double-support drop rounds into a glide. Identity for every uncalibrated
       // motion, so they are byte-identical.
       if (vcal.gain !== 1 || vcal.smoothed) {
-        const u01 = totalMs > 0 ? tMs / totalMs : 0;
-        root.position.y = applyVerticalCalibration(root.position.y, vcal, u01);
+        // Phase indexes the cycle the table was DERIVED from (the loop-form
+        // period for a looping motion, offset by the first keyframe's arrival —
+        // DET-LOCK-02), and the loop table ramps in from the live pin over the
+        // one-shot intro. Non-loop motions keep (totalMs, 0, 0) — byte-identical.
+        const u01 = vcalCycleMs > 0 ? (tMs - vcalPhaseOffsetMs) / vcalCycleMs : 0;
+        let y = applyVerticalCalibration(root.position.y, vcal, u01);
+        if (vcalRampMs > 0 && tMs < vcalRampMs) {
+          y = root.position.y + (y - root.position.y) * (tMs / vcalRampMs);
+        }
+        root.position.y = y;
         root.updateMatrixWorld(true);
       }
     }

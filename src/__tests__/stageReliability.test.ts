@@ -139,3 +139,43 @@ describe('finite reps expand at playback (source pin)', () => {
     expect(stageSource).toMatch(/buildComposedTrajectory\(built, \{[\s\S]{0,200}reps: resolved\.reps/);
   });
 });
+
+describe('DET-LOCK-02 — loop-form vertical calibration in stage/sampler lockstep (source pins)', () => {
+  // The numeric behaviour (no pelvis step at loop engage, first pass matching
+  // the loop table) is gated headlessly in loopVcalHandoff.test.ts through the
+  // SAME sampler code the stage mirrors; these pin the LIVE wiring so a stage
+  // refactor can't silently fall back to a one-shot-derived table or a
+  // discrete table switch.
+  it('derives the vcal table from ONE loop-form trajectory, re-used by the loop player', () => {
+    // Built once per looping playback…
+    expect(stageSource).toContain(
+      'const loopForm = resolved.loop ? buildLoopTrajectory(built, { timeScale }) : null;',
+    );
+    // …fed to the vcal derivation…
+    expect(stageSource).toMatch(
+      /setComposedVerticalCalibration\(\s*loopForm \? loopForm\.trajectory : trajectory,/,
+    );
+    // …and the SAME object engages as the loop clock (no diverging rebuild).
+    expect(stageSource).toMatch(
+      /const \{ trajectory: loopTraj, enterAtMs \} = loopForm \?\? buildLoopTrajectory\(built, \{ timeScale \}\)/,
+    );
+  });
+
+  it('indexes the loop table at (t − first keyframe arrival) on the first pass, ramped in at the entry', () => {
+    // Phase offset = the one-shot's first settle instant (mirrors the sampler's
+    // vcalPhaseOffsetMs = durations[0]/timeScale), cleared when the loop engages.
+    expect(stageSource).toContain('composedVcalPhaseOffsetMs = settleAtMs[0] ?? 0;');
+    expect(stageSource).toMatch(/\(tMs - composedVcalPhaseOffsetMs\) \/ composedVcalCycleMs/);
+    // Entry ramp: the loop table blends in from the live pin over the intro.
+    expect(stageSource).toMatch(/composedVcalRampMs > 0 && tMs < composedVcalRampMs/);
+  });
+
+  it('blends the first-pass → loop handoff over VCAL_HANDOFF_BLEND_MS instead of stepping', () => {
+    expect(stageSource).toMatch(/composedVcalHandoff = \{ deltaYM, startedAtMs: performance\.now\(\) \}/);
+    expect(stageSource).toMatch(
+      /composedVcalHandoff\.startedAtMs\) \/ VCAL_HANDOFF_BLEND_MS/,
+    );
+    // The handoff state is dropped with the rest of the vcal state on cancel.
+    expect(stageSource).toMatch(/function cancelComposed[\s\S]{0,900}composedVcalHandoff = null/);
+  });
+});

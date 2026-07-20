@@ -554,6 +554,7 @@
         deriveVerticalCalibration,
         applyVerticalCalibration,
         NO_VERTICAL_CALIBRATION,
+        VCAL_HANDOFF_BLEND_MS,
         deriveFootDrivenTravel,
         deriveGaitLateralShuttle,
         deriveHeelStrikeAccents,
@@ -1191,6 +1192,9 @@
         composedHandPlants = []; // drop any hand-contact IK for the ended motion
         composedUseFootRoot = false; // drop foot-rooted planting for the ended motion
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
+        composedVcalPhaseOffsetMs = 0; // drop the loop-form phase alignment
+        composedVcalRampMs = 0; // drop the loop-form entry ramp
+        composedVcalHandoff = null; // drop any in-flight vcal handoff blend
         composedFootDriven = null; // drop any foot-driven travel
         composedLateralShuttle = null; // drop any medio-lateral shuttle
         composedHeelStrike = null; // drop any footfall accents
@@ -1625,6 +1629,27 @@
        *  phase base for the smoothed vertical lookup (may be the loop trajectory,
        *  whose period differs from the one-shot `trajectory`). 0 ⇒ no phase base. */
       let composedVcalCycleMs = 0;
+      /** Phase OFFSET (ms) subtracted from playback time before indexing the
+       *  smoothed vcal table (DET-LOCK-02): non-zero only while a LOOPING
+       *  motion's ONE-SHOT first pass rides its LOOP-derived table — the
+       *  one-shot reaches keyframe i at τᵢ + dur₀ while the loop indexes it at
+       *  phase τᵢ, so subtracting the first keyframe's arrival keeps the table
+       *  phase CONTINUOUS across the loop-engage boundary (was a ~3.4 cm pelvis
+       *  step). Reset to 0 when the loop clock (whose time IS cycle phase)
+       *  engages. Mirrors the offline sampler's vcalPhaseOffsetMs exactly. */
+      let composedVcalPhaseOffsetMs = 0;
+      /** Entry RAMP (ms): the loop-form table blends in from the live floor-pin
+       *  over the one-shot intro (phase 0⁻ of the loop table is the wrap
+       *  segment, not the standing start). 0 ⇒ table fully engaged — every
+       *  non-loop motion, and the loop clock. Mirrors the sampler's vcalRampMs. */
+      let composedVcalRampMs = 0;
+      /** VCAL HANDOFF BLEND (DET-LOCK-02): any residual applied-vertical
+       *  difference measured at the first-pass → loop handoff decays over
+       *  VCAL_HANDOFF_BLEND_MS instead of stepping discretely. ~0 by
+       *  construction with the shared loop-form derivation + phase alignment;
+       *  the blend guards the seam against any drift. Live-only (wall-clock) —
+       *  the offline sampler records single passes and never hands off. */
+      let composedVcalHandoff: { deltaYM: number; startedAtMs: number } | null = null;
 
       /** Measure the emergent grounded pelvis arc of a starting composed motion's
        *  trajectory and set `composedVcal` to hit its requested excursion. Called
@@ -1637,6 +1662,9 @@
       ): void {
         composedVcal = NO_VERTICAL_CALIBRATION;
         composedVcalCycleMs = 0;
+        composedVcalPhaseOffsetMs = 0;
+        composedVcalRampMs = 0;
+        composedVcalHandoff = null;
         if (targetCm == null || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
         composedVcalCycleMs = traj.totalMs;
         composedVcal = deriveVerticalCalibration((u01) => {
@@ -1834,8 +1862,16 @@
             if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
             let y = modelRoot!.position.y;
             if (s.planted && (composedVcal.gain !== 1 || composedVcal.smoothed)) {
-              const u01 = composedVcalCycleMs > 0 ? tMs / composedVcalCycleMs : 0;
-              y = applyVerticalCalibration(y, composedVcal, u01);
+              // Same phase mapping + entry ramp as applyTrajectoryRoot (loop-form
+              // table alignment, DET-LOCK-02) — identity for non-loop gaits.
+              const u01 =
+                composedVcalCycleMs > 0
+                  ? (tMs - composedVcalPhaseOffsetMs) / composedVcalCycleMs
+                  : 0;
+              let yc = applyVerticalCalibration(y, composedVcal, u01);
+              if (composedVcalRampMs > 0 && tMs < composedVcalRampMs)
+                yc = y + (yc - y) * (tMs / composedVcalRampMs);
+              y = yc;
             }
             return y;
           },
@@ -2065,10 +2101,35 @@
           pinRootToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, floorRef);
           // Calibrated gait vertical: scale the grounded pelvis arc about its
           // cycle mean to the requested excursion (root-only; joints untouched).
-          // Identity unless the active motion requested calibration.
+          // Identity unless the active motion requested calibration. The phase
+          // indexes the cycle the table was DERIVED from — for a LOOPING motion
+          // the loop-form period, offset by the first keyframe's arrival during
+          // the one-shot first pass (DET-LOCK-02) — with the loop table ramped
+          // in from the live pin over the intro, and any residual root-Y
+          // mismatch at the first-pass → loop handoff decaying over
+          // VCAL_HANDOFF_BLEND_MS instead of stepping discretely. Mirrors the
+          // offline sampler's sampleAt exactly (handoff aside, which only a
+          // live loop reaches).
           if (composedVcal.gain !== 1 || composedVcal.smoothed) {
-            const u01 = composedVcalCycleMs > 0 ? tMs / composedVcalCycleMs : 0;
-            modelRoot.position.y = applyVerticalCalibration(modelRoot.position.y, composedVcal, u01);
+            const u01 =
+              composedVcalCycleMs > 0
+                ? (tMs - composedVcalPhaseOffsetMs) / composedVcalCycleMs
+                : 0;
+            let y = applyVerticalCalibration(modelRoot.position.y, composedVcal, u01);
+            if (composedVcalRampMs > 0 && tMs < composedVcalRampMs) {
+              y = modelRoot.position.y + (y - modelRoot.position.y) * (tMs / composedVcalRampMs);
+            }
+            if (composedVcalHandoff) {
+              const k =
+                1 -
+                Math.min(
+                  1,
+                  (performance.now() - composedVcalHandoff.startedAtMs) / VCAL_HANDOFF_BLEND_MS,
+                );
+              if (k <= 0) composedVcalHandoff = null;
+              else y += composedVcalHandoff.deltaYM * k;
+            }
+            modelRoot.position.y = y;
             modelRoot.updateMatrixWorld(true);
           }
         }
@@ -2571,12 +2632,29 @@
         // for a looping gait (its arc; the one-shot's standing intro would inflate
         // the range), else the one-shot — and reshape it to the requested cm
         // excursion. Root-only, so every measured joint angle stays as authored.
+        // The LOOP-FORM trajectory is built ONCE here (DET-LOCK-02): the vcal
+        // table derives from it and the loop player below re-uses the same
+        // object, so table and playback can never come from diverging builds.
         const composedHasPlanted = built.roots.some((r) => r.stance === 'planted');
+        const loopForm = resolved.loop ? buildLoopTrajectory(built, { timeScale }) : null;
         setComposedVerticalCalibration(
-          resolved.loop ? buildLoopTrajectory(built, { timeScale }).trajectory : trajectory,
+          loopForm ? loopForm.trajectory : trajectory,
           resolved.verticalCalibrationCm,
           composedHasPlanted,
         );
+        // PHASE ALIGNMENT + ENTRY RAMP (DET-LOCK-02): during the one-shot first
+        // pass the loop-derived table is indexed at (t − first keyframe arrival)
+        // so its phase is CONTINUOUS across the loop-engage boundary, and the
+        // table ramps in from the live pin over ≤VCAL_HANDOFF_BLEND_MS at the
+        // standing entry. Mirrors the offline sampler (vcalPhaseOffsetMs /
+        // vcalRampMs in motionRecording) so recordings match the stage.
+        if (loopForm && (composedVcal.gain !== 1 || composedVcal.smoothed)) {
+          composedVcalPhaseOffsetMs = settleAtMs[0] ?? 0;
+          composedVcalRampMs = Math.max(
+            1,
+            Math.min(VCAL_HANDOFF_BLEND_MS, composedVcalPhaseOffsetMs),
+          );
+        }
         // FOOT-DRIVEN travel: derive the curve that keeps the planted foot
         // world-fixed from the same one-shot trajectory the stage plays,
         // following the motion's planned stance schedule when it authors one —
@@ -2732,7 +2810,31 @@
           // per-cycle stall (the loop-seam fix). We enter the loop clock at the
           // last keyframe's phase (`enterAtMs`), where the first pass left the
           // body, so the very first wrap is the smooth cycle transition.
-          const { trajectory: loopTraj, enterAtMs } = buildLoopTrajectory(built, { timeScale });
+          // Re-uses the loopForm built above (same input ⇒ same trajectory) —
+          // the SAME object the vcal table was derived from (DET-LOCK-02).
+          const { trajectory: loopTraj, enterAtMs } = loopForm ?? buildLoopTrajectory(built, { timeScale });
+          // VCAL HANDOFF (DET-LOCK-02): the loop clock's elapsed time IS cycle
+          // phase — drop the first-pass phase offset + entry ramp, and BLEND any
+          // residual applied-vertical difference (measured at the boundary pose)
+          // over VCAL_HANDOFF_BLEND_MS instead of switching discretely. With the
+          // shared loop-form table + phase alignment the residual is ~0 by
+          // construction; the blend guards the seam against any drift.
+          if (composedVcal.gain !== 1 || composedVcal.smoothed) {
+            const liveY = modelRoot ? modelRoot.position.y : 0;
+            composedVcalPhaseOffsetMs = 0;
+            composedVcalRampMs = 0;
+            composedVcalHandoff = null;
+            const s0 = loopTraj.sampleAt(enterAtMs);
+            if (skinnedRef && variantCfgRef)
+              applyCustomPose(skinnedRef.skeleton, variantCfgRef, s0.pose);
+            applyTrajectoryRoot(s0.rootQuat, s0.rootTranslate, s0.planted, enterAtMs, s0.groundingPosture);
+            const deltaYM = modelRoot ? liveY - modelRoot.position.y : 0;
+            if (Math.abs(deltaYM) > 1e-4)
+              composedVcalHandoff = { deltaYM, startedAtMs: performance.now() };
+          } else {
+            composedVcalPhaseOffsetMs = 0;
+            composedVcalRampMs = 0;
+          }
           activeTrajectory = {
             traj: loopTraj,
             start: performance.now() - enterAtMs,

@@ -485,6 +485,16 @@ export interface VerticalCalibration {
 /** Identity — leaves the grounded root untouched. */
 export const NO_VERTICAL_CALIBRATION: VerticalCalibration = { meanY: 0, gain: 1 };
 
+/** How long (ms) the applied vertical calibration BLENDS across a handoff
+ *  instead of switching discretely (DET-LOCK-02). Two uses, one window: the
+ *  loop-form table is ramped IN over this long at a looping motion's one-shot
+ *  entry (standing pin → smoothed gait arc — phase 0⁻ of the loop table is the
+ *  wrap segment, not the standing start), and any residual applied-vertical
+ *  difference at the live first-pass → loop-clock handoff decays over the same
+ *  window. Shared by the offline sampler and the live stage so the two blends
+ *  can never diverge. */
+export const VCAL_HANDOFF_BLEND_MS = 200;
+
 /**
  * Derive a MEAN-PRESERVING vertical calibration from the emergent grounded
  * pelvis arc. `groundedRootYAtPhase(u)` must return the floor-pinned model-root

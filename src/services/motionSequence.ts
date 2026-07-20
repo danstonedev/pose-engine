@@ -470,6 +470,18 @@ export interface ComposedMotion {
    *  eccentrics (the clinical squat) leave this off — the symmetric authored
    *  tempo IS the movement. Default off (unflagged motions byte-identical). */
   weightedDescent?: boolean;
+  /** HOLD-UNMENTIONED opt-OUT (SEAM-6). A `startFrom:'current'` motion normally
+   *  SETTLES the drivers it never targets: joints a superseded motion left
+   *  displaced (a walk interrupted mid-swing — hip +30°, elbow +28°) ease from
+   *  their live values to the motion's implicit baseline (anatomic rest) over
+   *  ~{@link UNMENTIONED_SETTLE_MS} at the start, instead of holding the stale
+   *  pose frozen through the whole motion. Set true to KEEP the frozen
+   *  carryover for callers that genuinely want it (a deliberately held pose).
+   *  Deliberate continuations don't need it: the settle starts FROM the live
+   *  value (C0 at the seam, so chain-seam gates still measure ~0°), and motions
+   *  resting on a grounding posture are never settled (their un-targeted joints
+   *  ARE the support). See {@link buildSequencePoses}. */
+  holdUnmentioned?: boolean;
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
@@ -507,6 +519,15 @@ export const MIN_KEYFRAME_MS = 150;
  *  durations (and even the velocity floor at pathological angular travel) so a
  *  single keyframe can never freeze a host's serialized command chain. */
 export const MAX_KEYFRAME_MS = 10_000;
+/** How long (ms of playback, timeScale-corrected) the drivers a
+ *  `startFrom:'current'` motion never targets take to SETTLE from their
+ *  inherited live values to the motion's implicit baseline (SEAM-6) — the fix
+ *  for superseded-motion residuals (an interrupted walk's mid-swing hip/elbow
+ *  used to stay frozen through the whole next motion). The ease is C0 at the
+ *  seam (it starts FROM the live value), so chain continuity at t=0 is
+ *  preserved by construction. Opt out per motion with
+ *  {@link ComposedMotion.holdUnmentioned}. */
+export const UNMENTIONED_SETTLE_MS = 500;
 
 // ── Resolution result types ─────────────────────────────────────────────────
 
@@ -607,6 +628,10 @@ export interface ResolvedComposedMotion {
    *  (`weightedDescentApplies`, services/rootMotion) admits the motion. See
    *  {@link ComposedMotion.weightedDescent}. */
   weightedDescent?: boolean;
+  /** Hold-unmentioned opt-out (pass-through) — suppresses the settle of
+   *  un-targeted drivers on a 'current' start (SEAM-6). See
+   *  {@link ComposedMotion.holdUnmentioned}. */
+  holdUnmentioned?: boolean;
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -1401,6 +1426,7 @@ export function resolveComposedMotion(
     ...(motion.flowIn ? { flowIn: true } : {}),
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
     ...(motion.weightedDescent ? { weightedDescent: true } : {}),
+    ...(motion.holdUnmentioned ? { holdUnmentioned: true } : {}),
   };
 }
 
@@ -1468,6 +1494,34 @@ export interface ComposedMotionPoses {
   loop: boolean;
   /** Resolved start mode carried through for the stage/host. */
   startFrom: 'current' | 'neutral';
+}
+
+type QuatTuple = [number, number, number, number];
+
+/** Pure quaternion slerp on plain tuples (shortest arc; nlerp fallback for
+ *  near-parallel inputs). Local so this module stays scene-free. */
+function slerpQuatTuple(a: QuatTuple, b: QuatTuple, t: number): QuatTuple {
+  if (t <= 0) return [a[0], a[1], a[2], a[3]];
+  if (t >= 1) return [b[0], b[1], b[2], b[3]];
+  let bx = b[0], by = b[1], bz = b[2], bw = b[3];
+  let dot = a[0] * bx + a[1] * by + a[2] * bz + a[3] * bw;
+  if (dot < 0) {
+    bx = -bx; by = -by; bz = -bz; bw = -bw;
+    dot = -dot;
+  }
+  if (dot > 0.9995) {
+    const x = a[0] + (bx - a[0]) * t;
+    const y = a[1] + (by - a[1]) * t;
+    const z = a[2] + (bz - a[2]) * t;
+    const w = a[3] + (bw - a[3]) * t;
+    const n = Math.hypot(x, y, z, w) || 1;
+    return [x / n, y / n, z / n, w / n];
+  }
+  const theta = Math.acos(Math.min(1, dot));
+  const s = Math.sin(theta);
+  const wa = Math.sin((1 - t) * theta) / s;
+  const wb = Math.sin(t * theta) / s;
+  return [a[0] * wa + bx * wb, a[1] * wa + by * wb, a[2] * wa + bz * wb, a[3] * wa + bw * wb];
 }
 
 /** Options threading the CURRENT on-stage pose into the build (continuity). */
@@ -1572,6 +1626,74 @@ export function buildSequencePoses(
     velocityClasses.push(kf.velocityClass);
     prev = pose;
   }
+
+  // ── SETTLE-UNMENTIONED-DRIVERS (SEAM-6) ──────────────────────────────────
+  // A `startFrom:'current'` motion folds onto the live pose, so joints it never
+  // targets used to inherit — and HOLD — whatever a superseded motion left in
+  // them (a walk interrupted mid-swing froze hip +30° / elbow +28° through the
+  // whole next motion). Instead, ease those un-targeted drivers home: each
+  // keyframe's carried copy of an un-driven bone is slerped live→baseline with
+  // a weight that ramps to 1 by ~UNMENTIONED_SETTLE_MS of (timeScale-corrected)
+  // playback, so the trajectory — whose knot 0 IS the live pose — carries the
+  // joint to rest smoothly. C0 at the seam BY CONSTRUCTION (the settle starts
+  // FROM the live value), which is what keeps deliberate continuations
+  // (sampleMotionChain / asContinuation / the TUG chain) measuring ~0° seams.
+  // Pose-space and part of the BUILD, not a live overlay: the stage and the
+  // offline sampler both consume these poses (lockstep), and clean-mode
+  // recordings carry the settle.
+  // The carried pose is LOAD-BEARING — skipped — when:
+  //   • the motion opts out (`holdUnmentioned`) or starts 'neutral' (the ready
+  //     settle already owns that path);
+  //   • no live pose was threaded (fresh start — nothing to settle);
+  //   • any keyframe rests on a GROUNDING POSTURE (a seated/quadruped body's
+  //     un-targeted joints ARE its support);
+  //   • the motion has no joint targets at all (a posture-only movement carries
+  //     the previous joint pose forward by design).
+  // A LOOPING / multi-rep motion replays every keyframe, so a partial ramp
+  // would oscillate once per cycle — those settle across their first segment
+  // instead (weight 1 on every cycle keyframe; knot 0 still eases from live).
+  const settleFrom = resolved.startFrom === 'current' ? opts?.currentPose : null;
+  if (
+    settleFrom?.bones &&
+    resolved.holdUnmentioned !== true &&
+    resolved.keyframes.some((kf) => kf.targets.length > 0) &&
+    !resolved.keyframes.some((kf) => kf.groundingPosture != null)
+  ) {
+    const driven = new Set<string>();
+    for (const kf of resolved.keyframes) for (const t of kf.targets) driven.add(t.joint);
+    // Residuals: bones the motion never drives, measurably away from baseline.
+    const residuals: { key: string; live: QuatTuple; base: QuatTuple }[] = [];
+    for (const [key, liveArr] of Object.entries(settleFrom.bones)) {
+      if (driven.has(key)) continue;
+      const baseArr = baselinePose.bones?.[key];
+      if (!baseArr) continue;
+      const dot = Math.abs(
+        liveArr[0] * baseArr[0] + liveArr[1] * baseArr[1] + liveArr[2] * baseArr[2] + liveArr[3] * baseArr[3],
+      );
+      if ((2 * Math.acos(Math.min(1, dot)) * 180) / Math.PI < 0.5) continue; // already home
+      residuals.push({
+        key,
+        live: [liveArr[0], liveArr[1], liveArr[2], liveArr[3]],
+        base: [baseArr[0], baseArr[1], baseArr[2], baseArr[3]],
+      });
+    }
+    if (residuals.length) {
+      const ts = Math.min(1.5, Math.max(0.4, resolved.modifiers?.timeScale ?? 1));
+      const ramps = !resolved.loop && resolved.reps <= 1;
+      let arriveMs = 0;
+      for (let i = 0; i < poses.length; i += 1) {
+        arriveMs += durationsMs[i]! / ts;
+        const w = ramps ? Math.min(1, arriveMs / UNMENTIONED_SETTLE_MS) : 1;
+        arriveMs += holdsMs[i]! / ts;
+        // Fresh pose object per keyframe (a posture-only keyframe may alias the
+        // live currentPose object — never mutate the caller's pose).
+        const bones = { ...poses[i]!.bones };
+        for (const r of residuals) bones[r.key] = slerpQuatTuple(r.live, r.base, w);
+        poses[i] = { ...poses[i]!, bones };
+      }
+    }
+  }
+
   return {
     poses,
     roots,
