@@ -92,10 +92,16 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
   it('rebuilds the plants from the starting motion’s contacts', () => {
     // Since the travel-heading work (roadmap 4.1) the call also forwards the
     // motion's headingDeg so a rotated walk derives its heading-rotated
-    // plant-clamp rest frame (composedPlantRest).
-    expect(stageSource).toContain('setComposedContacts(resolved.contacts, resolved.headingDeg ?? 0)');
+    // plant-clamp rest frame (composedPlantRest); the curved-walk work
+    // (roadmap 6.2) adds the heading profile so each contact window gets a
+    // rest frame rotated by the heading at ITS OWN start.
+    expect(stageSource).toContain(
+      'setComposedContacts(resolved.contacts, resolved.headingDeg ?? 0, resolved.headingProfileMs)',
+    );
     // setComposedContacts builds one solver per declared contact.
-    expect(stageSource).toMatch(/function setComposedContacts[\s\S]{0,700}buildFootPlant\(skinnedRef, c\.foot, variantCfgRef\)/);
+    // (Window widened 700→1600: the curved-walk per-window rest lookup now
+    // sits between the reset and the per-contact solver build.)
+    expect(stageSource).toMatch(/function setComposedContacts[\s\S]{0,1600}buildFootPlant\(skinnedRef, c\.foot, variantCfgRef\)/);
   });
 
   it('solves the plants per frame, only within each foot’s stance window', () => {
@@ -107,11 +113,13 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,900}tMs >= fp\.fromMs/);
     expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,900}fp\.target\.y -= composedHeelStrikeY/);
     // Since the travel-heading work the solve clamps against the (possibly
-    // heading-rotated) composedPlantRest, falling back to restRef — with the
-    // ORIGINAL restRef always naming the knee hinge axis. Heading 0 keeps the
-    // legacy behaviour exactly (composedPlantRest stays null).
+    // heading-rotated) rest frame, falling back to restRef — with the ORIGINAL
+    // restRef always naming the knee hinge axis. The curved-walk work (6.2)
+    // prefers a PER-WINDOW rest (fp.rest — rotated by the heading at the
+    // window's start) over the shared composedPlantRest. Heading 0 keeps the
+    // legacy behaviour exactly (both stay unset/null).
     expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,900}solveFootPlant\(fp\.solver, fp\.target, composedPlantRest \?\? restRef, restRef\)/,
+      /function applyFootPlants[\s\S]{0,1100}solveFootPlant\(fp\.solver, fp\.target, fp\.rest \?\? composedPlantRest \?\? restRef, restRef\)/,
     );
     // …and it is called from the live frame step AND the parked path.
     expect(stageSource).toContain('applyFootPlants(elapsed)');

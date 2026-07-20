@@ -574,12 +574,57 @@ export function applyVerticalCalibration(y: number, cal: VerticalCalibration, u0
 export interface FootDrivenTravel {
   totalMs: number;
   /** Travel offset ALONG THE HEADING, meters, at absolute time tMs. Heading 0
-   *  ⇒ this is exactly the forward (+Z) root offset (back-compat). */
+   *  ⇒ this is exactly the forward (+Z) root offset (back-compat). For a CURVED
+   *  heading (`at` present) this is the along-path ARC LENGTH advanced. */
   zAt(tMs: number): number;
   /** Heading unit vector [x, z] the offset rides: root += offset·(x, z).
    *  [0, 1] (straight ahead, +Z) for the default heading 0 — applying it there
-   *  is byte-identical to the old z-only ride. */
+   *  is byte-identical to the old z-only ride. Ignored by appliers when the
+   *  curved `at` lookup is present. */
   heading: [number, number];
+  /** CURVED heading (roadmap 6.2): the accumulated world (x, z) travel offset
+   *  at tMs — each derived per-step advance was applied along the heading AT
+   *  THAT TIME (`headingDegAt`), so the path is an arc, not a line. Present
+   *  ONLY when the derivation was given a per-time heading curve; appliers use
+   *  it INSTEAD of `zAt`·`heading`. Absent for a constant heading — that path
+   *  (and its application) stays byte-identical to before. */
+  at?(tMs: number): [number, number];
+}
+
+/** One knot of a piecewise-linear travel-heading curve (degrees about the
+ *  vertical axis, same convention as {@link FootDrivenTravel}'s headingDeg:
+ *  0 = straight ahead +Z, + toward the subject's left). */
+export interface HeadingProfilePoint {
+  tMs: number;
+  headingDeg: number;
+}
+
+/**
+ * Piecewise-linear heading lookup over time-ordered profile points — the shared
+ * "heading AT THIS TIME" primitive for a curved walk (roadmap 6.2). The gait
+ * builder authors the SAME progression as per-keyframe root yaw; the sampler
+ * and the live stage both build their lookup from the motion's profile with
+ * this ONE function, so the derived travel/shuttle direction can never diverge
+ * from the authored body orientation. Lookups clamp at the profile's ends.
+ */
+export function headingProfileLookup(
+  points: readonly HeadingProfilePoint[],
+): (tMs: number) => number {
+  const pts = points.filter((p) => Number.isFinite(p.tMs) && Number.isFinite(p.headingDeg));
+  if (pts.length === 0) return () => 0;
+  return (tMs: number): number => {
+    if (tMs <= pts[0]!.tMs) return pts[0]!.headingDeg;
+    for (let i = 1; i < pts.length; i += 1) {
+      const a = pts[i - 1]!;
+      const b = pts[i]!;
+      if (tMs <= b.tMs) {
+        const span = b.tMs - a.tMs;
+        if (span <= 0) return b.headingDeg;
+        return a.headingDeg + ((b.headingDeg - a.headingDeg) * (tMs - a.tMs)) / span;
+      }
+    }
+    return pts[pts.length - 1]!.headingDeg;
+  };
 }
 
 /** The world Z (forward) of each foot at a phase — what the derivation reads. */
@@ -698,6 +743,17 @@ function scheduledStance(
  * takes. The caller authors the SAME heading as the body's root yaw, so the FK
  * sweep and the derived cancellation stay collinear. Heading 0 keeps the
  * legacy z-only measurement verbatim (byte-identical).
+ * `headingDegAt` (optional, roadmap 6.2 — CURVED walking) generalises the
+ * constant heading to a per-time heading CURVE (the caller's piecewise lookup
+ * mirroring the authored yaw progression, see {@link headingProfileLookup}):
+ * each per-step advance is measured against — and accumulated along — the
+ * heading AT THAT SAMPLE, so the derived root path is an arc. The result then
+ * carries the {@link FootDrivenTravel.at} (x, z) lookup, which appliers use
+ * instead of `zAt`·`heading`. The residual the projection can't cancel (the
+ * planted foot's PERPENDICULAR arc about the yawing root, rate ≈ foot-fore-aft
+ * × turn-rate) integrates to ~0 over a symmetric stance window and is absorbed
+ * per-frame by the foot-plant IK. When omitted, the constant-heading path runs
+ * verbatim (byte-identical).
  * FLIGHT GAPS (a run): a sample whose {@link FeetZ.bothAirborne} is set has NO
  * planted foot — the derivation holds the last grounded advance through the
  * gap and treats the first grounded sample after it as a touchdown handoff
@@ -710,6 +766,7 @@ export function deriveFootDrivenTravel(
   stanceWindows?: GaitStanceWindow[],
   steps = 120,
   headingDeg = 0,
+  headingDegAt?: (tMs: number) => number,
 ): FootDrivenTravel {
   const n = Math.max(2, steps);
   const dt = totalMs / (n - 1);
@@ -718,6 +775,10 @@ export function deriveFootDrivenTravel(
   // exactly 0/1, so the heading-0 path stays byte-identical to the old +Z ride.
   const hx = Math.sin(headingDeg * RAD);
   const hz = Math.cos(headingDeg * RAD);
+  // CURVED heading: accumulate the (x, z) PATH alongside the arc length, each
+  // advance applied along the heading at its own sample time.
+  const px = headingDegAt ? new Array<number>(n).fill(0) : null;
+  const pz = headingDegAt ? new Array<number>(n).fill(0) : null;
   let prev = sampleFeetAtPhase(0);
   let planted: 'R' | 'L' = scheduledStance(stanceWindows, 0, true) ?? (prev.ry <= prev.ly ? 'R' : 'L');
   // Inside a FLIGHT gap (both feet airborne — a run's ballistic interval) the
@@ -730,6 +791,10 @@ export function deriveFootDrivenTravel(
     // otherwise advance/retreat the root. Hold the last grounded advance.
     if (cur.bothAirborne === true) {
       z[i] = z[i - 1]!;
+      if (px && pz) {
+        px[i] = px[i - 1]!;
+        pz[i] = pz[i - 1]!;
+      }
       airborne = true;
       prev = cur;
       continue;
@@ -748,6 +813,10 @@ export function deriveFootDrivenTravel(
       airborne = false;
       planted = scheduled ?? (cur.ry <= cur.ly ? 'R' : 'L');
       z[i] = z[i - 1]!;
+      if (px && pz) {
+        px[i] = px[i - 1]!;
+        pz[i] = pz[i - 1]!;
+      }
       prev = cur;
       continue;
     }
@@ -765,7 +834,24 @@ export function deriveFootDrivenTravel(
       // floored at 0 (the walking root never backs up mid-window).
       // For a rotated heading the backward step is the sweep's projection onto
       // the heading unit vector; heading 0 keeps the legacy z-only expression.
+      // A CURVED heading projects — and accumulates — along the heading at THIS
+      // sample's time, so the path bends with the authored yaw progression.
       let back: number;
+      if (headingDegAt) {
+        const hd = headingDegAt(i * dt);
+        const chx = Math.sin(hd * RAD);
+        const chz = Math.cos(hd * RAD);
+        back =
+          planted === 'R'
+            ? (prev.rz - cur.rz) * chz + ((prev.rx ?? 0) - (cur.rx ?? 0)) * chx
+            : (prev.lz - cur.lz) * chz + ((prev.lx ?? 0) - (cur.lx ?? 0)) * chx;
+        if (scheduled != null) back = Math.max(0, back);
+        z[i] = z[i - 1]! + back;
+        px![i] = px![i - 1]! + back * chx;
+        pz![i] = pz![i - 1]! + back * chz;
+        prev = cur;
+        continue;
+      }
       if (headingDeg === 0) {
         back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
       } else {
@@ -779,20 +865,34 @@ export function deriveFootDrivenTravel(
     } else {
       // Handoff: the new foot just landed — no advance this frame, then track it.
       z[i] = z[i - 1]!;
+      if (px && pz) {
+        px[i] = px[i - 1]!;
+        pz[i] = pz[i - 1]!;
+      }
       planted = lower;
     }
     prev = cur;
   }
+  const lerp = (arr: number[], tMs: number): number => {
+    if (tMs <= 0) return arr[0]!;
+    if (tMs >= totalMs) return arr[n - 1]!;
+    const u = tMs / dt;
+    const k = Math.min(n - 2, Math.floor(u));
+    return arr[k]! + (arr[k + 1]! - arr[k]!) * (u - k);
+  };
   return {
     totalMs,
     zAt(tMs: number): number {
-      if (tMs <= 0) return z[0]!;
-      if (tMs >= totalMs) return z[n - 1]!;
-      const u = tMs / dt;
-      const k = Math.min(n - 2, Math.floor(u));
-      return z[k]! + (z[k + 1]! - z[k]!) * (u - k);
+      return lerp(z, tMs);
     },
     heading: [hx, hz],
+    ...(px && pz
+      ? {
+          at(tMs: number): [number, number] {
+            return [lerp(px, tMs), lerp(pz, tMs)];
+          },
+        }
+      : {}),
   };
 }
 
@@ -810,8 +910,15 @@ export interface LateralShuttle {
   xAt(tMs: number): number;
   /** Lateral unit vector [x, z] the offset rides: root += offset·(x, z).
    *  [1, 0] (world +X, subject-left) for the default heading 0 — applying it
-   *  there is byte-identical to the old x-only ride. */
+   *  there is byte-identical to the old x-only ride. Ignored by appliers when
+   *  the curved `at` lookup is present. */
   lateral: [number, number];
+  /** CURVED heading (roadmap 6.2): the shuttle's world (x, z) offset at tMs —
+   *  `xAt(tMs)` applied along the INSTANTANEOUS heading's left-perpendicular
+   *  (the caller's per-time heading curve). Present ONLY when the derivation
+   *  was given `headingDegAt`; appliers use it instead of `xAt`·`lateral`.
+   *  Absent for a constant heading (byte-identical legacy path). */
+  at?(tMs: number): [number, number];
 }
 
 /**
@@ -847,6 +954,11 @@ export interface LateralShuttle {
  * (cosH, −sinH) — which needs the feet world Z in {@link FeetLateral} — and
  * the returned `lateral` tells the applier which (x, z) ride the offset takes.
  * Heading 0 keeps the legacy world-X measurement verbatim (byte-identical).
+ * `headingDegAt` (optional, roadmap 6.2 — CURVED walking): per-time heading
+ * curve; the feet's lateral coordinate is measured against — and the shuttle
+ * offset applied along — the INSTANTANEOUS heading's left-perpendicular via
+ * the returned {@link LateralShuttle.at}. Omitted ⇒ the constant-heading path
+ * runs verbatim (byte-identical).
  */
 export function deriveGaitLateralShuttle(
   sampleFeetAtPhase: (tMs: number) => FeetLateral,
@@ -855,6 +967,7 @@ export function deriveGaitLateralShuttle(
   stanceWindows?: GaitStanceWindow[],
   steps = 120,
   headingDeg = 0,
+  headingDegAt?: (tMs: number) => number,
 ): LateralShuttle {
   const n = Math.max(2, steps);
   const dt = totalMs / (n - 1);
@@ -865,9 +978,15 @@ export function deriveGaitLateralShuttle(
   // heading-0 path is byte-identical to the old x-only measurement).
   const hx = Math.sin(headingDeg * RAD);
   const hz = Math.cos(headingDeg * RAD);
-  /** Lateral (left-perpendicular-to-heading) coordinate of a foot. */
-  const latOf = (fx: number, fz: number | undefined): number =>
-    headingDeg === 0 ? fx : fx * hz - (fz ?? 0) * hx;
+  /** Lateral (left-perpendicular-to-heading) coordinate of a foot — against
+   *  the heading at sample time tMs for a CURVED walk, else the constant. */
+  const latOf = (fx: number, fz: number | undefined, tMs: number): number => {
+    if (headingDegAt) {
+      const hd = headingDegAt(tMs);
+      return fx * Math.cos(hd * RAD) - (fz ?? 0) * Math.sin(hd * RAD);
+    }
+    return headingDeg === 0 ? fx : fx * hz - (fz ?? 0) * hx;
+  };
   if (amp > 0) {
     const feet: FeetLateral[] = [];
     for (let i = 0; i < n; i += 1) feet.push(sampleFeetAtPhase(i * dt));
@@ -881,7 +1000,10 @@ export function deriveGaitLateralShuttle(
     }
     // Body centre line = mean of the two feet across the cycle.
     let centerX = 0;
-    for (const f of feet) centerX += (latOf(f.rx, f.rz) + latOf(f.lx, f.lz)) / 2;
+    for (let i = 0; i < n; i += 1) {
+      const f = feet[i]!;
+      centerX += (latOf(f.rx, f.rz, i * dt) + latOf(f.lx, f.lz, i * dt)) / 2;
+    }
     centerX /= n;
     // Stance windows in sample indices: the planned schedule when supplied,
     // else the measured contiguous planted-foot runs.
@@ -909,7 +1031,10 @@ export function deriveGaitLateralShuttle(
       const foot: 'R' | 'L' = schedFoot ?? (rCount * 2 >= i1 - i0 + 1 ? 'R' : 'L');
       let stanceX = 0;
       for (let k = i0; k <= i1; k += 1)
-        stanceX += foot === 'R' ? latOf(feet[k]!.rx, feet[k]!.rz) : latOf(feet[k]!.lx, feet[k]!.lz);
+        stanceX +=
+          foot === 'R'
+            ? latOf(feet[k]!.rx, feet[k]!.rz, k * dt)
+            : latOf(feet[k]!.lx, feet[k]!.lz, k * dt);
       stanceX = stanceX / (i1 - i0 + 1) - centerX;
       // Toward the stance foot, capped inside the half-stance-width (60%) so a
       // narrow stance can never be over-shuttled past its own base edge.
@@ -919,16 +1044,27 @@ export function deriveGaitLateralShuttle(
       }
     }
   }
+  const xLookup = (tMs: number): number => {
+    if (tMs <= 0) return x[0]!;
+    if (tMs >= totalMs) return x[n - 1]!;
+    const u = tMs / dt;
+    const k = Math.min(n - 2, Math.floor(u));
+    return x[k]! + (x[k + 1]! - x[k]!) * (u - k);
+  };
   return {
     totalMs,
-    xAt(tMs: number): number {
-      if (tMs <= 0) return x[0]!;
-      if (tMs >= totalMs) return x[n - 1]!;
-      const u = tMs / dt;
-      const k = Math.min(n - 2, Math.floor(u));
-      return x[k]! + (x[k + 1]! - x[k]!) * (u - k);
-    },
+    xAt: xLookup,
     lateral: [hz, -hx],
+    ...(headingDegAt
+      ? {
+          at(tMs: number): [number, number] {
+            const off = xLookup(tMs);
+            const hd = headingDegAt(tMs);
+            // The instantaneous heading's left-perpendicular (cosH, −sinH).
+            return [off * Math.cos(hd * RAD), -off * Math.sin(hd * RAD)];
+          },
+        }
+      : {}),
   };
 }
 
