@@ -2001,7 +2001,11 @@ export function spinalGaitCoordination(
   opts: { axial?: number; lateral?: number; headStabilize?: number } = {},
 ): ComposedMotion {
   const kAx = Math.max(0, opts.axial ?? 0.16);
-  const kLat = Math.max(0, opts.lateral ?? 0.09);
+  // Lateral sway is SMALL in real gait — the trunk stays near-vertical in the frontal
+  // plane (~2-4° lean toward the stance limb); a big side-to-side lean reads as a waddle,
+  // and the transverse counter-ROTATION (kAx) should dominate the trunk's gait character.
+  // (0.09 measured ~13° of thorax lateral roll on the rig — a lurch; 0.03 lands ~4°.)
+  const kLat = Math.max(0, opts.lateral ?? 0.03);
   const headStab = Math.max(0, Math.min(1, opts.headStabilize ?? 1));
   if (kAx === 0 && kLat === 0) return motion;
   const cap = (v: number, m: number): number => Math.max(-m, Math.min(m, v));
