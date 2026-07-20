@@ -38,6 +38,7 @@ const SPINE_MOTIONS = new Set(['rotation', 'lateralTilt']);
  *  abduction, forearm rotation, hip abduction, knee rotation, ankle inversion) that keeps
  *  the arms/legs from swinging as flat 2-D pendulums. */
 const LIMB_NONSAG: Record<string, string> = {
+  L_Shoulder: 'protraction', R_Shoulder: 'protraction',
   L_UpperArm: 'shoulderAbduction', R_UpperArm: 'shoulderAbduction',
   L_Forearm: 'forearmRotation', R_Forearm: 'forearmRotation',
   L_UpLeg: 'hipRotation|hipAbduction', R_UpLeg: 'hipRotation|hipAbduction',
@@ -99,6 +100,16 @@ describe('spinalGaitCoordination — trunk counter-rotation authoring', () => {
     // Arms: hang IN close to the body — a slight ADduction (frontal) + forearm pronation.
     expect(present('R_UpperArm', 'shoulderAbduction'), 'arm frontal motion').toBe(true);
     expect(present('R_Forearm', 'forearmRotation'), 'forearm rotation').toBe(true);
+    // Shoulder GIRDLE: the scapula protracts/retracts fore/aft WITH the arm swing — arm
+    // swing isn't purely glenohumeral. It must OSCILLATE (protract on the forward swing,
+    // retract on the backswing), not sit at a fixed offset.
+    expect(present('R_Shoulder', 'protraction'), 'scapular protraction/retraction').toBe(true);
+    const scapVals = out.keyframes.map(
+      (kf) => kf.targets?.find((t) => t.joint === 'R_Shoulder' && t.motion === 'protraction')?.targetDegrees ?? 0,
+    );
+    expect(Math.max(...scapVals), 'scapula protracts on the forward swing').toBeGreaterThan(0.5);
+    expect(Math.min(...scapVals), 'scapula retracts on the backswing').toBeLessThan(-0.5);
+    expect(Math.max(...scapVals.map(Math.abs)), 'scapular glide stays subtle').toBeLessThanOrEqual(10);
     // Legs: swing hip ADduction (frontal), tibial rotation (transverse), subtalar roll (frontal).
     expect(present('R_UpLeg', 'hipAbduction'), 'hip frontal motion').toBe(true);
     expect(present('R_Leg', 'kneeRotation'), 'knee rotation').toBe(true);
@@ -276,6 +287,33 @@ describe('spinalGaitCoordination — measured on the rig', () => {
       expect(lat, `${motion.name}: lateral trunk lean stays small (not a waddle)`).toBeLessThan(8);
       expect(rot, `${motion.name}: rotation dominates the lateral lean`).toBeGreaterThan(lat * 1.8);
     }
+  });
+
+  it('scapular girdle GLIDES fore/aft on the rig — the shoulder protracts/retracts with the swing', () => {
+    // Isolate the girdle glide from trunk rotation + root motion: express the R shoulder
+    // joint (R_UpperArm origin) IN THE THORAX FRAME. On the path Spine_Upper → R_Shoulder
+    // (clavicle) → R_UpperArm, only the clavicle articulates — arm swing rotates the humerus
+    // ABOUT that origin and cannot move it. So a thorax-relative excursion of the joint is a
+    // pure scapular protraction/retraction readout: a real, visible fore/aft girdle glide.
+    const rec = sampleComposedMotion(resolveComposedMotion(buildTravelWalk(), variantCfg), {
+      baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
+    });
+    const bones = buildBoneByPoseKey(skinned.skeleton, variantCfg);
+    const shoulder = bones.get('R_UpperArm')!, thorax = bones.get('Spine_Upper')!;
+    const tPos = new THREE.Vector3(), sPos = new THREE.Vector3(), tQ = new THREE.Quaternion();
+    const xs: number[] = [], ys: number[] = [], zs: number[] = [];
+    for (const f of rec.frames) {
+      applyCustomPose(skinned.skeleton, variantCfg, f.pose); root.updateMatrixWorld(true);
+      thorax.getWorldPosition(tPos); thorax.getWorldQuaternion(tQ); shoulder.getWorldPosition(sPos);
+      const rel = sPos.clone().sub(tPos).applyQuaternion(tQ.clone().invert());
+      xs.push(rel.x); ys.push(rel.y); zs.push(rel.z);
+    }
+    const range = (a: number[]) => Math.max(...a) - Math.min(...a);
+    const glideCm = Math.max(range(xs), range(ys), range(zs)) * 100;
+    // eslint-disable-next-line no-console
+    console.log(`walk-forward: scapular fore/aft glide ${glideCm.toFixed(1)} cm`);
+    expect(glideCm, 'the shoulder girdle visibly glides on the ribcage (protraction/retraction)').toBeGreaterThan(0.8);
+    expect(glideCm, 'but stays subtle — a physiologic glide, not a shrug').toBeLessThan(15);
   });
 
   it('UNIVERSAL gaze: a NON-GAIT trunk rotation also holds the eyes forward (automatic)', () => {
