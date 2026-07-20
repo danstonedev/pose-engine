@@ -41,6 +41,8 @@ import {
 import {
   buildFootPlant,
   solveFootPlant,
+  solveFootPlantWeighted,
+  PLANT_RELEASE_BLEND_MS,
   buildHandPlant,
   solveHandReach,
   type FootPlantSolver,
@@ -95,6 +97,53 @@ export { composedTweenEase };
 
 /** The default exam-command tween duration, ms (mirrors ExamStage3D). */
 export const COMMAND_TWEEN_MS = 600;
+
+// ── Authored-ms → trajectory-ms (the ONE gait time-base factor) ──────────────
+
+/**
+ * The ONE authored-ms → trajectory-ms factor for everything a motion declares
+ * against its AUTHORED keyframe clock: the planned stance schedule
+ * (`gaitStanceWindowsMs`), the foot-plant `contacts` from/to windows, and the
+ * heading profile. The trajectory re-times the authored durations by
+ * `modifiers.timeScale` (paceGait's cadence) and expands finite reps, so
+ * trajectory time = authored time × (totalMs / authoredMs) — anything declared
+ * in authored ms must be scaled by this factor before it is compared with a
+ * trajectory-time clock.
+ *
+ * SEAM-2: the stance WINDOWS were always scaled this way but the plant CONTACTS
+ * were applied raw, so at any pace ≠ 1 the pinned stance phases ran 1/timeScale
+ * out of sync with the trajectory — the planted foot slid tens of cm inside its
+ * window and popped at release. Sampler AND stage now derive the factor from
+ * THIS helper only, so the two time bases can never diverge again.
+ * Identity (1) at timeScale 1 and for a degenerate/empty motion.
+ */
+export function authoredToTrajectoryTimeScale(
+  motion: {
+    keyframes: { durationMs?: number; holdMs?: number }[];
+    loop?: boolean;
+    reps?: number;
+  },
+  trajectoryTotalMs: number,
+): number {
+  const authoredMs =
+    motion.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0) *
+    (motion.loop ? 1 : Math.max(1, motion.reps ?? 1));
+  return authoredMs > 0 && trajectoryTotalMs > 0 ? trajectoryTotalMs / authoredMs : 1;
+}
+
+/**
+ * Scale a planned stance-window schedule (or any fromMs/toMs window list) from
+ * authored ms into trajectory ms by {@link authoredToTrajectoryTimeScale}'s
+ * factor. Every other field (foot, travelLock, …) is carried through untouched.
+ * Undefined/empty in → undefined out (the no-schedule path stays falsy).
+ */
+export function scaleStanceWindowsMs<T extends { fromMs: number; toMs: number }>(
+  windows: readonly T[] | undefined,
+  scale: number,
+): T[] | undefined {
+  if (!windows?.length) return undefined;
+  return windows.map((w) => ({ ...w, fromMs: w.fromMs * scale, toMs: w.toMs * scale }));
+}
 
 // ── Recording types ──────────────────────────────────────────────────────────
 
@@ -511,6 +560,21 @@ export function sampleComposedMotion(
   const dtMs = 1000 / hz;
   const boneByKey = buildBoneByPoseKey(skinned.skeleton, variantCfg);
 
+  // AUTHORED→TRAJECTORY TIME BASE (SEAM-2): the one shared factor that maps the
+  // motion's authored keyframe clock onto trajectory time — see the helper doc.
+  // The foot-plant CONTACT windows were built above in authored ms (their
+  // per-window heading rests must be looked up on the authored clock); re-time
+  // them here, once the trajectory's total is known, so the per-frame window
+  // checks below compare like with like. ±Infinity (whole-motion pins) scale to
+  // themselves; identity at timeScale 1 keeps the un-paced path byte-exact.
+  const authoredToTraj = authoredToTrajectoryTimeScale(resolved, totalMs);
+  if (authoredToTraj !== 1) {
+    for (const fp of footPlants) {
+      fp.fromMs *= authoredToTraj;
+      fp.toMs *= authoredToTraj;
+    }
+  }
+
   // CALIBRATED GAIT VERTICAL (mean-preserving reshape). When the motion asks for
   // a target excursion, do a cheap PRE-PASS over one cycle to measure the
   // EMERGENT floor-pinned pelvis arc (the compass-gait vault the pin produces),
@@ -586,18 +650,11 @@ export function sampleComposedMotion(
         };
       };
       // The planned stance schedule is authored ms; the trajectory runs at
-      // authored/timeScale — scale it by the same uniform factor so both
-      // derivations stay phase-locked to the knots at any pace.
-      const authoredMs =
-        resolved.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0) *
-        (resolved.loop ? 1 : Math.max(1, resolved.reps));
-      const scale = authoredMs > 0 ? totalMs / authoredMs : 1;
-      const windows = resolved.gaitStanceWindowsMs?.map((w) => ({
-        foot: w.foot,
-        fromMs: w.fromMs * scale,
-        toMs: w.toMs * scale,
-        ...(w.travelLock ? { travelLock: true } : {}),
-      }));
+      // authored/timeScale — scale it by the SAME shared factor as the plant
+      // contacts (SEAM-2: one source of truth) so every derivation stays
+      // phase-locked to the knots at any pace.
+      const scale = authoredToTraj;
+      const windows = scaleStanceWindowsMs(resolved.gaitStanceWindowsMs, scale);
       // TRAVEL HEADING: the derived ride goes along (sinH, cosH), shuttle along
       // the perpendicular — 0 (the default) is the byte-identical legacy +Z/+X.
       // A CURVED walk (headingProfileMs) instead hands both derivations the
@@ -878,7 +935,31 @@ export function sampleComposedMotion(
     for (const fp of footPlants) {
       const inWindow = tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
       if (!inWindow) {
-        fp.target = null; // left the window — the next stance phase re-captures
+        // PLANT RELEASE BLEND (SEAM-3): when a stance window ends, ramp the
+        // leg-IK correction 1→0 over PLANT_RELEASE_BLEND_MS instead of dropping
+        // it in one frame — the toe-off pop snapped the released foot ~20 cm
+        // (and the leg joints ~17°/frame) back to their FK pose. The captured
+        // target survives ONLY through the ramp; the hold is NOT extended (the
+        // FK swing takes over continuously — the foot may move, just never
+        // discontinuously). Skipped when a later window has already re-pinned
+        // the same foot: its full solve owns the leg.
+        const w = fp.target ? 1 - (tMs - fp.toMs) / PLANT_RELEASE_BLEND_MS : 0;
+        const footRepinned =
+          w > 0 &&
+          w < 1 &&
+          footPlants.some(
+            (o) =>
+              o !== fp &&
+              o.solver.footKey === fp.solver.footKey &&
+              tMs >= o.fromMs - 1e-6 &&
+              tMs <= o.toMs + 1e-6,
+          );
+        if (!fp.target || w <= 0 || w >= 1 || footRepinned) {
+          fp.target = null; // released (or superseded) — the next stance re-captures
+          continue;
+        }
+        solveFootPlantWeighted(fp.solver, fp.target, fp.rest ?? plantRest, rest, w);
+        anyPlant = true;
         continue;
       }
       // Lazily pin the target to where the foot IS as it ENTERS its window

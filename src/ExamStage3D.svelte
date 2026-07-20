@@ -542,6 +542,8 @@
         buildLoopTrajectory,
         DEFAULT_TRACKED_BONES,
         GAIT_VERTICAL_MAX_RISE_M,
+        authoredToTrajectoryTimeScale,
+        scaleStanceWindowsMs,
       } = await import('./services/motionRecording');
       const {
         captureFloorReference,
@@ -565,7 +567,7 @@
         weightedDescentApplies,
         FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
-      const { buildFootPlant, solveFootPlant, buildHandPlant, solveHandReach } =
+      const { buildFootPlant, solveFootPlant, solveFootPlantWeighted, PLANT_RELEASE_BLEND_MS, buildHandPlant, solveHandReach } =
         await import('./services/footContact');
       const { balanceCoordination } = await import('./services/balanceCoordination');
       const { computeBodyCoMFromBones } = await import('./services/centerOfMass');
@@ -1681,17 +1683,12 @@
           reps: number;
         },
       ): { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[] | undefined {
-        if (!resolvedMotion.gaitStanceWindowsMs?.length) return undefined;
-        const authoredMs =
-          resolvedMotion.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0) *
-          (resolvedMotion.loop ? 1 : Math.max(1, resolvedMotion.reps));
-        const scale = authoredMs > 0 ? traj.totalMs / authoredMs : 1;
-        return resolvedMotion.gaitStanceWindowsMs.map((w) => ({
-          foot: w.foot,
-          fromMs: w.fromMs * scale,
-          toMs: w.toMs * scale,
-          ...(w.travelLock ? { travelLock: true } : {}),
-        }));
+        // SEAM-2: the SAME shared authored→trajectory factor the offline sampler
+        // (and the plant contacts) use — one source of truth for the time base.
+        return scaleStanceWindowsMs(
+          resolvedMotion.gaitStanceWindowsMs,
+          authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs),
+        );
       }
 
       /** The per-time heading lookup of a CURVED motion (headingProfileMs),
@@ -1710,10 +1707,8 @@
       ): ((tMs: number) => number) | undefined {
         const prof = resolvedMotion.headingProfileMs;
         if (!prof || prof.length < 2) return undefined;
-        const authoredMs =
-          resolvedMotion.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0) *
-          (resolvedMotion.loop ? 1 : Math.max(1, resolvedMotion.reps));
-        const scale = authoredMs > 0 ? traj.totalMs / authoredMs : 1;
+        // SEAM-2: the SAME shared factor as the stance windows + plant contacts.
+        const scale = authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs);
         const lookup = headingProfileLookup(prof);
         return scale > 0 ? (tMs: number): number => lookup(tMs / scale) : lookup;
       }
@@ -1959,6 +1954,31 @@
         }
       }
 
+      /** SEAM-2: re-time the plant windows from AUTHORED ms into TRAJECTORY ms.
+       *  setComposedContacts must run before the trajectory exists (its
+       *  per-window heading rests are looked up on the authored clock), so the
+       *  windows are captured authored and scaled HERE, once the trajectory's
+       *  total is known — by the SAME shared factor the stance windows use
+       *  (authoredToTrajectoryTimeScale; mirrors the offline sampler). Without
+       *  this a paced (timeScale ≠ 1) walk's contacts ran 1/timeScale out of
+       *  sync: the planted foot slid tens of cm and popped at release.
+       *  ±Infinity (whole-motion pins) scale to themselves; identity at pace 1. */
+      function scaleComposedPlantsToTrajectory(
+        traj: PoseTrajectory,
+        resolvedMotion: {
+          keyframes: { durationMs: number; holdMs: number }[];
+          loop: boolean;
+          reps: number;
+        },
+      ): void {
+        const scale = authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs);
+        if (scale === 1) return;
+        for (const fp of composedPlants) {
+          fp.fromMs *= scale;
+          fp.toMs *= scale;
+        }
+      }
+
       /** Rebuild the hand-plant contexts for a starting composed motion — one per
        *  hand any grounding keyframe declares as a 'reach' contact. Mirrors the
        *  offline sampler's handPlants setup. */
@@ -1993,7 +2013,31 @@
           if (!fp.solver) continue;
           const inWindow = tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
           if (!inWindow) {
-            fp.target = null; // left the window — next stance phase re-captures
+            // PLANT RELEASE BLEND (SEAM-3): when a stance window ends, ramp the
+            // leg-IK correction 1→0 over PLANT_RELEASE_BLEND_MS instead of
+            // dropping it in one frame (the toe-off pop: ~20 cm + ~17°/frame at
+            // release). The captured target survives ONLY through the ramp; the
+            // hold is NOT extended — the FK swing takes over continuously.
+            // Skipped when a later window has already re-pinned the same foot
+            // (its full solve owns the leg). Mirrors the offline sampler.
+            const w = fp.target ? 1 - (tMs - fp.toMs) / PLANT_RELEASE_BLEND_MS : 0;
+            const footRepinned =
+              w > 0 &&
+              w < 1 &&
+              composedPlants.some(
+                (o) =>
+                  o !== fp &&
+                  o.solver != null &&
+                  o.solver.footKey === fp.solver!.footKey &&
+                  tMs >= o.fromMs - 1e-6 &&
+                  tMs <= o.toMs + 1e-6,
+              );
+            if (!fp.target || w <= 0 || w >= 1 || footRepinned) {
+              fp.target = null; // released (or superseded) — next stance re-captures
+              continue;
+            }
+            solveFootPlantWeighted(fp.solver, fp.target, fp.rest ?? composedPlantRest ?? restRef, restRef, w);
+            solved = true;
             continue;
           }
           if (!fp.target) {
@@ -2588,6 +2632,11 @@
         // world-fixed from the same one-shot trajectory the stage plays,
         // following the motion's planned stance schedule when it authors one —
         // along the motion's heading (0 = the legacy straight-ahead +Z).
+        // SEAM-2: the plants were built in authored ms (setComposedContacts,
+        // above) — re-time their windows into trajectory ms by the same shared
+        // factor as the stance windows below, so contacts and windows can never
+        // desync at a non-1 pace (mirrors the offline sampler).
+        scaleComposedPlantsToTrajectory(trajectory, effectiveResolved);
         const stanceWindows = scaledStanceWindows(trajectory, effectiveResolved);
         const travelHeadingDeg = resolved.headingDeg ?? 0;
         // CURVED heading (roadmap 6.2): the per-time heading lookup of a motion

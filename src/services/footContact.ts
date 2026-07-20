@@ -89,6 +89,55 @@ export function solveFootPlant(
   });
 }
 
+// ── Plant release blend (SEAM-3) ─────────────────────────────────────────────
+
+/** How long (ms, trajectory time) the leg-IK correction ramps out AFTER a plant
+ *  window ends. Dropping the pin between two frames snapped the released foot
+ *  to its FK position (~20 cm + ~17°/frame at every toe-off, worse when paced);
+ *  ramping the solved correction 1→0 over this window releases it continuously.
+ *  The ramp does NOT extend the stance hold — the target stays where it was
+ *  captured while the FK swing progressively takes over, so the foot may move
+ *  throughout the ramp, just never discontinuously. Shared by the offline
+ *  sampler and the live stage (one constant, lockstep). */
+export const PLANT_RELEASE_BLEND_MS = 100;
+
+const _blendPre: THREE.Quaternion[] = [];
+const _blendPost = new THREE.Quaternion();
+
+/**
+ * {@link solveFootPlant} at a fractional IK weight — the release ramp's engine.
+ * `weight` ≥ 1 delegates to the full solve (byte-identical to the legacy path);
+ * ≤ 0 leaves the FK pose untouched; in between, the chain is solved fully and
+ * then each chain joint's LOCAL rotation is slerped FK→solved by `weight`, so
+ * the position AND rotation corrections fade together (the foot's world
+ * placement is a pure function of these joint rotations — there is no separate
+ * positional channel to blend). Refreshes the chain's world matrices so a
+ * subsequent same-frame read sees the blended pose.
+ */
+export function solveFootPlantWeighted(
+  solver: FootPlantSolver,
+  targetWorldPos: THREE.Vector3,
+  rest: JointAngleRestReference | null | undefined,
+  hingeAxisRest: JointAngleRestReference | null | undefined,
+  weight: number,
+): void {
+  if (weight >= 1) {
+    solveFootPlant(solver, targetWorldPos, rest, hingeAxisRest);
+    return;
+  }
+  if (weight <= 0) return;
+  const bones = solver.ctx.bones;
+  while (_blendPre.length < bones.length) _blendPre.push(new THREE.Quaternion());
+  for (let i = 0; i < bones.length; i += 1) _blendPre[i]!.copy(bones[i]!.quaternion);
+  solveFootPlant(solver, targetWorldPos, rest, hingeAxisRest);
+  for (let i = 0; i < bones.length; i += 1) {
+    _blendPost.copy(bones[i]!.quaternion);
+    bones[i]!.quaternion.copy(_blendPre[i]!).slerp(_blendPost, weight);
+  }
+  // The root-most chain link's world refresh cascades to the whole leg.
+  bones[bones.length - 1]!.updateMatrixWorld(true);
+}
+
 // ── Hand plant (Phase 3 Tier B) — the arm analog of the foot plant ───────────
 // Quadruped / plank / push-up rest on the HANDS. As the body lowers (elbows bend)
 // the hand must stay pinned to the floor, exactly as a stance foot stays put while
