@@ -99,13 +99,22 @@ describe('spinalGaitCoordination — trunk counter-rotation authoring', () => {
     // Arms: abducted off the ribs (frontal) + forearm pronation (transverse).
     expect(present('R_UpperArm', 'shoulderAbduction'), 'arm abduction').toBe(true);
     expect(present('R_Forearm', 'forearmRotation'), 'forearm rotation').toBe(true);
-    // Legs: swing hip abduction (frontal), tibial rotation (transverse), subtalar roll (frontal).
-    expect(present('R_UpLeg', 'hipAbduction'), 'hip abduction').toBe(true);
+    // Legs: swing hip ADduction (frontal), tibial rotation (transverse), subtalar roll (frontal).
+    expect(present('R_UpLeg', 'hipAbduction'), 'hip frontal motion').toBe(true);
     expect(present('R_Leg', 'kneeRotation'), 'knee rotation').toBe(true);
     expect(present('R_Foot', 'ankleInversion'), 'ankle inversion').toBe(true);
+    // The legs ADduct toward the midline (a narrow base) — NOT abduct (a wide waddle). The
+    // hip frontal target must be NEGATIVE (adduction) at its extreme.
+    const signedExtreme = (joint: string, motion: string) => {
+      let ext = 0;
+      for (const kf of out.keyframes) for (const t of kf.targets ?? [])
+        if (t.joint === joint && t.motion === motion && Math.abs(t.targetDegrees) > Math.abs(ext)) ext = t.targetDegrees;
+      return ext;
+    };
+    expect(signedExtreme('R_UpLeg', 'hipAbduction'), 'legs ADduct toward the midline, not abduct').toBeLessThan(0);
     // …all SUBTLE — physiologic, well inside ROM, never exaggerated.
     expect(maxAbs('R_UpperArm', 'shoulderAbduction'), 'abduction stays subtle').toBeLessThan(16);
-    expect(maxAbs('R_UpLeg', 'hipAbduction'), 'hip abduction stays subtle').toBeLessThan(8);
+    expect(maxAbs('R_UpLeg', 'hipAbduction'), 'hip adduction stays subtle').toBeLessThan(8);
     expect(maxAbs('R_Foot', 'ankleInversion'), 'ankle roll stays subtle').toBeLessThan(10);
   });
 

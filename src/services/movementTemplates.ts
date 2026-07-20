@@ -2012,9 +2012,9 @@ const ARM_ABD_MAX = 14;
 const ARM_PRO_BASE = 12; // forearm pronation: palm toward the thigh, not a rigid stick
 const ARM_PRO_SWING = 0.12;
 const ARM_PRO_MAX = 28;
-const HIP_ABD_GAIN = 0.18; // swing hip ABducts (clearance), stance hip ADducts (pelvic drop)
-const HIP_FLEX_MEAN = 10; // the cycle-mean hip flexion the ab/adduction pivots about
-const HIP_ABD_MAX = 6;
+const HIP_ADD_GAIN = 0.18; // the SWING leg ADducts toward the midline (a narrow base) as it
+const HIP_FLEX_MEAN = 10; // advances — the feet track near the line of progression, NOT
+const HIP_ADD_MAX = 6; // splayed out (abduction, which reads as a wide waddle/circumduction)
 const KNEE_ROT_GAIN = 0.08; // the tibia rotates with knee flexion (the screw-home unwinds)
 const KNEE_ROT_MAX = 8;
 const ANK_INV_GAIN = 0.22; // foot everts at loading (pronation), inverts at push-off (supination)
@@ -2118,13 +2118,15 @@ export function spinalGaitCoordination(
         if (has(`${S}_Forearm`, 'elbowFlexion'))
           additions.push({ joint: `${S}_Forearm`, motion: 'forearmRotation', deg: cap(ARM_PRO_BASE + ARM_PRO_SWING * sh, ARM_PRO_MAX) });
       }
-      // LEG: the SWING hip abducts for clearance; the tibia rotates with knee flexion; the
-      // foot everts at loading and inverts at push-off (the subtalar pronation→supination
-      // roll). Abduction is SWING-ONLY (max 0 while the hip is extended) — a frontal target
-      // on the planted leg would fight the foot-plant IK and drag the stance foot.
+      // LEG: the SWING leg ADducts toward the midline as it advances (the feet track near
+      // the line of progression — a narrow base), NOT abducts (a wide, waddling splay); the
+      // tibia rotates with knee flexion; the foot everts at loading and inverts at push-off
+      // (the subtalar pronation→supination roll). Adduction (−hipAbduction) is SWING-ONLY
+      // (0 while the hip is extended) — a frontal target on the planted leg would fight the
+      // foot-plant IK and drag the stance foot.
       if (has(`${S}_UpLeg`, 'hipFlexion')) {
         const hip = at(ts, `${S}_UpLeg`, 'hipFlexion');
-        additions.push({ joint: `${S}_UpLeg`, motion: 'hipAbduction', deg: cap(Math.max(0, HIP_ABD_GAIN * (hip - HIP_FLEX_MEAN)), HIP_ABD_MAX) });
+        additions.push({ joint: `${S}_UpLeg`, motion: 'hipAbduction', deg: cap(-HIP_ADD_GAIN * Math.max(0, hip - HIP_FLEX_MEAN), HIP_ADD_MAX) });
       }
       if (has(`${S}_Leg`, 'kneeFlexion'))
         additions.push({ joint: `${S}_Leg`, motion: 'kneeRotation', deg: cap(-KNEE_ROT_GAIN * at(ts, `${S}_Leg`, 'kneeFlexion'), KNEE_ROT_MAX) });
