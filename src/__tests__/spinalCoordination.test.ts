@@ -194,6 +194,36 @@ describe('spinalGaitCoordination — measured on the rig', () => {
     }
   });
 
+  it('gait reads as ROTATION, not a waddle — the trunk rotates far more than it leans laterally', () => {
+    // World thorax yaw (transverse ROTATION, the arm-swing counter-rotation) must dominate
+    // world thorax roll (frontal LATERAL lean). A hot lateral-sway gain used to lurch the
+    // trunk ~13° side-to-side; real gait keeps the trunk near-vertical in the frontal plane
+    // and the rotation is the visible character.
+    const axis = (b: THREE.Bone, idx: 1 | 2): number => {
+      const q = new THREE.Quaternion(); b.getWorldQuaternion(q);
+      const e = new THREE.Euler().setFromQuaternion(q, 'YZX');
+      return ((idx === 1 ? e.y : e.z) * 180) / Math.PI;
+    };
+    for (const motion of [buildTravelWalk(), buildRun()]) {
+      const rec = sampleComposedMotion(resolveComposedMotion(motion, variantCfg), {
+        baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
+      });
+      const thorax = buildBoneByPoseKey(skinned.skeleton, variantCfg).get('Spine_Upper')!;
+      let yMin = Infinity, yMax = -Infinity, rMin = Infinity, rMax = -Infinity;
+      for (const f of rec.frames) {
+        applyCustomPose(skinned.skeleton, variantCfg, f.pose); root.updateMatrixWorld(true);
+        const y = axis(thorax, 1), r = axis(thorax, 2);
+        yMin = Math.min(yMin, y); yMax = Math.max(yMax, y);
+        rMin = Math.min(rMin, r); rMax = Math.max(rMax, r);
+      }
+      const rot = yMax - yMin, lat = rMax - rMin;
+      // eslint-disable-next-line no-console
+      console.log(`${motion.name}: thorax ROTATION ${rot.toFixed(1)}° vs LATERAL lean ${lat.toFixed(1)}°`);
+      expect(lat, `${motion.name}: lateral trunk lean stays small (not a waddle)`).toBeLessThan(8);
+      expect(rot, `${motion.name}: rotation dominates the lateral lean`).toBeGreaterThan(lat * 1.8);
+    }
+  });
+
   it('UNIVERSAL gaze: a NON-GAIT trunk rotation also holds the eyes forward (automatic)', () => {
     const yaw = (b: THREE.Bone): number => {
       const q = new THREE.Quaternion();
