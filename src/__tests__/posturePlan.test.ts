@@ -22,6 +22,7 @@ import {
   movementStartPosture,
   movementEndPosture,
 } from '../services/posturePlan';
+import { POSTURE_NODES } from '../services/motionSequence';
 import {
   buildLieDown,
   buildGetUp,
@@ -67,6 +68,17 @@ describe('planPosturePath — the posture graph (pure)', () => {
     expect(movementEndPosture({})).toBe('standing');
     expect(movementEndPosture({ startPosture: 'supine' })).toBe('supine'); // posture-preserving
     expect(POSTURE_EDGES.length).toBeGreaterThan(0);
+  });
+
+  it('POSTURE_NODES is the runtime list of every graph node (no drift with the edges)', () => {
+    // The compose_motion start/endPosture schema enum is generated from POSTURE_NODES,
+    // so every posture the executor can bridge to must appear here — and nothing else.
+    const nodesInEdges = new Set<string>();
+    for (const e of POSTURE_EDGES) { nodesInEdges.add(e.from); nodesInEdges.add(e.to); }
+    for (const n of nodesInEdges) expect(POSTURE_NODES, `edge node ${n} listed`).toContain(n);
+    // No duplicates, and 'standing' (the hub, never an authored edge target's only home) is present.
+    expect(new Set(POSTURE_NODES).size).toBe(POSTURE_NODES.length);
+    expect(POSTURE_NODES).toContain('standing');
   });
 });
 
