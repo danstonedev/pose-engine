@@ -285,11 +285,24 @@ describe('resolveComposedMotion', () => {
     ['Neck', 'lateralTilt'],
     ['L_UpLeg', 'hipAbduction'],
     ['R_UpLeg', 'hipAbduction'],
+    // the limb NON-SAGITTAL set (brings a fully-coordinated gait keyframe up to 32)
+    ['L_UpperArm', 'shoulderAbduction'],
+    ['R_UpperArm', 'shoulderAbduction'],
+    ['L_Forearm', 'forearmRotation'],
+    ['R_Forearm', 'forearmRotation'],
+    ['L_UpLeg', 'hipRotation'],
+    ['R_UpLeg', 'hipRotation'],
+    ['L_Leg', 'kneeRotation'],
+    ['R_Leg', 'kneeRotation'],
+    ['L_Foot', 'ankleInversion'],
+    ['R_Foot', 'ankleInversion'],
+    ['L_UpperArm', 'shoulderRotation'],
+    ['R_UpperArm', 'shoulderRotation'],
     ['Neck', 'flexion'], // the (MAX+1)th — overflow
   ].map(([joint, motion]) => ({ joint: joint!, motion: motion!, deg: 5 }));
 
   it(`a keyframe with exactly ${MAX_TARGETS_PER_KEYFRAME} targets resolves clean`, () => {
-    expect(MAX_TARGETS_PER_KEYFRAME).toBe(20);
+    expect(MAX_TARGETS_PER_KEYFRAME).toBe(32);
     const r = resolveComposedMotion(
       { keyframes: [kf(fullBodyTargets.slice(0, MAX_TARGETS_PER_KEYFRAME), 500)] },
       variantCfg,
