@@ -1975,6 +1975,11 @@ const SPINE_LUMBAR_AXIAL_MAX = 8; // lumbar rotation cap (tight ROM ±10)
 // UNIVERSAL gaze stabilizer (stabilizeGaze) so both correct against the same cervical ROM.
 // (SPINE_NECK_MAX / SPINE_NECK_LATERAL_MAX imported from motionSequence.)
 const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
+// Transverse pelvic-rotation cap (root yaw). Real free-gait pelvic rotation is ~±4°; 6°
+// leaves a little headroom for speed while staying in a natural range (a bigger pelvic
+// yaw reads as a twist/shimmy AND drags the planted foot, since the walk grounds the feet
+// with a vertical pin, not a horizontal foot-lock IK — see kPel calibration below).
+const PELVIS_YAW_MAX = 6;
 
 /**
  * NATURAL SPINAL GAIT COORDINATION — the reciprocal trunk motion that makes gait
@@ -1998,7 +2003,7 @@ const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
  */
 export function spinalGaitCoordination(
   motion: ComposedMotion,
-  opts: { axial?: number; lateral?: number; headStabilize?: number } = {},
+  opts: { axial?: number; lateral?: number; headStabilize?: number; pelvis?: number } = {},
 ): ComposedMotion {
   const kAx = Math.max(0, opts.axial ?? 0.16);
   // Lateral sway is SMALL in real gait — the trunk stays near-vertical in the frontal
@@ -2007,7 +2012,14 @@ export function spinalGaitCoordination(
   // (0.09 measured ~13° of thorax lateral roll on the rig — a lurch; 0.03 lands ~4°.)
   const kLat = Math.max(0, opts.lateral ?? 0.03);
   const headStab = Math.max(0, Math.min(1, opts.headStabilize ?? 1));
-  if (kAx === 0 && kLat === 0) return motion;
+  // PELVIC transverse rotation gain — the hallmark determinant of gait (the pelvis rotates
+  // forward on the SWING side). Derived from the same leg asymmetry as the lean, so it is
+  // intrinsically in phase with the stride. 0.05 lands ~±2° pelvic yaw for the walk — the
+  // most the vertical-pin grounding allows before the planted foot visibly slides (a
+  // higher gain skates the stance foot; rig-swept). A real foot-lock IK would let this go
+  // to the full physiological ~±4°.
+  const kPel = Math.max(0, opts.pelvis ?? 0.05);
+  if (kAx === 0 && kLat === 0 && kPel === 0) return motion;
   const cap = (v: number, m: number): number => Math.max(-m, Math.min(m, v));
   const at = (ts: SequenceTarget[], joint: string, mo: string): number =>
     ts.find((t) => t.joint === joint && t.motion === mo)?.targetDegrees ?? 0;
@@ -2015,8 +2027,8 @@ export function spinalGaitCoordination(
     const ts = kf.targets;
     if (!ts || !ts.length) return kf;
     // Reciprocal arm-swing asymmetry drives the thoracic axial rotation; loaded-leg
-    // asymmetry drives the lateral lean. Both are already present in the keyframe, so
-    // the result is intrinsically in phase with the stride.
+    // asymmetry drives the lateral lean AND the pelvic rotation. All are already present
+    // in the keyframe, so the result is intrinsically in phase with the stride.
     const armDiff = at(ts, 'R_UpperArm', 'shoulderFlexion') - at(ts, 'L_UpperArm', 'shoulderFlexion');
     const hipDiff = at(ts, 'L_UpLeg', 'hipFlexion') - at(ts, 'R_UpLeg', 'hipFlexion');
     const airborne = kf.stance === 'floating' ? 0.35 : 1;
@@ -2025,13 +2037,19 @@ export function spinalGaitCoordination(
     const lean = -kLat * hipDiff * airborne; // lean toward the stance (less-flexed) hip
     const leanLower = cap(lean, SPINE_LATERAL_MAX);
     const leanUpper = cap(0.5 * lean, SPINE_LATERAL_MAX);
-    // GAZE STABILIZATION (vestibulo-ocular): the head hangs off the top of the spine,
-    // so without correction it inherits the WHOLE trunk's axial rotation (thoracic +
-    // lumbar) and lateral tilt and the eyes swing off the line of travel. Counter-rotate
-    // the neck by exactly what the head would inherit, so the gaze stays level and
-    // forward through the stride (headStab 1 = fully stable; 0 = head rides the trunk).
-    // A motion that drives the neck itself (e.g. "look left") isn't run through here.
-    const neckAxial = cap(-headStab * (thoracic + lumbar), SPINE_NECK_MAX);
+    // PELVIC ROTATION (root yaw): the swing side rotates forward. Counter-phase to the
+    // thorax (below), so the pelvis and shoulder girdle COUNTER-ROTATE about the spine —
+    // the real transverse-plane engine of gait. The hips counter-rotate by −pelvisYaw so
+    // the planted feet keep pointing down the line of travel (no swivel) while the pelvis
+    // turns; and the neck cancels the root yaw too, so the gaze still holds forward.
+    const pelvisYaw = cap(kPel * hipDiff, PELVIS_YAW_MAX);
+    // GAZE STABILIZATION (vestibulo-ocular): the head hangs off the top of the spine, so
+    // without correction it inherits the WHOLE trunk's axial rotation — the pelvic root
+    // yaw PLUS the thoracic + lumbar rotation — and the eyes swing off the line of travel.
+    // Counter-rotate the neck by exactly what the head would inherit (headStab 1 = fully
+    // stable; 0 = head rides the trunk). A motion that drives the neck itself isn't run
+    // through here.
+    const neckAxial = cap(-headStab * (pelvisYaw + thoracic + lumbar), SPINE_NECK_MAX);
     const neckLateral = cap(-headStab * (leanLower + leanUpper), SPINE_NECK_LATERAL_MAX);
     const additions: { joint: string; motion: string; deg: number }[] = [
       { joint: 'Spine_Upper', motion: 'rotation', deg: thoracic },
@@ -2040,6 +2058,12 @@ export function spinalGaitCoordination(
       { joint: 'Spine_Lower', motion: 'lateralTilt', deg: leanLower },
       { joint: 'Spine_Upper', motion: 'lateralTilt', deg: leanUpper },
       { joint: 'Neck', motion: 'lateralTilt', deg: neckLateral },
+      // Hips counter-rotate the pelvic yaw so the femurs (and planted feet) keep facing
+      // down the line of travel — the pelvis turns ABOUT the stance leg, the foot barely
+      // swivels (rig-measured near-0 on the stance leg). Same sign on both legs (the
+      // hipRotation motor is NOT mirrored in world yaw — verified on the rig).
+      { joint: 'L_UpLeg', motion: 'hipRotation', deg: -pelvisYaw },
+      { joint: 'R_UpLeg', motion: 'hipRotation', deg: -pelvisYaw },
     ];
     const targets = [...ts];
     for (const a of additions) {
@@ -2048,7 +2072,12 @@ export function spinalGaitCoordination(
       if (i >= 0) targets[i] = { ...targets[i]!, targetDegrees: targets[i]!.targetDegrees + a.deg };
       else targets.push({ joint: a.joint, motion: a.motion, targetDegrees: a.deg });
     }
-    return { ...kf, targets };
+    // Root transverse yaw = the pelvic rotation (merged with any existing root directive).
+    const kfOut: SequenceKeyframe = { ...kf, targets };
+    if (Math.abs(pelvisYaw) >= 1e-6) {
+      kfOut.root = { ...(kf.root ?? {}), orient: { ...(kf.root?.orient ?? {}), yawDeg: pelvisYaw } };
+    }
+    return kfOut;
   });
   return { ...motion, keyframes };
 }
