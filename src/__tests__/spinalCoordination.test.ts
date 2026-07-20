@@ -316,6 +316,37 @@ describe('spinalGaitCoordination — measured on the rig', () => {
     expect(glideCm, 'but stays subtle — a physiologic glide, not a shrug').toBeLessThan(15);
   });
 
+  it('the HEAD stays steady in gait — minimal lateral bob AND roll (vestibular stabilization)', () => {
+    // A person's head barely moves side-to-side when walking: it's the most stabilised
+    // segment. Two mechanisms, both authored in spinalGaitCoordination: the thoracic
+    // COUNTER-lists (an S-curve over the lumbar sway) to keep the shoulders/head centred
+    // — so the head TRANSLATES little; and the neck lateral counter cancels the roll the
+    // large axial neck counter would otherwise leak — so the head ROLLS little.
+    const rec = sampleComposedMotion(resolveComposedMotion(buildTravelWalk(), variantCfg), {
+      baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60,
+    });
+    const head = buildBoneByPoseKey(skinned.skeleton, variantCfg).get('Head')!;
+    const pos = new THREE.Vector3(); const q = new THREE.Quaternion();
+    let xMin = Infinity, xMax = -Infinity, rMin = Infinity, rMax = -Infinity;
+    for (const f of rec.frames) {
+      const rq = f.root.orientQuat; root.quaternion.set(rq[0], rq[1], rq[2], rq[3]);
+      const tr = f.root.translateM; root.position.set(tr[0], tr[1], tr[2]);
+      applyCustomPose(skinned.skeleton, variantCfg, f.pose); root.updateMatrixWorld(true);
+      head.getWorldPosition(pos);
+      head.getWorldQuaternion(q);
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q); // true roll, no Euler cross-talk
+      const roll = (Math.atan2(up.x, up.y) * 180) / Math.PI;
+      xMin = Math.min(xMin, pos.x); xMax = Math.max(xMax, pos.x);
+      rMin = Math.min(rMin, roll); rMax = Math.max(rMax, roll);
+    }
+    const lateralCm = (xMax - xMin) * 100;
+    const rollDeg = rMax - rMin;
+    // eslint-disable-next-line no-console
+    console.log(`walk-forward: HEAD lateral ${lateralCm.toFixed(1)}cm · roll ${rollDeg.toFixed(1)}°`);
+    expect(lateralCm, 'head barely translates side to side').toBeLessThan(2.5);
+    expect(rollDeg, 'head barely rolls side to side').toBeLessThan(2.5);
+  });
+
   it('UNIVERSAL gaze: a NON-GAIT trunk rotation also holds the eyes forward (automatic)', () => {
     const yaw = (b: THREE.Bone): number => {
       const q = new THREE.Quaternion();

@@ -265,6 +265,12 @@ const _svB = new THREE.Vector3();
  *  pin and its measurement frame is never perturbed. */
 const FOOT_ROOT_DRIFT_M = 0.05;
 
+/** How far (m) the SMOOTHED gait vertical may raise the pelvis above the live floor-pin
+ *  when the stance feet are foot-plant IK'd. Rounding the double-support valley raises
+ *  the pelvis; too much makes a planted stance leg over-reach and slide the foot. This
+ *  bounds the over-reach so the smoothing stays foot-safe (rig-swept vs the slide gate). */
+const GAIT_VERTICAL_MAX_RISE_M = 0.025;
+
 /**
  * Offline-sample a RESOLVED composed motion: replay the exact per-keyframe
  * easing/tween interpolation, holds, root transforms (slerp/lerp + planted
@@ -437,7 +443,11 @@ export function sampleComposedMotion(
       root.updateMatrixWorld(true);
       if (s.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
       return root.position.y;
-    }, vcalTargetM);
+      // smooth: round the sharp double-support valley. When feet are foot-plant IK'd
+      // (the travelling walk), clamp how far the smoothed pelvis may rise above the pin
+      // so a planted stance leg doesn't over-reach and slide the foot; the contact-free
+      // in-place walk (treadmill) has no such foot to over-reach, so no clamp.
+    }, vcalTargetM, 48, true, footPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined);
   }
 
   // FOOT-DRIVEN FORWARD TRAVEL (root motion from foot placement). A PRE-PASS poses
@@ -570,11 +580,14 @@ export function sampleComposedMotion(
       footRooted = true;
     } else if (sample.planted) {
       pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
-      // Calibrated gait vertical: scale the grounded pelvis arc about its cycle
-      // mean to the requested excursion (root-only; joints untouched). Identity
-      // for every uncalibrated motion, so they are byte-identical.
-      if (vcal.gain !== 1) {
-        root.position.y = applyVerticalCalibration(root.position.y, vcal);
+      // Calibrated gait vertical: reshape the grounded pelvis arc to the requested
+      // excursion (root-only; joints untouched) — amplitude-scaled about its cycle
+      // mean, and (for gait) temporally SMOOTHED by cycle phase so the sharp
+      // double-support drop rounds into a glide. Identity for every uncalibrated
+      // motion, so they are byte-identical.
+      if (vcal.gain !== 1 || vcal.smoothed) {
+        const u01 = totalMs > 0 ? tMs / totalMs : 0;
+        root.position.y = applyVerticalCalibration(root.position.y, vcal, u01);
         root.updateMatrixWorld(true);
       }
     }

@@ -1275,6 +1275,10 @@
        *  target (root-only; joints untouched), mirroring the offline sampler via
        *  the SAME shared helper. Identity unless a planted motion requests it. */
       let composedVcal = NO_VERTICAL_CALIBRATION;
+      /** Cycle length (ms) of the trajectory `composedVcal` was derived from — the
+       *  phase base for the smoothed vertical lookup (may be the loop trajectory,
+       *  whose period differs from the one-shot `trajectory`). 0 ⇒ no phase base. */
+      let composedVcalCycleMs = 0;
 
       /** Measure the emergent grounded pelvis arc of a starting composed motion's
        *  trajectory and set `composedVcal` to hit its requested excursion. Called
@@ -1286,7 +1290,9 @@
         hasPlanted: boolean,
       ): void {
         composedVcal = NO_VERTICAL_CALIBRATION;
+        composedVcalCycleMs = 0;
         if (targetCm == null || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
+        composedVcalCycleMs = traj.totalMs;
         composedVcal = deriveVerticalCalibration((u01) => {
           const s = traj.sampleAt(u01 * traj.totalMs);
           applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
@@ -1301,7 +1307,7 @@
           modelRoot!.updateMatrixWorld(true);
           if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
           return modelRoot!.position.y;
-        }, targetCm / 100);
+        }, targetCm / 100, 48, true); // smooth: round the sharp double-support valley
       }
 
       /** FOOT-DRIVEN forward travel for the ACTIVE composed motion — the derived
@@ -1460,8 +1466,9 @@
           // Calibrated gait vertical: scale the grounded pelvis arc about its
           // cycle mean to the requested excursion (root-only; joints untouched).
           // Identity unless the active motion requested calibration.
-          if (composedVcal.gain !== 1) {
-            modelRoot.position.y = applyVerticalCalibration(modelRoot.position.y, composedVcal);
+          if (composedVcal.gain !== 1 || composedVcal.smoothed) {
+            const u01 = composedVcalCycleMs > 0 ? tMs / composedVcalCycleMs : 0;
+            modelRoot.position.y = applyVerticalCalibration(modelRoot.position.y, composedVcal, u01);
             modelRoot.updateMatrixWorld(true);
           }
         }
