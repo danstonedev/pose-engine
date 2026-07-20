@@ -25,11 +25,23 @@
  * so ROM clamping and goniometric measurement are untouched; only the path and
  * speed BETWEEN keyframes change. The live stage and the offline sampler both
  * build the trajectory here, so a recording stays frame-for-frame with the stage.
+ *
+ * FOLLOW-THROUGH (roadmap 2.2): on top of the shared time-warp, each BONE's
+ * segment-local spline parameter is warped by the proximal→distal delay scheme
+ * from ./motionStagger ({@link trajectoryBoneDelay}): local′ = clamp((local −
+ * d)/(1 − d)). Distal arm segments start each inter-knot arc later and chase,
+ * so the hand drags behind the shoulder through every reversal — TEMPORAL
+ * overlap, not just pose-space. Both endpoints of the warp are fixed points
+ * (0→0, 1→1), so every bone still reaches every knot exactly at its knot time
+ * and the settle/measurement contract holds bit-for-bit. Root motion rides the
+ * un-warped parameter, and legs are exempt (see trajectoryBoneDelay) so the
+ * foot-plant IK and slide budgets are never fought.
  */
 
 import * as THREE from 'three';
 import type { CustomPose } from '../types';
 import { POSE_SCHEMA_VERSION } from '../types';
+import { trajectoryBoneDelay } from './motionStagger';
 
 /** One waypoint of the motion: an absolute pose + root state at an absolute time. */
 export interface TrajectoryKnot {
@@ -39,6 +51,13 @@ export interface TrajectoryKnot {
   rootTranslate: [number, number, number];
   /** Zero-velocity here: the motion start, a held keyframe, and the final knot. */
   stop: boolean;
+  /** A REVERSAL EXTREMUM (e.g. the terminal overshoot knot): the SQUAD PATH
+   *  tangent is zeroed — the pose decelerates into this knot and eases back out
+   *  along the path — but the TIME-warp keeps flowing (unlike `stop`, the body
+   *  never freezes). Without this, SQUAD's neighbor-derived tangent carries the
+   *  full inbound arc's momentum through the knot and deepens a ~3% overshoot
+   *  into a wild swing. */
+  pathExtremum?: boolean;
   planted: boolean;
   /** Grounding posture the body rests in at this knot (sitting/quadruped/…), or
    *  undefined for the default feet floor-pin. */
@@ -184,6 +203,9 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
   const n = knots.length;
   const times = knots.map((k) => k.timeMs);
   const stops = knots.map((k) => k.stop);
+  // Zero-tangent knots for the SQUAD PATH: real stops AND reversal extrema
+  // (which keep flowing in TIME — only `stops` feeds the time-warp).
+  const pathStops = knots.map((k) => k.stop || k.pathExtremum === true);
   const totalMs = n > 0 ? times[n - 1]! : 0;
 
   if (n <= 1) {
@@ -209,6 +231,8 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
   interface BoneSeries {
     q: Q[]; // aligned quaternion per knot
     s: Q[]; // SQUAD control per knot
+    /** Proximal→distal follow-through onset delay (fraction of a segment). */
+    delay: number;
   }
   const series = new Map<string, BoneSeries>();
   for (const key of boneKeys) {
@@ -223,11 +247,12 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     }
     const s: Q[] = [];
     for (let i = 0; i < n; i += 1) {
-      // A STOP knot (start / held keyframe / end) gets a zero-velocity tangent:
-      // control == the knot itself. This both eases in/out without overshoot and
-      // keeps a hold (two equal stop knots) exactly constant — otherwise the
-      // SQUAD control points bend the path away from the held pose mid-segment.
-      if (stops[i]) {
+      // A STOP knot (start / held keyframe / end) — or a reversal EXTREMUM —
+      // gets a zero-velocity PATH tangent: control == the knot itself. This both
+      // eases in/out without overshoot and keeps a hold (two equal stop knots)
+      // exactly constant — otherwise the SQUAD control points bend the path away
+      // from the held pose mid-segment.
+      if (pathStops[i]) {
         s.push([...q[i]!]);
         continue;
       }
@@ -235,7 +260,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
       const next = q[Math.min(n - 1, i + 1)]!;
       s.push(squadControl(prev, q[i]!, next));
     }
-    series.set(key, { q, s });
+    series.set(key, { q, s, delay: trajectoryBoneDelay(key) });
   }
 
   // Root orientation series (single quaternion) + controls; translate lerps.
@@ -247,7 +272,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
   const rs: Q[] = [];
   for (let i = 0; i < n; i += 1)
     rs.push(
-      stops[i]
+      pathStops[i]
         ? [...rq[i]!]
         : squadControl(rq[Math.max(0, i - 1)]!, rq[i]!, rq[Math.min(n - 1, i + 1)]!),
     );
@@ -314,7 +339,14 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
 
       const bones: Record<string, [number, number, number, number]> = {};
       for (const [key, bs] of series) {
-        bones[key] = squad(bs.q[k]!, bs.q[k + 1]!, bs.s[k]!, bs.s[k + 1]!, local);
+        // FOLLOW-THROUGH warp: the delayed-and-renormalized per-bone parameter
+        // (same scheme as motionStagger.stagedBlendWithBaseline, applied to the
+        // SEGMENT-LOCAL spline parameter). local′(0)=0 and local′(1)=1, so knot
+        // arrival — and thus every settle measurement — is exact; the lag lives
+        // strictly mid-segment. delay==0 (root-adjacent, legs) is the identity.
+        const d = bs.delay;
+        const lb = d > 0 ? (local <= d ? 0 : (local - d) / (1 - d)) : local;
+        bones[key] = squad(bs.q[k]!, bs.q[k + 1]!, bs.s[k]!, bs.s[k + 1]!, lb);
       }
 
       const rootQ = squad(rq[k]!, rq[k + 1]!, rs[k]!, rs[k + 1]!, local);
@@ -360,6 +392,103 @@ export interface SequenceBuildLike {
   }[];
   durationsMs: number[];
   holdsMs: number[];
+  /** Parallel to `poses`: each keyframe's velocity class ('deliberate' when
+   *  absent). Drives the terminal pre-settle overshoot — only fast
+   *  (functional/ballistic) endings arrive with enough momentum to sell it. */
+  velocityClasses?: readonly ('deliberate' | 'functional' | 'ballistic' | undefined)[];
+}
+
+// ── Terminal pre-settle overshoot (roadmap 2.3) ──────────────────────────────
+/** Fraction of the inbound (final-segment) travel the fly-through overshoot
+ *  knot extends past the target. */
+const TERMINAL_OVERSHOOT_FRACTION = 0.03;
+/** How long before the final stop the overshoot knot sits (capped at 40% of
+ *  the final segment so short endings keep a real approach). */
+const TERMINAL_OVERSHOOT_LEAD_MS = 120;
+/** Inbound travel (max single-bone rotation, deg) below which the ending is a
+ *  drift, not an arrival at speed — no overshoot. */
+const TERMINAL_OVERSHOOT_MIN_TRAVEL_DEG = 2;
+
+/** Largest single-bone rotation (deg) between two knot poses (absent keys
+ *  carry forward, i.e. contribute zero travel). */
+function maxBoneTravelDeg(from: CustomPose, to: CustomPose): number {
+  let maxRad = 0;
+  for (const [key, b] of Object.entries(to.bones ?? {})) {
+    const a = from.bones?.[key];
+    if (!a) continue;
+    const dot = Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]);
+    maxRad = Math.max(maxRad, 2 * Math.acos(Math.min(1, dot)));
+  }
+  return (maxRad * 180) / Math.PI;
+}
+
+/**
+ * Build the fly-through OVERSHOOT knot for a final stop arriving at speed:
+ * every bone extrapolated `TERMINAL_OVERSHOOT_FRACTION` past its target along
+ * its own inbound geodesic (q(t) = prev·(prev⁻¹·arr)^t evaluated at 1+f), so a
+ * fast ending sails ~3% past the pose and settles back instead of dead-
+ * stopping — limbs read as having mass. The knot is an interior fly-through:
+ * the FINAL knot, its time, and its stop stay byte-identical, so the settled
+ * pose and every measurement are untouched.
+ *
+ * ROOT motion does NOT overshoot: the root state at the knot is the plain
+ * segment interpolant (slerp/lerp at the knot's time fraction), keeping the
+ * root path — and with it the floor-pin / grounding behaviour — unchanged. The
+ * mass cue lives in the limbs; an overshooting root could dip through the
+ * floor-pin on a landing.
+ */
+function terminalOvershootKnot(prev: TrajectoryKnot, arrival: TrajectoryKnot): TrajectoryKnot | null {
+  const segMs = arrival.timeMs - prev.timeMs;
+  if (segMs <= 1) return null;
+  if (maxBoneTravelDeg(prev.pose, arrival.pose) < TERMINAL_OVERSHOOT_MIN_TRAVEL_DEG) return null;
+  const leadMs = Math.min(TERMINAL_OVERSHOOT_LEAD_MS, segMs * 0.4);
+  const tMs = arrival.timeMs - leadMs;
+  const frac = (tMs - prev.timeMs) / segMs;
+
+  const bones: Record<string, [number, number, number, number]> = {};
+  for (const [key, arrRaw] of Object.entries(arrival.pose.bones ?? {})) {
+    const arr: Q = [arrRaw[0], arrRaw[1], arrRaw[2], arrRaw[3]];
+    const prevRaw = prev.pose.bones?.[key];
+    if (!prevRaw) {
+      bones[key] = [...arr]; // no inbound travel for this bone — no overshoot
+      continue;
+    }
+    const p = qAlign(arr, [prevRaw[0], prevRaw[1], prevRaw[2], prevRaw[3]]);
+    // q(1+f) = arr · (prev⁻¹·arr)^f — powers of one quaternion commute, so this
+    // is the exact geodesic extrapolation past the target.
+    const delta = qLog(qMul(qConj(p), arr));
+    bones[key] = qMul(
+      arr,
+      qExp([
+        delta[0] * TERMINAL_OVERSHOOT_FRACTION,
+        delta[1] * TERMINAL_OVERSHOOT_FRACTION,
+        delta[2] * TERMINAL_OVERSHOOT_FRACTION,
+      ]),
+    );
+  }
+
+  // Root: plain interpolants — see doc above.
+  _qa.set(prev.rootQuat[0], prev.rootQuat[1], prev.rootQuat[2], prev.rootQuat[3]);
+  _qb.set(arrival.rootQuat[0], arrival.rootQuat[1], arrival.rootQuat[2], arrival.rootQuat[3]);
+  _qa.slerp(_qb, frac);
+  const a = prev.rootTranslate;
+  const b = arrival.rootTranslate;
+  return {
+    timeMs: tMs,
+    pose: { variant: arrival.pose.variant, bones, schemaVersion: POSE_SCHEMA_VERSION },
+    rootQuat: [_qa.x, _qa.y, _qa.z, _qa.w],
+    rootTranslate: [
+      a[0] + (b[0] - a[0]) * frac,
+      a[1] + (b[1] - a[1]) * frac,
+      a[2] + (b[2] - a[2]) * frac,
+    ],
+    stop: false,
+    // A reversal extremum: the path decelerates into the overshoot and eases
+    // back to the target — time keeps flowing (no stall).
+    pathExtremum: true,
+    planted: arrival.planted,
+    ...(arrival.groundingPosture ? { groundingPosture: arrival.groundingPosture } : {}),
+  };
 }
 
 export interface ComposedTrajectory {
@@ -417,6 +546,9 @@ export function buildComposedTrajectory(
   // Settle instants for the FIRST rep only — the stage measures one cycle (all
   // reps replay the same keyframes), so `settleAtMs` maps 1:1 to resolved.keyframes.
   const settleAtMs: number[] = [];
+  // Index (in `knots`) of the final keyframe's ARRIVAL knot — the terminal stop
+  // a pre-settle overshoot may be inserted before.
+  let finalArrivalIdx = -1;
   let tCursor = 0;
   for (let r = 0; r < reps; r += 1) {
     for (let i = 0; i < n; i += 1) {
@@ -426,6 +558,7 @@ export function buildComposedTrajectory(
       const holdMs = Math.min((built.holdsMs[i] ?? 0) / timeScale, 10_000);
       tCursor += built.durationsMs[i]! / timeScale;
       if (r === 0) settleAtMs.push(tCursor);
+      if (isVeryLast) finalArrivalIdx = knots.length;
       knots.push({
         timeMs: tCursor,
         pose: built.poses[i]!,
@@ -449,6 +582,31 @@ export function buildComposedTrajectory(
       }
     }
   }
+
+  // TERMINAL PRE-SETTLE OVERSHOOT (roadmap 2.3): a motion whose FINAL keyframe
+  // arrives at speed (functional/ballistic velocity class) gets ONE fly-through
+  // knot at target + ~3% of the inbound travel, ~120 ms before the stop — the
+  // ending overshoots and settles instead of dead-stopping servo-perfect, so
+  // fast recoveries (a kick's leg coming down) read as limbs with mass. The
+  // final knot, its time, and its stop flag are untouched: the settled pose —
+  // and everything measured from it — stays byte-exact. Deliberate (clinical
+  // default) endings, cyclic gait ends, and near-zero-travel endings are
+  // exempt; a flight-flanking segment is left alone so the ballistic parabola's
+  // planted↔floating span detection is never perturbed.
+  const finalClass = built.velocityClasses?.[n - 1] ?? 'deliberate';
+  if (
+    !cyclicEnds &&
+    finalArrivalIdx >= 1 &&
+    (finalClass === 'functional' || finalClass === 'ballistic')
+  ) {
+    const prev = knots[finalArrivalIdx - 1]!;
+    const arrival = knots[finalArrivalIdx]!;
+    if (prev.planted === arrival.planted) {
+      const over = terminalOvershootKnot(prev, arrival);
+      if (over) knots.splice(finalArrivalIdx, 0, over);
+    }
+  }
+
   return { trajectory: buildPoseTrajectory(knots), settleAtMs };
 }
 

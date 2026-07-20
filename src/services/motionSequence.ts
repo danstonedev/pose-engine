@@ -450,6 +450,10 @@ export interface ResolvedSequenceKeyframe {
   targets: { joint: string; motion: string; clampedDegrees: number }[];
   durationMs: number;
   holdMs: number;
+  /** The keyframe's authored velocity class (absent = 'deliberate'), passed
+   *  through so playback can shape fast endings (the terminal pre-settle
+   *  overshoot in motionTrajectory keys off the FINAL keyframe's class). */
+  velocityClass?: VelocityClass;
   /** True when durationMs was raised to the realistic-velocity floor. */
   timingAdjusted?: boolean;
   /** Whole-body root posture + travel for this keyframe (validated pass-through). */
@@ -1184,6 +1188,7 @@ export function resolveComposedMotion(
       targets,
       durationMs,
       holdMs,
+      ...(kf.velocityClass != null ? { velocityClass: kf.velocityClass } : {}),
       ...(timingAdjusted ? { timingAdjusted: true } : {}),
       ...(kfRoot ? { root: kfRoot } : {}),
       stance: kf.stance === 'planted' || kf.stance === 'floating' ? kf.stance : motionStance,
@@ -1289,6 +1294,10 @@ export interface ComposedMotionPoses {
   roots: KeyframeRootState[];
   durationsMs: number[];
   holdsMs: number[];
+  /** Parallel to `poses`: each keyframe's velocity class (undefined =
+   *  'deliberate'). Consumed by the trajectory's terminal pre-settle
+   *  overshoot (fast endings only). */
+  velocityClasses: (VelocityClass | undefined)[];
   loop: boolean;
   /** Resolved start mode carried through for the stage/host. */
   startFrom: 'current' | 'neutral';
@@ -1331,6 +1340,7 @@ export function buildSequencePoses(
   const roots: KeyframeRootState[] = [];
   const durationsMs: number[] = [];
   const holdsMs: number[] = [];
+  const velocityClasses: (VelocityClass | undefined)[] = [];
   // CROSS-MOTION CONTINUITY: fold onto the CURRENT pose (unmentioned joints
   // persist across compositions) unless startFrom==='neutral' (return to
   // anatomic rest first). A fresh motion with no currentPose degrades to the
@@ -1392,7 +1402,16 @@ export function buildSequencePoses(
     });
     durationsMs.push(kf.durationMs);
     holdsMs.push(kf.holdMs);
+    velocityClasses.push(kf.velocityClass);
     prev = pose;
   }
-  return { poses, roots, durationsMs, holdsMs, loop: resolved.loop, startFrom: resolved.startFrom };
+  return {
+    poses,
+    roots,
+    durationsMs,
+    holdsMs,
+    velocityClasses,
+    loop: resolved.loop,
+    startFrom: resolved.startFrom,
+  };
 }
