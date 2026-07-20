@@ -19,10 +19,16 @@ import {
   buildStandFromQuadruped,
   buildKneelDown,
   buildStandFromKneel,
-  buildLowerToProne,
-  buildPressUpToQuadruped,
   buildPlankFromQuadruped,
   buildQuadrupedFromPlank,
+  buildRollSupineToLeft,
+  buildRollLeftToSupine,
+  buildRollSupineToRight,
+  buildRollRightToSupine,
+  buildRollLeftToProne,
+  buildRollProneToLeft,
+  buildRollRightToProne,
+  buildRollProneToRight,
 } from './movementTemplates';
 import type { ComposedMotion, PostureNode } from './motionSequence';
 
@@ -46,11 +52,19 @@ export const POSTURE_EDGES: PostureEdge[] = [
   { from: 'quadruped', to: 'standing', build: buildStandFromQuadruped },
   { from: 'standing', to: 'kneeling', build: buildKneelDown },
   { from: 'kneeling', to: 'standing', build: buildStandFromKneel },
-  // Floor-posture connectors — "lie face down" routes standing→quadruped→prone.
-  { from: 'quadruped', to: 'prone', build: buildLowerToProne },
-  { from: 'prone', to: 'quadruped', build: buildPressUpToQuadruped },
   { from: 'quadruped', to: 'plank', build: buildPlankFromQuadruped },
   { from: 'plank', to: 'quadruped', build: buildQuadrupedFromPlank },
+  // LOG-ROLLS — the lying cluster (all head −Z, roll-consistent). Prone is reached by
+  // ROLLING from supine through a side (a real "roll over"), not by a faceplant; this is
+  // the single canonical prone orientation. "lie face down" = lie down → roll over.
+  { from: 'supine', to: 'sidelying-left', build: buildRollSupineToLeft },
+  { from: 'sidelying-left', to: 'supine', build: buildRollLeftToSupine },
+  { from: 'supine', to: 'sidelying-right', build: buildRollSupineToRight },
+  { from: 'sidelying-right', to: 'supine', build: buildRollRightToSupine },
+  { from: 'sidelying-left', to: 'prone', build: buildRollLeftToProne },
+  { from: 'prone', to: 'sidelying-left', build: buildRollProneToLeft },
+  { from: 'sidelying-right', to: 'prone', build: buildRollRightToProne },
+  { from: 'prone', to: 'sidelying-right', build: buildRollProneToRight },
 ];
 
 /**

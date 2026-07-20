@@ -30,13 +30,13 @@ describe('planPosturePath — closed gaps (pure)', () => {
     expect(planPosturePath('standing', 'kneeling')?.length).toBe(1);
     expect(planPosturePath('kneeling', 'standing')?.length).toBe(1);
   });
-  it('routes standing↔prone THROUGH quadruped (no direct faceplant edge)', () => {
+  it('routes standing↔prone by ROLLING through supine + a side (a real "roll over")', () => {
     const down = planPosturePath('standing', 'prone');
-    expect(down?.length).toBe(2); // standing → quadruped → prone
-    expect(down!.map((m) => m.endPosture)).toEqual(['quadruped', 'prone']);
+    expect(down?.length).toBe(3); // standing → supine → side → prone
+    expect(down!.map((m) => m.endPosture)).toEqual(['supine', expect.stringMatching(/^sidelying-/), 'prone']);
     const up = planPosturePath('prone', 'standing');
-    expect(up?.length).toBe(2); // prone → quadruped → standing
-    expect(up!.map((m) => m.endPosture)).toEqual(['quadruped', 'standing']);
+    expect(up?.length).toBe(3); // prone → side → supine → stand up
+    expect(up!.map((m) => m.endPosture)).toEqual([expect.stringMatching(/^sidelying-/), 'supine', 'standing']);
   });
   it('connects quadruped↔plank directly', () => {
     expect(planPosturePath('quadruped', 'plank')?.length).toBe(1);
@@ -82,17 +82,40 @@ describe('closed gaps on the rig', () => {
     expect(y(st, 'Hips'), 'back to standing pelvis height').toBeGreaterThan(0.9);
   });
 
-  it('"lie face down" gets to PRONE through quadruped with no seam teleport', () => {
-    const path = planPosturePath('standing', 'prone')!;
+  it('"lie face down" ROLLS to prone (lie down → roll over), face-down + low, no seam teleport', () => {
+    const path = planPosturePath('standing', 'prone')!; // standing → supine → side → prone
     const chain = runChain(path as never);
-    expect(chain.map((c) => c.status)).toEqual(['ok', 'ok']);
-    // ends prone (face-down horizontal) and low to the floor
+    expect(chain.map((c) => c.status)).toEqual(['ok', 'ok', 'ok']);
     const end = chain.at(-1)!.recording.frames.at(-1)!;
-    expect(Math.abs(pitchDeg(end.root.orientQuat)), 'ends in the prone (horizontal) frame').toBeGreaterThan(70);
+    // ends FACE-DOWN (the body forward axis points at the floor) and low to the floor.
+    const eq = end.root.orientQuat;
+    const face = new THREE.Vector3(0, 0, 1).applyQuaternion(new THREE.Quaternion(eq[0], eq[1], eq[2], eq[3]));
+    expect(face.y, 'ends prone — face toward the floor').toBeLessThan(-0.7);
     const standHead = chain[0]!.recording.frames[0]!;
     expect(y(end, 'Hips'), 'pelvis is down near the floor when prone').toBeLessThan(y(standHead, 'Hips') - 0.6);
+    // the ROLL motions (after the lie-down) stay low — never sitting up. (chain[0] is
+    // the lie-down, where the head legitimately starts at standing height and descends.)
+    for (const c of chain.slice(1)) for (const f of c.recording.frames) {
+      expect(y(f, 'Head'), 'head stays low through the roll (no sit-up)').toBeLessThan(0.6);
+    }
     for (let i = 1; i < chain.length; i += 1) {
       expect(chain[i]!.seamRootTranslateM, `seam ${i} no teleport`).toBeLessThan(0.1);
+    }
+  });
+
+  it('FLOOR GET-UP: the planner gets the body up to standing from prone and from side-lying', () => {
+    for (const from of ['prone', 'sidelying-left', 'sidelying-right'] as const) {
+      const path = planPosturePath(from, 'standing');
+      expect(path, `${from}→standing reachable`).not.toBeNull();
+      // From lying, get up = roll back to supine, then sit up and stand — every step a
+      // real transition, ending on the feet with no teleport.
+      const chain = runChain([...(path as never[])]);
+      expect(chain.map((c) => c.status).every((s) => s === 'ok'), `${from} get-up all ok`).toBe(true);
+      const end = chain.at(-1)!.recording.frames.at(-1)!;
+      expect(y(end, 'Hips'), `${from}: ends standing`).toBeGreaterThan(0.9);
+      for (let i = 1; i < chain.length; i += 1) {
+        expect(chain[i]!.seamRootTranslateM, `${from} seam ${i} no teleport`).toBeLessThan(0.1);
+      }
     }
   });
 });

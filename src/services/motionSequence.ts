@@ -494,6 +494,14 @@ function validateRoot(root: RootTransform | undefined): RootTransform | undefine
     const o = root.orient;
     if (!isFiniteOpt(o.pitchDeg) || !isFiniteOpt(o.rollDeg) || !isFiniteOpt(o.yawDeg)) return 'invalid';
     const orient: RootOrient = {};
+    // RAW quaternion (the arbitrary-orientation primitive) — validated as 4 finite
+    // numbers of non-zero length; wins over the Euler triple in rootOrientQuat.
+    if (o.quat != null) {
+      const qv = o.quat;
+      if (!Array.isArray(qv) || qv.length !== 4 || !qv.every((n) => typeof n === 'number' && Number.isFinite(n))) return 'invalid';
+      if (Math.hypot(qv[0], qv[1], qv[2], qv[3]) < 1e-6) return 'invalid';
+      orient.quat = [qv[0], qv[1], qv[2], qv[3]];
+    }
     if (o.pitchDeg != null) orient.pitchDeg = o.pitchDeg;
     if (o.rollDeg != null) orient.rollDeg = o.rollDeg;
     if (o.yawDeg != null) orient.yawDeg = o.yawDeg;

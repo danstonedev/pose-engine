@@ -29,7 +29,8 @@
  * reviewed reference, not mocap.
  */
 
-import type { ComposedMotion, MovementAsymmetry, SequenceKeyframe, SequenceTarget, StanceMode } from './motionSequence';
+import * as THREE from 'three';
+import type { ComposedMotion, MovementAsymmetry, PostureNode, SequenceKeyframe, SequenceTarget, StanceMode } from './motionSequence';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
 export interface TemplateTarget {
@@ -1709,6 +1710,57 @@ export function buildQuadrupedFromPlank(): ComposedMotion {
     ],
   };
 }
+
+// ─── Log-rolls: supine ↔ side-lying ↔ prone (raw-quat orient) ─────────────────
+// A natural "roll over" rotates the whole body about its LONG axis while the head stays
+// put — the Euler pitch/roll/yaw can't express this (it gimbal-locks at supine/prone and
+// rolls in the body frame, so a supine→prone slerp sits the body UP through vertical and
+// dives forward). We author the roll-consistent orientations as RAW quaternions instead:
+// the supine body rolled `rollDeg` about its world long axis (Z). The head stays −Z at
+// every roll angle, so a startFrom:'current' SQUAD between them is a clean log-roll.
+
+const _SUPINE_Q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0, 'YXZ'));
+const _ROLL_AXIS = new THREE.Vector3(0, 0, 1);
+
+/** Roll-consistent lying orientation: supine rolled `rollDeg` about the world long axis.
+ *  0 = supine (face up), −90 = left side, +90 = right side, ±180 = prone (face down);
+ *  the head stays put throughout. Returns a raw orient quaternion [x,y,z,w]. */
+function rollOrientQuat(rollDeg: number): [number, number, number, number] {
+  const q = new THREE.Quaternion()
+    .setFromAxisAngle(_ROLL_AXIS, (rollDeg * Math.PI) / 180)
+    .multiply(_SUPINE_Q);
+  return [q.x, q.y, q.z, q.w];
+}
+
+/** One log-roll edge: from `from` (lying) to `to` (lying), rotating the root to the
+ *  target roll orientation. startFrom:'current' so it rolls from the live pose; the
+ *  optional `viaRollDeg` inserts a mid-roll waypoint so a 180° roll can't slerp the
+ *  wrong way (through supine). Feet stay the ground contact (the lying foot-pin). */
+function buildLogRoll(
+  name: string,
+  from: PostureNode,
+  to: PostureNode,
+  toRollDeg: number,
+  viaRollDeg?: number,
+): ComposedMotion {
+  const keyframes: SequenceKeyframe[] = [];
+  if (viaRollDeg != null) {
+    keyframes.push({ durationMs: 450, stance: 'planted', root: { orient: { quat: rollOrientQuat(viaRollDeg) } } });
+  }
+  keyframes.push({ durationMs: 550, holdMs: 200, stance: 'planted', root: { orient: { quat: rollOrientQuat(toRollDeg) } } });
+  return { name, startFrom: 'current', stance: 'planted', startPosture: from, endPosture: to, keyframes };
+}
+
+// Supine ↔ each side. (−90 = left side, +90 = right side — measured on the rig.)
+export const buildRollSupineToLeft = (): ComposedMotion => buildLogRoll('roll onto your left side', 'supine', 'sidelying-left', -90);
+export const buildRollLeftToSupine = (): ComposedMotion => buildLogRoll('roll onto your back', 'sidelying-left', 'supine', 0);
+export const buildRollSupineToRight = (): ComposedMotion => buildLogRoll('roll onto your right side', 'supine', 'sidelying-right', 90);
+export const buildRollRightToSupine = (): ComposedMotion => buildLogRoll('roll onto your back', 'sidelying-right', 'supine', 0);
+// Side ↔ prone (continue the roll to face-down; a mid-waypoint disambiguates the 180°).
+export const buildRollLeftToProne = (): ComposedMotion => buildLogRoll('roll onto your front', 'sidelying-left', 'prone', -180, -135);
+export const buildRollProneToLeft = (): ComposedMotion => buildLogRoll('roll onto your left side', 'prone', 'sidelying-left', -90, -135);
+export const buildRollRightToProne = (): ComposedMotion => buildLogRoll('roll onto your front', 'sidelying-right', 'prone', 180, 135);
+export const buildRollProneToRight = (): ComposedMotion => buildLogRoll('roll onto your right side', 'prone', 'sidelying-right', 90, 135);
 
 /** Real free-gait COM vertical excursion is ~4-5 cm peak-to-peak at a comfortable
  *  cadence [Perry & Burnfield; Gard & Childress]. This is the calibrated NORMAL

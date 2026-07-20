@@ -53,10 +53,13 @@ describe('planPosturePath — the posture graph (pure)', () => {
     expect(up![0]!.endPosture).toBe('standing');
   });
 
-  it('returns null for an unreachable posture', () => {
-    // prone is now reachable (standing → quadruped → prone); side-lying has no edge yet
-    // (awaiting the supine↔side-lying↔prone roll work).
-    expect(planPosturePath('standing', 'sidelying-left')).toBeNull();
+  it('reaches the lying cluster by ROLLING (supine → side → prone), fully connected', () => {
+    expect(planPosturePath('supine', 'sidelying-left')?.length).toBe(1); // one roll
+    expect(planPosturePath('supine', 'prone')?.length).toBe(2); // roll to a side, then to the front
+    // every posture node is now reachable from standing (no dead nodes).
+    for (const p of ['sidelying-left', 'sidelying-right', 'prone', 'quadruped', 'kneeling', 'plank', 'sitting', 'supine'] as const) {
+      expect(planPosturePath('standing', p), p).not.toBeNull();
+    }
   });
 
   it('defaults an untagged movement to standing→standing', () => {

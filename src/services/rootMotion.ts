@@ -35,8 +35,14 @@ export interface RootOrient {
   pitchDeg?: number;
   /** About the anterior-posterior axis: ±90 = side-lying. */
   rollDeg?: number;
-  /** About the vertical axis: log-roll / turn in place. */
+  /** About the vertical axis: turn in place. */
   yawDeg?: number;
+  /** RAW world quaternion [x,y,z,w] — used DIRECTLY when present, bypassing the
+   *  pitch/roll/yaw Euler (which gimbal-locks at supine/prone ±90° and applies roll in
+   *  the BODY frame, so it can't express a log-roll about the world long axis). This is
+   *  the primitive for arbitrary reorientations: log-rolls, twists, tumbles — any axis
+   *  the Euler triple can't reach. Normalized on use. */
+  quat?: [number, number, number, number];
 }
 
 /** Whole-body root transform for one keyframe (posture + travel). */
@@ -63,6 +69,12 @@ const _q = new THREE.Quaternion();
  * ±90 side-lying; yaw turns in place.
  */
 export function rootOrientQuat(orient: RootOrient | undefined): THREE.Quaternion {
+  // RAW quaternion wins — the arbitrary-orientation primitive (log-rolls, twists) the
+  // Euler triple can't express. Normalized so an un-normalized authored quat is safe.
+  if (orient?.quat) {
+    const [x, y, z, w] = orient.quat;
+    return _q.set(x, y, z, w).normalize().clone();
+  }
   _e.set((orient?.pitchDeg ?? 0) * RAD, (orient?.yawDeg ?? 0) * RAD, (orient?.rollDeg ?? 0) * RAD, 'YXZ');
   return _q.setFromEuler(_e).clone();
 }
