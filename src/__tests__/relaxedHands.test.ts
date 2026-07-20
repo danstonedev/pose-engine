@@ -2,7 +2,7 @@
  * UNIVERSAL RELAXED HANDS — anatomical-position rest leaves the hands as flat
  * supinated paddles, and only gait's coordination used to fix that. The
  * `relaxedHands` resolve-time transform must give EVERY motion that leaves the
- * hands unspecified (squat, reach, sit-to-stand, kick…) a loose resting hand —
+ * hands unspecified (squat, reach, kick…) a loose resting hand —
  * graded per-digit curl + slight wrist flexion — while skipping motions that
  * author the hands (gait coordination, wrist AROM) or load them (push-up /
  * plank / quadruped / bird-dog hand plants, lying postures, hand contacts).
@@ -74,8 +74,10 @@ afterEach(() => {
 });
 
 describe('relaxedHands — authoring (pure)', () => {
-  it('squat + reach + sit-to-stand carry the FULL relaxed-hand set on every keyframe', () => {
-    for (const id of ['squat', 'endpoint-reach', 'sit-to-stand'] as const) {
+  it('squat + reach + lunge carry the FULL relaxed-hand set on every keyframe', () => {
+    // (sit-to-stand left this list in Wave 5: it now AUTHORS its thigh-push hand
+    // targets — the authors-hands gate skips it, asserted below.)
+    for (const id of ['squat', 'endpoint-reach', 'forward-lunge'] as const) {
       const r = resolveComposedMotion(template(id), variantCfg);
       expect(r.status, id).toBe('ok');
       // Every keyframe (incl. peak-timing sub-keyframes) carries all 12 targets…
@@ -121,7 +123,10 @@ describe('relaxedHands — authoring (pure)', () => {
   });
 
   it('a motion that authors ANY hand/wrist/finger target passes through byte-identical', () => {
-    for (const id of ['wrist-flexion-extension', 'wrist-deviation'] as const) {
+    // sit-to-stand joined this family in Wave 5 (roadmap 5.6): its thigh-push arm
+    // strategy authors wrist targets, so the author owns the hands and the
+    // relaxed set must NOT be layered on top of the pressing palms.
+    for (const id of ['wrist-flexion-extension', 'wrist-deviation', 'sit-to-stand'] as const) {
       const m = template(id);
       expect(relaxedHands(m), `${id} same reference`).toBe(m);
       const r = resolveComposedMotion(m, variantCfg);
