@@ -100,17 +100,18 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
 
   it('solves the plants per frame, only within each foot’s stance window', () => {
     // applyFootPlants honours the [fromMs,toMs] window and re-captures on entry.
-    // (Window widened 600→700 for the wave-4.6 heel-strike capture compensation:
+    // (Window widened 600→700→900: the wave-4.6 heel-strike capture compensation
+    // AND the wave-4.1 heading-rotated clamp frame both live in this block now:
     // a target captured mid-accent subtracts the applied root dip before the
     // solve, so the landing foot pins at its natural floor contact.)
-    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,700}tMs >= fp\.fromMs/);
-    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,700}fp\.target\.y -= composedHeelStrikeY/);
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,900}tMs >= fp\.fromMs/);
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,900}fp\.target\.y -= composedHeelStrikeY/);
     // Since the travel-heading work the solve clamps against the (possibly
     // heading-rotated) composedPlantRest, falling back to restRef — with the
     // ORIGINAL restRef always naming the knee hinge axis. Heading 0 keeps the
     // legacy behaviour exactly (composedPlantRest stays null).
     expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,700}solveFootPlant\(fp\.solver, fp\.target, composedPlantRest \?\? restRef, restRef\)/,
+      /function applyFootPlants[\s\S]{0,900}solveFootPlant\(fp\.solver, fp\.target, composedPlantRest \?\? restRef, restRef\)/,
     );
     // …and it is called from the live frame step AND the parked path.
     expect(stageSource).toContain('applyFootPlants(elapsed)');
