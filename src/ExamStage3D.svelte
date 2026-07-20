@@ -1498,7 +1498,10 @@
           if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
           const rp = rBone.getWorldPosition(new THREE.Vector3());
           const lp = lBone.getWorldPosition(new THREE.Vector3());
-          return { rz: rp.z, ry: rp.y, lz: lp.z, ly: lp.y };
+          // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
+          // airborne): the travel derivation holds its advance through it
+          // (mirrors the offline sampler's closure exactly).
+          return { rz: rp.z, ry: rp.y, lz: lp.z, ly: lp.y, bothAirborne: !s.planted };
         }, traj.totalMs, stanceWindows);
       }
 
@@ -2150,6 +2153,9 @@
           // it authors its own initiation/termination ramps (`settleEnds`): then the ends
           // are genuine stops (ease from standstill, brake to quiet standing).
           cyclicEnds: resolved.footDrivenTravel === true && resolved.settleEnds !== true,
+          // MOMENTUM-PRESERVING SEAM (opt-in): the first knot is a fly-through so a
+          // chained motion enters with velocity; the final settle still stops.
+          flowIn: resolved.flowIn === true,
         });
         // Advance the continuity/root state to the final keyframe for the NEXT motion.
         const lastRoot = built.roots[built.roots.length - 1];

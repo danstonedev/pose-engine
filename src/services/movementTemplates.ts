@@ -30,7 +30,7 @@
  */
 
 import * as THREE from 'three';
-import { SPINE_NECK_MAX, SPINE_NECK_LATERAL_MAX } from './motionSequence';
+import { MIN_KEYFRAME_MS, SPINE_NECK_MAX, SPINE_NECK_LATERAL_MAX } from './motionSequence';
 import type { ComposedMotion, MovementAsymmetry, PostureNode, SemanticTravel, SequenceKeyframe, SequenceTarget, StanceContact, StanceMode } from './motionSequence';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
@@ -1654,21 +1654,85 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
   };
 }
 
-/**
- * A real kinematic RUN — a looping, in-place running gait with a genuine FLIGHT
- * phase (both feet off the ground between steps, unlike walk's double-support).
- * Each cycle: stance-drive on one leg (deep knee absorption + toe push) → FLIGHT
- * (floating, the body rises ~12 cm and BOTH feet are airborne) → stance on the
- * other leg → flight. Higher hip/knee flexion + a forward trunk lean give running
- * form; arms pump reciprocally (opposite the swinging leg). `speed` couples stride
- * amplitude and cadence (√speed each, like paceGait). Loops seamlessly. The floating
- * phases are NOT floor-pinned, so the up-travel genuinely lifts the body — the feet
- * leave the ground (contrast the in-place walk, which keeps one foot planted).
- */
-export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
-  const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
+// ─── The RUN cycle (shared by the in-place buildRun and buildTravelRun) ──────
+// RUN GROUNDING PARITY (roadmap 4.3): each landing gets a real TOUCHDOWN →
+// ABSORPTION → recoil-into-DRIVE sequence, so the run absorbs its own impacts
+// instead of landing pre-posed. One STEP of the cycle is four keyframes:
+//   touchdown — the CONTACT instant: the landing leg reaches near-extended,
+//               foot down in front (the tail half of the ballistic descent);
+//   absorb    — the loading response: the landing knee yields an extra
+//               ~RUN_ABSORB_EXTRA_KNEE_DEG (+ hip yield) UNDER LOAD, right
+//               after contact — then recoils…
+//   drive     — …into the stance drive (mild flex + toe push) while the other
+//               leg swings through with a high knee;
+//   flight    — both feet airborne; the trajectory shapes root-Y as a
+//               constant-g parabola between the flanking planted knots.
+
+/** COM rise during a run's flight (m) — both feet genuinely clear the ground.
+ *  Paired with the flight/touchdown durations (each ≈ half of 2√(2h/g)) so the
+ *  ballistic parabola's implied acceleration stays ≈ g. */
+const RUN_RISE_M = 0.12;
+/** Stance-drive sagittal peaks (deg, speed-1) — the recoil target the
+ *  absorption yields BEYOND and then returns to. */
+const RUN_DRIVE_HIP_DEG = 14;
+const RUN_DRIVE_KNEE_DEG = 38;
+/** Touchdown-absorption yield beyond the stance drive (deg, speed-1), for the
+ *  first ~engine-floor (150 ms ≈ the physiologic 80-120 ms) after contact.
+ *  AUTHORED DEEPER than the ~10° physiologic loading-response target
+ *  [Perry & Burnfield, running]: on the travelling run the stance foot-plant
+ *  IK (holding the foot at its captured contact point while the pinned pelvis
+ *  rides ~1.5 cm up out of the touchdown dip) straightens the landing knee
+ *  ~6° — rig-measured — so 16° authored lands the MEASURED yield in the
+ *  roadmap's ~8-12° band (runParity.test.ts gates the measurement). */
+const RUN_ABSORB_EXTRA_KNEE_DEG = 16;
+const RUN_ABSORB_EXTRA_HIP_DEG = 10;
+/** TAKEOFF/LANDING CONTINUITY (buildJump's pattern, rig-measured): the ballistic
+ *  parabola interpolates the AUTHORED knot heights, while planted frames render
+ *  at the floor-pin — so the flight must START and END where the pin actually
+ *  leaves/receives the body, or touchdown snaps. The reaching touchdown pose
+ *  grounds ~6.8 cm BELOW standing (the near-extended leg reaches forward, so
+ *  the pin drops the pelvis); the toe-driving stance pose grounds ~1.4 cm ABOVE
+ *  it (plantarflexed toes push the body up). Seeding those knots' `travel.up`
+ *  makes the arc land exactly at the pinned height (planted rendering is
+ *  unaffected — the pin overrides absolutely on planted frames). */
+const RUN_TOUCHDOWN_PIN_DROP_M = 0.068;
+const RUN_DRIVE_PIN_RISE_M = 0.014;
+
+interface RunStepTiming {
+  touchMs: number;
+  absorbMs: number;
+  driveMs: number;
+  flightMs: number;
+  /** One full step (all four keyframes), ms. */
+  stepMs: number;
+}
+
+/** Authored per-keyframe durations for one run step at speed factor f = √speed.
+ *  The airborne interval is split half/half across the FLIGHT keyframe and the
+ *  TOUCHDOWN travel (the descent into contact) — buildJump's apex/descent/
+ *  touchdown split — so airtime ≈ 2√(2h/g) and the parabola stays ~g-true.
+ *  Every duration is floored at the engine's MIN_KEYFRAME_MS so the resolver
+ *  never re-times a keyframe: buildTravelRun computes its foot-contact windows
+ *  from these SAME numbers, and a resolver bump would desync them. */
+function runStepTiming(f: number): RunStepTiming {
+  const half = Math.max(MIN_KEYFRAME_MS, Math.round((ballisticFlightMs(RUN_RISE_M) * 0.5) / f));
+  const ground = Math.max(MIN_KEYFRAME_MS, Math.round(150 / f));
+  return {
+    touchMs: half,
+    absorbMs: ground, // the ~80-120 ms loading response, at the engine's 150 ms keyframe floor
+    driveMs: ground,
+    flightMs: half,
+    stepMs: half + ground + ground + half,
+  };
+}
+
+/** One STEP of the run cycle — `land` is the leg that touches down; the flight
+ *  after ITS push-off closes the step (so steps chain L/R seamlessly and the
+ *  loop wrap flight→touchdown is the landing transition). Fresh objects per
+ *  call. `s` is the speed request (stride amplitude and cadence each ∝ √s). */
+function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
   const f = Math.sqrt(s);
-  const RISE_M = 0.12; // COM rise during flight — both feet clear the ground
+  const t = runStepTiming(f);
   const A = (deg: number) => Math.round(deg * f); // stride/amplitude scale
   const leg = (side: 'L' | 'R', hip: number, knee: number, ankle: number) => [
     { joint: `${side}_UpLeg`, motion: 'hipFlexion', targetDegrees: A(hip) },
@@ -1680,51 +1744,80 @@ export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
     { joint: `${side}_Forearm`, motion: 'elbowFlexion', targetDegrees: 85 },
   ];
   const trunk = [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: 8 }];
-  const durStance = Math.round(150 / f);
-  // Flight duration derives from the physical airtime of the rise (half the full
-  // 2√(2h/g) — the flight keyframe is half the airborne interval, the stance
-  // transitions carry the rest), then speed-scaled. The trajectory shapes the arc
-  // as a constant-g parabola.
-  const durFlight = Math.round((ballisticFlightMs(RISE_M) * 0.5) / f);
-
-  // Stance on `st`: that leg supports (mild flex + toe push); the other swings with
-  // a high knee; the arm OPPOSITE the swing leg drives forward (reciprocal).
-  const stance = (st: 'L' | 'R'): SequenceKeyframe => {
-    const sw = st === 'L' ? 'R' : 'L'; // swing leg
-    return {
-      durationMs: durStance,
-      holdMs: 20,
-      stance: 'planted',
-      velocityClass: 'functional',
-      travel: { direction: 'up', meters: 0 },
-      targets: [
-        ...leg(st, 14, 38, -8), // support leg: absorb + push off
-        ...leg(sw, 58, 95, 0), // swing leg: high knee
-        ...arm(st, 48), // arm opposite the swing leg (= the stance side) forward
-        ...arm(sw, -18), // the other arm back
-        ...trunk,
-      ],
-    };
+  const other: 'L' | 'R' = land === 'L' ? 'R' : 'L';
+  // TOUCHDOWN — the contact instant. The landing leg is near-extended, reaching
+  // down/forward for the floor exactly where the ballistic parabola lands the
+  // body (landing pre-crouched would make the floor-pin yank the body down —
+  // see buildJump's touchdown note); the push-off leg releases behind and
+  // begins folding forward to recover.
+  const touchdown: SequenceKeyframe = {
+    durationMs: t.touchMs, velocityClass: 'ballistic', stance: 'planted',
+    // Landing continuity: the flight parabola ends HERE — seed the knot with the
+    // pose's rig-measured pin height so the arc lands where the pin grounds it.
+    travel: { direction: 'up', meters: -RUN_TOUCHDOWN_PIN_DROP_M },
+    targets: [
+      ...leg(land, 30, 20, 5),
+      ...leg(other, -5, 45, -10),
+      ...arm(land, 20), ...arm(other, 0), ...trunk,
+    ],
   };
-  // Flight after `pushed` leg drove off: it trails behind (hip extension), the other
-  // leads and descends toward the next contact. FLOATING + up-travel → airborne.
-  const flight = (pushed: 'L' | 'R'): SequenceKeyframe => {
-    const lead = pushed === 'L' ? 'R' : 'L';
-    return {
-      durationMs: durFlight,
-      velocityClass: 'ballistic',
-      stance: 'floating',
-      travel: { direction: 'up', meters: RISE_M },
-      targets: [
-        ...leg(pushed, -18, 28, -15), // trailing leg: extended behind, plantarflexed
-        ...leg(lead, 45, 55, 0), // leading leg: descending from the high-knee
-        ...arm(pushed, 18),
-        ...arm(lead, 5),
-        ...trunk,
-      ],
-    };
+  // ABSORPTION — the loading response, ~one engine-floor keyframe (150 ms)
+  // after contact: the landing knee YIELDS past its stance-drive value
+  // (+RUN_ABSORB_EXTRA_KNEE_DEG) with a hip yield, the ankle dorsiflexes as
+  // the shank rides over the planted foot; the swing leg comes through.
+  const absorb: SequenceKeyframe = {
+    durationMs: t.absorbMs, velocityClass: 'functional', stance: 'planted',
+    travel: { direction: 'up', meters: 0 },
+    targets: [
+      ...leg(land, RUN_DRIVE_HIP_DEG + RUN_ABSORB_EXTRA_HIP_DEG, RUN_DRIVE_KNEE_DEG + RUN_ABSORB_EXTRA_KNEE_DEG, 12),
+      ...leg(other, 25, 65, -5),
+      ...arm(land, 35), ...arm(other, -10), ...trunk,
+    ],
   };
+  // DRIVE — the recoil out of the absorption into the stance push (mild flex +
+  // toe push) while the swing leg reaches its high knee; arms at their
+  // reciprocal extremes (the arm opposite the swing leg forward).
+  const drive: SequenceKeyframe = {
+    durationMs: t.driveMs, velocityClass: 'functional', stance: 'planted',
+    // Takeoff continuity: the flight parabola starts HERE — seed the knot with
+    // the toe-driving pose's rig-measured pin height (slightly ABOVE standing).
+    travel: { direction: 'up', meters: RUN_DRIVE_PIN_RISE_M },
+    targets: [
+      ...leg(land, RUN_DRIVE_HIP_DEG, RUN_DRIVE_KNEE_DEG, -8),
+      ...leg(other, 58, 95, 0),
+      ...arm(land, 48), ...arm(other, -18), ...trunk,
+    ],
+  };
+  // FLIGHT — after the landing leg's own push-off it trails behind (hip
+  // extension, plantarflexed); the other leg leads, descending from the high
+  // knee toward ITS contact. FLOATING + up-travel → genuinely airborne.
+  const flight: SequenceKeyframe = {
+    durationMs: t.flightMs, velocityClass: 'ballistic', stance: 'floating',
+    travel: { direction: 'up', meters: RUN_RISE_M },
+    targets: [
+      ...leg(land, -18, 28, -15),
+      ...leg(other, 45, 55, 0),
+      ...arm(land, 18), ...arm(other, 5), ...trunk,
+    ],
+  };
+  return [touchdown, absorb, drive, flight];
+}
 
+/**
+ * A real kinematic RUN — a looping, in-place running gait with a genuine FLIGHT
+ * phase (both feet off the ground between steps, unlike walk's double-support)
+ * AND real touchdown grounding (roadmap 4.3): each landing runs touchdown →
+ * absorption (an extra ~10° knee yield + hip yield right after contact) →
+ * recoil into the stance drive → flight (see {@link runStepKeyframes}). Higher
+ * hip/knee flexion + a forward trunk lean give running form; arms pump
+ * reciprocally (opposite the swinging leg). `speed` couples stride amplitude
+ * and cadence (√speed each, like paceGait). Loops seamlessly — the wrap
+ * (flight → touchdown) is itself the landing transition. The floating phases
+ * are NOT floor-pinned, so the up-travel genuinely lifts the body — the feet
+ * leave the ground (contrast the in-place walk, which keeps one foot planted).
+ */
+export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
+  const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
   // Natural trunk coordination — thoracic counter-rotation with the pumping arms +
   // lateral sway toward the stance leg. Bigger arm swing at speed ⇒ bigger trunk
   // rotation, for free. Root/feet untouched (spine is above the hips).
@@ -1733,7 +1826,88 @@ export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
     startFrom: 'neutral',
     stance: 'planted',
     loop: true,
-    keyframes: [stance('R'), flight('R'), stance('L'), flight('L')],
+    keyframes: [...runStepKeyframes('R', s), ...runStepKeyframes('L', s)],
+  });
+}
+
+/**
+ * Build a FORWARD-TRAVELING run — the running sibling of {@link buildTravelWalk}
+ * (roadmap 4.3): the same touchdown → absorption → drive → flight step cycle as
+ * the in-place {@link buildRun}, advancing across the floor with ground-true
+ * feet via root motion FROM foot placement (`footDrivenTravel`).
+ *
+ * The travel derivation measures the FK stance-foot sweep and advances the root
+ * to cancel it; through each FLIGHT gap (both feet airborne — no grounded
+ * reference) it HOLDS the last grounded advance and resumes at touchdown
+ * (services/rootMotion `deriveFootDrivenTravel`, FeetZ.bothAirborne). Foot-plant
+ * contact windows pin each stance foot from ITS touchdown until its drive
+ * (toe-off) — flight phases carry no contact by definition — and the SAME
+ * windows travel-lock the derivation onto the weight-bearing foot (the measured
+ * lower-foot heuristic would track the recovering swing foot through a step).
+ *
+ * TWO full cycles (4 steps) plus a closing touchdown, so the motion covers a
+ * measurable travel distance (>1 m) and ENDS grounded at a contact rather than
+ * hovering mid-flight. Ends are CYCLIC fly-throughs (the pre-Wave-3 travel-walk
+ * pattern): the run enters at stride velocity and exits mid-cadence for the
+ * next chained command — it does NOT author a braking multi-step deceleration
+ * (the travel walk's settleEnds machinery; a 2-3 step run-down is future work).
+ * Non-looping, `startFrom:'current'`, so repeating it runs further from
+ * wherever the body already is.
+ *
+ * VERTICAL: deliberately NO `verticalCalibrationCm`. The calibration's smoothed
+ * phase table is derived from an always-grounded cycle (the walk); on a flight
+ * gait its whole-arc smoothing bridges the stance dips with the ballistic highs,
+ * which (rig-measured) holds the pelvis up through the absorption — the
+ * foot-plant IK then straightens the landing knee and erases the touchdown
+ * yield — and steps ~5 cm at the touchdown boundary. The run's grounded pelvis
+ * arc is instead AUTHORED in the physiologic running band (~7-9 cm across its
+ * stance windows — rig-gated in runParity.test.ts); the airborne vertical stays
+ * with the constant-g flight parabola.
+ */
+export function buildTravelRun(opts: { speed?: number } = {}): ComposedMotion {
+  const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
+  const f = Math.sqrt(s);
+  const t = runStepTiming(f);
+  const steps: ('L' | 'R')[] = ['R', 'L', 'R', 'L'];
+  const kfs: SequenceKeyframe[] = steps.flatMap((land) => runStepKeyframes(land, s));
+  // Closing touchdown (R): the final flight lands — a complete ballistic arc
+  // and a grounded finish.
+  kfs.push(runStepKeyframes('R', s)[0]!);
+  // STANCE WINDOWS (authored ms — identical in trajectory time: every duration
+  // above is at/above the engine floor and no timeScale is set, so the resolver
+  // passes them through verbatim): each landing foot bears weight from its
+  // TOUCHDOWN arrival to its DRIVE arrival (toe-off). ONLY the first window
+  // travel-locks, and it extends back to t=0: through the standing→first-
+  // touchdown ENTRY the lower-foot heuristic would track the reaching (future
+  // stance) R foot's forward sweep and walk the root BACKWARD — the lock floors
+  // its advance at 0. The STEADY-STATE stances deliberately stay on the
+  // measured-feet heuristic: a lock's max(0,·) floor turns every small
+  // within-stance reversal into phantom forward advance (~4-5 cm/stance,
+  // rig-measured), which over-runs the pinned foot and makes the plant IK
+  // straighten the landing knee — eating the absorption yield. The flight gaps
+  // between stances are handled by the derivation's bothAirborne hold.
+  const windows = steps.map((land, i) => ({
+    foot: `${land}_Foot`,
+    fromMs: i === 0 ? 0 : i * t.stepMs + t.touchMs,
+    toMs: i * t.stepMs + t.touchMs + t.absorbMs + t.driveMs,
+    ...(i === 0 ? { travelLock: true } : {}),
+  }));
+  // FOOT-PLANT CONTACTS pin each stance foot from its LANDING (touchdown
+  // arrival — a window opening earlier would capture the still-airborne foot
+  // and pin it mid-air) until its toe-off. Flight phases carry no contact.
+  const contacts: StanceContact[] = steps.map((land, i) => ({
+    foot: `${land}_Foot`,
+    fromMs: i * t.stepMs + t.touchMs,
+    toMs: i * t.stepMs + t.touchMs + t.absorbMs + t.driveMs,
+  }));
+  return spinalGaitCoordination({
+    name: 'run-forward',
+    startFrom: 'current',
+    stance: 'planted',
+    keyframes: kfs,
+    footDrivenTravel: true,
+    contacts,
+    gaitStanceWindowsMs: windows,
   });
 }
 

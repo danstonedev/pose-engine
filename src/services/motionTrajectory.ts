@@ -526,11 +526,25 @@ export function buildComposedTrajectory(
      *  the exit doesn't brake, so the cadence stays uniform. Knot TIMES are
      *  unchanged (foot contacts / footDrivenTravel stay in sync). */
     cyclicEnds?: boolean;
+    /** MOMENTUM-PRESERVING SEAM (roadmap 4.4, opt-in): every cross-command seam
+     *  otherwise brakes to zero — the start knot is a stop, so a motion chained
+     *  after a walk/kick eases in from rest and the carried momentum dies at the
+     *  seam. When set, ONLY the FIRST knot becomes a fly-through (stop:false —
+     *  the same boundary mechanics `cyclicEnds` uses for both ends): the entry
+     *  time-warp slope is the first segment's secant instead of 0, so the chained
+     *  motion ENTERS with velocity. Everything else is untouched — interior
+     *  holds, the FINAL stop (and its terminal pre-settle overshoot), knot times,
+     *  and the settle/measurement contract (u(t_k)=k) are byte-identical, and an
+     *  unflagged build is byte-identical to today. Redundant under `cyclicEnds`
+     *  (which already frees both ends). */
+    flowIn?: boolean;
   },
 ): ComposedTrajectory {
   const { startPose, startQuat, startTranslate, timeScale } = opts;
   const reps = Math.max(1, Math.floor(opts.reps ?? 1));
   const cyclicEnds = opts.cyclicEnds === true;
+  // flowIn frees ONLY the entry knot (the final settle still stops).
+  const flowIn = opts.flowIn === true;
   const n = built.poses.length;
   const knots: TrajectoryKnot[] = [
     {
@@ -538,7 +552,7 @@ export function buildComposedTrajectory(
       pose: startPose,
       rootQuat: startQuat,
       rootTranslate: startTranslate,
-      stop: !cyclicEnds,
+      stop: !cyclicEnds && !flowIn,
       planted: built.roots[0]?.stance === 'planted',
       groundingPosture: built.roots[0]?.groundingPosture,
     },
