@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { applyAnatomicPose } from '../services/anatomicPose';
-import { serializeCustomPose } from '../services/poseRig';
+import { serializeCustomPose, buildBoneByPoseKey, applyCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
 import { resolveComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion } from '../services/motionRecording';
@@ -159,5 +159,38 @@ describe('spinalGaitCoordination — measured on the rig', () => {
     expect(Math.max(...rot), 'toward one side').toBeGreaterThan(1);
     expect(Math.min(...rot), 'and the other').toBeLessThan(-1);
     expect(hipRange, 'the legs are still driving the stride').toBeGreaterThan(30);
+  });
+
+  it('GAZE STAYS FORWARD: the head is world-stabilized while the thorax counter-rotates', () => {
+    const yaw = (b: THREE.Bone): number => {
+      const q = new THREE.Quaternion();
+      b.getWorldQuaternion(q);
+      return (new THREE.Euler().setFromQuaternion(q, 'YXZ').y * 180) / Math.PI;
+    };
+    for (const motion of [buildTravelWalk(), buildRun()]) {
+      const rec = sampleComposedMotion(resolveComposedMotion(motion, variantCfg), {
+        baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 30,
+      });
+      const bones = buildBoneByPoseKey(skinned.skeleton, variantCfg);
+      const head = bones.get('Head')!, thorax = bones.get('Spine_Upper')!;
+      let hMin = Infinity, hMax = -Infinity, tMin = Infinity, tMax = -Infinity;
+      for (const f of rec.frames) {
+        applyCustomPose(skinned.skeleton, variantCfg, f.pose);
+        root.updateMatrixWorld(true);
+        const hy = yaw(head), ty = yaw(thorax);
+        hMin = Math.min(hMin, hy); hMax = Math.max(hMax, hy);
+        tMin = Math.min(tMin, ty); tMax = Math.max(tMax, ty);
+      }
+      const headSwing = hMax - hMin, thoraxSwing = tMax - tMin;
+      // eslint-disable-next-line no-console
+      console.log(`${motion.name}: HEAD yaw swing ${headSwing.toFixed(1)}° vs THORAX ${thoraxSwing.toFixed(1)}°`);
+      // The thorax visibly counter-rotates, but the head/gaze stays forward — the neck
+      // counters the inherited trunk rotation (vestibulo-ocular stabilization). Regression
+      // guard: before the fix the neck counter overflowed MAX_TARGETS and the head rode
+      // the thorax 1:1 (~17-21° swing).
+      expect(thoraxSwing, 'the thorax does counter-rotate').toBeGreaterThan(12);
+      expect(headSwing, 'the head stays looking forward').toBeLessThan(7);
+      expect(headSwing).toBeLessThan(thoraxSwing * 0.4);
+    }
   });
 });
