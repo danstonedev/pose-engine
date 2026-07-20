@@ -213,6 +213,30 @@ export function groundingContactsFor(posture: string, floor: FloorReference): Gr
         { bone: 'L_Hand', targetY: floor.floorY, mode: 'reach' },
         { bone: 'R_Hand', targetY: floor.floorY, mode: 'reach' },
       ];
+    // QUADRUPED (hands-and-knees): trunk horizontal, held on the SHINS (the knee bone
+    // `Leg`) behind and the HANDS in front. The knees are the primary vertical pin
+    // (max-lift picks the lower, so a raised knee simply lifts — bird-dog); each planted
+    // hand is a reach contact for the hand-plant IK. The `-hand-L` / `-hand-R` variants
+    // ground only ONE hand, freeing the other arm to reach out (bird-dog).
+    case 'quadruped':
+      return [
+        { bone: 'L_Leg', targetY: floor.floorY, mode: 'vertical' },
+        { bone: 'R_Leg', targetY: floor.floorY, mode: 'vertical' },
+        { bone: 'L_Hand', targetY: floor.floorY, mode: 'reach' },
+        { bone: 'R_Hand', targetY: floor.floorY, mode: 'reach' },
+      ];
+    case 'quadruped-hand-L':
+      return [
+        { bone: 'L_Leg', targetY: floor.floorY, mode: 'vertical' },
+        { bone: 'R_Leg', targetY: floor.floorY, mode: 'vertical' },
+        { bone: 'L_Hand', targetY: floor.floorY, mode: 'reach' },
+      ];
+    case 'quadruped-hand-R':
+      return [
+        { bone: 'L_Leg', targetY: floor.floorY, mode: 'vertical' },
+        { bone: 'R_Leg', targetY: floor.floorY, mode: 'vertical' },
+        { bone: 'R_Hand', targetY: floor.floorY, mode: 'reach' },
+      ];
     default:
       return Object.entries(floor.restY).map(([bone, targetY]) => ({ bone, targetY, mode: 'vertical' }));
   }

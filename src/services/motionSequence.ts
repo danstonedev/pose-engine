@@ -140,7 +140,14 @@ export type PostureNode =
   | 'prone'
   | 'sidelying-left'
   | 'sidelying-right'
-  | 'plank';
+  | 'plank'
+  | 'quadruped';
+
+/** Which support CONTACT SET grounds a keyframe (consumed by groundingContactsFor).
+ *  A superset of {@link PostureNode}: most grounding sets ARE a posture, but a few are
+ *  transient sub-states of one — e.g. 'quadruped-hand-L' grounds only the left hand so
+ *  the right arm can reach out in a bird-dog, without being its own posture-graph node. */
+export type GroundingPosture = PostureNode | 'quadruped-hand-L' | 'quadruped-hand-R';
 
 /** Every posture, for host capability discovery / tool enums. */
 export const SEMANTIC_POSTURES: readonly SemanticPosture[] = [
@@ -245,7 +252,7 @@ export interface SequenceKeyframe {
    *  the feet, i.e. the standard floor-pin. Consumed by the sampler/stage grounding
    *  step (posture-scoped contact); lets a sit-down switch the pin from feet to the
    *  pelvis at the seated keyframe. */
-  groundingPosture?: PostureNode;
+  groundingPosture?: GroundingPosture;
 }
 
 /** A unilateral (involved-vs-uninvolved) asymmetry — the substance of a PT movement
@@ -417,7 +424,7 @@ export interface ResolvedSequenceKeyframe {
   stance: StanceMode;
   /** Grounding posture for this keyframe (pass-through), or undefined for the
    *  default feet floor-pin. */
-  groundingPosture?: PostureNode;
+  groundingPosture?: GroundingPosture;
 }
 
 export interface ResolvedComposedMotion {
@@ -949,7 +956,7 @@ export interface KeyframeRootState {
   stance: StanceMode;
   /** Grounding posture for this keyframe (which support the body rests on), or
    *  undefined for the default feet floor-pin. */
-  groundingPosture?: PostureNode;
+  groundingPosture?: GroundingPosture;
 }
 
 /** The built playback plan: one target CustomPose per keyframe plus its

@@ -130,6 +130,13 @@ const HAND_LATCH_M = 0.03;
  *  single pass a slow-moving stance foot gets. */
 const HAND_REACH_PASSES = 4;
 
+/** Residual (m) past which a LATCHED hand self-heals: if the pinned hand cannot
+ *  actually reach its frozen target — e.g. the point was captured mid-transition and
+ *  is now out of the arm's reach — the latch is dropped so the hand re-tracks the floor
+ *  below it. A genuinely planted hand (a push-up, where the arm just folds to hold the
+ *  contact) stays well within this, so it never re-tracks. */
+const HAND_RELATCH_M = 0.08;
+
 const _reachLive = new THREE.Vector3();
 const _reachTarget = new THREE.Vector3();
 
@@ -148,14 +155,19 @@ export function solveHandReach(
   floorY: number,
   rest: JointAngleRestReference | null | undefined,
 ): void {
+  const eff = solver.ctx.bones[0]!;
   if (state.target) {
     // A few CCD passes so the pinned hand holds against the (fast-moving) body as
     // the chest lowers — one pass under-converges and lets the hand punch through
     // the floor at the bottom of a rep.
     for (let i = 0; i < HAND_REACH_PASSES; i += 1) solveHandPlant(solver, state.target, rest);
-    return;
+    // Self-heal a bad latch: a point captured mid-transition can end up out of reach
+    // once the body settles elsewhere. If the hand can't hold its target, drop the
+    // latch and fall through to re-track the floor below where the hand actually is.
+    eff.getWorldPosition(_reachLive);
+    if (_reachLive.distanceTo(state.target) <= HAND_RELATCH_M) return;
+    state.target = null;
   }
-  const eff = solver.ctx.bones[0]!;
   eff.getWorldPosition(_reachLive);
   _reachTarget.set(_reachLive.x, floorY, _reachLive.z);
   for (let i = 0; i < HAND_REACH_PASSES; i += 1) solveHandPlant(solver, _reachTarget, rest);

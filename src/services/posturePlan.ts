@@ -15,6 +15,8 @@ import {
   buildStandFromSit,
   buildGetDownToPlank,
   buildStandFromPlank,
+  buildGetDownToQuadruped,
+  buildStandFromQuadruped,
 } from './movementTemplates';
 import type { ComposedMotion, PostureNode } from './motionSequence';
 
@@ -34,6 +36,8 @@ export const POSTURE_EDGES: PostureEdge[] = [
   { from: 'sitting', to: 'standing', build: buildStandFromSit },
   { from: 'standing', to: 'plank', build: buildGetDownToPlank },
   { from: 'plank', to: 'standing', build: buildStandFromPlank },
+  { from: 'standing', to: 'quadruped', build: buildGetDownToQuadruped },
+  { from: 'quadruped', to: 'standing', build: buildStandFromQuadruped },
 ];
 
 /**
