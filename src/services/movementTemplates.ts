@@ -298,10 +298,24 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       'One full gait cycle authored as 8 phases (both steps), looping. Sagittal peaks per normal free gait [Perry & Burnfield; Neumann]: hip 30° flexion at initial contact → −10° extension at terminal stance; knee ~5° at contact, ~18° loading-response shock absorption, ~40° at pre-swing, ~60° peak in initial swing; ankle rockers — plantarflexion to foot-flat after contact (−8°), dorsiflexion to 10° as the tibia advances over the stance foot, push-off plantarflexion −15° at pre-swing. THIRD (forefoot) rocker: as the heel rises the foot pivots at the MTP joints — toe extension builds through terminal stance (~12°) and peaks at pre-swing push-off (~28°; normative MTP extension in gait ~30° [Perry & Burnfield]), releasing to neutral through swing so the foot is flat again at contact. Reciprocal arm swing ~±20° shoulder flexion, each arm peaking WITH the contralateral leg. The elbows are NOT rigid: they carry ~20° flexion and pump through the swing (overlapping action — more flexion on the backswing, unwinding as the arm comes forward, ~11-30°), so the forearms swing dynamically instead of marching stiff-armed [Elftman 1939; normal arm-swing elbow excursion ~10-20°]. Presented IN PLACE (treadmill convention — no root travel) so the looping cycle stays on stage; the pre-swing knee flexion + push-off happens across the loop seam (last phase flows back into the first). Planted.',
     stance: 'planted',
     loop: true,
+    // PERRY PHASE TIMING (wave 4.2): the 8 phase durations follow physiologic
+    // gait-cycle fractions instead of a metronomic 8×200 ms. Each phase's
+    // duration is the interval ENDING at its named pose, so per half-cycle
+    // (800 ms of the 1.6 s cycle, both sums unchanged — cadence/pace gates
+    // hold): loading response is BRISK (160 ms ≈ 10% of the cycle — weight
+    // acceptance is quick), mid-stance and terminal stance are LONG (236 ms ≈
+    // 14.75% each — the slow rollover of single support), and the arrival at
+    // the next initial contact is QUICK (168 ms ≈ 10.5% — the contralateral
+    // pre-swing push-off). Best 8-keyframe fit to Perry's ~12/19/19/12%
+    // stance-phase splits under the half-cycle sum + velocity-governor
+    // constraints (the contact keyframe reaches a 40° knee delta from neutral,
+    // so its interval must stay ≥167 ms at the 240°/s deliberate cap); the
+    // ~60:40 stance:swing rhythm emerges [Perry & Burnfield]. Gated in
+    // gaitPerryTiming.test.ts.
     phases: [
       {
         name: 'right-initial-contact',
-        durationMs: 200,
+        durationMs: 168,
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
@@ -319,7 +333,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'right-loading-response',
-        durationMs: 200,
+        durationMs: 160,
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 25 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 18 },
@@ -337,7 +351,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'right-mid-stance',
-        durationMs: 200,
+        durationMs: 236,
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 8 },
@@ -355,7 +369,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'right-terminal-stance',
-        durationMs: 200,
+        durationMs: 236,
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
@@ -373,7 +387,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'left-initial-contact',
-        durationMs: 200,
+        durationMs: 168,
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },
@@ -391,7 +405,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'left-loading-response',
-        durationMs: 200,
+        durationMs: 160,
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 25 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 18 },
@@ -409,7 +423,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'left-mid-stance',
-        durationMs: 200,
+        durationMs: 236,
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 8 },
@@ -427,7 +441,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'left-terminal-stance',
-        durationMs: 200,
+        durationMs: 236,
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },

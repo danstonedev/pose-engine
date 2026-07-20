@@ -142,9 +142,13 @@ describe('loop-seam fix — the walk cycle loops seamlessly', () => {
   it('enterAtMs points at the last keyframe phase (smooth first wrap from the first pass)', () => {
     const built = walkBuilt();
     const { enterAtMs, trajectory: loop } = buildLoopTrajectory(built, { timeScale: 1 });
-    // 8 × 200 ms phases: the last keyframe sits one wrap-segment (200 ms) before
-    // the period end.
-    expect(enterAtMs).toBeCloseTo(1400, 0);
+    // The last keyframe sits one wrap-segment before the 1600 ms period end. The
+    // wrap segment is the walk's (Perry re-timed, wave 4.2) initial-contact
+    // interval — derive it from the authored template so the gate follows the
+    // authored cadence instead of pinning a metronomic 8×200 ms (was 1400).
+    const walk = MOVEMENT_TEMPLATES.find((x) => x.id === 'walk')!;
+    const periodMs = walk.phases.reduce((s, p) => s + p.durationMs + (p.holdMs ?? 0), 0);
+    expect(enterAtMs).toBeCloseTo(periodMs - walk.phases[0]!.durationMs, 0); // 1600 − 168 = 1432
     // Entering there and stepping forward crosses the wrap into the first
     // keyframe with no snap.
     const step = poseDelta(loop.sampleAt(enterAtMs).pose, loop.sampleAt(enterAtMs + 1000 / 120).pose);

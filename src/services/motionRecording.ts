@@ -57,9 +57,11 @@ import {
   captureFootFrames,
   deriveFootDrivenTravel,
   deriveGaitLateralShuttle,
+  deriveHeelStrikeAccents,
   deriveVerticalCalibration,
   deriveWeightedDescent,
   FOOT_ROOT_DRIFT_M,
+  heelStrikeOffsetAt,
   NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
   pinContactsToFloor,
@@ -69,6 +71,7 @@ import {
   stanceFootDrift,
   weightedDescentApplies,
   type FootDrivenTravel,
+  type HeelStrikeAccents,
   type LateralShuttle,
   type VerticalCalibration,
   type WeightedDescentReshape,
@@ -492,6 +495,7 @@ export function sampleComposedMotion(
   // the shared closure keeps the two derivations reading identical feet.
   let footDriven: FootDrivenTravel | null = null;
   let lateralShuttle: LateralShuttle | null = null;
+  let heelStrike: HeelStrikeAccents | null = null;
   {
     const rBone = boneByKey.get('R_Foot');
     const lBone = boneByKey.get('L_Foot');
@@ -530,6 +534,37 @@ export function sampleComposedMotion(
       }));
       if (wantsTravel) footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows);
       if (shuttleM > 0) lateralShuttle = deriveGaitLateralShuttle(sampleFeet, totalMs, shuttleM, windows);
+      // HEEL-STRIKE TRANSIENT (footfall accent — roadmap 4.6): GAIT-ONLY — a
+      // foot-driven motion with a planned stance schedule (and no explicit
+      // opt-out). Each window START is a foot-contact instant; the pre-pass
+      // reads the SMOOTHED vertical (the same pin + calibration sampleAt
+      // applies) around each contact and derives a brief dip-and-recover
+      // accent, amplitude from the pre-contact descent rate. Null for every
+      // other motion, so they stay byte-identical.
+      if (wantsTravel && windows?.length && resolved.heelStrikeAccent !== false) {
+        heelStrike = deriveHeelStrikeAccents(
+          (tMs) => {
+            const s = trajectory.sampleAt(tMs);
+            applyCustomPose(skinned.skeleton, variantCfg, s.pose);
+            _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+            root.quaternion.copy(rootRestQuat).multiply(_sq);
+            root.position.set(
+              rootRestPos.x + s.rootTranslate[0],
+              rootRestPos.y + s.rootTranslate[1],
+              rootRestPos.z + s.rootTranslate[2],
+            );
+            root.updateMatrixWorld(true);
+            if (s.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+            let y = root.position.y;
+            if (s.planted && (vcal.gain !== 1 || vcal.smoothed)) {
+              y = applyVerticalCalibration(y, vcal, totalMs > 0 ? tMs / totalMs : 0);
+            }
+            return y;
+          },
+          windows.map((w) => w.fromMs),
+          totalMs,
+        );
+      }
     }
   }
 
@@ -700,6 +735,20 @@ export function sampleComposedMotion(
         root.updateMatrixWorld(true);
       }
     }
+    // Heel-strike transient (gait only): the brief footfall dip-and-recover ON
+    // TOP of the smoothed vertical, at each stance-window contact instant.
+    // Root-Y only; exactly 0 outside every accent span (and null for every
+    // non-gait motion), so unaccented playback is byte-identical. Tracked so a
+    // foot-plant target captured mid-accent pins at the NATURAL contact point
+    // (below) and the dip is absorbed by the leg IK.
+    let heelStrikeY = 0;
+    if (heelStrike && sample.planted) {
+      heelStrikeY = heelStrikeOffsetAt(heelStrike, tMs);
+      if (heelStrikeY !== 0) {
+        root.position.y += heelStrikeY;
+        root.updateMatrixWorld(true);
+      }
+    }
     // Foot-driven forward travel: advance the root (+Z) so the planted foot stays
     // world-fixed. Horizontal only — independent of the vertical pin/calibration.
     // The medio-lateral shuttle rides the root (X) toward the stance foot the
@@ -727,7 +776,14 @@ export function sampleComposedMotion(
       // Lazily pin the target to where the foot IS as it ENTERS its window
       // (post-FK, post-root): frame 0 for a whole-motion pin, or heel-strike for
       // a windowed stance phase, so each alternating step plants at its own point.
-      if (!fp.target) fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+      // A heel-strike accent active at capture time has dipped the WHOLE root, so
+      // remove its offset from the captured Y: the foot pins at its natural floor
+      // contact and the transient dip is absorbed by the leg IK (the loading
+      // knee), instead of burying the foot by the dip for the entire stance.
+      if (!fp.target) {
+        fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+        fp.target.y -= heelStrikeY;
+      }
       solveFootPlant(fp.solver, fp.target, rest);
       anyPlant = true;
     }

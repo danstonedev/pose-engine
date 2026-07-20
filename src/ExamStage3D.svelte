@@ -550,6 +550,8 @@
         NO_VERTICAL_CALIBRATION,
         deriveFootDrivenTravel,
         deriveGaitLateralShuttle,
+        deriveHeelStrikeAccents,
+        heelStrikeOffsetAt,
         deriveWeightedDescent,
         applyWeightedDescent,
         weightedDescentApplies,
@@ -995,6 +997,8 @@
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
         composedFootDriven = null; // drop any foot-driven travel
         composedLateralShuttle = null; // drop any medio-lateral shuttle
+        composedHeelStrike = null; // drop any footfall accents
+        composedHeelStrikeY = 0;
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
@@ -1542,6 +1546,56 @@
         }, traj.totalMs, shuttleCm / 100, stanceWindows);
       }
 
+      /** HEEL-STRIKE TRANSIENT for the ACTIVE composed motion — the brief
+       *  footfall dip-and-recover on the calibrated root-Y at each stance-window
+       *  contact instant, mirroring the offline sampler via the SAME shared
+       *  derivation (services/rootMotion). Null — the strict identity — unless
+       *  the motion is a foot-driven gait with a planned stance schedule. */
+      let composedHeelStrike: ReturnType<typeof deriveHeelStrikeAccents> = null;
+      /** The accent's root-Y offset applied on the CURRENT frame (≤ 0, m) — read
+       *  by the foot-plant capture so a target captured mid-accent pins at the
+       *  natural (un-dipped) contact point and the dip is absorbed by the leg IK. */
+      let composedHeelStrikeY = 0;
+
+      /** Pre-pass the starting gait's trajectory through the SAME pin + vertical
+       *  calibration applyTrajectoryRoot uses (the smoothed arc the accent rides
+       *  on) and derive the footfall accents from the stance-window starts. Must
+       *  run AFTER setComposedVerticalCalibration for the motion. Resets to null
+       *  otherwise. Poses the rig transiently (the player re-poses every frame). */
+      function setComposedHeelStrike(
+        traj: PoseTrajectory,
+        enabled: boolean,
+        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+      ): void {
+        composedHeelStrike = null;
+        composedHeelStrikeY = 0;
+        if (!enabled || !stanceWindows?.length || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
+        composedHeelStrike = deriveHeelStrikeAccents(
+          (tMs) => {
+            const s = traj.sampleAt(tMs);
+            applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
+            _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+            modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
+            modelRoot!.position.set(
+              rootRestPos.x + s.rootTranslate[0],
+              rootRestPos.y + s.rootTranslate[1],
+              rootRestPos.z + s.rootTranslate[2],
+            );
+            pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
+            modelRoot!.updateMatrixWorld(true);
+            if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+            let y = modelRoot!.position.y;
+            if (s.planted && (composedVcal.gain !== 1 || composedVcal.smoothed)) {
+              const u01 = composedVcalCycleMs > 0 ? tMs / composedVcalCycleMs : 0;
+              y = applyVerticalCalibration(y, composedVcal, u01);
+            }
+            return y;
+          },
+          stanceWindows.map((w) => w.fromMs),
+          traj.totalMs,
+        );
+      }
+
       /** GRAVITY-SHAPED GROUNDED DESCENT for the ACTIVE composed motion — the
        *  per-span root-Y re-timing of a flagged weighted lower (sit-down /
        *  get-down), mirroring the offline sampler via the SAME shared
@@ -1633,7 +1687,11 @@
       }
 
       /** Apply the active foot plants at composed-motion time `tMs` — called
-       *  AFTER the FK pose + root transform each frame (mirrors the sampler). */
+       *  AFTER the FK pose + root transform each frame (mirrors the sampler).
+       *  A target captured while a heel-strike accent is dipping the root is
+       *  compensated by the applied offset (`composedHeelStrikeY`), so the
+       *  landing foot pins at its NATURAL floor contact and the transient dip
+       *  is absorbed by the leg IK instead of burying the foot for the stance. */
       function applyFootPlants(tMs: number): void {
         if (!composedPlants.length || !restRef || !modelRoot) return;
         let solved = false;
@@ -1644,7 +1702,10 @@
             fp.target = null; // left the window — next stance phase re-captures
             continue;
           }
-          if (!fp.target) fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+          if (!fp.target) {
+            fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+            fp.target.y -= composedHeelStrikeY; // un-dip → natural contact (see doc)
+          }
           solveFootPlant(fp.solver, fp.target, restRef);
           solved = true;
         }
@@ -1729,6 +1790,20 @@
           const yShaped = applyWeightedDescent(modelRoot.position.y, composedDescent, tMs);
           if (yShaped !== modelRoot.position.y) {
             modelRoot.position.y = yShaped;
+            modelRoot.updateMatrixWorld(true);
+          }
+        }
+        // Heel-strike transient (gait only): the brief footfall dip-and-recover
+        // ON TOP of the smoothed vertical at each stance-window contact instant
+        // — root-Y only, exactly 0 outside every accent span (and null for every
+        // non-gait motion), mirroring the offline sampler at the same pipeline
+        // point. The applied offset is tracked so applyFootPlants can capture a
+        // mid-accent plant target at the natural (un-dipped) contact point.
+        composedHeelStrikeY = 0;
+        if (planted && composedHeelStrike) {
+          composedHeelStrikeY = heelStrikeOffsetAt(composedHeelStrike, tMs);
+          if (composedHeelStrikeY !== 0) {
+            modelRoot.position.y += composedHeelStrikeY;
             modelRoot.updateMatrixWorld(true);
           }
         }
@@ -2178,6 +2253,19 @@
         // toward the planted foot (per-step weight transfer) from the same
         // trajectory — the lateral sibling of the foot-driven travel.
         setComposedLateralShuttle(trajectory, resolved.lateralShuttleCm, composedHasPlanted, stanceWindows);
+        // HEEL-STRIKE TRANSIENT: derive the footfall accents (a brief root-Y
+        // dip-and-recover at each stance-window contact instant, amplitude from
+        // the pre-contact descent of the smoothed vertical) for a foot-driven
+        // gait with a planned stance schedule — AFTER the vertical calibration
+        // above, whose smoothed arc the accent reads and rides on. Null (the
+        // strict identity) for every other motion and on explicit opt-out.
+        setComposedHeelStrike(
+          trajectory,
+          resolved.footDrivenTravel === true &&
+            composedHasPlanted &&
+            effectiveResolved.heelStrikeAccent !== false,
+          stanceWindows,
+        );
         // HAND PLANTS: build the arm IK chains for any grounding-posture reach
         // contacts (a plank's hands), so they stay planted as the chest lowers.
         setComposedHandPlants(built.roots);
