@@ -77,6 +77,75 @@ export function livelinessSwayDeg(
   };
 }
 
+// Idle weight shift: nobody stands perfectly centred for long — quiet standing
+// carries a slow, subtle side-to-side redistribution of load (the hips drift
+// over one foot, then the other) on top of the small continuous micro-sway.
+// This is the SLOW component the micro-sway alone lacks: a 4–8 s cycle, so the
+// body visibly "settles" onto a side instead of only trembling about centre.
+// The cycle period and phase are SEED-derived (deterministic per seed, so a
+// test can pin it; randomized per stage boot, so two stages never sync up) and
+// the amplitude is modulated by a slow incommensurate sine so consecutive
+// cycles never repeat exactly.
+/** Idle weight-shift cycle period bounds, seconds (seed-mapped inside). */
+export const IDLE_SHIFT_PERIOD_MIN_S = 4;
+export const IDLE_SHIFT_PERIOD_MAX_S = 8;
+/** Peak lateral pelvis (model-root) travel at amount = 1, meters. ~1.2 cm —
+ *  a settle you notice only when looking for it, far under the ±15 cm the
+ *  antalgic pelvis-shift actuator allows. */
+export const IDLE_SHIFT_PEAK_M = 0.012;
+/** Peak low-back lateral lean at amount = 1, degrees — IN PHASE with the
+ *  pelvis travel, so the upper body visibly moves over the loaded side.
+ *  Positive = toward the patient's left (+X), the pelvis-shift sign. */
+export const IDLE_SHIFT_LEAN_PEAK_DEG = 1.1;
+/** Amplitude modulation: mean and depth of the slow per-cycle variation
+ *  (mod ∈ [0.6, 1.0], so the stated peaks above remain hard bounds). */
+const IDLE_SHIFT_MOD_MEAN = 0.8;
+const IDLE_SHIFT_MOD_DEPTH = 0.2;
+/** The modulation runs ~3.7 cycles slower than the shift itself — an
+ *  incommensurate ratio, so no two shift cycles carry the same amplitude. */
+const IDLE_SHIFT_MOD_RATIO = 3.7;
+
+/** Deterministic seed → [0, 1) hash (the classic fract-sin lattice hash) —
+ *  spreads ANY finite seed to a usable unit value with no RNG state. */
+function seedUnit(seed: number): number {
+  const s = Number.isFinite(seed) ? seed : 0;
+  const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+/**
+ * Slow idle weight shift: the pelvis travel (`shiftM`, meters on the model-root
+ * lateral axis, + = the patient's left/+X) plus an IN-PHASE low-back lateral
+ * lean (`leanDeg`, same sign convention), cycling over a seed-derived 4–8 s
+ * period. `amount` 0 ⇒ exactly {0, 0} (clean mode is zero perturbation); both
+ * components are hard-bounded by `amount ×` their stated peaks. Deterministic:
+ * same (tSec, amount, seed) ⇒ same output. Continuous in `tSec` (product of
+ * sines), so the live overlay can never pop frame to frame.
+ */
+export function idleWeightShift(
+  tSec: number,
+  amount: number,
+  seed = 0,
+): { shiftM: number; leanDeg: number } {
+  const a = safeAmount(amount);
+  if (a === 0 || !Number.isFinite(tSec)) return { shiftM: 0, leanDeg: 0 };
+  const sd = Number.isFinite(seed) ? seed : 0;
+  const periodS =
+    IDLE_SHIFT_PERIOD_MIN_S + (IDLE_SHIFT_PERIOD_MAX_S - IDLE_SHIFT_PERIOD_MIN_S) * seedUnit(sd);
+  const phase = (2 * Math.PI * tSec) / periodS + 2 * Math.PI * seedUnit(sd + 1);
+  // mod ∈ [0.6, 1.0]: the SAME factor scales both components, so the lean
+  // always accompanies the travel and the bounds stay hard.
+  const mod =
+    IDLE_SHIFT_MOD_MEAN +
+    IDLE_SHIFT_MOD_DEPTH *
+      Math.sin(phase / IDLE_SHIFT_MOD_RATIO + 2 * Math.PI * seedUnit(sd + 2));
+  const s = Math.sin(phase) * mod;
+  return {
+    shiftM: a * IDLE_SHIFT_PEAK_M * s,
+    leanDeg: a * IDLE_SHIFT_LEAN_PEAK_DEG * s,
+  };
+}
+
 // Cadence variability: real gait is not metronomic — stride TIME drifts cycle to
 // cycle with a coefficient of variation of ~2–4% in healthy adults (and MORE with
 // age / neurological disease — a future clinical dial). `cadenceRate` is a slow,

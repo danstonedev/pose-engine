@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { breathingLean, livelinessSwayDeg, cadenceRate, CADENCE_CV_MAX } from '../services/liveliness';
+import {
+  breathingLean,
+  livelinessSwayDeg,
+  cadenceRate,
+  CADENCE_CV_MAX,
+  idleWeightShift,
+  IDLE_SHIFT_PEAK_M,
+  IDLE_SHIFT_LEAN_PEAK_DEG,
+  IDLE_SHIFT_PERIOD_MIN_S,
+  IDLE_SHIFT_PERIOD_MAX_S,
+} from '../services/liveliness';
 
 // The stated peaks (mirror the module constants so the bounds are asserted
 // against the CONTRACT, not re-derived from it).
@@ -71,6 +81,122 @@ describe('livelinessSwayDeg', () => {
     expect(livelinessSwayDeg(2, 9)).toEqual(livelinessSwayDeg(2, 1));
     expect(livelinessSwayDeg(2, -1)).toEqual({ mlDeg: 0, apDeg: 0 });
     expect(livelinessSwayDeg(Number.NaN, 1)).toEqual({ mlDeg: 0, apDeg: 0 });
+  });
+});
+
+describe('idleWeightShift — slow idle weight shift (4–8 s settle cycle)', () => {
+  // A finer sweep than SWEEP: the zero-crossing period measurement below needs
+  // sub-sample precision on a 4–8 s cycle.
+  const FINE: number[] = [];
+  for (let t = 0; t <= 120; t += 0.01) FINE.push(t);
+  const SEEDS = [0, 1, 7.25, 42, 123.456, 999];
+
+  it('amount 0 ⇒ exactly {0, 0} everywhere (clean mode is zero perturbation)', () => {
+    for (const t of SWEEP) expect(idleWeightShift(t, 0, 42)).toEqual({ shiftM: 0, leanDeg: 0 });
+  });
+
+  it('hard-bounded by amount × the stated peaks, for any seed', () => {
+    for (const seed of SEEDS) {
+      for (const amount of [0.4, 1]) {
+        for (const t of SWEEP) {
+          const { shiftM, leanDeg } = idleWeightShift(t, amount, seed);
+          expect(Math.abs(shiftM)).toBeLessThanOrEqual(amount * IDLE_SHIFT_PEAK_M + 1e-12);
+          expect(Math.abs(leanDeg)).toBeLessThanOrEqual(amount * IDLE_SHIFT_LEAN_PEAK_DEG + 1e-12);
+        }
+      }
+    }
+  });
+
+  it('actually shifts: a real side-to-side swing in BOTH directions', () => {
+    for (const seed of SEEDS) {
+      const vals = SWEEP.map((t) => idleWeightShift(t, 1, seed).shiftM);
+      expect(Math.max(...vals), `seed ${seed} shifts one way`).toBeGreaterThan(IDLE_SHIFT_PEAK_M * 0.4);
+      expect(Math.min(...vals), `seed ${seed} and the other`).toBeLessThan(-IDLE_SHIFT_PEAK_M * 0.4);
+    }
+  });
+
+  it('the lean is IN PHASE with the travel — the trunk settles over the loaded side', () => {
+    for (const seed of SEEDS) {
+      for (const t of SWEEP) {
+        const { shiftM, leanDeg } = idleWeightShift(t, 1, seed);
+        // Same modulation scales both, so the signs can never disagree.
+        if (Math.abs(shiftM) > 1e-9) expect(Math.sign(leanDeg)).toBe(Math.sign(shiftM));
+      }
+    }
+  });
+
+  it('the cycle period is seed-derived and lands inside the stated 4–8 s band', () => {
+    for (const seed of SEEDS) {
+      // The amplitude modulation never reaches 0 (mod ≥ 0.6), so the rising
+      // zero-crossings of shiftM are exactly the base cycle boundaries.
+      const rising: number[] = [];
+      let prev = idleWeightShift(0, 1, seed).shiftM;
+      for (let i = 1; i < FINE.length; i += 1) {
+        const cur = idleWeightShift(FINE[i]!, 1, seed).shiftM;
+        if (prev <= 0 && cur > 0) rising.push(FINE[i]!);
+        prev = cur;
+      }
+      expect(rising.length, `seed ${seed} cycles several times over 2 min`).toBeGreaterThan(10);
+      for (let i = 1; i < rising.length; i += 1) {
+        const period = rising[i]! - rising[i - 1]!;
+        expect(period, `seed ${seed} period`).toBeGreaterThanOrEqual(IDLE_SHIFT_PERIOD_MIN_S - 0.05);
+        expect(period, `seed ${seed} period`).toBeLessThanOrEqual(IDLE_SHIFT_PERIOD_MAX_S + 0.05);
+      }
+    }
+  });
+
+  it('different seeds give different cycles (two stages never sync up)', () => {
+    const period = (seed: number): number => {
+      let prev = idleWeightShift(0, 1, seed).shiftM;
+      const rising: number[] = [];
+      for (let i = 1; i < FINE.length && rising.length < 2; i += 1) {
+        const cur = idleWeightShift(FINE[i]!, 1, seed).shiftM;
+        if (prev <= 0 && cur > 0) rising.push(FINE[i]!);
+        prev = cur;
+      }
+      return rising[1]! - rising[0]!;
+    };
+    expect(Math.abs(period(0) - period(42))).toBeGreaterThan(0.1);
+  });
+
+  it('consecutive cycles differ (amplitude modulation) — never a metronome', () => {
+    const peaks: number[] = [];
+    let best = 0;
+    let prevSign = 1;
+    for (const t of FINE) {
+      const { shiftM } = idleWeightShift(t, 1, 42);
+      const sign = shiftM >= 0 ? 1 : -1;
+      if (sign !== prevSign) {
+        if (best > 0) peaks.push(best);
+        best = 0;
+        prevSign = sign;
+      }
+      best = Math.max(best, Math.abs(shiftM));
+    }
+    expect(peaks.length).toBeGreaterThan(8);
+    expect(Math.max(...peaks) - Math.min(...peaks), 'half-cycle peaks vary').toBeGreaterThan(
+      IDLE_SHIFT_PEAK_M * 0.05,
+    );
+  });
+
+  it('continuous frame to frame — the live overlay can never pop', () => {
+    let prev = idleWeightShift(0, 1, 42);
+    for (let t = 1 / 60; t <= 30; t += 1 / 60) {
+      const cur = idleWeightShift(t, 1, 42);
+      expect(Math.abs(cur.shiftM - prev.shiftM)).toBeLessThan(IDLE_SHIFT_PEAK_M * 0.05);
+      expect(Math.abs(cur.leanDeg - prev.leanDeg)).toBeLessThan(IDLE_SHIFT_LEAN_PEAK_DEG * 0.05);
+      prev = cur;
+    }
+  });
+
+  it('deterministic per (t, amount, seed); clamps amount; guards non-finite', () => {
+    expect(idleWeightShift(3.14, 0.4, 42)).toEqual(idleWeightShift(3.14, 0.4, 42));
+    expect(idleWeightShift(3.14, 9, 42)).toEqual(idleWeightShift(3.14, 1, 42));
+    expect(idleWeightShift(3.14, -1, 42)).toEqual({ shiftM: 0, leanDeg: 0 });
+    expect(idleWeightShift(Number.NaN, 1, 42)).toEqual({ shiftM: 0, leanDeg: 0 });
+    expect(idleWeightShift(3.14, Number.NaN, 42)).toEqual({ shiftM: 0, leanDeg: 0 });
+    // A non-finite seed falls back to seed 0 rather than exploding.
+    expect(idleWeightShift(3.14, 1, Number.NaN)).toEqual(idleWeightShift(3.14, 1, 0));
   });
 });
 
