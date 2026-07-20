@@ -1078,3 +1078,128 @@ export function weightedDescentApplies(resolved: WeightedDescentMotionLike): boo
   if (resolved.keyframes.some((kf) => kf.stance === 'floating')) return false;
   return resolved.keyframes.some((kf) => kf.stance === 'planted');
 }
+
+// ── Heel-strike transient (footfall accent — roadmap 4.6) ────────────────────
+//
+// The audit's "no impact transient" finding: the calibrated + smoothed gait
+// vertical glides through each footfall — the double-support valley is
+// deliberately rounded (do NOT reduce that smoothing) — so contact carries no
+// weight. This section is the additive accent ON TOP of the smoothed arc: at
+// each foot-CONTACT instant (the starts of the same planned stance schedule
+// the shuttle/travel derivations follow — a window opens when its foot lands),
+// a brief downward DIP-AND-RECOVER on root Y, shaped by a critically-damped
+// (non-oscillating) bump kernel with compact support: zero at contact, fast
+// drop to the full dip ~40% into the span, damped recovery to exactly zero by
+// the span's end — an impact caught by the loading-response knee, never a
+// bounce. Amplitude scales with the PRE-CONTACT DESCENT RATE of the smoothed
+// arc (faster arrival = firmer accent), clamped to a subtle 0.5–1 cm band.
+//
+// KINEMATIC CHARTER + LOCKSTEP. Root-Y ONLY, derived in a deterministic
+// pre-pass over the built trajectory (the vertical-calibration pattern: the
+// sampler and the live stage run the SAME derivation on the same smoothed arc
+// and apply the same offset per frame). Gait-only: the sampler/stage derive it
+// only for a foot-driven motion with a planned stance schedule; every other
+// motion is byte-identical. The foot-plant IK after it absorbs the dip in the
+// stance knee (the plant target compensates the offset at capture, so the
+// stance foot still pins ON the floor — see the sampler/stage apply sites).
+
+/** Kernel span (ms): the dip fully rises and recovers within this window after
+ *  the contact instant — a brief transient, not a bounce (~80–120 ms in life). */
+export const HEEL_STRIKE_SPAN_MS = 110;
+/** Softest accent dip (m) — a footfall always lands with SOME weight. */
+export const HEEL_STRIKE_MIN_DIP_M = 0.005;
+/** Firmest accent dip (m) — subtle; the smoothed arc stays the star. */
+export const HEEL_STRIKE_MAX_DIP_M = 0.01;
+/** Pre-contact descent rate (m/s) of the smoothed arc at which the accent
+ *  saturates at {@link HEEL_STRIKE_MAX_DIP_M}. The walk's smoothed vertical
+ *  descends O(0.1 m/s) into double support; a faster (paced) arrival firms the
+ *  accent toward the cap. */
+export const HEEL_STRIKE_REF_DESCENT_M_S = 0.25;
+/** Window (ms) BEFORE the contact instant over which the smoothed arc's
+ *  descent rate is read (finite difference). */
+const HEEL_STRIKE_RATE_WINDOW_MS = 80;
+/** Peak position + normalization of the compact critically-damped bump
+ *  u²(1−u)³ over u∈[0,1]: peak 1 at u = 2/5 (44 ms into the 110 ms span). */
+const HEEL_STRIKE_KERNEL_NORM = 3125 / 108;
+
+/** One derived footfall accent: a dip of `dipM` metres starting at `atMs`. */
+export interface HeelStrikeAccent {
+  atMs: number;
+  dipM: number;
+}
+
+/** The derived accent schedule for one motion: identity outside every span. */
+export interface HeelStrikeAccents {
+  totalMs: number;
+  accents: HeelStrikeAccent[];
+}
+
+/**
+ * Derive the footfall accent schedule from the SMOOTHED grounded arc.
+ * `smoothedRootYAt(tMs)` must return the pipeline's post-calibration root-Y at
+ * absolute time tMs (the caller poses the rig, floor-pins and applies its
+ * vertical calibration — exactly what its playback shows before the accent).
+ * `contactInstantsMs` are the foot-contact instants — the STARTS of the same
+ * planned stance schedule (gaitStanceWindowsMs, trajectory time base) the
+ * shuttle/travel derivations follow. A start at t≈0 is the standing entry (no
+ * arrival to accent) and is skipped; each remaining contact gets a dip
+ * amplitude lerped {@link HEEL_STRIKE_MIN_DIP_M}→{@link HEEL_STRIKE_MAX_DIP_M}
+ * by its pre-contact descent rate. Returns null when no contact qualifies
+ * (the identity). Deterministic: same arc + instants → same accents.
+ */
+export function deriveHeelStrikeAccents(
+  smoothedRootYAt: (tMs: number) => number,
+  contactInstantsMs: number[],
+  totalMs: number,
+): HeelStrikeAccents | null {
+  if (!(totalMs > 0)) return null;
+  const accents: HeelStrikeAccent[] = [];
+  for (const c of contactInstantsMs) {
+    if (!Number.isFinite(c) || c < 1 || c >= totalMs) continue; // t≈0 = standing entry
+    const w = Math.min(HEEL_STRIKE_RATE_WINDOW_MS, c);
+    if (w <= 0) continue;
+    // Descent rate of the smoothed arc INTO this contact (+ = descending, m/s).
+    const rate = Math.max(0, (smoothedRootYAt(c - w) - smoothedRootYAt(c)) / (w / 1000));
+    const firmness = Math.min(1, rate / HEEL_STRIKE_REF_DESCENT_M_S);
+    accents.push({
+      atMs: c,
+      dipM: HEEL_STRIKE_MIN_DIP_M + (HEEL_STRIKE_MAX_DIP_M - HEEL_STRIKE_MIN_DIP_M) * firmness,
+    });
+  }
+  return accents.length ? { totalMs, accents } : null;
+}
+
+/**
+ * The accent's root-Y OFFSET (≤ 0, metres) at time tMs — the critically-damped
+ * bump evaluated over every accent span covering tMs (spans of a symmetric
+ * gait never overlap; summing keeps the lookup total-order-free anyway).
+ * Exactly 0 outside every span and for a null schedule, so unaccented playback
+ * is byte-identical. The caller adds this to the calibrated root-Y — and
+ * subtracts it from a foot-plant target captured while it is non-zero, so the
+ * landing foot pins at its natural floor contact and the dip is absorbed by
+ * the leg IK (the loading-response knee) instead of burying the foot.
+ */
+export function heelStrikeOffsetAt(
+  accents: HeelStrikeAccents | null | undefined,
+  tMs: number,
+): number {
+  if (!accents) return 0;
+  let off = 0;
+  for (const a of accents.accents) {
+    const u = (tMs - a.atMs) / HEEL_STRIKE_SPAN_MS;
+    if (u <= 0 || u >= 1) continue;
+    off -= a.dipM * HEEL_STRIKE_KERNEL_NORM * u * u * (1 - u) ** 3;
+  }
+  return off;
+}
+
+/** Apply the footfall accent to the calibrated root-Y at tMs — identity for a
+ *  null schedule and outside every span (mirrors applyVerticalCalibration's
+ *  role in the vertical pipeline: pin → vcal → accent → travel/shuttle). */
+export function applyHeelStrikeAccent(
+  y: number,
+  accents: HeelStrikeAccents | null | undefined,
+  tMs: number,
+): number {
+  return y + heelStrikeOffsetAt(accents, tMs);
+}

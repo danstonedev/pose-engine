@@ -97,8 +97,12 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
 
   it('solves the plants per frame, only within each foot’s stance window', () => {
     // applyFootPlants honours the [fromMs,toMs] window and re-captures on entry.
-    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,600}tMs >= fp\.fromMs/);
-    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,600}solveFootPlant\(fp\.solver, fp\.target, restRef\)/);
+    // (Window widened 600→700 for the wave-4.6 heel-strike capture compensation:
+    // a target captured mid-accent subtracts the applied root dip before the
+    // solve, so the landing foot pins at its natural floor contact.)
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,700}tMs >= fp\.fromMs/);
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,700}solveFootPlant\(fp\.solver, fp\.target, restRef\)/);
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,700}fp\.target\.y -= composedHeelStrikeY/);
     // …and it is called from the live frame step AND the parked path.
     expect(stageSource).toContain('applyFootPlants(elapsed)');
     expect(stageSource).toContain('applyFootPlants(trajectory.totalMs)');

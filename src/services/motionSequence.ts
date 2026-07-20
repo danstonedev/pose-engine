@@ -399,6 +399,14 @@ export interface ComposedMotion {
    *  exists for gaits whose first/last keyframes are mid-stride poses). Ignored
    *  unless `footDrivenTravel` is set. */
   settleEnds?: boolean;
+  /** HEEL-STRIKE TRANSIENT opt-OUT: a foot-driven gait with a planned stance
+   *  schedule (`gaitStanceWindowsMs`) gets a small footfall accent BY DEFAULT —
+   *  a brief dip-and-recover on the calibrated root-Y at each contact instant
+   *  (window start), amplitude from the pre-contact descent rate
+   *  (services/rootMotion `deriveHeelStrikeAccents`). Set false to suppress it
+   *  (a control sample, a deliberately glidey demo). Motions without a stance
+   *  schedule never accent, so this flag is meaningless (and harmless) there. */
+  heelStrikeAccent?: boolean;
   /** The body POSTURE this movement assumes at its START / leaves at its END, for
    *  the transition executor to bridge between commands (e.g. a supine exercise
    *  starts+ends 'supine'; a lie-down ends 'supine'; a get-up ends 'standing').
@@ -540,6 +548,10 @@ export interface ResolvedComposedMotion {
   /** Authored initiation/termination (pass-through) — trajectory ends are real
    *  stops, not the footDrivenTravel cyclic fly-throughs. */
   settleEnds?: boolean;
+  /** Heel-strike transient opt-out (pass-through). `false` suppresses the
+   *  default footfall accent of a stance-scheduled gait; absent = accent on.
+   *  See {@link ComposedMotion.heelStrikeAccent}. */
+  heelStrikeAccent?: boolean;
   /** COM-driven postural control (pass-through) — the sampler/stage run the
    *  resolved keyframes through `balanceCoordination` before building the
    *  trajectory. See {@link ComposedMotion.balanceAssist}. */
@@ -1311,6 +1323,9 @@ export function resolveComposedMotion(
         }
       : {}),
     ...(motion.settleEnds ? { settleEnds: true } : {}),
+    // Heel-strike accent: only the explicit opt-OUT survives resolution (the
+    // default-on behaviour is the absence of the flag).
+    ...(motion.heelStrikeAccent === false ? { heelStrikeAccent: false } : {}),
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
     ...(motion.weightedDescent ? { weightedDescent: true } : {}),
   };
