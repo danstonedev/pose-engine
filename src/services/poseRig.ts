@@ -516,7 +516,18 @@ function constrainLocalToHinge(
 export function solveIKChain(
   ctx: IKChainContext,
   targetWorldPos: THREE.Vector3,
-  clamp?: { rest: JointAngleRestReference | null | undefined; hinges?: Set<string> },
+  clamp?: {
+    rest: JointAngleRestReference | null | undefined;
+    hinges?: Set<string>;
+    /** Rest reference used ONLY to pick each hinge's LOCAL axis (defaults to
+     *  `rest`). Needed when `rest` is a ROOT-ROTATED reference (a heading-yawed
+     *  travel gait): the ROM clamps must decompose against the rotated world
+     *  frame, but `localAxisTowardBodyLeft` quantizes the rest-world quat
+     *  against world +X — feeding it a yawed rest would pick the wrong local
+     *  axis (body-left is no longer world +X). Local axes are rotation
+     *  invariant, so the ORIGINAL rest always names the correct one. */
+    hingeAxisRest?: JointAngleRestReference | null;
+  },
 ): void {
   const { bones, canonicalKeys } = ctx;
   const effector = bones[0];
@@ -557,7 +568,11 @@ export function solveIKChain(
         const restArr = clamp.rest.localQuats[canonicalKey];
         if (restArr) {
           _hingeRest.set(restArr[0], restArr[1], restArr[2], restArr[3]);
-          constrainLocalToHinge(joint, _hingeRest, localAxisTowardBodyLeft(clamp.rest.worldQuats[canonicalKey]));
+          constrainLocalToHinge(
+            joint,
+            _hingeRest,
+            localAxisTowardBodyLeft((clamp.hingeAxisRest ?? clamp.rest).worldQuats[canonicalKey]),
+          );
         }
       }
       if (clamp?.rest && canonicalKey) {

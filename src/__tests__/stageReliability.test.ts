@@ -90,19 +90,33 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
   });
 
   it('rebuilds the plants from the starting motion’s contacts', () => {
-    expect(stageSource).toContain('setComposedContacts(resolved.contacts)');
+    // Since the travel-heading work (roadmap 4.1) the call also forwards the
+    // motion's headingDeg so a rotated walk derives its heading-rotated
+    // plant-clamp rest frame (composedPlantRest).
+    expect(stageSource).toContain('setComposedContacts(resolved.contacts, resolved.headingDeg ?? 0)');
     // setComposedContacts builds one solver per declared contact.
-    expect(stageSource).toMatch(/function setComposedContacts[\s\S]{0,400}buildFootPlant\(skinnedRef, c\.foot, variantCfgRef\)/);
+    expect(stageSource).toMatch(/function setComposedContacts[\s\S]{0,700}buildFootPlant\(skinnedRef, c\.foot, variantCfgRef\)/);
   });
 
   it('solves the plants per frame, only within each foot’s stance window', () => {
     // applyFootPlants honours the [fromMs,toMs] window and re-captures on entry.
+<<<<<<< HEAD
     // (Window widened 600→700 for the wave-4.6 heel-strike capture compensation:
     // a target captured mid-accent subtracts the applied root dip before the
     // solve, so the landing foot pins at its natural floor contact.)
     expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,700}tMs >= fp\.fromMs/);
     expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,700}solveFootPlant\(fp\.solver, fp\.target, restRef\)/);
     expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,700}fp\.target\.y -= composedHeelStrikeY/);
+=======
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,700}tMs >= fp\.fromMs/);
+    // Since the travel-heading work the solve clamps against the (possibly
+    // heading-rotated) composedPlantRest, falling back to restRef — with the
+    // ORIGINAL restRef always naming the knee hinge axis. Heading 0 keeps the
+    // legacy behaviour exactly (composedPlantRest stays null).
+    expect(stageSource).toMatch(
+      /function applyFootPlants[\s\S]{0,700}solveFootPlant\(fp\.solver, fp\.target, composedPlantRest \?\? restRef, restRef\)/,
+    );
+>>>>>>> wave4/turns
     // …and it is called from the live frame step AND the parked path.
     expect(stageSource).toContain('applyFootPlants(elapsed)');
     expect(stageSource).toContain('applyFootPlants(trajectory.totalMs)');

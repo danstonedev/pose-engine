@@ -381,6 +381,25 @@ export function sampleComposedMotion(
       });
     }
   }
+  // PLANT-CLAMP REST FRAME: the leg-IK ROM clamps decompose bone WORLD quats
+  // against the rest reference, so a walk on a ROTATED heading must clamp
+  // against the heading-rotated reference (else the whole-body yaw reads as
+  // spurious hip abduction/rotation and the "clamped" solve drags the planted
+  // foot). Rotated ONCE per motion by the constant heading; the knee hinge
+  // axis keeps the ORIGINAL rest (solveFootPlant's hingeAxisRest — local axes
+  // are picked in the un-rotated frame). Heading 0 keeps the very same `rest`
+  // object — the legacy byte-identical path.
+  const plantHeadingDeg = resolved.headingDeg ?? 0;
+  const plantRest =
+    plantHeadingDeg !== 0 && footPlants.length > 0
+      ? rotateRestReferenceByRoot(
+          rest,
+          new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(0, 1, 0),
+            (plantHeadingDeg * Math.PI) / 180,
+          ),
+        )
+      : rest;
 
   const built = buildSequencePoses(baselinePose, resolved, variantCfg, rest, {
     currentPose: opts.currentPose ?? null,
@@ -532,8 +551,12 @@ export function sampleComposedMotion(
         toMs: w.toMs * scale,
         ...(w.travelLock ? { travelLock: true } : {}),
       }));
-      if (wantsTravel) footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows);
-      if (shuttleM > 0) lateralShuttle = deriveGaitLateralShuttle(sampleFeet, totalMs, shuttleM, windows);
+      // TRAVEL HEADING: the derived ride goes along (sinH, cosH), shuttle along
+      // the perpendicular — 0 (the default) is the byte-identical legacy +Z/+X.
+      const headingDeg = resolved.headingDeg ?? 0;
+      if (wantsTravel) footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows, 120, headingDeg);
+      if (shuttleM > 0)
+        lateralShuttle = deriveGaitLateralShuttle(sampleFeet, totalMs, shuttleM, windows, 120, headingDeg);
       // HEEL-STRIKE TRANSIENT (footfall accent — roadmap 4.6): GAIT-ONLY — a
       // foot-driven motion with a planned stance schedule (and no explicit
       // opt-out). Each window START is a foot-contact instant; the pre-pass
@@ -749,14 +772,25 @@ export function sampleComposedMotion(
         root.updateMatrixWorld(true);
       }
     }
-    // Foot-driven forward travel: advance the root (+Z) so the planted foot stays
-    // world-fixed. Horizontal only — independent of the vertical pin/calibration.
-    // The medio-lateral shuttle rides the root (X) toward the stance foot the
-    // same way; both precede the foot plants, which hold each stance foot fixed
-    // while the pelvis travels over it.
+    // Foot-driven travel: advance the root ALONG THE HEADING (offset·(sinH,
+    // cosH); straight-ahead heading 0 is a pure +Z ride, byte-identical to the
+    // old z-only path) so the planted foot stays world-fixed. Horizontal only —
+    // independent of the vertical pin/calibration. The medio-lateral shuttle
+    // rides the root along the heading's PERPENDICULAR toward the stance foot
+    // the same way; both precede the foot plants, which hold each stance foot
+    // fixed while the pelvis travels over it. (The `!== 0` guards keep the
+    // heading-0 cross-axis adds from ever touching the other channel.)
     if (footDriven || lateralShuttle) {
-      if (footDriven) root.position.z += footDriven.zAt(tMs);
-      if (lateralShuttle) root.position.x += lateralShuttle.xAt(tMs);
+      if (footDriven) {
+        const off = footDriven.zAt(tMs);
+        root.position.z += off * footDriven.heading[1];
+        if (footDriven.heading[0] !== 0) root.position.x += off * footDriven.heading[0];
+      }
+      if (lateralShuttle) {
+        const lat = lateralShuttle.xAt(tMs);
+        root.position.x += lat * lateralShuttle.lateral[0];
+        if (lateralShuttle.lateral[1] !== 0) root.position.z += lat * lateralShuttle.lateral[1];
+      }
       root.updateMatrixWorld(true);
     }
 
@@ -784,7 +818,7 @@ export function sampleComposedMotion(
         fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
         fp.target.y -= heelStrikeY;
       }
-      solveFootPlant(fp.solver, fp.target, rest);
+      solveFootPlant(fp.solver, fp.target, plantRest, rest);
       anyPlant = true;
     }
     if (anyPlant || groundReachSolved) {
