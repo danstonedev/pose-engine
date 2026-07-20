@@ -260,10 +260,10 @@ describe('resolveComposedMotion', () => {
     expect(r.reason).toContain('too-many-keyframes');
   });
 
-  // A coordinated full-body keyframe: 6 legs + 4 arms + the spinal-coordination set
-  // (thoracic/lumbar rotation, spine + neck lateral tilt, neck gaze counter) = 20 that
-  // all survive, plus a Neck flexion as the (MAX+1)th (overflow). Order matters: the
-  // overflow one is LAST so it's the one deterministically dropped.
+  // A coordinated full-body keyframe: 6 legs + 4 arms + the spinal-coordination set +
+  // the limb non-sagittal + distal (scapula/wrist/fingers) detail = 48 that all survive,
+  // plus a Neck flexion as the (MAX+1)th (overflow). Order matters: the overflow one is
+  // LAST so it's the one deterministically dropped.
   const fullBodyTargets = [
     ['L_UpLeg', 'hipFlexion'],
     ['R_UpLeg', 'hipFlexion'],
@@ -298,11 +298,29 @@ describe('resolveComposedMotion', () => {
     ['R_Foot', 'ankleInversion'],
     ['L_UpperArm', 'shoulderRotation'],
     ['R_UpperArm', 'shoulderRotation'],
+    // the DISTAL detail set (scapular glide, wrist, finger curls) — brings a
+    // fully-coordinated gait keyframe up to 42, still under the 48 cap.
+    ['L_Shoulder', 'protraction'],
+    ['R_Shoulder', 'protraction'],
+    ['L_Hand', 'wristFlexion'],
+    ['R_Hand', 'wristFlexion'],
+    ['L_Toes', 'toeFlexion'],
+    ['R_Toes', 'toeFlexion'],
+    ['L_Thumb1', 'fingerFlexion'],
+    ['L_Index1', 'fingerFlexion'],
+    ['L_Mid1', 'fingerFlexion'],
+    ['L_Ring1', 'fingerFlexion'],
+    ['L_Pinky1', 'fingerFlexion'],
+    ['R_Thumb1', 'fingerFlexion'],
+    ['R_Index1', 'fingerFlexion'],
+    ['R_Mid1', 'fingerFlexion'],
+    ['R_Ring1', 'fingerFlexion'],
+    ['R_Pinky1', 'fingerFlexion'],
     ['Neck', 'flexion'], // the (MAX+1)th — overflow
   ].map(([joint, motion]) => ({ joint: joint!, motion: motion!, deg: 5 }));
 
   it(`a keyframe with exactly ${MAX_TARGETS_PER_KEYFRAME} targets resolves clean`, () => {
-    expect(MAX_TARGETS_PER_KEYFRAME).toBe(32);
+    expect(MAX_TARGETS_PER_KEYFRAME).toBe(48);
     const r = resolveComposedMotion(
       { keyframes: [kf(fullBodyTargets.slice(0, MAX_TARGETS_PER_KEYFRAME), 500)] },
       variantCfg,

@@ -41,6 +41,11 @@ const LIMB_NONSAG: Record<string, string> = {
   L_Shoulder: 'protraction', R_Shoulder: 'protraction',
   L_UpperArm: 'shoulderAbduction', R_UpperArm: 'shoulderAbduction',
   L_Forearm: 'forearmRotation', R_Forearm: 'forearmRotation',
+  L_Hand: 'wristFlexion', R_Hand: 'wristFlexion',
+  L_Thumb1: 'fingerFlexion', L_Index1: 'fingerFlexion', L_Mid1: 'fingerFlexion',
+  L_Ring1: 'fingerFlexion', L_Pinky1: 'fingerFlexion',
+  R_Thumb1: 'fingerFlexion', R_Index1: 'fingerFlexion', R_Mid1: 'fingerFlexion',
+  R_Ring1: 'fingerFlexion', R_Pinky1: 'fingerFlexion',
   L_UpLeg: 'hipRotation|hipAbduction', R_UpLeg: 'hipRotation|hipAbduction',
   L_Leg: 'kneeRotation', R_Leg: 'kneeRotation',
   L_Foot: 'ankleInversion', R_Foot: 'ankleInversion',
@@ -100,6 +105,17 @@ describe('spinalGaitCoordination — trunk counter-rotation authoring', () => {
     // Arms: hang IN close to the body — a slight ADduction (frontal) + forearm pronation.
     expect(present('R_UpperArm', 'shoulderAbduction'), 'arm frontal motion').toBe(true);
     expect(present('R_Forearm', 'forearmRotation'), 'forearm rotation').toBe(true);
+    // DISTAL detail — the hand isn't a rigid paddle: a passive dragging wrist + relaxed
+    // curled fingers (a loose hand), so the arm swing carries a natural end instead of a
+    // stiff straight paddle. The wrist DRAGS (oscillates); the fingers rest curled.
+    expect(present('R_Hand', 'wristFlexion'), 'passive wrist').toBe(true);
+    const wristVals = out.keyframes.map(
+      (kf) => kf.targets?.find((t) => t.joint === 'R_Hand' && t.motion === 'wristFlexion')?.targetDegrees ?? 0,
+    );
+    expect(Math.max(...wristVals) - Math.min(...wristVals), 'wrist drags with the swing').toBeGreaterThan(2);
+    for (const fk of ['R_Index1', 'R_Pinky1', 'L_Mid1'] as const)
+      expect(present(fk, 'fingerFlexion'), `${fk} rests curled`).toBe(true);
+    expect(maxAbs('R_Index1', 'fingerFlexion'), 'a RELAXED curl, not a clenched fist').toBeLessThan(70);
     // Shoulder GIRDLE: the scapula protracts/retracts fore/aft WITH the arm swing — arm
     // swing isn't purely glenohumeral. It must OSCILLATE (protract on the forward swing,
     // retract on the backswing), not sit at a fixed offset.
@@ -130,6 +146,20 @@ describe('spinalGaitCoordination — trunk counter-rotation authoring', () => {
     expect(maxAbs('R_UpperArm', 'shoulderAbduction'), 'arm adduction stays subtle').toBeLessThan(16);
     expect(maxAbs('R_UpLeg', 'hipAbduction'), 'hip adduction stays subtle').toBeLessThan(8);
     expect(maxAbs('R_Foot', 'ankleInversion'), 'ankle roll stays subtle').toBeLessThan(10);
+  });
+
+  it('the arm swing is a SMOOTH single-peak — no held plateau at the extremes (saw-tooth)', () => {
+    // The old authoring held the arm at its full ±20° extreme across TWO adjacent
+    // keyframes (terminal-stance + the next initial-contact), so the hand rushed to the
+    // extreme and HUNG there — a saw-toothed, mechanical swing. A natural pendulum reaches
+    // each extreme for a single instant. Assert the swing peaks at exactly ONE keyframe per
+    // direction (no two adjacent keyframes both at the extreme).
+    const vals = walkComposed().keyframes.map(
+      (kf) => kf.targets?.find((t) => t.joint === 'R_UpperArm' && t.motion === 'shoulderFlexion')?.targetDegrees ?? 0,
+    );
+    const hi = Math.max(...vals), lo = Math.min(...vals);
+    expect(vals.filter((v) => v >= hi - 0.01).length, 'forward peak is a single keyframe').toBe(1);
+    expect(vals.filter((v) => v <= lo + 0.01).length, 'back peak is a single keyframe').toBe(1);
   });
 
   it('thoracic axial rotation OSCILLATES — both directions within one cycle', () => {
