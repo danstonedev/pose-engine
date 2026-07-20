@@ -61,7 +61,12 @@
   } from './services/romConstraints';
   // liveliness is three-free (pure angle math) — static import stays SSR-safe;
   // it feeds the live rAF overlay only, never the offline sampler.
-  import { breathingLean, livelinessSwayDeg, cadenceRate } from './services/liveliness';
+  import {
+    breathingLean,
+    livelinessSwayDeg,
+    cadenceRate,
+    idleWeightShift,
+  } from './services/liveliness';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -95,6 +100,7 @@
     height = '26rem',
     allowPageScrollOnMiss = false,
     motionReportHz = 0,
+    idleLiveliness = 0.4,
     posable = false,
     onReport,
     onPoseDropped,
@@ -130,6 +136,18 @@
      *  hosts can stream angles frame-by-frame instead of only at settle.
      *  Exam ROM commands still report at settle regardless. */
     motionReportHz?: number;
+    /** IDLE liveliness dial (0..1, default 0.4 — unforced natural life).
+     *  While NO motion drives the skeleton (between commands — the most-
+     *  watched moment), the stage layers the same naturalistic prior motion
+     *  playback carries — breathing at the thorax, postural micro-sway at the
+     *  low back — plus a slow 4–8 s idle weight shift (a subtle side-to-side
+     *  settle over the feet), so the patient never reads as a statue. Purely
+     *  additive live-only deltas: they are lifted before every recording /
+     *  captureFrame sample and before any command takes the skeleton, so
+     *  recordings, goniometry and motion playback stay byte-clean. 0 = clean
+     *  mode — a perfectly still, repeatable idle (and the idle-render
+     *  optimization keeps skipping frames). */
+    idleLiveliness?: number;
     /** Fires with the engine-computed clinical joint angles after the
      *  initial load and after each command settles (the truth the host
      *  grades against). With `motionReportHz > 0` it additionally fires
@@ -822,6 +840,28 @@
       let motionLiveliness = 0;
       let livelinessTime = 0;
       const _liveQ = new THREE.Quaternion();
+      // ── IDLE liveliness (un-gated naturalism): breathing + micro-sway + a
+      // slow weight shift while NOTHING drives the skeleton, so the patient
+      // never freezes into a statue between commands. Same pure phase math as
+      // the motion-time overlay (services/liveliness) + the same trunk axes,
+      // PLUS idleWeightShift riding the pelvis-shift root actuator. Applied as
+      // an undo/reapply sandwich each idle frame: the EXACT pre-overlay bone
+      // quats + root offset are stored on apply and restored first thing next
+      // frame — so the deltas can never accumulate, the recording tap always
+      // samples the clean underlying pose, and any takeover (command / clip /
+      // composed / scrub / hand-posing) starts from untouched state.
+      let idleTime = 0;
+      /** Weight-shift cycle seed: randomized per stage boot (two stages never
+       *  sync up), deterministic per seed (see idleWeightShift). */
+      const idleShiftSeed = Math.random() * 1000;
+      /** Idle weight-shift root X offset currently requested, meters. Composed
+       *  with the antalgic pelvis shift inside bakePelvisShift. */
+      let idleShiftM = 0;
+      /** True while the idle deltas are baked into the trunk bones / root. */
+      let idleOverlayOn = false;
+      const _idleBaseThoraxQ = new THREE.Quaternion();
+      const _idleBaseLumbarQ = new THREE.Quaternion();
+      const _idleQ = new THREE.Quaternion();
       // Pelvis-shift overlay: a CONSTANT lateral offset on the MODEL ROOT X — the
       // antalgic weight-shift off a painful limb. + = the patient's left (+X, the
       // TRAVEL_DIRECTION_AXIS lateral sign). It must COMPOSE with the per-frame
@@ -833,9 +873,12 @@
       let pelvisShiftBakedM = 0; // shift currently baked into modelRoot.position.x
       const PELVIS_SHIFT_MAX_M = 0.15;
       function bakePelvisShift(): void {
-        if (!modelRoot || pelvisShiftBakedM === motionPelvisShiftM) return;
-        modelRoot.position.x += motionPelvisShiftM - pelvisShiftBakedM;
-        pelvisShiftBakedM = motionPelvisShiftM;
+        // The bake target composes the antalgic overlay shift with the idle
+        // weight shift (idle-only; zeroed before any motion takes the root).
+        const targetM = motionPelvisShiftM + idleShiftM;
+        if (!modelRoot || pelvisShiftBakedM === targetM) return;
+        modelRoot.position.x += targetM - pelvisShiftBakedM;
+        pelvisShiftBakedM = targetM;
         modelRoot.updateMatrixWorld(true);
       }
       setMotionOverlaysImpl = (
@@ -857,6 +900,73 @@
         // (mid-clip changes land here too; per-frame paths keep it composed).
         bakePelvisShift();
       };
+
+      /**
+       * Bake the idle-liveliness deltas for the CURRENT phase onto the trunk +
+       * root: breathing at the thorax, micro-sway + the in-phase weight-shift
+       * lean at the low back, and the slow weight-shift travel on the root X
+       * (via the pelvis-shift bake, so it composes with the antalgic shift).
+       * Stores the exact pre-overlay bone quats so undoIdleOverlays() is an
+       * exact restore. Assumes any previous application was undone first.
+       * Returns whether anything was applied (amount 0 / clean mode applies
+       * NOTHING, keeping the idle-render optimization honest).
+       */
+      function applyIdleOverlays(dtSec: number): boolean {
+        const amount = Number.isFinite(idleLiveliness)
+          ? Math.max(0, Math.min(1, idleLiveliness))
+          : 0;
+        if (amount <= 0 || !motionCapBones || !modelRoot) return false;
+        const thorax = motionCapBones.get('Spine_Upper');
+        const lowBack = motionCapBones.get('Spine_Lower');
+        if (!thorax && !lowBack) return false;
+        idleTime += dtSec;
+        if (thorax) {
+          _idleBaseThoraxQ.copy(thorax.quaternion);
+          _idleQ.setFromAxisAngle(_swayAxisAP, (breathingLean(idleTime, amount) * Math.PI) / 180);
+          thorax.quaternion.premultiply(_idleQ);
+        }
+        if (lowBack) {
+          _idleBaseLumbarQ.copy(lowBack.quaternion);
+          const { mlDeg, apDeg } = livelinessSwayDeg(idleTime, amount);
+          const { shiftM, leanDeg } = idleWeightShift(idleTime, amount, idleShiftSeed);
+          // Rig convention (pinned by the idleLiveliness rig gate): a POSITIVE
+          // premultiplied Z-roll at Spine_Lower moves the head toward −X, so
+          // the weight-shift lean (+ = the patient's left/+X, the shift sign)
+          // applies NEGATED to land IN PHASE with the root travel.
+          _idleQ.setFromAxisAngle(_swayAxisML, ((mlDeg - leanDeg) * Math.PI) / 180);
+          lowBack.quaternion.premultiply(_idleQ);
+          _idleQ.setFromAxisAngle(_swayAxisAP, (apDeg * Math.PI) / 180);
+          lowBack.quaternion.premultiply(_idleQ);
+          idleShiftM = shiftM;
+          bakePelvisShift();
+        }
+        idleOverlayOn = true;
+        modelRoot.updateMatrixWorld(true);
+        return true;
+      }
+
+      /**
+       * Lift the baked idle-liveliness deltas — an EXACT restore of the stored
+       * pre-overlay trunk quats + un-bake of the idle root shift. No-op unless
+       * deltas are baked. Called first thing every frame (before the recording
+       * tap, so recordings sample the clean pose) and at every takeover point
+       * (command / clip / composed / scrub / hand-posing), so nothing that
+       * measures, serializes or animates ever sees the idle perturbation.
+       * Returns whether anything was undone (the caller keeps the dirty flag
+       * honest: an undone frame still needs one render).
+       */
+      function undoIdleOverlays(): boolean {
+        if (!idleOverlayOn) return false;
+        idleOverlayOn = false;
+        const thorax = motionCapBones?.get('Spine_Upper');
+        if (thorax) thorax.quaternion.copy(_idleBaseThoraxQ);
+        const lowBack = motionCapBones?.get('Spine_Lower');
+        if (lowBack) lowBack.quaternion.copy(_idleBaseLumbarQ);
+        idleShiftM = 0;
+        bakePelvisShift();
+        modelRoot?.updateMatrixWorld(true);
+        return true;
+      }
       // ── Composed-motion (generative keyframe sequence) playback state ─────
       // Pose-tween driven (NOT the mixer). `composedActive` gates the same
       // guarding/sway overlays clip playback applies; `composedSeq` is a
@@ -896,6 +1006,9 @@
       let poseLayerBeforeRender: (() => void) | null = null;
       /** Per rendered frame, after renderer.render (gizmo overlay pass). */
       let poseLayerAfterRender: (() => void) | null = null;
+      /** True while the posing layer is ENGAGED (selection / drag / preview):
+       *  idle liveliness suspends so hand-posing is never perturbed. */
+      let poseLayerBusy: (() => boolean) | null = null;
       let poseLayerDispose: (() => void) | null = null;
 
       /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
@@ -953,7 +1066,9 @@
 
       function disposeModel() {
         if (!modelRoot) return;
-        // Tear down any active motion + mixer bound to the outgoing model.
+        // Lift any idle-liveliness bake first (keeps the shift tracker exact),
+        // then tear down any active motion + mixer bound to the outgoing model.
+        undoIdleOverlays();
         stopMotion();
         if (mixer) {
           mixer.uncacheRoot(modelRoot);
@@ -1081,6 +1196,10 @@
           currentPose = resting;
           // Canonical-key → bone lookup for the per-frame motion ROM clamp.
           motionCapBones = skinned ? buildBoneByPoseKey(skinned.skeleton, variantCfg) : null;
+          // Fresh skeleton: any idle-liveliness bake from the previous model is
+          // void (the stored base quats belong to the discarded bones).
+          idleOverlayOn = false;
+          idleShiftM = 0;
 
           // 7b) Fresh AnimationMixer bound to this model root for named
           //     motions. A one-shot clip that reaches its end fires 'finished',
@@ -1608,6 +1727,21 @@
        *  sampling (no motion playing) still measures fresh. */
       function buildFrameNow(tMs: number): RecordedFrame | null {
         if (!skinnedRef || !variantCfgRef || !restRef || !modelRoot) return null;
+        // Capture the CLEAN pose: lift any baked idle-liveliness deltas around
+        // the serialize/measure and restore them at the same phase (dt 0), so
+        // captureFrame/recordings never carry the idle perturbation while the
+        // rendered frame is unchanged. No-op unless idle deltas are baked
+        // (inside the rAF loop they were already lifted before the tap).
+        const hadIdleOverlay = undoIdleOverlays();
+        try {
+          return buildFrameNowClean(tMs);
+        } finally {
+          if (hadIdleOverlay) applyIdleOverlays(0);
+        }
+      }
+
+      function buildFrameNowClean(tMs: number): RecordedFrame | null {
+        if (!skinnedRef || !variantCfgRef || !restRef || !modelRoot) return null;
         modelRoot.updateMatrixWorld(true);
         const report = measureNowFresh();
         if (!report) return null;
@@ -1687,7 +1821,10 @@
 
       showRecordedFrameImpl = (frame: RecordedFrame) => {
         if (!skinnedRef || !variantCfgRef) return;
-        // Scrubbing owns the skeleton: cancel any motion / composed / tween.
+        // Scrubbing owns the skeleton: cancel any motion / composed / tween,
+        // and lift any idle deltas BEFORE the absolute pose/root writes below
+        // (a stale idle bake would otherwise corrupt the shift tracker).
+        undoIdleOverlays();
         cancelComposed();
         if (activeMotionId) stopMotion();
         if (activeTween) finishTween();
@@ -1709,6 +1846,7 @@
         // Mode switch: an exam ROM command owns the skeleton — cancel any active
         // named motion or composed playback first, then proceed. Exam ROM is
         // upright/open-chain, so drop any composed full-body root posture.
+        undoIdleOverlays(); // the command starts from the clean idle pose
         poseLayerOnTakeover?.();
         cancelComposed();
         if (activeMotionId) stopMotion();
@@ -1767,6 +1905,7 @@
         }
         // Composed playback owns the skeleton: cancel any clip / prior
         // composed loop / in-flight tween, THEN capture the cancellation token.
+        undoIdleOverlays(); // playback starts from the clean idle pose
         poseLayerOnTakeover?.();
         if (activeMotionId) stopMotion();
         if (activeTween) finishTween();
@@ -2017,6 +2156,7 @@
         if (disposed || !mixer || !modelRoot) {
           return { status: 'refused', reason: 'stage-unavailable' };
         }
+        undoIdleOverlays(); // the clip starts from the clean idle pose
         const resolved = resolveMotionCommand(cmd);
         if (resolved.status === 'stop') {
           stopMotion();
@@ -2300,6 +2440,11 @@
             }
           }
         }
+        // Idle liveliness, part 1: lift last frame's idle deltas FIRST (an
+        // exact base restore — no-op unless baked), so the recording tap below
+        // always samples the clean underlying pose and the deltas can never
+        // accumulate. An undone frame still draws once (dirty flag honest).
+        if (undoIdleOverlays()) renderNeeded = true;
         // Motion-recording tap: while active, sample at the requested rate
         // regardless of what drives the skeleton (clip, exam tween, composed
         // playback, or idle manual time). Same throttle pattern as the
@@ -2310,6 +2455,23 @@
             recording.lastSample = nowMs;
             captureRecordingFrame(recording, nowMs);
           }
+        }
+        // Idle liveliness, part 2: while the stage is truly IDLE — no clip, no
+        // composed playback, no exam tween, no trajectory, posing layer not
+        // engaged — re-bake the overlay at the advanced phase so the patient
+        // keeps breathing between commands (the most-watched moment). Applied
+        // AFTER the recording tap: recordings stay clean. Waking the render
+        // only when deltas actually applied keeps the idle-render optimization
+        // honest — clean mode (idleLiveliness 0) never forces a draw.
+        if (
+          !activeMotionId &&
+          !composedActive &&
+          !activeTween &&
+          !activeTrajectory &&
+          !poseLayerBusy?.() &&
+          applyIdleOverlays(motionDelta)
+        ) {
+          renderNeeded = true;
         }
         if (!renderNeeded) return;
         poseLayerBeforeRender?.(); // markers / gizmo / twist / slice tracking
@@ -2550,6 +2712,10 @@
          *  exactly what was posed. */
         function commitPosedState(): void {
           if (!skinnedRef || !variantCfgRef) return;
+          // Belt-and-braces: idle liveliness suspends while the layer is
+          // engaged, but a same-frame press→release could still commit with
+          // deltas baked — lift them so the committed pose is always clean.
+          undoIdleOverlays();
           modelRoot?.updateMatrixWorld(true);
           currentPose = serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
         }
@@ -2984,6 +3150,9 @@
         }
         function onPosePointerDown(e: PointerEvent): void {
           if (tcDragging || posingSuspended()) return;
+          // A drag may capture chain/bone state synchronously below — lift any
+          // idle-liveliness deltas first so posing starts from the clean pose.
+          undoIdleOverlays();
           setNdc(e);
           raycaster.setFromCamera(_ndc, camera);
           // Oblique-plane editing owns the gizmo + centre dot while active.
@@ -3199,6 +3368,8 @@
           }
           if (!skinnedRef || !variantCfgRef || !baselinePoseRef || posingSuspended()) return false;
           deselectImpl();
+          // The preview snapshot must be the CLEAN pose, never an idle delta.
+          undoIdleOverlays();
           posePlayPosed = serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
           posePlayActive = true;
           const start = performance.now();
@@ -3318,8 +3489,16 @@
         poseLayerAfterRender = () => {
           ringGizmo.render(renderer, camera);
         };
+        // Idle liveliness suspends while the layer is ENGAGED — a selected
+        // joint (rings up), an in-flight marker/ring/oblique drag, or the
+        // pose-motion preview — so hand-posing is never perturbed. Merely
+        // being posable does NOT suspend it: an untouched studio still breathes.
+        poseLayerBusy = () =>
+          !!selected || !!press || !!ringDrag || !!obliqueRingDrag || !!obliquePress ||
+          tcDragging || posePlayActive;
 
         poseLayerDispose = () => {
+          poseLayerBusy = null;
           renderer.domElement.removeEventListener('pointerdown', onPosePointerDown);
           window.removeEventListener('pointermove', onPosePointerMove);
           window.removeEventListener('pointerup', onPosePointerUp);
@@ -3347,11 +3526,16 @@
         poseApiImpl = {
           getPose: () => {
             if (!skinnedRef || !variantCfgRef) return null;
+            // Serialize the CLEAN pose — never a baked idle-liveliness delta
+            // (the rAF loop re-bakes it next frame; phase is continuous).
+            undoIdleOverlays();
             return serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
           },
           loadPose: (pose: CustomPose) => {
             if (!skinnedRef || !variantCfgRef) return;
-            // A loaded pose owns the skeleton — same cancels as scrubbing.
+            // A loaded pose owns the skeleton — same cancels as scrubbing
+            // (idle deltas lift BEFORE the absolute pose/root writes).
+            undoIdleOverlays();
             poseLayerOnTakeover?.();
             cancelComposed();
             if (activeMotionId) stopMotion();
@@ -3367,6 +3551,7 @@
           },
           resetPose: () => {
             if (!skinnedRef || !variantCfgRef) return;
+            undoIdleOverlays();
             poseLayerOnTakeover?.();
             cancelComposed();
             if (activeMotionId) stopMotion();
@@ -3424,6 +3609,8 @@
             const skel = skinnedRef.skeleton;
             const variantCfg = variantCfgRef;
             // Preserve the working pose; the live skeleton is mutated to sample.
+            // Idle deltas lift first so the export + restore are both clean.
+            undoIdleOverlays();
             const saved = serializeCustomPose(skel, variantCfg, variantCfg.id);
             const times = frames.map((f) => f.t);
             const perBone = new Map<string, number[]>();

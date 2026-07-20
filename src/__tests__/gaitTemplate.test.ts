@@ -170,6 +170,10 @@ describe('walk template — plan-level non-degeneracy', () => {
       'L_Leg.kneeFlexion',
       'R_Foot.ankleFlexion',
       'L_Foot.ankleFlexion',
+      // Third (forefoot) rocker: the walk drives the MTP joints too — toe extension
+      // through terminal stance into pre-swing push-off (wave 1 toe rocker).
+      'R_Toes.toeFlexion',
+      'L_Toes.toeFlexion',
       'R_UpperArm.shoulderFlexion',
       'L_UpperArm.shoulderFlexion',
     ]) {
@@ -296,10 +300,13 @@ describe('walk template — the 2-keyframe degenerate walk is rejected', () => {
     const signature = buildSignatureFromExport(exportKinematics(authoredRec), {
       joints: drivers,
     });
-    // The reference itself is substantial: all 10 commanded joint.motions are
-    // primary movers (hips, knees, ankle rockers, shoulder swing AND the elbow
-    // follow-through carry) — this also guards against a vacuous signature.
-    expect(signature.primary.length).toBe(10);
+    // The reference itself is substantial: all 12 commanded joint.motions are
+    // primary movers (hips, knees, ankle rockers, the MTP toe rocker, shoulder
+    // swing AND the elbow follow-through carry) — this also guards against a
+    // vacuous signature. (Was 10 before the wave-1 toe rocker added the two
+    // toeFlexion drivers, whose ~28° push-off excursion is well past the 8°
+    // primary threshold — the count change is the intended new behaviour.)
+    expect(signature.primary.length).toBe(12);
 
     const thinRec = sampleMotion(THIN_TWO_KEYFRAME_WALK);
     const thinEx = exportKinematics(thinRec);
