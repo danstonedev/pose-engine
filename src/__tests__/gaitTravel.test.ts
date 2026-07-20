@@ -100,13 +100,19 @@ function plantedSlideM(rec: MotionRecording, foot: 'R_Foot' | 'L_Foot'): number 
 }
 
 describe('buildTravelWalk — a forward gait driven by foot placement', () => {
-  it('is the 8-phase walk, planted, non-looping, foot-driven (no authored stride, no contacts)', () => {
+  it('is the 8-phase walk, planted, non-looping, foot-driven, with stance foot-plant contacts', () => {
     const m = buildTravelWalk();
     expect(m.keyframes.length).toBe(8);
     expect(m.loop ?? false).toBe(false); // travel can't loop (would teleport)
     expect(m.stance).toBe('planted');
     expect(m.footDrivenTravel).toBe(true);
-    expect(m.contacts ?? []).toEqual([]); // no foot-lock IK contacts
+    // Foot-plant contacts pin each stance foot (R first half, L second) so the pelvis can
+    // rotate its full range ABOUT the planted leg without the foot sliding. R stance =
+    // [0, mid], L = [mid, total] — a symmetric two-step cycle.
+    const total = m.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0);
+    expect(m.contacts?.map((c) => c.foot)).toEqual(['R_Foot', 'L_Foot']);
+    expect(m.contacts![0]).toMatchObject({ foot: 'R_Foot', fromMs: 0, toMs: total / 2 });
+    expect(m.contacts![1]).toMatchObject({ foot: 'L_Foot', fromMs: total / 2, toMs: total });
     expect(m.keyframes.every((k) => k.travel == null), 'no authored per-keyframe stride').toBe(true);
   });
 

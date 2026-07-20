@@ -31,7 +31,7 @@
 
 import * as THREE from 'three';
 import { SPINE_NECK_MAX, SPINE_NECK_LATERAL_MAX } from './motionSequence';
-import type { ComposedMotion, MovementAsymmetry, PostureNode, SequenceKeyframe, SequenceTarget, StanceMode } from './motionSequence';
+import type { ComposedMotion, MovementAsymmetry, PostureNode, SequenceKeyframe, SequenceTarget, StanceContact, StanceMode } from './motionSequence';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
 export interface TemplateTarget {
@@ -890,6 +890,29 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
  * elbow follow-through). Non-looping, `startFrom:'current'`, so repeating it walks
  * further from wherever the body already is.
  */
+/** The pelvic-rotation gain used when the gait FOOT-PLANTS its stance feet (below): with
+ *  the stance foot pinned by IK, the pelvis can turn its full ~±4° about the planted leg
+ *  without the foot sliding, so this is ~2× the un-planted default that the vertical pin
+ *  alone tolerates. */
+export const PELVIS_GAIT_GAIN_PLANTED = 0.1;
+
+/**
+ * FOOT-PLANT CONTACTS for a symmetric two-step gait cycle: the RIGHT foot is the stance
+ * (pinned) foot through the first half of the cycle, the LEFT through the second — so each
+ * foot's stance window is [0, mid] / [mid, total]. The sampler pins each stance foot's
+ * world position by leg IK for its window, so the pelvis can rotate ABOUT the planted leg
+ * (the foot never swivels or slides). For a walk template whose two steps split the cycle
+ * in half (the standard 8-phase, R-stance × 4 → L-stance × 4).
+ */
+export function gaitFootContacts(motion: ComposedMotion): StanceContact[] {
+  const total = motion.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0);
+  const mid = total / 2;
+  return [
+    { foot: 'R_Foot', fromMs: 0, toMs: mid },
+    { foot: 'L_Foot', fromMs: mid, toMs: total },
+  ];
+}
+
 export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
   const walk = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk');
   if (!walk) throw new Error('walk template missing');
@@ -898,9 +921,10 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     speed != null && speed !== 1
       ? paceGait(templateToComposedMotion(walk), speed)
       : templateToComposedMotion(walk);
-  // Natural trunk coordination — thoracic counter-rotation with the arm swing +
-  // lateral sway toward the stance leg. Root/feet untouched (spine is above the hips).
-  const coordinated = spinalGaitCoordination(base);
+  // Natural trunk coordination — thoracic counter-rotation with the arm swing + lateral
+  // sway + PELVIC rotation. Full-range pelvic yaw because the feet are FOOT-PLANTED (the
+  // stance foot is IK-pinned, so the pelvis turns about it without dragging the foot).
+  const coordinated = spinalGaitCoordination(base, { pelvis: PELVIS_GAIT_GAIN_PLANTED });
   return {
     name: 'walk-forward',
     startFrom: 'current',
@@ -908,6 +932,7 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     ...(coordinated.modifiers ? { modifiers: coordinated.modifiers } : {}),
     keyframes: coordinated.keyframes,
     footDrivenTravel: true,
+    contacts: gaitFootContacts(coordinated),
   };
 }
 
