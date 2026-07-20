@@ -237,6 +237,14 @@ export function groundingContactsFor(posture: string, floor: FloorReference): Gr
         { bone: 'R_Leg', targetY: floor.floorY, mode: 'vertical' },
         { bone: 'R_Hand', targetY: floor.floorY, mode: 'reach' },
       ];
+    // KNEELING (upright on the knees): torso vertical (identity orient), the SHINS on
+    // the floor bearing the body — the pelvis rides at thigh height, no hands. Just the
+    // knee vertical pin (a tall quadruped without the front support).
+    case 'kneeling':
+      return [
+        { bone: 'L_Leg', targetY: floor.floorY, mode: 'vertical' },
+        { bone: 'R_Leg', targetY: floor.floorY, mode: 'vertical' },
+      ];
     default:
       return Object.entries(floor.restY).map(([bone, targetY]) => ({ bone, targetY, mode: 'vertical' }));
   }

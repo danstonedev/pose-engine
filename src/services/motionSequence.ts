@@ -141,7 +141,8 @@ export type PostureNode =
   | 'sidelying-left'
   | 'sidelying-right'
   | 'plank'
-  | 'quadruped';
+  | 'quadruped'
+  | 'kneeling';
 
 /** Which support CONTACT SET grounds a keyframe (consumed by groundingContactsFor).
  *  A superset of {@link PostureNode}: most grounding sets ARE a posture, but a few are

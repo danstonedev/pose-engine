@@ -17,6 +17,12 @@ import {
   buildStandFromPlank,
   buildGetDownToQuadruped,
   buildStandFromQuadruped,
+  buildKneelDown,
+  buildStandFromKneel,
+  buildLowerToProne,
+  buildPressUpToQuadruped,
+  buildPlankFromQuadruped,
+  buildQuadrupedFromPlank,
 } from './movementTemplates';
 import type { ComposedMotion, PostureNode } from './motionSequence';
 
@@ -38,6 +44,13 @@ export const POSTURE_EDGES: PostureEdge[] = [
   { from: 'plank', to: 'standing', build: buildStandFromPlank },
   { from: 'standing', to: 'quadruped', build: buildGetDownToQuadruped },
   { from: 'quadruped', to: 'standing', build: buildStandFromQuadruped },
+  { from: 'standing', to: 'kneeling', build: buildKneelDown },
+  { from: 'kneeling', to: 'standing', build: buildStandFromKneel },
+  // Floor-posture connectors — "lie face down" routes standing→quadruped→prone.
+  { from: 'quadruped', to: 'prone', build: buildLowerToProne },
+  { from: 'prone', to: 'quadruped', build: buildPressUpToQuadruped },
+  { from: 'quadruped', to: 'plank', build: buildPlankFromQuadruped },
+  { from: 'plank', to: 'quadruped', build: buildQuadrupedFromPlank },
 ];
 
 /**
