@@ -41,6 +41,8 @@ import {
 import {
   buildFootPlant,
   solveFootPlant,
+  solveFootPlantWeighted,
+  PLANT_RELEASE_BLEND_MS,
   buildHandPlant,
   solveHandReach,
   type FootPlantSolver,
@@ -51,16 +53,20 @@ import {
   type ResolvedComposedMotion,
 } from './motionSequence';
 import {
+  applyBlendedGroundingY,
   applyVerticalCalibration,
   applyWeightedDescent,
   captureFloorReference,
   captureFootFrames,
   deriveFootDrivenTravel,
   deriveGaitLateralShuttle,
+  deriveGroundingBlendSpans,
   deriveHeelStrikeAccents,
   deriveVerticalCalibration,
   deriveWeightedDescent,
   FOOT_ROOT_DRIFT_M,
+  groundingBlendAt,
+  handReachWeightAt,
   headingProfileLookup,
   heelStrikeOffsetAt,
   NO_VERTICAL_CALIBRATION,
@@ -70,6 +76,7 @@ import {
   plantStanceFoot,
   rotateRestReferenceByRoot,
   stanceFootDrift,
+  VCAL_HANDOFF_BLEND_MS,
   weightedDescentApplies,
   type FootDrivenTravel,
   type HeelStrikeAccents,
@@ -95,6 +102,53 @@ export { composedTweenEase };
 
 /** The default exam-command tween duration, ms (mirrors ExamStage3D). */
 export const COMMAND_TWEEN_MS = 600;
+
+// ── Authored-ms → trajectory-ms (the ONE gait time-base factor) ──────────────
+
+/**
+ * The ONE authored-ms → trajectory-ms factor for everything a motion declares
+ * against its AUTHORED keyframe clock: the planned stance schedule
+ * (`gaitStanceWindowsMs`), the foot-plant `contacts` from/to windows, and the
+ * heading profile. The trajectory re-times the authored durations by
+ * `modifiers.timeScale` (paceGait's cadence) and expands finite reps, so
+ * trajectory time = authored time × (totalMs / authoredMs) — anything declared
+ * in authored ms must be scaled by this factor before it is compared with a
+ * trajectory-time clock.
+ *
+ * SEAM-2: the stance WINDOWS were always scaled this way but the plant CONTACTS
+ * were applied raw, so at any pace ≠ 1 the pinned stance phases ran 1/timeScale
+ * out of sync with the trajectory — the planted foot slid tens of cm inside its
+ * window and popped at release. Sampler AND stage now derive the factor from
+ * THIS helper only, so the two time bases can never diverge again.
+ * Identity (1) at timeScale 1 and for a degenerate/empty motion.
+ */
+export function authoredToTrajectoryTimeScale(
+  motion: {
+    keyframes: { durationMs?: number; holdMs?: number }[];
+    loop?: boolean;
+    reps?: number;
+  },
+  trajectoryTotalMs: number,
+): number {
+  const authoredMs =
+    motion.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0) *
+    (motion.loop ? 1 : Math.max(1, motion.reps ?? 1));
+  return authoredMs > 0 && trajectoryTotalMs > 0 ? trajectoryTotalMs / authoredMs : 1;
+}
+
+/**
+ * Scale a planned stance-window schedule (or any fromMs/toMs window list) from
+ * authored ms into trajectory ms by {@link authoredToTrajectoryTimeScale}'s
+ * factor. Every other field (foot, travelLock, …) is carried through untouched.
+ * Undefined/empty in → undefined out (the no-schedule path stays falsy).
+ */
+export function scaleStanceWindowsMs<T extends { fromMs: number; toMs: number }>(
+  windows: readonly T[] | undefined,
+  scale: number,
+): T[] | undefined {
+  if (!windows?.length) return undefined;
+  return windows.map((w) => ({ ...w, fromMs: w.fromMs * scale, toMs: w.toMs * scale }));
+}
 
 // ── Recording types ──────────────────────────────────────────────────────────
 
@@ -277,8 +331,11 @@ const _svB = new THREE.Vector3();
 /** How far (m) the SMOOTHED gait vertical may raise the pelvis above the live floor-pin
  *  when the stance feet are foot-plant IK'd. Rounding the double-support valley raises
  *  the pelvis; too much makes a planted stance leg over-reach and slide the foot. This
- *  bounds the over-reach so the smoothing stays foot-safe (rig-swept vs the slide gate). */
-const GAIT_VERTICAL_MAX_RISE_M = 0.025;
+ *  bounds the over-reach so the smoothing stays foot-safe (rig-swept vs the slide gate).
+ *  Exported because the live stage's mirror deriveVerticalCalibration call MUST pass the
+ *  SAME clamp under the same plants-active condition (DET-LOCK-01 lockstep — source-pinned
+ *  in stageReliability.test.ts), or live playback diverges from every recording. */
+export const GAIT_VERTICAL_MAX_RISE_M = 0.025;
 
 /**
  * Offline-sample a RESOLVED composed motion: replay the exact per-keyframe
@@ -508,6 +565,44 @@ export function sampleComposedMotion(
   const dtMs = 1000 / hz;
   const boneByKey = buildBoneByPoseKey(skinned.skeleton, variantCfg);
 
+  // AUTHORED→TRAJECTORY TIME BASE (SEAM-2): the one shared factor that maps the
+  // motion's authored keyframe clock onto trajectory time — see the helper doc.
+  // The foot-plant CONTACT windows were built above in authored ms (their
+  // per-window heading rests must be looked up on the authored clock); re-time
+  // them here, once the trajectory's total is known, so the per-frame window
+  // checks below compare like with like. ±Infinity (whole-motion pins) scale to
+  // themselves; identity at timeScale 1 keeps the un-paced path byte-exact.
+  const authoredToTraj = authoredToTrajectoryTimeScale(resolved, totalMs);
+  if (authoredToTraj !== 1) {
+    for (const fp of footPlants) {
+      fp.fromMs *= authoredToTraj;
+      fp.toMs *= authoredToTraj;
+    }
+  }
+
+  // GROUNDING-SWITCH ROOT-Y CROSSFADE (SEAM-4/SEAM-5): the trajectory's
+  // grounding switches (posture pin swaps) become eased override spans — the
+  // named posture's pin owns exactly its authored span and each handoff blends
+  // over ~200 ms instead of stepping (measured 53 cm/frame on the quadruped
+  // get-down, 9.94 cm on stand-from-sit). Derived by the SAME shared helper the
+  // live stage uses; empty (all motions without posture changes) is the strict
+  // byte-identical identity. The hand-reach engagement ramp reads the raw
+  // switches directly.
+  const groundingSwitches = trajectory.groundingSwitches ?? [];
+  const groundingBlendSpans = deriveGroundingBlendSpans(groundingSwitches, totalMs);
+  /** Apply ONE grounding's vertical pin from the current (pre-pin) root state —
+   *  the closure {@link applyBlendedGroundingY} evaluates both sides of a
+   *  crossfade with. Foot-rooting never co-occurs (a motion with grounding
+   *  postures is excluded from `useFootRoot`), so the pin set is exactly the
+   *  posture pin / feet pin / none-when-floating. */
+  const applyGroundingPin = (posture: string | undefined, planted: boolean): void => {
+    if (planted && posture) {
+      pinContactsToFloor(root, skinned.skeleton, variantCfg, groundingContactsFor(posture, floorRef));
+    } else if (planted) {
+      pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+    }
+  };
+
   // CALIBRATED GAIT VERTICAL (mean-preserving reshape). When the motion asks for
   // a target excursion, do a cheap PRE-PASS over one cycle to measure the
   // EMERGENT floor-pinned pelvis arc (the compass-gait vault the pin produces),
@@ -518,11 +613,41 @@ export function sampleComposedMotion(
   // IK, which would corrupt the stance hip). Skipped unless the motion is planted
   // (a floating motion has no floor-pin arc to reshape).
   let vcal: VerticalCalibration = NO_VERTICAL_CALIBRATION;
+  // Phase base for the smoothed-table lookup: the cycle length of the trajectory
+  // the table was DERIVED from, plus the phase offset + entry ramp that map
+  // one-shot playback time onto that cycle. Identity values (totalMs, 0, 0) for
+  // every non-looping motion keep the pre-loop-form behaviour byte-identical.
+  let vcalCycleMs = totalMs;
+  let vcalPhaseOffsetMs = 0;
+  let vcalRampMs = 0;
   const vcalTargetM =
     resolved.verticalCalibrationCm != null ? resolved.verticalCalibrationCm / 100 : null;
   if (vcalTargetM != null && built.roots.some((r) => r.stance === 'planted')) {
+    // LOOP-FORM CALIBRATION (DET-LOCK-02): a LOOPING motion sustains the PERIODIC
+    // loop-form cycle, not the one-shot pass — deriving the table from the
+    // one-shot lets its standing intro/final brake inflate the measured arc
+    // (walk: gain 0.853 vs the loop's 0.989), so the applied vertical differed
+    // from the loop the stage settles into (~3.4 cm pelvis step at loop engage;
+    // 2.0 cm mean live-vs-recording on the first pass). Derive from the SAME
+    // loop trajectory the stage loops (and a loopCycle recording samples). The
+    // one-shot first pass reaches keyframe i at τ_i + dur₀ while the loop
+    // indexes it at phase τ_i, so the applied phase subtracts the first
+    // keyframe's arrival (vcalPhaseOffsetMs) — making the table phase
+    // CONTINUOUS across the loop-engage boundary — and the table is ramped in
+    // over ≤VCAL_HANDOFF_BLEND_MS at the entry (phase 0⁻ of the loop table is
+    // the wrap segment, not the standing start). Mirrored by the live stage.
+    const vcalLoopForm =
+      resolved.loop === true && !useLoopCycle && built.poses.length >= 2
+        ? buildLoopTrajectory(built, { timeScale })
+        : null;
+    const vcalTraj = vcalLoopForm ? vcalLoopForm.trajectory : trajectory;
+    vcalCycleMs = vcalTraj.totalMs;
+    if (vcalLoopForm) {
+      vcalPhaseOffsetMs = (built.durationsMs[0] ?? 0) / timeScale;
+      vcalRampMs = Math.max(1, Math.min(VCAL_HANDOFF_BLEND_MS, vcalPhaseOffsetMs));
+    }
     vcal = deriveVerticalCalibration((u01) => {
-      const s = trajectory.sampleAt(u01 * totalMs);
+      const s = vcalTraj.sampleAt(u01 * vcalCycleMs);
       applyCustomPose(skinned.skeleton, variantCfg, s.pose);
       _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
       root.quaternion.copy(rootRestQuat).multiply(_sq);
@@ -583,18 +708,11 @@ export function sampleComposedMotion(
         };
       };
       // The planned stance schedule is authored ms; the trajectory runs at
-      // authored/timeScale — scale it by the same uniform factor so both
-      // derivations stay phase-locked to the knots at any pace.
-      const authoredMs =
-        resolved.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0) *
-        (resolved.loop ? 1 : Math.max(1, resolved.reps));
-      const scale = authoredMs > 0 ? totalMs / authoredMs : 1;
-      const windows = resolved.gaitStanceWindowsMs?.map((w) => ({
-        foot: w.foot,
-        fromMs: w.fromMs * scale,
-        toMs: w.toMs * scale,
-        ...(w.travelLock ? { travelLock: true } : {}),
-      }));
+      // authored/timeScale — scale it by the SAME shared factor as the plant
+      // contacts (SEAM-2: one source of truth) so every derivation stays
+      // phase-locked to the knots at any pace.
+      const scale = authoredToTraj;
+      const windows = scaleStanceWindowsMs(resolved.gaitStanceWindowsMs, scale);
       // TRAVEL HEADING: the derived ride goes along (sinH, cosH), shuttle along
       // the perpendicular — 0 (the default) is the byte-identical legacy +Z/+X.
       // A CURVED walk (headingProfileMs) instead hands both derivations the
@@ -635,7 +753,12 @@ export function sampleComposedMotion(
             if (s.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
             let y = root.position.y;
             if (s.planted && (vcal.gain !== 1 || vcal.smoothed)) {
-              y = applyVerticalCalibration(y, vcal, totalMs > 0 ? tMs / totalMs : 0);
+              // Same phase mapping + entry ramp as sampleAt below (loop-form
+              // table alignment, DET-LOCK-02) — identity for non-loop gaits.
+              const u01 = vcalCycleMs > 0 ? (tMs - vcalPhaseOffsetMs) / vcalCycleMs : 0;
+              let yc = applyVerticalCalibration(y, vcal, u01);
+              if (vcalRampMs > 0 && tMs < vcalRampMs) yc = y + (yc - y) * (tMs / vcalRampMs);
+              y = yc;
             }
             return y;
           },
@@ -718,7 +841,13 @@ export function sampleComposedMotion(
       );
       root.scale.copy(rootRestScale);
       root.updateMatrixWorld(true);
-      if (s.planted && s.groundingPosture) {
+      // The grounded arc this pre-pass reads must be the arc PLAYBACK grounds
+      // (else the derived spans re-time a step that no longer exists) — so an
+      // active grounding-switch crossfade applies here exactly as in sampleAt.
+      const gBlend = groundingBlendSpans.length ? groundingBlendAt(groundingBlendSpans, tMs) : null;
+      if (gBlend) {
+        applyBlendedGroundingY(root, gBlend, applyGroundingPin);
+      } else if (s.planted && s.groundingPosture) {
         pinContactsToFloor(
           root,
           skinned.skeleton,
@@ -757,32 +886,60 @@ export function sampleComposedMotion(
     root.updateMatrixWorld(true);
     let footRooted = false;
     let groundReachSolved = false;
+    // REACH CONTACTS of the active posture: bring each declared reach bone (a
+    // planted hand) to the floor and LATCH it there, so it stays put as the body
+    // lowers over it (the arm folds — the push-up). Latch-on-contact avoids
+    // freezing a bad point mid-transition; the engagement ramp
+    // ({@link handReachWeightAt}, SEAM-4) folds a newly-engaged reach in over
+    // ~150 ms instead of snapping the arm to the floor on its first frame.
+    const solveReachContacts = (posture: string): void => {
+      if (!handPlants.length) return;
+      const reach = new Set(
+        groundingContactsFor(posture, floorRef)
+          .filter((c) => c.mode === 'reach')
+          .map((c) => c.bone),
+      );
+      for (const hp of handPlants) {
+        if (!reach.has(hp.bone)) {
+          hp.target = null; // this posture doesn't plant this hand — release it
+          continue;
+        }
+        solveHandReach(
+          hp.solver,
+          hp,
+          floorRef.floorY,
+          rest,
+          handReachWeightAt(groundingSwitches, hp.bone, tMs, floorRef),
+        );
+        groundReachSolved = true;
+      }
+      if (groundReachSolved) root.updateMatrixWorld(true);
+    };
+    // GROUNDING-SWITCH CROSSFADE (SEAM-4/SEAM-5): inside an override span the
+    // grounded root-Y is the eased blend of the OUTGOING and INCOMING pin
+    // solutions (shared applier — lockstep with the live stage); outside every
+    // span the legacy branches below run untouched. The reach set still follows
+    // the sample's own grounding state (the crossfade overrides root-Y only).
+    const gBlend = groundingBlendSpans.length ? groundingBlendAt(groundingBlendSpans, tMs) : null;
     // Re-root at the stance foot only when the pelvis-rooted FK actually swung it
     // off its planted position (a squat/hinge/sit-to-stand folds the body over the
     // feet — big drift). When the stance foot is already home (a single-leg stance
     // leaves the bearing leg untouched — ~0 drift), the vertical pin is enough and
     // a re-root would only perturb the measurement frame, so fall through to it.
-    if (sample.planted && sample.groundingPosture) {
+    if (gBlend) {
+      applyBlendedGroundingY(root, gBlend, applyGroundingPin);
+      if (sample.planted && sample.groundingPosture) solveReachContacts(sample.groundingPosture);
+    } else if (sample.planted && sample.groundingPosture) {
       // POSTURE-SCOPED GROUNDING: rest on the posture's contact set (the pelvis on a
       // seat for 'sitting', the toes+hands on the floor for a plank) via the
       // explicit-target vertical pin — not the feet.
-      const contacts = groundingContactsFor(sample.groundingPosture, floorRef);
-      pinContactsToFloor(root, skinned.skeleton, variantCfg, contacts);
-      // REACH CONTACTS: bring each declared reach bone (a planted hand) to the floor
-      // and LATCH it there, so it stays put as the body lowers over it (the arm folds
-      // — the push-up). Latch-on-contact avoids freezing a bad point mid-transition.
-      if (handPlants.length) {
-        const reach = new Set(contacts.filter((c) => c.mode === 'reach').map((c) => c.bone));
-        for (const hp of handPlants) {
-          if (!reach.has(hp.bone)) {
-            hp.target = null; // this posture doesn't plant this hand — release it
-            continue;
-          }
-          solveHandReach(hp.solver, hp, floorRef.floorY, rest);
-          groundReachSolved = true;
-        }
-        if (groundReachSolved) root.updateMatrixWorld(true);
-      }
+      pinContactsToFloor(
+        root,
+        skinned.skeleton,
+        variantCfg,
+        groundingContactsFor(sample.groundingPosture, floorRef),
+      );
+      solveReachContacts(sample.groundingPosture);
     } else if (useFootRoot && sample.planted && (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M) {
       // The SAME authored angles now read as the real closed-chain movement — feet
       // planted, pelvis placed by the chain, COM over the base (balance for free).
@@ -797,8 +954,16 @@ export function sampleComposedMotion(
       // double-support drop rounds into a glide. Identity for every uncalibrated
       // motion, so they are byte-identical.
       if (vcal.gain !== 1 || vcal.smoothed) {
-        const u01 = totalMs > 0 ? tMs / totalMs : 0;
-        root.position.y = applyVerticalCalibration(root.position.y, vcal, u01);
+        // Phase indexes the cycle the table was DERIVED from (the loop-form
+        // period for a looping motion, offset by the first keyframe's arrival —
+        // DET-LOCK-02), and the loop table ramps in from the live pin over the
+        // one-shot intro. Non-loop motions keep (totalMs, 0, 0) — byte-identical.
+        const u01 = vcalCycleMs > 0 ? (tMs - vcalPhaseOffsetMs) / vcalCycleMs : 0;
+        let y = applyVerticalCalibration(root.position.y, vcal, u01);
+        if (vcalRampMs > 0 && tMs < vcalRampMs) {
+          y = root.position.y + (y - root.position.y) * (tMs / vcalRampMs);
+        }
+        root.position.y = y;
         root.updateMatrixWorld(true);
       }
     }
@@ -875,7 +1040,31 @@ export function sampleComposedMotion(
     for (const fp of footPlants) {
       const inWindow = tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
       if (!inWindow) {
-        fp.target = null; // left the window — the next stance phase re-captures
+        // PLANT RELEASE BLEND (SEAM-3): when a stance window ends, ramp the
+        // leg-IK correction 1→0 over PLANT_RELEASE_BLEND_MS instead of dropping
+        // it in one frame — the toe-off pop snapped the released foot ~20 cm
+        // (and the leg joints ~17°/frame) back to their FK pose. The captured
+        // target survives ONLY through the ramp; the hold is NOT extended (the
+        // FK swing takes over continuously — the foot may move, just never
+        // discontinuously). Skipped when a later window has already re-pinned
+        // the same foot: its full solve owns the leg.
+        const w = fp.target ? 1 - (tMs - fp.toMs) / PLANT_RELEASE_BLEND_MS : 0;
+        const footRepinned =
+          w > 0 &&
+          w < 1 &&
+          footPlants.some(
+            (o) =>
+              o !== fp &&
+              o.solver.footKey === fp.solver.footKey &&
+              tMs >= o.fromMs - 1e-6 &&
+              tMs <= o.toMs + 1e-6,
+          );
+        if (!fp.target || w <= 0 || w >= 1 || footRepinned) {
+          fp.target = null; // released (or superseded) — the next stance re-captures
+          continue;
+        }
+        solveFootPlantWeighted(fp.solver, fp.target, fp.rest ?? plantRest, rest, w);
+        anyPlant = true;
         continue;
       }
       // Lazily pin the target to where the foot IS as it ENTERS its window

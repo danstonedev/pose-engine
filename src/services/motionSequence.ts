@@ -440,6 +440,21 @@ export interface ComposedMotion {
    *  measurement are untouched; unflagged motions are byte-identical. This is
    *  the ENGINE primitive: chain authors/hosts opt in per motion. */
   flowIn?: boolean;
+  /** PERSISTENT HEADING (SEAM-1 — the turn→walk unwind fix): this motion's
+   *  authored direction plan is relative to the heading it EXPECTS to enter at
+   *  (`headingDeg` / the first heading-profile point / 0), and should be
+   *  REBASED onto the body's LIVE facing when it starts from the current pose.
+   *  When set — the gait builders (buildTravelWalk / buildTravelRun /
+   *  buildTurnInPlace, and buildFigureEightWalk through them) set it — and the
+   *  motion resolves `startFrom:'current'` with the live root threaded
+   *  ({@link ResolveComposedOptions.currentRoot}), {@link resolveComposedMotion}
+   *  applies {@link rebaseMotionYaw} by (live entry yaw − expected entry
+   *  heading), so "walk forward" means forward FROM THE CURRENT FACING instead
+   *  of whipping back to the authored world yaw. Strictly opt-in: unflagged
+   *  motions (a supine exercise, an authored calibration plan) are NEVER
+   *  rotated, and a flagged motion entering at its expected heading (a plain
+   *  walk from rest) is byte-identical (rebase by 0 is the identity). */
+  inheritHeading?: boolean;
   /** The body POSTURE this movement assumes at its START / leaves at its END, for
    *  the transition executor to bridge between commands (e.g. a supine exercise
    *  starts+ends 'supine'; a lie-down ends 'supine'; a get-up ends 'standing').
@@ -470,6 +485,18 @@ export interface ComposedMotion {
    *  eccentrics (the clinical squat) leave this off — the symmetric authored
    *  tempo IS the movement. Default off (unflagged motions byte-identical). */
   weightedDescent?: boolean;
+  /** HOLD-UNMENTIONED opt-OUT (SEAM-6). A `startFrom:'current'` motion normally
+   *  SETTLES the drivers it never targets: joints a superseded motion left
+   *  displaced (a walk interrupted mid-swing — hip +30°, elbow +28°) ease from
+   *  their live values to the motion's implicit baseline (anatomic rest) over
+   *  ~{@link UNMENTIONED_SETTLE_MS} at the start, instead of holding the stale
+   *  pose frozen through the whole motion. Set true to KEEP the frozen
+   *  carryover for callers that genuinely want it (a deliberately held pose).
+   *  Deliberate continuations don't need it: the settle starts FROM the live
+   *  value (C0 at the seam, so chain-seam gates still measure ~0°), and motions
+   *  resting on a grounding posture are never settled (their un-targeted joints
+   *  ARE the support). See {@link buildSequencePoses}. */
+  holdUnmentioned?: boolean;
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
@@ -507,6 +534,15 @@ export const MIN_KEYFRAME_MS = 150;
  *  durations (and even the velocity floor at pathological angular travel) so a
  *  single keyframe can never freeze a host's serialized command chain. */
 export const MAX_KEYFRAME_MS = 10_000;
+/** How long (ms of playback, timeScale-corrected) the drivers a
+ *  `startFrom:'current'` motion never targets take to SETTLE from their
+ *  inherited live values to the motion's implicit baseline (SEAM-6) — the fix
+ *  for superseded-motion residuals (an interrupted walk's mid-swing hip/elbow
+ *  used to stay frozen through the whole next motion). The ease is C0 at the
+ *  seam (it starts FROM the live value), so chain continuity at t=0 is
+ *  preserved by construction. Opt out per motion with
+ *  {@link ComposedMotion.holdUnmentioned}. */
+export const UNMENTIONED_SETTLE_MS = 500;
 
 // ── Resolution result types ─────────────────────────────────────────────────
 
@@ -607,6 +643,10 @@ export interface ResolvedComposedMotion {
    *  (`weightedDescentApplies`, services/rootMotion) admits the motion. See
    *  {@link ComposedMotion.weightedDescent}. */
   weightedDescent?: boolean;
+  /** Hold-unmentioned opt-out (pass-through) — suppresses the settle of
+   *  un-targeted drivers on a 'current' start (SEAM-6). See
+   *  {@link ComposedMotion.holdUnmentioned}. */
+  holdUnmentioned?: boolean;
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -619,6 +659,18 @@ export interface ResolveComposedOptions {
    *  floor is measured from the live pose, not neutral. Ignored when the motion's
    *  `startFrom` is 'neutral'. */
   currentAngles?: Record<string, number>;
+  /** Current model-root state (the same continuity shape the sampler/stage
+   *  thread — orientation quaternion [x,y,z,w] relative to the grounded rest,
+   *  plus the world translate). Consumed by the PERSISTENT-HEADING rebase: a
+   *  heading-inheriting motion ({@link ComposedMotion.inheritHeading}) that
+   *  starts from the current pose is rebased by the body's live entry yaw read
+   *  off `quat`, so its travel goes the way the body actually faces. Ignored
+   *  for unflagged motions and when `startFrom` is 'neutral' — passing it for
+   *  those is always safe (byte-identical resolution). */
+  currentRoot?: {
+    quat?: [number, number, number, number];
+    translateM?: [number, number, number];
+  } | null;
 }
 
 const isFiniteNum = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
@@ -1114,6 +1166,223 @@ export function relaxedHands(motion: ComposedMotion): ComposedMotion {
   return { ...motion, keyframes };
 }
 
+// ── Persistent heading — entry-yaw rebase (SEAM-1) ──────────────────────────
+// A gait motion authors ABSOLUTE root yaw (heading 0 = the world +Z it was
+// authored against). Chained after a turn, that used to whip the body back to
+// the pre-turn facing on frame one (hip wrench, toe teleport) and walk off the
+// OLD heading. The fix is the generalized TUG-chain rebase: rotate EVERYTHING
+// in the motion that encodes a direction — authored root yaw keys, authored
+// root translates, the travel heading (which the sampler/stage feed to the
+// foot-driven-travel / lateral-shuttle derivations AND the contact plant-clamp
+// rest rotation), and the curved heading profile — by one constant yaw, so the
+// whole plan plays in the body's CURRENT heading frame. Applied automatically
+// at resolve time (`resolveComposedMotion`, shared by the offline sampler and
+// the live stage) for motions that opt in via `inheritHeading`.
+
+/** Numerical guard: live entry yaws below this (deg) skip the rebase, so a
+ *  motion entering at its expected heading stays byte-identical. */
+const HEADING_REBASE_EPS_DEG = 0.01;
+
+/** Rotate an XZ vector by `yawDeg` about +Y — the engine's root-yaw sense
+ *  (forward = +Z, positive yaw toward subject-left/+X; matches the stance-foot
+ *  pivot math in buildTravelWalk and rootOrientQuat's Euler-Y). */
+function rotateXZByYaw(x: number, z: number, yawDeg: number): [number, number] {
+  const r = (yawDeg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  return [x * c + z * s, -x * s + z * c];
+}
+
+/** Normalize a yaw delta to (−180, 180] so the rebase always takes the short
+ *  way around (an entry of −179° vs an expected 180° is a +1° correction, not
+ *  a −359° spin). */
+function normalizeYawDeg(d: number): number {
+  let n = ((d % 360) + 360) % 360; // [0, 360)
+  if (n > 180) n -= 360; // (−180, 180]
+  return n;
+}
+
+/**
+ * The body's WORLD YAW (deg) encoded in a root-orientation quaternion [x,y,z,w]
+ * — the heading of the rest forward axis (+Z) rotated by the quat, projected to
+ * the ground plane (atan2(fwd.x, fwd.z): 0 = facing +Z, + toward subject-left,
+ * the root `yawDeg` convention). Returns null for a malformed quat or a body
+ * pitched so far vertical (|planar forward| ≈ 0) that heading is undefined —
+ * callers then skip the rebase rather than rotating by garbage. This is the
+ * yaw the persistent-heading rebase reads off the live continuity root; hosts
+ * threading their own state can reuse it.
+ */
+export function rootYawDegFromQuat(
+  quat: readonly [number, number, number, number] | undefined | null,
+): number | null {
+  if (
+    !quat ||
+    quat.length !== 4 ||
+    !quat.every((n) => typeof n === 'number' && Number.isFinite(n))
+  ) {
+    return null;
+  }
+  const len = Math.hypot(quat[0], quat[1], quat[2], quat[3]);
+  if (len < 1e-6) return null;
+  const [qx, qy, qz, qw] = quat.map((n) => n / len) as [number, number, number, number];
+  // Rest forward (0,0,1) rotated by the quat (expanded quaternion sandwich).
+  const fx = 2 * (qy * qw + qx * qz);
+  const fz = 1 - 2 * (qx * qx + qy * qy);
+  if (Math.hypot(fx, fz) < 1e-3) return null; // pitched vertical — heading undefined
+  return (Math.atan2(fx, fz) * 180) / Math.PI;
+}
+
+/** A keyframe's EFFECTIVE authored translate for the direction transforms: the
+ *  raw `root.translateM` when present (it wins per component), else the
+ *  semantic `travel` sugar's signed translate. Undefined when the keyframe
+ *  authors neither (it inherits the carried root — nothing to transform) or
+ *  when the sugar is malformed (left for the resolver's shape refusal). */
+function effectiveAuthoredTranslate(kf: SequenceKeyframe): [number, number, number] | undefined {
+  if (kf.root?.translateM && Array.isArray(kf.root.translateM)) {
+    const t = kf.root.translateM;
+    if (t.length === 3 && t.every((n) => typeof n === 'number' && Number.isFinite(n))) {
+      return [t[0], t[1], t[2]];
+    }
+    return undefined;
+  }
+  const sem = semanticTravelToTranslate(kf.travel);
+  return sem === 'invalid' || sem == null ? undefined : sem;
+}
+
+/**
+ * Rebase a motion's AUTHORED direction plan by a constant yaw (deg, + toward
+ * subject-left — the root `yawDeg` sense): the generalized TUG-chain rebase,
+ * rotating EVERYTHING that encodes direction so the whole plan plays in the
+ * rotated heading frame:
+ *   - every keyframe's authored `root.orient` gains the yaw (Euler triples via
+ *     `yawDeg` — exactly a world-yaw premultiply under the YXZ composition; a
+ *     raw `orient.quat` is premultiplied by the same world yaw);
+ *   - every keyframe's authored `root.translateM` — and a semantic `travel`
+ *     translate standing in for one — is rotated in the XZ plane (a turn's
+ *     weight shift stays over the correct stance foot, the walk's APA shift
+ *     stays over the future stance side);
+ *   - the gait travel plumbing rotates with it: `headingDeg` (which also
+ *     rotates the sampler/stage contact plant-clamp rest and keeps the derived
+ *     lateral shuttle on the heading's perpendicular) and every
+ *     `headingProfileMs` point. Set/rotated only for motions that carry travel
+ *     plumbing — a non-travelling motion never sprouts a heading.
+ * Keyframes that author no root are untouched (they inherit the engine's
+ * carry-forward, which the caller seeds from the live root). Pure — the input
+ * motion is not mutated; identity at offset 0.
+ */
+export function rebaseMotionYaw(motion: ComposedMotion, yawOffsetDeg: number): ComposedMotion {
+  if (
+    !motion ||
+    !Array.isArray(motion.keyframes) ||
+    typeof yawOffsetDeg !== 'number' ||
+    !Number.isFinite(yawOffsetDeg) ||
+    yawOffsetDeg === 0
+  ) {
+    return motion;
+  }
+  const half = (yawOffsetDeg * Math.PI) / 360;
+  const ys = Math.sin(half);
+  const yc = Math.cos(half);
+  const keyframes: SequenceKeyframe[] = motion.keyframes.map((kf) => {
+    if (!kf || typeof kf !== 'object') return kf;
+    const hasOrient = kf.root?.orient != null && typeof kf.root.orient === 'object';
+    const t = effectiveAuthoredTranslate(kf);
+    // Rotating a translate only matters when it has a planar component; an
+    // untouched keyframe (no authored root/travel, or a pure-vertical travel)
+    // passes through verbatim so the sugar/raw shape is preserved.
+    const rotatesTranslate = t != null && (t[0] !== 0 || t[2] !== 0);
+    if (!hasOrient && !rotatesTranslate) return kf;
+    const root: RootTransform = { ...(kf.root ?? {}) };
+    if (hasOrient) {
+      const o = kf.root!.orient!;
+      if (o.quat && Array.isArray(o.quat) && o.quat.length === 4) {
+        // World-yaw premultiply: q' = yawQ ⊗ q (yawQ = rotation about +Y).
+        const [x, y, z, w] = o.quat;
+        root.orient = {
+          ...o,
+          quat: [yc * x + ys * z, yc * y + ys * w, yc * z - ys * x, yc * w - ys * y],
+        };
+      } else {
+        // Under the YXZ Euler composition, adding to yawDeg IS the world-yaw
+        // premultiply (yaw is the outermost axis) — pitch/roll ride along.
+        root.orient = { ...o, yawDeg: (o.yawDeg ?? 0) + yawOffsetDeg };
+      }
+    }
+    if (rotatesTranslate) {
+      const [x, z] = rotateXZByYaw(t![0], t![2], yawOffsetDeg);
+      root.translateM = [x, t![1], z];
+    }
+    const out: SequenceKeyframe = { ...kf, root };
+    // The raw translate above realizes (and supersedes) any semantic travel
+    // sugar for this keyframe — drop the sugar so the two can't disagree.
+    if (rotatesTranslate && out.travel) delete out.travel;
+    return out;
+  });
+  const out: ComposedMotion = { ...motion, keyframes };
+  // Travel plumbing: only a motion that already carries it gets its heading
+  // rotated (a non-travelling motion never sprouts one).
+  const hasTravelPlumbing =
+    motion.footDrivenTravel === true || motion.headingDeg != null || motion.headingProfileMs != null;
+  if (hasTravelPlumbing) out.headingDeg = (motion.headingDeg ?? 0) + yawOffsetDeg;
+  if (Array.isArray(motion.headingProfileMs)) {
+    out.headingProfileMs = motion.headingProfileMs.map((p) =>
+      p && typeof p === 'object' && Number.isFinite(p.headingDeg)
+        ? { ...p, headingDeg: p.headingDeg + yawOffsetDeg }
+        : p,
+    );
+  }
+  return out;
+}
+
+/**
+ * Offset a motion's AUTHORED root translates by a constant world XZ (meters) —
+ * the runtime half of the chain rebase (ported from the TUG runner): authored
+ * translates are ABSOLUTE in the grounded rest frame, so a motion authored
+ * about the origin must be re-anchored to wherever the previous motion left
+ * the body. Keyframes without an authored translate (raw or semantic-travel
+ * sugar) inherit the carried/seeded root and need no offset; Y is never
+ * touched (vertical belongs to the grounding pins). Pure; identity at (0, 0).
+ */
+export function offsetMotionTranslate(motion: ComposedMotion, xM: number, zM: number): ComposedMotion {
+  if (
+    !motion ||
+    !Array.isArray(motion.keyframes) ||
+    !Number.isFinite(xM) ||
+    !Number.isFinite(zM) ||
+    (xM === 0 && zM === 0)
+  ) {
+    return motion;
+  }
+  const keyframes: SequenceKeyframe[] = motion.keyframes.map((kf) => {
+    if (!kf || typeof kf !== 'object') return kf;
+    const t = effectiveAuthoredTranslate(kf);
+    if (t == null) return kf;
+    const out: SequenceKeyframe = {
+      ...kf,
+      root: { ...(kf.root ?? {}), translateM: [t[0] + xM, t[1], t[2] + zM] },
+    };
+    if (out.travel) delete out.travel; // realized as raw — keep one source of truth
+    return out;
+  });
+  return { ...motion, keyframes };
+}
+
+/** The heading (deg) a motion's author assumed the body faces at t=0: the
+ *  constant `headingDeg`, else the heading profile's first point, else 0. The
+ *  persistent-heading rebase corrects by (live entry yaw − this), so a motion
+ *  already authored for its live entry (the TUG's `headingDeg:180` walk-back,
+ *  a figure-eight's second lobe) rebases by ~0 and stays as authored. */
+function motionEntryHeadingDeg(motion: ComposedMotion): number {
+  if (typeof motion.headingDeg === 'number' && Number.isFinite(motion.headingDeg)) {
+    return motion.headingDeg;
+  }
+  const p0 = Array.isArray(motion.headingProfileMs) ? motion.headingProfileMs[0] : undefined;
+  if (p0 && typeof p0.headingDeg === 'number' && Number.isFinite(p0.headingDeg)) {
+    return p0.headingDeg;
+  }
+  return 0;
+}
+
 /**
  * Validate a composed motion's shape + limits, clamp every target through
  * {@link resolveCommandTarget} (the SAME truth path as single commands:
@@ -1140,6 +1409,27 @@ export function resolveComposedMotion(
   if (motion.keyframes.length === 0) return refuse(motion, 'no-keyframes');
   if (motion.keyframes.length > MAX_KEYFRAMES) {
     return refuse(motion, `too-many-keyframes (max ${MAX_KEYFRAMES})`);
+  }
+
+  // PERSISTENT HEADING (SEAM-1): a heading-inheriting motion (`inheritHeading`
+  // — the gait builders set it) that starts from the CURRENT pose is rebased
+  // by the body's live entry yaw, so "walk forward" means forward FROM THE
+  // CURRENT FACING — a walk chained after a 180° turn continues away, instead
+  // of whipping the body back to the authored world yaw and walking off the
+  // pre-turn heading. The correction is (live yaw − the heading the author
+  // assumed at entry), shortest way around, so a motion already authored for
+  // its entry (a `headingDeg:180` walk-back entered facing 180) rebases by ~0.
+  // Applied HERE — the one resolution path the offline sampler and the live
+  // stage both consume — so the two can never disagree on the heading frame.
+  // Strictly opt-in + guarded: unflagged motions, 'neutral' starts, an
+  // un-threaded root, an undefined heading (a lying body), and sub-epsilon
+  // deltas all skip the rebase and stay byte-identical.
+  if (motion.inheritHeading === true && motion.startFrom !== 'neutral' && opts?.currentRoot?.quat) {
+    const entryYaw = rootYawDegFromQuat(opts.currentRoot.quat);
+    if (entryYaw != null) {
+      const delta = normalizeYawDeg(entryYaw - motionEntryHeadingDeg(motion));
+      if (Math.abs(delta) > HEADING_REBASE_EPS_DEG) motion = rebaseMotionYaw(motion, delta);
+    }
   }
 
   // INTRA-PHASE TIMING: realize any `peakAt` leads NOW, before validation, so a
@@ -1401,6 +1691,7 @@ export function resolveComposedMotion(
     ...(motion.flowIn ? { flowIn: true } : {}),
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
     ...(motion.weightedDescent ? { weightedDescent: true } : {}),
+    ...(motion.holdUnmentioned ? { holdUnmentioned: true } : {}),
   };
 }
 
@@ -1468,6 +1759,34 @@ export interface ComposedMotionPoses {
   loop: boolean;
   /** Resolved start mode carried through for the stage/host. */
   startFrom: 'current' | 'neutral';
+}
+
+type QuatTuple = [number, number, number, number];
+
+/** Pure quaternion slerp on plain tuples (shortest arc; nlerp fallback for
+ *  near-parallel inputs). Local so this module stays scene-free. */
+function slerpQuatTuple(a: QuatTuple, b: QuatTuple, t: number): QuatTuple {
+  if (t <= 0) return [a[0], a[1], a[2], a[3]];
+  if (t >= 1) return [b[0], b[1], b[2], b[3]];
+  let bx = b[0], by = b[1], bz = b[2], bw = b[3];
+  let dot = a[0] * bx + a[1] * by + a[2] * bz + a[3] * bw;
+  if (dot < 0) {
+    bx = -bx; by = -by; bz = -bz; bw = -bw;
+    dot = -dot;
+  }
+  if (dot > 0.9995) {
+    const x = a[0] + (bx - a[0]) * t;
+    const y = a[1] + (by - a[1]) * t;
+    const z = a[2] + (bz - a[2]) * t;
+    const w = a[3] + (bw - a[3]) * t;
+    const n = Math.hypot(x, y, z, w) || 1;
+    return [x / n, y / n, z / n, w / n];
+  }
+  const theta = Math.acos(Math.min(1, dot));
+  const s = Math.sin(theta);
+  const wa = Math.sin((1 - t) * theta) / s;
+  const wb = Math.sin(t * theta) / s;
+  return [a[0] * wa + bx * wb, a[1] * wa + by * wb, a[2] * wa + bz * wb, a[3] * wa + bw * wb];
 }
 
 /** Options threading the CURRENT on-stage pose into the build (continuity). */
@@ -1572,6 +1891,74 @@ export function buildSequencePoses(
     velocityClasses.push(kf.velocityClass);
     prev = pose;
   }
+
+  // ── SETTLE-UNMENTIONED-DRIVERS (SEAM-6) ──────────────────────────────────
+  // A `startFrom:'current'` motion folds onto the live pose, so joints it never
+  // targets used to inherit — and HOLD — whatever a superseded motion left in
+  // them (a walk interrupted mid-swing froze hip +30° / elbow +28° through the
+  // whole next motion). Instead, ease those un-targeted drivers home: each
+  // keyframe's carried copy of an un-driven bone is slerped live→baseline with
+  // a weight that ramps to 1 by ~UNMENTIONED_SETTLE_MS of (timeScale-corrected)
+  // playback, so the trajectory — whose knot 0 IS the live pose — carries the
+  // joint to rest smoothly. C0 at the seam BY CONSTRUCTION (the settle starts
+  // FROM the live value), which is what keeps deliberate continuations
+  // (sampleMotionChain / asContinuation / the TUG chain) measuring ~0° seams.
+  // Pose-space and part of the BUILD, not a live overlay: the stage and the
+  // offline sampler both consume these poses (lockstep), and clean-mode
+  // recordings carry the settle.
+  // The carried pose is LOAD-BEARING — skipped — when:
+  //   • the motion opts out (`holdUnmentioned`) or starts 'neutral' (the ready
+  //     settle already owns that path);
+  //   • no live pose was threaded (fresh start — nothing to settle);
+  //   • any keyframe rests on a GROUNDING POSTURE (a seated/quadruped body's
+  //     un-targeted joints ARE its support);
+  //   • the motion has no joint targets at all (a posture-only movement carries
+  //     the previous joint pose forward by design).
+  // A LOOPING / multi-rep motion replays every keyframe, so a partial ramp
+  // would oscillate once per cycle — those settle across their first segment
+  // instead (weight 1 on every cycle keyframe; knot 0 still eases from live).
+  const settleFrom = resolved.startFrom === 'current' ? opts?.currentPose : null;
+  if (
+    settleFrom?.bones &&
+    resolved.holdUnmentioned !== true &&
+    resolved.keyframes.some((kf) => kf.targets.length > 0) &&
+    !resolved.keyframes.some((kf) => kf.groundingPosture != null)
+  ) {
+    const driven = new Set<string>();
+    for (const kf of resolved.keyframes) for (const t of kf.targets) driven.add(t.joint);
+    // Residuals: bones the motion never drives, measurably away from baseline.
+    const residuals: { key: string; live: QuatTuple; base: QuatTuple }[] = [];
+    for (const [key, liveArr] of Object.entries(settleFrom.bones)) {
+      if (driven.has(key)) continue;
+      const baseArr = baselinePose.bones?.[key];
+      if (!baseArr) continue;
+      const dot = Math.abs(
+        liveArr[0] * baseArr[0] + liveArr[1] * baseArr[1] + liveArr[2] * baseArr[2] + liveArr[3] * baseArr[3],
+      );
+      if ((2 * Math.acos(Math.min(1, dot)) * 180) / Math.PI < 0.5) continue; // already home
+      residuals.push({
+        key,
+        live: [liveArr[0], liveArr[1], liveArr[2], liveArr[3]],
+        base: [baseArr[0], baseArr[1], baseArr[2], baseArr[3]],
+      });
+    }
+    if (residuals.length) {
+      const ts = Math.min(1.5, Math.max(0.4, resolved.modifiers?.timeScale ?? 1));
+      const ramps = !resolved.loop && resolved.reps <= 1;
+      let arriveMs = 0;
+      for (let i = 0; i < poses.length; i += 1) {
+        arriveMs += durationsMs[i]! / ts;
+        const w = ramps ? Math.min(1, arriveMs / UNMENTIONED_SETTLE_MS) : 1;
+        arriveMs += holdsMs[i]! / ts;
+        // Fresh pose object per keyframe (a posture-only keyframe may alias the
+        // live currentPose object — never mutate the caller's pose).
+        const bones = { ...poses[i]!.bones };
+        for (const r of residuals) bones[r.key] = slerpQuatTuple(r.live, r.base, w);
+        poses[i] = { ...poses[i]!, bones };
+      }
+    }
+  }
+
   return {
     poses,
     roots,

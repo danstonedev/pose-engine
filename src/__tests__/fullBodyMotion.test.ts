@@ -451,7 +451,7 @@ describe('full-body motion battery on the real male rig', () => {
     expect(measureCommandMotion(report, 'L_UpperArm', 'shoulderFlexion')!).toBeLessThan(-15);
   });
 
-  it('CROSS-MOTION CONTINUITY — a second motion holds unmentioned joints (no teleport to rest)', () => {
+  it('CROSS-MOTION CONTINUITY — a second motion continues from the live pose; held carryover is opt-in (SEAM-6)', () => {
     resetToAnatomic();
     // Motion 1: raise the right arm to 90 flexion, leave it there.
     const first = playToLast({ name: 'raise arm', keyframes: [
@@ -459,16 +459,34 @@ describe('full-body motion battery on the real male rig', () => {
     ] });
     expect(measureCommandMotion(first.report, 'R_UpperArm', 'shoulderFlexion')!).toBeGreaterThan(80);
     const currentPose = built1CurrentPose(first.built);
-    // Motion 2 (startFrom current): flex the LEFT elbow only. The right arm must STAY up.
-    const second = playToLast(
+    // SEAM-6 UPDATE (superseded-motion residuals): this gate used to pin the
+    // OLD carryover — a 'current' motion froze every un-targeted driver at its
+    // inherited value for the whole motion (an interrupted walk's mid-swing
+    // hip/elbow stayed up through the next movement). Un-targeted drivers now
+    // SETTLE to the motion's implicit baseline over ~UNMENTIONED_SETTLE_MS;
+    // the frozen carryover is the explicit opt-in `holdUnmentioned: true`.
+    // Continuity AT THE SEAM is preserved by construction (the settle starts
+    // FROM the live value — knot 0 of the trajectory IS the live pose), which
+    // settleUnmentioned.test.ts and movementChain.test.ts gate at ~0°.
+    // Opt-in carryover: flex the LEFT elbow only — the right arm STAYS up.
+    const held = playToLast(
+      { name: 'flex left elbow (hold)', holdUnmentioned: true, keyframes: [
+        { durationMs: 500, targets: [{ joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: 90 }] },
+      ] },
+      { pose: currentPose },
+    );
+    expect(measureCommandMotion(held.report, 'L_Forearm', 'elbowFlexion')!).toBeGreaterThan(80);
+    expect(measureCommandMotion(held.report, 'R_UpperArm', 'shoulderFlexion')!).toBeGreaterThan(80);
+    // DEFAULT: the un-targeted right arm eases home instead of freezing mid-air
+    // (this helper measures the final keyframe — past the ~500 ms settle).
+    const settled = playToLast(
       { name: 'flex left elbow', keyframes: [
         { durationMs: 500, targets: [{ joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: 90 }] },
       ] },
       { pose: currentPose },
     );
-    expect(measureCommandMotion(second.report, 'L_Forearm', 'elbowFlexion')!).toBeGreaterThan(80);
-    // The unmentioned right shoulder persisted (would be ~0 if it teleported to rest).
-    expect(measureCommandMotion(second.report, 'R_UpperArm', 'shoulderFlexion')!).toBeGreaterThan(80);
+    expect(measureCommandMotion(settled.report, 'L_Forearm', 'elbowFlexion')!).toBeGreaterThan(80);
+    expect(Math.abs(measureCommandMotion(settled.report, 'R_UpperArm', 'shoulderFlexion')!)).toBeLessThan(5);
   });
 
   it("startFrom:'neutral' RETURNS to anatomic first (unmentioned joints reset)", () => {

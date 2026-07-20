@@ -1672,6 +1672,12 @@ export function buildTravelWalk(
     name: 'walk-forward',
     startFrom: 'current',
     stance: 'planted',
+    // PERSISTENT HEADING (SEAM-1): the walk's yaw plan is authored relative to
+    // its entry heading (`headingDeg`), so when it starts from the current pose
+    // with the live root threaded, resolution rebases the whole plan onto the
+    // body's actual facing — a walk chained after a turn walks off the way the
+    // body faces instead of whipping back to the authored world yaw.
+    inheritHeading: true,
     ...(coordinated.modifiers ? { modifiers: coordinated.modifiers } : {}),
     keyframes: headed,
     footDrivenTravel: true,
@@ -1891,6 +1897,11 @@ export function buildTurnInPlace(opts: { degrees?: number } = {}): ComposedMotio
     name: 'turn-in-place',
     startFrom: 'current',
     stance: 'planted',
+    // Persistent heading (SEAM-1): the step turn's yaw keys are authored from
+    // an assumed entry of 0, so a turn chained after another motion (turn →
+    // turn, walk → turn) carries the LIVE facing forward — 180 then 180 again
+    // goes 0→180→360, not 0→180, snap, 0→180.
+    inheritHeading: true,
     keyframes,
   };
 }
@@ -2293,6 +2304,9 @@ export function buildTravelRun(
     name: 'run-forward',
     startFrom: 'current',
     stance: 'planted',
+    // Persistent heading (SEAM-1): rebase onto the live entry facing when the
+    // run starts from the current pose (same contract as buildTravelWalk).
+    inheritHeading: true,
     keyframes: kfs,
     footDrivenTravel: true,
     contacts,
@@ -2628,7 +2642,10 @@ const plankLimbs = (shoulder: number, elbow: number): SequenceTarget[] => [
   // hand-plant IK, which rotates only the shoulder/elbow. (Neg wristFlexion = extension.)
   { joint: 'L_Hand', motion: 'wristFlexion', targetDegrees: -45 },
   { joint: 'R_Hand', motion: 'wristFlexion', targetDegrees: -45 },
-  ...bilatLeg(0, 0, 40),
+  // Ankle plantarflexed so the toes tuck under for the toe pin — authored AT the
+  // 20° ankleFlexion ROM limit (DET-RES-02: the old 40° was silently clamped to
+  // 20 at resolution, so intent and outcome disagreed; 20 is what actually plays).
+  ...bilatLeg(0, 0, 20),
 ];
 
 /** GET INTO A PLANK — standing → plank. Crouch and hinge forward with the hands
