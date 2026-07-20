@@ -210,7 +210,14 @@ describe('gravity-shaped sit-down: the descent accelerates until the catch', () 
     // measurably before the bottom (speed falls well off its running max) and
     // the approach ends noticeably slower than its peak.
     expect(bare.worstBrakeMs, 'baseline provably brakes mid-descent').toBeGreaterThan(MONO_TOL_MS);
-    expect(bare.terminalRatio, 'baseline approaches the seat decelerating').toBeLessThan(0.93);
+    // Pinned 0.93 → 0.98 with the SEAM-5 grounding-switch crossfade
+    // (rootMotion.deriveGroundingBlendSpans): the eased feet→seat pin handoff
+    // smooths the FINAL ~200 ms of the approach for flagged and baseline alike
+    // (measured baseline terminal ratio 0.90 → 0.96), so terminal speed no
+    // longer separates the two near the bottom. The hydraulic-vs-gravity
+    // discrimination is carried by worstBrakeMs (mid-descent braking) and
+    // lastApproachDeficitMs below, both untouched by the crossfade.
+    expect(bare.terminalRatio, 'baseline approaches the seat decelerating (sanity bound)').toBeLessThan(0.98);
     expect(
       bare.lastApproachDeficitMs,
       'baseline gives back ≥5 cm/s of speed before the bottom',

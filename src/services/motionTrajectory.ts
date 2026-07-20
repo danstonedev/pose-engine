@@ -79,10 +79,32 @@ export interface TrajectorySample {
   groundingPosture?: string;
 }
 
+/** One grounding-state change along the trajectory's timeline. The sampled
+ *  grounding follows the segment travelled INTO (`sample.groundingPosture` =
+ *  the arriving knot's), so the state changes at the DEPARTING knot `tMs` and
+ *  the new grounding's pose is actually reached at `arriveMs` (the arriving
+ *  knot). The stage and the offline sampler use these to derive the root-Y
+ *  crossfade that closes the discrete pin-switch seams (SEAM-4 / SEAM-5). */
+export interface TrajectoryGroundingSwitch {
+  /** Time (ms) the grounding-state timeline changes — the departing knot. */
+  tMs: number;
+  /** Time (ms) of the arriving knot — where the new grounding's authored pose
+   *  is actually reached. */
+  arriveMs: number;
+  fromPosture?: string;
+  toPosture?: string;
+  fromPlanted: boolean;
+  toPlanted: boolean;
+}
+
 export interface PoseTrajectory {
   totalMs: number;
   /** Pose + root at absolute time tMs (clamped to [0, totalMs]). */
   sampleAt(tMs: number): TrajectorySample;
+  /** Grounding-posture switches along the timeline, in time order — absent (or
+   *  empty) when the motion never changes grounding (every pre-posture motion),
+   *  so existing consumers are untouched. */
+  groundingSwitches?: TrajectoryGroundingSwitch[];
 }
 
 // ── quaternion log/exp on the unit sphere (for SQUAD control points) ─────────
@@ -123,6 +145,35 @@ function qExp(u: [number, number, number]): Q {
   if (theta < 1e-9) return [0, 0, 0, 1];
   const s = Math.sin(theta) / theta;
   return [u[0] * s, u[1] * s, u[2] * s, Math.cos(theta)];
+}
+
+/** Knot-to-knot rotation (deg) above which a SQUAD segment falls back to plain
+ *  slerp (SEAM-4 fix). Near the 180° antipode the quaternion log that seeds the
+ *  SQUAD tangents is ill-conditioned: the neighbour-derived controls bend the
+ *  path off the short arc — measured on the get-down-to-plank arms as a
+ *  wrong-way sweep that snaps ~168° in under 10 ms. Any segment wider than this
+ *  interpolates as a pure geodesic (controls = endpoints, so SQUAD degenerates
+ *  to slerp exactly), and the knots flanking it get zero-velocity PATH tangents
+ *  (the same damping a pathExtremum gets), so the neighbouring segments ease
+ *  into the wide one instead of inheriting its huge tangent. C0 is preserved
+ *  (knot poses/times untouched); segments at or under the threshold keep the
+ *  numerically identical SQUAD path. */
+const SQUAD_SLERP_FALLBACK_DEG = 120;
+/** cos(threshold/2) — aligned unit quats q_i·q_{i+1} BELOW this dot are a
+ *  wider-than-threshold rotation (angle = 2·acos(dot)). */
+const SQUAD_SLERP_FALLBACK_DOT = Math.cos(((SQUAD_SLERP_FALLBACK_DEG / 2) * Math.PI) / 180);
+
+/** Per-segment "wider than the slerp-fallback threshold" flags for an ALIGNED
+ *  quaternion series (wide[i] covers segment i → i+1). */
+function wideSegments(q: Q[]): boolean[] {
+  const wide = new Array<boolean>(Math.max(0, q.length - 1));
+  for (let i = 0; i < q.length - 1; i += 1) {
+    const a = q[i]!;
+    const b = q[i + 1]!;
+    const dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+    wide[i] = dot < SQUAD_SLERP_FALLBACK_DOT;
+  }
+  return wide;
 }
 
 /** SQUAD intermediate control at knot i, given aligned neighbours i-1,i,i+1. */
@@ -291,13 +342,20 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
       carry = aligned;
     }
     const s: Q[] = [];
+    // SQUAD TANGENT CLAMP (SEAM-4): a knot flanking a wider-than-threshold
+    // segment is damped to a zero PATH tangent — the wide segment itself then
+    // interpolates as a pure short-arc slerp (both its controls equal its
+    // endpoints), and its neighbours ease into it instead of inheriting the
+    // ill-conditioned near-antipode tangent. Series with no wide segment are
+    // numerically unchanged.
+    const wide = wideSegments(q);
     for (let i = 0; i < n; i += 1) {
       // A STOP knot (start / held keyframe / end) — or a reversal EXTREMUM —
       // gets a zero-velocity PATH tangent: control == the knot itself. This both
       // eases in/out without overshoot and keeps a hold (two equal stop knots)
       // exactly constant — otherwise the SQUAD control points bend the path away
       // from the held pose mid-segment.
-      if (pathStops[i]) {
+      if (pathStops[i] || (i > 0 && wide[i - 1]) || (i < n - 1 && wide[i])) {
         s.push([...q[i]!]);
         continue;
       }
@@ -315,12 +373,36 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     rq.push(i === 0 ? [...cur] : qAlign(rq[i - 1]!, [...cur]));
   }
   const rs: Q[] = [];
+  // Same SQUAD tangent clamp for the root orientation series (a get-down's
+  // whole-body pitch composes with bone deltas; keep the two paths consistent).
+  const rootWide = wideSegments(rq);
   for (let i = 0; i < n; i += 1)
     rs.push(
-      pathStops[i]
+      pathStops[i] || (i > 0 && rootWide[i - 1]) || (i < n - 1 && rootWide[i])
         ? [...rq[i]!]
         : squadControl(rq[Math.max(0, i - 1)]!, rq[i]!, rq[Math.min(n - 1, i + 1)]!),
     );
+
+  // GROUNDING SWITCHES (SEAM-4/SEAM-5): the sampled grounding follows the knot
+  // travelled INTO, so the state on [t_k, t_{k+1}) is knot k+1's — a posture
+  // change between knots k and k+1 switches the pin at t_k and reaches the new
+  // grounding's authored pose at t_{k+1}. Exposed so the stage/sampler derive
+  // the root-Y crossfade spans (rootMotion.deriveGroundingBlendSpans) in
+  // lockstep. Empty for every motion that never changes grounding.
+  const groundingSwitches: TrajectoryGroundingSwitch[] = [];
+  for (let k = 1; k <= n - 2; k += 1) {
+    const a = knots[k]!;
+    const b = knots[k + 1]!;
+    if ((a.groundingPosture ?? undefined) === (b.groundingPosture ?? undefined)) continue;
+    groundingSwitches.push({
+      tMs: a.timeMs,
+      arriveMs: b.timeMs,
+      ...(a.groundingPosture ? { fromPosture: a.groundingPosture } : {}),
+      ...(b.groundingPosture ? { toPosture: b.groundingPosture } : {}),
+      fromPlanted: a.planted,
+      toPlanted: b.planted,
+    });
+  }
 
   // ── Gravity-true ballistic vertical ────────────────────────────────────────
   // A FLOATING span (airborne — no floor pin) is a projectile: its vertical must
@@ -376,6 +458,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
 
   return {
     totalMs,
+    ...(groundingSwitches.length ? { groundingSwitches } : {}),
     sampleAt(tMs: number): TrajectorySample {
       const tClamped = Math.min(totalMs, Math.max(0, tMs));
       const u = warp(tClamped);

@@ -273,3 +273,56 @@ describe('DET-LOCK-02 — loop-form vertical calibration in stage/sampler lockst
     expect(stageSource).toMatch(/function cancelComposed[\s\S]{0,900}composedVcalHandoff = null/);
   });
 });
+
+describe('SEAM-4/SEAM-5 — the live stage runs the grounding-switch crossfade in sampler lockstep (source pins)', () => {
+  // The root-Y crossfade that closes the grounding pin-swap seams (the 53 cm
+  // get-down free-fall, the 9.94 cm stand-from-sit hop) lives in shared
+  // rootMotion helpers (deriveGroundingBlendSpans / groundingBlendAt /
+  // applyBlendedGroundingY / handReachWeightAt), rig-gated headlessly in
+  // groundingSeam.test.ts + standFromSitSeam.test.ts. The stage cannot be
+  // mounted here, so these pin the LIVE wiring: the stage must derive the same
+  // spans from the same trajectory and apply them at the same pipeline points
+  // as the offline sampler, or live playback silently diverges from every
+  // recording.
+  it('imports the shared crossfade helpers from rootMotion', () => {
+    expect(stageSource).toMatch(
+      /deriveGroundingBlendSpans,\s*\n\s*groundingBlendAt,\s*\n\s*applyBlendedGroundingY,\s*\n\s*handReachWeightAt,/,
+    );
+  });
+
+  it('derives the spans from the starting trajectory — and re-derives (to empty) for the loop cycle', () => {
+    // One-shot pass: derived BEFORE the weighted-descent pre-pass (whose
+    // grounded arc must include the blend).
+    expect(stageSource).toContain('setComposedGroundingBlend(trajectory)');
+    // Loop cycle: carries no postures — re-derive so stale spans can never
+    // misapply to the wrapped loop clock.
+    expect(stageSource).toContain('setComposedGroundingBlend(loopTraj)');
+    expect(stageSource).toMatch(
+      /function setComposedGroundingBlend[\s\S]{0,400}deriveGroundingBlendSpans\(/,
+    );
+  });
+
+  it('applyTrajectoryRoot blends root-Y inside an override span via the shared applier', () => {
+    expect(stageSource).toMatch(
+      /function applyTrajectoryRoot[\s\S]{0,4000}groundingBlendAt\(composedGroundingBlendSpans, tMs\)/,
+    );
+    expect(stageSource).toMatch(
+      /function applyTrajectoryRoot[\s\S]{0,4500}applyBlendedGroundingY\(modelRoot, gBlend, applyComposedGroundingPin\)/,
+    );
+  });
+
+  it('the hand-reach solve is weighted by the shared engagement ramp (no full-on snap at the switch)', () => {
+    expect(stageSource).toContain(
+      'handReachWeightAt(composedGroundingSwitches, hp.bone, tMs, floorRef)',
+    );
+  });
+
+  it('the weighted-descent pre-pass grounds through the SAME blend as playback (lockstep arc)', () => {
+    expect(stageSource).toMatch(
+      /function setComposedWeightedDescent[\s\S]{0,2500}groundingBlendAt\(composedGroundingBlendSpans, tMs\)/,
+    );
+    expect(stageSource).toMatch(
+      /function setComposedWeightedDescent[\s\S]{0,2800}applyBlendedGroundingY\(modelRoot!, gBlend, applyComposedGroundingPin\)/,
+    );
+  });
+});

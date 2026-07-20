@@ -566,6 +566,10 @@
         deriveWeightedDescent,
         applyWeightedDescent,
         weightedDescentApplies,
+        deriveGroundingBlendSpans,
+        groundingBlendAt,
+        applyBlendedGroundingY,
+        handReachWeightAt,
         FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant, solveFootPlantWeighted, PLANT_RELEASE_BLEND_MS, buildHandPlant, solveHandReach } =
@@ -1889,6 +1893,30 @@
        *  the motion opts in AND clears the exclusion gate. */
       let composedDescent: ReturnType<typeof deriveWeightedDescent> = null;
 
+      /** GROUNDING-SWITCH ROOT-Y CROSSFADE (SEAM-4/SEAM-5) for the ACTIVE
+       *  composed motion: the trajectory's grounding-posture switches and the
+       *  eased override spans derived from them — the named posture's pin owns
+       *  exactly its authored span and each pin handoff blends over ~200 ms
+       *  instead of stepping (53 cm/frame on the quadruped get-down, 9.94 cm on
+       *  stand-from-sit). Derived by the SAME shared helpers the offline
+       *  sampler uses (lockstep); both empty — the strict byte-identical
+       *  identity — for every motion that never changes grounding. The raw
+       *  switches also drive the hand-reach engagement ramp
+       *  ({@link handReachWeightAt}). */
+      let composedGroundingSwitches: NonNullable<PoseTrajectory['groundingSwitches']> = [];
+      let composedGroundingBlendSpans: ReturnType<typeof deriveGroundingBlendSpans> = [];
+
+      /** Derive the grounding crossfade spans for a starting trajectory (empty
+       *  for a trajectory with no grounding switches — e.g. the periodic loop
+       *  cycle, which carries no postures). */
+      function setComposedGroundingBlend(traj: PoseTrajectory): void {
+        composedGroundingSwitches = traj.groundingSwitches ?? [];
+        composedGroundingBlendSpans = deriveGroundingBlendSpans(
+          composedGroundingSwitches,
+          traj.totalMs,
+        );
+      }
+
       /** Pre-pass the starting motion's trajectory through the SAME grounding
        *  applyTrajectoryRoot uses (posture pin / foot-root / floor-pin) and
        *  derive the gravity-descent reshape. Must run AFTER composedUseFootRoot
@@ -1910,7 +1938,15 @@
           pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
           modelRoot!.scale.copy(rootRestScale);
           modelRoot!.updateMatrixWorld(true);
-          if (s.planted && s.groundingPosture) {
+          // The grounded arc this pre-pass reads must be the arc PLAYBACK
+          // grounds — so an active grounding-switch crossfade applies here
+          // exactly as in applyTrajectoryRoot (mirrors the offline sampler).
+          const gBlend = composedGroundingBlendSpans.length
+            ? groundingBlendAt(composedGroundingBlendSpans, tMs)
+            : null;
+          if (gBlend) {
+            applyBlendedGroundingY(modelRoot!, gBlend, applyComposedGroundingPin);
+          } else if (s.planted && s.groundingPosture) {
             pinContactsToFloor(
               modelRoot!,
               skinnedRef!.skeleton,
@@ -1930,6 +1966,25 @@
           }
           return modelRoot!.position.y;
         }, traj.totalMs);
+      }
+
+      /** Apply ONE grounding's vertical pin from the current (pre-pin) root
+       *  state — the closure {@link applyBlendedGroundingY} evaluates both
+       *  sides of a grounding-switch crossfade with. Foot-rooting never
+       *  co-occurs (a motion with grounding postures is excluded from
+       *  `composedUseFootRoot`). Mirrors the offline sampler's closure. */
+      function applyComposedGroundingPin(posture: string | undefined, planted: boolean): void {
+        if (!modelRoot || !skinnedRef || !variantCfgRef || !floorRef) return;
+        if (planted && posture) {
+          pinContactsToFloor(
+            modelRoot,
+            skinnedRef.skeleton,
+            variantCfgRef,
+            groundingContactsFor(posture, floorRef),
+          );
+        } else if (planted) {
+          pinRootToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, floorRef);
+        }
       }
 
       /** Rebuild the foot-plant contexts for a starting composed motion. A
@@ -2110,30 +2165,57 @@
         pelvisShiftBakedM = 0; // absolute write — the shift re-bakes at the end
         modelRoot.scale.copy(rootRestScale); // clear any prior-frame plant scale drift
         modelRoot.updateMatrixWorld(true);
-        if (planted && groundingPosture && skinnedRef && variantCfgRef && floorRef) {
+        // REACH CONTACTS of the active posture: bring each planted hand to the
+        // floor and LATCH it there, so it stays put as the body lowers over it —
+        // the arm folds (the push-up). Mirrors the sampler's latch-on-contact
+        // reach solve, incl. the SEAM-4 engagement ramp (handReachWeightAt).
+        const solveComposedReachContacts = (posture: string): void => {
+          if (!composedHandPlants.length || !restRef || !skinnedRef || !variantCfgRef || !floorRef)
+            return;
+          const reach = new Set(
+            groundingContactsFor(posture, floorRef)
+              .filter((c) => c.mode === 'reach')
+              .map((c) => c.bone),
+          );
+          let solved = false;
+          for (const hp of composedHandPlants) {
+            if (!hp.solver || !reach.has(hp.bone)) {
+              hp.target = null;
+              continue;
+            }
+            solveHandReach(
+              hp.solver,
+              hp,
+              floorRef.floorY,
+              restRef,
+              handReachWeightAt(composedGroundingSwitches, hp.bone, tMs, floorRef),
+            );
+            solved = true;
+          }
+          if (solved) modelRoot!.updateMatrixWorld(true);
+        };
+        // GROUNDING-SWITCH CROSSFADE (SEAM-4/SEAM-5): inside an override span
+        // the grounded root-Y is the eased blend of the OUTGOING and INCOMING
+        // pin solutions (shared applier — lockstep with the offline sampler);
+        // outside every span the legacy branches below run untouched. The
+        // reach set still follows the frame's own grounding state.
+        const gBlend = composedGroundingBlendSpans.length
+          ? groundingBlendAt(composedGroundingBlendSpans, tMs)
+          : null;
+        if (gBlend && skinnedRef && variantCfgRef && floorRef) {
+          applyBlendedGroundingY(modelRoot, gBlend, applyComposedGroundingPin);
+          if (planted && groundingPosture) solveComposedReachContacts(groundingPosture);
+        } else if (planted && groundingPosture && skinnedRef && variantCfgRef && floorRef) {
           // POSTURE-SCOPED GROUNDING: rest on the posture's contact set (the pelvis on
           // a seat for 'sitting', the toes+hands on the floor for a plank) via the
           // explicit-target vertical pin — not the feet.
-          const contacts = groundingContactsFor(groundingPosture, floorRef);
-          pinContactsToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, contacts);
-          // REACH CONTACTS: bring each planted hand to the floor and LATCH it there,
-          // so it stays put as the body lowers over it — the arm folds (the push-up).
-          // Mirrors the sampler's latch-on-contact reach solve.
-          if (composedHandPlants.length && restRef) {
-            const reach = new Set(
-              contacts.filter((c) => c.mode === 'reach').map((c) => c.bone),
-            );
-            let solved = false;
-            for (const hp of composedHandPlants) {
-              if (!hp.solver || !reach.has(hp.bone)) {
-                hp.target = null;
-                continue;
-              }
-              solveHandReach(hp.solver, hp, floorRef.floorY, restRef);
-              solved = true;
-            }
-            if (solved) modelRoot.updateMatrixWorld(true);
-          }
+          pinContactsToFloor(
+            modelRoot,
+            skinnedRef.skeleton,
+            variantCfgRef,
+            groundingContactsFor(groundingPosture, floorRef),
+          );
+          solveComposedReachContacts(groundingPosture);
         } else if (
           planted &&
           composedUseFootRoot &&
@@ -2678,6 +2760,13 @@
           composedRootTranslate = [...lastRoot.translateM];
         }
 
+        // GROUNDING-SWITCH CROSSFADE (SEAM-4/SEAM-5): derive the root-Y
+        // override spans for this trajectory's grounding-posture switches —
+        // BEFORE the weighted-descent pre-pass below, whose grounded arc must
+        // include the blend (sampler lockstep). Empty for every motion that
+        // never changes grounding.
+        setComposedGroundingBlend(trajectory);
+
         // CALIBRATED GAIT VERTICAL: measure the emergent grounded pelvis arc of
         // the CYCLE that actually sustains on stage — the periodic loop trajectory
         // for a looping gait (its arc; the one-shot's standing intro would inflate
@@ -2891,6 +2980,10 @@
             composedVcalPhaseOffsetMs = 0;
             composedVcalRampMs = 0;
           }
+          // The loop cycle carries no grounding postures — re-derive (to empty)
+          // so the one-shot pass's crossfade spans can never misapply to the
+          // wrapped loop clock.
+          setComposedGroundingBlend(loopTraj);
           activeTrajectory = {
             traj: loopTraj,
             start: performance.now() - enterAtMs,

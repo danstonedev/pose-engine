@@ -26,6 +26,7 @@
 import * as THREE from 'three';
 import { normalizeBoneNameForVariant, type BodyVariantConfig } from '../anatomy/bodyVariants';
 import type { JointAngleRestReference } from './jointAngles';
+import type { TrajectoryGroundingSwitch } from './motionTrajectory';
 
 const RAD = Math.PI / 180;
 
@@ -456,6 +457,210 @@ export function pinRootToFloor(
   root.position.y += lift;
   root.updateMatrixWorld(true);
   return lift;
+}
+
+// ── Grounding-switch root-Y crossfade (SEAM-4 / SEAM-5) ──────────────────────
+// A grounding-posture change swaps the vertical pin (feet ↔ seat/knees/toes) at
+// a single knot. Mid-transition the two pin solutions can disagree by tens of
+// cm (measured: the get-down-to-quadruped step dropped the root 53 cm in one
+// frame and swept the feet 0.5 m below the floor; stand-from-sit hopped
+// 9.94 cm), so the discrete swap is a hard seam. The fix is a root-Y CROSSFADE
+// between the OUTGOING and INCOMING pin solutions, anchored where the posture's
+// authored keyframe sits:
+//
+//   • ENTERING a limb-grounded posture (feet → plank/quadruped/kneeling): the
+//     incoming pin rests on limbs (toes/knees) that only land at the posture
+//     keyframe — mid-transition it is wildly wrong (the 53 cm free-fall). So
+//     the OUTGOING (feet) pin keeps governing through the transition segment
+//     and the incoming pin crossfades in over the LAST ~200 ms into the
+//     ARRIVAL keyframe — the knot that authors the posture, where the two
+//     solutions are close by construction (templates land the posture's
+//     contacts on the floor at that pose) — and fully owns it from arrival on.
+//   • LEAVING a named posture (sitting/… → feet) — or ENTERING a seat-like
+//     (pelvis-grounded, pose-independent) one like 'sitting': the incoming pin
+//     is valid immediately (the tuned sit-down lowers onto the seat pin the
+//     whole way), so only the residual step needs closing — the window is
+//     centered on the SWAP knot, the posture span's boundary keyframe (the
+//     stand-from-sit "swap keyframe").
+//
+// In both cases the named posture's pin owns exactly its authored span and each
+// handoff is a monotone, eased ~200 ms blend. Derived once per motion from the
+// trajectory's grounding switches; the offline sampler and the live stage share
+// the derivation AND the per-frame applier below, so they cannot diverge
+// (lockstep). No switches ⇒ no spans ⇒ every existing motion is byte-identical.
+
+/** Crossfade window length (ms) for a grounding pin swap. */
+export const GROUNDING_BLEND_MS = 200;
+
+/** One root-Y override span around a grounding switch. Between `fromMs` and
+ *  `rampFromMs` the OUTGOING grounding governs (w = 0); across
+ *  [rampFromMs, rampToMs] the eased weight blends outgoing → incoming; at
+ *  `toMs` (== rampToMs) the incoming grounding has fully taken over, matching
+ *  the un-overridden path outside the span (C0 at both edges). */
+export interface GroundingBlendSpan {
+  fromMs: number;
+  toMs: number;
+  rampFromMs: number;
+  rampToMs: number;
+  fromPosture?: string;
+  toPosture?: string;
+  fromPlanted: boolean;
+  toPlanted: boolean;
+}
+
+/** Monotone C¹ ease (smoothstep) for the crossfade weight. */
+function groundingBlendEase(u: number): number {
+  const c = Math.min(1, Math.max(0, u));
+  return c * c * (3 - 2 * c);
+}
+
+/** True when a posture's VERTICAL pin rests only on root-rigid bones (the
+ *  pelvis) — a seat-height pin whose solution is pose-independent, so engaging
+ *  it for the whole transition segment is valid (the tuned sit-down behaviour:
+ *  the seat is a fixed platform the body lowers onto). A limb-grounded pin
+ *  (toes/knees) instead depends on limbs that only land at the posture
+ *  keyframe — mid-transition it is wildly wrong and must ramp in at arrival.
+ *  The contact STRUCTURE is floor-independent, so a null floor reference
+ *  serves the enumeration. */
+function seatLikePosture(posture: string): boolean {
+  return groundingContactsFor(posture, { restY: {}, floorY: 0 }).every(
+    (c) => c.mode === 'reach' || c.bone === 'Hips',
+  );
+}
+
+/**
+ * Derive the root-Y override spans for a trajectory's grounding switches (see
+ * the section doc for the anchoring rule). Pure and cheap — no rig sampling.
+ * Windows are clamped so they never cross a neighbouring switch or the
+ * trajectory ends; a window clamped to zero length degenerates to the legacy
+ * discrete swap (no span emitted).
+ */
+export function deriveGroundingBlendSpans(
+  switches: readonly TrajectoryGroundingSwitch[] | undefined,
+  totalMs: number,
+): GroundingBlendSpan[] {
+  const spans: GroundingBlendSpan[] = [];
+  if (!switches?.length) return spans;
+  const half = GROUNDING_BLEND_MS / 2;
+  for (let i = 0; i < switches.length; i += 1) {
+    const s = switches[i]!;
+    const prevEnd = spans.length ? spans[spans.length - 1]!.toMs : 0;
+    const nextTMs = i + 1 < switches.length ? switches[i + 1]!.tMs : totalMs;
+    const base = {
+      ...(s.fromPosture ? { fromPosture: s.fromPosture } : {}),
+      ...(s.toPosture ? { toPosture: s.toPosture } : {}),
+      fromPlanted: s.fromPlanted,
+      toPlanted: s.toPlanted,
+    };
+    if (s.toPosture && !seatLikePosture(s.toPosture)) {
+      // ENTERING a limb-grounded posture: outgoing pin governs the transition
+      // segment; the incoming pin crossfades in over the LAST ~200 ms into the
+      // ARRIVAL keyframe, fully owning it from arrival on (its authored pose —
+      // where the two solutions are close by construction — is never
+      // overridden).
+      const rampFrom = Math.max(s.tMs, s.arriveMs - GROUNDING_BLEND_MS, prevEnd);
+      const rampTo = Math.min(s.arriveMs, nextTMs, totalMs);
+      if (rampTo <= rampFrom + 1e-6) continue; // degenerate — keep the legacy swap
+      spans.push({
+        fromMs: Math.max(s.tMs, prevEnd),
+        toMs: rampTo,
+        rampFromMs: rampFrom,
+        rampToMs: rampTo,
+        ...base,
+      });
+    } else {
+      // LEAVING a named posture to the feet — or ENTERING a seat-like (pelvis-
+      // grounded, pose-independent) one: the incoming pin is valid immediately,
+      // so only the residual step at the swap needs closing — crossfade
+      // centered on the SWAP knot (the posture span's boundary keyframe).
+      const rampFrom = Math.max(s.tMs - half, prevEnd, 0);
+      const rampTo = Math.min(s.tMs + half, s.arriveMs, nextTMs);
+      if (rampTo <= rampFrom + 1e-6) continue;
+      spans.push({ fromMs: rampFrom, toMs: rampTo, rampFromMs: rampFrom, rampToMs: rampTo, ...base });
+    }
+  }
+  return spans;
+}
+
+/** The active override at `tMs`, with its eased crossfade weight — or null
+ *  outside every span (the caller takes its un-overridden grounding path). */
+export function groundingBlendAt(
+  spans: readonly GroundingBlendSpan[],
+  tMs: number,
+): { span: GroundingBlendSpan; w: number } | null {
+  for (const span of spans) {
+    if (tMs < span.fromMs - 1e-6 || tMs >= span.toMs - 1e-6) continue;
+    const w =
+      tMs <= span.rampFromMs
+        ? 0
+        : groundingBlendEase((tMs - span.rampFromMs) / (span.rampToMs - span.rampFromMs));
+    return { span, w };
+  }
+  return null;
+}
+
+/**
+ * Apply the blended grounded root-Y for an active override: evaluate BOTH
+ * groundings' pin solutions from the same pre-pin state (the caller's
+ * `applyPin` mutates root.position.y for one grounding), then set root-Y to the
+ * eased crossfade of the two. Root-Y only — orientation, joints, and every
+ * non-Y channel are untouched. Shared verbatim by the offline sampler and the
+ * live stage (lockstep). Caller must have applied the frame's FK pose + raw
+ * root transform with world matrices current.
+ */
+export function applyBlendedGroundingY(
+  root: THREE.Object3D,
+  blend: { span: GroundingBlendSpan; w: number },
+  applyPin: (posture: string | undefined, planted: boolean) => void,
+): void {
+  const { span, w } = blend;
+  const preY = root.position.y;
+  applyPin(span.fromPosture, span.fromPlanted);
+  const yFrom = root.position.y;
+  let y = yFrom;
+  if (w > 0) {
+    root.position.y = preY;
+    root.updateMatrixWorld(true);
+    applyPin(span.toPosture, span.toPlanted);
+    y = yFrom + (root.position.y - yFrom) * w;
+  }
+  root.position.y = y;
+  root.updateMatrixWorld(true);
+}
+
+/** Ramp-in time (ms) for a newly-engaged hand-reach contact's IK weight —
+ *  full-strength engagement snapped the arm at the grounding switch (SEAM-4);
+ *  the eased weight folds the reach in instead. */
+export const HAND_REACH_RAMP_MS = 150;
+
+/**
+ * The eased IK weight (0..1) for a hand-reach contact at `tMs`: 1 when the
+ * reach has been active since before the motion's first switch (or the motion
+ * never switches — every pre-posture behaviour, e.g. a push-up grounded 'plank'
+ * throughout), ramping in over {@link HAND_REACH_RAMP_MS} from the switch that
+ * (re)introduced this bone to the active reach set. Pure function of the
+ * switch list + time, so the stage and the sampler stay in lockstep.
+ */
+export function handReachWeightAt(
+  switches: readonly TrajectoryGroundingSwitch[] | undefined,
+  bone: string,
+  tMs: number,
+  floor: FloorReference,
+): number {
+  if (!switches?.length) return 1;
+  const hasReach = (posture: string | undefined): boolean =>
+    posture != null &&
+    groundingContactsFor(posture, floor).some((c) => c.mode === 'reach' && c.bone === bone);
+  let engagedAt = -Infinity; // active since the start (or never toggled on)
+  for (const s of switches) {
+    if (s.tMs > tMs + 1e-6) break;
+    const inFrom = hasReach(s.fromPosture);
+    const inTo = hasReach(s.toPosture);
+    if (inTo && !inFrom) engagedAt = s.tMs; // (re)introduced here — ramp from this switch
+    else if (!inTo) engagedAt = -Infinity; // released — a later re-engage restarts the ramp
+  }
+  if (!Number.isFinite(engagedAt)) return 1;
+  return groundingBlendEase((tMs - engagedAt) / HAND_REACH_RAMP_MS);
 }
 
 // ── Calibrated gait vertical (mean-preserving reshape) ───────────────────────
