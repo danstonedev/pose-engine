@@ -178,8 +178,10 @@ describe('DET-LOCK-01 — the live vcal passes the gait vertical rise clamp (loc
   });
 
   it('the stage imports the sampler’s clamp constant (one shared value, not a copy)', () => {
+    // Anywhere in the motionRecording import block (other shared helpers —
+    // e.g. the SEAM-2 time-scale pair — may follow it in the destructuring).
     expect(stageSource).toMatch(
-      /GAIT_VERTICAL_MAX_RISE_M,\s*\n\s*\} = await import\('\.\/services\/motionRecording'\)/,
+      /GAIT_VERTICAL_MAX_RISE_M,[\s\S]{0,200}\} = await import\('\.\/services\/motionRecording'\)/,
     );
   });
 
