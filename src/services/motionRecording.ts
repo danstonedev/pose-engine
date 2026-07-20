@@ -61,6 +61,7 @@ import {
   deriveVerticalCalibration,
   deriveWeightedDescent,
   FOOT_ROOT_DRIFT_M,
+  headingProfileLookup,
   heelStrikeOffsetAt,
   NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
@@ -364,6 +365,12 @@ export function sampleComposedMotion(
     /** World target, captured lazily when the foot first enters its window; reset
      *  on leaving so the NEXT stance window re-pins at the new contact point. */
     target: THREE.Vector3 | null;
+    /** PER-WINDOW plant-clamp rest frame (CURVED heading only): the rest
+     *  reference rotated by the heading at THIS window's start, so each stance
+     *  window's leg-IK ROM clamps read against the body orientation the walk
+     *  actually holds through that stance. Absent (constant heading / heading
+     *  0) ⇒ the shared `plantRest` below — the byte-identical legacy path. */
+    rest?: JointAngleRestReference;
   }
   const footPlants: FootPlant[] = [];
   // Honour contacts the MOTION declares (resolved.contacts) when the caller
@@ -400,6 +407,35 @@ export function sampleComposedMotion(
           ),
         )
       : rest;
+  // CURVED heading (roadmap 6.2): one rotated clamp frame per CONTACT WINDOW,
+  // at the heading the profile holds at that window's START (authored ms — the
+  // same time base the contacts are declared in). A single constant rotation
+  // can't serve an arc: by the last stance the body has yawed the full turn
+  // away from it, and the mis-framed ROM clamps read the yaw as spurious hip
+  // angles (the very failure the wave-4 rotated rest fixed for constant
+  // headings). Within one window the heading still drifts by up to ~turn/2 —
+  // measured on the rig at turnDeg 90 the residual stays inside the gentle-arc
+  // slide budget (gaitCurvedWalk.test.ts), so a per-frame re-rotation is not
+  // needed. Absent profile ⇒ no per-window rests (legacy byte-identical path).
+  const headingAtAuthoredMs =
+    resolved.headingProfileMs && resolved.headingProfileMs.length >= 2
+      ? headingProfileLookup(resolved.headingProfileMs)
+      : null;
+  if (headingAtAuthoredMs) {
+    for (const fp of footPlants) {
+      const h = headingAtAuthoredMs(Number.isFinite(fp.fromMs) ? fp.fromMs : 0);
+      fp.rest =
+        h !== 0
+          ? rotateRestReferenceByRoot(
+              rest,
+              new THREE.Quaternion().setFromAxisAngle(
+                new THREE.Vector3(0, 1, 0),
+                (h * Math.PI) / 180,
+              ),
+            )
+          : rest;
+    }
+  }
 
   const built = buildSequencePoses(baselinePose, resolved, variantCfg, rest, {
     currentPose: opts.currentPose ?? null,
@@ -561,10 +597,21 @@ export function sampleComposedMotion(
       }));
       // TRAVEL HEADING: the derived ride goes along (sinH, cosH), shuttle along
       // the perpendicular — 0 (the default) is the byte-identical legacy +Z/+X.
+      // A CURVED walk (headingProfileMs) instead hands both derivations the
+      // per-time heading lookup — authored ms scaled to trajectory time by the
+      // SAME factor as the stance windows, so heading and stance phase can
+      // never drift apart at a non-1 pace.
       const headingDeg = resolved.headingDeg ?? 0;
-      if (wantsTravel) footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows, 120, headingDeg);
+      const headingAtTraj =
+        headingAtAuthoredMs && scale > 0
+          ? (tMs: number): number => headingAtAuthoredMs(tMs / scale)
+          : undefined;
+      if (wantsTravel)
+        footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj);
       if (shuttleM > 0)
-        lateralShuttle = deriveGaitLateralShuttle(sampleFeet, totalMs, shuttleM, windows, 120, headingDeg);
+        lateralShuttle = deriveGaitLateralShuttle(
+          sampleFeet, totalMs, shuttleM, windows, 120, headingDeg, headingAtTraj,
+        );
       // HEEL-STRIKE TRANSIENT (footfall accent — roadmap 4.6): GAIT-ONLY — a
       // foot-driven motion with a planned stance schedule (and no explicit
       // opt-out). Each window START is a foot-contact instant; the pre-pass
@@ -790,14 +837,30 @@ export function sampleComposedMotion(
     // heading-0 cross-axis adds from ever touching the other channel.)
     if (footDriven || lateralShuttle) {
       if (footDriven) {
-        const off = footDriven.zAt(tMs);
-        root.position.z += off * footDriven.heading[1];
-        if (footDriven.heading[0] !== 0) root.position.x += off * footDriven.heading[0];
+        // CURVED heading: the derivation pre-accumulated the (x, z) arc — each
+        // advance already rode the heading at its own time. Constant heading
+        // keeps the offset·heading ride (byte-identical at heading 0).
+        if (footDriven.at) {
+          const [ox, oz] = footDriven.at(tMs);
+          root.position.x += ox;
+          root.position.z += oz;
+        } else {
+          const off = footDriven.zAt(tMs);
+          root.position.z += off * footDriven.heading[1];
+          if (footDriven.heading[0] !== 0) root.position.x += off * footDriven.heading[0];
+        }
       }
       if (lateralShuttle) {
-        const lat = lateralShuttle.xAt(tMs);
-        root.position.x += lat * lateralShuttle.lateral[0];
-        if (lateralShuttle.lateral[1] !== 0) root.position.z += lat * lateralShuttle.lateral[1];
+        // CURVED heading: the shuttle rides the INSTANTANEOUS perpendicular.
+        if (lateralShuttle.at) {
+          const [ox, oz] = lateralShuttle.at(tMs);
+          root.position.x += ox;
+          root.position.z += oz;
+        } else {
+          const lat = lateralShuttle.xAt(tMs);
+          root.position.x += lat * lateralShuttle.lateral[0];
+          if (lateralShuttle.lateral[1] !== 0) root.position.z += lat * lateralShuttle.lateral[1];
+        }
       }
       root.updateMatrixWorld(true);
     }
@@ -826,7 +889,10 @@ export function sampleComposedMotion(
         fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
         fp.target.y -= heelStrikeY;
       }
-      solveFootPlant(fp.solver, fp.target, plantRest, rest);
+      // Per-window rotated clamp frame for a CURVED heading; the shared
+      // (constant-heading) plantRest otherwise. The ORIGINAL rest always
+      // names the knee hinge axis (solveFootPlant's hingeAxisRest).
+      solveFootPlant(fp.solver, fp.target, fp.rest ?? plantRest, rest);
       anyPlant = true;
     }
     if (anyPlant || groundReachSolved) {
