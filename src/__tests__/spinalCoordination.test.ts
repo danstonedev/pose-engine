@@ -32,8 +32,12 @@ import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
 const SPINE_MOTIONS = new Set(['rotation', 'lateralTilt']);
-const isSpineAdd = (joint: string, motion: string) =>
-  (joint === 'Spine_Upper' || joint === 'Spine_Lower' || joint === 'Neck') && SPINE_MOTIONS.has(motion);
+/** A joint/motion the gait coordinator is allowed to author: spine/neck rotation +
+ *  lateral tilt (thorax counter-rotation, lean, gaze), and the hip counter-rotation that
+ *  holds the feet forward as the pelvis (root) rotates. */
+const isCoordinationAdd = (joint: string, motion: string) =>
+  ((joint === 'Spine_Upper' || joint === 'Spine_Lower' || joint === 'Neck') && SPINE_MOTIONS.has(motion)) ||
+  ((joint === 'L_UpLeg' || joint === 'R_UpLeg') && motion === 'hipRotation');
 
 const walkComposed = () =>
   templateToComposedMotion(MOVEMENT_TEMPLATES.find((t) => t.id === 'walk')!);
@@ -47,12 +51,12 @@ const thoracicSwing = (m: ReturnType<typeof buildRun>): number => {
 };
 
 describe('spinalGaitCoordination — trunk counter-rotation authoring', () => {
-  it('is identity when both gains are 0 (clean/opt-out)', () => {
+  it('is identity when the gains are 0 (clean/opt-out)', () => {
     const base = walkComposed();
-    expect(spinalGaitCoordination(base, { axial: 0, lateral: 0 })).toBe(base);
+    expect(spinalGaitCoordination(base, { axial: 0, lateral: 0, pelvis: 0 })).toBe(base);
   });
 
-  it('ADDS only spine/neck rotation+lateralTilt — every leg/arm driver is byte-identical', () => {
+  it('ADDS only coordination targets — every arm/sagittal-leg driver is byte-identical', () => {
     const base = walkComposed();
     const out = spinalGaitCoordination(base);
     expect(out.keyframes.length).toBe(base.keyframes.length);
@@ -63,16 +67,16 @@ describe('spinalGaitCoordination — trunk counter-rotation authoring', () => {
       for (const b of before) {
         const match = after.find((t) => t.joint === b.joint && t.motion === b.motion);
         expect(match, `${b.joint}.${b.motion} preserved`).toBeDefined();
-        // A pre-existing spine lateralTilt/rotation may be added onto; everything
-        // else (legs, arms, sagittal spine flexion) must be untouched.
-        if (!isSpineAdd(b.joint, b.motion)) {
+        // A pre-existing spine lateralTilt/rotation may be added onto; everything the
+        // coordinator doesn't own (the sagittal leg drive, arm swing) must be untouched.
+        if (!isCoordinationAdd(b.joint, b.motion)) {
           expect(match!.targetDegrees, `${b.joint}.${b.motion} unchanged`).toBe(b.targetDegrees);
         }
       }
-      // …and every NEW target is a spine/neck rotation or lateralTilt.
+      // …and every NEW target is a coordination add (spine/neck rotation·tilt or hip counter).
       for (const a of after) {
         const wasThere = before.some((t) => t.joint === a.joint && t.motion === a.motion);
-        if (!wasThere) expect(isSpineAdd(a.joint, a.motion), `${a.joint}.${a.motion} is a spine add`).toBe(true);
+        if (!wasThere) expect(isCoordinationAdd(a.joint, a.motion), `${a.joint}.${a.motion} is a coordination add`).toBe(true);
       }
     }
   });
@@ -161,36 +165,46 @@ describe('spinalGaitCoordination — measured on the rig', () => {
     expect(hipRange, 'the legs are still driving the stride').toBeGreaterThan(30);
   });
 
-  it('GAZE STAYS FORWARD: the head is world-stabilized while the thorax counter-rotates', () => {
-    const yaw = (b: THREE.Bone): number => {
-      const q = new THREE.Quaternion();
-      b.getWorldQuaternion(q);
-      return (new THREE.Euler().setFromQuaternion(q, 'YXZ').y * 180) / Math.PI;
+  it('PELVIS rotates and counter-rotates the thorax, while the GAZE stays forward', () => {
+    // Measure WORLD orientation: apply the per-frame ROOT yaw (the pelvic rotation) to the
+    // scene root, then the pose. Yaw of each segment's forward (+Z) vector (no Euler gimbal).
+    const fwdYaw = (b: THREE.Bone): number => {
+      const q = new THREE.Quaternion(); b.getWorldQuaternion(q);
+      const v = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+      return (Math.atan2(v.x, v.z) * 180) / Math.PI;
     };
     for (const motion of [buildTravelWalk(), buildRun()]) {
       const rec = sampleComposedMotion(resolveComposedMotion(motion, variantCfg), {
         baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 30,
       });
       const bones = buildBoneByPoseKey(skinned.skeleton, variantCfg);
-      const head = bones.get('Head')!, thorax = bones.get('Spine_Upper')!;
-      let hMin = Infinity, hMax = -Infinity, tMin = Infinity, tMax = -Infinity;
+      const head = bones.get('Head')!, thorax = bones.get('Spine_Upper')!, pelvis = bones.get('Hips')!;
+      let hMin = Infinity, hMax = -Infinity, pMin = Infinity, pMax = -Infinity, tMin = Infinity, tMax = -Infinity;
+      const pelSeries: number[] = [], thoSeries: number[] = [];
       for (const f of rec.frames) {
+        const rq = f.root.orientQuat; root.quaternion.set(rq[0], rq[1], rq[2], rq[3]);
         applyCustomPose(skinned.skeleton, variantCfg, f.pose);
         root.updateMatrixWorld(true);
-        const hy = yaw(head), ty = yaw(thorax);
+        const hy = fwdYaw(head), py = fwdYaw(pelvis), ty = fwdYaw(thorax);
         hMin = Math.min(hMin, hy); hMax = Math.max(hMax, hy);
+        pMin = Math.min(pMin, py); pMax = Math.max(pMax, py);
         tMin = Math.min(tMin, ty); tMax = Math.max(tMax, ty);
+        pelSeries.push(py); thoSeries.push(ty);
       }
-      const headSwing = hMax - hMin, thoraxSwing = tMax - tMin;
+      const headSwing = hMax - hMin, pelvisSwing = pMax - pMin, thoraxSwing = tMax - tMin;
+      // Pelvis vs thorax counter-rotation: negative covariance = opposite phase (the real
+      // transverse engine of gait — the shoulder girdle winds against the pelvis).
+      const mean = (a: number[]) => a.reduce((s, x) => s + x, 0) / a.length;
+      const mp = mean(pelSeries), mt = mean(thoSeries);
+      let cov = 0; for (let i = 0; i < pelSeries.length; i += 1) cov += (pelSeries[i]! - mp) * (thoSeries[i]! - mt);
       // eslint-disable-next-line no-console
-      console.log(`${motion.name}: HEAD yaw swing ${headSwing.toFixed(1)}° vs THORAX ${thoraxSwing.toFixed(1)}°`);
-      // The thorax visibly counter-rotates, but the head/gaze stays forward — the neck
-      // counters the inherited trunk rotation (vestibulo-ocular stabilization). Regression
-      // guard: before the fix the neck counter overflowed MAX_TARGETS and the head rode
-      // the thorax 1:1 (~17-21° swing).
-      expect(thoraxSwing, 'the thorax does counter-rotate').toBeGreaterThan(12);
-      expect(headSwing, 'the head stays looking forward').toBeLessThan(7);
-      expect(headSwing).toBeLessThan(thoraxSwing * 0.4);
+      console.log(`${motion.name}: PELVIS yaw ${pelvisSwing.toFixed(1)}° · THORAX ${thoraxSwing.toFixed(1)}° · HEAD ${headSwing.toFixed(1)}° · phase ${cov < 0 ? 'OPPOSITE' : 'same'}`);
+      expect(pelvisSwing, 'the pelvis visibly rotates (the determinant of gait)').toBeGreaterThan(3.5);
+      expect(thoraxSwing, 'the thorax rotates too (shoulder girdle)').toBeGreaterThan(7);
+      expect(cov, 'the pelvis and thorax COUNTER-rotate').toBeLessThan(0);
+      // The whole trunk turns beneath it, but the head/gaze holds forward — the neck now
+      // cancels the pelvic root yaw as well as the spine rotation (vestibulo-ocular).
+      expect(headSwing, 'the gaze stays forward despite the pelvic rotation').toBeLessThan(6);
     }
   });
 
