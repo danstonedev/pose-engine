@@ -550,6 +550,9 @@
         NO_VERTICAL_CALIBRATION,
         deriveFootDrivenTravel,
         deriveGaitLateralShuttle,
+        deriveWeightedDescent,
+        applyWeightedDescent,
+        weightedDescentApplies,
         FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant, buildHandPlant, solveHandReach } =
@@ -1539,6 +1542,56 @@
         }, traj.totalMs, shuttleCm / 100, stanceWindows);
       }
 
+      /** GRAVITY-SHAPED GROUNDED DESCENT for the ACTIVE composed motion — the
+       *  per-span root-Y re-timing of a flagged weighted lower (sit-down /
+       *  get-down), mirroring the offline sampler via the SAME shared
+       *  derivation (services/rootMotion). Null — the strict identity — unless
+       *  the motion opts in AND clears the exclusion gate. */
+      let composedDescent: ReturnType<typeof deriveWeightedDescent> = null;
+
+      /** Pre-pass the starting motion's trajectory through the SAME grounding
+       *  applyTrajectoryRoot uses (posture pin / foot-root / floor-pin) and
+       *  derive the gravity-descent reshape. Must run AFTER composedUseFootRoot
+       *  is set for the motion (its grounding branch is part of the arc).
+       *  Resets to null otherwise. Poses the rig transiently. */
+      function setComposedWeightedDescent(traj: PoseTrajectory, applies: boolean): void {
+        composedDescent = null;
+        if (!applies || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
+        composedDescent = deriveWeightedDescent((tMs) => {
+          const s = traj.sampleAt(tMs);
+          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
+          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
+          modelRoot!.position.set(
+            rootRestPos.x + s.rootTranslate[0],
+            rootRestPos.y + s.rootTranslate[1],
+            rootRestPos.z + s.rootTranslate[2],
+          );
+          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
+          modelRoot!.scale.copy(rootRestScale);
+          modelRoot!.updateMatrixWorld(true);
+          if (s.planted && s.groundingPosture) {
+            pinContactsToFloor(
+              modelRoot!,
+              skinnedRef!.skeleton,
+              variantCfgRef!,
+              groundingContactsFor(s.groundingPosture, floorRef!),
+            );
+          } else if (
+            s.planted &&
+            composedUseFootRoot &&
+            footFrames &&
+            (stanceFootDrift(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, footFrames) ?? 0) >
+              FOOT_ROOT_DRIFT_M
+          ) {
+            plantStanceFoot(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, footFrames);
+          } else if (s.planted) {
+            pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+          }
+          return modelRoot!.position.y;
+        }, traj.totalMs);
+      }
+
       /** Rebuild the foot-plant contexts for a starting composed motion. */
       function setComposedContacts(
         contacts: { foot: string; fromMs?: number; toMs?: number }[] | undefined,
@@ -1664,6 +1717,18 @@
           if (composedVcal.gain !== 1 || composedVcal.smoothed) {
             const u01 = composedVcalCycleMs > 0 ? tMs / composedVcalCycleMs : 0;
             modelRoot.position.y = applyVerticalCalibration(modelRoot.position.y, composedVcal, u01);
+            modelRoot.updateMatrixWorld(true);
+          }
+        }
+        // Gravity-shaped descent (weighted lowers): inside a derived descent
+        // span, re-time the grounded root-Y toward the gravity profile, clamped
+        // to the live pin's hover/dip band — root-Y only, mirroring the offline
+        // sampler at the same pipeline point. Identity (null) unless the active
+        // motion opted in via `weightedDescent` and cleared the exclusions.
+        if (planted && composedDescent) {
+          const yShaped = applyWeightedDescent(modelRoot.position.y, composedDescent, tMs);
+          if (yShaped !== modelRoot.position.y) {
+            modelRoot.position.y = yShaped;
             modelRoot.updateMatrixWorld(true);
           }
         }
@@ -2148,6 +2213,12 @@
           !(resolved.contacts?.length ?? 0) &&
           composedHasPlanted &&
           !!footFrames;
+        // GRAVITY-SHAPED GROUNDED DESCENT: derive the root-Y descent re-timing
+        // for a flagged weighted lower from the same one-shot trajectory the
+        // stage plays — AFTER composedUseFootRoot so the pre-pass grounds each
+        // sample exactly as playback will (sampler lockstep). Identity (null)
+        // for every unflagged/excluded motion.
+        setComposedWeightedDescent(trajectory, weightedDescentApplies(effectiveResolved));
 
         // Per-keyframe settle: MEASURE what the patient actually did (off the exact
         // settle pose the player applies for us, frame-timing-independent). Reads

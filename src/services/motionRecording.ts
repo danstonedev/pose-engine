@@ -52,11 +52,13 @@ import {
 } from './motionSequence';
 import {
   applyVerticalCalibration,
+  applyWeightedDescent,
   captureFloorReference,
   captureFootFrames,
   deriveFootDrivenTravel,
   deriveGaitLateralShuttle,
   deriveVerticalCalibration,
+  deriveWeightedDescent,
   FOOT_ROOT_DRIFT_M,
   NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
@@ -65,9 +67,11 @@ import {
   plantStanceFoot,
   rotateRestReferenceByRoot,
   stanceFootDrift,
+  weightedDescentApplies,
   type FootDrivenTravel,
   type LateralShuttle,
   type VerticalCalibration,
+  type WeightedDescentReshape,
 } from './rootMotion';
 import { balanceCoordination } from './balanceCoordination';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
@@ -577,6 +581,50 @@ export function sampleComposedMotion(
     activeContacts.length === 0 &&
     built.roots.some((r) => r.stance === 'planted');
 
+  // GRAVITY-SHAPED GROUNDED DESCENT (weighted lowers — roadmap 3.3): for a
+  // motion flagged `weightedDescent` (and admitted by the hard exclusion gate),
+  // a PRE-PASS samples the fully-grounded root-Y arc of this trajectory — the
+  // SAME posture-pin / foot-root / floor-pin grounding sampleAt applies — and
+  // derives a per-span re-timing toward the gravity profile (slow early, fast
+  // late, arrested by the grounding; services/rootMotion). Applied per frame in
+  // sampleAt, mirrored by the live stage at the same pipeline point (the
+  // vertical-calibration lockstep pattern). Null — the strict identity — for
+  // every unflagged/excluded motion, so they stay byte-identical. The flagged
+  // class excludes vcal, so the calibrated-vertical branch never overlaps.
+  let weightedDescent: WeightedDescentReshape | null = null;
+  if (!useLoopCycle && !opts.contacts?.length && weightedDescentApplies(resolved)) {
+    weightedDescent = deriveWeightedDescent((tMs) => {
+      const s = trajectory.sampleAt(tMs);
+      applyCustomPose(skinned.skeleton, variantCfg, s.pose);
+      _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+      root.quaternion.copy(rootRestQuat).multiply(_sq);
+      root.position.set(
+        rootRestPos.x + s.rootTranslate[0],
+        rootRestPos.y + s.rootTranslate[1],
+        rootRestPos.z + s.rootTranslate[2],
+      );
+      root.scale.copy(rootRestScale);
+      root.updateMatrixWorld(true);
+      if (s.planted && s.groundingPosture) {
+        pinContactsToFloor(
+          root,
+          skinned.skeleton,
+          variantCfg,
+          groundingContactsFor(s.groundingPosture, floorRef),
+        );
+      } else if (
+        useFootRoot &&
+        s.planted &&
+        (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M
+      ) {
+        plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames);
+      } else if (s.planted) {
+        pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+      }
+      return root.position.y;
+    }, totalMs);
+  }
+
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
     const sample = trajectory.sampleAt(tMs);
@@ -638,6 +686,17 @@ export function sampleComposedMotion(
       if (vcal.gain !== 1 || vcal.smoothed) {
         const u01 = totalMs > 0 ? tMs / totalMs : 0;
         root.position.y = applyVerticalCalibration(root.position.y, vcal, u01);
+        root.updateMatrixWorld(true);
+      }
+    }
+    // Gravity-shaped descent (weighted lowers): inside a derived descent span,
+    // re-time the grounded root-Y toward the gravity profile — clamped to the
+    // live pin's hover/dip band. Root-Y ONLY (joints untouched); identity for
+    // every frame outside a span and for every unflagged/excluded motion.
+    if (weightedDescent && sample.planted) {
+      const yShaped = applyWeightedDescent(root.position.y, weightedDescent, tMs);
+      if (yShaped !== root.position.y) {
+        root.position.y = yShaped;
         root.updateMatrixWorld(true);
       }
     }

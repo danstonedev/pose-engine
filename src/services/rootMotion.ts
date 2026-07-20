@@ -830,3 +830,251 @@ export function deriveGaitLateralShuttle(
     },
   };
 }
+
+// ── Gravity-shaped grounded descents (weighted lowers — roadmap 3.3) ─────────
+//
+// The audit's "grounded weight" finding: a grounded descent (sit-down, floor
+// get-down) EASES SYMMETRICALLY into its bottom — peak descent speed mid-span,
+// braking into the stop — a hydraulic lower, not bodyweight caught. Gravity
+// exists only when airborne (the ballistic flight parabola in motionTrajectory).
+// This section is the opt-in, root-Y-only fix: within each monotone-DESCENDING
+// span of the grounded (floor-pinned) root-Y arc, replace the vertical TIMING
+// with a gravity-consistent profile — slow early, fast late, arrested at the
+// bottom by the existing grounding (the floor/seat pin is the catch; the
+// templates already author a small knee-yield there).
+//
+// PROFILE. Per span the target is  min(parabola, envelope), floored at the pin:
+//   • `parabola` — the quarter-parabola of a body released from rest over the
+//     span's drop/duration, capped at a physiologic terminal speed (a real
+//     lower plateaus near ~1 m/s; it never free-falls): the gravity IDEAL.
+//   • `envelope` — the least concave majorant (upper concave hull) of the
+//     measured pin arc: the closest curve to the AUTHORED descent whose speed
+//     never decreases. It rides the pin wherever the pin already accelerates
+//     and bridges every mid-span brake — above all, the terminal ease-out —
+//     with a constant-speed chord, so the descent arrives at the bottom AT
+//     speed instead of braking before it.
+// Both curves are concave (descending, non-decreasing speed) and share the
+// span's endpoints, so their pointwise min is too — descent speed is monotone
+// non-decreasing until the catch — and the reshape is exactly the pin at the
+// span boundaries (C0 with the untouched frames around it).
+//
+// KINEMATIC CHARTER + LOCKSTEP. Root-Y ONLY: joint angles, knot times, and the
+// horizontal root path are untouched, so goniometry and every settle
+// measurement are byte-identical. Derived in a deterministic PRE-PASS over the
+// built trajectory (the vertical-calibration pattern: sampler + stage run the
+// SAME derivation on the same grounded arc and apply it per frame in lockstep)
+// and applied through per-frame clamps against the live pin (hover/dip bounds
+// below), so the feet never visibly leave — or clip — the floor.
+
+/** Minimum net drop (m) a monotone-descending root-Y span needs to qualify as
+ *  a weighted lower. Sub-10 cm bobs (breath-scale, small transfers) keep their
+ *  authored timing. */
+export const WEIGHTED_DESCENT_MIN_DROP_M = 0.1;
+/** Minimum span duration (ms): a shorter "descent" is a grounding-switch
+ *  artifact or a single-sample step, not a lower to reshape. */
+export const WEIGHTED_DESCENT_MIN_SPAN_MS = 250;
+/** Physiologic terminal descent speed (m/s) the quarter-parabola is capped at:
+ *  a controlled bodyweight lower accelerates, then plateaus — it never
+ *  free-falls (sit-down pelvis peaks ~0.5-0.9 m/s in life; 1.2 leaves room for
+ *  a genuine drop while staying far under free-fall). */
+export const WEIGHTED_DESCENT_TERMINAL_SPEED_MS = 1.2;
+/** Per-sample slope (m/s) above which the sampled arc is a grounding-switch
+ *  DISCONTINUITY (e.g. the quadruped feet→knee pin swap re-roots the body tens
+ *  of cm in one step) — a span never extends across one. */
+const WEIGHTED_DESCENT_DISCONTINUITY_MS = 2.0;
+/** Apply-time bound (m) the reshaped root-Y may HOVER above the live pin. The
+ *  reshape holds the body high while the joints keep folding, which lifts the
+ *  pinned feet off the floor by the same amount — bounded to shoe-sole height
+ *  (same order as the gait smoothing's GAIT_VERTICAL_MAX_RISE_M). */
+export const WEIGHTED_DESCENT_MAX_HOVER_M = 0.03;
+/** Apply-time bound (m) the reshaped root-Y may DIP below the live pin (the
+ *  final catch may run slightly ahead of a terminal grounding switch — e.g.
+ *  the sit-down's feet→seat pin step — matching the ~2 cm settle tolerance the
+ *  seated grounding already carries). */
+export const WEIGHTED_DESCENT_MAX_DIP_M = 0.02;
+/** Leading/trailing flat trim (m): a span starts/ends where the arc has
+ *  actually moved this far, so holds on either side stay untouched. */
+const WEIGHTED_DESCENT_TRIM_M = 1e-3;
+
+/** One reshaped descent span: a uniform-in-time target root-Y table. */
+export interface WeightedDescentSpan {
+  fromMs: number;
+  toMs: number;
+  /** Target root-Y per uniform sample over [fromMs, toMs] (≥2 entries). */
+  y: number[];
+}
+
+/** A derived gravity-descent reshape: identity outside its spans. */
+export interface WeightedDescentReshape {
+  totalMs: number;
+  spans: WeightedDescentSpan[];
+}
+
+/** Least concave majorant of uniformly-spaced samples: the UPPER convex hull
+ *  of (i, y[i]), evaluated back at every i. Rides the curve wherever it is
+ *  already concave (accelerating descent) and bridges every local brake with a
+ *  straight (constant-speed) chord. */
+function upperConcaveEnvelope(ys: number[]): number[] {
+  const n = ys.length;
+  if (n <= 2) return [...ys];
+  const hull: number[] = [];
+  for (let i = 0; i < n; i += 1) {
+    while (hull.length >= 2) {
+      const a = hull[hull.length - 2]!;
+      const b = hull[hull.length - 1]!;
+      // Pop b while a→b→i is a left turn or straight (b on/under the chord a→i).
+      const cross = (b - a) * (ys[i]! - ys[a]!) - (ys[b]! - ys[a]!) * (i - a);
+      if (cross >= 0) hull.pop();
+      else break;
+    }
+    hull.push(i);
+  }
+  const out = new Array<number>(n);
+  for (let h = 0; h + 1 < hull.length; h += 1) {
+    const a = hull[h]!;
+    const b = hull[h + 1]!;
+    for (let i = a; i <= b; i += 1) {
+      out[i] = ys[a]! + ((ys[b]! - ys[a]!) * (i - a)) / Math.max(1, b - a);
+    }
+  }
+  return out;
+}
+
+/** Cumulative drop (m) at time τ (s) into a quarter-parabola release over
+ *  span duration T (s) and total drop D (m), capped at terminal speed vT:
+ *  pure ½at² when its end speed 2D/T stays under vT; else a constant-
+ *  acceleration ramp to vT followed by terminal-speed descent (both cover D
+ *  exactly). When even the AVERAGE speed exceeds vT the authored timing wins
+ *  (pure parabola — the cap cannot be honoured without moving knot times). */
+function gravityDropAt(tau: number, T: number, D: number, vT: number): number {
+  const u = Math.min(1, Math.max(0, tau / T));
+  if (2 * D <= vT * T || D >= vT * T) return D * u * u;
+  const t1 = (2 * (vT * T - D)) / vT; // ramp duration; 0 < t1 < T here
+  const a = vT / t1;
+  return tau <= t1 ? 0.5 * a * tau * tau : 0.5 * vT * t1 + vT * (tau - t1);
+}
+
+/**
+ * Derive the gravity-descent reshape from the emergent grounded root-Y arc.
+ * `groundedRootYAt(tMs)` must return the FULLY-GROUNDED model-root Y at
+ * absolute time tMs — the caller poses the rig and applies the same grounding
+ * (posture pin / foot-root / floor-pin) its playback uses, exactly like the
+ * vertical-calibration and foot-driven-travel pre-passes. Samples `steps`
+ * uniform points, finds each monotone-descending span (net drop ≥
+ * {@link WEIGHTED_DESCENT_MIN_DROP_M}, duration ≥
+ * {@link WEIGHTED_DESCENT_MIN_SPAN_MS}, never across a grounding-switch
+ * discontinuity), and builds the min(parabola, envelope) target table per span
+ * (floored at the sampled pin, so the reshape only ever RE-TIMES the descent
+ * upward/later — it never digs below the grounded arc at derive time).
+ * Returns null when nothing qualifies (the identity — unflagged-equivalent).
+ * Deterministic: same arc → same reshape.
+ */
+export function deriveWeightedDescent(
+  groundedRootYAt: (tMs: number) => number,
+  totalMs: number,
+  steps = 128,
+): WeightedDescentReshape | null {
+  if (!(totalMs > 0)) return null;
+  const n = Math.max(8, Math.floor(steps)) + 1;
+  const dt = totalMs / (n - 1);
+  const ys = new Array<number>(n);
+  for (let i = 0; i < n; i += 1) ys[i] = groundedRootYAt(i * dt);
+
+  const spans: WeightedDescentSpan[] = [];
+  const maxStepDrop = (WEIGHTED_DESCENT_DISCONTINUITY_MS * dt) / 1000;
+  let i = 0;
+  while (i < n - 1) {
+    // Maximal non-rising run from i, stopping at any grounding-switch step.
+    let j = i;
+    while (
+      j < n - 1 &&
+      ys[j + 1]! <= ys[j]! + 1e-4 &&
+      ys[j]! - ys[j + 1]! <= maxStepDrop
+    ) {
+      j += 1;
+    }
+    if (j === i) {
+      i += 1;
+      continue;
+    }
+    // Trim leading/trailing flats so holds around the drop stay untouched.
+    let s = i;
+    while (s < j && ys[i]! - ys[s + 1]! < WEIGHTED_DESCENT_TRIM_M) s += 1;
+    let e = j;
+    while (e > s && ys[e - 1]! - ys[j]! < WEIGHTED_DESCENT_TRIM_M) e -= 1;
+    const D = ys[s]! - ys[e]!;
+    const spanMs = (e - s) * dt;
+    if (D >= WEIGHTED_DESCENT_MIN_DROP_M && spanMs >= WEIGHTED_DESCENT_MIN_SPAN_MS) {
+      const pin = ys.slice(s, e + 1);
+      const env = upperConcaveEnvelope(pin);
+      const T = spanMs / 1000;
+      const y = pin.map((pinY, k) => {
+        const par = pin[0]! - gravityDropAt((k * dt) / 1000, T, D, WEIGHTED_DESCENT_TERMINAL_SPEED_MS);
+        return Math.max(Math.min(par, env[k]!), pinY);
+      });
+      spans.push({ fromMs: s * dt, toMs: e * dt, y });
+    }
+    i = j + 1;
+  }
+  return spans.length ? { totalMs, spans } : null;
+}
+
+/**
+ * Apply a derived gravity-descent reshape to the grounded root-Y at time tMs:
+ * inside a span, the lerped target table clamped to the live pin's
+ * hover/dip band ({@link WEIGHTED_DESCENT_MAX_HOVER_M} /
+ * {@link WEIGHTED_DESCENT_MAX_DIP_M}); outside every span — and for a null
+ * reshape — exactly `y` (identity, so unflagged playback is byte-identical).
+ */
+export function applyWeightedDescent(
+  y: number,
+  reshape: WeightedDescentReshape | null | undefined,
+  tMs: number,
+): number {
+  if (!reshape) return y;
+  for (const span of reshape.spans) {
+    if (tMs < span.fromMs || tMs > span.toMs) continue;
+    const m = span.y.length - 1;
+    if (m < 1) return y;
+    const x = ((tMs - span.fromMs) / (span.toMs - span.fromMs)) * m;
+    const k = Math.min(m - 1, Math.floor(x));
+    const f = x - k;
+    const target = span.y[k]! * (1 - f) + span.y[k + 1]! * f;
+    return Math.min(Math.max(target, y - WEIGHTED_DESCENT_MAX_DIP_M), y + WEIGHTED_DESCENT_MAX_HOVER_M);
+  }
+  return y;
+}
+
+/** The RESOLVED-motion fields the weighted-descent gate reads (structural — a
+ *  subset of motionSequence's ResolvedComposedMotion, kept structural so this
+ *  root-space module never imports the sequence layer). */
+export interface WeightedDescentMotionLike {
+  status: string;
+  weightedDescent?: boolean;
+  loop?: boolean;
+  footDrivenTravel?: boolean;
+  verticalCalibrationCm?: number;
+  contacts?: unknown[];
+  keyframes: { stance?: string }[];
+}
+
+/**
+ * Whether the gravity-descent reshape applies to a resolved motion: it must
+ * OPT IN (`weightedDescent`) and be a grounded one-shot the quasi-static
+ * descent model is valid for. HARD EXCLUSIONS even when flagged — airborne
+ * motions (any floating keyframe: the ballistic flight parabola owns their
+ * vertical), gait/travel and loops (the calibrated + smoothed cyclic vertical
+ * is deliberate), calibrated verticals (`verticalCalibrationCm` owns root-Y),
+ * declared IK contacts (the plant solver owns the legs), and motions with
+ * nothing planted (no grounded arc to reshape). Exported so tests (and hosts)
+ * can assert the exclusions without running the derivation.
+ */
+export function weightedDescentApplies(resolved: WeightedDescentMotionLike): boolean {
+  if (resolved.status !== 'ok' || resolved.weightedDescent !== true) return false;
+  if (resolved.keyframes.length === 0) return false;
+  if (resolved.loop === true || resolved.footDrivenTravel === true) return false;
+  if (resolved.verticalCalibrationCm != null) return false;
+  if (resolved.contacts?.length) return false;
+  if (resolved.keyframes.some((kf) => kf.stance === 'floating')) return false;
+  return resolved.keyframes.some((kf) => kf.stance === 'planted');
+}
