@@ -154,17 +154,10 @@ const HAND_RELATCH_M = 0.08;
 
 const _reachLive = new THREE.Vector3();
 const _reachTarget = new THREE.Vector3();
+const _reachSolved = new THREE.Quaternion();
 
-/**
- * FLOOR REACH with latch-on-contact — the hand analog of a stance plant for a
- * secondary (non-height-setting) contact. While the hand is still above the floor
- * (the body descending into a plank), it is pulled straight DOWN toward the floor
- * plane below its live position; the instant it reaches the floor it FREEZES that
- * point, so from then on it stays planted while the body lowers over it and the arm
- * folds — which is exactly the push-up. Mutates `state.target`; call each frame the
- * hand is a reach contact, and reset `state.target = null` when it releases.
- */
-export function solveHandReach(
+/** The full (weight-1) reach solve — see {@link solveHandReach}. */
+function solveHandReachFull(
   solver: FootPlantSolver,
   state: HandReachState,
   floorY: number,
@@ -190,6 +183,47 @@ export function solveHandReach(
   if (_reachLive.y <= floorY + HAND_LATCH_M) {
     state.target = new THREE.Vector3(_reachLive.x, floorY, _reachLive.z);
   }
+}
+
+/**
+ * FLOOR REACH with latch-on-contact — the hand analog of a stance plant for a
+ * secondary (non-height-setting) contact. While the hand is still above the floor
+ * (the body descending into a plank), it is pulled straight DOWN toward the floor
+ * plane below its live position; the instant it reaches the floor it FREEZES that
+ * point, so from then on it stays planted while the body lowers over it and the arm
+ * folds — which is exactly the push-up. Mutates `state.target`; call each frame the
+ * hand is a reach contact, and reset `state.target = null` when it releases.
+ *
+ * `weight` (0..1, default 1) is the SEAM-4 engagement ramp: at 1 the solve is the
+ * legacy full-correction path, byte-identical; below 1 the solved chain is blended
+ * back toward the pre-solve FK arm (per-bone local slerp), so a newly-engaged
+ * reach folds in over the caller's ramp instead of snapping the arm to the floor
+ * on its first frame. Latch/self-heal decisions read the FULL solve (where the
+ * hand CAN reach), so the latched point is weight-independent.
+ */
+export function solveHandReach(
+  solver: FootPlantSolver,
+  state: HandReachState,
+  floorY: number,
+  rest: JointAngleRestReference | null | undefined,
+  weight = 1,
+): void {
+  const w = Math.min(1, Math.max(0, weight));
+  if (w >= 1) {
+    solveHandReachFull(solver, state, floorY, rest);
+    return;
+  }
+  if (w <= 0) return; // not engaged yet — pure FK arm this frame
+  const bones = solver.ctx.bones;
+  const pre = bones.map((b) => b.quaternion.clone());
+  solveHandReachFull(solver, state, floorY, rest);
+  for (let i = 0; i < bones.length; i += 1) {
+    const b = bones[i]!;
+    _reachSolved.copy(b.quaternion);
+    b.quaternion.copy(pre[i]!).slerp(_reachSolved, w);
+  }
+  // Refresh the chain's world matrices from the top-most solved bone down.
+  bones[bones.length - 1]!.updateWorldMatrix(true, true);
 }
 
 // ── slide measurement ────────────────────────────────────────────────────────

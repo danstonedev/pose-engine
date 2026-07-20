@@ -51,16 +51,20 @@ import {
   type ResolvedComposedMotion,
 } from './motionSequence';
 import {
+  applyBlendedGroundingY,
   applyVerticalCalibration,
   applyWeightedDescent,
   captureFloorReference,
   captureFootFrames,
   deriveFootDrivenTravel,
   deriveGaitLateralShuttle,
+  deriveGroundingBlendSpans,
   deriveHeelStrikeAccents,
   deriveVerticalCalibration,
   deriveWeightedDescent,
   FOOT_ROOT_DRIFT_M,
+  groundingBlendAt,
+  handReachWeightAt,
   headingProfileLookup,
   heelStrikeOffsetAt,
   NO_VERTICAL_CALIBRATION,
@@ -508,6 +512,29 @@ export function sampleComposedMotion(
   const dtMs = 1000 / hz;
   const boneByKey = buildBoneByPoseKey(skinned.skeleton, variantCfg);
 
+  // GROUNDING-SWITCH ROOT-Y CROSSFADE (SEAM-4/SEAM-5): the trajectory's
+  // grounding switches (posture pin swaps) become eased override spans — the
+  // named posture's pin owns exactly its authored span and each handoff blends
+  // over ~200 ms instead of stepping (measured 53 cm/frame on the quadruped
+  // get-down, 9.94 cm on stand-from-sit). Derived by the SAME shared helper the
+  // live stage uses; empty (all motions without posture changes) is the strict
+  // byte-identical identity. The hand-reach engagement ramp reads the raw
+  // switches directly.
+  const groundingSwitches = trajectory.groundingSwitches ?? [];
+  const groundingBlendSpans = deriveGroundingBlendSpans(groundingSwitches, totalMs);
+  /** Apply ONE grounding's vertical pin from the current (pre-pin) root state —
+   *  the closure {@link applyBlendedGroundingY} evaluates both sides of a
+   *  crossfade with. Foot-rooting never co-occurs (a motion with grounding
+   *  postures is excluded from `useFootRoot`), so the pin set is exactly the
+   *  posture pin / feet pin / none-when-floating. */
+  const applyGroundingPin = (posture: string | undefined, planted: boolean): void => {
+    if (planted && posture) {
+      pinContactsToFloor(root, skinned.skeleton, variantCfg, groundingContactsFor(posture, floorRef));
+    } else if (planted) {
+      pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+    }
+  };
+
   // CALIBRATED GAIT VERTICAL (mean-preserving reshape). When the motion asks for
   // a target excursion, do a cheap PRE-PASS over one cycle to measure the
   // EMERGENT floor-pinned pelvis arc (the compass-gait vault the pin produces),
@@ -718,7 +745,13 @@ export function sampleComposedMotion(
       );
       root.scale.copy(rootRestScale);
       root.updateMatrixWorld(true);
-      if (s.planted && s.groundingPosture) {
+      // The grounded arc this pre-pass reads must be the arc PLAYBACK grounds
+      // (else the derived spans re-time a step that no longer exists) — so an
+      // active grounding-switch crossfade applies here exactly as in sampleAt.
+      const gBlend = groundingBlendSpans.length ? groundingBlendAt(groundingBlendSpans, tMs) : null;
+      if (gBlend) {
+        applyBlendedGroundingY(root, gBlend, applyGroundingPin);
+      } else if (s.planted && s.groundingPosture) {
         pinContactsToFloor(
           root,
           skinned.skeleton,
@@ -757,32 +790,60 @@ export function sampleComposedMotion(
     root.updateMatrixWorld(true);
     let footRooted = false;
     let groundReachSolved = false;
+    // REACH CONTACTS of the active posture: bring each declared reach bone (a
+    // planted hand) to the floor and LATCH it there, so it stays put as the body
+    // lowers over it (the arm folds — the push-up). Latch-on-contact avoids
+    // freezing a bad point mid-transition; the engagement ramp
+    // ({@link handReachWeightAt}, SEAM-4) folds a newly-engaged reach in over
+    // ~150 ms instead of snapping the arm to the floor on its first frame.
+    const solveReachContacts = (posture: string): void => {
+      if (!handPlants.length) return;
+      const reach = new Set(
+        groundingContactsFor(posture, floorRef)
+          .filter((c) => c.mode === 'reach')
+          .map((c) => c.bone),
+      );
+      for (const hp of handPlants) {
+        if (!reach.has(hp.bone)) {
+          hp.target = null; // this posture doesn't plant this hand — release it
+          continue;
+        }
+        solveHandReach(
+          hp.solver,
+          hp,
+          floorRef.floorY,
+          rest,
+          handReachWeightAt(groundingSwitches, hp.bone, tMs, floorRef),
+        );
+        groundReachSolved = true;
+      }
+      if (groundReachSolved) root.updateMatrixWorld(true);
+    };
+    // GROUNDING-SWITCH CROSSFADE (SEAM-4/SEAM-5): inside an override span the
+    // grounded root-Y is the eased blend of the OUTGOING and INCOMING pin
+    // solutions (shared applier — lockstep with the live stage); outside every
+    // span the legacy branches below run untouched. The reach set still follows
+    // the sample's own grounding state (the crossfade overrides root-Y only).
+    const gBlend = groundingBlendSpans.length ? groundingBlendAt(groundingBlendSpans, tMs) : null;
     // Re-root at the stance foot only when the pelvis-rooted FK actually swung it
     // off its planted position (a squat/hinge/sit-to-stand folds the body over the
     // feet — big drift). When the stance foot is already home (a single-leg stance
     // leaves the bearing leg untouched — ~0 drift), the vertical pin is enough and
     // a re-root would only perturb the measurement frame, so fall through to it.
-    if (sample.planted && sample.groundingPosture) {
+    if (gBlend) {
+      applyBlendedGroundingY(root, gBlend, applyGroundingPin);
+      if (sample.planted && sample.groundingPosture) solveReachContacts(sample.groundingPosture);
+    } else if (sample.planted && sample.groundingPosture) {
       // POSTURE-SCOPED GROUNDING: rest on the posture's contact set (the pelvis on a
       // seat for 'sitting', the toes+hands on the floor for a plank) via the
       // explicit-target vertical pin — not the feet.
-      const contacts = groundingContactsFor(sample.groundingPosture, floorRef);
-      pinContactsToFloor(root, skinned.skeleton, variantCfg, contacts);
-      // REACH CONTACTS: bring each declared reach bone (a planted hand) to the floor
-      // and LATCH it there, so it stays put as the body lowers over it (the arm folds
-      // — the push-up). Latch-on-contact avoids freezing a bad point mid-transition.
-      if (handPlants.length) {
-        const reach = new Set(contacts.filter((c) => c.mode === 'reach').map((c) => c.bone));
-        for (const hp of handPlants) {
-          if (!reach.has(hp.bone)) {
-            hp.target = null; // this posture doesn't plant this hand — release it
-            continue;
-          }
-          solveHandReach(hp.solver, hp, floorRef.floorY, rest);
-          groundReachSolved = true;
-        }
-        if (groundReachSolved) root.updateMatrixWorld(true);
-      }
+      pinContactsToFloor(
+        root,
+        skinned.skeleton,
+        variantCfg,
+        groundingContactsFor(sample.groundingPosture, floorRef),
+      );
+      solveReachContacts(sample.groundingPosture);
     } else if (useFootRoot && sample.planted && (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M) {
       // The SAME authored angles now read as the real closed-chain movement — feet
       // planted, pelvis placed by the chain, COM over the base (balance for free).
