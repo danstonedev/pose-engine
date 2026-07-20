@@ -2012,6 +2012,10 @@ const ARM_ADD_MAX = 12; // (not winged OUT — abduction reads as a stiff gunsli
 const ARM_PRO_BASE = 12; // forearm pronation: palm toward the thigh, not a rigid stick
 const ARM_PRO_SWING = 0.12;
 const ARM_PRO_MAX = 28;
+const SCAP_PROT_GAIN = 0.35; // scapular protraction/retraction: the shoulder GIRDLE glides
+const SCAP_PROT_MAX = 10; // fore/aft on the ribcage WITH the arm swing (protract on the
+// forward swing, retract on the backswing) — arm swing isn't purely glenohumeral. Coupled
+// to the same arm's flexion, so the two scapulae counter-phase like a real girdle.
 const HIP_ADD_GAIN = 0.18; // the SWING leg ADducts toward the midline (a narrow base) as it
 const HIP_FLEX_MEAN = 10; // advances — the feet track near the line of progression, NOT
 const HIP_ADD_MAX = 6; // splayed out (abduction, which reads as a wide waddle/circumduction)
@@ -2118,6 +2122,9 @@ export function spinalGaitCoordination(
         additions.push({ joint: `${S}_UpperArm`, motion: 'shoulderAbduction', deg: cap(-(ARM_ADD_BASE + ARM_ADD_SWING * sh), ARM_ADD_MAX) });
         if (has(`${S}_Forearm`, 'elbowFlexion'))
           additions.push({ joint: `${S}_Forearm`, motion: 'forearmRotation', deg: cap(ARM_PRO_BASE + ARM_PRO_SWING * sh, ARM_PRO_MAX) });
+        // Scapular girdle glides fore/aft WITH the arm: protract on the forward swing
+        // (sh > 0), retract on the backswing (sh < 0). + protraction = Pro (romRegistry).
+        additions.push({ joint: `${S}_Shoulder`, motion: 'protraction', deg: cap(SCAP_PROT_GAIN * sh, SCAP_PROT_MAX) });
       }
       // LEG: the SWING leg ADducts toward the midline as it advances (the feet track near
       // the line of progression — a narrow base), NOT abducts (a wide, waddling splay); the
