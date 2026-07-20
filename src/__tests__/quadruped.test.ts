@@ -18,6 +18,7 @@ import { applyAnatomicPose } from '../services/anatomicPose';
 import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
 import { sampleMotionChain } from '../services/movementChain';
+import { measureCommandMotion } from '../services/movementCommand';
 import { planPosturePath } from '../services/posturePlan';
 import { buildGetDownToQuadruped, buildBirdDog, buildStandFromQuadruped } from '../services/movementTemplates';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
@@ -100,6 +101,22 @@ describe('quadruped + bird-dog on the rig', () => {
       expect(y(f, 'L_Hand'), 'the support (left) hand stays planted').toBeLessThan(0.1);
       expect(y(f, 'R_Leg'), 'the support (right) knee stays planted').toBeLessThan(0.08);
     }
+
+    // (3b) WRIST RELEASE (Wave 5, roadmap 5.6): the audit flagged the raised arm
+    // carrying the −45° floor-palm wrist through the whole reach — a hand still
+    // cocked for a floor that isn't there. At the raise the lifted wrist must
+    // read ~NEUTRAL (the hand continues the forearm line) while the SUPPORT
+    // wrist keeps its extended floor palm; back on all fours, the raised wrist
+    // re-extends for the floor.
+    const wrist = (f: (typeof bd.frames)[number], side: 'L' | 'R'): number =>
+      measureCommandMotion({ at: '', variant: 'male', joints: f.angles }, `${side}_Hand`, 'wristFlexion') ?? 0;
+    const topFrame = bd.frames.reduce((a, b) => (y(b, 'R_Hand') > y(a, 'R_Hand') ? b : a));
+    // eslint-disable-next-line no-console
+    console.log(`bird-dog wrists at raise: raised R ${wrist(topFrame, 'R').toFixed(1)}° · support L ${wrist(topFrame, 'L').toFixed(1)}°`);
+    expect(Math.abs(wrist(topFrame, 'R')), 'the raised wrist releases to neutral').toBeLessThan(10);
+    expect(wrist(topFrame, 'L'), 'the support wrist keeps its floor palm').toBeLessThan(-30);
+    expect(wrist(bd.frames[0]!, 'R'), 'the wrist starts extended on the floor').toBeLessThan(-30);
+    expect(wrist(bd.frames.at(-1)!, 'R'), 'the wrist re-extends for the floor on return').toBeLessThan(-30);
 
     // (4) The whole chain flows with no seam teleport and ends standing upright.
     for (let i = 1; i < chain.length; i += 1) {

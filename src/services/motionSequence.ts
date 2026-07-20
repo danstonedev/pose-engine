@@ -1016,7 +1016,8 @@ const RELAXED_ADDED_TARGETS = new WeakSet<SequenceTarget>();
 /**
  * UNIVERSAL RELAXED HANDS. Anatomical-position rest leaves the hands as flat
  * supinated paddles, so every motion that doesn't author the hands — a squat, a
- * reach, a kick, sit-to-stand — performs with splayed rigid fingers. This adds a
+ * reach, a kick — performs with splayed rigid fingers. (Sit-to-stand now authors
+ * its own thigh-push hand targets, so it passes through the gate below.) This adds a
  * RESTING HAND to every keyframe of such motions: a slight wrist flexion plus a
  * graded per-digit curl (thumb least, pinky most — a LOOSE hand, not a fist), for
  * both sides. Kinematic and pure; the added targets resolve on the same truth

@@ -32,6 +32,7 @@
 import * as THREE from 'three';
 import { MIN_KEYFRAME_MS, SPINE_NECK_MAX, SPINE_NECK_LATERAL_MAX } from './motionSequence';
 import type { ComposedMotion, MovementAsymmetry, PostureNode, SemanticTravel, SequenceKeyframe, SequenceTarget, StanceContact, StanceMode } from './motionSequence';
+import { healthySignature } from './healthySignature';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
 export interface TemplateTarget {
@@ -465,7 +466,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Sit-to-stand',
     aliases: ['sit to stand', 'stand up from a chair', 'sit-to-stand', 'rise from sitting', 'get up from the chair'],
     coordination:
-      'The defining feature is the forward trunk/hip lean ("nose over toes") that brings the centre of mass over the feet BEFORE the hips and knees extend to rise — flexion momentum first, then extension [Schenkman 1990: flexion-momentum → momentum-transfer → extension]. The lean is HIP-DRIVEN with a relatively PRESERVED lumbar lordosis (only slight lumbar flexion) — heavy lumbar flexion is a compensatory/faulty pattern, not the healthy norm. Bilateral, planted. (No chair prop; the seated depth is the hip/knee flexion hold.)',
+      'The defining feature is the forward trunk/hip lean ("nose over toes") that brings the centre of mass over the feet BEFORE the hips and knees extend to rise — flexion momentum first, then extension [Schenkman 1990: flexion-momentum → momentum-transfer → extension]. The lean is HIP-DRIVEN with a relatively PRESERVED lumbar lordosis (only slight lumbar flexion) — heavy lumbar flexion is a compensatory/faulty pattern, not the healthy norm. ARM STRATEGY (roadmap 5.6): a natural STS pushes off the thighs — the hands rest on the thighs seated, PRESS into them through the lean (shoulders following the trunk, wrists extending as the trunk pivots over the planted hands), the elbows EXTEND through the push-off as the hips leave the seat, and the arms release to a relaxed hang at upright. The hand targets are AUTHORED here, so the universal relaxedHands transform skips this template (the author owns the hands). Bilateral, planted. (No chair prop; the seated depth is the hip/knee flexion hold.)',
     stance: 'planted',
     phases: [
       {
@@ -479,6 +480,20 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 95 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 12 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 12 },
+          // Hands resting on the thighs: the arm hangs slightly forward and
+          // ADDUCTS ~20° so the hand comes IN over the thigh (the shoulders are
+          // wider than the knees — without the adduction the hand hangs ~25 cm
+          // lateral of the femur line, rig-swept); slight elbow bend, wrist
+          // extended so the palm lies on the thigh. Rig-calibrated: wrist ~9 cm
+          // off the femur AXIS ≈ palm on the thigh surface.
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 10 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 10 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
+          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 18 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 18 },
+          { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: -18 },
+          { joint: 'R_Hand', motion: 'wristFlexion', peakDeg: -18 },
         ],
       },
       {
@@ -493,11 +508,49 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 18 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 12 },
           { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 10 },
+          // Hands PRESS into the thighs as the trunk pivots over them: the
+          // shoulders follow the lean, the elbows BEND to take the load, the
+          // wrists extend a little further. Rig-calibrated ~10 cm off the femur
+          // axis (still riding the thigh).
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 15 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 15 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
+          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 45 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 45 },
+          { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: -24 },
+          { joint: 'R_Hand', motion: 'wristFlexion', peakDeg: -24 },
+        ],
+      },
+      {
+        // The thigh push-off (Schenkman momentum-transfer): the hips leave the
+        // seat and the ELBOWS EXTEND as the hands drive down the thighs.
+        name: 'push-off',
+        durationMs: 350,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 55 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 55 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 55 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 55 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 10 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 10 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 8 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 6 },
+          // The elbows EXTEND (45° → 14°) as the hands drive down the thighs —
+          // the visible push. Rig-calibrated ~10 cm off the femur axis.
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 5 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 5 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
+          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
+          { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: -14 },
+          { joint: 'R_Hand', motion: 'wristFlexion', peakDeg: -14 },
         ],
       },
       {
         name: 'rise-to-stand',
-        durationMs: 800,
+        durationMs: 450,
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
@@ -507,6 +560,16 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
           { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 0 },
+          // Arms RELEASED at upright — a relaxed hang at the sides (slight
+          // elbow bend, adduction released), the hands off the thighs.
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
+          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 8 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 8 },
+          { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: 0 },
+          { joint: 'R_Hand', motion: 'wristFlexion', peakDeg: 0 },
         ],
       },
     ],
@@ -1336,7 +1399,9 @@ export function gaitFootContacts(motion: ComposedMotion): StanceContact[] {
   ];
 }
 
-export function buildTravelWalk(opts: { speed?: number; headingDeg?: number } = {}): ComposedMotion {
+export function buildTravelWalk(
+  opts: { speed?: number; headingDeg?: number; asymmetry?: number | false } = {},
+): ComposedMotion {
   const walk = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk');
   if (!walk) throw new Error('walk template missing');
   const speed = opts.speed;
@@ -1541,10 +1606,20 @@ export function buildTravelWalk(opts: { speed?: number; headingDeg?: number } = 
   // The foot-plant contacts still hold each stance foot fixed so nothing slides. The
   // shuttle absorb adds the trunk counter-lean that keeps the head centred over the
   // shuttling pelvis.
-  const coordinated = spinalGaitCoordination(
-    { ...base, keyframes: kfs },
-    { shuttleAbsorb: { phaseAt: shuttlePhaseAt, deg: GAIT_SHUTTLE_ABSORB_DEG } },
-  );
+  // HEALTHY-ASYMMETRY SIGNATURE (roadmap 5.3): the seed-derived 2–4% L/R
+  // arm-swing amplitude difference of a real healthy walker — amplitude-only
+  // (durations and the stance schedule above stay byte-exact; see
+  // healthySignature.ts for the documented timing rejection). Applied BEFORE
+  // the coordination pass; the sum-preserving split keeps the reciprocal
+  // arm-swing difference — the thoracic-rotation driver — exactly intact.
+  // `asymmetry: false` = the clean, textbook-symmetric reference gait.
+  const signed =
+    opts.asymmetry === false
+      ? { ...base, keyframes: kfs }
+      : healthySignature({ ...base, keyframes: kfs }, opts.asymmetry);
+  const coordinated = spinalGaitCoordination(signed, {
+    shuttleAbsorb: { phaseAt: shuttlePhaseAt, deg: GAIT_SHUTTLE_ABSORB_DEG },
+  });
   // TRAVEL HEADING FOLD: add the heading yaw to EVERY keyframe's root orient —
   // AFTER the coordination pass, whose per-keyframe pelvic rotation writes its
   // own yawDeg (folding before it would let the ±2° pelvis yaw overwrite the
@@ -2021,18 +2096,27 @@ function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
  * are NOT floor-pinned, so the up-travel genuinely lifts the body — the feet
  * leave the ground (contrast the in-place walk, which keeps one foot planted).
  */
-export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
+export function buildRun(opts: { speed?: number; asymmetry?: number | false } = {}): ComposedMotion {
   const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
-  // Natural trunk coordination — thoracic counter-rotation with the pumping arms +
-  // lateral sway toward the stance leg. Bigger arm swing at speed ⇒ bigger trunk
-  // rotation, for free. Root/feet untouched (spine is above the hips).
-  return spinalGaitCoordination({
+  // Healthy-asymmetry signature (roadmap 5.3): 2–4% L/R arm-swing amplitude
+  // difference, amplitude-only (see healthySignature.ts); `asymmetry: false`
+  // keeps the textbook-symmetric reference run.
+  const base: ComposedMotion = {
     name: 'run',
     startFrom: 'neutral',
     stance: 'planted',
     loop: true,
     keyframes: [...runStepKeyframes('R', s), ...runStepKeyframes('L', s)],
-  });
+  };
+  // Natural trunk coordination — thoracic counter-rotation with the pumping arms +
+  // lateral sway toward the stance leg. Bigger arm swing at speed ⇒ bigger trunk
+  // rotation, for free. Root/feet untouched (spine is above the hips). The distal
+  // ENERGY (roadmap 5.4) is explicit: a run is ~2× walking intensity, so the finger
+  // curl opens, the elbow pump and wrist drag grow, and the head rides a touch more.
+  return spinalGaitCoordination(
+    opts.asymmetry === false ? base : healthySignature(base, opts.asymmetry),
+    { energy: RUN_ENERGY_FACTOR * s },
+  );
 }
 
 /**
@@ -2069,7 +2153,9 @@ export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
  * stance windows — rig-gated in runParity.test.ts); the airborne vertical stays
  * with the constant-g flight parabola.
  */
-export function buildTravelRun(opts: { speed?: number } = {}): ComposedMotion {
+export function buildTravelRun(
+  opts: { speed?: number; asymmetry?: number | false } = {},
+): ComposedMotion {
   const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
   const f = Math.sqrt(s);
   const t = runStepTiming(f);
@@ -2105,7 +2191,9 @@ export function buildTravelRun(opts: { speed?: number } = {}): ComposedMotion {
     fromMs: i * t.stepMs + t.touchMs,
     toMs: i * t.stepMs + t.touchMs + t.absorbMs + t.driveMs,
   }));
-  return spinalGaitCoordination({
+  // Healthy-asymmetry signature (roadmap 5.3): amplitude-only, so the authored
+  // stance windows / contacts above stay byte-exact (see healthySignature.ts).
+  const base: ComposedMotion = {
     name: 'run-forward',
     startFrom: 'current',
     stance: 'planted',
@@ -2113,7 +2201,12 @@ export function buildTravelRun(opts: { speed?: number } = {}): ComposedMotion {
     footDrivenTravel: true,
     contacts,
     gaitStanceWindowsMs: windows,
-  });
+  };
+  // Distal energy (roadmap 5.4): same run intensity as the in-place buildRun.
+  return spinalGaitCoordination(
+    opts.asymmetry === false ? base : healthySignature(base, opts.asymmetry),
+    { energy: RUN_ENERGY_FACTOR * s },
+  );
 }
 
 /**
@@ -2600,6 +2693,12 @@ export function buildBirdDog(opts: { side?: 'L' | 'R'; reps?: number } = {}): Co
     // shoulder flexion sweeps the arm from down (90) toward forward (180).
     { joint: `${arm}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: 175 },
     { joint: `${arm}_Forearm`, motion: 'elbowFlexion', targetDegrees: 5 },
+    // WRIST RELEASE (roadmap 5.6): without this the raised hand CARRIES FORWARD the
+    // quadruped's −45° floor-palm wrist extension through the whole reach — a hand
+    // still cocked for a floor that isn't there. The lifted wrist releases to
+    // neutral (the hand continues the forearm line); the return keyframe re-authors
+    // the floor palm via quadArms.
+    { joint: `${arm}_Hand`, motion: 'wristFlexion', targetDegrees: 0 },
     // Leg extends straight back to ~horizontal (hip height); from the quadruped's 95°
     // flexion, ~5° leaves the thigh level with the trunk (−20° over-raised it ~31°).
     { joint: `${leg}_UpLeg`, motion: 'hipFlexion', targetDegrees: 5 },
@@ -3086,6 +3185,27 @@ const WRIST_DRAG = 0.28; // a slight resting flexion and DRAGS behind the forear
 const WRIST_FLEX_MAX = 22; // (less flexion on the forward swing, more on the backswing).
 const FINGER_CURL_DEG = 32; // the fingers rest gently CURLED (a loose relaxed hand), not
 // splayed straight. Constant posture (carried across the cycle), applied per digit.
+// ─── DISTAL ENERGY AT SPEED (roadmap 5.4) ────────────────────────────────────
+// The DERIVED gains above scale with the stride for free (a bigger arm swing ⇒ a
+// bigger counter-rotation), but the distal CONSTANTS were speed-invariant: a
+// runner swung with a walker's hand. `energy` is the locomotor intensity (1 = a
+// comfortable walk; a paced walk's speed, derived from paceGait's timeScale =
+// √speed; ~2× the speed request for a run) and grades the distal texture toward
+// run form, capped physiologic. Energy 1 is BYTE-IDENTICAL by construction
+// (every delta is ×(energy−1)).
+const FINGER_CURL_OPEN_PER_ENERGY = 10; // deg of resting curl RELEASED per energy unit above 1
+const FINGER_CURL_MIN_DEG = 14; // …floored at a loose open hand (never splayed straight)
+const ELBOW_PUMP_ENERGY_GAIN = 0.22; // extra elbow pump ∝ the arm's own swing phase, counter-
+const ELBOW_PUMP_ENERGY_MAX = 14; // phased like the authored pump (more flexion on the back-
+// swing, unwinding as the arm comes forward) so the pump AMPLITUDE grows about its mean.
+const WRIST_DRAG_ENERGY_GAIN = 0.5; // the passive wrist drag deepens with speed (the
+// WRIST_FLEX_MAX cap still applies on top).
+const HEADSTAB_ENERGY_RELAX = 0.08; // headStabilize fraction released per energy unit — a
+const HEADSTAB_ENERGY_FLOOR = 0.85; // runner's head rides a touch more; never below 85%.
+/** Locomotor-intensity ceiling: buildRun's 1.6 speed cap × {@link RUN_ENERGY_FACTOR}. */
+const ENERGY_MAX = 3.2;
+/** A run's energy per unit of its speed request (a run ≈ 2× walking intensity). */
+const RUN_ENERGY_FACTOR = 2;
 const HIP_ADD_GAIN = 0.18; // the SWING leg ADducts toward the midline (a narrow base) as it
 const HIP_FLEX_MEAN = 10; // advances — the feet track near the line of progression, NOT
 const HIP_ADD_MAX = 6; // splayed out (abduction, which reads as a wide waddle/circumduction)
@@ -3116,6 +3236,8 @@ const NECK_AXIAL_ROLL_COMP = 0.28;
  * any existing spine target (e.g. an antalgic lean), ROM-clamped on resolve. Identity
  * when both gains are 0. Sign of `rotation` follows romRegistry (+ = toward-R); the
  * chosen phase brings the leading arm's shoulder forward — a visual-tuning choice.
+ * DISTAL ENERGY (roadmap 5.4): the distal constants (finger curl, wrist drag, elbow
+ * pump, head stabilization) grade with locomotor intensity — see `opts.energy`.
  */
 export function spinalGaitCoordination(
   motion: ComposedMotion,
@@ -3124,6 +3246,13 @@ export function spinalGaitCoordination(
     lateral?: number;
     headStabilize?: number;
     pelvis?: number;
+    /** DISTAL ENERGY (roadmap 5.4): locomotor intensity ≥ 1 grading the distal
+     *  constants toward run form — the finger curl opens, the elbow pump and
+     *  wrist drag grow, the head stabilization relaxes a touch. When omitted it
+     *  is DERIVED from the motion's paceGait cadence (`modifiers.timeScale` =
+     *  √speed ⇒ energy = speed); the run builders pass their own (a run ≈ 2×
+     *  walking intensity). 1 — a speed-1 walk — is byte-identical. */
+    energy?: number;
     /** SHUTTLE ABSORPTION (travel walk): the medio-lateral pelvis shuttle
      *  (`lateralShuttleCm`) translates the whole body toward the stance foot,
      *  and without a counter the head would ride the full excursion. This adds
@@ -3144,7 +3273,21 @@ export function spinalGaitCoordination(
   // and the transverse counter-ROTATION (kAx) should dominate the trunk's gait character.
   // (0.09 measured ~13° of thorax lateral roll on the rig — a lurch; 0.03 lands ~4°.)
   const kLat = Math.max(0, opts.lateral ?? 0.03);
-  const headStab = Math.max(0, Math.min(1, opts.headStabilize ?? 1));
+  // DISTAL ENERGY (roadmap 5.4): explicit from the caller (the run builders), else
+  // derived from a paced gait's cadence (paceGait sets timeScale = √speed, so
+  // timeScale² recovers the speed request). Clamped ≥ 1 — a slow walk keeps the
+  // walker's hand — so a speed-1 gait has dE = 0 and every term below reduces to
+  // its exact pre-energy constant (byte-identical output).
+  const tsMod = motion.modifiers?.timeScale;
+  const energyRaw =
+    opts.energy ?? (typeof tsMod === 'number' && Number.isFinite(tsMod) ? tsMod * tsMod : 1);
+  const energy = Math.min(ENERGY_MAX, Math.max(1, Number.isFinite(energyRaw) ? energyRaw : 1));
+  const dE = energy - 1;
+  const fingerCurlDeg = Math.max(FINGER_CURL_MIN_DEG, FINGER_CURL_DEG - FINGER_CURL_OPEN_PER_ENERGY * dE);
+  const wristDrag = WRIST_DRAG * (1 + WRIST_DRAG_ENERGY_GAIN * dE);
+  const headStab =
+    Math.max(0, Math.min(1, opts.headStabilize ?? 1)) *
+    Math.max(HEADSTAB_ENERGY_FLOOR, 1 - HEADSTAB_ENERGY_RELAX * dE);
   // PELVIC transverse rotation gain — the hallmark determinant of gait (the pelvis rotates
   // forward on the SWING side). Derived from the same leg asymmetry as the lean, so it is
   // intrinsically in phase with the stride. 0.05 lands ~±2° pelvic yaw for the walk — the
@@ -3239,18 +3382,28 @@ export function spinalGaitCoordination(
       if (has(`${S}_UpperArm`, 'shoulderFlexion')) {
         const sh = at(ts, `${S}_UpperArm`, 'shoulderFlexion');
         additions.push({ joint: `${S}_UpperArm`, motion: 'shoulderAbduction', deg: cap(-(ARM_ADD_BASE + ARM_ADD_SWING * sh), ARM_ADD_MAX) });
-        if (has(`${S}_Forearm`, 'elbowFlexion'))
+        if (has(`${S}_Forearm`, 'elbowFlexion')) {
           additions.push({ joint: `${S}_Forearm`, motion: 'forearmRotation', deg: cap(ARM_PRO_BASE + ARM_PRO_SWING * sh, ARM_PRO_MAX) });
+          // ELBOW PUMP AT SPEED (roadmap 5.4): the authored pump's amplitude grows
+          // with energy — counter-phased like the authored excursion (more flexion on
+          // the backswing, unwinding forward), so the pump deepens ABOUT its mean
+          // instead of drifting. Additive on the authored elbowFlexion; dE = 0 (a
+          // speed-1 walk) pushes nothing (byte-identical).
+          if (dE > 0)
+            additions.push({ joint: `${S}_Forearm`, motion: 'elbowFlexion', deg: cap(-ELBOW_PUMP_ENERGY_GAIN * dE * sh, ELBOW_PUMP_ENERGY_MAX) });
+        }
         // Scapular girdle glides fore/aft WITH the arm: protract on the forward swing
         // (sh > 0), retract on the backswing (sh < 0). + protraction = Pro (romRegistry).
         additions.push({ joint: `${S}_Shoulder`, motion: 'protraction', deg: cap(SCAP_PROT_GAIN * sh, SCAP_PROT_MAX) });
         // WRIST: a relaxed hand isn't a rigid paddle — it holds a slight resting flexion and
         // DRAGS behind the forearm (less flexion as the arm swings forward, more on the
         // backswing), so the hand passively wobbles with the swing instead of locking stiff.
-        additions.push({ joint: `${S}_Hand`, motion: 'wristFlexion', deg: cap(WRIST_FLEX_BASE - WRIST_DRAG * sh, WRIST_FLEX_MAX) });
+        // The drag deepens with energy (a runner's wrist trails harder).
+        additions.push({ joint: `${S}_Hand`, motion: 'wristFlexion', deg: cap(WRIST_FLEX_BASE - wristDrag * sh, WRIST_FLEX_MAX) });
         // FINGERS: rest gently curled (a loose relaxed hand), not splayed rigid-straight.
+        // The curl OPENS with energy — a runner's hand un-curls toward a loose blade.
         for (const fk of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const)
-          additions.push({ joint: `${S}_${fk}`, motion: 'fingerFlexion', deg: FINGER_CURL_DEG });
+          additions.push({ joint: `${S}_${fk}`, motion: 'fingerFlexion', deg: fingerCurlDeg });
       }
       // LEG: the SWING leg ADducts toward the midline as it advances (the feet track near
       // the line of progression — a narrow base), NOT abducts (a wide, waddling splay); the

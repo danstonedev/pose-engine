@@ -58,6 +58,12 @@ export interface TrajectoryKnot {
    *  full inbound arc's momentum through the knot and deepens a ~3% overshoot
    *  into a wild swing. */
   pathExtremum?: boolean;
+  /** SETTLE SHAPE (roadmap 5.5): velocity class of the keyframe ARRIVING at this
+   *  STOP knot. Shapes the time-warp's deceleration into the stop — 'deliberate'
+   *  (or absent) keeps today's symmetric PCHIP ease byte-identical; 'functional'
+   *  arrives with a later, brisker deceleration; 'ballistic' brakes latest
+   *  (composing with the terminal overshoot knot). Ignored on non-stop knots. */
+  settleClass?: 'deliberate' | 'functional' | 'ballistic';
   planted: boolean;
   /** Grounding posture the body rests in at this knot (sitting/quadruped/…), or
    *  undefined for the default feet floor-pin. */
@@ -152,10 +158,34 @@ function squad(q0: Q, q1: Q, s0: Q, s1: Q, t: number): Q {
 
 // ── monotone C¹ time-warp: absolute time → knot index u ──────────────────────
 
+// ── Per-velocity-class settle shapes (roadmap 5.5) ───────────────────────────
+/** LATE-BRAKE intensity per velocity class — how much the segment INTO a stop
+ *  knot delays its deceleration. The braking segment's within-segment parameter
+ *  is composed with w(s) = s·(1 − b·s·(1−s)): w(0)=0, w(1)=1 and w′(0)=1 keep
+ *  u(t_k)=k and the C¹ entry slope EXACT, while progress lags mid-segment and
+ *  catches up late — the profile holds speed longer and brakes later/harder the
+ *  bigger `b`. Monotone for b < 3 (w′ ≥ 1 − b/3 > 0). 'deliberate' (and any
+ *  absent class) takes the b = 0 path untouched — byte-identical to today's
+ *  symmetric ease. 'ballistic' composes with the terminal overshoot knot: the
+ *  shaped segment is the overshoot→target settle, so a fast ending sails past
+ *  the pose and arrests LATE, like a limb with mass. */
+const SETTLE_BRAKE_LATENESS: Readonly<Record<string, number>> = {
+  functional: 0.75,
+  ballistic: 1.5,
+};
+
 /** Piecewise-cubic-Hermite map from knot times to knot index. Slope is forced
  *  to 0 at `stop` knots and set to the (monotone) PCHIP secant blend elsewhere,
- *  so u(t) passes through (t_k, k) exactly, is C¹, and never overshoots. */
-function buildTimeWarp(times: number[], stops: boolean[]): (t: number) => number {
+ *  so u(t) passes through (t_k, k) exactly, is C¹, and never overshoots.
+ *  `brakes` (parallel to `times`, all-0 when absent) carries the per-knot
+ *  late-brake intensity ({@link SETTLE_BRAKE_LATENESS}) applied to the segment
+ *  ARRIVING at that knot — non-zero only on stop knots whose keyframe carries a
+ *  functional/ballistic velocity class. */
+function buildTimeWarp(
+  times: number[],
+  stops: boolean[],
+  brakes?: number[],
+): (t: number) => number {
   const n = times.length;
   const m = new Array<number>(n).fill(0); // du/dt at each knot
   const h = new Array<number>(n - 1);
@@ -183,7 +213,16 @@ function buildTimeWarp(times: number[], stops: boolean[]): (t: number) => number
     if (t >= times[n - 1]!) return n - 1;
     let i = 0;
     while (i < n - 2 && t > times[i + 1]!) i += 1;
-    const s = (t - times[i]!) / h[i]!; // 0..1 within segment
+    let s = (t - times[i]!) / h[i]!; // 0..1 within segment
+    // SETTLE SHAPE (roadmap 5.5): a segment braking into a functional/ballistic
+    // stop composes the LATE-BRAKE warp w(s) = s·(1 − b·s·(1−s)) — endpoints and
+    // the entry slope are fixed points (u(t_k)=k and C¹ continuity hold exactly;
+    // the arrival slope stays 0 since m[i+1]=0 at a stop), monotone for b < 3,
+    // and progress lags mid-segment then catches up late: speed is held longer
+    // and the deceleration lands later and harder. b = 0 (every 'deliberate' or
+    // unclassed stop, and every non-stop knot) leaves `s` untouched.
+    const b = brakes ? brakes[i + 1]! : 0;
+    if (b > 0 && stops[i + 1]) s = s * (1 - b * s * (1 - s));
     const s2 = s * s;
     const s3 = s2 * s;
     // Hermite basis for value (indices i, i+1) and tangents (scaled by h).
@@ -221,7 +260,13 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     };
   }
 
-  const warp = buildTimeWarp(times, stops);
+  // Per-knot late-brake intensity (roadmap 5.5): non-zero only where a STOP knot
+  // carries a functional/ballistic settle class. All-zero (every knot deliberate
+  // or unclassed) passes `undefined` — the exact pre-shape warp path.
+  const brakes = knots.map((k) =>
+    k.stop && k.settleClass ? SETTLE_BRAKE_LATENESS[k.settleClass] ?? 0 : 0,
+  );
+  const warp = buildTimeWarp(times, stops, brakes.some((b) => b > 0) ? brakes : undefined);
 
   // Per bone key, the aligned quaternion series across knots + SQUAD controls.
   // Bones absent at a knot carry forward the previous knot's value.
@@ -573,12 +618,21 @@ export function buildComposedTrajectory(
       tCursor += built.durationsMs[i]! / timeScale;
       if (r === 0) settleAtMs.push(tCursor);
       if (isVeryLast) finalArrivalIdx = knots.length;
+      const stop = holdMs > 0 || (isVeryLast && !cyclicEnds);
+      // SETTLE SHAPE (roadmap 5.5): a STOP arrival (a held keyframe or the final
+      // settle) carries its keyframe's velocity class, so the time-warp brakes
+      // later/harder for functional/ballistic arrivals. 'deliberate'/absent adds
+      // nothing — the knot (and the whole warp) stays byte-identical.
+      const cls = built.velocityClasses?.[i];
+      const settleClass =
+        stop && (cls === 'functional' || cls === 'ballistic') ? { settleClass: cls } : {};
       knots.push({
         timeMs: tCursor,
         pose: built.poses[i]!,
         rootQuat: rs.quat,
         rootTranslate: rs.translateM,
-        stop: holdMs > 0 || (isVeryLast && !cyclicEnds),
+        stop,
+        ...settleClass,
         planted,
         groundingPosture: rs.groundingPosture,
       });
