@@ -899,8 +899,17 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
  * in half (the standard 8-phase, R-stance × 4 → L-stance × 4).
  */
 export function gaitFootContacts(motion: ComposedMotion): StanceContact[] {
-  const total = motion.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0);
-  const mid = total / 2;
+  const kfs = motion.keyframes;
+  const dur = (k: (typeof kfs)[number]): number => (k.durationMs ?? 0) + (k.holdMs ?? 0);
+  const total = kfs.reduce((s, k) => s + dur(k), 0);
+  // The RIGHT foot bears through the first half of the cycle's keyframes (R
+  // initial-contact → terminal-stance), the LEFT through the second — so the R↔L
+  // stance boundary is the cumulative time at the half-keyframe mark, NOT total/2.
+  // (They differ once a keyframe is non-uniform, e.g. a lengthened step-off entry;
+  // using total/2 would release the stance foot early and let it slide.)
+  const half = Math.ceil(kfs.length / 2);
+  let mid = 0;
+  for (let i = 0; i < half; i += 1) mid += dur(kfs[i]!);
   return [
     { foot: 'R_Foot', fromMs: 0, toMs: mid },
     { foot: 'L_Foot', fromMs: mid, toMs: total },
@@ -921,14 +930,26 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
   // yaw wags the whole body too much (a full ~±4° reads clean in place but not in travel).
   // The foot-plant contacts still hold each stance foot fixed so nothing slides.
   const coordinated = spinalGaitCoordination(base);
+  // STEP-OFF ENTRY: the gait folds onto the live (usually neutral standing) pose, and
+  // the first keyframe is a full gait pose (a leg swung to ~30° hip / 40° knee, the arm
+  // to its ±20° extreme). Reaching it in one 200 ms phase whips the limbs in at several
+  // times the steady cadence (rig: ~300°/s hip vs ~55 steady) — the walk "accelerates"
+  // into motion. Give the neutral→first-pose entry its own longer duration so the limbs
+  // ease into the stride at gait speed; the cycle phases (and the footDrivenTravel /
+  // contacts, which read the actual durations) stay steady. The final knot is a
+  // fly-through (cyclicEnds) so the exit doesn't brake either.
+  const kfs = coordinated.keyframes.map((kf, i) =>
+    i === 0 ? { ...kf, durationMs: Math.max(kf.durationMs ?? 0, GAIT_STEP_OFF_MS) } : kf,
+  );
+  const withEntry: ComposedMotion = { ...coordinated, keyframes: kfs };
   return {
     name: 'walk-forward',
     startFrom: 'current',
     stance: 'planted',
     ...(coordinated.modifiers ? { modifiers: coordinated.modifiers } : {}),
-    keyframes: coordinated.keyframes,
+    keyframes: kfs,
     footDrivenTravel: true,
-    contacts: gaitFootContacts(coordinated),
+    contacts: gaitFootContacts(withEntry),
     // Calibrate the COM vertical: the raw floor-pin vault of the travelling walk is
     // ~13 cm — far more than real free gait (~5 cm) — and it drops abruptly into
     // double support. The vertical calibration calms the excursion AND (in the
@@ -2008,6 +2029,11 @@ const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
 // yaw reads as a twist/shimmy AND drags the planted foot, since the walk grounds the feet
 // with a vertical pin, not a horizontal foot-lock IK — see kPel calibration below).
 const PELVIS_YAW_MAX = 6;
+// Step-off entry duration (ms) for a travelling walk: the neutral→first-gait-pose
+// transition covers a big limb delta (~40° knee), so give it ~2 gait phases of time so
+// the limbs ease in at stride cadence instead of whipping (a normal 200 ms phase would
+// demand ~300°/s). ~natural gait initiation; the cycle phases themselves stay 200 ms.
+const GAIT_STEP_OFF_MS = 400;
 // ─── Limb non-sagittal gait coordination ─────────────────────────────────────
 // Real gait limbs move in all THREE planes; a purely sagittal swing (flexion only) reads
 // as a robotic 2-D walker. These add SUBTLE frontal + transverse components — physiologic

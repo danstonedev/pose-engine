@@ -19,6 +19,7 @@ import { captureJointAngleRestReference, type JointAngleRestReference } from '..
 import { resolveComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
 import { measureContactSlide } from '../services/footContact';
+import { measureCommandMotion } from '../services/movementCommand';
 import { buildTravelWalk } from '../services/movementTemplates';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
@@ -106,13 +107,20 @@ describe('buildTravelWalk — a forward gait driven by foot placement', () => {
     expect(m.loop ?? false).toBe(false); // travel can't loop (would teleport)
     expect(m.stance).toBe('planted');
     expect(m.footDrivenTravel).toBe(true);
-    // Foot-plant contacts pin each stance foot (R first half, L second) so the pelvis can
-    // rotate its full range ABOUT the planted leg without the foot sliding. R stance =
-    // [0, mid], L = [mid, total] — a symmetric two-step cycle.
-    const total = m.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0);
+    // Foot-plant contacts pin each stance foot (R the first HALF of the keyframes —
+    // R initial-contact→terminal-stance — L the second) so the pelvis can rotate its
+    // full range ABOUT the planted leg without the foot sliding. The R↔L boundary is
+    // the cumulative time at the half-keyframe mark, which is NOT total/2 once the
+    // step-off entry lengthens the first keyframe.
+    const dur = (k: (typeof m.keyframes)[number]): number => (k.durationMs ?? 0) + (k.holdMs ?? 0);
+    const total = m.keyframes.reduce((s, k) => s + dur(k), 0);
+    const mid = m.keyframes.slice(0, 4).reduce((s, k) => s + dur(k), 0);
     expect(m.contacts?.map((c) => c.foot)).toEqual(['R_Foot', 'L_Foot']);
-    expect(m.contacts![0]).toMatchObject({ foot: 'R_Foot', fromMs: 0, toMs: total / 2 });
-    expect(m.contacts![1]).toMatchObject({ foot: 'L_Foot', fromMs: total / 2, toMs: total });
+    expect(m.contacts![0]).toMatchObject({ foot: 'R_Foot', fromMs: 0, toMs: mid });
+    expect(m.contacts![1]).toMatchObject({ foot: 'L_Foot', fromMs: mid, toMs: total });
+    // The step-off entry (first keyframe) is longer than the steady cycle phases so the
+    // limbs ease into the stride instead of whipping in from neutral.
+    expect(dur(m.keyframes[0]!), 'step-off entry longer than a cycle phase').toBeGreaterThan(dur(m.keyframes[1]!));
     expect(m.keyframes.every((k) => k.travel == null), 'no authored per-keyframe stride').toBe(true);
   });
 
@@ -157,6 +165,34 @@ describe('buildTravelWalk — a forward gait driven by foot placement', () => {
     let maxDrop = 0;
     for (let i = win; i < ys.length; i += 1) maxDrop = Math.max(maxDrop, ys[i - win]! - ys[i]!);
     expect(maxDrop, 'no sudden vertical drop — the descent is rounded').toBeLessThan(0.06);
+  });
+
+  it('the limb swing enters at STEADY cadence — no accelerated whip at the start/end', () => {
+    // The gait folds onto a neutral standing pose; the first gait keyframe is a full
+    // stride pose (~30° hip / 40° knee, arm at its ±20° extreme). Reaching it in one
+    // cycle phase whipped the limbs in at several times the steady cadence (the walk
+    // "accelerated" into motion), and easing to a halt at the end braked it. The step-off
+    // entry + fly-through ends keep the entry/exit near the steady swing speed.
+    const rec = sampleTravel();
+    const n = rec.frames.length;
+    const dtS = rec.frames[n - 1]!.tMs / (n - 1) / 1000;
+    const speed = (joint: string, motion: string): number[] => {
+      const a = rec.frames.map((f) => measureCommandMotion({ at: '', variant: 'male', joints: f.angles }, joint, motion) ?? 0);
+      const v: number[] = [];
+      for (let i = 1; i < a.length; i += 1) v.push(Math.abs(a[i]! - a[i - 1]!) / dtS);
+      return v;
+    };
+    const windowMax = (v: number[], lo: number, hi: number): number =>
+      Math.max(...v.slice(Math.floor(v.length * lo), Math.ceil(v.length * hi)));
+    for (const [joint, motion] of [['R_UpLeg', 'hipFlexion'], ['R_UpperArm', 'shoulderFlexion']] as const) {
+      const v = speed(joint, motion);
+      const steadyPeak = windowMax(v, 0.3, 0.7); // a mid-cycle swing peak
+      const entryPeak = windowMax(v, 0, 0.12); // the first ~step-off
+      // eslint-disable-next-line no-console
+      console.log(`${joint}.${motion}: entry ${entryPeak.toFixed(0)} vs steady ${steadyPeak.toFixed(0)} deg/s`);
+      // The entry must not whip: allow up to the steady swing peak, not multiples of it.
+      expect(entryPeak, `${joint} enters at steady cadence, no whip`).toBeLessThan(steadyPeak * 1.15);
+    }
   });
 
   it('the swing foot still advances forward (the plant does not freeze the gait)', () => {
