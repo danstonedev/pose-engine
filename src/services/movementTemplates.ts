@@ -263,7 +263,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Walk (gait cycle, in place)',
     aliases: ['walk', 'walking', 'gait', 'ambulate', 'stroll'],
     coordination:
-      'One full gait cycle authored as 8 phases (both steps), looping. Sagittal peaks per normal free gait [Perry & Burnfield; Neumann]: hip 30° flexion at initial contact → −10° extension at terminal stance; knee ~5° at contact, ~18° loading-response shock absorption, ~40° at pre-swing, ~60° peak in initial swing; ankle rockers — plantarflexion to foot-flat after contact (−8°), dorsiflexion to 10° as the tibia advances over the stance foot, push-off plantarflexion −15° at pre-swing. Reciprocal arm swing ~±20° shoulder flexion, each arm peaking WITH the contralateral leg. The elbows are NOT rigid: they carry ~20° flexion and pump through the swing (overlapping action — more flexion on the backswing, unwinding as the arm comes forward, ~11-30°), so the forearms swing dynamically instead of marching stiff-armed [Elftman 1939; normal arm-swing elbow excursion ~10-20°]. Presented IN PLACE (treadmill convention — no root travel) so the looping cycle stays on stage; the pre-swing knee flexion + push-off happens across the loop seam (last phase flows back into the first). Planted.',
+      'One full gait cycle authored as 8 phases (both steps), looping. Sagittal peaks per normal free gait [Perry & Burnfield; Neumann]: hip 30° flexion at initial contact → −10° extension at terminal stance; knee ~5° at contact, ~18° loading-response shock absorption, ~40° at pre-swing, ~60° peak in initial swing; ankle rockers — plantarflexion to foot-flat after contact (−8°), dorsiflexion to 10° as the tibia advances over the stance foot, push-off plantarflexion −15° at pre-swing. THIRD (forefoot) rocker: as the heel rises the foot pivots at the MTP joints — toe extension builds through terminal stance (~12°) and peaks at pre-swing push-off (~28°; normative MTP extension in gait ~30° [Perry & Burnfield]), releasing to neutral through swing so the foot is flat again at contact. Reciprocal arm swing ~±20° shoulder flexion, each arm peaking WITH the contralateral leg. The elbows are NOT rigid: they carry ~20° flexion and pump through the swing (overlapping action — more flexion on the backswing, unwinding as the arm comes forward, ~11-30°), so the forearms swing dynamically instead of marching stiff-armed [Elftman 1939; normal arm-swing elbow excursion ~10-20°]. Presented IN PLACE (treadmill convention — no root travel) so the looping cycle stays on stage; the pre-swing knee flexion + push-off happens across the loop seam (last phase flows back into the first). Planted.',
     stance: 'planted',
     loop: true,
     phases: [
@@ -274,9 +274,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 0 }, // foot flat at contact
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 40 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -15 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 28 }, // L push-off: third-rocker MTP extension peak
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
           { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 11 },
@@ -290,9 +292,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 25 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 18 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -8 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 0 },
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 60 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -5 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 5 }, // toes release as the L foot enters swing
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 14 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -14 },
           { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
@@ -306,9 +310,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 8 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 5 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 0 },
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 20 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 45 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 0 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
           { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 20 },
@@ -322,9 +328,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 10 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 12 }, // R heel-off: MTP extension building
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 0 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -14 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 14 },
           { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 26 },
@@ -338,9 +346,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 0 }, // foot flat at contact
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 40 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -15 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 28 }, // R push-off: third-rocker MTP extension peak
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 20 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -20 },
           { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 11 },
@@ -354,9 +364,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 25 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 18 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -8 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 0 },
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 60 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -5 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 5 }, // toes release as the R foot enters swing
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 14 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -14 },
           { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
@@ -370,9 +382,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 8 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 5 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 0 },
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 20 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 45 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 0 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
           { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 20 },
@@ -386,9 +400,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 10 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 12 }, // L heel-off: MTP extension building (peaks at the loop seam)
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 0 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: -14 },
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 14 },
           { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 26 },
@@ -517,7 +533,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Heel raise (bilateral calf raise)',
     aliases: ['heel raise', 'heel raises', 'calf raise', 'calf raises', 'go up on your toes', 'rise onto your toes', 'up on your toes'],
     coordination:
-      'Bilateral ankle plantarflexion: rise up onto the balls of the feet so both heels lift, hold at the top, then lower under control back to flat. A gastrocnemius-soleus screen. Planted (the forefoot/toes stay grounded as the pivot; the closed-chain floor-pin lifts the body so the heels rise). Normative standing plantarflexion AROM ~50°; ~35° is a full functional raise.',
+      'Bilateral ankle plantarflexion: rise up onto the balls of the feet so both heels lift, hold at the top, then lower under control back to flat. A gastrocnemius-soleus screen. The foot HINGES AT THE MTP joints: as the heel rises the toes stay planted and the MTP extends by roughly the plantarflexion angle (~40°), so the pivot is the ball of the foot — NOT en-pointe (toes continuing the foot line, a ballet relevé). Planted (the forefoot/toes stay grounded as the pivot; the closed-chain floor-pin lifts the body so the heels rise). Normative standing plantarflexion AROM ~50°; ~35° is a full functional raise.',
     stance: 'planted',
     phases: [
       {
@@ -527,6 +543,10 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -35 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -35 },
+          // MTP extension keeps the toe pads flat on the floor as the heel rises —
+          // the third-rocker hinge (≈ plantarflexion + a few degrees; ROM max 70°).
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 40 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 40 },
         ],
       },
       {
@@ -535,6 +555,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 0 },
+          { joint: 'R_Toes', motion: 'toeFlexion', peakDeg: 0 },
         ],
       },
     ],
@@ -1017,6 +1039,10 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
     { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
     { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
   ];
+  const toes = (deg: number) => [
+    { joint: 'L_Toes', motion: 'toeFlexion', targetDegrees: deg },
+    { joint: 'R_Toes', motion: 'toeFlexion', targetDegrees: deg },
+  ];
   const trunk = (deg: number) => [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: deg }];
   // One jump = 5 driving phases (load → propulsion → apex → descent → landing);
   // a fresh factory per keyframe so repeated reps never share a mutable object.
@@ -1036,7 +1062,9 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
   const propulsion = (): SequenceKeyframe => ({
     durationMs: 160, velocityClass: 'ballistic', stance: 'planted',
     travel: { direction: 'up', meters: 0.06 },
-    targets: [...legs(0, 0, -25), ...arms(150), ...trunk(0)],
+    // TOE ROCKER: the final push before takeoff rolls over the MTP joints (heels
+    // up, toe pads driving the ground) — MTP extension ~30°, not a rigid flat foot.
+    targets: [...legs(0, 0, -25), ...toes(30), ...arms(150), ...trunk(0)],
   });
   // No authored hold at the apex — the gravity parabola's near-zero vertical
   // velocity near the top IS the hang. Rise = flight/2 (propulsion→apex) so the
@@ -1046,7 +1074,8 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
   const apex = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.5), velocityClass: 'ballistic', stance: 'floating',
     travel: { direction: 'up', meters: apexM },
-    targets: [...legs(5, 25, 0), ...arms(150)],
+    // Toes reset to neutral in flight (the push-off MTP extension releases at toe-off).
+    targets: [...legs(5, 25, 0), ...toes(0), ...arms(150)],
   });
   const descent = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.3), velocityClass: 'ballistic', stance: 'floating',
