@@ -159,7 +159,21 @@ export function sampleMotionChain(
     // against an empty previous recording — a refused segment leaves no frames).
     const currentAngles =
       prev && prev.frames.length > 0 ? flattenAngles(prev.frames[prev.frames.length - 1]!.angles) : undefined;
-    const resolved = resolveComposedMotion(motion, baseOpts.variantCfg, currentAngles ? { currentAngles } : undefined);
+    // Thread BOTH continuity seeds into resolution: the angles seed the
+    // velocity governor, and the root lets a heading-inheriting gait segment
+    // (`inheritHeading` — the persistent-heading rebase, SEAM-1) rotate its
+    // authored yaw plan onto the facing the previous segment actually left the
+    // body at. Ignored (byte-identical) for every unflagged motion.
+    const resolved = resolveComposedMotion(
+      motion,
+      baseOpts.variantCfg,
+      currentAngles || currentRoot
+        ? {
+            ...(currentAngles ? { currentAngles } : {}),
+            ...(currentRoot ? { currentRoot } : {}),
+          }
+        : undefined,
+    );
     const recording = sampleComposedMotion(resolved, {
       ...baseOpts,
       currentPose,
