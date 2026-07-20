@@ -26,8 +26,9 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { applyAnatomicPose } from '../services/anatomicPose';
 import { buildBoneByPoseKey } from '../services/poseRig';
 import {
-  breathingLean,
-  livelinessSwayDeg,
+  breathingLeanFM,
+  BREATH_REST_HZ,
+  idleSwaySplit,
   idleWeightShift,
   IDLE_SHIFT_PEAK_M,
   IDLE_SHIFT_LEAN_PEAK_DEG,
@@ -70,28 +71,58 @@ describe('idle liveliness — measured on the rig', () => {
   });
 
   /** Replicate the stage's applyIdleOverlays for one instant `tSec` (same
-   *  axes, same premultiply order, same weight-shift sign flip), returning an
-   *  undo. The stage bakes the root travel via bakePelvisShift (root X). */
+   *  axes, same premultiply order, same weight-shift sign flip, same
+   *  ankle-pivot + foot counter-rotation — Wave 5), returning an undo. The
+   *  stage bakes the root travel via bakePelvisShift (root X); breathing is
+   *  the FM path at rest (φ = 2π·BREATH_REST_HZ·t, exertion 0). */
   function applyIdleAt(tSec: number, amount: number, seed: number): () => void {
     const thorax = bones.get('Spine_Upper')!;
     const lowBack = bones.get('Spine_Lower')!;
+    const lFoot = bones.get('L_Foot')!;
+    const rFoot = bones.get('R_Foot')!;
     const baseThorax = thorax.quaternion.clone();
     const baseLumbar = lowBack.quaternion.clone();
+    const baseLFoot = lFoot.quaternion.clone();
+    const baseRFoot = rFoot.quaternion.clone();
+    const baseRootQ = root.quaternion.clone();
     const baseRootX = root.position.x;
     const q = new THREE.Quaternion();
-    const { mlDeg, apDeg } = livelinessSwayDeg(tSec, amount);
+    const sway = idleSwaySplit(tSec, amount);
     const { shiftM, leanDeg } = idleWeightShift(tSec, amount, seed);
-    q.setFromAxisAngle(AXIS_AP, (breathingLean(tSec, amount) * Math.PI) / 180);
+    q.setFromAxisAngle(
+      AXIS_AP,
+      (breathingLeanFM(2 * Math.PI * BREATH_REST_HZ * tSec, amount, 0) * Math.PI) / 180,
+    );
     thorax.quaternion.premultiply(q);
-    q.setFromAxisAngle(AXIS_ML, ((mlDeg - leanDeg) * Math.PI) / 180);
+    q.setFromAxisAngle(AXIS_ML, ((sway.lumbarMlDeg - leanDeg) * Math.PI) / 180);
     lowBack.quaternion.premultiply(q);
-    q.setFromAxisAngle(AXIS_AP, (apDeg * Math.PI) / 180);
+    q.setFromAxisAngle(AXIS_AP, (sway.lumbarApDeg * Math.PI) / 180);
     lowBack.quaternion.premultiply(q);
     root.position.x += shiftM;
+    // Ankle-pivot share: whole-body roll/pitch on the root (pivot ≈ the ankle
+    // line at floor level), feet counter-rotated so the soles stay flat.
+    const pivot = new THREE.Quaternion().setFromAxisAngle(
+      AXIS_ML,
+      (sway.ankleRollDeg * Math.PI) / 180,
+    );
+    q.setFromAxisAngle(AXIS_AP, (sway.anklePitchDeg * Math.PI) / 180);
+    pivot.premultiply(q);
+    root.quaternion.premultiply(pivot);
+    root.updateMatrixWorld(true);
+    const pivotInv = pivot.clone().invert();
+    for (const foot of [lFoot, rFoot]) {
+      const p = new THREE.Quaternion();
+      foot.parent!.getWorldQuaternion(p);
+      const m = p.clone().invert().multiply(pivotInv).multiply(p);
+      foot.quaternion.premultiply(m);
+    }
     root.updateMatrixWorld(true);
     return () => {
       thorax.quaternion.copy(baseThorax);
       lowBack.quaternion.copy(baseLumbar);
+      lFoot.quaternion.copy(baseLFoot);
+      rFoot.quaternion.copy(baseRFoot);
+      root.quaternion.copy(baseRootQ);
       root.position.x = baseRootX;
       root.updateMatrixWorld(true);
     };
@@ -168,15 +199,29 @@ describe('idle liveliness — measured on the rig', () => {
     }
   });
 
-  it('touches ONLY the trunk + root X: legs, arms and head local quats stay byte-identical (feet never skate from bone writes)', () => {
+  it('touches ONLY the trunk + root + ankle line: hips/legs/arms/head local quats stay byte-identical; the counter-rotated feet keep their WORLD orientation (soles flat, no skate)', () => {
     const untouched = [
-      'Hips', 'L_UpLeg', 'R_UpLeg', 'L_Leg', 'R_Leg', 'L_Foot', 'R_Foot',
+      'Hips', 'L_UpLeg', 'R_UpLeg', 'L_Leg', 'R_Leg',
       'L_UpperArm', 'R_UpperArm', 'L_Forearm', 'R_Forearm', 'Neck', 'Head',
     ];
     const before = untouched.map((k) => bones.get(k)!.quaternion.toArray());
+    // Feet: LOCAL quats change (the ankle-pivot counter-rotation IS an ankle
+    // angle change) but the WORLD orientation — the flat sole — must not.
+    const footWorldBefore = (['L_Foot', 'R_Foot'] as const).map((k) => {
+      const q = new THREE.Quaternion();
+      bones.get(k)!.getWorldQuaternion(q);
+      return q;
+    });
     const undo = applyIdleAt(3.3, 1, 42);
     untouched.forEach((k, i) => {
       expect(bones.get(k)!.quaternion.toArray(), `${k} local quat untouched`).toEqual(before[i]);
+    });
+    (['L_Foot', 'R_Foot'] as const).forEach((k, i) => {
+      const q = new THREE.Quaternion();
+      bones.get(k)!.getWorldQuaternion(q);
+      const residDeg = (2 * Math.acos(Math.min(1, Math.abs(q.dot(footWorldBefore[i]!)))) * 180) / Math.PI;
+      // <0.01° — quaternion round-off only, ~1% of the ≤0.78° pivot.
+      expect(residDeg, `${k} world orientation (sole) preserved`).toBeLessThan(0.01);
     });
     undo();
   });
@@ -184,29 +229,47 @@ describe('idle liveliness — measured on the rig', () => {
   it('the undo is EXACT: after lift, the pose is bit-identical to rest (recordings/goniometry can never inherit a residue)', () => {
     const thorax = bones.get('Spine_Upper')!;
     const lowBack = bones.get('Spine_Lower')!;
+    const lFoot = bones.get('L_Foot')!;
+    const rFoot = bones.get('R_Foot')!;
     const baseThorax = thorax.quaternion.toArray();
     const baseLumbar = lowBack.quaternion.toArray();
+    const baseLFoot = lFoot.quaternion.toArray();
+    const baseRFoot = rFoot.quaternion.toArray();
+    const baseRootQ = root.quaternion.toArray();
     const baseRootX = root.position.x;
     for (const t of [0.1, 2.6, 7.77]) {
       const undo = applyIdleAt(t, 1, 42);
       undo();
       expect(thorax.quaternion.toArray()).toEqual(baseThorax);
       expect(lowBack.quaternion.toArray()).toEqual(baseLumbar);
+      expect(lFoot.quaternion.toArray()).toEqual(baseLFoot);
+      expect(rFoot.quaternion.toArray()).toEqual(baseRFoot);
+      expect(root.quaternion.toArray()).toEqual(baseRootQ);
       expect(root.position.x).toBe(baseRootX);
     }
   });
 
   it('stays far inside trunk ROM: the peak lumbar lateral delta is bounded by the stated peaks (≈2.4° ≪ the ~8° gait-lean cap)', () => {
-    // The stage applies (mlDeg − leanDeg) at the low back: bounded by the two
-    // module peaks. Sweep and verify the ACTUAL applied angle never exceeds it.
-    let peak = 0;
+    // The stage applies (lumbarMlDeg − leanDeg) at the low back and the
+    // ankle-pivot share at the root: the WHOLE-BODY lateral lean is bounded by
+    // the (partitioned) sway peak + the weight-shift lean peak. Sweep and
+    // verify the ACTUAL applied angles never exceed it.
+    let lumbarPeak = 0;
+    let totalPeak = 0;
     for (let t = 0; t <= 60; t += 0.05) {
-      const { mlDeg } = livelinessSwayDeg(t, 1);
+      const sway = idleSwaySplit(t, 1);
       const { leanDeg } = idleWeightShift(t, 1, 42);
-      peak = Math.max(peak, Math.abs(mlDeg - leanDeg));
+      lumbarPeak = Math.max(lumbarPeak, Math.abs(sway.lumbarMlDeg - leanDeg));
+      totalPeak = Math.max(
+        totalPeak,
+        Math.abs(sway.lumbarMlDeg - leanDeg) + Math.abs(sway.ankleRollDeg),
+      );
     }
-    expect(peak).toBeLessThanOrEqual(1.3 + IDLE_SHIFT_LEAN_PEAK_DEG + 1e-9); // SWAY_ML_PEAK + lean peak
-    expect(peak).toBeLessThan(8); // the lateral-lean bound the gait gates use
+    expect(lumbarPeak).toBeLessThanOrEqual(1.3 + IDLE_SHIFT_LEAN_PEAK_DEG + 1e-9); // SWAY_ML_PEAK + lean peak
+    // Lumbar + ankle-pivot together still respect the ORIGINAL bound (the
+    // split partitions the sway; it never adds amplitude).
+    expect(totalPeak).toBeLessThanOrEqual(1.3 + IDLE_SHIFT_LEAN_PEAK_DEG + 1e-9);
+    expect(totalPeak).toBeLessThan(8); // the lateral-lean bound the gait gates use
     // And the root travel obeys its own stated bound (an order of magnitude
     // under the ±15 cm antalgic actuator clamp).
     expect(IDLE_SHIFT_PEAK_M).toBeLessThanOrEqual(0.15 / 10);
@@ -253,10 +316,22 @@ describe('idle liveliness — stage wiring (source pins)', () => {
 
   it('the undo is an exact stored-base restore and un-bakes the idle root shift through the pelvis-shift tracker', () => {
     expect(stageSource).toMatch(
-      /function undoIdleOverlays\(\): boolean \{[\s\S]{0,700}copy\(_idleBaseThoraxQ\)[\s\S]{0,300}copy\(_idleBaseLumbarQ\)[\s\S]{0,300}idleShiftM = 0;\s*\n\s*bakePelvisShift\(\);/,
+      /function undoIdleOverlays\(\): boolean \{[\s\S]{0,700}copy\(_idleBaseThoraxQ\)[\s\S]{0,300}copy\(_idleBaseLumbarQ\)[\s\S]{0,900}idleShiftM = 0;\s*\n\s*bakePelvisShift\(\);/,
     );
     // …and the bake target composes the two shifts, so idle can never clobber
     // the antalgic overlay (or vice versa).
     expect(stageSource).toMatch(/const targetM = motionPelvisShiftM \+ idleShiftM;/);
+  });
+
+  it('the ankle-pivot sway restores the root quat + BOTH counter-rotated feet inside the same undo (Wave 5)', () => {
+    expect(stageSource).toMatch(
+      /function undoIdleOverlays\(\): boolean \{[\s\S]{0,900}copy\(_idleBaseRootQ\)[\s\S]{0,300}copy\(_idleBaseLFootQ\)[\s\S]{0,200}copy\(_idleBaseRFootQ\)/,
+    );
+    // …and the apply path counter-rotates the feet by the conjugated inverse
+    // pivot so the soles stay flat (the ankle-pivot contract).
+    expect(stageSource).toMatch(/_idlePivotInvQ\.copy\(_idlePivotQ\)\.invert\(\);/);
+    expect(stageSource).toMatch(
+      /_idleQ\.copy\(_idleParentQ\)\.invert\(\);\s*\n\s*_idleQ\.multiply\(_idlePivotInvQ\)\.multiply\(_idleParentQ\);/,
+    );
   });
 });

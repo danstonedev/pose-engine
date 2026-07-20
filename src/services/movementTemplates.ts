@@ -32,6 +32,7 @@
 import * as THREE from 'three';
 import { MIN_KEYFRAME_MS, SPINE_NECK_MAX, SPINE_NECK_LATERAL_MAX } from './motionSequence';
 import type { ComposedMotion, MovementAsymmetry, PostureNode, SemanticTravel, SequenceKeyframe, SequenceTarget, StanceContact, StanceMode } from './motionSequence';
+import { healthySignature } from './healthySignature';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
 export interface TemplateTarget {
@@ -1398,7 +1399,9 @@ export function gaitFootContacts(motion: ComposedMotion): StanceContact[] {
   ];
 }
 
-export function buildTravelWalk(opts: { speed?: number; headingDeg?: number } = {}): ComposedMotion {
+export function buildTravelWalk(
+  opts: { speed?: number; headingDeg?: number; asymmetry?: number | false } = {},
+): ComposedMotion {
   const walk = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk');
   if (!walk) throw new Error('walk template missing');
   const speed = opts.speed;
@@ -1603,10 +1606,20 @@ export function buildTravelWalk(opts: { speed?: number; headingDeg?: number } = 
   // The foot-plant contacts still hold each stance foot fixed so nothing slides. The
   // shuttle absorb adds the trunk counter-lean that keeps the head centred over the
   // shuttling pelvis.
-  const coordinated = spinalGaitCoordination(
-    { ...base, keyframes: kfs },
-    { shuttleAbsorb: { phaseAt: shuttlePhaseAt, deg: GAIT_SHUTTLE_ABSORB_DEG } },
-  );
+  // HEALTHY-ASYMMETRY SIGNATURE (roadmap 5.3): the seed-derived 2–4% L/R
+  // arm-swing amplitude difference of a real healthy walker — amplitude-only
+  // (durations and the stance schedule above stay byte-exact; see
+  // healthySignature.ts for the documented timing rejection). Applied BEFORE
+  // the coordination pass; the sum-preserving split keeps the reciprocal
+  // arm-swing difference — the thoracic-rotation driver — exactly intact.
+  // `asymmetry: false` = the clean, textbook-symmetric reference gait.
+  const signed =
+    opts.asymmetry === false
+      ? { ...base, keyframes: kfs }
+      : healthySignature({ ...base, keyframes: kfs }, opts.asymmetry);
+  const coordinated = spinalGaitCoordination(signed, {
+    shuttleAbsorb: { phaseAt: shuttlePhaseAt, deg: GAIT_SHUTTLE_ABSORB_DEG },
+  });
   // TRAVEL HEADING FOLD: add the heading yaw to EVERY keyframe's root orient —
   // AFTER the coordination pass, whose per-keyframe pelvic rotation writes its
   // own yawDeg (folding before it would let the ±2° pelvis yaw overwrite the
@@ -2083,21 +2096,25 @@ function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
  * are NOT floor-pinned, so the up-travel genuinely lifts the body — the feet
  * leave the ground (contrast the in-place walk, which keeps one foot planted).
  */
-export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
+export function buildRun(opts: { speed?: number; asymmetry?: number | false } = {}): ComposedMotion {
   const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
+  // Healthy-asymmetry signature (roadmap 5.3): 2–4% L/R arm-swing amplitude
+  // difference, amplitude-only (see healthySignature.ts); `asymmetry: false`
+  // keeps the textbook-symmetric reference run.
+  const base: ComposedMotion = {
+    name: 'run',
+    startFrom: 'neutral',
+    stance: 'planted',
+    loop: true,
+    keyframes: [...runStepKeyframes('R', s), ...runStepKeyframes('L', s)],
+  };
   // Natural trunk coordination — thoracic counter-rotation with the pumping arms +
   // lateral sway toward the stance leg. Bigger arm swing at speed ⇒ bigger trunk
   // rotation, for free. Root/feet untouched (spine is above the hips). The distal
   // ENERGY (roadmap 5.4) is explicit: a run is ~2× walking intensity, so the finger
   // curl opens, the elbow pump and wrist drag grow, and the head rides a touch more.
   return spinalGaitCoordination(
-    {
-      name: 'run',
-      startFrom: 'neutral',
-      stance: 'planted',
-      loop: true,
-      keyframes: [...runStepKeyframes('R', s), ...runStepKeyframes('L', s)],
-    },
+    opts.asymmetry === false ? base : healthySignature(base, opts.asymmetry),
     { energy: RUN_ENERGY_FACTOR * s },
   );
 }
@@ -2136,7 +2153,9 @@ export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
  * stance windows — rig-gated in runParity.test.ts); the airborne vertical stays
  * with the constant-g flight parabola.
  */
-export function buildTravelRun(opts: { speed?: number } = {}): ComposedMotion {
+export function buildTravelRun(
+  opts: { speed?: number; asymmetry?: number | false } = {},
+): ComposedMotion {
   const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
   const f = Math.sqrt(s);
   const t = runStepTiming(f);
@@ -2172,17 +2191,20 @@ export function buildTravelRun(opts: { speed?: number } = {}): ComposedMotion {
     fromMs: i * t.stepMs + t.touchMs,
     toMs: i * t.stepMs + t.touchMs + t.absorbMs + t.driveMs,
   }));
+  // Healthy-asymmetry signature (roadmap 5.3): amplitude-only, so the authored
+  // stance windows / contacts above stay byte-exact (see healthySignature.ts).
+  const base: ComposedMotion = {
+    name: 'run-forward',
+    startFrom: 'current',
+    stance: 'planted',
+    keyframes: kfs,
+    footDrivenTravel: true,
+    contacts,
+    gaitStanceWindowsMs: windows,
+  };
+  // Distal energy (roadmap 5.4): same run intensity as the in-place buildRun.
   return spinalGaitCoordination(
-    {
-      name: 'run-forward',
-      startFrom: 'current',
-      stance: 'planted',
-      keyframes: kfs,
-      footDrivenTravel: true,
-      contacts,
-      gaitStanceWindowsMs: windows,
-    },
-    // Distal energy (roadmap 5.4): same run intensity as the in-place buildRun.
+    opts.asymmetry === false ? base : healthySignature(base, opts.asymmetry),
     { energy: RUN_ENERGY_FACTOR * s },
   );
 }

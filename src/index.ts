@@ -64,6 +64,12 @@ export * from './services/motionSequence';
 // tested). Feeds the compose planner's prompt and is playable/measurable.
 export * from './services/movementTemplates';
 
+// Healthy-asymmetry signature (Wave 5 life-signals) — the seed-derived 2–4%
+// L/R arm-swing amplitude difference the gait builders apply by default so the
+// default walk/run is not a perfect bilateral mirror (opt-out per builder via
+// `asymmetry: false`).
+export * from './services/healthySignature';
+
 // Motion recording (simMOVE) — the shared composed-tween easing, the offline
 // deterministic sampler (replays the stage's exact interpolation headlessly,
 // measuring computeJointAngles per frame), pure timeline edit ops (trim /
