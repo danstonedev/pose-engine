@@ -55,6 +55,7 @@ import {
   captureFloorReference,
   captureFootFrames,
   deriveFootDrivenTravel,
+  deriveGaitLateralShuttle,
   deriveVerticalCalibration,
   FOOT_ROOT_DRIFT_M,
   NO_VERTICAL_CALIBRATION,
@@ -65,6 +66,7 @@ import {
   rotateRestReferenceByRoot,
   stanceFootDrift,
   type FootDrivenTravel,
+  type LateralShuttle,
   type VerticalCalibration,
 } from './rootMotion';
 import { balanceCoordination } from './balanceCoordination';
@@ -432,8 +434,10 @@ export function sampleComposedMotion(
         timeScale,
         reps: resolved.reps,
         // A foot-driven travelling gait is a steady cadence, not a gesture: keep the
-        // limb swing uniform at the ends (no ease-in whip / halt).
-        cyclicEnds: resolved.footDrivenTravel === true,
+        // limb swing uniform at the ends (no ease-in whip / halt) — UNLESS the motion
+        // authors its own initiation/termination ramps (`settleEnds`), in which case
+        // the ends are genuine stops (ease from standstill, brake to quiet standing).
+        cyclicEnds: resolved.footDrivenTravel === true && resolved.settleEnds !== true,
       });
   const totalMs = trajectory.totalMs;
   const dtMs = 1000 / hz;
@@ -477,12 +481,21 @@ export function sampleComposedMotion(
   // forward (+Z) offset that keeps the planted (lower) foot world-fixed — so the
   // stance foot never slides and the swing foot rides the body forward, with the
   // stride emerging from the authored ROM (no independent stride, no foot-lock IK).
+  //
+  // MEDIO-LATERAL SHUTTLE (the X sibling): the same feet pre-pass derives the
+  // stance-phase-locked pelvis ride TOWARD the planted foot (the gait weight
+  // transfer), zero at the double-support handoffs. Both are root-only offsets;
+  // the shared closure keeps the two derivations reading identical feet.
   let footDriven: FootDrivenTravel | null = null;
-  if (resolved.footDrivenTravel && built.roots.some((r) => r.stance === 'planted')) {
+  let lateralShuttle: LateralShuttle | null = null;
+  {
     const rBone = boneByKey.get('R_Foot');
     const lBone = boneByKey.get('L_Foot');
-    if (rBone && lBone) {
-      footDriven = deriveFootDrivenTravel((tMs) => {
+    const wantsTravel = resolved.footDrivenTravel === true;
+    const shuttleM = (resolved.lateralShuttleCm ?? 0) / 100;
+    const hasPlanted = built.roots.some((r) => r.stance === 'planted');
+    if (rBone && lBone && hasPlanted && (wantsTravel || shuttleM > 0)) {
+      const sampleFeet = (tMs: number) => {
         const s = trajectory.sampleAt(tMs);
         applyCustomPose(skinned.skeleton, variantCfg, s.pose);
         _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
@@ -496,8 +509,23 @@ export function sampleComposedMotion(
         if (s.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
         rBone.getWorldPosition(_sv);
         lBone.getWorldPosition(_svB);
-        return { rz: _sv.z, ry: _sv.y, lz: _svB.z, ly: _svB.y };
-      }, totalMs);
+        return { rz: _sv.z, ry: _sv.y, rx: _sv.x, lz: _svB.z, ly: _svB.y, lx: _svB.x };
+      };
+      // The planned stance schedule is authored ms; the trajectory runs at
+      // authored/timeScale — scale it by the same uniform factor so both
+      // derivations stay phase-locked to the knots at any pace.
+      const authoredMs =
+        resolved.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0) *
+        (resolved.loop ? 1 : Math.max(1, resolved.reps));
+      const scale = authoredMs > 0 ? totalMs / authoredMs : 1;
+      const windows = resolved.gaitStanceWindowsMs?.map((w) => ({
+        foot: w.foot,
+        fromMs: w.fromMs * scale,
+        toMs: w.toMs * scale,
+        ...(w.travelLock ? { travelLock: true } : {}),
+      }));
+      if (wantsTravel) footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows);
+      if (shuttleM > 0) lateralShuttle = deriveGaitLateralShuttle(sampleFeet, totalMs, shuttleM, windows);
     }
   }
 
@@ -615,8 +643,12 @@ export function sampleComposedMotion(
     }
     // Foot-driven forward travel: advance the root (+Z) so the planted foot stays
     // world-fixed. Horizontal only — independent of the vertical pin/calibration.
-    if (footDriven) {
-      root.position.z += footDriven.zAt(tMs);
+    // The medio-lateral shuttle rides the root (X) toward the stance foot the
+    // same way; both precede the foot plants, which hold each stance foot fixed
+    // while the pelvis travels over it.
+    if (footDriven || lateralShuttle) {
+      if (footDriven) root.position.z += footDriven.zAt(tMs);
+      if (lateralShuttle) root.position.x += lateralShuttle.xAt(tMs);
       root.updateMatrixWorld(true);
     }
 

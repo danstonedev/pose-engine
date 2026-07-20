@@ -1021,32 +1021,185 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     speed != null && speed !== 1
       ? paceGait(templateToComposedMotion(walk), speed)
       : templateToComposedMotion(walk);
+  // ONE GAIT CYCLE (8 phases), plus a real initiation ahead of it and a real
+  // termination after it — the walk starts and stops like a person, not a
+  // cross-fade into/out of mid-stride.
+  const cycle: SequenceKeyframe[] = base.keyframes.map((kf) => ({
+    ...kf,
+    ...(kf.targets ? { targets: kf.targets.map((t) => ({ ...t })) } : {}),
+  }));
+  // STEP-OFF ENTRY: the first gait pose is a full stride (~30° hip / 40° knee,
+  // the arm at its ±20° extreme); reaching it in one 200 ms phase whips the
+  // limbs in at several times the steady cadence, so the entry keeps its own
+  // longer duration (the cycle phases stay steady).
+  cycle[0] = {
+    ...cycle[0]!,
+    durationMs: Math.max(cycle[0]!.durationMs ?? 0, GAIT_STEP_OFF_MS),
+    // The initiation keyframe below authors a root shift; explicitly return the
+    // root to centre here so the APA shift resolves into the derived shuttle
+    // (root state persists forward until overridden).
+    root: { translateM: [0, 0, 0] },
+  };
+  // BRAKING CUE on the final cycle keyframe: the LAST step is shorter — the
+  // terminal (R) reach and the arm swing are damped, so the body is already
+  // decelerating as it enters the termination step.
+  const lastCycle = cycle[cycle.length - 1]!;
+  lastCycle.targets = lastCycle.targets?.map((t) => {
+    if (t.joint === 'R_UpLeg' && t.motion === 'hipFlexion')
+      return { ...t, targetDegrees: t.targetDegrees * GAIT_BRAKE_REACH_SCALE };
+    if (t.motion === 'shoulderFlexion')
+      return { ...t, targetDegrees: t.targetDegrees * GAIT_BRAKE_ARM_SCALE };
+    return t;
+  });
+  // REAL GAIT INITIATION (APA): the walk enters on R stance — the L foot is the
+  // first to leave the floor — so BEFORE any limb lifts, shift the pelvis over
+  // the future stance (R) foot with a small lumbar list (thoracic counter-list
+  // keeps the head centred) and unweight the future swing knee. The shift is
+  // authored root-X; it hands over to the derived medio-lateral shuttle (which
+  // rises toward the same R stance through the first half-cycle).
+  const initiation: SequenceKeyframe = {
+    durationMs: GAIT_INITIATION_MS,
+    targets: [
+      { joint: 'Spine_Lower', motion: 'lateralTilt', targetDegrees: GAIT_APA_LUMBAR_DEG },
+      { joint: 'Spine_Upper', motion: 'lateralTilt', targetDegrees: GAIT_APA_THORACIC_DEG },
+      { joint: 'Neck', motion: 'lateralTilt', targetDegrees: GAIT_APA_NECK_DEG },
+      { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: GAIT_APA_KNEE_DEG },
+    ],
+    root: { translateM: [-GAIT_APA_SHIFT_M, 0, 0] }, // toward the stance (R) foot (−X)
+  };
+  // REAL GAIT TERMINATION: the R foot (which reached forward at the last cycle
+  // keyframe) accepts weight with a loading-response knee yield while the L
+  // releases its push-off into a short swing…
+  const terminationStep: SequenceKeyframe = {
+    durationMs: GAIT_TERMINATION_STEP_MS,
+    targets: [
+      { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 12 },
+      { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 14 },
+      { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: 3 },
+      { joint: 'R_Toes', motion: 'toeFlexion', targetDegrees: 0 },
+      { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 15 },
+      { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 30 },
+      { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+      { joint: 'L_Toes', motion: 'toeFlexion', targetDegrees: 5 },
+      { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 6 },
+      { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: -6 },
+      { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: 18 },
+      { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: 18 },
+    ],
+  };
+  // …then the L steps up NEXT TO the R (feet together) and the body levels out
+  // to quiet standing. Every sagittal driver goes to 0, so the spinal gait
+  // coordination (counter-rotation, sway, pelvic yaw) fades out with it; the
+  // relaxed arm carriage (slight elbow bend, adducted hang) remains.
+  const terminationSettle: SequenceKeyframe = {
+    durationMs: GAIT_TERMINATION_SETTLE_MS,
+    holdMs: GAIT_TERMINATION_HOLD_MS,
+    targets: [
+      { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+      { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
+      { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+      { joint: 'R_Toes', motion: 'toeFlexion', targetDegrees: 0 },
+      { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+      { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
+      { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+      { joint: 'L_Toes', motion: 'toeFlexion', targetDegrees: 0 },
+      { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
+      { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
+      { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: 8 },
+      { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: 8 },
+      // Explicit zeros: unmentioned joints CARRY FORWARD across keyframes, so
+      // without these the quiet stand would keep the braking step's residual
+      // trunk rotation / lean / neck counters frozen on the body.
+      { joint: 'Spine_Lower', motion: 'lateralTilt', targetDegrees: 0 },
+      { joint: 'Spine_Upper', motion: 'lateralTilt', targetDegrees: 0 },
+      { joint: 'Spine_Lower', motion: 'rotation', targetDegrees: 0 },
+      { joint: 'Spine_Upper', motion: 'rotation', targetDegrees: 0 },
+      { joint: 'Neck', motion: 'rotation', targetDegrees: 0 },
+      { joint: 'Neck', motion: 'lateralTilt', targetDegrees: 0 },
+    ],
+  };
+  const kfs: SequenceKeyframe[] = [initiation, ...cycle, terminationStep, terminationSettle];
+
+  // STANCE SCHEDULE (authored ms): R bears through the initiation + the first
+  // four cycle phases, L through the second four; the termination adds a final
+  // R stance (the braking step) and, once the L lands beside it, a terminal
+  // double support. The same windows drive the foot-plant contacts AND the
+  // planned shuttle phase the trunk absorb counter-leans against.
+  const dur = (k: SequenceKeyframe): number => (k.durationMs ?? 0) + (k.holdMs ?? 0);
+  const endOf = (idx: number): number => kfs.slice(0, idx + 1).reduce((s, k) => s + dur(k), 0);
+  const rStanceEnd = endOf(4); // initiation + R initial-contact … R terminal-stance
+  const lStanceEnd = endOf(8); // L initial-contact … L terminal-stance
+  const rLandsAt = endOf(9); // braking-step arrival: R has accepted weight
+  const lLandsAt = endOf(9) + (terminationSettle.durationMs ?? 0); // L arrives beside R
+  const total = endOf(kfs.length - 1);
+  // The terminal plant windows begin at each foot's LANDING keyframe (weight
+  // acceptance / feet-together) — a window opening while the foot is still
+  // airborne would lazily capture an in-flight position and pin the foot there.
+  const contacts: StanceContact[] = [
+    { foot: 'R_Foot', fromMs: 0, toMs: rStanceEnd },
+    { foot: 'L_Foot', fromMs: rStanceEnd, toMs: lStanceEnd },
+    { foot: 'R_Foot', fromMs: rLandsAt, toMs: total },
+    { foot: 'L_Foot', fromMs: lLandsAt, toMs: total },
+  ];
+  // Planned shuttle phase (+1 = toward subject-left/+X): toward the R foot (−X)
+  // through R stance windows, toward the L (+X) through L stance — a half-sine
+  // per window, zero at the double-support boundaries. The SAME schedule is
+  // passed to the sample-time derivations (`gaitStanceWindowsMs`), so the
+  // authored trunk absorb, the ridden root shuttle AND the foot-driven travel
+  // all follow one stance truth. The final window ends where the trailing L
+  // foot LANDS beside the R — the terminal double support and settle dwell
+  // hold the pelvis centred.
+  // Only the TERMINAL window travel-locks the forward derivation: the cycle
+  // windows stay on the measured-feet heuristic (its entry-reach cancellation
+  // is what keeps the pinned stance foot reachable), but through the braking
+  // step the heuristic tracks the trailing push-off foot and freezes the
+  // advance, so the schedule keeps it on the weight-accepting R.
+  const windows: { t0: number; t1: number; dir: number; foot: string; travelLock?: boolean }[] = [
+    { t0: 0, t1: rStanceEnd, dir: -1, foot: 'R_Foot' },
+    { t0: rStanceEnd, t1: lStanceEnd, dir: 1, foot: 'L_Foot' },
+    { t0: lStanceEnd, t1: lLandsAt, dir: -1, foot: 'R_Foot', travelLock: true },
+  ];
+  const shuttlePhaseAt = (tMs: number): number => {
+    for (const w of windows) {
+      if (tMs < w.t0 || tMs > w.t1 || w.t1 <= w.t0) continue;
+      return w.dir * Math.sin((Math.PI * (tMs - w.t0)) / (w.t1 - w.t0));
+    }
+    return 0;
+  };
+
   // Natural trunk + limb coordination (counter-rotation, sway, pelvic rotation, and the
   // non-sagittal limb motion). The pelvic yaw stays the default ~±2° — the same amount as
   // the in-place walk — even though the feet are foot-planted below: a bigger travelling
   // yaw wags the whole body too much (a full ~±4° reads clean in place but not in travel).
-  // The foot-plant contacts still hold each stance foot fixed so nothing slides.
-  const coordinated = spinalGaitCoordination(base);
-  // STEP-OFF ENTRY: the gait folds onto the live (usually neutral standing) pose, and
-  // the first keyframe is a full gait pose (a leg swung to ~30° hip / 40° knee, the arm
-  // to its ±20° extreme). Reaching it in one 200 ms phase whips the limbs in at several
-  // times the steady cadence (rig: ~300°/s hip vs ~55 steady) — the walk "accelerates"
-  // into motion. Give the neutral→first-pose entry its own longer duration so the limbs
-  // ease into the stride at gait speed; the cycle phases (and the footDrivenTravel /
-  // contacts, which read the actual durations) stay steady. The final knot is a
-  // fly-through (cyclicEnds) so the exit doesn't brake either.
-  const kfs = coordinated.keyframes.map((kf, i) =>
-    i === 0 ? { ...kf, durationMs: Math.max(kf.durationMs ?? 0, GAIT_STEP_OFF_MS) } : kf,
+  // The foot-plant contacts still hold each stance foot fixed so nothing slides. The
+  // shuttle absorb adds the trunk counter-lean that keeps the head centred over the
+  // shuttling pelvis.
+  const coordinated = spinalGaitCoordination(
+    { ...base, keyframes: kfs },
+    { shuttleAbsorb: { phaseAt: shuttlePhaseAt, deg: GAIT_SHUTTLE_ABSORB_DEG } },
   );
-  const withEntry: ComposedMotion = { ...coordinated, keyframes: kfs };
   return {
     name: 'walk-forward',
     startFrom: 'current',
     stance: 'planted',
     ...(coordinated.modifiers ? { modifiers: coordinated.modifiers } : {}),
-    keyframes: kfs,
+    keyframes: coordinated.keyframes,
     footDrivenTravel: true,
-    contacts: gaitFootContacts(withEntry),
+    // The walk now authors its own initiation/termination ramps, so the
+    // trajectory ends are REAL stops (ease from standstill, brake to quiet
+    // standing) instead of the steady-cadence fly-throughs.
+    settleEnds: true,
+    contacts,
+    // Per-step weight transfer: the pelvis rides toward the planted foot,
+    // phase-locked to the SAME planned stance schedule the trunk absorb above
+    // was authored against (and the travel derivation follows).
+    lateralShuttleCm: GAIT_SHUTTLE_CM,
+    gaitStanceWindowsMs: windows.map((w) => ({
+      foot: w.foot,
+      fromMs: w.t0,
+      toMs: w.t1,
+      ...(w.travelLock ? { travelLock: true } : {}),
+    })),
     // Calibrate the COM vertical: the raw floor-pin vault of the travelling walk is
     // ~13 cm — far more than real free gait (~5 cm) — and it drops abruptly into
     // double support. The vertical calibration calms the excursion AND (in the
@@ -2162,6 +2315,37 @@ const PELVIS_YAW_MAX = 6;
 // the limbs ease in at stride cadence instead of whipping (a normal 200 ms phase would
 // demand ~300°/s). ~natural gait initiation; the cycle phases themselves stay 200 ms.
 const GAIT_STEP_OFF_MS = 400;
+// ─── Gait initiation / termination / weight transfer (travel walk) ───────────
+// REAL GAIT INITIATION — the anticipatory postural adjustment (APA): before the
+// first swing foot ever leaves the floor, the pelvis/COM shifts over the future
+// STANCE foot (the walk enters on R stance — the L foot is the first swing) and
+// the future swing knee unweights slightly [Winter; Jian 1993]. Authored as a
+// short lead keyframe ahead of the first gait pose, replacing the old bare
+// time-stretch (which eased the limbs in but shifted no weight at all).
+const GAIT_INITIATION_MS = 300; // APA lead keyframe travel time
+const GAIT_APA_SHIFT_M = 0.012; // authored pelvis shift toward the stance (R) foot, m (−X)
+const GAIT_APA_LUMBAR_DEG = -1.2; // lumbar list over the stance foot (lateralTilt + = left)
+const GAIT_APA_THORACIC_DEG = 2.0; // thoracic counter-list keeps the head centred
+const GAIT_APA_NECK_DEG = -0.8; // levels the head against the authored S-curve's residual
+const GAIT_APA_KNEE_DEG = 5; // future swing (L) knee unweights
+// REAL GAIT TERMINATION — a braking final step: the lead (R) foot accepts weight
+// with a loading-response knee yield while the trailing (L) foot swings UP NEXT
+// TO it (feet together), then the body levels out to quiet standing (arms
+// settle, the spinal coordination fades as its sagittal drivers go to 0).
+const GAIT_TERMINATION_STEP_MS = 250; // weight acceptance onto the lead foot
+const GAIT_TERMINATION_SETTLE_MS = 450; // trailing foot steps up beside; level-out
+const GAIT_TERMINATION_HOLD_MS = 200; // settle dwell at quiet standing
+const GAIT_BRAKE_REACH_SCALE = 0.8; // the last step is SHORTER (terminal reach damped)
+const GAIT_BRAKE_ARM_SCALE = 0.7; // …and the arm swing starts dying with it
+// MEDIO-LATERAL SHUTTLE — the per-step weight transfer: the pelvis rides this
+// many cm toward the planted foot each stance (crossing centre at the
+// double-support transitions), derived at sample time from the measured feet
+// (services/rootMotion deriveGaitLateralShuttle). Real free-gait pelvis ML
+// excursion is ~±2-3 cm at comfortable speed [Perry & Burnfield].
+const GAIT_SHUTTLE_CM = 2.5;
+// Trunk counter-lean (deg at full shuttle) absorbing the shuttle so the head
+// stays centred — rig-tuned against the head-steadiness gate (<2.5 cm lateral).
+const GAIT_SHUTTLE_ABSORB_DEG = 2.4;
 // ─── Limb non-sagittal gait coordination ─────────────────────────────────────
 // Real gait limbs move in all THREE planes; a purely sagittal swing (flexion only) reads
 // as a robotic 2-D walker. These add SUBTLE frontal + transverse components — physiologic
@@ -2215,7 +2399,24 @@ const NECK_AXIAL_ROLL_COMP = 0.28;
  */
 export function spinalGaitCoordination(
   motion: ComposedMotion,
-  opts: { axial?: number; lateral?: number; headStabilize?: number; pelvis?: number } = {},
+  opts: {
+    axial?: number;
+    lateral?: number;
+    headStabilize?: number;
+    pelvis?: number;
+    /** SHUTTLE ABSORPTION (travel walk): the medio-lateral pelvis shuttle
+     *  (`lateralShuttleCm`) translates the whole body toward the stance foot,
+     *  and without a counter the head would ride the full excursion. This adds
+     *  the thoracic S-curve that absorbs it: a trunk lateral counter-lean, in
+     *  phase with the shuttle, split lumbar/thoracic — so the pelvis visibly
+     *  shuttles under a quiet, centred head (the vestibular head-steadiness the
+     *  rig gates require). `phaseAt(tMs)` is the planned shuttle phase in
+     *  [−1, 1] along +X (subject-left) at a keyframe's authored arrival time;
+     *  `deg` the total counter-lean at full shuttle. Folded into the SAME
+     *  lean/neck terms as the stance sway, so the neck roll compensation keeps
+     *  the head level too. */
+    shuttleAbsorb?: { phaseAt: (tMs: number) => number; deg: number };
+  } = {},
 ): ComposedMotion {
   const kAx = Math.max(0, opts.axial ?? 0.16);
   // Lateral sway is SMALL in real gait — the trunk stays near-vertical in the frontal
@@ -2231,11 +2432,23 @@ export function spinalGaitCoordination(
   // higher gain skates the stance foot; rig-swept). A real foot-lock IK would let this go
   // to the full physiological ~±4°.
   const kPel = Math.max(0, opts.pelvis ?? 0.05);
-  if (kAx === 0 && kLat === 0 && kPel === 0) return motion;
+  const shuttleAbsorb = opts.shuttleAbsorb;
+  if (kAx === 0 && kLat === 0 && kPel === 0 && !shuttleAbsorb) return motion;
   const cap = (v: number, m: number): number => Math.max(-m, Math.min(m, v));
   const at = (ts: SequenceTarget[], joint: string, mo: string): number =>
     ts.find((t) => t.joint === joint && t.motion === mo)?.targetDegrees ?? 0;
-  const keyframes = motion.keyframes.map((kf) => {
+  // Authored arrival time of each keyframe (cumulative travel + holds) — the
+  // time base the shuttle-absorb phase function is sampled at.
+  const arriveMs: number[] = [];
+  {
+    let cursor = 0;
+    for (const kf of motion.keyframes) {
+      cursor += kf.durationMs ?? 0;
+      arriveMs.push(cursor);
+      cursor += kf.holdMs ?? 0;
+    }
+  }
+  const keyframes = motion.keyframes.map((kf, kfIndex) => {
     const ts = kf.targets;
     if (!ts || !ts.length) return kf;
     // Reciprocal arm-swing asymmetry drives the thoracic axial rotation; loaded-leg
@@ -2247,13 +2460,17 @@ export function spinalGaitCoordination(
     const thoracic = cap(-kAx * armDiff, SPINE_AXIAL_MAX); // thorax rotates with the girdle
     const lumbar = cap(-kAx * 0.3 * armDiff, SPINE_LUMBAR_AXIAL_MAX); // lumbar follows
     const lean = -kLat * hipDiff * airborne; // lean toward the stance (less-flexed) hip
-    const leanLower = cap(lean, SPINE_LATERAL_MAX);
+    // SHUTTLE-ABSORB counter-lean: opposite the pelvis shuttle (phase is +X-ward,
+    // lateralTilt + = toward subject-left/+X, so −phase counters it), split
+    // lumbar/thoracic so the tilt sits low (long lever, minimal thorax roll).
+    const shuttleLean = shuttleAbsorb ? -shuttleAbsorb.deg * shuttleAbsorb.phaseAt(arriveMs[kfIndex]!) : 0;
+    const leanLower = cap(lean + 0.45 * shuttleLean, SPINE_LATERAL_MAX);
     // The thoracic COUNTER-lists (an S-curve): the lumbar lists toward the stance limb
     // (the physiologic weight shift), but the upper trunk leans back the other way so the
     // shoulders — and the head above them — stay centred over the base. A person's head
     // barely bobs laterally in gait (vestibular stabilisation); compounding the lean at the
     // top (the old +0.5) threw the head side-to-side. Neck leveling handles the residual.
-    const leanUpper = cap(-0.6 * lean, SPINE_LATERAL_MAX);
+    const leanUpper = cap(-0.6 * lean + 0.55 * shuttleLean, SPINE_LATERAL_MAX);
     // PELVIC ROTATION (root yaw): the swing side rotates forward. Counter-phase to the
     // thorax (below), so the pelvis and shoulder girdle COUNTER-ROTATE about the spine —
     // the real transverse-plane engine of gait. The hips counter-rotate by −pelvisYaw so

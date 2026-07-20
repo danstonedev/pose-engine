@@ -549,6 +549,7 @@
         applyVerticalCalibration,
         NO_VERTICAL_CALIBRATION,
         deriveFootDrivenTravel,
+        deriveGaitLateralShuttle,
         FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant, buildHandPlant, solveHandReach } =
@@ -990,6 +991,7 @@
         composedUseFootRoot = false; // drop foot-rooted planting for the ended motion
         composedVcal = NO_VERTICAL_CALIBRATION; // drop any gait-vertical calibration
         composedFootDriven = null; // drop any foot-driven travel
+        composedLateralShuttle = null; // drop any medio-lateral shuttle
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
@@ -1437,10 +1439,41 @@
        *  via the SAME shared helper. Null unless the motion requests it. */
       let composedFootDriven: ReturnType<typeof deriveFootDrivenTravel> | null = null;
 
+      /** The planned stance schedule of a resolved motion (gaitStanceWindowsMs),
+       *  scaled from authored ms to trajectory time by the same uniform factor
+       *  the trajectory applies — so the derivations stay phase-locked to the
+       *  knots at any pace (mirrors the offline sampler). */
+      function scaledStanceWindows(
+        traj: PoseTrajectory,
+        resolvedMotion: {
+          gaitStanceWindowsMs?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[];
+          keyframes: { durationMs: number; holdMs: number }[];
+          loop: boolean;
+          reps: number;
+        },
+      ): { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[] | undefined {
+        if (!resolvedMotion.gaitStanceWindowsMs?.length) return undefined;
+        const authoredMs =
+          resolvedMotion.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0) *
+          (resolvedMotion.loop ? 1 : Math.max(1, resolvedMotion.reps));
+        const scale = authoredMs > 0 ? traj.totalMs / authoredMs : 1;
+        return resolvedMotion.gaitStanceWindowsMs.map((w) => ({
+          foot: w.foot,
+          fromMs: w.fromMs * scale,
+          toMs: w.toMs * scale,
+          ...(w.travelLock ? { travelLock: true } : {}),
+        }));
+      }
+
       /** Pre-pass the starting motion's trajectory (FK + floor-pin, no travel),
        *  read the feet, and derive the forward-travel curve that keeps the planted
        *  foot fixed. Resets to null otherwise. */
-      function setComposedFootDriven(traj: PoseTrajectory, enabled: boolean, hasPlanted: boolean): void {
+      function setComposedFootDriven(
+        traj: PoseTrajectory,
+        enabled: boolean,
+        hasPlanted: boolean,
+        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+      ): void {
         composedFootDriven = null;
         if (!enabled || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
         const bones = buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef);
@@ -1463,7 +1496,47 @@
           const rp = rBone.getWorldPosition(new THREE.Vector3());
           const lp = lBone.getWorldPosition(new THREE.Vector3());
           return { rz: rp.z, ry: rp.y, lz: lp.z, ly: lp.y };
-        }, traj.totalMs);
+        }, traj.totalMs, stanceWindows);
+      }
+
+      /** MEDIO-LATERAL SHUTTLE for the ACTIVE composed motion — the derived ±X
+       *  pelvis ride toward the planted foot (per-step weight transfer),
+       *  mirroring the sampler via the SAME shared helper. Null unless the
+       *  motion requests it (`lateralShuttleCm`). */
+      let composedLateralShuttle: ReturnType<typeof deriveGaitLateralShuttle> | null = null;
+
+      /** Pre-pass the starting motion's trajectory (FK + floor-pin, no travel),
+       *  read the feet, and derive the stance-phase-locked lateral shuttle.
+       *  Resets to null otherwise. Mirrors setComposedFootDriven. */
+      function setComposedLateralShuttle(
+        traj: PoseTrajectory,
+        shuttleCm: number | undefined,
+        hasPlanted: boolean,
+        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+      ): void {
+        composedLateralShuttle = null;
+        if (!shuttleCm || shuttleCm <= 0 || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
+        const bones = buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef);
+        const rBone = bones.get('R_Foot');
+        const lBone = bones.get('L_Foot');
+        if (!rBone || !lBone) return;
+        composedLateralShuttle = deriveGaitLateralShuttle((tMs) => {
+          const s = traj.sampleAt(tMs);
+          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
+          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
+          modelRoot!.position.set(
+            rootRestPos.x + s.rootTranslate[0],
+            rootRestPos.y + s.rootTranslate[1],
+            rootRestPos.z + s.rootTranslate[2],
+          );
+          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
+          modelRoot!.updateMatrixWorld(true);
+          if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+          const rp = rBone.getWorldPosition(new THREE.Vector3());
+          const lp = lBone.getWorldPosition(new THREE.Vector3());
+          return { rx: rp.x, ry: rp.y, lx: lp.x, ly: lp.y };
+        }, traj.totalMs, shuttleCm / 100, stanceWindows);
       }
 
       /** Rebuild the foot-plant contexts for a starting composed motion. */
@@ -1596,8 +1669,12 @@
         }
         // Foot-driven forward travel: advance the root (+Z) so the planted foot
         // stays world-fixed (horizontal only — independent of the vertical pin).
-        if (composedFootDriven) {
-          modelRoot.position.z += composedFootDriven.zAt(tMs);
+        // The medio-lateral shuttle rides the root (X) toward the stance foot the
+        // same way; both precede the foot plants below, which hold each stance
+        // foot fixed while the pelvis travels over it.
+        if (composedFootDriven || composedLateralShuttle) {
+          if (composedFootDriven) modelRoot.position.z += composedFootDriven.zAt(tMs);
+          if (composedLateralShuttle) modelRoot.position.x += composedLateralShuttle.xAt(tMs);
           modelRoot.updateMatrixWorld(true);
         }
         // Pelvis-shift overlay LAST, so it composes over the travel/pin/foot-root
@@ -2004,8 +2081,10 @@
           timeScale,
           reps: resolved.reps,
           // A travelling gait keeps a steady cadence — no ease-in whip / halt at the ends
-          // (mirrors the offline sampler so live playback and recordings match).
-          cyclicEnds: resolved.footDrivenTravel === true,
+          // (mirrors the offline sampler so live playback and recordings match) — UNLESS
+          // it authors its own initiation/termination ramps (`settleEnds`): then the ends
+          // are genuine stops (ease from standstill, brake to quiet standing).
+          cyclicEnds: resolved.footDrivenTravel === true && resolved.settleEnds !== true,
         });
         // Advance the continuity/root state to the final keyframe for the NEXT motion.
         const lastRoot = built.roots[built.roots.length - 1];
@@ -2026,8 +2105,14 @@
           composedHasPlanted,
         );
         // FOOT-DRIVEN forward travel: derive the +Z curve that keeps the planted
-        // foot world-fixed from the same one-shot trajectory the stage plays.
-        setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted);
+        // foot world-fixed from the same one-shot trajectory the stage plays,
+        // following the motion's planned stance schedule when it authors one.
+        const stanceWindows = scaledStanceWindows(trajectory, effectiveResolved);
+        setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted, stanceWindows);
+        // MEDIO-LATERAL SHUTTLE: derive the stance-phase-locked ±X pelvis ride
+        // toward the planted foot (per-step weight transfer) from the same
+        // trajectory — the lateral sibling of the foot-driven travel.
+        setComposedLateralShuttle(trajectory, resolved.lateralShuttleCm, composedHasPlanted, stanceWindows);
         // HAND PLANTS: build the arm IK chains for any grounding-posture reach
         // contacts (a plank's hands), so they stay planted as the chest lowers.
         setComposedHandPlants(built.roots);

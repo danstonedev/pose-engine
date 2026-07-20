@@ -584,6 +584,57 @@ export interface FeetZ {
   ly: number;
 }
 
+/** The world X (medio-lateral) + Y of each foot at a phase — what the lateral
+ *  shuttle derivation reads. A caller's single feet-sampling closure can serve
+ *  both derivations by returning the union of this and {@link FeetZ}. */
+export interface FeetLateral {
+  rx: number;
+  lx: number;
+  /** World Y of each foot (to pick the planted/lower one). */
+  ry: number;
+  ly: number;
+}
+
+/** Vertical separation (m) one foot must rise above the other before the
+ *  planted-foot decision hands off — hysteresis so near-tie foot heights (a
+ *  standing entry, terminal double support) can't flutter the choice. Shared
+ *  by the forward-travel and lateral-shuttle derivations. */
+const FOOT_HANDOFF_HYSTERESIS_M = 0.008;
+
+/** A planned single-stance window: `foot` bears weight over [fromMs, toMs].
+ *  Shared by the travel + shuttle derivations (trajectory time base). */
+export interface GaitStanceWindow {
+  foot: string;
+  fromMs: number;
+  toMs: number;
+  /** FORCE the forward-travel derivation onto this window's foot. The measured
+   *  lower-foot heuristic is self-consistent through a steady cycle (its
+   *  entry-reach cancellation is what keeps the pinned foot reachable), so
+   *  travel normally ignores the schedule — but through an authored WEIGHT
+   *  TRANSFER (a braking terminal step) the heuristic tracks the trailing
+   *  push-off foot while the lead foot is still airborne and freezes the
+   *  advance; a travel-locked window keeps it on the weight-bearing foot. The
+   *  lateral shuttle uses every window regardless (it needs the full phase
+   *  schedule). */
+  travelLock?: boolean;
+}
+
+/** The stance side a planned window schedule dictates at tMs, or null when no
+ *  (matching) window covers it — fall back to the measured feet. First match
+ *  wins. `travelOnly` restricts to travel-locked windows. */
+function scheduledStance(
+  windows: GaitStanceWindow[] | undefined,
+  tMs: number,
+  travelOnly = false,
+): 'R' | 'L' | null {
+  if (!windows) return null;
+  for (const w of windows) {
+    if (travelOnly && w.travelLock !== true) continue;
+    if (tMs >= w.fromMs && tMs <= w.toMs) return w.foot.startsWith('R') ? 'R' : 'L';
+  }
+  return null;
+}
+
 /**
  * Derive a forward-travel curve that keeps the PLANTED foot world-fixed — the
  * industry "root motion from foot placement" done right, and the fix for the
@@ -605,24 +656,50 @@ export interface FeetZ {
  * returns the feet world Z/Y. Sampled in time order over `steps`; returns a
  * piecewise-linear lookup. Vertical grounding stays with the floor-pin — this only
  * owns the forward axis.
+ *
+ * `stanceWindows` (optional) supplies the builder's PLANNED stance schedule:
+ * inside a window that foot is the planted one regardless of the measured
+ * heights. The lower-foot heuristic reads the trailing push-off foot as
+ * "planted" through a weight transfer (the lead foot is still airborne while
+ * the trailing one is deepest), which follows the wrong foot through an
+ * authored braking step; the schedule keeps the advance on the weight-bearing
+ * foot. Outside every window — and without the option — the measured feet
+ * decide (with hysteresis so near-tie spans can't flutter the choice).
  */
 export function deriveFootDrivenTravel(
   sampleFeetAtPhase: (tMs: number) => FeetZ,
   totalMs: number,
+  stanceWindows?: GaitStanceWindow[],
   steps = 120,
 ): FootDrivenTravel {
   const n = Math.max(2, steps);
   const dt = totalMs / (n - 1);
   const z = new Array<number>(n).fill(0);
   let prev = sampleFeetAtPhase(0);
-  let planted: 'R' | 'L' = prev.ry <= prev.ly ? 'R' : 'L';
+  let planted: 'R' | 'L' = scheduledStance(stanceWindows, 0, true) ?? (prev.ry <= prev.ly ? 'R' : 'L');
   for (let i = 1; i < n; i += 1) {
     const cur = sampleFeetAtPhase(i * dt);
-    const lower: 'R' | 'L' = cur.ry <= cur.ly ? 'R' : 'L';
+    // Travel-locked schedule first; else HYSTERESIS on the measured decision:
+    // hand off only when the other foot is clearly lower. In the cycle the
+    // swing foot crosses decisively (tens of cm), but near-tie spans — a
+    // standing entry, a feet-together termination, terminal double support —
+    // used to flip-flop the choice per sample, and every flip is a "handoff:
+    // no advance" frame that froze the derived travel mid-step.
+    const scheduled = scheduledStance(stanceWindows, i * dt, true);
+    let lower: 'R' | 'L' | null = scheduled;
+    if (lower == null) {
+      lower = planted;
+      if (planted === 'R' && cur.ry > cur.ly + FOOT_HANDOFF_HYSTERESIS_M) lower = 'L';
+      else if (planted === 'L' && cur.ly > cur.ry + FOOT_HANDOFF_HYSTERESIS_M) lower = 'R';
+    }
     if (lower === planted) {
       // Advance the root by the planted foot's backward body-space step, so its
-      // world position does not change.
-      const back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
+      // world position does not change. Under a PLANNED schedule a still-landing
+      // stance foot can briefly move forward (the physical handoff hasn't
+      // completed) — that is a handoff frame, not a retreat, so the advance is
+      // floored at 0 (the walking root never backs up mid-window).
+      let back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
+      if (scheduled != null) back = Math.max(0, back);
       z[i] = z[i - 1]! + back;
     } else {
       // Handoff: the new foot just landed — no advance this frame, then track it.
@@ -639,6 +716,117 @@ export function deriveFootDrivenTravel(
       const u = tMs / dt;
       const k = Math.min(n - 2, Math.floor(u));
       return z[k]! + (z[k + 1]! - z[k]!) * (u - k);
+    },
+  };
+}
+
+// ── Medio-lateral root shuttle (root motion FROM foot placement, X axis) ──────
+
+/** A precomputed medio-lateral (world X) pelvis-shuttle offset curve over one
+ *  motion, sampled at fixed steps and lerped in between — the lateral sibling of
+ *  {@link FootDrivenTravel}. */
+export interface LateralShuttle {
+  totalMs: number;
+  /** Medio-lateral (world X, subject-left+) root offset, meters, at tMs. */
+  xAt(tMs: number): number;
+}
+
+/**
+ * Derive the phase-locked MEDIO-LATERAL pelvis shuttle of a gait — the weight
+ * transfer the walk was missing: each step, the pelvis rides toward (part-way
+ * over) the STANCE foot, crossing the centre line at the double-support
+ * transitions. Real free gait shuttles the pelvis a few cm toward the stance
+ * side every step [Perry & Burnfield]; without it the body glides down the
+ * midline like a rail-cart while the legs alternate underneath.
+ *
+ * Mirrors {@link deriveFootDrivenTravel}'s measure-then-derive pattern exactly:
+ * `sampleFeetAtPhase(tMs)` poses the rig at tMs (FK + floor-pin, NO travel) and
+ * returns the feet world X/Y. The derivation identifies the planted (lower)
+ * foot per sample — with hysteresis so a standing entry/termination can't
+ * flutter the handoff — then, over each stance window, shapes a smooth
+ * half-sine excursion TOWARD that foot's measured side: zero at the window's
+ * ends (the double-support / weight-transfer instants), peak `amplitudeM` at
+ * mid-stance. Direction and reach come from the MEASURED feet (a wide or
+ * narrow stance shuttles toward where the foot actually is), the amplitude is
+ * capped well inside the half-stance-width so the COM stays within the base.
+ *
+ * `stanceWindows` (optional) supplies the PLANNED stance schedule (e.g. a gait
+ * builder's authored windows, scaled to trajectory time): the shuttle is then
+ * phase-locked to the same schedule any authored trunk counter-lean was
+ * authored against, so root ride and absorb can never drift apart. Without it
+ * the windows are the measured contiguous planted-foot runs. Returns a
+ * piecewise-linear lookup applied to root X only — vertical grounding and
+ * forward travel keep their own channels.
+ */
+export function deriveGaitLateralShuttle(
+  sampleFeetAtPhase: (tMs: number) => FeetLateral,
+  totalMs: number,
+  amplitudeM: number,
+  stanceWindows?: GaitStanceWindow[],
+  steps = 120,
+): LateralShuttle {
+  const n = Math.max(2, steps);
+  const dt = totalMs / (n - 1);
+  const x = new Array<number>(n).fill(0);
+  const amp = Math.max(0, amplitudeM);
+  if (amp > 0) {
+    const feet: FeetLateral[] = [];
+    for (let i = 0; i < n; i += 1) feet.push(sampleFeetAtPhase(i * dt));
+    // Planted (lower) foot per sample, with hysteresis at the handoff.
+    const planted: ('R' | 'L')[] = [];
+    let cur: 'R' | 'L' = feet[0]!.ry <= feet[0]!.ly ? 'R' : 'L';
+    for (const f of feet) {
+      if (cur === 'R' && f.ry > f.ly + FOOT_HANDOFF_HYSTERESIS_M) cur = 'L';
+      else if (cur === 'L' && f.ly > f.ry + FOOT_HANDOFF_HYSTERESIS_M) cur = 'R';
+      planted.push(cur);
+    }
+    // Body centre line = mean of the two feet across the cycle.
+    let centerX = 0;
+    for (const f of feet) centerX += (f.rx + f.lx) / 2;
+    centerX /= n;
+    // Stance windows in sample indices: the planned schedule when supplied,
+    // else the measured contiguous planted-foot runs.
+    const runs: { i0: number; i1: number; foot?: 'R' | 'L' }[] = [];
+    if (stanceWindows?.length) {
+      for (const w of stanceWindows) {
+        const i0 = Math.max(0, Math.min(n - 1, Math.round(w.fromMs / dt)));
+        const i1 = Math.max(0, Math.min(n - 1, Math.round(w.toMs / dt)));
+        if (i1 > i0) runs.push({ i0, i1, foot: w.foot.startsWith('R') ? 'R' : 'L' });
+      }
+    } else {
+      let i = 0;
+      while (i < n) {
+        let j = i;
+        while (j + 1 < n && planted[j + 1] === planted[i]) j += 1;
+        if (j > i) runs.push({ i0: i, i1: j });
+        i = j + 1;
+      }
+    }
+    // Each stance window gets a half-sine toward its foot's measured side (the
+    // scheduled foot when planned, else the majority-planted one).
+    for (const { i0, i1, foot: schedFoot } of runs) {
+      let rCount = 0;
+      for (let k = i0; k <= i1; k += 1) if (planted[k] === 'R') rCount += 1;
+      const foot: 'R' | 'L' = schedFoot ?? (rCount * 2 >= i1 - i0 + 1 ? 'R' : 'L');
+      let stanceX = 0;
+      for (let k = i0; k <= i1; k += 1) stanceX += foot === 'R' ? feet[k]!.rx : feet[k]!.lx;
+      stanceX = stanceX / (i1 - i0 + 1) - centerX;
+      // Toward the stance foot, capped inside the half-stance-width (60%) so a
+      // narrow stance can never be over-shuttled past its own base edge.
+      const reach = Math.sign(stanceX) * Math.min(amp, 0.6 * Math.abs(stanceX));
+      for (let k = i0; k <= i1; k += 1) {
+        x[k] = reach * Math.sin((Math.PI * (k - i0)) / (i1 - i0));
+      }
+    }
+  }
+  return {
+    totalMs,
+    xAt(tMs: number): number {
+      if (tMs <= 0) return x[0]!;
+      if (tMs >= totalMs) return x[n - 1]!;
+      const u = tMs / dt;
+      const k = Math.min(n - 2, Math.floor(u));
+      return x[k]! + (x[k + 1]! - x[k]!) * (u - k);
     },
   };
 }

@@ -101,26 +101,42 @@ function plantedSlideM(rec: MotionRecording, foot: 'R_Foot' | 'L_Foot'): number 
 }
 
 describe('buildTravelWalk — a forward gait driven by foot placement', () => {
-  it('is the 8-phase walk, planted, non-looping, foot-driven, with stance foot-plant contacts', () => {
+  it('is the 8-phase walk wrapped in a real initiation + termination — planted, non-looping, foot-driven', () => {
     const m = buildTravelWalk();
-    expect(m.keyframes.length).toBe(8);
+    // APA initiation lead + 8 cycle phases + braking step + feet-together settle.
+    expect(m.keyframes.length).toBe(11);
     expect(m.loop ?? false).toBe(false); // travel can't loop (would teleport)
     expect(m.stance).toBe('planted');
     expect(m.footDrivenTravel).toBe(true);
-    // Foot-plant contacts pin each stance foot (R the first HALF of the keyframes —
-    // R initial-contact→terminal-stance — L the second) so the pelvis can rotate its
-    // full range ABOUT the planted leg without the foot sliding. The R↔L boundary is
-    // the cumulative time at the half-keyframe mark, which is NOT total/2 once the
-    // step-off entry lengthens the first keyframe.
+    // The walk authors its own initiation/termination ramps, so the trajectory
+    // ends are REAL stops (ease from standstill, brake to quiet standing).
+    expect(m.settleEnds).toBe(true);
+    // Per-step medio-lateral weight transfer, phase-locked to a planned
+    // single-stance schedule shared with the authored trunk absorb.
+    expect(m.lateralShuttleCm ?? 0).toBeGreaterThan(0);
+    expect(m.gaitStanceWindowsMs?.length).toBe(3);
+    // Foot-plant contacts pin each stance foot so the pelvis can rotate its full
+    // range ABOUT the planted leg without the foot sliding: R through the
+    // initiation + first half-cycle, L the second half, then the braking R
+    // stance and the feet-together terminal double support. The terminal
+    // windows open at each foot's LANDING keyframe (an earlier window would
+    // capture an in-flight position and pin the foot in the air).
     const dur = (k: (typeof m.keyframes)[number]): number => (k.durationMs ?? 0) + (k.holdMs ?? 0);
-    const total = m.keyframes.reduce((s, k) => s + dur(k), 0);
-    const mid = m.keyframes.slice(0, 4).reduce((s, k) => s + dur(k), 0);
-    expect(m.contacts?.map((c) => c.foot)).toEqual(['R_Foot', 'L_Foot']);
-    expect(m.contacts![0]).toMatchObject({ foot: 'R_Foot', fromMs: 0, toMs: mid });
-    expect(m.contacts![1]).toMatchObject({ foot: 'L_Foot', fromMs: mid, toMs: total });
-    // The step-off entry (first keyframe) is longer than the steady cycle phases so the
-    // limbs ease into the stride instead of whipping in from neutral.
-    expect(dur(m.keyframes[0]!), 'step-off entry longer than a cycle phase').toBeGreaterThan(dur(m.keyframes[1]!));
+    const endOf = (i: number): number => m.keyframes.slice(0, i + 1).reduce((s, k) => s + dur(k), 0);
+    const total = endOf(m.keyframes.length - 1);
+    expect(m.contacts?.map((c) => c.foot)).toEqual(['R_Foot', 'L_Foot', 'R_Foot', 'L_Foot']);
+    expect(m.contacts![0]).toMatchObject({ foot: 'R_Foot', fromMs: 0, toMs: endOf(4) });
+    expect(m.contacts![1]).toMatchObject({ foot: 'L_Foot', fromMs: endOf(4), toMs: endOf(8) });
+    expect(m.contacts![2]).toMatchObject({ foot: 'R_Foot', fromMs: endOf(9), toMs: total });
+    expect(m.contacts![3]).toMatchObject({
+      foot: 'L_Foot',
+      fromMs: endOf(9) + (m.keyframes[10]!.durationMs ?? 0),
+      toMs: total,
+    });
+    // The step-off entry (the first CYCLE keyframe, after the APA lead) is longer
+    // than the steady cycle phases so the limbs ease into the stride instead of
+    // whipping in from neutral.
+    expect(dur(m.keyframes[1]!), 'step-off entry longer than a cycle phase').toBeGreaterThan(dur(m.keyframes[2]!));
     expect(m.keyframes.every((k) => k.travel == null), 'no authored per-keyframe stride').toBe(true);
   });
 
