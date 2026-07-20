@@ -56,6 +56,7 @@ import {
   captureFootFrames,
   deriveFootDrivenTravel,
   deriveVerticalCalibration,
+  FOOT_ROOT_DRIFT_M,
   NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
   pinContactsToFloor,
@@ -66,6 +67,7 @@ import {
   type FootDrivenTravel,
   type VerticalCalibration,
 } from './rootMotion';
+import { balanceCoordination } from './balanceCoordination';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
 export { stagedBlendWithBaseline };
 import { buildComposedTrajectory, buildLoopTrajectory } from './motionTrajectory';
@@ -258,12 +260,9 @@ const _sqC = new THREE.Quaternion();
 const _sv = new THREE.Vector3();
 const _svB = new THREE.Vector3();
 
-/** Stance-foot drift (m) above which a planted, in-place frame is re-rooted at
- *  the foot (services/rootMotion.plantStanceFoot). A squat/hinge/sit-to-stand
- *  swings the foot tens of cm off its rest frame (well above this); a single-leg
- *  stance leaves the bearing foot home (~0), so it stays on the cheap vertical
- *  pin and its measurement frame is never perturbed. */
-const FOOT_ROOT_DRIFT_M = 0.05;
+// FOOT_ROOT_DRIFT_M (the drift above which a planted frame is re-rooted at the
+// stance foot) is imported from services/rootMotion — one constant shared with
+// the live stage and the balanceCoordination pre-pass.
 
 /** How far (m) the SMOOTHED gait vertical may raise the pelvis above the live floor-pin
  *  when the stance feet are foot-plant IK'd. Rounding the double-support valley raises
@@ -301,6 +300,26 @@ export function sampleComposedMotion(
     frames: [],
   });
   if (resolved.status !== 'ok' || resolved.keyframes.length === 0) return empty();
+
+  // BALANCE COORDINATION (COM-driven postural control): for a motion flagged
+  // `balanceAssist`, measure each keyframe's COM-vs-base offset on this harness
+  // and fold ROM-clamped re-centering targets into the resolved keyframes —
+  // BEFORE the trajectory is built, at the same pipeline point the live stage
+  // applies the SAME pure transform (lockstep, like the vertical-calibration
+  // pre-pass). Identity for unflagged/excluded motions (gait/travel, loops,
+  // floating, lying, grounding postures), so they stay byte-identical. Skipped
+  // when the caller overrides contacts (the plant solver would own the legs).
+  if (!opts.contacts?.length) {
+    resolved = balanceCoordination(resolved, {
+      root,
+      skinned,
+      variantCfg,
+      baselinePose,
+      rest,
+      currentPose: opts.currentPose ?? null,
+      currentRoot: opts.currentRoot ?? null,
+    });
+  }
 
   // The harness transform at call time IS the grounded rest transform the
   // composed root state rides on (mirrors the stage's rootRestPos/Quat).

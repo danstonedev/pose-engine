@@ -377,6 +377,16 @@ export interface ComposedMotion {
    *  Default (undefined) = 'standing' — back-compatible for every existing movement. */
   startPosture?: PostureNode;
   endPosture?: PostureNode;
+  /** COM-DRIVEN POSTURAL CONTROL (opt-in): the sampler/stage run the resolved
+   *  keyframes through `balanceCoordination` (services/balanceCoordination) — a
+   *  build-time pre-pass that measures each keyframe's centre-of-mass offset
+   *  from the base of support on the rig and ADDS capped, ROM-clamped
+   *  re-centering targets (stance-hip shift + trunk counterlean). Residual by
+   *  construction (it measures the motion WITH its authored counterbalance).
+   *  Quasi-static planted motions only — gait/travel, loops, airborne, lying
+   *  and grounding-posture motions are hard-excluded even when flagged.
+   *  Default off (back-compat: unflagged motions are byte-identical). */
+  balanceAssist?: boolean;
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
@@ -474,6 +484,10 @@ export interface ResolvedComposedMotion {
   /** Foot-driven forward travel (pass-through) — the sampler/stage derive the
    *  root's +Z motion from the FK so the planted foot stays world-fixed. */
   footDrivenTravel?: boolean;
+  /** COM-driven postural control (pass-through) — the sampler/stage run the
+   *  resolved keyframes through `balanceCoordination` before building the
+   *  trajectory. See {@link ComposedMotion.balanceAssist}. */
+  balanceAssist?: boolean;
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -1214,6 +1228,7 @@ export function resolveComposedMotion(
       ? { verticalCalibrationCm: Math.max(1, Math.min(12, motion.verticalCalibrationCm)) }
       : {}),
     ...(motion.footDrivenTravel ? { footDrivenTravel: true } : {}),
+    ...(motion.balanceAssist ? { balanceAssist: true } : {}),
   };
 }
 
