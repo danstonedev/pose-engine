@@ -24,6 +24,12 @@ export type CanonicalBone =
   | 'Leg'
   | 'Foot'
   | 'Toes'
+  // Eye bones (L_Eye/R_Eye) — driven ONLY by the live micro-gaze overlay in
+  // ExamStage3D (Wave 5 · 5.1). No ROM entry, no clamp strategy, no pose-rig
+  // handle, not a CoM segment and not a goniometry joint: mapping them here
+  // resolves the bones for the overlay (and lets pose serialization carry
+  // their rest quats) without enrolling them in any clinical machinery.
+  | 'Eye'
   // Finger MCP/CMC anchors (the distal phalanges are reached by traversal). These
   // resolve as handles for per-finger curl; finger detection (FingerToken) still
   // runs in parallel for the paint classifier.
@@ -238,6 +244,10 @@ const CC_BONE_NAME_MAP: BoneNameMap = {
     Leg: ['Calf'],
     Foot: ['Foot'],
     Toes: ['ToeBase'],
+    // CC_Base_L_Eye / CC_Base_R_Eye — present in both runtime GLBs (parented
+    // under CC_Base_FacialBone). Live-only micro-gaze overlay; see 'Eye' note
+    // on the CanonicalBone union.
+    Eye: ['Eye'],
     // Finger MCP/CMC anchors (handles for per-finger curl).
     Thumb1: ['Thumb1'],
     Index1: ['Index1'],

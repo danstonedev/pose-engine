@@ -67,6 +67,7 @@
     cadenceRate,
     idleWeightShift,
   } from './services/liveliness';
+  import { eyeGazeAngles } from './services/eyeGaze';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -976,6 +977,112 @@
         modelRoot?.updateMatrixWorld(true);
         return true;
       }
+      // ── EYES · micro-gaze overlay (Wave 5 · 5.1) — BEGIN eye block ────────
+      // LIVE-ONLY, same undo/reapply sandwich as the idle overlay above, but
+      // ALWAYS-ON while the model is visible (idle AND during motion): the eye
+      // bones are leaves no motion machinery writes, so the overlay rides on
+      // top of any driver. Each frame both eyes get the SAME small conjugate
+      // rotation (no vergence): a gaze-absorb counter of the head's residual
+      // yaw/pitch measured in the MODEL-ROOT frame (travel heading and root
+      // reorientation cancel out — only the stabilizeGaze leftover registers)
+      // plus seeded saccades/drift (pure math in services/eyeGaze). The exact
+      // pre-overlay eye locals are stored on apply and restored before the
+      // recording tap and at every takeover/serialize/export point, so
+      // recordings, goniometry, pose serialization and GLB export always see
+      // the eyes at rest. Clean mode (idleLiveliness = 0) applies NOTHING.
+      let eyeGazeTime = 0;
+      /** Saccade seed: randomized per stage boot, deterministic per seed. */
+      const eyeGazeSeed = Math.random() * 1000;
+      /** True while the eye deltas are baked into the eye bones. */
+      let eyeGazeOn = false;
+      const _eyeBaseLQ = new THREE.Quaternion();
+      const _eyeBaseRQ = new THREE.Quaternion();
+      const _eyeQa = new THREE.Quaternion();
+      const _eyeQb = new THREE.Quaternion();
+      const _eyeQc = new THREE.Quaternion();
+      const _eyeW = new THREE.Quaternion();
+      const _eyeFwd = new THREE.Vector3();
+      const _eyeAxisYaw = new THREE.Vector3(0, 1, 0);
+      const _eyeAxisPitch = new THREE.Vector3(1, 0, 0);
+
+      /**
+       * Bake the micro-gaze deltas for the CURRENT phase onto both eye bones.
+       * Stores the exact pre-overlay eye quats so undoEyeGaze() is an exact
+       * restore. Assumes any previous application was undone first. Returns
+       * whether anything was applied (amount 0 / clean mode applies NOTHING,
+       * keeping the idle-render optimization honest).
+       */
+      function applyEyeGaze(dtSec: number): boolean {
+        const amount = Number.isFinite(idleLiveliness)
+          ? Math.max(0, Math.min(1, idleLiveliness))
+          : 0;
+        if (amount <= 0 || !motionCapBones || !modelRoot || !restRef) return false;
+        const eyeL = motionCapBones.get('L_Eye');
+        const eyeR = motionCapBones.get('R_Eye');
+        const head = motionCapBones.get('Head');
+        const headRestArr = restRef.worldQuats.Head;
+        if (!eyeL || !eyeR || !head || !eyeL.parent || !headRestArr) return false;
+        eyeGazeTime += dtSec;
+        // Head residual in the MODEL-ROOT frame: relNow vs the rest relation
+        // (restRef world quats were captured at the rootRestQuat orientation).
+        modelRoot.getWorldQuaternion(_eyeQc); // root now (also reused below)
+        head.getWorldQuaternion(_eyeQb);
+        _eyeQa.copy(_eyeQc).invert().multiply(_eyeQb); // relNow
+        _eyeQb
+          .copy(rootRestQuat)
+          .invert()
+          .multiply(_eyeW.set(headRestArr[0], headRestArr[1], headRestArr[2], headRestArr[3]))
+          .invert(); // inv(relRest)
+        _eyeQa.multiply(_eyeQb); // residual = relNow · inv(relRest)
+        _eyeFwd.set(0, 0, 1).applyQuaternion(_eyeQa); // rest-forward, deviated
+        const residualYawDeg = (Math.atan2(_eyeFwd.x, _eyeFwd.z) * 180) / Math.PI;
+        const residualPitchDeg =
+          (Math.asin(Math.max(-1, Math.min(1, _eyeFwd.y))) * 180) / Math.PI;
+        const { yawDeg, pitchDeg } = eyeGazeAngles(
+          eyeGazeTime,
+          amount,
+          eyeGazeSeed,
+          residualYawDeg,
+          residualPitchDeg,
+        );
+        // Gaze rotation in the ROOT frame (+yaw = patient's left, +pitch = up),
+        // converted into the shared eye-parent local frame:
+        //   Wlocal = inv(parentW) · rootW · Wroot · inv(rootW) · parentW
+        _eyeQa.setFromAxisAngle(_eyeAxisYaw, (yawDeg * Math.PI) / 180);
+        _eyeQb.setFromAxisAngle(_eyeAxisPitch, (-pitchDeg * Math.PI) / 180);
+        _eyeQa.multiply(_eyeQb); // Wroot
+        eyeL.parent.getWorldQuaternion(_eyeQb); // parentW (shared: FacialBone)
+        _eyeW
+          .copy(_eyeQb)
+          .invert()
+          .multiply(_eyeQc)
+          .multiply(_eyeQa)
+          .multiply(_eyeQc.invert())
+          .multiply(_eyeQb);
+        _eyeBaseLQ.copy(eyeL.quaternion);
+        _eyeBaseRQ.copy(eyeR.quaternion);
+        eyeL.quaternion.premultiply(_eyeW);
+        eyeR.quaternion.premultiply(_eyeW);
+        eyeGazeOn = true;
+        return true;
+      }
+
+      /**
+       * Lift the baked micro-gaze deltas — an EXACT restore of the stored
+       * pre-overlay eye quats. No-op unless deltas are baked. Called first
+       * thing every frame (before the recording tap) and at every takeover /
+       * serialize / export point, mirroring undoIdleOverlays above.
+       */
+      function undoEyeGaze(): boolean {
+        if (!eyeGazeOn) return false;
+        eyeGazeOn = false;
+        const eyeL = motionCapBones?.get('L_Eye');
+        if (eyeL) eyeL.quaternion.copy(_eyeBaseLQ);
+        const eyeR = motionCapBones?.get('R_Eye');
+        if (eyeR) eyeR.quaternion.copy(_eyeBaseRQ);
+        return true;
+      }
+      // ── EYES · micro-gaze overlay — END eye block ─────────────────────────
       // ── Composed-motion (generative keyframe sequence) playback state ─────
       // Pose-tween driven (NOT the mixer). `composedActive` gates the same
       // guarding/sway overlays clip playback applies; `composedSeq` is a
@@ -1082,6 +1189,7 @@
         // Lift any idle-liveliness bake first (keeps the shift tracker exact),
         // then tear down any active motion + mixer bound to the outgoing model.
         undoIdleOverlays();
+        undoEyeGaze(); // eye deltas too — the stored bases die with the model
         stopMotion();
         if (mixer) {
           mixer.uncacheRoot(modelRoot);
@@ -1213,6 +1321,7 @@
           // void (the stored base quats belong to the discarded bones).
           idleOverlayOn = false;
           idleShiftM = 0;
+          eyeGazeOn = false; // same for the eye micro-gaze bake
 
           // 7b) Fresh AnimationMixer bound to this model root for named
           //     motions. A one-shot clip that reaches its end fires 'finished',
@@ -1997,11 +2106,13 @@
         // captureFrame/recordings never carry the idle perturbation while the
         // rendered frame is unchanged. No-op unless idle deltas are baked
         // (inside the rAF loop they were already lifted before the tap).
+        const hadEyeGaze = undoEyeGaze(); // eyes at rest around the capture too
         const hadIdleOverlay = undoIdleOverlays();
         try {
           return buildFrameNowClean(tMs);
         } finally {
           if (hadIdleOverlay) applyIdleOverlays(0);
+          if (hadEyeGaze) applyEyeGaze(0);
         }
       }
 
@@ -2090,6 +2201,7 @@
         // and lift any idle deltas BEFORE the absolute pose/root writes below
         // (a stale idle bake would otherwise corrupt the shift tracker).
         undoIdleOverlays();
+        undoEyeGaze(); // eye deltas lift before the absolute pose writes too
         cancelComposed();
         if (activeMotionId) stopMotion();
         if (activeTween) finishTween();
@@ -2112,6 +2224,7 @@
         // named motion or composed playback first, then proceed. Exam ROM is
         // upright/open-chain, so drop any composed full-body root posture.
         undoIdleOverlays(); // the command starts from the clean idle pose
+        undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
         poseLayerOnTakeover?.();
         cancelComposed();
         if (activeMotionId) stopMotion();
@@ -2171,6 +2284,7 @@
         // Composed playback owns the skeleton: cancel any clip / prior
         // composed loop / in-flight tween, THEN capture the cancellation token.
         undoIdleOverlays(); // playback starts from the clean idle pose
+        undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
         poseLayerOnTakeover?.();
         if (activeMotionId) stopMotion();
         if (activeTween) finishTween();
@@ -2479,6 +2593,7 @@
           return { status: 'refused', reason: 'stage-unavailable' };
         }
         undoIdleOverlays(); // the clip starts from the clean idle pose
+        undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
         const resolved = resolveMotionCommand(cmd);
         if (resolved.status === 'stop') {
           stopMotion();
@@ -2767,6 +2882,9 @@
         // always samples the clean underlying pose and the deltas can never
         // accumulate. An undone frame still draws once (dirty flag honest).
         if (undoIdleOverlays()) renderNeeded = true;
+        // EYES: lift last frame's micro-gaze deltas the same way (exact base
+        // restore) so the tap below samples the eyes at rest too.
+        if (undoEyeGaze()) renderNeeded = true;
         // Motion-recording tap: while active, sample at the requested rate
         // regardless of what drives the skeleton (clip, exam tween, composed
         // playback, or idle manual time). Same throttle pattern as the
@@ -2795,6 +2913,12 @@
         ) {
           renderNeeded = true;
         }
+        // EYES: re-bake the micro-gaze at the advanced phase — deliberately
+        // NOT gated on idle (the eyes live during motion too; they are
+        // overlay-only leaves outside the pose pipeline). Applied AFTER the
+        // recording tap so recordings stay clean; clean mode applies nothing
+        // and never forces a draw.
+        if (applyEyeGaze(motionDelta)) renderNeeded = true;
         if (!renderNeeded) return;
         poseLayerBeforeRender?.(); // markers / gizmo / twist / slice tracking
         renderer.render(scene, camera);
@@ -3038,6 +3162,7 @@
           // engaged, but a same-frame press→release could still commit with
           // deltas baked — lift them so the committed pose is always clean.
           undoIdleOverlays();
+          undoEyeGaze(); // committed poses carry the eyes at rest
           modelRoot?.updateMatrixWorld(true);
           currentPose = serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
         }
@@ -3475,6 +3600,7 @@
           // A drag may capture chain/bone state synchronously below — lift any
           // idle-liveliness deltas first so posing starts from the clean pose.
           undoIdleOverlays();
+          undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
           setNdc(e);
           raycaster.setFromCamera(_ndc, camera);
           // Oblique-plane editing owns the gizmo + centre dot while active.
@@ -3691,6 +3817,7 @@
           if (!skinnedRef || !variantCfgRef || !baselinePoseRef || posingSuspended()) return false;
           deselectImpl();
           // The preview snapshot must be the CLEAN pose, never an idle delta.
+          undoEyeGaze(); // nor a baked eye delta
           undoIdleOverlays();
           posePlayPosed = serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
           posePlayActive = true;
@@ -3851,6 +3978,7 @@
             // Serialize the CLEAN pose — never a baked idle-liveliness delta
             // (the rAF loop re-bakes it next frame; phase is continuous).
             undoIdleOverlays();
+            undoEyeGaze(); // eyes at rest in the serialized pose
             return serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
           },
           loadPose: (pose: CustomPose) => {
@@ -3858,6 +3986,7 @@
             // A loaded pose owns the skeleton — same cancels as scrubbing
             // (idle deltas lift BEFORE the absolute pose/root writes).
             undoIdleOverlays();
+            undoEyeGaze(); // eye deltas lift before the absolute pose writes
             poseLayerOnTakeover?.();
             cancelComposed();
             if (activeMotionId) stopMotion();
@@ -3874,6 +4003,7 @@
           resetPose: () => {
             if (!skinnedRef || !variantCfgRef) return;
             undoIdleOverlays();
+            undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
             poseLayerOnTakeover?.();
             cancelComposed();
             if (activeMotionId) stopMotion();
@@ -3933,6 +4063,7 @@
             // Preserve the working pose; the live skeleton is mutated to sample.
             // Idle deltas lift first so the export + restore are both clean.
             undoIdleOverlays();
+            undoEyeGaze(); // exported bone tracks carry the eyes at rest
             const saved = serializeCustomPose(skel, variantCfg, variantCfg.id);
             const times = frames.map((f) => f.t);
             const perBone = new Map<string, number[]>();
