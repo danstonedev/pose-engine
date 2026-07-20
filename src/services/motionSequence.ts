@@ -416,6 +416,17 @@ export interface ComposedMotion {
    *  it. Only meaningful with `footDrivenTravel`; omit (or 0) for the default
    *  straight-ahead walk — which stays byte-identical. */
   headingDeg?: number;
+  /** MOMENTUM-PRESERVING SEAM (opt-in, roadmap 4.4): a chained motion normally
+   *  eases in from rest — the trajectory's first knot is a stop, so every
+   *  cross-command seam (walk→squat, kick→step) brakes to zero before the next
+   *  motion begins. When set, the trajectory's FIRST knot becomes a fly-through
+   *  (the cyclicEnds boundary mechanics, applied to the entry only): the motion
+   *  ENTERS with velocity, carrying the previous motion's momentum across the
+   *  seam, while its FINAL keyframe still settles to a genuine stop. Purely an
+   *  entry-shape change — knot times, holds, the final pose and every settle
+   *  measurement are untouched; unflagged motions are byte-identical. This is
+   *  the ENGINE primitive: chain authors/hosts opt in per motion. */
+  flowIn?: boolean;
   /** The body POSTURE this movement assumes at its START / leaves at its END, for
    *  the transition executor to bridge between commands (e.g. a supine exercise
    *  starts+ends 'supine'; a lie-down ends 'supine'; a get-up ends 'standing').
@@ -565,6 +576,10 @@ export interface ResolvedComposedMotion {
    *  sampler/stage hand it to the travel/shuttle derivations. See
    *  {@link ComposedMotion.headingDeg}. */
   headingDeg?: number;
+  /** Momentum-preserving seam (pass-through) — the trajectory's FIRST knot is a
+   *  fly-through so a chained motion enters with velocity; the final settle
+   *  still stops. See {@link ComposedMotion.flowIn}. */
+  flowIn?: boolean;
   /** COM-driven postural control (pass-through) — the sampler/stage run the
    *  resolved keyframes through `balanceCoordination` before building the
    *  trajectory. See {@link ComposedMotion.balanceAssist}. */
@@ -1346,6 +1361,7 @@ export function resolveComposedMotion(
     motion.headingDeg !== 0
       ? { headingDeg: motion.headingDeg }
       : {}),
+    ...(motion.flowIn ? { flowIn: true } : {}),
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
     ...(motion.weightedDescent ? { weightedDescent: true } : {}),
   };

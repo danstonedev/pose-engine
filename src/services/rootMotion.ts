@@ -594,6 +594,13 @@ export interface FeetZ {
    *  ignored for the default heading 0. */
   rx?: number;
   lx?: number;
+  /** BOTH feet airborne at this sample (a run's ballistic FLIGHT gap — the
+   *  trajectory sample was un-pinned). No grounded reference exists, so the
+   *  forward-travel derivation HOLDS the last grounded advance through the gap
+   *  and resumes at touchdown (the swing feet sweeping in body space mid-air
+   *  must not advance — or retreat — the root). Omit/false for grounded gait:
+   *  back-compat, the derivation is then byte-identical to before. */
+  bothAirborne?: boolean;
 }
 
 /** The world X (medio-lateral) + Y of each foot at a phase — what the lateral
@@ -691,6 +698,11 @@ function scheduledStance(
  * takes. The caller authors the SAME heading as the body's root yaw, so the FK
  * sweep and the derived cancellation stay collinear. Heading 0 keeps the
  * legacy z-only measurement verbatim (byte-identical).
+ * FLIGHT GAPS (a run): a sample whose {@link FeetZ.bothAirborne} is set has NO
+ * planted foot — the derivation holds the last grounded advance through the
+ * gap and treats the first grounded sample after it as a touchdown handoff
+ * (no advance that frame, then track the landing foot). Samples that never
+ * set the flag (every walking gait) take the exact pre-existing path.
  */
 export function deriveFootDrivenTravel(
   sampleFeetAtPhase: (tMs: number) => FeetZ,
@@ -708,8 +720,20 @@ export function deriveFootDrivenTravel(
   const hz = Math.cos(headingDeg * RAD);
   let prev = sampleFeetAtPhase(0);
   let planted: 'R' | 'L' = scheduledStance(stanceWindows, 0, true) ?? (prev.ry <= prev.ly ? 'R' : 'L');
+  // Inside a FLIGHT gap (both feet airborne — a run's ballistic interval) the
+  // advance is HELD; the first grounded sample after it is a touchdown handoff.
+  let airborne = prev.bothAirborne === true;
   for (let i = 1; i < n; i += 1) {
     const cur = sampleFeetAtPhase(i * dt);
+    // FLIGHT GAP: no foot is planted, so there is no grounded reference to
+    // advance against — the swing legs sweeping in body space mid-air would
+    // otherwise advance/retreat the root. Hold the last grounded advance.
+    if (cur.bothAirborne === true) {
+      z[i] = z[i - 1]!;
+      airborne = true;
+      prev = cur;
+      continue;
+    }
     // Travel-locked schedule first; else HYSTERESIS on the measured decision:
     // hand off only when the other foot is clearly lower. In the cycle the
     // swing foot crosses decisively (tens of cm), but near-tie spans — a
@@ -717,6 +741,16 @@ export function deriveFootDrivenTravel(
     // used to flip-flop the choice per sample, and every flip is a "handoff:
     // no advance" frame that froze the derived travel mid-step.
     const scheduled = scheduledStance(stanceWindows, i * dt, true);
+    if (airborne) {
+      // TOUCHDOWN after a flight gap: the landing foot only just arrived, so
+      // its prev→cur body-space delta spans the airborne sweep — a handoff
+      // frame (no advance), then track the newly grounded foot.
+      airborne = false;
+      planted = scheduled ?? (cur.ry <= cur.ly ? 'R' : 'L');
+      z[i] = z[i - 1]!;
+      prev = cur;
+      continue;
+    }
     let lower: 'R' | 'L' | null = scheduled;
     if (lower == null) {
       lower = planted;

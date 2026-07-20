@@ -464,6 +464,9 @@ export function sampleComposedMotion(
         // authors its own initiation/termination ramps (`settleEnds`), in which case
         // the ends are genuine stops (ease from standstill, brake to quiet standing).
         cyclicEnds: resolved.footDrivenTravel === true && resolved.settleEnds !== true,
+        // MOMENTUM-PRESERVING SEAM (opt-in): the first knot is a fly-through so a
+        // chained motion enters with velocity; the final settle still stops.
+        flowIn: resolved.flowIn === true,
       });
   const totalMs = trajectory.totalMs;
   const dtMs = 1000 / hz;
@@ -536,7 +539,12 @@ export function sampleComposedMotion(
         if (s.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
         rBone.getWorldPosition(_sv);
         lBone.getWorldPosition(_svB);
-        return { rz: _sv.z, ry: _sv.y, rx: _sv.x, lz: _svB.z, ly: _svB.y, lx: _svB.x };
+        // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
+        // airborne): the travel derivation holds its advance through it.
+        return {
+          rz: _sv.z, ry: _sv.y, rx: _sv.x, lz: _svB.z, ly: _svB.y, lx: _svB.x,
+          bothAirborne: !s.planted,
+        };
       };
       // The planned stance schedule is authored ms; the trajectory runs at
       // authored/timeScale — scale it by the same uniform factor so both
