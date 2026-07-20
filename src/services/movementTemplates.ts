@@ -929,6 +929,13 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     keyframes: coordinated.keyframes,
     footDrivenTravel: true,
     contacts: gaitFootContacts(coordinated),
+    // Calibrate the COM vertical: the raw floor-pin vault of the travelling walk is
+    // ~13 cm — far more than real free gait (~5 cm) — and it drops abruptly into
+    // double support. The vertical calibration calms the excursion AND (in the
+    // sampler) smooths the sharp valley into a glide; the foot-plant contacts below
+    // re-pin the stance foot after, so the feet stay grounded while the pelvis arc
+    // is reshaped. (The in-place walk gets the same target via gaitBounce.)
+    verticalCalibrationCm: NORMAL_GAIT_VERTICAL_CM,
   };
 }
 
@@ -2023,6 +2030,9 @@ const KNEE_ROT_GAIN = 0.08; // the tibia rotates with knee flexion (the screw-ho
 const KNEE_ROT_MAX = 8;
 const ANK_INV_GAIN = 0.22; // foot everts at loading (pronation), inverts at push-off (supination)
 const ANK_INV_MAX = 8;
+// Neck lateral compensation for the roll leaked by the (large) axial neck counter — rig-fit
+// so the head's side-to-side tip nulls out. Sign/gain calibrated on the walk (see spinalCoord).
+const NECK_AXIAL_ROLL_COMP = 0.28;
 
 /**
  * NATURAL SPINAL GAIT COORDINATION — the reciprocal trunk motion that makes gait
@@ -2079,7 +2089,12 @@ export function spinalGaitCoordination(
     const lumbar = cap(-kAx * 0.3 * armDiff, SPINE_LUMBAR_AXIAL_MAX); // lumbar follows
     const lean = -kLat * hipDiff * airborne; // lean toward the stance (less-flexed) hip
     const leanLower = cap(lean, SPINE_LATERAL_MAX);
-    const leanUpper = cap(0.5 * lean, SPINE_LATERAL_MAX);
+    // The thoracic COUNTER-lists (an S-curve): the lumbar lists toward the stance limb
+    // (the physiologic weight shift), but the upper trunk leans back the other way so the
+    // shoulders — and the head above them — stay centred over the base. A person's head
+    // barely bobs laterally in gait (vestibular stabilisation); compounding the lean at the
+    // top (the old +0.5) threw the head side-to-side. Neck leveling handles the residual.
+    const leanUpper = cap(-0.6 * lean, SPINE_LATERAL_MAX);
     // PELVIC ROTATION (root yaw): the swing side rotates forward. Counter-phase to the
     // thorax (below), so the pelvis and shoulder girdle COUNTER-ROTATE about the spine —
     // the real transverse-plane engine of gait. The hips counter-rotate by −pelvisYaw so
@@ -2093,7 +2108,15 @@ export function spinalGaitCoordination(
     // stable; 0 = head rides the trunk). A motion that drives the neck itself isn't run
     // through here.
     const neckAxial = cap(-headStab * (pelvisYaw + thoracic + lumbar), SPINE_NECK_MAX);
-    const neckLateral = cap(-headStab * (leanLower + leanUpper), SPINE_NECK_LATERAL_MAX);
+    // The neck's axial counter is large (it cancels the whole trunk's yaw for gaze), and it
+    // acts about a slightly forward-inclined cervical axis, so it LEAKS a few degrees of head
+    // roll — the head tips side-to-side each stride even though it's not authored to. Cancel
+    // that induced roll with a small lateral counter proportional to the axial counter
+    // (rig-fit gain), so the head stays level as well as forward.
+    const neckLateral = cap(
+      -headStab * (leanLower + leanUpper) + NECK_AXIAL_ROLL_COMP * neckAxial,
+      SPINE_NECK_LATERAL_MAX,
+    );
     const additions: { joint: string; motion: string; deg: number }[] = [
       { joint: 'Spine_Upper', motion: 'rotation', deg: thoracic },
       { joint: 'Spine_Lower', motion: 'rotation', deg: lumbar },

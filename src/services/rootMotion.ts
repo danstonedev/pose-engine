@@ -451,10 +451,25 @@ export function pinRootToFloor(
 // ── Calibrated gait vertical (mean-preserving reshape) ───────────────────────
 
 /** A calibration that reshapes an emergent grounded pelvis arc to a target
- *  excursion: `root.y ← mean + gain·(root.y − mean)`. gain 1 = identity. */
+ *  excursion: `root.y ← mean + gain·(root.y − mean)`. gain 1 = identity.
+ *  When `smoothed` is present, the calibration instead REPLACES root.y with a
+ *  phase-indexed, temporally-smoothed target arc (see deriveVerticalCalibration
+ *  `smooth`) — this rounds the sharp double-support valley of the raw floor-pin
+ *  into a believable sinusoid-like glide, so applyVerticalCalibration needs the
+ *  cycle phase. */
 export interface VerticalCalibration {
   meanY: number;
   gain: number;
+  /** Phase-indexed smoothed target model-root Y, one sample per phase bucket over
+   *  [0,1). Present ⇒ apply returns the lerped table value for the given phase;
+   *  absent ⇒ the pointwise mean/gain amplitude scale. */
+  smoothed?: number[];
+  /** Max metres the smoothed target may sit ABOVE the live floor-pin. The smoothed
+   *  arc rounds the double-support valley by raising the pelvis, but raising it above
+   *  the pin makes a planted stance leg OVER-reach (foot lifts/slides via the foot-plant
+   *  IK). Clamping the rise bounds that over-reach: `min(smoothed, pin + maxRiseM)`.
+   *  Undefined ⇒ no clamp (e.g. the contact-free in-place walk). */
+  maxRiseM?: number;
 }
 
 /** Identity — leaves the grounded root untouched. */
@@ -468,17 +483,27 @@ export const NO_VERTICAL_CALIBRATION: VerticalCalibration = { meanY: 0, gain: 1 
  * `targetM` about its mean — so the mean (grounding) is preserved and only the
  * extremes deviate from the floor by (1−gain)·½·excursion. The SAME function is
  * used by the offline sampler and the live stage, so they cannot diverge.
+ *
+ * With `smooth`, additionally low-pass the periodic arc (circular moving-average)
+ * before the amplitude scale and return the smoothed, mean-preserving target arc
+ * as a phase table. The raw floor-pin drops abruptly into double support (a sharp
+ * V-valley) and climbs out slowly — a sawtooth that reads as a "sudden drop"; the
+ * smoothing rounds it into a symmetric glide while preserving the mean grounding.
  */
 export function deriveVerticalCalibration(
   groundedRootYAtPhase: (u01: number) => number,
   targetM: number,
   steps = 48,
+  smooth = false,
+  maxRiseM?: number,
 ): VerticalCalibration {
+  const raw: number[] = [];
   let sum = 0;
   let lo = Infinity;
   let hi = -Infinity;
   for (let i = 0; i < steps; i += 1) {
     const y = groundedRootYAtPhase(i / steps);
+    raw.push(y);
     sum += y;
     if (y < lo) lo = y;
     if (y > hi) hi = y;
@@ -488,11 +513,45 @@ export function deriveVerticalCalibration(
   // Clamp so a request can only calm the vault or amplify it within a believable
   // band — never invert or explode it; a degenerate flat arc stays identity.
   const gain = p2p > 1e-4 ? Math.max(0.1, Math.min(1.6, targetM / p2p)) : 1;
-  return { meanY, gain };
+  if (!smooth || steps < 4) return { meanY, gain };
+  // Circular moving-average over ±~1/12 of the cycle (the arc is periodic, so wrap
+  // the window), then amplitude-scale the SMOOTHED arc about its mean to the target.
+  const win = Math.max(1, Math.round(steps / 12));
+  const sm: number[] = new Array(steps);
+  let smSum = 0;
+  let smLo = Infinity;
+  let smHi = -Infinity;
+  for (let i = 0; i < steps; i += 1) {
+    let acc = 0;
+    for (let k = -win; k <= win; k += 1) acc += raw[(((i + k) % steps) + steps) % steps]!;
+    const v = acc / (2 * win + 1);
+    sm[i] = v;
+    smSum += v;
+    if (v < smLo) smLo = v;
+    if (v > smHi) smHi = v;
+  }
+  const smMean = smSum / steps;
+  const smP2p = smHi - smLo;
+  const smGain = smP2p > 1e-4 ? Math.max(0.1, Math.min(1.6, targetM / smP2p)) : 1;
+  const smoothed = sm.map((v) => smMean + smGain * (v - smMean));
+  return { meanY: smMean, gain: smGain, smoothed, maxRiseM };
 }
 
-/** Apply a vertical calibration to a grounded root-Y. */
-export function applyVerticalCalibration(y: number, cal: VerticalCalibration): number {
+/** Apply a vertical calibration to a grounded root-Y. When the calibration carries
+ *  a smoothed phase table and `u01` (cycle phase) is given, returns the lerped
+ *  smoothed target (temporal smoothing) — clamped so it never rises more than
+ *  `maxRiseM` above the live pin `y` (keeps a planted stance leg from over-reaching);
+ *  otherwise the pointwise amplitude scale. */
+export function applyVerticalCalibration(y: number, cal: VerticalCalibration, u01?: number): number {
+  if (cal.smoothed && cal.smoothed.length > 0 && u01 != null) {
+    const N = cal.smoothed.length;
+    const x = (((u01 % 1) + 1) % 1) * N;
+    const i0 = Math.floor(x) % N;
+    const i1 = (i0 + 1) % N;
+    const f = x - Math.floor(x);
+    const s = cal.smoothed[i0]! * (1 - f) + cal.smoothed[i1]! * f;
+    return cal.maxRiseM != null ? Math.min(s, y + cal.maxRiseM) : s;
+  }
   return cal.gain === 1 ? y : cal.meanY + cal.gain * (y - cal.meanY);
 }
 

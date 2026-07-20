@@ -133,7 +133,30 @@ describe('buildTravelWalk — a forward gait driven by foot placement', () => {
     // cycle (quicker cadence) — all from paceGait, with the stride still emergent.
     expect(hipsDz(fast), 'faster travels farther').toBeGreaterThan(hipsDz(normal) + 0.1);
     expect(durOf(fast), 'faster cycle is shorter').toBeLessThan(durOf(normal) - 100);
-    expect(plantedSlideM(fast, 'R_Foot'), 'R stays planted when fast').toBeLessThan(0.04);
+    // A fast stride extends the stance leg near its reach limit, so the smoothed gait
+    // vertical (which rounds the double-support drop by lifting the pelvis, clamped to
+    // +2 cm over the pin) makes the planted foot over-reach a little more than at normal
+    // speed — ~4.2 cm here vs ~3.9 cm un-smoothed. Still barely-sliding; the trade buys a
+    // much smoother COM vertical (no 13 cm sawtooth). The default walk keeps <3 cm.
+    expect(plantedSlideM(fast, 'R_Foot'), 'R stays planted when fast').toBeLessThan(0.05);
+  });
+
+  it('the COM vertical is calmed AND smooth — no sudden double-support drop', () => {
+    // The raw floor-pin vault of the travelling walk is ~13.5 cm with a sharp V-drop into
+    // double support (it even spiked UP just after contact). The vertical calibration +
+    // phase smoothing calms the excursion and rounds the drop; the +2.5 cm rise clamp keeps
+    // the stance foot planted. Assert both the calmer amplitude and the gentler descent.
+    const frames = sampleTravel().frames;
+    const ys = frames.map((f) => f.root.translateM[1]);
+    const p2p = Math.max(...ys) - Math.min(...ys);
+    expect(p2p, 'excursion calmed from the ~13.5 cm raw floor-pin vault').toBeLessThan(0.10);
+    // Gentle descent: the biggest drop over any ~100 ms window is well under the raw ~7 cm.
+    const total = frames[frames.length - 1]!.tMs;
+    const perMs = total / (ys.length - 1);
+    const win = Math.max(1, Math.round(100 / perMs));
+    let maxDrop = 0;
+    for (let i = win; i < ys.length; i += 1) maxDrop = Math.max(maxDrop, ys[i - win]! - ys[i]!);
+    expect(maxDrop, 'no sudden vertical drop — the descent is rounded').toBeLessThan(0.06);
   });
 
   it('the swing foot still advances forward (the plant does not freeze the gait)', () => {
