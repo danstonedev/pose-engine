@@ -33,11 +33,20 @@ import type { CustomPose } from '../types';
 
 const SPINE_MOTIONS = new Set(['rotation', 'lateralTilt']);
 /** A joint/motion the gait coordinator is allowed to author: spine/neck rotation +
- *  lateral tilt (thorax counter-rotation, lean, gaze), and the hip counter-rotation that
- *  holds the feet forward as the pelvis (root) rotates. */
+ *  lateral tilt (thorax counter-rotation, lean, gaze), the hip counter-rotation that holds
+ *  the feet forward as the pelvis rotates, and the SUBTLE limb non-sagittal set (shoulder
+ *  abduction, forearm rotation, hip abduction, knee rotation, ankle inversion) that keeps
+ *  the arms/legs from swinging as flat 2-D pendulums. */
+const LIMB_NONSAG: Record<string, string> = {
+  L_UpperArm: 'shoulderAbduction', R_UpperArm: 'shoulderAbduction',
+  L_Forearm: 'forearmRotation', R_Forearm: 'forearmRotation',
+  L_UpLeg: 'hipRotation|hipAbduction', R_UpLeg: 'hipRotation|hipAbduction',
+  L_Leg: 'kneeRotation', R_Leg: 'kneeRotation',
+  L_Foot: 'ankleInversion', R_Foot: 'ankleInversion',
+};
 const isCoordinationAdd = (joint: string, motion: string) =>
   ((joint === 'Spine_Upper' || joint === 'Spine_Lower' || joint === 'Neck') && SPINE_MOTIONS.has(motion)) ||
-  ((joint === 'L_UpLeg' || joint === 'R_UpLeg') && motion === 'hipRotation');
+  (LIMB_NONSAG[joint]?.split('|').includes(motion) ?? false);
 
 const walkComposed = () =>
   templateToComposedMotion(MOVEMENT_TEMPLATES.find((t) => t.id === 'walk')!);
@@ -79,6 +88,25 @@ describe('spinalGaitCoordination — trunk counter-rotation authoring', () => {
         if (!wasThere) expect(isCoordinationAdd(a.joint, a.motion), `${a.joint}.${a.motion} is a coordination add`).toBe(true);
       }
     }
+  });
+
+  it('adds SUBTLE non-sagittal LIMB motion — arms/legs move in all 3 planes, not flat pendulums', () => {
+    const out = spinalGaitCoordination(walkComposed());
+    const present = (joint: string, motion: string) =>
+      out.keyframes.some((kf) => kf.targets?.some((t) => t.joint === joint && t.motion === motion && Math.abs(t.targetDegrees) > 0.5));
+    const maxAbs = (joint: string, motion: string) =>
+      Math.max(...out.keyframes.map((kf) => Math.abs(kf.targets?.find((t) => t.joint === joint && t.motion === motion)?.targetDegrees ?? 0)));
+    // Arms: abducted off the ribs (frontal) + forearm pronation (transverse).
+    expect(present('R_UpperArm', 'shoulderAbduction'), 'arm abduction').toBe(true);
+    expect(present('R_Forearm', 'forearmRotation'), 'forearm rotation').toBe(true);
+    // Legs: swing hip abduction (frontal), tibial rotation (transverse), subtalar roll (frontal).
+    expect(present('R_UpLeg', 'hipAbduction'), 'hip abduction').toBe(true);
+    expect(present('R_Leg', 'kneeRotation'), 'knee rotation').toBe(true);
+    expect(present('R_Foot', 'ankleInversion'), 'ankle inversion').toBe(true);
+    // …all SUBTLE — physiologic, well inside ROM, never exaggerated.
+    expect(maxAbs('R_UpperArm', 'shoulderAbduction'), 'abduction stays subtle').toBeLessThan(16);
+    expect(maxAbs('R_UpLeg', 'hipAbduction'), 'hip abduction stays subtle').toBeLessThan(8);
+    expect(maxAbs('R_Foot', 'ankleInversion'), 'ankle roll stays subtle').toBeLessThan(10);
   });
 
   it('thoracic axial rotation OSCILLATES — both directions within one cycle', () => {

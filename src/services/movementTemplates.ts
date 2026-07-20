@@ -890,12 +890,6 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
  * elbow follow-through). Non-looping, `startFrom:'current'`, so repeating it walks
  * further from wherever the body already is.
  */
-/** The pelvic-rotation gain used when the gait FOOT-PLANTS its stance feet (below): with
- *  the stance foot pinned by IK, the pelvis can turn its full ~±4° about the planted leg
- *  without the foot sliding, so this is ~2× the un-planted default that the vertical pin
- *  alone tolerates. */
-export const PELVIS_GAIT_GAIN_PLANTED = 0.1;
-
 /**
  * FOOT-PLANT CONTACTS for a symmetric two-step gait cycle: the RIGHT foot is the stance
  * (pinned) foot through the first half of the cycle, the LEFT through the second — so each
@@ -921,10 +915,12 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     speed != null && speed !== 1
       ? paceGait(templateToComposedMotion(walk), speed)
       : templateToComposedMotion(walk);
-  // Natural trunk coordination — thoracic counter-rotation with the arm swing + lateral
-  // sway + PELVIC rotation. Full-range pelvic yaw because the feet are FOOT-PLANTED (the
-  // stance foot is IK-pinned, so the pelvis turns about it without dragging the foot).
-  const coordinated = spinalGaitCoordination(base, { pelvis: PELVIS_GAIT_GAIN_PLANTED });
+  // Natural trunk + limb coordination (counter-rotation, sway, pelvic rotation, and the
+  // non-sagittal limb motion). The pelvic yaw stays the default ~±2° — the same amount as
+  // the in-place walk — even though the feet are foot-planted below: a bigger travelling
+  // yaw wags the whole body too much (a full ~±4° reads clean in place but not in travel).
+  // The foot-plant contacts still hold each stance foot fixed so nothing slides.
+  const coordinated = spinalGaitCoordination(base);
   return {
     name: 'walk-forward',
     startFrom: 'current',
@@ -2005,6 +2001,24 @@ const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
 // yaw reads as a twist/shimmy AND drags the planted foot, since the walk grounds the feet
 // with a vertical pin, not a horizontal foot-lock IK — see kPel calibration below).
 const PELVIS_YAW_MAX = 6;
+// ─── Limb non-sagittal gait coordination ─────────────────────────────────────
+// Real gait limbs move in all THREE planes; a purely sagittal swing (flexion only) reads
+// as a robotic 2-D walker. These add SUBTLE frontal + transverse components — physiologic
+// amounts, well inside ROM — derived per-limb from that limb's own sagittal phase, so the
+// arms and legs carry natural out-of-plane motion. ROM-clamped on resolve.
+const ARM_ABD_BASE = 7; // shoulder abduction: the arm hangs a little off the ribs…
+const ARM_ABD_SWING = 0.12; // …and abducts a touch more on the backswing
+const ARM_ABD_MAX = 14;
+const ARM_PRO_BASE = 12; // forearm pronation: palm toward the thigh, not a rigid stick
+const ARM_PRO_SWING = 0.12;
+const ARM_PRO_MAX = 28;
+const HIP_ABD_GAIN = 0.18; // swing hip ABducts (clearance), stance hip ADducts (pelvic drop)
+const HIP_FLEX_MEAN = 10; // the cycle-mean hip flexion the ab/adduction pivots about
+const HIP_ABD_MAX = 6;
+const KNEE_ROT_GAIN = 0.08; // the tibia rotates with knee flexion (the screw-home unwinds)
+const KNEE_ROT_MAX = 8;
+const ANK_INV_GAIN = 0.22; // foot everts at loading (pronation), inverts at push-off (supination)
+const ANK_INV_MAX = 8;
 
 /**
  * NATURAL SPINAL GAIT COORDINATION — the reciprocal trunk motion that makes gait
@@ -2090,6 +2104,33 @@ export function spinalGaitCoordination(
       { joint: 'L_UpLeg', motion: 'hipRotation', deg: -pelvisYaw },
       { joint: 'R_UpLeg', motion: 'hipRotation', deg: -pelvisYaw },
     ];
+    // LIMB NON-SAGITTAL COORDINATION — subtle frontal/transverse limb motion so the arms
+    // and legs don't swing as flat 2-D pendulums. Per-limb, from that limb's own sagittal
+    // phase; each gated on the limb having its sagittal driver (so it only touches a gait
+    // keyframe, never a spine-only motion run through here).
+    const has = (joint: string, mo: string): boolean => ts.some((t) => t.joint === joint && t.motion === mo);
+    for (const S of ['L', 'R'] as const) {
+      // ARM: hangs a little ABDUCTED off the ribs (more on the backswing) and semi-PRONATED
+      // (palm toward the thigh) — the resting arm carriage a rigid straight swing lacks.
+      if (has(`${S}_UpperArm`, 'shoulderFlexion')) {
+        const sh = at(ts, `${S}_UpperArm`, 'shoulderFlexion');
+        additions.push({ joint: `${S}_UpperArm`, motion: 'shoulderAbduction', deg: cap(ARM_ABD_BASE + ARM_ABD_SWING * -sh, ARM_ABD_MAX) });
+        if (has(`${S}_Forearm`, 'elbowFlexion'))
+          additions.push({ joint: `${S}_Forearm`, motion: 'forearmRotation', deg: cap(ARM_PRO_BASE + ARM_PRO_SWING * sh, ARM_PRO_MAX) });
+      }
+      // LEG: the SWING hip abducts for clearance; the tibia rotates with knee flexion; the
+      // foot everts at loading and inverts at push-off (the subtalar pronation→supination
+      // roll). Abduction is SWING-ONLY (max 0 while the hip is extended) — a frontal target
+      // on the planted leg would fight the foot-plant IK and drag the stance foot.
+      if (has(`${S}_UpLeg`, 'hipFlexion')) {
+        const hip = at(ts, `${S}_UpLeg`, 'hipFlexion');
+        additions.push({ joint: `${S}_UpLeg`, motion: 'hipAbduction', deg: cap(Math.max(0, HIP_ABD_GAIN * (hip - HIP_FLEX_MEAN)), HIP_ABD_MAX) });
+      }
+      if (has(`${S}_Leg`, 'kneeFlexion'))
+        additions.push({ joint: `${S}_Leg`, motion: 'kneeRotation', deg: cap(-KNEE_ROT_GAIN * at(ts, `${S}_Leg`, 'kneeFlexion'), KNEE_ROT_MAX) });
+      if (has(`${S}_Foot`, 'ankleFlexion'))
+        additions.push({ joint: `${S}_Foot`, motion: 'ankleInversion', deg: cap(-ANK_INV_GAIN * at(ts, `${S}_Foot`, 'ankleFlexion'), ANK_INV_MAX) });
+    }
     const targets = [...ts];
     for (const a of additions) {
       if (Math.abs(a.deg) < 1e-6) continue;
