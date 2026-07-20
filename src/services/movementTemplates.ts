@@ -489,7 +489,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Single-leg stance (balance)',
     aliases: ['single leg stance', 'stand on one leg', 'single-leg balance', 'balance on one foot', 'one-legged stance'],
     coordination:
-      'Stand on the left leg and lift the right: the lifted hip flexes ~30° and its knee ~45°, while the trunk stays quiet and level over the stance foot. Long hold = the balance challenge. Planted (stance leg).',
+      'Stand on the left leg and lift the right: the lifted hip flexes ~30° and its knee ~45°. AUTHORED COUNTERBALANCE — a real person shifts the pelvis laterally OVER the stance foot before the lift completes (closed-chain stance-hip abduction leans the body over the planted foot), lists the trunk slightly toward the stance side, adducts the lifted leg toward midline and floats the stance-side arm out — so the COM projects INSIDE the one-foot base (rig-measured: min margin of stability −4.2 cm uncounterbalanced → +1.3 cm). The weight shift peaks HALFWAY through the lift (peakAt 0.5): weight transfer precedes full foot-off, as in life. Long hold = the balance challenge; a final settle phase re-centres onto both feet. Planted (stance leg).',
     stance: 'planted',
     phases: [
       {
@@ -499,14 +499,37 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 45 },
+          // COUNTERBALANCE (rig-tuned, ROM-safe; peakAt 0.5 = shift before full lift).
+          // Closed-chain sign note: with the stance foot planted (foot-rooted), stance-hip
+          // ABduction leans the body OVER the stance foot — rig-measured; authoring
+          // adduction moves the COM the wrong way.
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 8, peakAt: 0.5 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 6, peakAt: 0.5 }, // + = toward stance (L)
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 3, peakAt: 0.5 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 20, peakAt: 0.5 }, // stance-side arm floats out
+          { joint: 'R_UpLeg', motion: 'hipAbduction', peakDeg: -8, peakAt: 0.5 }, // lifted leg adducts to midline
         ],
       },
       {
+        // Lower the lifted leg; the counterbalance HOLDS (carry-over — still single-
+        // support until the foot is down), then releases in the settle phase.
         name: 'lower',
         durationMs: 700,
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
+        ],
+      },
+      {
+        // Foot is down (double support) — re-centre the weight over both feet.
+        name: 'settle',
+        durationMs: 500,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 0 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 0 },
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
+          { joint: 'R_UpLeg', motion: 'hipAbduction', peakDeg: 0 },
         ],
       },
     ],
@@ -777,7 +800,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Forward leg kick (dynamic hip flexion / knee extension)',
     aliases: ['kick', 'kicks', 'kicking', 'leg kick', 'front kick', 'kick forward'],
     coordination:
-      'Stand on the left leg and kick the right forward: a brief wind-up (hip extends ~15°, knee flexes ~40°) then a powerful strike where the hip flexes ~65° while the knee whips toward extension (~5°), then recover to neutral. The knee LEADS the hip late in the strike (peakAt) — the shank snaps out after the thigh. Planted (stance leg). Shown kicking with the right leg.',
+      'Stand on the left leg and kick the right forward: a brief wind-up (hip extends ~15°, knee flexes ~40°) then a powerful strike where the hip flexes ~65° while the knee whips toward extension (~5°), then recover to neutral. The knee LEADS the hip late in the strike (peakAt) — the shank snaps out after the thigh. AUTHORED COUNTERBALANCE — the kicker shifts onto the stance leg DURING the wind-up (closed-chain stance-hip abduction leans the body over the planted foot, peaking halfway — weight transfer precedes the kick), lists the trunk toward the stance side and floats the stance-side arm out; held through the strike, released once the foot is back down (rig-measured: min margin of stability −4.9 cm uncounterbalanced → +0.1 cm). Planted (stance leg). Shown kicking with the right leg.',
     stance: 'planted',
     phases: [
       {
@@ -788,6 +811,14 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -15 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 40 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: -6 },
+          // COUNTERBALANCE onto the stance (left) leg (rig-tuned, ROM-safe; peakAt
+          // 0.5 = the weight shift completes before the kick leaves the ground).
+          // Closed-chain sign note: stance-hip ABduction leans the planted-foot body
+          // over the stance foot (see single-leg-stance).
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 10, peakAt: 0.5 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 8, peakAt: 0.5 }, // + = toward stance (L)
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 4, peakAt: 0.5 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 25, peakAt: 0.5 },
         ],
       },
       {
@@ -798,15 +829,33 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 65 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5, peakAt: 0.75 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 6 },
+          // Counterbalance HELD at full through the strike (re-authored lockstep).
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 10 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 8 },
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 4 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 25 },
         ],
       },
       {
+        // Lower the kicking leg; counterbalance HOLDS (carry-over — still single-
+        // support until the foot lands), then releases in the settle phase.
         name: 'recover',
         durationMs: 520,
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+        ],
+      },
+      {
+        // Foot is down (double support) — re-centre the weight over both feet.
+        name: 'settle',
+        durationMs: 400,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 0 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 0 },
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
         ],
       },
     ],
@@ -817,7 +866,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Functional forward/overhead reach (endpoint reach)',
     aliases: ['reach', 'reaching', 'reach forward', 'reach up', 'functional reach', 'reach for something', 'reach overhead'],
     coordination:
-      'Reach the right arm forward and up toward a target: the shoulder flexes ~140° as the elbow extends toward straight (~5°), with a small forward trunk lean (~10°) carrying the reach to its endpoint; hold at the target, then return to rest. A functional upper-extremity reach envelope. Planted. Shown reaching with the right arm.',
+      'Reach the right arm forward and up toward a target: the shoulder flexes ~140° as the elbow extends toward straight (~5°), with a small forward trunk lean (~10°) carrying the reach to its endpoint; hold at the target, then return to rest. AUTHORED COUNTERBALANCE — as the trunk and arm go forward the HIPS shift BACKWARD (a slight bilateral closed-chain hip hinge: pelvis travels back over the planted feet) and the free left arm trails behind the trunk line, so the reach does not simply carry the whole body mass forward (rig-measured: the COM ground-projection stays well inside the base, min margin of stability +6.3 cm, and the forward COM excursion is counterweighted by the ~10 cm hips-back shift). Planted. Shown reaching with the right arm.',
     stance: 'planted',
     phases: [
       {
@@ -828,6 +877,12 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 140 },
           { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 5 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 10 },
+          // COUNTERBALANCE (rig-tuned, ROM-safe): a small bilateral hip hinge sends
+          // the pelvis BACKWARD over the planted feet as the reach goes forward,
+          // and the free arm counters behind the trunk line.
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 6 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 6 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -25 },
         ],
       },
       {
@@ -837,6 +892,9 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
           { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 0 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
         ],
       },
     ],
@@ -1179,6 +1237,15 @@ export function buildRun(opts: { speed?: number } = {}): ComposedMotion {
  * OTHER leg is held flexed (hip ~30° / knee ~45°) throughout, so at the airborne
  * apex BOTH feet are clear of the floor. A return-to-sport / hop-test screen.
  * `reps` replays the cycle at playback time (no keyframe duplication).
+ *
+ * AUTHORED COUNTERBALANCE (rig-tuned vs computeBalanceTimeline): a one-leg hop is
+ * a sustained single-support posture, so every keyframe carries a postural set
+ * over the support foot — trunk listed toward the support side, the held leg
+ * adducted to midline, the support-side arm floated out — and the crouched
+ * load/touchdown/absorb/recovery frames lean the trunk FORWARD so the COM stays
+ * over the foot instead of behind its heel (the hop is airborne-class, so no
+ * foot-rooting: the lean must be authored). Rig-measured: min margin of
+ * stability −4.6 cm uncounterbalanced → +0.4 cm.
  */
 export function buildSingleLegHop(
   opts: { stance?: 'L' | 'R'; heightM?: number; reps?: number } = {},
@@ -1189,9 +1256,21 @@ export function buildSingleLegHop(
   // Airborne interval derived from apex height (see buildJump); the trajectory
   // shapes the rise/fall as a constant-g parabola, so no authored apex hold.
   const flightMs = ballisticFlightMs(apexM);
+  // Lateral counterbalance sign: spine lateralTilt + = toward subject-LEFT
+  // (romRegistry), so lean toward the support side.
+  const latSign = sup === 'L' ? 1 : -1;
   const held = () => [
     { joint: `${up}_UpLeg`, motion: 'hipFlexion', targetDegrees: 30 },
+    // Held leg ADDUCTS toward midline — its mass rides nearer the support line.
+    { joint: `${up}_UpLeg`, motion: 'hipAbduction', targetDegrees: -12 },
     { joint: `${up}_Leg`, motion: 'kneeFlexion', targetDegrees: 45 },
+  ];
+  // Sustained lateral postural set over the support foot (every keyframe — the
+  // whole hop is single-support, airborne phases included).
+  const counter = () => [
+    { joint: 'Spine_Lower', motion: 'lateralTilt', targetDegrees: 10 * latSign },
+    { joint: 'Spine_Upper', motion: 'lateralTilt', targetDegrees: 5 * latSign },
+    { joint: `${sup}_UpperArm`, motion: 'shoulderAbduction', targetDegrees: 25 },
   ];
   const supLeg = (hip: number, knee: number, ankle: number) => [
     { joint: `${sup}_UpLeg`, motion: 'hipFlexion', targetDegrees: hip },
@@ -1206,40 +1285,43 @@ export function buildSingleLegHop(
 
   const load = (): SequenceKeyframe => ({
     durationMs: 360, holdMs: 80, stance: 'planted',
-    targets: [...supLeg(28, 50, 15), ...held(), ...arms(-20), ...trunk(12)],
+    targets: [...supLeg(28, 50, 15), ...held(), ...arms(-20), ...trunk(12), ...counter()],
   });
   // Toe push-off while still planted seeds the floating rise (see buildJump).
   const propulsion = (): SequenceKeyframe => ({
     durationMs: 150, velocityClass: 'ballistic', stance: 'planted',
     travel: { direction: 'up', meters: 0.05 },
-    targets: [...supLeg(5, 12, -25), ...held(), ...arms(60), ...trunk(2)],
+    targets: [...supLeg(5, 12, -25), ...held(), ...arms(60), ...trunk(2), ...counter()],
   });
   const apex = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.5), velocityClass: 'ballistic', stance: 'floating',
     travel: { direction: 'up', meters: apexM },
-    targets: [...supLeg(18, 32, -5), ...held(), ...arms(40)],
+    targets: [...supLeg(18, 32, -5), ...held(), ...arms(40), ...counter()],
   });
   const descent = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.3), velocityClass: 'ballistic', stance: 'floating',
     travel: { direction: 'up', meters: apexM * 0.5 },
-    targets: [...supLeg(15, 20, 0), ...held(), ...arms(25)], // reaching DOWN toward contact
+    targets: [...supLeg(15, 20, 0), ...held(), ...arms(25), ...counter()], // reaching DOWN toward contact
   });
   // TOUCHDOWN: near-extended support leg so the foot reaches the floor where the
   // parabola lands (root Y≈0), THEN absorb — else the pin snaps the body down to
-  // ground a deep-crouch contact (see buildJump).
+  // ground a deep-crouch contact (see buildJump). Trunk leans forward over the
+  // landing foot (counterbalance: the crouch pulls the pelvis behind the heel).
   const touchdown = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.2), velocityClass: 'ballistic', stance: 'planted',
     travel: { direction: 'up', meters: 0 },
-    targets: [...supLeg(20, 24, 0), ...held(), ...arms(18)],
+    targets: [...supLeg(20, 24, 0), ...held(), ...arms(18), ...trunk(8), ...counter()],
   });
   const absorb = (): SequenceKeyframe => ({
     durationMs: 170, holdMs: 60, velocityClass: 'functional', stance: 'planted',
     travel: { direction: 'up', meters: 0 },
-    targets: [...supLeg(32, 52, 12), ...held(), ...arms(15), ...trunk(10)],
+    targets: [...supLeg(32, 52, 12), ...held(), ...arms(15), ...trunk(18), ...counter()],
   });
+  // Recovery HOLDS a slight forward trunk lean — the end state is still a one-leg
+  // crouched ready stance, so the postural counterbalance stays on.
   const recovery = (): SequenceKeyframe => ({
     durationMs: 300, stance: 'planted',
-    targets: [...supLeg(20, 40, 0), ...held(), ...arms(0), ...trunk(0)],
+    targets: [...supLeg(20, 40, 0), ...held(), ...arms(0), ...trunk(8), ...counter()],
   });
 
   const reps = Math.max(1, Math.min(50, Math.round(opts.reps ?? 1)));
