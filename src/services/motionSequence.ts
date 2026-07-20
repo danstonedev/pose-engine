@@ -400,6 +400,12 @@ export const MAX_TARGETS_PER_KEYFRAME = 20;
  *  opts into a higher {@link VelocityClass}. Keyframe durations are raised to
  *  respect the active cap. */
 export const MAX_ANGULAR_VELOCITY_DEG_S = VELOCITY_CLASS_CAPS.deliberate;
+/** Cervical (neck) counter-rotation caps for gaze stabilization — the neck can hold the
+ *  eyes forward against only so much trunk rotation before it hits its own ROM. Shared by
+ *  the universal {@link stabilizeGaze} here and the gait coordinator (movementTemplates),
+ *  so both correct the gaze against the same cervical limits. */
+export const SPINE_NECK_MAX = 24; // cervical axial-rotation cap, deg
+export const SPINE_NECK_LATERAL_MAX = 18; // cervical lateral-flexion cap, deg
 /** Shortest a keyframe's travel may be, ms. */
 export const MIN_KEYFRAME_MS = 150;
 /** Longest a keyframe's travel — or its hold — may be, ms. Caps requested
@@ -729,6 +735,91 @@ export function expandPeakTiming(
   return { ...motion, keyframes: out };
 }
 
+/** Non-upright postures — gaze stabilization is an UPRIGHT concept (hold the eyes on the
+ *  horizon), so a motion that lies the body down or goes onto all-fours is left alone. */
+const GAZE_NONUPRIGHT: readonly PostureNode[] = [
+  'supine',
+  'prone',
+  'sidelying-left',
+  'sidelying-right',
+  'quadruped',
+  'plank',
+];
+
+/**
+ * UNIVERSAL GAZE STABILIZATION. The head hangs off the top of the spine, so any authored
+ * trunk AXIAL rotation (and lateral tilt) swings the eyes off the line of sight — the head
+ * "rides the spine". This counter-rotates the NECK by exactly what the head would inherit
+ * from the trunk, so the gaze stays level and forward through ANY upright movement — not
+ * just the gait stride the coordinator already handled. Kinematic; the neck counters
+ * resolve on the same truth path (ROM clamp, velocity, measurement) as any other target.
+ *
+ * Applied automatically to every resolved motion, but ONLY when it is UPRIGHT and does not
+ * drive the head itself: a motion that authors the neck/head ("look left", cervical AROM,
+ * a forward-head fault) or reorients to a lying / all-fours posture is left exactly as
+ * authored ("…unless otherwise specified"). IDEMPOTENT with the gait coordinator — that
+ * path already writes the neck counter, so this sees an authored Neck target and skips,
+ * never double-correcting.
+ */
+export function stabilizeGaze(motion: ComposedMotion): ComposedMotion {
+  if (!motion || !Array.isArray(motion.keyframes)) return motion;
+  // "…unless otherwise specified" — the author is manipulating the head, or the body is
+  // not upright. Either way, leave the gaze exactly as authored.
+  const authorsHead = motion.keyframes.some((kf) =>
+    kf.targets?.some((t) => t.joint === 'Neck' || t.joint === 'Head'),
+  );
+  const reoriented =
+    (motion.startPosture != null && GAZE_NONUPRIGHT.includes(motion.startPosture)) ||
+    (motion.endPosture != null && GAZE_NONUPRIGHT.includes(motion.endPosture)) ||
+    motion.keyframes.some(
+      (kf) =>
+        (kf.posture != null && kf.posture !== 'upright') ||
+        (kf.root?.orient != null &&
+          (kf.root.orient.quat != null ||
+            Math.abs(kf.root.orient.pitchDeg ?? 0) > 20 ||
+            Math.abs(kf.root.orient.rollDeg ?? 0) > 20)),
+    );
+  if (authorsHead || reoriented) return motion;
+
+  const cap = (v: number, m: number): number => Math.max(-m, Math.min(m, v));
+  // CARRY-FORWARD: joints hold their last-set value across keyframes (the pose builder's
+  // rule), so the neck counter must TRACK the trunk through the whole motion — the neck
+  // counters the CARRIED thoracic+lumbar rotation each keyframe, and a keyframe that
+  // re-zeros the spine must re-zero the neck too (else the stale counter twists the head
+  // the wrong way once the trunk is straight again). We start emitting the counter at the
+  // first keyframe that rotates the trunk and then set it on every keyframe after, so the
+  // neck rides the trunk back to neutral.
+  let cUR = 0, cLR = 0, cUL = 0, cLL = 0; // carried Spine_Upper/Lower rotation / lateralTilt
+  let trackAxial = false, trackLateral = false;
+  let changed = false;
+  const keyframes = motion.keyframes.map((kf) => {
+    const ts = kf.targets;
+    if (!ts || !ts.length) return kf; // posture-only carry (rare on an upright motion)
+    for (const t of ts) {
+      if (t.joint === 'Spine_Upper' && t.motion === 'rotation') cUR = t.targetDegrees;
+      else if (t.joint === 'Spine_Lower' && t.motion === 'rotation') cLR = t.targetDegrees;
+      else if (t.joint === 'Spine_Upper' && t.motion === 'lateralTilt') cUL = t.targetDegrees;
+      else if (t.joint === 'Spine_Lower' && t.motion === 'lateralTilt') cLL = t.targetDegrees;
+    }
+    const neckAxial = cap(-(cUR + cLR), SPINE_NECK_MAX);
+    const neckLateral = cap(-(cUL + cLL), SPINE_NECK_LATERAL_MAX);
+    if (Math.abs(neckAxial) >= 1e-6) trackAxial = true; // once the trunk twists, track it home
+    if (Math.abs(neckLateral) >= 1e-6) trackLateral = true;
+    const adds = (trackAxial ? 1 : 0) + (trackLateral ? 1 : 0);
+    if (adds === 0) return kf;
+    // Respect the per-keyframe target budget: if the neck counters wouldn't fit, skip this
+    // keyframe rather than push a target that would overflow-drop.
+    if (ts.length + adds > MAX_TARGETS_PER_KEYFRAME) return kf;
+    // authorsHead guaranteed no existing Neck target above, so a plain push never dupes.
+    const targets = [...ts];
+    if (trackAxial) targets.push({ joint: 'Neck', motion: 'rotation', targetDegrees: neckAxial });
+    if (trackLateral) targets.push({ joint: 'Neck', motion: 'lateralTilt', targetDegrees: neckLateral });
+    changed = true;
+    return { ...kf, targets };
+  });
+  return changed ? { ...motion, keyframes } : motion;
+}
+
 /**
  * Validate a composed motion's shape + limits, clamp every target through
  * {@link resolveCommandTarget} (the SAME truth path as single commands:
@@ -767,6 +858,12 @@ export function resolveComposedMotion(
   // no lead is byte-identical. The lead's transient shape is seeded from the
   // live angles on a startFrom:'current' composition (final peaks are exact
   // regardless).
+  // GAZE: hold the eyes forward through any upright trunk motion — automatic for every
+  // caller (templates, AI compose_motion, transitions). Idempotent for gait; skipped for
+  // head-driving and lying/all-fours motions. Runs BEFORE peak-timing + validation so the
+  // neck counters ride the same trajectory and clamp on the same truth path.
+  motion = stabilizeGaze(motion);
+
   const startFrom: 'current' | 'neutral' = motion.startFrom === 'neutral' ? 'neutral' : 'current';
   motion =
     startFrom === 'current' && opts?.currentAngles

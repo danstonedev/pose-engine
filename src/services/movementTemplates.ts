@@ -30,6 +30,7 @@
  */
 
 import * as THREE from 'three';
+import { SPINE_NECK_MAX, SPINE_NECK_LATERAL_MAX } from './motionSequence';
 import type { ComposedMotion, MovementAsymmetry, PostureNode, SequenceKeyframe, SequenceTarget, StanceMode } from './motionSequence';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
@@ -1970,9 +1971,9 @@ const SPINE_AXIAL_MAX = 14; // thoracic rotation cap (ROM ±35)
 const SPINE_LUMBAR_AXIAL_MAX = 8; // lumbar rotation cap (tight ROM ±10)
 // Cervical caps large enough to FULLY counter the trunk the head inherits (thoracic
 // 14 + lumbar 8 = 22 axial; lateral 8 + 8 = 16) so gaze stabilization is never clipped
-// short — well within cervical ROM (rotation ±80, lateral flexion ±45).
-const SPINE_NECK_MAX = 24; // cervical rotation cap
-const SPINE_NECK_LATERAL_MAX = 18; // cervical lateral-flexion cap
+// short — well within cervical ROM (rotation ±80, lateral flexion ±45). Shared with the
+// UNIVERSAL gaze stabilizer (stabilizeGaze) so both correct against the same cervical ROM.
+// (SPINE_NECK_MAX / SPINE_NECK_LATERAL_MAX imported from motionSequence.)
 const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
 
 /**
