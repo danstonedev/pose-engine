@@ -164,10 +164,16 @@ describe('balanceAssist consumers (single-leg stance, kick, endpoint reach)', ()
   it('single-leg stance: steady one-foot hold at a real margin; transfer grazes zero at worst', () => {
     const tl = computeBalanceTimeline(sampleMotion(template('single-leg-stance')));
     expect(tl.airborneFraction).toBe(0);
-    // Mid-hold (t=1500ms of the 1500ms hold): comfortably ON the one-foot base
-    // (rig-measured ~+4.0 cm; Wave 1's authored-only best was +1.3 cm).
+    // Mid-hold (t=1500ms, within the 1500ms balance hold): comfortably ON the
+    // one-foot base (rig-measured ~+3.8 cm). CHANGED (Wave 3, roadmap 3.1): the
+    // template now front-loads a strong AUTHORED counterbalance in its APA
+    // "load-stance-side" phase, so the COM is over the base by the authored pose
+    // and the assist is (near-)identity here — the mid-hold margin is authored,
+    // not assist-topped, which keeps the counterbalance channels a deterministic
+    // movement signature in a chain. Still ≥3 cm ON the base.
     expect(marginAt(tl, 1500)).toBeGreaterThan(0.03);
-    // Whole one-foot phase: only the transfer instants graze zero.
+    // Whole one-foot phase stays on-base (the APA front-load removes the old
+    // near-zero transfer graze — the shift is complete before the foot lifts).
     expect(minOneFoot(tl)).toBeGreaterThan(-0.005);
     expect(tl.balancedFraction).toBeGreaterThan(0.95);
   });
@@ -175,11 +181,14 @@ describe('balanceAssist consumers (single-leg stance, kick, endpoint reach)', ()
   it('kick: the strike is thrown from a re-centered single-leg stance', () => {
     const tl = computeBalanceTimeline(sampleMotion(template('kick')));
     expect(tl.airborneFraction).toBe(0);
-    // Strike settle+hold (t≈950-1050ms): a real positive margin (rig ~+3.3 cm;
-    // Wave 1's authored-only best was +0.1 cm).
-    expect(marginAt(tl, 1000)).toBeGreaterThan(0.02);
-    // Wind-up settle (t≈450ms) is also on-base.
-    expect(marginAt(tl, 450)).toBeGreaterThan(0.01);
+    // CHANGED (Wave 3, roadmap 3.1): the kick now opens with a dedicated ~320 ms
+    // APA "load-stance-side" phase (the weight shift PRECEDES the kick), which
+    // pushes every later phase ~320 ms later — so the settle sample times move
+    // with them. Strike settle+hold is now t≈1270-1370 ms (rig ~+3.4 cm); the
+    // wind-up settle+hold is now t≈770-890 ms (rig ~+2.1 cm). Margins themselves
+    // are as strong as before — only the phase timing shifted.
+    expect(marginAt(tl, 1300)).toBeGreaterThan(0.02);
+    expect(marginAt(tl, 800)).toBeGreaterThan(0.01);
     expect(tl.minMarginM!).toBeGreaterThan(-0.005);
     expect(tl.balancedFraction).toBeGreaterThan(0.95);
   });

@@ -31,7 +31,7 @@
 
 import * as THREE from 'three';
 import { SPINE_NECK_MAX, SPINE_NECK_LATERAL_MAX } from './motionSequence';
-import type { ComposedMotion, MovementAsymmetry, PostureNode, SequenceKeyframe, SequenceTarget, StanceContact, StanceMode } from './motionSequence';
+import type { ComposedMotion, MovementAsymmetry, PostureNode, SemanticTravel, SequenceKeyframe, SequenceTarget, StanceContact, StanceMode } from './motionSequence';
 
 /** One joint's peak angle within a phase (absolute clinical degrees). */
 export interface TemplateTarget {
@@ -56,6 +56,28 @@ export interface TemplatePhase {
   holdMs?: number;
   stance?: StanceMode;
   targets: TemplateTarget[];
+  /** OPTIONAL semantic whole-body travel for this phase (pass-through to the
+   *  keyframe's `travel` sugar) — used by the scripted-perturbation balance
+   *  strategies to displace the body over its planted feet. Root state persists
+   *  forward, so a later phase must re-state travel to return to 0. */
+  travel?: SemanticTravel;
+  /** OPTIONAL raw root transform for this phase (pass-through to the keyframe's
+   *  `root`). The balance strategies use a small `orient.pitchDeg` (a few deg,
+   *  well under the lying-posture thresholds) so a scripted sway pivots the whole
+   *  body forward rigidly — paired with a matching `travel` so the feet stay at
+   *  their floor spots by construction (the ankle-pivot inverted pendulum). */
+  root?: SequenceKeyframe['root'];
+}
+
+/** A weight-bearing foot-contact window declared by PHASE INDEX (robust to
+ *  duration edits): the foot is IK-pinned from the start of `fromPhase` to the
+ *  end (incl. hold) of `toPhase`. Omit either bound for motion start/end; omit
+ *  both for a whole-motion pin. Converted to absolute-ms {@link StanceContact}
+ *  windows by {@link templateToComposedMotion}. */
+export interface TemplateContactWindow {
+  foot: string;
+  fromPhase?: number;
+  toPhase?: number;
 }
 
 export interface MovementTemplate {
@@ -76,6 +98,10 @@ export interface MovementTemplate {
    *  below doesn't cover. Set on the quasi-static balance-demand templates
    *  (single-leg stance, kick, endpoint reach). */
   balanceAssist?: boolean;
+  /** OPTIONAL foot-plant contact windows (phase-indexed; see
+   *  {@link TemplateContactWindow}) — the stance foot of a scripted-perturbation
+   *  strategy is IK-pinned so nothing slides while the body is displaced. */
+  contacts?: TemplateContactWindow[];
   phases: TemplatePhase[];
   source: string;
 }
@@ -511,52 +537,78 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Single-leg stance (balance)',
     aliases: ['single leg stance', 'stand on one leg', 'single-leg balance', 'balance on one foot', 'one-legged stance'],
     coordination:
-      'Stand on the left leg and lift the right: the lifted hip flexes ~30° and its knee ~45°. AUTHORED COUNTERBALANCE + BALANCE ASSIST — a real person shifts the pelvis laterally OVER the stance foot before the lift completes (closed-chain stance-hip abduction leans the body over the planted foot), lists the trunk slightly toward the stance side, adducts the lifted leg toward midline and floats the stance-side arm out. The template authors the SHAPE of that strategy (de-tuned since Wave 2); the COM-driven balanceCoordination pre-pass measures the residual COM-vs-base offset per keyframe and tops the same channels up, so the COM projects INSIDE the one-foot base (rig-measured: min one-foot margin of stability −4.2 cm uncounterbalanced → positive with assist). The weight shift peaks HALFWAY through the lift (peakAt 0.5): weight transfer precedes full foot-off, as in life. Long hold = the balance challenge; a final settle phase re-centres onto both feet. Planted (stance leg).',
+      'Stand on the left leg and lift the right: the lifted hip flexes ~30° and its knee ~45°. ANTICIPATORY POSTURAL ADJUSTMENT (APA) + AUTHORED COUNTERBALANCE — a real person shifts the pelvis laterally OVER the stance foot BEFORE the foot leaves the floor (real APAs lead the limb lift by 200-400 ms): a dedicated first "load the stance side" phase (~350 ms) completes the whole postural set — closed-chain stance-hip abduction leaning the body over the planted foot, a trunk list toward the stance side, the stance-side arm floating out for counterbalance — while BOTH feet are still grounded; only then does the lift phase raise the leg (the lifted leg adducting its mass toward midline). The counterbalance is authored strong enough to project the COM INSIDE the one-foot base on its own (rig-measured mid-hold margin ~+3.8 cm; min one-foot margin −4.2 cm uncounterbalanced → positive), so the balanceAssist pre-pass finds little residual and is essentially IDENTITY here — like the endpoint reach, the authored values carry the balance and stay deterministic. The COM-X shift toward the stance foot completes ≥150 ms before swing-foot lift-off (the temporal-order rig gate, apaLeads.test.ts). Long hold = the balance challenge; a final settle phase re-centres onto both feet. Planted (stance leg).',
     stance: 'planted',
     balanceAssist: true,
     phases: [
       {
+        // APA (Wave 3, roadmap 3.1): the weight shift PRECEDES the limb lift.
+        // The counterbalance is authored strong (arm float + trunk list + stance-
+        // hip abduction) so the COM is over the one-foot base by the authored pose
+        // alone — the balanceAssist is (near-)identity, which keeps the motion
+        // fully deterministic (its counterbalance channels are a stable movement
+        // signature in a chain, not assist-jittered). The shift is COMPLETE at
+        // this phase's settle — the point of an APA. The lifted-to-be leg is NOT
+        // pre-adducted here (its foot is still planted; adducting a planted foot
+        // swings it through the floor) — its mass rides to midline WITH the lift.
+        // Closed-chain sign note: with the stance foot planted (foot-rooted),
+        // stance-hip ABduction leans the body OVER the stance foot — rig-measured;
+        // authoring adduction moves the COM the wrong way.
+        name: 'load-stance-side',
+        durationMs: 350,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 10 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 10 }, // + = toward stance (L)
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 5 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 32 }, // stance-side arm floats out
+        ],
+      },
+      {
+        // The stance side is already loaded — now the foot can leave the floor,
+        // and the long hold is the balance challenge. The counterbalance set is
+        // re-authored here (held at the same magnitudes through the balance) and
+        // the lifted leg adducts toward midline WITH the lift.
         name: 'lift-and-balance',
         durationMs: 700,
         holdMs: 1500,
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
+          { joint: 'R_UpLeg', motion: 'hipAbduction', peakDeg: -12 }, // lifted leg adducts to midline
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 45 },
-          // COUNTERBALANCE (ROM-safe; peakAt 0.5 = shift before full lift). Wave 2:
-          // DE-TUNED from the Wave-1 rig-tuned values (8/6/3/20/−8) — these author
-          // the physiologic SHAPE and early timing; balanceCoordination measures
-          // the residual COM offset and tops up the same channels, so authoring +
-          // assist never double-corrects into an over-lean.
-          // Closed-chain sign note: with the stance foot planted (foot-rooted), stance-hip
-          // ABduction leans the body OVER the stance foot — rig-measured; authoring
-          // adduction moves the COM the wrong way.
-          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 5, peakAt: 0.5 },
-          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 4, peakAt: 0.5 }, // + = toward stance (L)
-          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 2, peakAt: 0.5 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 12, peakAt: 0.5 }, // stance-side arm floats out
-          { joint: 'R_UpLeg', motion: 'hipAbduction', peakDeg: -5, peakAt: 0.5 }, // lifted leg adducts to midline
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 10 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 10 },
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 5 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 32 },
         ],
       },
       {
-        // Lower the lifted leg; the counterbalance HOLDS (carry-over — still single-
-        // support until the foot is down), then releases in the settle phase.
-        name: 'lower',
+        // Lower the lifted leg AND re-centre: the foot lands (double support), so
+        // the counterbalance eases off WITH it — the postural set is no longer
+        // needed once weight is shared. Releasing it here (rather than holding it
+        // into a separate phase) keeps the measurement frame upright at this
+        // settle. The strong authored lean is essentially assist-identity, so this
+        // release is honest kinematics, not fighting a live controller.
+        name: 'lower-and-recenter',
         durationMs: 700,
+        holdMs: 150,
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'R_UpLeg', motion: 'hipAbduction', peakDeg: 0 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
-        ],
-      },
-      {
-        // Foot is down (double support) — re-centre the weight over both feet.
-        name: 'settle',
-        durationMs: 500,
-        targets: [
           { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 0 },
           { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 0 },
           { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 0 },
           { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
-          { joint: 'R_UpLeg', motion: 'hipAbduction', peakDeg: 0 },
+        ],
+      },
+      {
+        // Quiet double-support stance — a brief settled hold to end on.
+        name: 'settle',
+        durationMs: 400,
+        holdMs: 200,
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
         ],
       },
     ],
@@ -833,10 +885,27 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Forward leg kick (dynamic hip flexion / knee extension)',
     aliases: ['kick', 'kicks', 'kicking', 'leg kick', 'front kick', 'kick forward'],
     coordination:
-      'Stand on the left leg and kick the right forward: a brief wind-up (hip extends ~15°, knee flexes ~40°) then a powerful strike where the hip flexes ~65° while the knee whips toward extension (~5°), then recover to neutral. The knee LEADS the hip late in the strike (peakAt) — the shank snaps out after the thigh. AUTHORED COUNTERBALANCE + BALANCE ASSIST — the kicker shifts onto the stance leg DURING the wind-up (closed-chain stance-hip abduction leans the body over the planted foot, peaking halfway — weight transfer precedes the kick), lists the trunk toward the stance side and floats the stance-side arm out; held through the strike, released once the foot is back down. The template authors the SHAPE (de-tuned since Wave 2); the balanceCoordination pre-pass measures the residual COM-vs-base offset and tops the same channels up (rig-measured: min margin of stability −4.9 cm uncounterbalanced → positive with assist). Planted (stance leg). Shown kicking with the right leg.',
+      'Stand on the left leg and kick the right forward: the kicker FIRST loads the stance side (a dedicated ~320 ms anticipatory weight shift onto the left leg — real APAs precede a limb action by 200-400 ms), then a brief wind-up (hip extends ~15°, knee flexes ~40°) and a powerful strike where the hip flexes ~65° while the knee whips toward extension (~5°), then recover to neutral. The knee LEADS the hip late in the strike (peakAt) — the shank snaps out after the thigh. ANTICIPATORY POSTURAL ADJUSTMENT + AUTHORED COUNTERBALANCE + BALANCE ASSIST — the load phase completes the closed-chain stance-hip abduction (leaning the body over the planted foot), trunk list toward the stance side and stance-side arm float BEFORE the kicking foot leaves the ground (rig-gated: the COM-X shift toward the stance foot completes ≥150 ms before lift-off); held through the strike, released once the foot is back down. The template authors the SHAPE (de-tuned since Wave 2); the balanceCoordination pre-pass measures the residual COM-vs-base offset and tops the same channels up (rig-measured: min margin of stability −4.9 cm uncounterbalanced → positive with assist). Planted (stance leg). Shown kicking with the right leg.',
     stance: 'planted',
     balanceAssist: true,
     phases: [
+      {
+        // APA (Wave 3, roadmap 3.1): load the stance side BEFORE the kick leg
+        // moves — the weight shift precedes the limb action, as in life.
+        // COUNTERBALANCE values onto the stance (left) leg (ROM-safe). Wave 2:
+        // DE-TUNED from the Wave-1 values (10/8/4/25) — the authored targets
+        // carry the shape, balanceCoordination tops up the residual.
+        // Closed-chain sign note: stance-hip ABduction leans the planted-foot body
+        // over the stance foot (see single-leg-stance).
+        name: 'load-stance-side',
+        durationMs: 320,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 6 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 5 }, // + = toward stance (L)
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 2 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 15 },
+        ],
+      },
       {
         name: 'wind-up',
         durationMs: 450,
@@ -845,16 +914,12 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -15 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 40 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: -6 },
-          // COUNTERBALANCE onto the stance (left) leg (ROM-safe; peakAt 0.5 = the
-          // weight shift completes before the kick leaves the ground). Wave 2:
-          // DE-TUNED from the Wave-1 values (10/8/4/25) — the authored targets
-          // carry the shape/timing, balanceCoordination tops up the residual.
-          // Closed-chain sign note: stance-hip ABduction leans the planted-foot body
-          // over the stance foot (see single-leg-stance).
-          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 6, peakAt: 0.5 },
-          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 5, peakAt: 0.5 }, // + = toward stance (L)
-          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 2, peakAt: 0.5 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 15, peakAt: 0.5 },
+          // Re-authored WITH the wind-up trunk extension: mentioning Spine_Lower
+          // rebuilds the joint with exactly the commanded motions, so the APA
+          // list must ride along or it would be wiped back to 0 here. The other
+          // APA channels (L hip, Spine_Upper, L arm) are NOT re-mentioned — they
+          // carry (hold) from the load phase.
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 5 },
         ],
       },
       {
@@ -938,6 +1003,228 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     ],
     source: VERIFY,
   },
+  // ── Balance-strategy library (Wave 3, roadmap 3.4) — core PT teaching content ─
+  // The three postural-recovery strategies [Horak & Nashner 1986; Shumway-Cook &
+  // Woollacott], each with a SCRIPTED perturbation (deterministic authored
+  // keyframes — no physics, no live controller, per the kinematic charter) and a
+  // strategy-specific recovery. The forward sway is realized as a rigid whole-body
+  // pivot: a small root pitch leans the body forward as an inverted pendulum. The
+  // feet are IK-pinned (declared `contacts`), so the base of support stays FIXED
+  // while the COM travels forward over it — the margin of stability genuinely
+  // narrows — and the ankle goniometry honestly reads the sway angle (the shin
+  // rotating forward over the fixed foot = dorsiflexion). Rig-gated
+  // (balanceStrategies.test): the margin dips on the perturbation and recovers
+  // positive by the settle, with the correct per-strategy joint signature.
+  {
+    id: 'ankle-strategy',
+    label: 'Ankle strategy (balance recovery)',
+    aliases: ['ankle strategy', 'balance recovery', 'balance strategy', 'postural sway recovery', 'recover with the ankles'],
+    coordination:
+      'The FIRST-LINE response to a SMALL perturbation on a firm, broad surface: the body sways forward as a rigid inverted pendulum pivoting at the ANKLES — trunk and hips stay quiet — and is recovered by ankle musculature alone (plantarflexor torque brakes the sway and returns the COM), the ankles rolling dorsiflexion → slight plantarflexion → neutral. The COM stays INSIDE the base of support throughout (that is what makes the ankle strategy sufficient); the margin of stability narrows on the sway (rig-measured ~8.4 cm → ~3.5 cm) and re-centres by the settle. Joint signature: ankle excursion dominates — more than double any hip or spine excursion (trunk/hips stay rigid). Both feet stay flat and planted (IK-pinned); the sway is a rigid root pitch with the ankles dorsiflexing to keep the soles flat.',
+    stance: 'planted',
+    contacts: [{ foot: 'L_Foot' }, { foot: 'R_Foot' }], // both feet pinned — the base of support stays fixed as the body sways over it
+    phases: [
+      {
+        name: 'quiet-stance',
+        durationMs: 400,
+        targets: [
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+        ],
+      },
+      {
+        // SCRIPTED PERTURBATION: a forward sway — the whole body pivots ~7°
+        // forward (root pitch) over the pinned feet; the ankles dorsiflex by the
+        // same amount so the soles stay flat (the shin rotates forward over the
+        // fixed foot — the ankle-strategy geometry). Trunk RIGID (no spine/hip).
+        name: 'sway-forward',
+        durationMs: 450,
+        holdMs: 250,
+        root: { orient: { pitchDeg: 7 } },
+        targets: [
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 7 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 7 },
+        ],
+      },
+      {
+        // ANKLE RECOVERY: plantarflexor torque brakes and reverses the sway —
+        // the body pivots back upright (pitch returns to 0) with a small
+        // plantarflexion overshoot as the calves push the COM back.
+        name: 'ankle-recovery',
+        durationMs: 550,
+        root: { orient: { pitchDeg: 0 } },
+        targets: [
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -2 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -2 },
+        ],
+      },
+      {
+        name: 'settle',
+        durationMs: 450,
+        holdMs: 300,
+        root: { orient: { pitchDeg: 0 } },
+        targets: [
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'hip-strategy',
+    label: 'Hip strategy (balance recovery)',
+    aliases: ['hip strategy', 'hip balance strategy', 'trunk counter flexion recovery', 'recover with the hips'],
+    coordination:
+      'The response to a LARGER perturbation (or a narrow/compliant surface, where ankle torque cannot re-centre the COM): the trunk pitches forward — the scripted sway — and the recovery is a RAPID trunk/hip counter-flexion over near-NEUTRAL ankles: the hips flex briskly as the trunk flexes forward, jack-knifing the pelvis BACKWARD over the planted feet (the closed-chain hinge carries the heavy pelvis/thigh mass back, re-centring the COM), then the body settles upright. Joint signature: hip + trunk excursion dominates while the ankles stay near neutral — the frontier between this and a toe-touch is the SPEED and the balance context, not the shape. Margin of stability: dips on the sway (further than the ankle strategy allows), recovers positive through the hinge, re-centres at the settle. Planted (closed-chain foot-rooting places the pelvis).',
+    stance: 'planted',
+    phases: [
+      {
+        name: 'quiet-stance',
+        durationMs: 400,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+        ],
+      },
+      {
+        // SCRIPTED PERTURBATION: a larger forward sway — the trunk pitches
+        // forward (the upper-body mass carries the COM toward the toes) while
+        // the ankles stay neutral (the surface context that FORCES the hip
+        // strategy: ankle torque is unavailable).
+        name: 'sway-forward',
+        durationMs: 450,
+        holdMs: 200,
+        targets: [
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 28 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 14 },
+        ],
+      },
+      {
+        // HIP RECOVERY: rapid hip flexion + further trunk flexion — the classic
+        // jack-knife. Closed-chain (foot-rooted) hip flexion translates the
+        // pelvis BACKWARD over the planted feet, re-centring the COM.
+        name: 'hip-recovery',
+        durationMs: 350,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 34 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 16 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+        ],
+      },
+      {
+        name: 'settle-upright',
+        durationMs: 700,
+        holdMs: 300,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
+          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 0 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
+  {
+    id: 'stepping-strategy',
+    label: 'Stepping strategy (protective step)',
+    aliases: ['stepping strategy', 'protective step', 'step to recover', 'step reaction', 'take a step to catch yourself'],
+    coordination:
+      'The response to the LARGEST perturbation — when the COM is driven OUTSIDE the base of support and no in-place strategy can recover it, the base must be moved UNDER the COM: a quick protective FORWARD step. The scripted push pivots the whole body ~7° forward over the feet and the right leg swings quickly forward (the swing narrows the base to the single stance foot — margin of stability goes NEGATIVE, rig-measured ~−6 cm); the stepping foot then plants well ahead, extending the base forward under the falling COM (margin recovers positive at the brace); the body pushes back off the front foot and the stepping foot returns beside the stance foot, quiet stance resumes (feet re-levelled). The STANCE (left) foot carries a foot-plant contact for the whole motion so it never slides while the body pivots and the step lands. Joint signature: a real step — the stepping foot\'s world position advances ~0.2 m, plants for the brace, and returns. Planted.',
+    stance: 'planted',
+    contacts: [{ foot: 'L_Foot' }], // stance foot IK-pinned for the whole motion (never slides)
+    phases: [
+      {
+        name: 'quiet-stance',
+        durationMs: 350,
+        targets: [
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+        ],
+      },
+      {
+        // SCRIPTED PERTURBATION: the big push — a ~7° rigid forward pivot (root
+        // pitch) over the planted feet; the ankles dorsiflex to keep the soles
+        // flat. The COM is carried toward the front of the base.
+        name: 'perturbation-push',
+        durationMs: 300,
+        root: { orient: { pitchDeg: 7 } },
+        targets: [
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 7 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 7 },
+        ],
+      },
+      {
+        // PROTECTIVE STEP: the right leg swings quickly forward (rapid
+        // hip-flexion/knee-flexion step-through) while the pinned left foot
+        // bears alone — the base collapses to one foot and the forward-falling
+        // COM leaves it (margin goes negative). Body still pitched forward.
+        name: 'protective-step',
+        durationMs: 260,
+        root: { orient: { pitchDeg: 7 } },
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 35 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 50 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 7 },
+        ],
+      },
+      {
+        // PLANT + BRACE: the stepping foot lands well ahead (near-extended knee,
+        // the foot reaching the floor), the stance side eases as the body lowers
+        // onto the new, forward-extended two-foot base — the COM is back INSIDE
+        // the enlarged base and the margin recovers positive. Held (the brace).
+        name: 'step-plant',
+        durationMs: 260,
+        holdMs: 500,
+        root: { orient: { pitchDeg: 4 } },
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 14 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 4 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: -6 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 8 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 8 },
+        ],
+      },
+      {
+        // PUSH BACK: the front foot pushes the body back over the stance foot;
+        // the stepping leg lifts and swings back (pitch eases toward upright).
+        name: 'push-back',
+        durationMs: 450,
+        root: { orient: { pitchDeg: 2 } },
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 18 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 30 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 2 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 2 },
+        ],
+      },
+      {
+        // FEET RE-LEVEL: the stepping foot sets back down beside the stance
+        // foot; quiet stance resumes (body fully upright).
+        name: 'settle',
+        durationMs: 500,
+        holdMs: 350,
+        root: { orient: { pitchDeg: 0 } },
+        targets: [
+          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 0 },
+        ],
+      },
+    ],
+    source: VERIFY,
+  },
 ];
 
 /** Turn a template into a playable, measurable ComposedMotion (starts from
@@ -953,13 +1240,35 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
     durationMs: p.durationMs,
     ...(p.holdMs ? { holdMs: p.holdMs } : {}),
     ...(p.stance ? { stance: p.stance } : {}),
+    ...(p.travel ? { travel: p.travel } : {}),
+    ...(p.root ? { root: p.root } : {}),
   }));
+  // Phase-indexed contact windows → absolute-ms StanceContact windows (a phase's
+  // window covers its travel AND its hold). Phase boundaries are preserved by
+  // peakAt expansion, so the ms windows stay exact through resolve.
+  let contacts: StanceContact[] | undefined;
+  if (t.contacts?.length) {
+    const startOf: number[] = [];
+    const endOf: number[] = [];
+    let acc = 0;
+    for (const p of t.phases) {
+      startOf.push(acc);
+      acc += p.durationMs + (p.holdMs ?? 0);
+      endOf.push(acc);
+    }
+    contacts = t.contacts.map((c) => ({
+      foot: c.foot,
+      ...(c.fromPhase != null ? { fromMs: startOf[c.fromPhase] ?? 0 } : {}),
+      ...(c.toPhase != null ? { toMs: endOf[c.toPhase] ?? acc } : {}),
+    }));
+  }
   return {
     name: t.id,
     startFrom: 'neutral',
     stance: t.stance,
     ...(t.loop ? { loop: true } : {}),
     ...(t.balanceAssist ? { balanceAssist: true } : {}),
+    ...(contacts ? { contacts } : {}),
     keyframes,
   };
 }
@@ -1021,32 +1330,185 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     speed != null && speed !== 1
       ? paceGait(templateToComposedMotion(walk), speed)
       : templateToComposedMotion(walk);
+  // ONE GAIT CYCLE (8 phases), plus a real initiation ahead of it and a real
+  // termination after it — the walk starts and stops like a person, not a
+  // cross-fade into/out of mid-stride.
+  const cycle: SequenceKeyframe[] = base.keyframes.map((kf) => ({
+    ...kf,
+    ...(kf.targets ? { targets: kf.targets.map((t) => ({ ...t })) } : {}),
+  }));
+  // STEP-OFF ENTRY: the first gait pose is a full stride (~30° hip / 40° knee,
+  // the arm at its ±20° extreme); reaching it in one 200 ms phase whips the
+  // limbs in at several times the steady cadence, so the entry keeps its own
+  // longer duration (the cycle phases stay steady).
+  cycle[0] = {
+    ...cycle[0]!,
+    durationMs: Math.max(cycle[0]!.durationMs ?? 0, GAIT_STEP_OFF_MS),
+    // The initiation keyframe below authors a root shift; explicitly return the
+    // root to centre here so the APA shift resolves into the derived shuttle
+    // (root state persists forward until overridden).
+    root: { translateM: [0, 0, 0] },
+  };
+  // BRAKING CUE on the final cycle keyframe: the LAST step is shorter — the
+  // terminal (R) reach and the arm swing are damped, so the body is already
+  // decelerating as it enters the termination step.
+  const lastCycle = cycle[cycle.length - 1]!;
+  lastCycle.targets = lastCycle.targets?.map((t) => {
+    if (t.joint === 'R_UpLeg' && t.motion === 'hipFlexion')
+      return { ...t, targetDegrees: t.targetDegrees * GAIT_BRAKE_REACH_SCALE };
+    if (t.motion === 'shoulderFlexion')
+      return { ...t, targetDegrees: t.targetDegrees * GAIT_BRAKE_ARM_SCALE };
+    return t;
+  });
+  // REAL GAIT INITIATION (APA): the walk enters on R stance — the L foot is the
+  // first to leave the floor — so BEFORE any limb lifts, shift the pelvis over
+  // the future stance (R) foot with a small lumbar list (thoracic counter-list
+  // keeps the head centred) and unweight the future swing knee. The shift is
+  // authored root-X; it hands over to the derived medio-lateral shuttle (which
+  // rises toward the same R stance through the first half-cycle).
+  const initiation: SequenceKeyframe = {
+    durationMs: GAIT_INITIATION_MS,
+    targets: [
+      { joint: 'Spine_Lower', motion: 'lateralTilt', targetDegrees: GAIT_APA_LUMBAR_DEG },
+      { joint: 'Spine_Upper', motion: 'lateralTilt', targetDegrees: GAIT_APA_THORACIC_DEG },
+      { joint: 'Neck', motion: 'lateralTilt', targetDegrees: GAIT_APA_NECK_DEG },
+      { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: GAIT_APA_KNEE_DEG },
+    ],
+    root: { translateM: [-GAIT_APA_SHIFT_M, 0, 0] }, // toward the stance (R) foot (−X)
+  };
+  // REAL GAIT TERMINATION: the R foot (which reached forward at the last cycle
+  // keyframe) accepts weight with a loading-response knee yield while the L
+  // releases its push-off into a short swing…
+  const terminationStep: SequenceKeyframe = {
+    durationMs: GAIT_TERMINATION_STEP_MS,
+    targets: [
+      { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 12 },
+      { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 14 },
+      { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: 3 },
+      { joint: 'R_Toes', motion: 'toeFlexion', targetDegrees: 0 },
+      { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 15 },
+      { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 30 },
+      { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+      { joint: 'L_Toes', motion: 'toeFlexion', targetDegrees: 5 },
+      { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 6 },
+      { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: -6 },
+      { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: 18 },
+      { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: 18 },
+    ],
+  };
+  // …then the L steps up NEXT TO the R (feet together) and the body levels out
+  // to quiet standing. Every sagittal driver goes to 0, so the spinal gait
+  // coordination (counter-rotation, sway, pelvic yaw) fades out with it; the
+  // relaxed arm carriage (slight elbow bend, adducted hang) remains.
+  const terminationSettle: SequenceKeyframe = {
+    durationMs: GAIT_TERMINATION_SETTLE_MS,
+    holdMs: GAIT_TERMINATION_HOLD_MS,
+    targets: [
+      { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+      { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
+      { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+      { joint: 'R_Toes', motion: 'toeFlexion', targetDegrees: 0 },
+      { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+      { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
+      { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+      { joint: 'L_Toes', motion: 'toeFlexion', targetDegrees: 0 },
+      { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
+      { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
+      { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: 8 },
+      { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: 8 },
+      // Explicit zeros: unmentioned joints CARRY FORWARD across keyframes, so
+      // without these the quiet stand would keep the braking step's residual
+      // trunk rotation / lean / neck counters frozen on the body.
+      { joint: 'Spine_Lower', motion: 'lateralTilt', targetDegrees: 0 },
+      { joint: 'Spine_Upper', motion: 'lateralTilt', targetDegrees: 0 },
+      { joint: 'Spine_Lower', motion: 'rotation', targetDegrees: 0 },
+      { joint: 'Spine_Upper', motion: 'rotation', targetDegrees: 0 },
+      { joint: 'Neck', motion: 'rotation', targetDegrees: 0 },
+      { joint: 'Neck', motion: 'lateralTilt', targetDegrees: 0 },
+    ],
+  };
+  const kfs: SequenceKeyframe[] = [initiation, ...cycle, terminationStep, terminationSettle];
+
+  // STANCE SCHEDULE (authored ms): R bears through the initiation + the first
+  // four cycle phases, L through the second four; the termination adds a final
+  // R stance (the braking step) and, once the L lands beside it, a terminal
+  // double support. The same windows drive the foot-plant contacts AND the
+  // planned shuttle phase the trunk absorb counter-leans against.
+  const dur = (k: SequenceKeyframe): number => (k.durationMs ?? 0) + (k.holdMs ?? 0);
+  const endOf = (idx: number): number => kfs.slice(0, idx + 1).reduce((s, k) => s + dur(k), 0);
+  const rStanceEnd = endOf(4); // initiation + R initial-contact … R terminal-stance
+  const lStanceEnd = endOf(8); // L initial-contact … L terminal-stance
+  const rLandsAt = endOf(9); // braking-step arrival: R has accepted weight
+  const lLandsAt = endOf(9) + (terminationSettle.durationMs ?? 0); // L arrives beside R
+  const total = endOf(kfs.length - 1);
+  // The terminal plant windows begin at each foot's LANDING keyframe (weight
+  // acceptance / feet-together) — a window opening while the foot is still
+  // airborne would lazily capture an in-flight position and pin the foot there.
+  const contacts: StanceContact[] = [
+    { foot: 'R_Foot', fromMs: 0, toMs: rStanceEnd },
+    { foot: 'L_Foot', fromMs: rStanceEnd, toMs: lStanceEnd },
+    { foot: 'R_Foot', fromMs: rLandsAt, toMs: total },
+    { foot: 'L_Foot', fromMs: lLandsAt, toMs: total },
+  ];
+  // Planned shuttle phase (+1 = toward subject-left/+X): toward the R foot (−X)
+  // through R stance windows, toward the L (+X) through L stance — a half-sine
+  // per window, zero at the double-support boundaries. The SAME schedule is
+  // passed to the sample-time derivations (`gaitStanceWindowsMs`), so the
+  // authored trunk absorb, the ridden root shuttle AND the foot-driven travel
+  // all follow one stance truth. The final window ends where the trailing L
+  // foot LANDS beside the R — the terminal double support and settle dwell
+  // hold the pelvis centred.
+  // Only the TERMINAL window travel-locks the forward derivation: the cycle
+  // windows stay on the measured-feet heuristic (its entry-reach cancellation
+  // is what keeps the pinned stance foot reachable), but through the braking
+  // step the heuristic tracks the trailing push-off foot and freezes the
+  // advance, so the schedule keeps it on the weight-accepting R.
+  const windows: { t0: number; t1: number; dir: number; foot: string; travelLock?: boolean }[] = [
+    { t0: 0, t1: rStanceEnd, dir: -1, foot: 'R_Foot' },
+    { t0: rStanceEnd, t1: lStanceEnd, dir: 1, foot: 'L_Foot' },
+    { t0: lStanceEnd, t1: lLandsAt, dir: -1, foot: 'R_Foot', travelLock: true },
+  ];
+  const shuttlePhaseAt = (tMs: number): number => {
+    for (const w of windows) {
+      if (tMs < w.t0 || tMs > w.t1 || w.t1 <= w.t0) continue;
+      return w.dir * Math.sin((Math.PI * (tMs - w.t0)) / (w.t1 - w.t0));
+    }
+    return 0;
+  };
+
   // Natural trunk + limb coordination (counter-rotation, sway, pelvic rotation, and the
   // non-sagittal limb motion). The pelvic yaw stays the default ~±2° — the same amount as
   // the in-place walk — even though the feet are foot-planted below: a bigger travelling
   // yaw wags the whole body too much (a full ~±4° reads clean in place but not in travel).
-  // The foot-plant contacts still hold each stance foot fixed so nothing slides.
-  const coordinated = spinalGaitCoordination(base);
-  // STEP-OFF ENTRY: the gait folds onto the live (usually neutral standing) pose, and
-  // the first keyframe is a full gait pose (a leg swung to ~30° hip / 40° knee, the arm
-  // to its ±20° extreme). Reaching it in one 200 ms phase whips the limbs in at several
-  // times the steady cadence (rig: ~300°/s hip vs ~55 steady) — the walk "accelerates"
-  // into motion. Give the neutral→first-pose entry its own longer duration so the limbs
-  // ease into the stride at gait speed; the cycle phases (and the footDrivenTravel /
-  // contacts, which read the actual durations) stay steady. The final knot is a
-  // fly-through (cyclicEnds) so the exit doesn't brake either.
-  const kfs = coordinated.keyframes.map((kf, i) =>
-    i === 0 ? { ...kf, durationMs: Math.max(kf.durationMs ?? 0, GAIT_STEP_OFF_MS) } : kf,
+  // The foot-plant contacts still hold each stance foot fixed so nothing slides. The
+  // shuttle absorb adds the trunk counter-lean that keeps the head centred over the
+  // shuttling pelvis.
+  const coordinated = spinalGaitCoordination(
+    { ...base, keyframes: kfs },
+    { shuttleAbsorb: { phaseAt: shuttlePhaseAt, deg: GAIT_SHUTTLE_ABSORB_DEG } },
   );
-  const withEntry: ComposedMotion = { ...coordinated, keyframes: kfs };
   return {
     name: 'walk-forward',
     startFrom: 'current',
     stance: 'planted',
     ...(coordinated.modifiers ? { modifiers: coordinated.modifiers } : {}),
-    keyframes: kfs,
+    keyframes: coordinated.keyframes,
     footDrivenTravel: true,
-    contacts: gaitFootContacts(withEntry),
+    // The walk now authors its own initiation/termination ramps, so the
+    // trajectory ends are REAL stops (ease from standstill, brake to quiet
+    // standing) instead of the steady-cadence fly-throughs.
+    settleEnds: true,
+    contacts,
+    // Per-step weight transfer: the pelvis rides toward the planted foot,
+    // phase-locked to the SAME planned stance schedule the trunk absorb above
+    // was authored against (and the travel derivation follows).
+    lateralShuttleCm: GAIT_SHUTTLE_CM,
+    gaitStanceWindowsMs: windows.map((w) => ({
+      foot: w.foot,
+      fromMs: w.t0,
+      toMs: w.t1,
+      ...(w.travelLock ? { travelLock: true } : {}),
+    })),
     // Calibrate the COM vertical: the raw floor-pin vault of the travelling walk is
     // ~13 cm — far more than real free gait (~5 cm) — and it drops abruptly into
     // double support. The vertical calibration calms the excursion AND (in the
@@ -1404,13 +1866,15 @@ const trunkFlex = (lower: number, upper: number): SequenceTarget[] => [
 
 /** LIE DOWN — standing → supine. Lower into a deep crouch (feet planted, the
  *  floor-pin drops the pelvis), then recline the trunk to horizontal and settle the
- *  legs out flat. Ends 'supine'. */
+ *  legs out flat. Ends 'supine'. The get-DOWN crouch is a weighted lower —
+ *  gravity-shaped descent re-timing applies (see {@link buildSitDown}). */
 export function buildLieDown(): ComposedMotion {
   return {
     name: 'lie down',
     startFrom: 'current',
     stance: 'planted',
     endPosture: 'supine',
+    weightedDescent: true,
     keyframes: [
       { durationMs: 800, stance: 'planted', targets: [...bilatLeg(95, 115, 20), ...trunkFlex(25, 15)] },
       {
@@ -1479,13 +1943,23 @@ export function buildSupineLegRaise(opts: { side?: 'L' | 'R'; reps?: number } = 
 // swap stays smooth). A chair/bed prop is placed app-side at the measured pelvis.
 
 /** SIT DOWN — standing → sitting. Reach the hips back and lower to the seat, then
- *  settle onto it (pelvis grounded at seat height). Ends 'sitting'. */
+ *  settle onto it (pelvis grounded at seat height). Ends 'sitting'.
+ *
+ *  WEIGHTED DESCENT (roadmap 3.3): the sit-DOWN direction is a bodyweight
+ *  lower — gravity does the work and the seat provides the catch — so it opts
+ *  into the gravity-shaped descent re-timing (slow early, accelerating into
+ *  the seat; the authored knee flexion at the bottom is the yield). The
+ *  stand-UP direction ({@link buildStandFromSit}) is a concentric RISE and
+ *  stays unflagged, as does the clinical squat template: a squat is a
+ *  CONTROLLED ECCENTRIC whose deliberate symmetric tempo is the clinically
+ *  correct behaviour, not a defect. */
 export function buildSitDown(): ComposedMotion {
   return {
     name: 'sit down',
     startFrom: 'current',
     stance: 'planted',
     endPosture: 'sitting',
+    weightedDescent: true,
     keyframes: [
       // Reach back + begin to lower (feet grounded).
       { durationMs: 600, stance: 'planted', targets: [...bilatLeg(45, 55, 12), ...trunkFlex(15, 8)] },
@@ -1591,13 +2065,18 @@ const plankLimbs = (shoulder: number, elbow: number): SequenceTarget[] => [
 
 /** GET INTO A PLANK — standing → plank. Crouch and hinge forward with the hands
  *  reaching to the floor, then pitch the body to the prone-frame plank line (weight
- *  on the toes + hands). Ends 'plank'. */
+ *  on the toes + hands). Ends 'plank'. Flagged as a weighted lower with the rest
+ *  of the get-down family; today its root-Y descent lives almost entirely in the
+ *  pitch transfer (a grounding-switch step, which the span detector correctly
+ *  refuses to reshape), so the flag is an identity until a real crouch descent
+ *  is authored — asserted in the rig gates. */
 export function buildGetDownToPlank(): ComposedMotion {
   return {
     name: 'get into a plank',
     startFrom: 'current',
     stance: 'planted',
     endPosture: 'plank',
+    weightedDescent: true,
     keyframes: [
       // Crouch + hinge forward, reaching the hands toward the floor (feet grounded).
       { durationMs: 700, stance: 'planted', targets: [...bilatLeg(75, 100, 15), ...trunkFlex(35, 20), ...plankLimbs(120, 15)] },
@@ -1681,13 +2160,17 @@ const quadArms = (): SequenceTarget[] => [
 
 /** GET ONTO HANDS AND KNEES — standing → quadruped. Crouch and hinge forward with the
  *  hands reaching to the floor, then lower to the prone-frame quadruped (knees + hands
- *  grounded). Ends 'quadruped'. */
+ *  grounded). Ends 'quadruped'. The get-DOWN crouch is a weighted lower —
+ *  gravity-shaped descent re-timing applies (see {@link buildSitDown}); the
+ *  quadruped grounding-switch step is a discontinuity the span detector never
+ *  crosses, so only the real crouch is reshaped. */
 export function buildGetDownToQuadruped(): ComposedMotion {
   return {
     name: 'get onto hands and knees',
     startFrom: 'current',
     stance: 'planted',
     endPosture: 'quadruped',
+    weightedDescent: true,
     keyframes: [
       // Crouch + hinge forward, reaching the hands toward the floor (feet grounded).
       { durationMs: 700, stance: 'planted', targets: [...bilatLeg(95, 115, 15), ...trunkFlex(40, 25), { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115 }, { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115 }] },
@@ -2162,6 +2645,37 @@ const PELVIS_YAW_MAX = 6;
 // the limbs ease in at stride cadence instead of whipping (a normal 200 ms phase would
 // demand ~300°/s). ~natural gait initiation; the cycle phases themselves stay 200 ms.
 const GAIT_STEP_OFF_MS = 400;
+// ─── Gait initiation / termination / weight transfer (travel walk) ───────────
+// REAL GAIT INITIATION — the anticipatory postural adjustment (APA): before the
+// first swing foot ever leaves the floor, the pelvis/COM shifts over the future
+// STANCE foot (the walk enters on R stance — the L foot is the first swing) and
+// the future swing knee unweights slightly [Winter; Jian 1993]. Authored as a
+// short lead keyframe ahead of the first gait pose, replacing the old bare
+// time-stretch (which eased the limbs in but shifted no weight at all).
+const GAIT_INITIATION_MS = 300; // APA lead keyframe travel time
+const GAIT_APA_SHIFT_M = 0.012; // authored pelvis shift toward the stance (R) foot, m (−X)
+const GAIT_APA_LUMBAR_DEG = -1.2; // lumbar list over the stance foot (lateralTilt + = left)
+const GAIT_APA_THORACIC_DEG = 2.0; // thoracic counter-list keeps the head centred
+const GAIT_APA_NECK_DEG = -0.8; // levels the head against the authored S-curve's residual
+const GAIT_APA_KNEE_DEG = 5; // future swing (L) knee unweights
+// REAL GAIT TERMINATION — a braking final step: the lead (R) foot accepts weight
+// with a loading-response knee yield while the trailing (L) foot swings UP NEXT
+// TO it (feet together), then the body levels out to quiet standing (arms
+// settle, the spinal coordination fades as its sagittal drivers go to 0).
+const GAIT_TERMINATION_STEP_MS = 250; // weight acceptance onto the lead foot
+const GAIT_TERMINATION_SETTLE_MS = 450; // trailing foot steps up beside; level-out
+const GAIT_TERMINATION_HOLD_MS = 200; // settle dwell at quiet standing
+const GAIT_BRAKE_REACH_SCALE = 0.8; // the last step is SHORTER (terminal reach damped)
+const GAIT_BRAKE_ARM_SCALE = 0.7; // …and the arm swing starts dying with it
+// MEDIO-LATERAL SHUTTLE — the per-step weight transfer: the pelvis rides this
+// many cm toward the planted foot each stance (crossing centre at the
+// double-support transitions), derived at sample time from the measured feet
+// (services/rootMotion deriveGaitLateralShuttle). Real free-gait pelvis ML
+// excursion is ~±2-3 cm at comfortable speed [Perry & Burnfield].
+const GAIT_SHUTTLE_CM = 2.5;
+// Trunk counter-lean (deg at full shuttle) absorbing the shuttle so the head
+// stays centred — rig-tuned against the head-steadiness gate (<2.5 cm lateral).
+const GAIT_SHUTTLE_ABSORB_DEG = 2.4;
 // ─── Limb non-sagittal gait coordination ─────────────────────────────────────
 // Real gait limbs move in all THREE planes; a purely sagittal swing (flexion only) reads
 // as a robotic 2-D walker. These add SUBTLE frontal + transverse components — physiologic
@@ -2215,7 +2729,24 @@ const NECK_AXIAL_ROLL_COMP = 0.28;
  */
 export function spinalGaitCoordination(
   motion: ComposedMotion,
-  opts: { axial?: number; lateral?: number; headStabilize?: number; pelvis?: number } = {},
+  opts: {
+    axial?: number;
+    lateral?: number;
+    headStabilize?: number;
+    pelvis?: number;
+    /** SHUTTLE ABSORPTION (travel walk): the medio-lateral pelvis shuttle
+     *  (`lateralShuttleCm`) translates the whole body toward the stance foot,
+     *  and without a counter the head would ride the full excursion. This adds
+     *  the thoracic S-curve that absorbs it: a trunk lateral counter-lean, in
+     *  phase with the shuttle, split lumbar/thoracic — so the pelvis visibly
+     *  shuttles under a quiet, centred head (the vestibular head-steadiness the
+     *  rig gates require). `phaseAt(tMs)` is the planned shuttle phase in
+     *  [−1, 1] along +X (subject-left) at a keyframe's authored arrival time;
+     *  `deg` the total counter-lean at full shuttle. Folded into the SAME
+     *  lean/neck terms as the stance sway, so the neck roll compensation keeps
+     *  the head level too. */
+    shuttleAbsorb?: { phaseAt: (tMs: number) => number; deg: number };
+  } = {},
 ): ComposedMotion {
   const kAx = Math.max(0, opts.axial ?? 0.16);
   // Lateral sway is SMALL in real gait — the trunk stays near-vertical in the frontal
@@ -2231,11 +2762,23 @@ export function spinalGaitCoordination(
   // higher gain skates the stance foot; rig-swept). A real foot-lock IK would let this go
   // to the full physiological ~±4°.
   const kPel = Math.max(0, opts.pelvis ?? 0.05);
-  if (kAx === 0 && kLat === 0 && kPel === 0) return motion;
+  const shuttleAbsorb = opts.shuttleAbsorb;
+  if (kAx === 0 && kLat === 0 && kPel === 0 && !shuttleAbsorb) return motion;
   const cap = (v: number, m: number): number => Math.max(-m, Math.min(m, v));
   const at = (ts: SequenceTarget[], joint: string, mo: string): number =>
     ts.find((t) => t.joint === joint && t.motion === mo)?.targetDegrees ?? 0;
-  const keyframes = motion.keyframes.map((kf) => {
+  // Authored arrival time of each keyframe (cumulative travel + holds) — the
+  // time base the shuttle-absorb phase function is sampled at.
+  const arriveMs: number[] = [];
+  {
+    let cursor = 0;
+    for (const kf of motion.keyframes) {
+      cursor += kf.durationMs ?? 0;
+      arriveMs.push(cursor);
+      cursor += kf.holdMs ?? 0;
+    }
+  }
+  const keyframes = motion.keyframes.map((kf, kfIndex) => {
     const ts = kf.targets;
     if (!ts || !ts.length) return kf;
     // Reciprocal arm-swing asymmetry drives the thoracic axial rotation; loaded-leg
@@ -2247,13 +2790,17 @@ export function spinalGaitCoordination(
     const thoracic = cap(-kAx * armDiff, SPINE_AXIAL_MAX); // thorax rotates with the girdle
     const lumbar = cap(-kAx * 0.3 * armDiff, SPINE_LUMBAR_AXIAL_MAX); // lumbar follows
     const lean = -kLat * hipDiff * airborne; // lean toward the stance (less-flexed) hip
-    const leanLower = cap(lean, SPINE_LATERAL_MAX);
+    // SHUTTLE-ABSORB counter-lean: opposite the pelvis shuttle (phase is +X-ward,
+    // lateralTilt + = toward subject-left/+X, so −phase counters it), split
+    // lumbar/thoracic so the tilt sits low (long lever, minimal thorax roll).
+    const shuttleLean = shuttleAbsorb ? -shuttleAbsorb.deg * shuttleAbsorb.phaseAt(arriveMs[kfIndex]!) : 0;
+    const leanLower = cap(lean + 0.45 * shuttleLean, SPINE_LATERAL_MAX);
     // The thoracic COUNTER-lists (an S-curve): the lumbar lists toward the stance limb
     // (the physiologic weight shift), but the upper trunk leans back the other way so the
     // shoulders — and the head above them — stay centred over the base. A person's head
     // barely bobs laterally in gait (vestibular stabilisation); compounding the lean at the
     // top (the old +0.5) threw the head side-to-side. Neck leveling handles the residual.
-    const leanUpper = cap(-0.6 * lean, SPINE_LATERAL_MAX);
+    const leanUpper = cap(-0.6 * lean + 0.55 * shuttleLean, SPINE_LATERAL_MAX);
     // PELVIC ROTATION (root yaw): the swing side rotates forward. Counter-phase to the
     // thorax (below), so the pelvis and shoulder girdle COUNTER-ROTATE about the spine —
     // the real transverse-plane engine of gait. The hips counter-rotate by −pelvisYaw so

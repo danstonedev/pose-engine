@@ -584,6 +584,57 @@ export interface FeetZ {
   ly: number;
 }
 
+/** The world X (medio-lateral) + Y of each foot at a phase — what the lateral
+ *  shuttle derivation reads. A caller's single feet-sampling closure can serve
+ *  both derivations by returning the union of this and {@link FeetZ}. */
+export interface FeetLateral {
+  rx: number;
+  lx: number;
+  /** World Y of each foot (to pick the planted/lower one). */
+  ry: number;
+  ly: number;
+}
+
+/** Vertical separation (m) one foot must rise above the other before the
+ *  planted-foot decision hands off — hysteresis so near-tie foot heights (a
+ *  standing entry, terminal double support) can't flutter the choice. Shared
+ *  by the forward-travel and lateral-shuttle derivations. */
+const FOOT_HANDOFF_HYSTERESIS_M = 0.008;
+
+/** A planned single-stance window: `foot` bears weight over [fromMs, toMs].
+ *  Shared by the travel + shuttle derivations (trajectory time base). */
+export interface GaitStanceWindow {
+  foot: string;
+  fromMs: number;
+  toMs: number;
+  /** FORCE the forward-travel derivation onto this window's foot. The measured
+   *  lower-foot heuristic is self-consistent through a steady cycle (its
+   *  entry-reach cancellation is what keeps the pinned foot reachable), so
+   *  travel normally ignores the schedule — but through an authored WEIGHT
+   *  TRANSFER (a braking terminal step) the heuristic tracks the trailing
+   *  push-off foot while the lead foot is still airborne and freezes the
+   *  advance; a travel-locked window keeps it on the weight-bearing foot. The
+   *  lateral shuttle uses every window regardless (it needs the full phase
+   *  schedule). */
+  travelLock?: boolean;
+}
+
+/** The stance side a planned window schedule dictates at tMs, or null when no
+ *  (matching) window covers it — fall back to the measured feet. First match
+ *  wins. `travelOnly` restricts to travel-locked windows. */
+function scheduledStance(
+  windows: GaitStanceWindow[] | undefined,
+  tMs: number,
+  travelOnly = false,
+): 'R' | 'L' | null {
+  if (!windows) return null;
+  for (const w of windows) {
+    if (travelOnly && w.travelLock !== true) continue;
+    if (tMs >= w.fromMs && tMs <= w.toMs) return w.foot.startsWith('R') ? 'R' : 'L';
+  }
+  return null;
+}
+
 /**
  * Derive a forward-travel curve that keeps the PLANTED foot world-fixed — the
  * industry "root motion from foot placement" done right, and the fix for the
@@ -605,24 +656,50 @@ export interface FeetZ {
  * returns the feet world Z/Y. Sampled in time order over `steps`; returns a
  * piecewise-linear lookup. Vertical grounding stays with the floor-pin — this only
  * owns the forward axis.
+ *
+ * `stanceWindows` (optional) supplies the builder's PLANNED stance schedule:
+ * inside a window that foot is the planted one regardless of the measured
+ * heights. The lower-foot heuristic reads the trailing push-off foot as
+ * "planted" through a weight transfer (the lead foot is still airborne while
+ * the trailing one is deepest), which follows the wrong foot through an
+ * authored braking step; the schedule keeps the advance on the weight-bearing
+ * foot. Outside every window — and without the option — the measured feet
+ * decide (with hysteresis so near-tie spans can't flutter the choice).
  */
 export function deriveFootDrivenTravel(
   sampleFeetAtPhase: (tMs: number) => FeetZ,
   totalMs: number,
+  stanceWindows?: GaitStanceWindow[],
   steps = 120,
 ): FootDrivenTravel {
   const n = Math.max(2, steps);
   const dt = totalMs / (n - 1);
   const z = new Array<number>(n).fill(0);
   let prev = sampleFeetAtPhase(0);
-  let planted: 'R' | 'L' = prev.ry <= prev.ly ? 'R' : 'L';
+  let planted: 'R' | 'L' = scheduledStance(stanceWindows, 0, true) ?? (prev.ry <= prev.ly ? 'R' : 'L');
   for (let i = 1; i < n; i += 1) {
     const cur = sampleFeetAtPhase(i * dt);
-    const lower: 'R' | 'L' = cur.ry <= cur.ly ? 'R' : 'L';
+    // Travel-locked schedule first; else HYSTERESIS on the measured decision:
+    // hand off only when the other foot is clearly lower. In the cycle the
+    // swing foot crosses decisively (tens of cm), but near-tie spans — a
+    // standing entry, a feet-together termination, terminal double support —
+    // used to flip-flop the choice per sample, and every flip is a "handoff:
+    // no advance" frame that froze the derived travel mid-step.
+    const scheduled = scheduledStance(stanceWindows, i * dt, true);
+    let lower: 'R' | 'L' | null = scheduled;
+    if (lower == null) {
+      lower = planted;
+      if (planted === 'R' && cur.ry > cur.ly + FOOT_HANDOFF_HYSTERESIS_M) lower = 'L';
+      else if (planted === 'L' && cur.ly > cur.ry + FOOT_HANDOFF_HYSTERESIS_M) lower = 'R';
+    }
     if (lower === planted) {
       // Advance the root by the planted foot's backward body-space step, so its
-      // world position does not change.
-      const back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
+      // world position does not change. Under a PLANNED schedule a still-landing
+      // stance foot can briefly move forward (the physical handoff hasn't
+      // completed) — that is a handoff frame, not a retreat, so the advance is
+      // floored at 0 (the walking root never backs up mid-window).
+      let back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
+      if (scheduled != null) back = Math.max(0, back);
       z[i] = z[i - 1]! + back;
     } else {
       // Handoff: the new foot just landed — no advance this frame, then track it.
@@ -641,4 +718,363 @@ export function deriveFootDrivenTravel(
       return z[k]! + (z[k + 1]! - z[k]!) * (u - k);
     },
   };
+}
+
+// ── Medio-lateral root shuttle (root motion FROM foot placement, X axis) ──────
+
+/** A precomputed medio-lateral (world X) pelvis-shuttle offset curve over one
+ *  motion, sampled at fixed steps and lerped in between — the lateral sibling of
+ *  {@link FootDrivenTravel}. */
+export interface LateralShuttle {
+  totalMs: number;
+  /** Medio-lateral (world X, subject-left+) root offset, meters, at tMs. */
+  xAt(tMs: number): number;
+}
+
+/**
+ * Derive the phase-locked MEDIO-LATERAL pelvis shuttle of a gait — the weight
+ * transfer the walk was missing: each step, the pelvis rides toward (part-way
+ * over) the STANCE foot, crossing the centre line at the double-support
+ * transitions. Real free gait shuttles the pelvis a few cm toward the stance
+ * side every step [Perry & Burnfield]; without it the body glides down the
+ * midline like a rail-cart while the legs alternate underneath.
+ *
+ * Mirrors {@link deriveFootDrivenTravel}'s measure-then-derive pattern exactly:
+ * `sampleFeetAtPhase(tMs)` poses the rig at tMs (FK + floor-pin, NO travel) and
+ * returns the feet world X/Y. The derivation identifies the planted (lower)
+ * foot per sample — with hysteresis so a standing entry/termination can't
+ * flutter the handoff — then, over each stance window, shapes a smooth
+ * half-sine excursion TOWARD that foot's measured side: zero at the window's
+ * ends (the double-support / weight-transfer instants), peak `amplitudeM` at
+ * mid-stance. Direction and reach come from the MEASURED feet (a wide or
+ * narrow stance shuttles toward where the foot actually is), the amplitude is
+ * capped well inside the half-stance-width so the COM stays within the base.
+ *
+ * `stanceWindows` (optional) supplies the PLANNED stance schedule (e.g. a gait
+ * builder's authored windows, scaled to trajectory time): the shuttle is then
+ * phase-locked to the same schedule any authored trunk counter-lean was
+ * authored against, so root ride and absorb can never drift apart. Without it
+ * the windows are the measured contiguous planted-foot runs. Returns a
+ * piecewise-linear lookup applied to root X only — vertical grounding and
+ * forward travel keep their own channels.
+ */
+export function deriveGaitLateralShuttle(
+  sampleFeetAtPhase: (tMs: number) => FeetLateral,
+  totalMs: number,
+  amplitudeM: number,
+  stanceWindows?: GaitStanceWindow[],
+  steps = 120,
+): LateralShuttle {
+  const n = Math.max(2, steps);
+  const dt = totalMs / (n - 1);
+  const x = new Array<number>(n).fill(0);
+  const amp = Math.max(0, amplitudeM);
+  if (amp > 0) {
+    const feet: FeetLateral[] = [];
+    for (let i = 0; i < n; i += 1) feet.push(sampleFeetAtPhase(i * dt));
+    // Planted (lower) foot per sample, with hysteresis at the handoff.
+    const planted: ('R' | 'L')[] = [];
+    let cur: 'R' | 'L' = feet[0]!.ry <= feet[0]!.ly ? 'R' : 'L';
+    for (const f of feet) {
+      if (cur === 'R' && f.ry > f.ly + FOOT_HANDOFF_HYSTERESIS_M) cur = 'L';
+      else if (cur === 'L' && f.ly > f.ry + FOOT_HANDOFF_HYSTERESIS_M) cur = 'R';
+      planted.push(cur);
+    }
+    // Body centre line = mean of the two feet across the cycle.
+    let centerX = 0;
+    for (const f of feet) centerX += (f.rx + f.lx) / 2;
+    centerX /= n;
+    // Stance windows in sample indices: the planned schedule when supplied,
+    // else the measured contiguous planted-foot runs.
+    const runs: { i0: number; i1: number; foot?: 'R' | 'L' }[] = [];
+    if (stanceWindows?.length) {
+      for (const w of stanceWindows) {
+        const i0 = Math.max(0, Math.min(n - 1, Math.round(w.fromMs / dt)));
+        const i1 = Math.max(0, Math.min(n - 1, Math.round(w.toMs / dt)));
+        if (i1 > i0) runs.push({ i0, i1, foot: w.foot.startsWith('R') ? 'R' : 'L' });
+      }
+    } else {
+      let i = 0;
+      while (i < n) {
+        let j = i;
+        while (j + 1 < n && planted[j + 1] === planted[i]) j += 1;
+        if (j > i) runs.push({ i0: i, i1: j });
+        i = j + 1;
+      }
+    }
+    // Each stance window gets a half-sine toward its foot's measured side (the
+    // scheduled foot when planned, else the majority-planted one).
+    for (const { i0, i1, foot: schedFoot } of runs) {
+      let rCount = 0;
+      for (let k = i0; k <= i1; k += 1) if (planted[k] === 'R') rCount += 1;
+      const foot: 'R' | 'L' = schedFoot ?? (rCount * 2 >= i1 - i0 + 1 ? 'R' : 'L');
+      let stanceX = 0;
+      for (let k = i0; k <= i1; k += 1) stanceX += foot === 'R' ? feet[k]!.rx : feet[k]!.lx;
+      stanceX = stanceX / (i1 - i0 + 1) - centerX;
+      // Toward the stance foot, capped inside the half-stance-width (60%) so a
+      // narrow stance can never be over-shuttled past its own base edge.
+      const reach = Math.sign(stanceX) * Math.min(amp, 0.6 * Math.abs(stanceX));
+      for (let k = i0; k <= i1; k += 1) {
+        x[k] = reach * Math.sin((Math.PI * (k - i0)) / (i1 - i0));
+      }
+    }
+  }
+  return {
+    totalMs,
+    xAt(tMs: number): number {
+      if (tMs <= 0) return x[0]!;
+      if (tMs >= totalMs) return x[n - 1]!;
+      const u = tMs / dt;
+      const k = Math.min(n - 2, Math.floor(u));
+      return x[k]! + (x[k + 1]! - x[k]!) * (u - k);
+    },
+  };
+}
+
+// ── Gravity-shaped grounded descents (weighted lowers — roadmap 3.3) ─────────
+//
+// The audit's "grounded weight" finding: a grounded descent (sit-down, floor
+// get-down) EASES SYMMETRICALLY into its bottom — peak descent speed mid-span,
+// braking into the stop — a hydraulic lower, not bodyweight caught. Gravity
+// exists only when airborne (the ballistic flight parabola in motionTrajectory).
+// This section is the opt-in, root-Y-only fix: within each monotone-DESCENDING
+// span of the grounded (floor-pinned) root-Y arc, replace the vertical TIMING
+// with a gravity-consistent profile — slow early, fast late, arrested at the
+// bottom by the existing grounding (the floor/seat pin is the catch; the
+// templates already author a small knee-yield there).
+//
+// PROFILE. Per span the target is  min(parabola, envelope), floored at the pin:
+//   • `parabola` — the quarter-parabola of a body released from rest over the
+//     span's drop/duration, capped at a physiologic terminal speed (a real
+//     lower plateaus near ~1 m/s; it never free-falls): the gravity IDEAL.
+//   • `envelope` — the least concave majorant (upper concave hull) of the
+//     measured pin arc: the closest curve to the AUTHORED descent whose speed
+//     never decreases. It rides the pin wherever the pin already accelerates
+//     and bridges every mid-span brake — above all, the terminal ease-out —
+//     with a constant-speed chord, so the descent arrives at the bottom AT
+//     speed instead of braking before it.
+// Both curves are concave (descending, non-decreasing speed) and share the
+// span's endpoints, so their pointwise min is too — descent speed is monotone
+// non-decreasing until the catch — and the reshape is exactly the pin at the
+// span boundaries (C0 with the untouched frames around it).
+//
+// KINEMATIC CHARTER + LOCKSTEP. Root-Y ONLY: joint angles, knot times, and the
+// horizontal root path are untouched, so goniometry and every settle
+// measurement are byte-identical. Derived in a deterministic PRE-PASS over the
+// built trajectory (the vertical-calibration pattern: sampler + stage run the
+// SAME derivation on the same grounded arc and apply it per frame in lockstep)
+// and applied through per-frame clamps against the live pin (hover/dip bounds
+// below), so the feet never visibly leave — or clip — the floor.
+
+/** Minimum net drop (m) a monotone-descending root-Y span needs to qualify as
+ *  a weighted lower. Sub-10 cm bobs (breath-scale, small transfers) keep their
+ *  authored timing. */
+export const WEIGHTED_DESCENT_MIN_DROP_M = 0.1;
+/** Minimum span duration (ms): a shorter "descent" is a grounding-switch
+ *  artifact or a single-sample step, not a lower to reshape. */
+export const WEIGHTED_DESCENT_MIN_SPAN_MS = 250;
+/** Physiologic terminal descent speed (m/s) the quarter-parabola is capped at:
+ *  a controlled bodyweight lower accelerates, then plateaus — it never
+ *  free-falls (sit-down pelvis peaks ~0.5-0.9 m/s in life; 1.2 leaves room for
+ *  a genuine drop while staying far under free-fall). */
+export const WEIGHTED_DESCENT_TERMINAL_SPEED_MS = 1.2;
+/** Per-sample slope (m/s) above which the sampled arc is a grounding-switch
+ *  DISCONTINUITY (e.g. the quadruped feet→knee pin swap re-roots the body tens
+ *  of cm in one step) — a span never extends across one. */
+const WEIGHTED_DESCENT_DISCONTINUITY_MS = 2.0;
+/** Apply-time bound (m) the reshaped root-Y may HOVER above the live pin. The
+ *  reshape holds the body high while the joints keep folding, which lifts the
+ *  pinned feet off the floor by the same amount — bounded to shoe-sole height
+ *  (same order as the gait smoothing's GAIT_VERTICAL_MAX_RISE_M). */
+export const WEIGHTED_DESCENT_MAX_HOVER_M = 0.03;
+/** Apply-time bound (m) the reshaped root-Y may DIP below the live pin (the
+ *  final catch may run slightly ahead of a terminal grounding switch — e.g.
+ *  the sit-down's feet→seat pin step — matching the ~2 cm settle tolerance the
+ *  seated grounding already carries). */
+export const WEIGHTED_DESCENT_MAX_DIP_M = 0.02;
+/** Leading/trailing flat trim (m): a span starts/ends where the arc has
+ *  actually moved this far, so holds on either side stay untouched. */
+const WEIGHTED_DESCENT_TRIM_M = 1e-3;
+
+/** One reshaped descent span: a uniform-in-time target root-Y table. */
+export interface WeightedDescentSpan {
+  fromMs: number;
+  toMs: number;
+  /** Target root-Y per uniform sample over [fromMs, toMs] (≥2 entries). */
+  y: number[];
+}
+
+/** A derived gravity-descent reshape: identity outside its spans. */
+export interface WeightedDescentReshape {
+  totalMs: number;
+  spans: WeightedDescentSpan[];
+}
+
+/** Least concave majorant of uniformly-spaced samples: the UPPER convex hull
+ *  of (i, y[i]), evaluated back at every i. Rides the curve wherever it is
+ *  already concave (accelerating descent) and bridges every local brake with a
+ *  straight (constant-speed) chord. */
+function upperConcaveEnvelope(ys: number[]): number[] {
+  const n = ys.length;
+  if (n <= 2) return [...ys];
+  const hull: number[] = [];
+  for (let i = 0; i < n; i += 1) {
+    while (hull.length >= 2) {
+      const a = hull[hull.length - 2]!;
+      const b = hull[hull.length - 1]!;
+      // Pop b while a→b→i is a left turn or straight (b on/under the chord a→i).
+      const cross = (b - a) * (ys[i]! - ys[a]!) - (ys[b]! - ys[a]!) * (i - a);
+      if (cross >= 0) hull.pop();
+      else break;
+    }
+    hull.push(i);
+  }
+  const out = new Array<number>(n);
+  for (let h = 0; h + 1 < hull.length; h += 1) {
+    const a = hull[h]!;
+    const b = hull[h + 1]!;
+    for (let i = a; i <= b; i += 1) {
+      out[i] = ys[a]! + ((ys[b]! - ys[a]!) * (i - a)) / Math.max(1, b - a);
+    }
+  }
+  return out;
+}
+
+/** Cumulative drop (m) at time τ (s) into a quarter-parabola release over
+ *  span duration T (s) and total drop D (m), capped at terminal speed vT:
+ *  pure ½at² when its end speed 2D/T stays under vT; else a constant-
+ *  acceleration ramp to vT followed by terminal-speed descent (both cover D
+ *  exactly). When even the AVERAGE speed exceeds vT the authored timing wins
+ *  (pure parabola — the cap cannot be honoured without moving knot times). */
+function gravityDropAt(tau: number, T: number, D: number, vT: number): number {
+  const u = Math.min(1, Math.max(0, tau / T));
+  if (2 * D <= vT * T || D >= vT * T) return D * u * u;
+  const t1 = (2 * (vT * T - D)) / vT; // ramp duration; 0 < t1 < T here
+  const a = vT / t1;
+  return tau <= t1 ? 0.5 * a * tau * tau : 0.5 * vT * t1 + vT * (tau - t1);
+}
+
+/**
+ * Derive the gravity-descent reshape from the emergent grounded root-Y arc.
+ * `groundedRootYAt(tMs)` must return the FULLY-GROUNDED model-root Y at
+ * absolute time tMs — the caller poses the rig and applies the same grounding
+ * (posture pin / foot-root / floor-pin) its playback uses, exactly like the
+ * vertical-calibration and foot-driven-travel pre-passes. Samples `steps`
+ * uniform points, finds each monotone-descending span (net drop ≥
+ * {@link WEIGHTED_DESCENT_MIN_DROP_M}, duration ≥
+ * {@link WEIGHTED_DESCENT_MIN_SPAN_MS}, never across a grounding-switch
+ * discontinuity), and builds the min(parabola, envelope) target table per span
+ * (floored at the sampled pin, so the reshape only ever RE-TIMES the descent
+ * upward/later — it never digs below the grounded arc at derive time).
+ * Returns null when nothing qualifies (the identity — unflagged-equivalent).
+ * Deterministic: same arc → same reshape.
+ */
+export function deriveWeightedDescent(
+  groundedRootYAt: (tMs: number) => number,
+  totalMs: number,
+  steps = 128,
+): WeightedDescentReshape | null {
+  if (!(totalMs > 0)) return null;
+  const n = Math.max(8, Math.floor(steps)) + 1;
+  const dt = totalMs / (n - 1);
+  const ys = new Array<number>(n);
+  for (let i = 0; i < n; i += 1) ys[i] = groundedRootYAt(i * dt);
+
+  const spans: WeightedDescentSpan[] = [];
+  const maxStepDrop = (WEIGHTED_DESCENT_DISCONTINUITY_MS * dt) / 1000;
+  let i = 0;
+  while (i < n - 1) {
+    // Maximal non-rising run from i, stopping at any grounding-switch step.
+    let j = i;
+    while (
+      j < n - 1 &&
+      ys[j + 1]! <= ys[j]! + 1e-4 &&
+      ys[j]! - ys[j + 1]! <= maxStepDrop
+    ) {
+      j += 1;
+    }
+    if (j === i) {
+      i += 1;
+      continue;
+    }
+    // Trim leading/trailing flats so holds around the drop stay untouched.
+    let s = i;
+    while (s < j && ys[i]! - ys[s + 1]! < WEIGHTED_DESCENT_TRIM_M) s += 1;
+    let e = j;
+    while (e > s && ys[e - 1]! - ys[j]! < WEIGHTED_DESCENT_TRIM_M) e -= 1;
+    const D = ys[s]! - ys[e]!;
+    const spanMs = (e - s) * dt;
+    if (D >= WEIGHTED_DESCENT_MIN_DROP_M && spanMs >= WEIGHTED_DESCENT_MIN_SPAN_MS) {
+      const pin = ys.slice(s, e + 1);
+      const env = upperConcaveEnvelope(pin);
+      const T = spanMs / 1000;
+      const y = pin.map((pinY, k) => {
+        const par = pin[0]! - gravityDropAt((k * dt) / 1000, T, D, WEIGHTED_DESCENT_TERMINAL_SPEED_MS);
+        return Math.max(Math.min(par, env[k]!), pinY);
+      });
+      spans.push({ fromMs: s * dt, toMs: e * dt, y });
+    }
+    i = j + 1;
+  }
+  return spans.length ? { totalMs, spans } : null;
+}
+
+/**
+ * Apply a derived gravity-descent reshape to the grounded root-Y at time tMs:
+ * inside a span, the lerped target table clamped to the live pin's
+ * hover/dip band ({@link WEIGHTED_DESCENT_MAX_HOVER_M} /
+ * {@link WEIGHTED_DESCENT_MAX_DIP_M}); outside every span — and for a null
+ * reshape — exactly `y` (identity, so unflagged playback is byte-identical).
+ */
+export function applyWeightedDescent(
+  y: number,
+  reshape: WeightedDescentReshape | null | undefined,
+  tMs: number,
+): number {
+  if (!reshape) return y;
+  for (const span of reshape.spans) {
+    if (tMs < span.fromMs || tMs > span.toMs) continue;
+    const m = span.y.length - 1;
+    if (m < 1) return y;
+    const x = ((tMs - span.fromMs) / (span.toMs - span.fromMs)) * m;
+    const k = Math.min(m - 1, Math.floor(x));
+    const f = x - k;
+    const target = span.y[k]! * (1 - f) + span.y[k + 1]! * f;
+    return Math.min(Math.max(target, y - WEIGHTED_DESCENT_MAX_DIP_M), y + WEIGHTED_DESCENT_MAX_HOVER_M);
+  }
+  return y;
+}
+
+/** The RESOLVED-motion fields the weighted-descent gate reads (structural — a
+ *  subset of motionSequence's ResolvedComposedMotion, kept structural so this
+ *  root-space module never imports the sequence layer). */
+export interface WeightedDescentMotionLike {
+  status: string;
+  weightedDescent?: boolean;
+  loop?: boolean;
+  footDrivenTravel?: boolean;
+  verticalCalibrationCm?: number;
+  contacts?: unknown[];
+  keyframes: { stance?: string }[];
+}
+
+/**
+ * Whether the gravity-descent reshape applies to a resolved motion: it must
+ * OPT IN (`weightedDescent`) and be a grounded one-shot the quasi-static
+ * descent model is valid for. HARD EXCLUSIONS even when flagged — airborne
+ * motions (any floating keyframe: the ballistic flight parabola owns their
+ * vertical), gait/travel and loops (the calibrated + smoothed cyclic vertical
+ * is deliberate), calibrated verticals (`verticalCalibrationCm` owns root-Y),
+ * declared IK contacts (the plant solver owns the legs), and motions with
+ * nothing planted (no grounded arc to reshape). Exported so tests (and hosts)
+ * can assert the exclusions without running the derivation.
+ */
+export function weightedDescentApplies(resolved: WeightedDescentMotionLike): boolean {
+  if (resolved.status !== 'ok' || resolved.weightedDescent !== true) return false;
+  if (resolved.keyframes.length === 0) return false;
+  if (resolved.loop === true || resolved.footDrivenTravel === true) return false;
+  if (resolved.verticalCalibrationCm != null) return false;
+  if (resolved.contacts?.length) return false;
+  if (resolved.keyframes.some((kf) => kf.stance === 'floating')) return false;
+  return resolved.keyframes.some((kf) => kf.stance === 'planted');
 }

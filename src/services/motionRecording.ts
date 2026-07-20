@@ -52,10 +52,13 @@ import {
 } from './motionSequence';
 import {
   applyVerticalCalibration,
+  applyWeightedDescent,
   captureFloorReference,
   captureFootFrames,
   deriveFootDrivenTravel,
+  deriveGaitLateralShuttle,
   deriveVerticalCalibration,
+  deriveWeightedDescent,
   FOOT_ROOT_DRIFT_M,
   NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
@@ -64,8 +67,11 @@ import {
   plantStanceFoot,
   rotateRestReferenceByRoot,
   stanceFootDrift,
+  weightedDescentApplies,
   type FootDrivenTravel,
+  type LateralShuttle,
   type VerticalCalibration,
+  type WeightedDescentReshape,
 } from './rootMotion';
 import { balanceCoordination } from './balanceCoordination';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
@@ -432,8 +438,10 @@ export function sampleComposedMotion(
         timeScale,
         reps: resolved.reps,
         // A foot-driven travelling gait is a steady cadence, not a gesture: keep the
-        // limb swing uniform at the ends (no ease-in whip / halt).
-        cyclicEnds: resolved.footDrivenTravel === true,
+        // limb swing uniform at the ends (no ease-in whip / halt) — UNLESS the motion
+        // authors its own initiation/termination ramps (`settleEnds`), in which case
+        // the ends are genuine stops (ease from standstill, brake to quiet standing).
+        cyclicEnds: resolved.footDrivenTravel === true && resolved.settleEnds !== true,
       });
   const totalMs = trajectory.totalMs;
   const dtMs = 1000 / hz;
@@ -477,12 +485,21 @@ export function sampleComposedMotion(
   // forward (+Z) offset that keeps the planted (lower) foot world-fixed — so the
   // stance foot never slides and the swing foot rides the body forward, with the
   // stride emerging from the authored ROM (no independent stride, no foot-lock IK).
+  //
+  // MEDIO-LATERAL SHUTTLE (the X sibling): the same feet pre-pass derives the
+  // stance-phase-locked pelvis ride TOWARD the planted foot (the gait weight
+  // transfer), zero at the double-support handoffs. Both are root-only offsets;
+  // the shared closure keeps the two derivations reading identical feet.
   let footDriven: FootDrivenTravel | null = null;
-  if (resolved.footDrivenTravel && built.roots.some((r) => r.stance === 'planted')) {
+  let lateralShuttle: LateralShuttle | null = null;
+  {
     const rBone = boneByKey.get('R_Foot');
     const lBone = boneByKey.get('L_Foot');
-    if (rBone && lBone) {
-      footDriven = deriveFootDrivenTravel((tMs) => {
+    const wantsTravel = resolved.footDrivenTravel === true;
+    const shuttleM = (resolved.lateralShuttleCm ?? 0) / 100;
+    const hasPlanted = built.roots.some((r) => r.stance === 'planted');
+    if (rBone && lBone && hasPlanted && (wantsTravel || shuttleM > 0)) {
+      const sampleFeet = (tMs: number) => {
         const s = trajectory.sampleAt(tMs);
         applyCustomPose(skinned.skeleton, variantCfg, s.pose);
         _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
@@ -496,8 +513,23 @@ export function sampleComposedMotion(
         if (s.planted) pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
         rBone.getWorldPosition(_sv);
         lBone.getWorldPosition(_svB);
-        return { rz: _sv.z, ry: _sv.y, lz: _svB.z, ly: _svB.y };
-      }, totalMs);
+        return { rz: _sv.z, ry: _sv.y, rx: _sv.x, lz: _svB.z, ly: _svB.y, lx: _svB.x };
+      };
+      // The planned stance schedule is authored ms; the trajectory runs at
+      // authored/timeScale — scale it by the same uniform factor so both
+      // derivations stay phase-locked to the knots at any pace.
+      const authoredMs =
+        resolved.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0) *
+        (resolved.loop ? 1 : Math.max(1, resolved.reps));
+      const scale = authoredMs > 0 ? totalMs / authoredMs : 1;
+      const windows = resolved.gaitStanceWindowsMs?.map((w) => ({
+        foot: w.foot,
+        fromMs: w.fromMs * scale,
+        toMs: w.toMs * scale,
+        ...(w.travelLock ? { travelLock: true } : {}),
+      }));
+      if (wantsTravel) footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows);
+      if (shuttleM > 0) lateralShuttle = deriveGaitLateralShuttle(sampleFeet, totalMs, shuttleM, windows);
     }
   }
 
@@ -548,6 +580,50 @@ export function sampleComposedMotion(
     !hasGroundingPosture &&
     activeContacts.length === 0 &&
     built.roots.some((r) => r.stance === 'planted');
+
+  // GRAVITY-SHAPED GROUNDED DESCENT (weighted lowers — roadmap 3.3): for a
+  // motion flagged `weightedDescent` (and admitted by the hard exclusion gate),
+  // a PRE-PASS samples the fully-grounded root-Y arc of this trajectory — the
+  // SAME posture-pin / foot-root / floor-pin grounding sampleAt applies — and
+  // derives a per-span re-timing toward the gravity profile (slow early, fast
+  // late, arrested by the grounding; services/rootMotion). Applied per frame in
+  // sampleAt, mirrored by the live stage at the same pipeline point (the
+  // vertical-calibration lockstep pattern). Null — the strict identity — for
+  // every unflagged/excluded motion, so they stay byte-identical. The flagged
+  // class excludes vcal, so the calibrated-vertical branch never overlaps.
+  let weightedDescent: WeightedDescentReshape | null = null;
+  if (!useLoopCycle && !opts.contacts?.length && weightedDescentApplies(resolved)) {
+    weightedDescent = deriveWeightedDescent((tMs) => {
+      const s = trajectory.sampleAt(tMs);
+      applyCustomPose(skinned.skeleton, variantCfg, s.pose);
+      _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+      root.quaternion.copy(rootRestQuat).multiply(_sq);
+      root.position.set(
+        rootRestPos.x + s.rootTranslate[0],
+        rootRestPos.y + s.rootTranslate[1],
+        rootRestPos.z + s.rootTranslate[2],
+      );
+      root.scale.copy(rootRestScale);
+      root.updateMatrixWorld(true);
+      if (s.planted && s.groundingPosture) {
+        pinContactsToFloor(
+          root,
+          skinned.skeleton,
+          variantCfg,
+          groundingContactsFor(s.groundingPosture, floorRef),
+        );
+      } else if (
+        useFootRoot &&
+        s.planted &&
+        (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M
+      ) {
+        plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames);
+      } else if (s.planted) {
+        pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+      }
+      return root.position.y;
+    }, totalMs);
+  }
 
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
@@ -613,10 +689,25 @@ export function sampleComposedMotion(
         root.updateMatrixWorld(true);
       }
     }
+    // Gravity-shaped descent (weighted lowers): inside a derived descent span,
+    // re-time the grounded root-Y toward the gravity profile — clamped to the
+    // live pin's hover/dip band. Root-Y ONLY (joints untouched); identity for
+    // every frame outside a span and for every unflagged/excluded motion.
+    if (weightedDescent && sample.planted) {
+      const yShaped = applyWeightedDescent(root.position.y, weightedDescent, tMs);
+      if (yShaped !== root.position.y) {
+        root.position.y = yShaped;
+        root.updateMatrixWorld(true);
+      }
+    }
     // Foot-driven forward travel: advance the root (+Z) so the planted foot stays
     // world-fixed. Horizontal only — independent of the vertical pin/calibration.
-    if (footDriven) {
-      root.position.z += footDriven.zAt(tMs);
+    // The medio-lateral shuttle rides the root (X) toward the stance foot the
+    // same way; both precede the foot plants, which hold each stance foot fixed
+    // while the pelvis travels over it.
+    if (footDriven || lateralShuttle) {
+      if (footDriven) root.position.z += footDriven.zAt(tMs);
+      if (lateralShuttle) root.position.x += lateralShuttle.xAt(tMs);
       root.updateMatrixWorld(true);
     }
 
