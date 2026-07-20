@@ -1477,6 +1477,111 @@ export function buildStandFromPlank(): ComposedMotion {
   };
 }
 
+// ─── Posture transfers: standing ↔ quadruped + bird-dog (Phase 3 Tier B) ─────
+// QUADRUPED (hands-and-knees) is a prone-frame trunk held on the SHINS (the knee bone
+// `Leg`, the vertical pin) behind and the HANDS (reach-IK) in front — the pelvis rides
+// elevated at thigh height. groundingPosture 'quadruped' grounds both knees + both
+// hands. The bird-dog raise switches to 'quadruped-hand-L/R' so ONE hand releases and
+// the opposite arm can reach out (the lifted knee simply rises — the max-lift pin uses
+// the planted knee). All startFrom:'current'.
+
+/** Body pitch (deg) of the quadruped trunk — horizontal (prone frame). */
+const QUAD_PITCH = 90;
+/** Hands-and-knees limbs: shins folded to lie on the floor (hip 95 / knee 100 /
+ *  ankle −45 lands the knee + toes at the floor with the shin flat), arms straight
+ *  down to the hands (the hand-plant IK plants them), palms flat (wrist −45). */
+const quadLegs = (): SequenceTarget[] => bilatLeg(95, 100, -45);
+const quadArms = (): SequenceTarget[] => [
+  { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 90 },
+  { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 90 },
+  { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: 5 },
+  { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: 5 },
+  { joint: 'L_Hand', motion: 'wristFlexion', targetDegrees: -45 },
+  { joint: 'R_Hand', motion: 'wristFlexion', targetDegrees: -45 },
+];
+
+/** GET ONTO HANDS AND KNEES — standing → quadruped. Crouch and hinge forward with the
+ *  hands reaching to the floor, then lower to the prone-frame quadruped (knees + hands
+ *  grounded). Ends 'quadruped'. */
+export function buildGetDownToQuadruped(): ComposedMotion {
+  return {
+    name: 'get onto hands and knees',
+    startFrom: 'current',
+    stance: 'planted',
+    endPosture: 'quadruped',
+    keyframes: [
+      // Crouch + hinge forward, reaching the hands toward the floor (feet grounded).
+      { durationMs: 700, stance: 'planted', targets: [...bilatLeg(95, 115, 15), ...trunkFlex(40, 25), { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115 }, { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115 }] },
+      // Onto hands and knees: trunk to horizontal, knees + hands to the floor.
+      {
+        durationMs: 700,
+        holdMs: 150,
+        stance: 'planted',
+        groundingPosture: 'quadruped',
+        root: { orient: { pitchDeg: QUAD_PITCH } },
+        targets: [...quadLegs(), ...quadArms(), ...trunkFlex(0, 0)],
+      },
+    ],
+  };
+}
+
+/** STAND UP FROM HANDS AND KNEES — quadruped → standing. Push the hips up and back over
+ *  the feet, then rise to a quiet stand. Ends 'standing'. */
+export function buildStandFromQuadruped(): ComposedMotion {
+  return {
+    name: 'stand up',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'quadruped',
+    endPosture: 'standing',
+    keyframes: [
+      // Tuck the feet under and pike the hips up and back (feet regain the ground).
+      { durationMs: 700, stance: 'planted', root: { orient: { pitchDeg: 35 } }, targets: [...bilatLeg(90, 100, 15), ...trunkFlex(40, 25), { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 150 }, { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 150 }] },
+      // Rise to a quiet stand (upright, feet grounding).
+      { durationMs: 800, holdMs: 150, stance: 'planted', posture: 'upright', targets: [...bilatLeg(0, 0, 0), ...trunkFlex(0, 0), ...plankLimbs(0, 0)] },
+    ],
+  };
+}
+
+/** BIRD-DOG — a quadruped exercise: from hands-and-knees, raise one arm forward and the
+ *  OPPOSITE leg back to horizontal, hold, return. `side` = the raised ARM (default 'R',
+ *  raising the R arm + L leg). The raised hand releases its floor contact (grounding
+ *  switches to the planted hand), and the raised knee lifts off (the pin uses the
+ *  planted knee). Starts + ends 'quadruped'. */
+export function buildBirdDog(opts: { side?: 'L' | 'R'; reps?: number } = {}): ComposedMotion {
+  const arm = opts.side === 'L' ? 'L' : 'R';
+  const leg = arm === 'R' ? 'L' : 'R';
+  const supportHand = arm === 'R' ? 'L' : 'R';
+  const grounding = supportHand === 'L' ? 'quadruped-hand-L' : 'quadruped-hand-R';
+  const reps = Math.max(1, Math.min(20, Math.round(opts.reps ?? 1)));
+  const raise: SequenceTarget[] = [
+    // Arm reaches straight forward to ~horizontal (shoulder height); in the prone frame
+    // shoulder flexion sweeps the arm from down (90) toward forward (180).
+    { joint: `${arm}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: 175 },
+    { joint: `${arm}_Forearm`, motion: 'elbowFlexion', targetDegrees: 5 },
+    // Leg extends straight back to ~horizontal (hip height); from the quadruped's 95°
+    // flexion, ~5° leaves the thigh level with the trunk (−20° over-raised it ~31°).
+    { joint: `${leg}_UpLeg`, motion: 'hipFlexion', targetDegrees: 5 },
+    { joint: `${leg}_Leg`, motion: 'kneeFlexion', targetDegrees: 5 },
+  ];
+  return {
+    name: reps > 1 ? `bird-dog ×${reps}` : 'bird-dog',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'quadruped',
+    endPosture: 'quadruped',
+    ...(reps > 1 ? { reps } : {}),
+    keyframes: [
+      // Settle on all fours (all four grounded).
+      { durationMs: 400, stance: 'planted', groundingPosture: 'quadruped', root: { orient: { pitchDeg: QUAD_PITCH } }, targets: [...quadLegs(), ...quadArms()] },
+      // Raise the opposite arm + leg to horizontal and hold (raised hand released).
+      { durationMs: 800, holdMs: 400, stance: 'planted', groundingPosture: grounding, root: { orient: { pitchDeg: QUAD_PITCH } }, targets: raise },
+      // Return to all fours.
+      { durationMs: 700, stance: 'planted', groundingPosture: 'quadruped', root: { orient: { pitchDeg: QUAD_PITCH } }, targets: [...quadLegs(), ...quadArms()] },
+    ],
+  };
+}
+
 /** Real free-gait COM vertical excursion is ~4-5 cm peak-to-peak at a comfortable
  *  cadence [Perry & Burnfield; Gard & Childress]. This is the calibrated NORMAL
  *  target; {@link gaitBounce} scales around it. */
