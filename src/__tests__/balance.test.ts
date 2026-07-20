@@ -252,23 +252,22 @@ describe('foot-rooted planting owns balance', () => {
     expect(JSON.stringify(a.frames)).toBe(JSON.stringify(b.frames)); // deterministic
   });
 
-  it('single-leg stance is balanced by authored counterbalance + balanceCoordination', () => {
-    // CHANGED (Wave 2 — COM-driven balanceCoordination): Wave 1 authored the
-    // full rig-tuned weight shift (min one-foot margin −4.2 cm → +1.3 cm). The
-    // template now authors a DE-TUNED shape (the physiologic strategy + its
-    // early peakAt timing) and the balanceAssist pre-pass measures the residual
-    // COM-vs-base offset per keyframe and tops the same channels up — still no
-    // hidden controller, still ordinary keyframe targets, but the hold now
-    // re-centers to a REAL margin (~+4.0 cm mid-hold, rig-measured). The only
-    // sub-zero excursion left is the weight-TRANSFER instant (double→single),
-    // which grazes zero (≥ −0.5 mm) — anticipatory transfer timing is Wave 3
-    // (roadmap 3.1). Deeper margin gates live in balanceCoordination.test.ts.
+  it('single-leg stance is balanced by authored counterbalance + APA weight shift', () => {
+    // CHANGED (Wave 3, roadmap 3.1 — anticipatory postural adjustments): the
+    // template opens with a dedicated "load-stance-side" APA phase that completes
+    // the weight shift over the stance foot BEFORE the foot lifts (rig-gated in
+    // apaLeads.test.ts). Its counterbalance is authored strong enough to project
+    // the COM onto the one-foot base by itself (~+3.8 cm mid-hold), so the
+    // balanceAssist pre-pass is essentially identity — deterministic, and the
+    // counterbalance channels stay a stable movement signature in a chain. The
+    // APA front-load removes Wave 2's near-zero transfer graze: the whole
+    // one-foot phase now stays on-base. Deeper gates in balanceCoordination.test.
     const tl = computeBalanceTimeline(sample('single-leg-stance'));
     const oneFoot = tl.frames.filter((f) => f.contacts.length === 1);
     expect(oneFoot.length).toBeGreaterThan(0);
     expect(Math.min(...oneFoot.map((f) => f.marginM ?? Infinity))).toBeGreaterThan(-0.005);
     expect(Math.max(...oneFoot.map((f) => f.marginM ?? -Infinity))).toBeGreaterThan(0.03);
-    expect(tl.balancedFraction).toBeGreaterThan(0.95); // on-base except the transfer instants
+    expect(tl.balancedFraction).toBeGreaterThan(0.95); // on-base throughout
   });
 });
 
