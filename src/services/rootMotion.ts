@@ -293,6 +293,16 @@ export function pinContactsToFloor(
 
 // ── Closed-chain foot-rooted planting (feet stay planted, body folds over them) ─
 
+/** Stance-foot drift (m) above which a planted, in-place frame is re-rooted at
+ *  the foot ({@link plantStanceFoot}). A squat/hinge/sit-to-stand swings the
+ *  foot tens of cm off its rest frame (well above this); a single-leg stance
+ *  leaves the bearing foot home (~0), so it stays on the cheap vertical pin and
+ *  its measurement frame is never perturbed. ONE constant shared by the offline
+ *  sampler (motionRecording), the live stage (ExamStage3D) and the balance
+ *  pre-pass (balanceCoordination), so the three can never disagree on when the
+ *  closed chain engages. */
+export const FOOT_ROOT_DRIFT_M = 0.05;
+
 /** Full rest WORLD frame (position + orientation) of each ankle (Foot) bone,
  *  captured at anatomic stance — the target a foot-rooted plant restores the
  *  stance foot to. Call after applyAnatomicPose with world matrices current. */

@@ -70,6 +70,12 @@ export interface MovementTemplate {
    *  LAST phase must flow back into the FIRST — the loop seam is a real
    *  transition the stage tweens through. Default false (one-shot). */
   loop?: boolean;
+  /** COM-driven postural control: run the sampled/staged motion through the
+   *  `balanceCoordination` pre-pass, which measures the COM-vs-base offset per
+   *  keyframe and adds the RESIDUAL re-centering the authored counterbalance
+   *  below doesn't cover. Set on the quasi-static balance-demand templates
+   *  (single-leg stance, kick, endpoint reach). */
+  balanceAssist?: boolean;
   phases: TemplatePhase[];
   source: string;
 }
@@ -505,8 +511,9 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Single-leg stance (balance)',
     aliases: ['single leg stance', 'stand on one leg', 'single-leg balance', 'balance on one foot', 'one-legged stance'],
     coordination:
-      'Stand on the left leg and lift the right: the lifted hip flexes ~30° and its knee ~45°. AUTHORED COUNTERBALANCE — a real person shifts the pelvis laterally OVER the stance foot before the lift completes (closed-chain stance-hip abduction leans the body over the planted foot), lists the trunk slightly toward the stance side, adducts the lifted leg toward midline and floats the stance-side arm out — so the COM projects INSIDE the one-foot base (rig-measured: min margin of stability −4.2 cm uncounterbalanced → +1.3 cm). The weight shift peaks HALFWAY through the lift (peakAt 0.5): weight transfer precedes full foot-off, as in life. Long hold = the balance challenge; a final settle phase re-centres onto both feet. Planted (stance leg).',
+      'Stand on the left leg and lift the right: the lifted hip flexes ~30° and its knee ~45°. AUTHORED COUNTERBALANCE + BALANCE ASSIST — a real person shifts the pelvis laterally OVER the stance foot before the lift completes (closed-chain stance-hip abduction leans the body over the planted foot), lists the trunk slightly toward the stance side, adducts the lifted leg toward midline and floats the stance-side arm out. The template authors the SHAPE of that strategy (de-tuned since Wave 2); the COM-driven balanceCoordination pre-pass measures the residual COM-vs-base offset per keyframe and tops the same channels up, so the COM projects INSIDE the one-foot base (rig-measured: min one-foot margin of stability −4.2 cm uncounterbalanced → positive with assist). The weight shift peaks HALFWAY through the lift (peakAt 0.5): weight transfer precedes full foot-off, as in life. Long hold = the balance challenge; a final settle phase re-centres onto both feet. Planted (stance leg).',
     stance: 'planted',
+    balanceAssist: true,
     phases: [
       {
         name: 'lift-and-balance',
@@ -515,15 +522,19 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 45 },
-          // COUNTERBALANCE (rig-tuned, ROM-safe; peakAt 0.5 = shift before full lift).
+          // COUNTERBALANCE (ROM-safe; peakAt 0.5 = shift before full lift). Wave 2:
+          // DE-TUNED from the Wave-1 rig-tuned values (8/6/3/20/−8) — these author
+          // the physiologic SHAPE and early timing; balanceCoordination measures
+          // the residual COM offset and tops up the same channels, so authoring +
+          // assist never double-corrects into an over-lean.
           // Closed-chain sign note: with the stance foot planted (foot-rooted), stance-hip
           // ABduction leans the body OVER the stance foot — rig-measured; authoring
           // adduction moves the COM the wrong way.
-          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 8, peakAt: 0.5 },
-          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 6, peakAt: 0.5 }, // + = toward stance (L)
-          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 3, peakAt: 0.5 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 20, peakAt: 0.5 }, // stance-side arm floats out
-          { joint: 'R_UpLeg', motion: 'hipAbduction', peakDeg: -8, peakAt: 0.5 }, // lifted leg adducts to midline
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 5, peakAt: 0.5 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 4, peakAt: 0.5 }, // + = toward stance (L)
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 2, peakAt: 0.5 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 12, peakAt: 0.5 }, // stance-side arm floats out
+          { joint: 'R_UpLeg', motion: 'hipAbduction', peakDeg: -5, peakAt: 0.5 }, // lifted leg adducts to midline
         ],
       },
       {
@@ -822,8 +833,9 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Forward leg kick (dynamic hip flexion / knee extension)',
     aliases: ['kick', 'kicks', 'kicking', 'leg kick', 'front kick', 'kick forward'],
     coordination:
-      'Stand on the left leg and kick the right forward: a brief wind-up (hip extends ~15°, knee flexes ~40°) then a powerful strike where the hip flexes ~65° while the knee whips toward extension (~5°), then recover to neutral. The knee LEADS the hip late in the strike (peakAt) — the shank snaps out after the thigh. AUTHORED COUNTERBALANCE — the kicker shifts onto the stance leg DURING the wind-up (closed-chain stance-hip abduction leans the body over the planted foot, peaking halfway — weight transfer precedes the kick), lists the trunk toward the stance side and floats the stance-side arm out; held through the strike, released once the foot is back down (rig-measured: min margin of stability −4.9 cm uncounterbalanced → +0.1 cm). Planted (stance leg). Shown kicking with the right leg.',
+      'Stand on the left leg and kick the right forward: a brief wind-up (hip extends ~15°, knee flexes ~40°) then a powerful strike where the hip flexes ~65° while the knee whips toward extension (~5°), then recover to neutral. The knee LEADS the hip late in the strike (peakAt) — the shank snaps out after the thigh. AUTHORED COUNTERBALANCE + BALANCE ASSIST — the kicker shifts onto the stance leg DURING the wind-up (closed-chain stance-hip abduction leans the body over the planted foot, peaking halfway — weight transfer precedes the kick), lists the trunk toward the stance side and floats the stance-side arm out; held through the strike, released once the foot is back down. The template authors the SHAPE (de-tuned since Wave 2); the balanceCoordination pre-pass measures the residual COM-vs-base offset and tops the same channels up (rig-measured: min margin of stability −4.9 cm uncounterbalanced → positive with assist). Planted (stance leg). Shown kicking with the right leg.',
     stance: 'planted',
+    balanceAssist: true,
     phases: [
       {
         name: 'wind-up',
@@ -833,14 +845,16 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -15 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 40 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: -6 },
-          // COUNTERBALANCE onto the stance (left) leg (rig-tuned, ROM-safe; peakAt
-          // 0.5 = the weight shift completes before the kick leaves the ground).
+          // COUNTERBALANCE onto the stance (left) leg (ROM-safe; peakAt 0.5 = the
+          // weight shift completes before the kick leaves the ground). Wave 2:
+          // DE-TUNED from the Wave-1 values (10/8/4/25) — the authored targets
+          // carry the shape/timing, balanceCoordination tops up the residual.
           // Closed-chain sign note: stance-hip ABduction leans the planted-foot body
           // over the stance foot (see single-leg-stance).
-          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 10, peakAt: 0.5 },
-          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 8, peakAt: 0.5 }, // + = toward stance (L)
-          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 4, peakAt: 0.5 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 25, peakAt: 0.5 },
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 6, peakAt: 0.5 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 5, peakAt: 0.5 }, // + = toward stance (L)
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 2, peakAt: 0.5 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 15, peakAt: 0.5 },
         ],
       },
       {
@@ -851,11 +865,12 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 65 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5, peakAt: 0.75 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 6 },
-          // Counterbalance HELD at full through the strike (re-authored lockstep).
-          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 10 },
-          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 8 },
-          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 4 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 25 },
+          // Counterbalance HELD at full through the strike (re-authored lockstep;
+          // same Wave-2 de-tuned values as the wind-up).
+          { joint: 'L_UpLeg', motion: 'hipAbduction', peakDeg: 6 },
+          { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 5 },
+          { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 2 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 15 },
         ],
       },
       {
@@ -888,8 +903,9 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Functional forward/overhead reach (endpoint reach)',
     aliases: ['reach', 'reaching', 'reach forward', 'reach up', 'functional reach', 'reach for something', 'reach overhead'],
     coordination:
-      'Reach the right arm forward and up toward a target: the shoulder flexes ~140° as the elbow extends toward straight (~5°), with a small forward trunk lean (~10°) carrying the reach to its endpoint; hold at the target, then return to rest. AUTHORED COUNTERBALANCE — as the trunk and arm go forward the HIPS shift BACKWARD (a slight bilateral closed-chain hip hinge: pelvis travels back over the planted feet) and the free left arm trails behind the trunk line, so the reach does not simply carry the whole body mass forward (rig-measured: the COM ground-projection stays well inside the base, min margin of stability +6.3 cm, and the forward COM excursion is counterweighted by the ~10 cm hips-back shift). Planted. Shown reaching with the right arm.',
+      'Reach the right arm forward and up toward a target: the shoulder flexes ~140° as the elbow extends toward straight (~5°), with a small forward trunk lean (~10°) carrying the reach to its endpoint; hold at the target, then return to rest. AUTHORED COUNTERBALANCE + BALANCE ASSIST — as the trunk and arm go forward the HIPS shift BACKWARD (a slight bilateral closed-chain hip hinge: pelvis travels back over the planted feet) and the free left arm trails behind the trunk line, so the reach does not simply carry the whole body mass forward (rig-measured: the COM ground-projection stays well inside the base, min margin of stability +6.3 cm, and the forward COM excursion is counterweighted by the ~10 cm hips-back shift). The balanceCoordination pre-pass verifies the residual: with the authored hinge the reach measures safely balanced at every keyframe, so the assist is identity here (its gate in balance.test.ts) — the authored values are kept, not de-tuned. Planted. Shown reaching with the right arm.',
     stance: 'planted',
+    balanceAssist: true,
     phases: [
       {
         name: 'reach-to-target',
@@ -943,6 +959,7 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
     startFrom: 'neutral',
     stance: t.stance,
     ...(t.loop ? { loop: true } : {}),
+    ...(t.balanceAssist ? { balanceAssist: true } : {}),
     keyframes,
   };
 }

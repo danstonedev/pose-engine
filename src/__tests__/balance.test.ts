@@ -252,21 +252,23 @@ describe('foot-rooted planting owns balance', () => {
     expect(JSON.stringify(a.frames)).toBe(JSON.stringify(b.frames)); // deterministic
   });
 
-  it('single-leg stance is balanced by its AUTHORED counterbalance (not a silent correction)', () => {
-    // CHANGED (Wave 1 — authored counterbalance): this test used to document the
-    // template's honest gap — no authored weight shift, so the COM sat ~4 cm OFF
-    // the one-foot base (negative margin). The template now authors the
-    // physiologic strategy itself (closed-chain stance-hip abduction shifts the
-    // pelvis over the stance foot before the lift completes, the trunk lists
-    // toward the stance side, the lifted leg adducts, the stance-side arm floats
-    // out), so the one-foot phase is genuinely balanced BY AUTHORED VALUES —
-    // still no hidden controller, just keyframe content. Rig-measured: min
-    // one-foot margin −4.2 cm → +1.3 cm.
+  it('single-leg stance is balanced by authored counterbalance + balanceCoordination', () => {
+    // CHANGED (Wave 2 — COM-driven balanceCoordination): Wave 1 authored the
+    // full rig-tuned weight shift (min one-foot margin −4.2 cm → +1.3 cm). The
+    // template now authors a DE-TUNED shape (the physiologic strategy + its
+    // early peakAt timing) and the balanceAssist pre-pass measures the residual
+    // COM-vs-base offset per keyframe and tops the same channels up — still no
+    // hidden controller, still ordinary keyframe targets, but the hold now
+    // re-centers to a REAL margin (~+4.0 cm mid-hold, rig-measured). The only
+    // sub-zero excursion left is the weight-TRANSFER instant (double→single),
+    // which grazes zero (≥ −0.5 mm) — anticipatory transfer timing is Wave 3
+    // (roadmap 3.1). Deeper margin gates live in balanceCoordination.test.ts.
     const tl = computeBalanceTimeline(sample('single-leg-stance'));
     const oneFoot = tl.frames.filter((f) => f.contacts.length === 1);
     expect(oneFoot.length).toBeGreaterThan(0);
-    expect(Math.min(...oneFoot.map((f) => f.marginM ?? Infinity))).toBeGreaterThan(0.005);
-    expect(tl.balancedFraction).toBeGreaterThan(0.99); // every supported frame is on-base
+    expect(Math.min(...oneFoot.map((f) => f.marginM ?? Infinity))).toBeGreaterThan(-0.005);
+    expect(Math.max(...oneFoot.map((f) => f.marginM ?? -Infinity))).toBeGreaterThan(0.03);
+    expect(tl.balancedFraction).toBeGreaterThan(0.95); // on-base except the transfer instants
   });
 });
 
@@ -278,7 +280,10 @@ describe('authored counterbalance keeps open-chain movements over their base', (
     // single-support phase (min margin −4.9 cm). The authored weight shift
     // (stance-hip abduction + trunk list + stance-side arm, completed during the
     // wind-up — weight transfer precedes the kick) brings the COM onto the
-    // one-foot base: rig-measured min margin +0.1 cm.
+    // one-foot base. Wave 2: the authored values are DE-TUNED and the
+    // balanceAssist pre-pass tops up the residual — the strike hold re-centers
+    // to ~+3.3 cm (was +0.1 cm authored-only) and only the landing-transfer
+    // instant grazes zero (see balanceCoordination.test.ts for those gates).
     const tl = computeBalanceTimeline(sample('kick'));
     const oneFoot = tl.frames.filter((f) => f.contacts.length === 1);
     expect(oneFoot.length).toBeGreaterThan(0);

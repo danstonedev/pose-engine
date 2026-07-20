@@ -377,6 +377,16 @@ export interface ComposedMotion {
    *  Default (undefined) = 'standing' — back-compatible for every existing movement. */
   startPosture?: PostureNode;
   endPosture?: PostureNode;
+  /** COM-DRIVEN POSTURAL CONTROL (opt-in): the sampler/stage run the resolved
+   *  keyframes through `balanceCoordination` (services/balanceCoordination) — a
+   *  build-time pre-pass that measures each keyframe's centre-of-mass offset
+   *  from the base of support on the rig and ADDS capped, ROM-clamped
+   *  re-centering targets (stance-hip shift + trunk counterlean). Residual by
+   *  construction (it measures the motion WITH its authored counterbalance).
+   *  Quasi-static planted motions only — gait/travel, loops, airborne, lying
+   *  and grounding-posture motions are hard-excluded even when flagged.
+   *  Default off (back-compat: unflagged motions are byte-identical). */
+  balanceAssist?: boolean;
 }
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
@@ -440,6 +450,10 @@ export interface ResolvedSequenceKeyframe {
   targets: { joint: string; motion: string; clampedDegrees: number }[];
   durationMs: number;
   holdMs: number;
+  /** The keyframe's authored velocity class (absent = 'deliberate'), passed
+   *  through so playback can shape fast endings (the terminal pre-settle
+   *  overshoot in motionTrajectory keys off the FINAL keyframe's class). */
+  velocityClass?: VelocityClass;
   /** True when durationMs was raised to the realistic-velocity floor. */
   timingAdjusted?: boolean;
   /** Whole-body root posture + travel for this keyframe (validated pass-through). */
@@ -474,6 +488,10 @@ export interface ResolvedComposedMotion {
   /** Foot-driven forward travel (pass-through) — the sampler/stage derive the
    *  root's +Z motion from the FK so the planted foot stays world-fixed. */
   footDrivenTravel?: boolean;
+  /** COM-driven postural control (pass-through) — the sampler/stage run the
+   *  resolved keyframes through `balanceCoordination` before building the
+   *  trajectory. See {@link ComposedMotion.balanceAssist}. */
+  balanceAssist?: boolean;
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -1170,6 +1188,7 @@ export function resolveComposedMotion(
       targets,
       durationMs,
       holdMs,
+      ...(kf.velocityClass != null ? { velocityClass: kf.velocityClass } : {}),
       ...(timingAdjusted ? { timingAdjusted: true } : {}),
       ...(kfRoot ? { root: kfRoot } : {}),
       stance: kf.stance === 'planted' || kf.stance === 'floating' ? kf.stance : motionStance,
@@ -1214,6 +1233,7 @@ export function resolveComposedMotion(
       ? { verticalCalibrationCm: Math.max(1, Math.min(12, motion.verticalCalibrationCm)) }
       : {}),
     ...(motion.footDrivenTravel ? { footDrivenTravel: true } : {}),
+    ...(motion.balanceAssist ? { balanceAssist: true } : {}),
   };
 }
 
@@ -1274,6 +1294,10 @@ export interface ComposedMotionPoses {
   roots: KeyframeRootState[];
   durationsMs: number[];
   holdsMs: number[];
+  /** Parallel to `poses`: each keyframe's velocity class (undefined =
+   *  'deliberate'). Consumed by the trajectory's terminal pre-settle
+   *  overshoot (fast endings only). */
+  velocityClasses: (VelocityClass | undefined)[];
   loop: boolean;
   /** Resolved start mode carried through for the stage/host. */
   startFrom: 'current' | 'neutral';
@@ -1316,6 +1340,7 @@ export function buildSequencePoses(
   const roots: KeyframeRootState[] = [];
   const durationsMs: number[] = [];
   const holdsMs: number[] = [];
+  const velocityClasses: (VelocityClass | undefined)[] = [];
   // CROSS-MOTION CONTINUITY: fold onto the CURRENT pose (unmentioned joints
   // persist across compositions) unless startFrom==='neutral' (return to
   // anatomic rest first). A fresh motion with no currentPose degrades to the
@@ -1377,7 +1402,16 @@ export function buildSequencePoses(
     });
     durationsMs.push(kf.durationMs);
     holdsMs.push(kf.holdMs);
+    velocityClasses.push(kf.velocityClass);
     prev = pose;
   }
-  return { poses, roots, durationsMs, holdsMs, loop: resolved.loop, startFrom: resolved.startFrom };
+  return {
+    poses,
+    roots,
+    durationsMs,
+    holdsMs,
+    velocityClasses,
+    loop: resolved.loop,
+    startFrom: resolved.startFrom,
+  };
 }

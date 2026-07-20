@@ -549,9 +549,11 @@
         applyVerticalCalibration,
         NO_VERTICAL_CALIBRATION,
         deriveFootDrivenTravel,
+        FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant, buildHandPlant, solveHandReach } =
         await import('./services/footContact');
+      const { balanceCoordination } = await import('./services/balanceCoordination');
       const { computeBodyCoMFromBones } = await import('./services/centerOfMass');
       const { resolveMotionCommand } = await import('./services/motionCommand');
       const { normalizeRigBoneName } = await import('./services/movementClipSampling');
@@ -656,10 +658,11 @@
       // root matrix a hair off scale-neutral; scale is reset per frame (in
       // applyTrajectoryRoot) from this rest so the drift can never accumulate.
       const rootRestScale = new THREE.Vector3(1, 1, 1);
-      /** Stance-foot drift (m) above which a planted, in-place composed frame is
-       *  re-rooted at the foot; below it (a single-leg stance) the vertical pin is
-       *  enough and a re-root would only perturb the measurement frame. */
-      const FOOT_ROOT_DRIFT_M = 0.05;
+      // FOOT_ROOT_DRIFT_M: stance-foot drift (m) above which a planted, in-place
+      // composed frame is re-rooted at the foot; below it (a single-leg stance)
+      // the vertical pin is enough and a re-root would only perturb the
+      // measurement frame. ONE constant imported from services/rootMotion,
+      // shared with the offline sampler + the balanceCoordination pre-pass.
       /** Current composed root state (meters-from-origin translate + orient quat). */
       let composedRootQuat: [number, number, number, number] = [0, 0, 0, 1];
       let composedRootTranslate: [number, number, number] = [0, 0, 0];
@@ -1957,6 +1960,27 @@
 
         composedHasPlayed = true; // a movement is playing → future commands get the ready beat
 
+        // BALANCE COORDINATION (COM-driven postural control): for a motion flagged
+        // `balanceAssist`, measure each keyframe's COM-vs-base offset on the live
+        // rig and fold ROM-clamped re-centering targets into the resolved
+        // keyframes — the SAME pure transform the offline sampler applies at the
+        // same pipeline point (before the trajectory is built), so recordings and
+        // live playback stay in lockstep. Identity for unflagged/excluded motions.
+        // Poses the rig transiently (the player re-poses every frame).
+        if (effectiveResolved.balanceAssist && modelRoot && skinnedRef && floorRef && variantCfgRef && baselinePoseRef && restRef) {
+          effectiveResolved = balanceCoordination(effectiveResolved, {
+            root: modelRoot,
+            skinned: skinnedRef,
+            variantCfg: variantCfgRef,
+            baselinePose: baselinePoseRef,
+            rest: restRef,
+            currentPose,
+            currentRoot: { quat: composedRootQuat, translateM: composedRootTranslate },
+            rootRest: { position: rootRestPos, quaternion: rootRestQuat, scale: rootRestScale },
+          });
+          pelvisShiftBakedM = 0; // transient absolute root writes — keep the tracker honest
+        }
+
         // CROSS-MOTION CONTINUITY: fold onto the CURRENT on-stage pose + root (after
         // any ready settle above), so the motion continues from the live posture.
         const built = buildSequencePoses(baselinePoseRef, effectiveResolved, variantCfgRef, restRef, {
@@ -2041,13 +2065,15 @@
           !!footFrames;
 
         // Per-keyframe settle: MEASURE what the patient actually did (off the exact
-        // settle pose the player applies for us, frame-timing-independent).
+        // settle pose the player applies for us, frame-timing-independent). Reads
+        // the EFFECTIVE keyframes (incl. any balanceCoordination re-centering
+        // targets), so reported plans match what actually plays.
         const measureSettle = (i: number): void => {
           const report = measureNow();
           if (!report) return;
           lastReport = report;
           onReport?.(report);
-          for (const t of resolved.keyframes[i]!.targets) {
+          for (const t of effectiveResolved.keyframes[i]!.targets) {
             const measured = measureCommandMotion(report, t.joint, t.motion);
             measurements.push({
               keyframe: i,
@@ -2092,10 +2118,11 @@
           };
         });
 
-        // Final measured angles at the last keyframe for every touched field.
+        // Final measured angles at the last keyframe for every touched field
+        // (effective keyframes — incl. any balanceCoordination targets).
         if (lastReport) {
           const touched = new Set<string>();
-          for (const kfr of resolved.keyframes) {
+          for (const kfr of effectiveResolved.keyframes) {
             for (const t of kfr.targets) touched.add(`${t.joint}.${t.motion}`);
           }
           for (const key of touched) {

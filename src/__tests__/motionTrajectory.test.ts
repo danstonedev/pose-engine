@@ -3,6 +3,13 @@
  * on. These are pure-math checks (no rig): exact knot arrival (measurement
  * invariant), velocity continuity, and the fly-through-vs-stop distinction that
  * removes the robotic stop-start.
+ *
+ * Measured on 'Hips' — a chain-origin bone the proximal→distal follow-through
+ * warp (roadmap 2.2, followThrough.test.ts) leaves UNDELAYED — so these pin the
+ * shared time-warp core exactly as before the warp landed. Delayed bones (the
+ * arm chain) deliberately trade interior-knot velocity continuity for a brief
+ * post-knot drag (the overlap cue); their contract — exact knot arrival + a
+ * measurable distal lag — is gated in followThrough.test.ts.
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -16,14 +23,14 @@ function rotX(deg: number): [number, number, number, number] {
   return [q.x, q.y, q.z, q.w];
 }
 function pose(deg: number): CustomPose {
-  return { variant: 'male', bones: { L_UpperArm: rotX(deg) }, schemaVersion: 'test' };
+  return { variant: 'male', bones: { Hips: rotX(deg) }, schemaVersion: 'test' };
 }
 function knot(timeMs: number, deg: number, stop: boolean): TrajectoryKnot {
   return { timeMs, pose: pose(deg), rootQuat: IDENT, rootTranslate: [0, 0, 0], stop, planted: false };
 }
 /** Angle (deg, about +X) of the sampled bone relative to identity. */
 function angleAt(traj: ReturnType<typeof buildPoseTrajectory>, tMs: number): number {
-  const q = traj.sampleAt(tMs).pose.bones.L_UpperArm!;
+  const q = traj.sampleAt(tMs).pose.bones.Hips!;
   const w = Math.min(1, Math.abs(q[3]));
   return (2 * Math.acos(w) * 180) / Math.PI;
 }
