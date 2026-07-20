@@ -10,6 +10,14 @@
  * (2) the stance-foot drift stays < FOOT_ROOT_DRIFT_M (so the pin path runs, not the
  * re-root), and (3) the body RISES at the top of the raise (the heel lifts) and
  * returns to flat — i.e. the closed-chain heel-raise actually happens.
+ *
+ * MTP HINGE (toe rocker, wave 1): the template used to rise EN-POINTE — pure
+ * plantarflexion with rigid toes continuing the foot line (a ballet relevé), an
+ * actual clinical-content defect. A heel raise hinges at the MTP joints: heel up,
+ * toe pads planted, MTP extended by ~the plantarflexion angle. The template now
+ * authors toeFlexion (+40° = MTP extension) through the raise, so this gate ALSO
+ * asserts the measured MTP extension at the top and its return to neutral — the
+ * NEW expected behaviour, superseding the old en-pointe shape.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -112,5 +120,19 @@ describe('heel-raise: floor-pin (not foot-root) lifts the body onto the toes', (
       Math.abs(rec.frames[rec.frames.length - 1]!.root.translateM[1]),
       'flat at the end',
     ).toBeLessThan(0.01);
+
+    // 4. MTP HINGE (new expectation — supersedes the old en-pointe raise, which was a
+    //    clinical-content defect): at the top of the raise the foot hinges at the ball —
+    //    the MTP is EXTENDED (authored +40°, toe pads flat while the heel is up), and it
+    //    returns to neutral once the foot is flat again. Tolerance covers measurement +
+    //    the intra-phase settle, as with the ankle in (1).
+    for (const toeKey of ['L_Toes', 'R_Toes'] as const) {
+      const topToe = (top.angles as Record<string, Record<string, number>>)[toeKey]?.toeFlexion ?? 0;
+      expect(topToe, `${toeKey} MTP extended at the top (hinge at the ball, not en-pointe)`).toBeGreaterThan(30);
+      const lastToe =
+        (rec.frames[rec.frames.length - 1]!.angles as Record<string, Record<string, number>>)[toeKey]
+          ?.toeFlexion ?? 0;
+      expect(Math.abs(lastToe), `${toeKey} MTP back to neutral when flat`).toBeLessThan(5);
+    }
   });
 });
