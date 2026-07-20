@@ -371,6 +371,34 @@ export interface ComposedMotion {
    *  floor-pin. For an in-place looping gait turned into a one-shot forward walk.
    *  Omit for the in-place / authored-travel behaviour. */
   footDrivenTravel?: boolean;
+  /** MEDIO-LATERAL PELVIS SHUTTLE, cm: the gait weight-transfer cue. The
+   *  sampler/stage pre-pass the FK feet (exactly as `footDrivenTravel` derives
+   *  Z) and ride the root ± this many cm along world X TOWARD the planted
+   *  (lower) foot each stance, crossing centre at the double-support
+   *  transitions (services/rootMotion `deriveGaitLateralShuttle`). Root-only —
+   *  every clinical joint angle is left exactly as authored; the foot-plant
+   *  contacts keep the stance foot fixed while the pelvis rides over it. Real
+   *  free-gait pelvis ML excursion is a few cm per step [Perry & Burnfield].
+   *  Clamped to a believable band on resolve; omit for none (back-compat). */
+  lateralShuttleCm?: number;
+  /** PLANNED single-stance schedule (authored ms, same time base as
+   *  `contacts`): which foot bears weight when, as the gait builder authored
+   *  it. Consumed by BOTH root derivations — forward travel follows the
+   *  window's foot instead of the measured lower-foot heuristic (which tracks
+   *  the trailing push-off foot through a weight transfer while the lead foot
+   *  is still airborne), and the lateral shuttle phase-locks its ride to the
+   *  same schedule any authored trunk counter-lean was written against. Omit
+   *  to keep the measured-feet behaviour (back-compat). A `travelLock` window
+   *  additionally forces the forward-travel derivation onto its foot (needed
+   *  through an authored weight transfer; see rootMotion GaitStanceWindow). */
+  gaitStanceWindowsMs?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[];
+  /** AUTHORED GAIT ENDS: this motion carries its own initiation/termination
+   *  keyframes (a real unweighting shift in, a braking feet-together stop out),
+   *  so the trajectory should ease from a genuine standstill and brake to rest —
+   *  overriding the `footDrivenTravel` default of cyclic fly-through ends (which
+   *  exists for gaits whose first/last keyframes are mid-stride poses). Ignored
+   *  unless `footDrivenTravel` is set. */
+  settleEnds?: boolean;
   /** The body POSTURE this movement assumes at its START / leaves at its END, for
    *  the transition executor to bridge between commands (e.g. a supine exercise
    *  starts+ends 'supine'; a lie-down ends 'supine'; a get-up ends 'standing').
@@ -488,6 +516,16 @@ export interface ResolvedComposedMotion {
   /** Foot-driven forward travel (pass-through) — the sampler/stage derive the
    *  root's +Z motion from the FK so the planted foot stays world-fixed. */
   footDrivenTravel?: boolean;
+  /** Medio-lateral pelvis shuttle target (cm, pass-through, clamped) — the
+   *  sampler/stage derive a stance-phase-locked root-X ride toward the planted
+   *  foot. See {@link ComposedMotion.lateralShuttleCm}. */
+  lateralShuttleCm?: number;
+  /** Planned single-stance schedule (authored ms, pass-through) — drives the
+   *  travel/shuttle derivations. See {@link ComposedMotion.gaitStanceWindowsMs}. */
+  gaitStanceWindowsMs?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[];
+  /** Authored initiation/termination (pass-through) — trajectory ends are real
+   *  stops, not the footDrivenTravel cyclic fly-throughs. */
+  settleEnds?: boolean;
   /** COM-driven postural control (pass-through) — the sampler/stage run the
    *  resolved keyframes through `balanceCoordination` before building the
    *  trajectory. See {@link ComposedMotion.balanceAssist}. */
@@ -1233,6 +1271,27 @@ export function resolveComposedMotion(
       ? { verticalCalibrationCm: Math.max(1, Math.min(12, motion.verticalCalibrationCm)) }
       : {}),
     ...(motion.footDrivenTravel ? { footDrivenTravel: true } : {}),
+    // MEDIO-LATERAL SHUTTLE: clamped to a believable band (0-6 cm) — a request
+    // can never swing the pelvis outside its own base of support. The planned
+    // stance windows (when authored) pass through with malformed entries dropped.
+    ...(typeof motion.lateralShuttleCm === 'number' &&
+    Number.isFinite(motion.lateralShuttleCm) &&
+    motion.lateralShuttleCm > 0
+      ? { lateralShuttleCm: Math.min(6, motion.lateralShuttleCm) }
+      : {}),
+    ...(Array.isArray(motion.gaitStanceWindowsMs) && motion.gaitStanceWindowsMs.length
+      ? {
+          gaitStanceWindowsMs: motion.gaitStanceWindowsMs.filter(
+            (w) =>
+              w != null &&
+              typeof w.foot === 'string' &&
+              Number.isFinite(w.fromMs) &&
+              Number.isFinite(w.toMs) &&
+              w.toMs > w.fromMs,
+          ),
+        }
+      : {}),
+    ...(motion.settleEnds ? { settleEnds: true } : {}),
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
   };
 }
