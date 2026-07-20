@@ -1582,6 +1582,134 @@ export function buildBirdDog(opts: { side?: 'L' | 'R'; reps?: number } = {}): Co
   };
 }
 
+// ─── Posture transfers: standing ↔ kneeling (Phase 3 Tier B) ─────────────────
+// KNEELING is upright on the knees (torso vertical, identity orient) — the SHINS bear
+// the body (groundingPosture 'kneeling' → knee vertical pin) and the pelvis rides at
+// thigh height. A tall quadruped without the hands.
+
+/** Upright-kneel legs: shins folded to lie on the floor (hip 15 / knee 110 / ankle −60
+ *  lands the knee + toes at the floor), torso stacked vertically over the thighs. */
+const kneelLegs = (): SequenceTarget[] => bilatLeg(15, 110, -60);
+
+/** KNEEL DOWN — standing → kneeling. Lower straight down onto the knees, torso staying
+ *  tall. Ends 'kneeling'. */
+export function buildKneelDown(): ComposedMotion {
+  return {
+    name: 'kneel down',
+    startFrom: 'current',
+    stance: 'planted',
+    endPosture: 'kneeling',
+    keyframes: [
+      // Descend, knees leading, torso tall (feet grounded).
+      { durationMs: 700, stance: 'planted', targets: [...bilatLeg(60, 95, 15), ...trunkFlex(12, 6)] },
+      // Knees to the floor, torso upright (kneeling grounding).
+      { durationMs: 700, holdMs: 200, stance: 'planted', groundingPosture: 'kneeling', targets: [...kneelLegs(), ...trunkFlex(0, 0)] },
+    ],
+  };
+}
+
+/** STAND UP FROM KNEELING — kneeling → standing. Bring the feet under and rise to a
+ *  quiet stand. Ends 'standing'. */
+export function buildStandFromKneel(): ComposedMotion {
+  return {
+    name: 'stand up',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'kneeling',
+    endPosture: 'standing',
+    keyframes: [
+      // Bring the feet under, weight transferring forward — held on the KNEE grounding
+      // so the whole motion is exempt from foot-rooting (which would otherwise re-root
+      // the tucked-back kneeling feet to their standing rest frame and teleport). The
+      // standing keyframe then grounds on the plain feet pin.
+      { durationMs: 700, stance: 'planted', groundingPosture: 'kneeling', targets: [...bilatLeg(75, 100, 10), ...trunkFlex(18, 9)] },
+      // Rise to a quiet stand (feet).
+      { durationMs: 800, holdMs: 150, stance: 'planted', posture: 'upright', targets: [...bilatLeg(0, 0, 0), ...trunkFlex(0, 0)] },
+    ],
+  };
+}
+
+// ─── Floor-posture connectors: quadruped ↔ prone, quadruped ↔ plank ──────────
+// These knit the floor postures together so "lie face down" routes DOWN through
+// hands-and-knees (no faceplant) and the plank/quadruped family interconnects. Prone
+// grounds on the existing SemanticPosture foot-pin (feet co-planar with the front,
+// the supine mechanism face-down); the others on their groundingPosture contact set.
+
+/** LIE FACE DOWN — quadruped → prone. From hands-and-knees, extend the legs back and
+ *  lower the whole front to the floor, the arms coming alongside. Ends 'prone'. */
+export function buildLowerToProne(): ComposedMotion {
+  return {
+    name: 'lie face down',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'quadruped',
+    endPosture: 'prone',
+    keyframes: [
+      {
+        durationMs: 900,
+        holdMs: 200,
+        stance: 'planted',
+        posture: 'prone',
+        targets: [
+          ...bilatLeg(2, 2, 20),
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 12 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 12 },
+          { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: 8 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: 8 },
+          { joint: 'L_Hand', motion: 'wristFlexion', targetDegrees: 0 },
+          { joint: 'R_Hand', motion: 'wristFlexion', targetDegrees: 0 },
+          ...trunkFlex(0, 0),
+        ],
+      },
+    ],
+  };
+}
+
+/** PRESS ONTO HANDS AND KNEES — prone → quadruped. Push up off the floor back onto all
+ *  fours. Ends 'quadruped'. */
+export function buildPressUpToQuadruped(): ComposedMotion {
+  return {
+    name: 'onto hands and knees',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'prone',
+    endPosture: 'quadruped',
+    keyframes: [
+      { durationMs: 900, holdMs: 150, stance: 'planted', groundingPosture: 'quadruped', root: { orient: { pitchDeg: QUAD_PITCH } }, targets: [...quadLegs(), ...quadArms()] },
+    ],
+  };
+}
+
+/** EXTEND TO A PLANK — quadruped → plank. From hands-and-knees, extend the legs back
+ *  onto the toes to a straight plank (hands stay planted). Ends 'plank'. */
+export function buildPlankFromQuadruped(): ComposedMotion {
+  return {
+    name: 'extend to a plank',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'quadruped',
+    endPosture: 'plank',
+    keyframes: [
+      { durationMs: 700, holdMs: 150, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_TOP_PITCH } }, targets: [...plankLimbs(90, 5)] },
+    ],
+  };
+}
+
+/** DROP TO HANDS AND KNEES — plank → quadruped. Lower the knees to the floor. Ends
+ *  'quadruped'. */
+export function buildQuadrupedFromPlank(): ComposedMotion {
+  return {
+    name: 'onto hands and knees',
+    startFrom: 'current',
+    stance: 'planted',
+    startPosture: 'plank',
+    endPosture: 'quadruped',
+    keyframes: [
+      { durationMs: 700, holdMs: 150, stance: 'planted', groundingPosture: 'quadruped', root: { orient: { pitchDeg: QUAD_PITCH } }, targets: [...quadLegs(), ...quadArms()] },
+    ],
+  };
+}
+
 /** Real free-gait COM vertical excursion is ~4-5 cm peak-to-peak at a comfortable
  *  cadence [Perry & Burnfield; Gard & Childress]. This is the calibrated NORMAL
  *  target; {@link gaitBounce} scales around it. */

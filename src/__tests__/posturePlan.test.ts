@@ -54,7 +54,9 @@ describe('planPosturePath — the posture graph (pure)', () => {
   });
 
   it('returns null for an unreachable posture', () => {
-    expect(planPosturePath('standing', 'prone')).toBeNull(); // no prone edge yet
+    // prone is now reachable (standing → quadruped → prone); side-lying has no edge yet
+    // (awaiting the supine↔side-lying↔prone roll work).
+    expect(planPosturePath('standing', 'sidelying-left')).toBeNull();
   });
 
   it('defaults an untagged movement to standing→standing', () => {
