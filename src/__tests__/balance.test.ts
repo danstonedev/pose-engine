@@ -35,7 +35,7 @@ import {
   marginOfStability,
   type FootContactXZ,
 } from '../services/centerOfMass';
-import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
+import { MOVEMENT_TEMPLATES, templateToComposedMotion, buildSingleLegHop } from '../services/movementTemplates';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
@@ -252,15 +252,61 @@ describe('foot-rooted planting owns balance', () => {
     expect(JSON.stringify(a.frames)).toBe(JSON.stringify(b.frames)); // deterministic
   });
 
-  it('single-leg stance stays a genuine one-foot balance challenge (not auto-corrected)', () => {
-    // Single-leg leaves the bearing leg untouched, so its stance foot never drifts
-    // — foot-rooting is a no-op and the narrow one-foot base is preserved. The COM
-    // sits off the stance foot: the balance demand the movement is named for, left
-    // honest (a future balance-strategy lever owns it, not a silent correction).
+  it('single-leg stance is balanced by its AUTHORED counterbalance (not a silent correction)', () => {
+    // CHANGED (Wave 1 — authored counterbalance): this test used to document the
+    // template's honest gap — no authored weight shift, so the COM sat ~4 cm OFF
+    // the one-foot base (negative margin). The template now authors the
+    // physiologic strategy itself (closed-chain stance-hip abduction shifts the
+    // pelvis over the stance foot before the lift completes, the trunk lists
+    // toward the stance side, the lifted leg adducts, the stance-side arm floats
+    // out), so the one-foot phase is genuinely balanced BY AUTHORED VALUES —
+    // still no hidden controller, just keyframe content. Rig-measured: min
+    // one-foot margin −4.2 cm → +1.3 cm.
     const tl = computeBalanceTimeline(sample('single-leg-stance'));
     const oneFoot = tl.frames.filter((f) => f.contacts.length === 1);
     expect(oneFoot.length).toBeGreaterThan(0);
-    expect(Math.min(...oneFoot.map((f) => f.marginM ?? Infinity))).toBeLessThan(0);
+    expect(Math.min(...oneFoot.map((f) => f.marginM ?? Infinity))).toBeGreaterThan(0.005);
+    expect(tl.balancedFraction).toBeGreaterThan(0.99); // every supported frame is on-base
+  });
+});
+
+// ── 5b. AUTHORED COUNTERBALANCE (Wave 1) — open-chain templates stand ON their base ─
+
+describe('authored counterbalance keeps open-chain movements over their base', () => {
+  it('kick: the strike is thrown from a balanced single-leg stance', () => {
+    // Uncounterbalanced, the kick stood ~5 cm off the stance foot for its whole
+    // single-support phase (min margin −4.9 cm). The authored weight shift
+    // (stance-hip abduction + trunk list + stance-side arm, completed during the
+    // wind-up — weight transfer precedes the kick) brings the COM onto the
+    // one-foot base: rig-measured min margin +0.1 cm.
+    const tl = computeBalanceTimeline(sample('kick'));
+    const oneFoot = tl.frames.filter((f) => f.contacts.length === 1);
+    expect(oneFoot.length).toBeGreaterThan(0);
+    expect(tl.airborneFraction).toBe(0);
+    expect(tl.minMarginM!).toBeGreaterThan(-0.005);
+    expect(tl.balancedFraction).toBeGreaterThan(0.95);
+  });
+
+  it('endpoint reach: hips shift BACK as the trunk goes forward, COM well inside the base', () => {
+    // The reach counter-weights its forward trunk+arm mass with a small bilateral
+    // closed-chain hip hinge (pelvis travels backward over the planted feet) and
+    // a trailing free arm. The COM ground-projection never leaves the two-foot
+    // base: rig-measured min margin +6.3 cm, every frame balanced.
+    const tl = computeBalanceTimeline(sample('endpoint-reach'));
+    expect(tl.airborneFraction).toBe(0);
+    expect(tl.minMarginM!).toBeGreaterThan(0.04);
+    expect(tl.balancedFraction).toBeGreaterThan(0.99);
+  });
+
+  it('single-leg hop: every grounded phase stays over the support foot', () => {
+    // The hop is airborne-class (no foot-rooting), so its counterbalance is fully
+    // authored: a sustained lateral postural set over the support foot plus a
+    // forward trunk lean in the crouched load/touchdown/absorb/recovery frames
+    // (the crouch otherwise pulls the COM behind the heel). Rig-measured min
+    // supported margin −4.6 cm → +0.4 cm.
+    const tl = computeBalanceTimeline(sampleMotion(buildSingleLegHop({ stance: 'L' })));
+    expect(tl.airborneFraction).toBeGreaterThan(0); // it really leaves the ground
+    expect(tl.minMarginM!).toBeGreaterThan(-0.005);
   });
 });
 
