@@ -1322,10 +1322,39 @@ export function gaitFootContacts(motion: ComposedMotion): StanceContact[] {
   ];
 }
 
-export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
+export function buildTravelWalk(opts: { speed?: number; headingDeg?: number } = {}): ComposedMotion {
   const walk = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk');
   if (!walk) throw new Error('walk template missing');
   const speed = opts.speed;
+  // TRAVEL HEADING (roadmap 4.1): rotate the whole walk about the vertical axis
+  // (0 = straight ahead +Z; + toward the subject's left, matching root yawDeg).
+  // The body ORIENTS FIRST — the initiation keyframe carries the heading yaw, so
+  // the entry slerp pivots the body toward the new line of travel before the
+  // step-off — then every keyframe rides heading + its own pelvic yaw, and the
+  // sampler/stage travel/shuttle derivations follow the same angle
+  // (`ComposedMotion.headingDeg`). Heading 0 takes the EXACT legacy path —
+  // byte-identical output (asserted in gaitHeading.test.ts).
+  const headingDeg =
+    typeof opts.headingDeg === 'number' && Number.isFinite(opts.headingDeg) ? opts.headingDeg : 0;
+  const hRad = (headingDeg * Math.PI) / 180;
+  const hSin = Math.sin(hRad);
+  const hCos = Math.cos(hRad);
+  // Magnitude of the actual re-orientation (the entry slerp takes the short
+  // way, so 270 turns 90; used only to pace the initiation pivot).
+  const headingWrapped = Math.abs(headingDeg) % 360;
+  const headingTurnMag = Math.min(headingWrapped, 360 - headingWrapped);
+  // PIVOT ABOUT THE STANCE FOOT: the root yaw rotates about the ROOT AXIS,
+  // which would arc the planted (R) initiation foot sideways through the
+  // pivot — over-stretching its pinned leg and sliding the foot. Author the
+  // compensating root translate t = p_R − R(H)·p_R (p_R = the R ankle's
+  // rig-measured rest offset from the root axis) so the initiation rotation is
+  // effectively centred ON the stance foot; carried through the whole walk
+  // (the straight path is simply offset by t, and the feet plant along it).
+  // Exact zeros at heading 0 — the un-headed walk is untouched.
+  const pivotTx =
+    GAIT_STANCE_FOOT_X_M - (GAIT_STANCE_FOOT_X_M * hCos + GAIT_STANCE_FOOT_Z_M * hSin);
+  const pivotTz =
+    GAIT_STANCE_FOOT_Z_M - (-GAIT_STANCE_FOOT_X_M * hSin + GAIT_STANCE_FOOT_Z_M * hCos);
   const base =
     speed != null && speed !== 1
       ? paceGait(templateToComposedMotion(walk), speed)
@@ -1346,8 +1375,9 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     durationMs: Math.max(cycle[0]!.durationMs ?? 0, GAIT_STEP_OFF_MS),
     // The initiation keyframe below authors a root shift; explicitly return the
     // root to centre here so the APA shift resolves into the derived shuttle
-    // (root state persists forward until overridden).
-    root: { translateM: [0, 0, 0] },
+    // (root state persists forward until overridden). "Centre" for a headed
+    // walk keeps the stance-foot pivot offset (exact [0,0,0] at heading 0).
+    root: { translateM: [pivotTx, 0, pivotTz] },
   };
   // BRAKING CUE on the final cycle keyframe: the LAST step is shorter — the
   // terminal (R) reach and the arm swing are damped, so the body is already
@@ -1367,14 +1397,28 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
   // authored root-X; it hands over to the derived medio-lateral shuttle (which
   // rises toward the same R stance through the first half-cycle).
   const initiation: SequenceKeyframe = {
-    durationMs: GAIT_INITIATION_MS,
+    // A non-zero heading RE-ORIENTS the body during this keyframe (the pivot
+    // toward the new line of travel), so the APA lead lengthens with the turn
+    // magnitude — a 90° pivot inside the stock 300 ms would whip. Heading 0
+    // keeps the stock duration exactly.
+    durationMs: Math.max(GAIT_INITIATION_MS, Math.round(headingTurnMag * GAIT_HEADING_TURN_MS_PER_DEG)),
     targets: [
       { joint: 'Spine_Lower', motion: 'lateralTilt', targetDegrees: GAIT_APA_LUMBAR_DEG },
       { joint: 'Spine_Upper', motion: 'lateralTilt', targetDegrees: GAIT_APA_THORACIC_DEG },
       { joint: 'Neck', motion: 'lateralTilt', targetDegrees: GAIT_APA_NECK_DEG },
       { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: GAIT_APA_KNEE_DEG },
     ],
-    root: { translateM: [-GAIT_APA_SHIFT_M, 0, 0] }, // toward the stance (R) foot (−X)
+    // Toward the stance (R) foot — in the HEADING frame (heading 0: exactly the
+    // legacy world −X) — plus the stance-foot pivot offset so the initiation
+    // yaw rotates about the planted foot, not the root axis. The heading yaw
+    // itself is folded onto every keyframe after the coordination pass below.
+    root: {
+      translateM: [
+        -GAIT_APA_SHIFT_M * hCos + pivotTx,
+        0,
+        GAIT_APA_SHIFT_M * hSin + pivotTz,
+      ],
+    },
   };
   // REAL GAIT TERMINATION: the R foot (which reached forward at the last cycle
   // keyframe) accepts weight with a loading-response knee yield while the L
@@ -1487,13 +1531,33 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     { ...base, keyframes: kfs },
     { shuttleAbsorb: { phaseAt: shuttlePhaseAt, deg: GAIT_SHUTTLE_ABSORB_DEG } },
   );
+  // TRAVEL HEADING FOLD: add the heading yaw to EVERY keyframe's root orient —
+  // AFTER the coordination pass, whose per-keyframe pelvic rotation writes its
+  // own yawDeg (folding before it would let the ±2° pelvis yaw overwrite the
+  // heading). The initiation (pelvic yaw 0) lands at exactly headingDeg, so the
+  // entry slerp IS the pre-walk pivot; the cycle then carries heading + pelvic
+  // yaw. Explicit on every keyframe — carry-forward is never relied on.
+  // Heading 0 skips the fold entirely (byte-identical keyframes).
+  const headed =
+    headingDeg === 0
+      ? coordinated.keyframes
+      : coordinated.keyframes.map((kf) => ({
+          ...kf,
+          root: {
+            ...(kf.root ?? {}),
+            orient: { ...(kf.root?.orient ?? {}), yawDeg: (kf.root?.orient?.yawDeg ?? 0) + headingDeg },
+          },
+        }));
   return {
     name: 'walk-forward',
     startFrom: 'current',
     stance: 'planted',
     ...(coordinated.modifiers ? { modifiers: coordinated.modifiers } : {}),
-    keyframes: coordinated.keyframes,
+    keyframes: headed,
     footDrivenTravel: true,
+    // The heading the derived travel rides along (and the shuttle stays
+    // perpendicular to) — omitted at 0 so the straight walk is byte-identical.
+    ...(headingDeg !== 0 ? { headingDeg } : {}),
     // The walk now authors its own initiation/termination ramps, so the
     // trajectory ends are REAL stops (ease from standstill, brake to quiet
     // standing) instead of the steady-cadence fly-throughs.
@@ -1516,6 +1580,133 @@ export function buildTravelWalk(opts: { speed?: number } = {}): ComposedMotion {
     // re-pin the stance foot after, so the feet stay grounded while the pelvis arc
     // is reshaped. (The in-place walk gets the same target via gaitBounce.)
     verticalCalibrationCm: NORMAL_GAIT_VERTICAL_CM,
+  };
+}
+
+// ─── Turn-in-place (step turn) — roadmap 4.1 ─────────────────────────────────
+// The engine's first turning vocabulary: a STEP TURN — the clinically normal
+// pattern (multiple small steps around the vertical axis, weight transferred
+// each step), NOT a one-shot spin. Authored on the root `yawDeg` primitive per
+// keyframe; planted stance (the floor-pin grounds every frame); deterministic.
+
+const TURN_LIFT_MS = 380; // stepping foot up while the body pivots on the stance foot
+const TURN_PLACE_MS = 320; // stepping foot down + weight transfer
+const TURN_SETTLE_MS = 420; // level out to quiet standing at the new heading
+const TURN_SETTLE_HOLD_MS = 240; // settle dwell
+const TURN_STEP_HIP_DEG = 14; // stepping hip flexion — a small clearance step
+const TURN_STEP_KNEE_DEG = 32; // stepping knee flexion
+const TURN_STEP_ANKLE_DEG = 4; // slight dorsiflexion for swing clearance
+const TURN_STANCE_KNEE_DEG = 7; // the stance knee softens while pivoting (never a stiff peg)
+const TURN_ARM_SWING_DEG = 6; // subtle reciprocal arm swing (contralateral arm forward)
+const TURN_ELBOW_DEG = 14; // relaxed elbow carry through the turn
+const TURN_SETTLE_ELBOW_DEG = 8; // the resting elbow bend at quiet standing (mirrors the walk settle)
+const TURN_TRUNK_ROT_DEG = 5; // thorax rotates INTO the turn ahead of the pelvis
+const TURN_WEIGHT_SHIFT_M = 0.03; // pelvis shift over the stance foot while the other steps
+const TURN_LIFT_YAW_FRACTION = 0.6; // portion of each step's yaw taken while the foot is up
+
+/**
+ * Build a TURN-IN-PLACE — a step turn about the vertical axis (roadmap 4.1; the
+ * audit's "the engine cannot turn" F). `degrees` is the total heading change:
+ * default 180 ("turn around"), sign = direction (+ = toward the subject's LEFT,
+ * matching root `yawDeg`), clamped to ±360; |degrees| < 1 falls back to the
+ * default (a "turn" that doesn't turn isn't one). The turn is 2-4 SMALL STEPS —
+ * the clinically normal step-turn strategy, never a spin: each step LIFTS one
+ * foot (hip/knee/ankle clearance flexion), pivots the root yaw a portion of the
+ * total on the softened stance leg (with the pelvis shifted over it — the
+ * weight transfer), PLACES the foot and re-centres, alternating feet — the
+ * outside foot leads (turning left steps L first). The trunk rotates a few
+ * degrees into the turn ahead of the pelvis (gaze counters ride the standard
+ * stabilizeGaze path on resolve), the arms carry a subtle reciprocal swing, and
+ * a final settle keyframe levels everything to quiet standing facing the new
+ * heading. Pivot feet DO rotate about their own contact (as in life); the
+ * planted floor-pin keeps every frame grounded. Pure + deterministic —
+ * rig-gated in turnInPlace.test.ts.
+ */
+export function buildTurnInPlace(opts: { degrees?: number } = {}): ComposedMotion {
+  const raw = typeof opts.degrees === 'number' && Number.isFinite(opts.degrees) ? opts.degrees : 180;
+  const total = Math.abs(raw) < 1 ? 180 : Math.max(-360, Math.min(360, raw));
+  const dir = total > 0 ? 1 : -1; // +1 = toward subject-left, −1 = toward subject-right
+  // 2-4 steps of ≤ ~90° each — the step-turn pattern.
+  const nSteps = Math.min(4, Math.max(2, Math.ceil(Math.abs(total) / 60)));
+  const stepDeg = total / nSteps;
+  const keyframes: SequenceKeyframe[] = [];
+  for (let k = 0; k < nSteps; k += 1) {
+    // The OUTSIDE foot leads and the feet alternate: turning left steps L, R, L…
+    const S = (k % 2 === 0) === (dir > 0) ? 'L' : 'R'; // stepping side
+    const O = S === 'L' ? 'R' : 'L'; // stance side
+    const yaw0 = stepDeg * k;
+    const yawLift = yaw0 + TURN_LIFT_YAW_FRACTION * stepDeg; // pivot most of the step while the foot is up
+    const yaw1 = stepDeg * (k + 1);
+    // Weight shift over the STANCE foot, in the CURRENT heading frame (the
+    // body-frame lateral rotated by the yaw the keyframe arrives at).
+    const bx = (O === 'R' ? -1 : 1) * TURN_WEIGHT_SHIFT_M; // body-frame: +X = subject-left
+    const c = Math.cos((yawLift * Math.PI) / 180);
+    const s = Math.sin((yawLift * Math.PI) / 180);
+    keyframes.push({
+      // LIFT: the stepping foot rises for clearance while the body pivots on
+      // the softened stance leg, pelvis shifted over it; contralateral arm
+      // swings gently forward; thorax leads the turn.
+      durationMs: TURN_LIFT_MS,
+      targets: [
+        { joint: `${S}_UpLeg`, motion: 'hipFlexion', targetDegrees: TURN_STEP_HIP_DEG },
+        { joint: `${S}_Leg`, motion: 'kneeFlexion', targetDegrees: TURN_STEP_KNEE_DEG },
+        { joint: `${S}_Foot`, motion: 'ankleFlexion', targetDegrees: TURN_STEP_ANKLE_DEG },
+        { joint: `${O}_UpLeg`, motion: 'hipFlexion', targetDegrees: 0 },
+        { joint: `${O}_Leg`, motion: 'kneeFlexion', targetDegrees: TURN_STANCE_KNEE_DEG },
+        { joint: `${O}_Foot`, motion: 'ankleFlexion', targetDegrees: 0 },
+        { joint: `${O}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: TURN_ARM_SWING_DEG },
+        { joint: `${S}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: -TURN_ARM_SWING_DEG },
+        { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: TURN_ELBOW_DEG },
+        { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: TURN_ELBOW_DEG },
+        // Trunk rotation sign: + = toward-R (romRegistry), so INTO a left (+yaw)
+        // turn is negative. The lumbar follows the thorax at half.
+        { joint: 'Spine_Upper', motion: 'rotation', targetDegrees: -dir * TURN_TRUNK_ROT_DEG },
+        { joint: 'Spine_Lower', motion: 'rotation', targetDegrees: -dir * TURN_TRUNK_ROT_DEG * 0.5 },
+      ],
+      root: { orient: { yawDeg: yawLift }, translateM: [bx * c, 0, -bx * s] },
+    });
+    keyframes.push({
+      // PLACE: the foot lands at the new bearing, the remaining yaw completes
+      // through the transfer, and the weight re-centres between the feet.
+      durationMs: TURN_PLACE_MS,
+      targets: [
+        { joint: `${S}_UpLeg`, motion: 'hipFlexion', targetDegrees: 0 },
+        { joint: `${S}_Leg`, motion: 'kneeFlexion', targetDegrees: 0 },
+        { joint: `${S}_Foot`, motion: 'ankleFlexion', targetDegrees: 0 },
+        { joint: `${O}_Leg`, motion: 'kneeFlexion', targetDegrees: 0 },
+        { joint: `${O}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: 0 },
+        { joint: `${S}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: 0 },
+      ],
+      root: { orient: { yawDeg: yaw1 }, translateM: [0, 0, 0] },
+    });
+  }
+  keyframes.push({
+    // SETTLE: quiet standing at the new heading — every sagittal driver and the
+    // trunk rotation return to zero (carry-forward would otherwise freeze the
+    // last step's twist on the body); the relaxed elbow carry remains.
+    durationMs: TURN_SETTLE_MS,
+    holdMs: TURN_SETTLE_HOLD_MS,
+    targets: [
+      { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+      { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
+      { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+      { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+      { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
+      { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+      { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
+      { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
+      { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: TURN_SETTLE_ELBOW_DEG },
+      { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: TURN_SETTLE_ELBOW_DEG },
+      { joint: 'Spine_Upper', motion: 'rotation', targetDegrees: 0 },
+      { joint: 'Spine_Lower', motion: 'rotation', targetDegrees: 0 },
+    ],
+    root: { orient: { yawDeg: total }, translateM: [0, 0, 0] },
+  });
+  return {
+    name: 'turn-in-place',
+    startFrom: 'current',
+    stance: 'planted',
+    keyframes,
   };
 }
 
@@ -2653,6 +2844,17 @@ const GAIT_STEP_OFF_MS = 400;
 // short lead keyframe ahead of the first gait pose, replacing the old bare
 // time-stretch (which eased the limbs in but shifted no weight at all).
 const GAIT_INITIATION_MS = 300; // APA lead keyframe travel time
+/** Extra initiation time per degree of travel-heading re-orientation (ms/°):
+ *  a headed walk pivots toward its new line of travel DURING the initiation
+ *  keyframe, and the pivot should read as a calm weight-shifted turn, not a
+ *  whip (90° ⇒ ~315 ms, 180° ⇒ ~630 ms). Heading 0 is unaffected. */
+const GAIT_HEADING_TURN_MS_PER_DEG = 3.5;
+/** The R ankle's rest offset from the root axis, m (rig-measured on the male
+ *  runtime GLB at anatomic stance) — the pivot centre of a headed walk's
+ *  initiation: the root translate t = p_R − R(heading)·p_R re-centres the
+ *  entry yaw on the planted stance foot so it doesn't arc sideways. */
+const GAIT_STANCE_FOOT_X_M = -0.083;
+const GAIT_STANCE_FOOT_Z_M = -0.029;
 const GAIT_APA_SHIFT_M = 0.012; // authored pelvis shift toward the stance (R) foot, m (−X)
 const GAIT_APA_LUMBAR_DEG = -1.2; // lumbar list over the stance foot (lateralTilt + = left)
 const GAIT_APA_THORACIC_DEG = 2.0; // thoracic counter-list keeps the head centred

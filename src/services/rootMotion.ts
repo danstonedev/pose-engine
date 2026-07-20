@@ -567,12 +567,19 @@ export function applyVerticalCalibration(y: number, cal: VerticalCalibration, u0
 
 // ── Foot-driven forward travel (root motion FROM foot placement) ──────────────
 
-/** A precomputed forward-travel (world +Z) offset curve over one motion, sampled
- *  at `stepMs` and lerped in between. */
+/** A precomputed travel offset curve over one motion, sampled at fixed steps and
+ *  lerped in between. The scalar offset rides ALONG the derivation's heading
+ *  unit vector (`heading`): for the default heading 0 that is world +Z (the
+ *  original forward-travel behaviour, and why the lookup keeps its `zAt` name). */
 export interface FootDrivenTravel {
   totalMs: number;
-  /** Forward (+Z) root offset, meters, at absolute time tMs. */
+  /** Travel offset ALONG THE HEADING, meters, at absolute time tMs. Heading 0
+   *  ⇒ this is exactly the forward (+Z) root offset (back-compat). */
   zAt(tMs: number): number;
+  /** Heading unit vector [x, z] the offset rides: root += offset·(x, z).
+   *  [0, 1] (straight ahead, +Z) for the default heading 0 — applying it there
+   *  is byte-identical to the old z-only ride. */
+  heading: [number, number];
 }
 
 /** The world Z (forward) of each foot at a phase — what the derivation reads. */
@@ -582,6 +589,11 @@ export interface FeetZ {
   /** World Y of each foot (to pick the planted/lower one). */
   ry: number;
   ly: number;
+  /** World X of each foot — REQUIRED when a non-zero heading is derived (the
+   *  planted foot's backward sweep is projected onto the heading unit vector);
+   *  ignored for the default heading 0. */
+  rx?: number;
+  lx?: number;
 }
 
 /** The world X (medio-lateral) + Y of each foot at a phase — what the lateral
@@ -593,6 +605,11 @@ export interface FeetLateral {
   /** World Y of each foot (to pick the planted/lower one). */
   ry: number;
   ly: number;
+  /** World Z of each foot — REQUIRED when a non-zero heading is derived (the
+   *  lateral coordinate is the projection onto the heading's perpendicular);
+   *  ignored for the default heading 0. */
+  rz?: number;
+  lz?: number;
 }
 
 /** Vertical separation (m) one foot must rise above the other before the
@@ -665,16 +682,30 @@ function scheduledStance(
  * authored braking step; the schedule keeps the advance on the weight-bearing
  * foot. Outside every window — and without the option — the measured feet
  * decide (with hysteresis so near-tie spans can't flutter the choice).
+ *
+ * `headingDeg` (optional) rotates the travel direction about the vertical axis
+ * (0 = straight ahead +Z; + toward subject-left, matching root yawDeg): the
+ * planted foot's backward sweep is measured as its projection onto the heading
+ * unit vector (sinH, cosH) — which needs the feet world X in {@link FeetZ} —
+ * and the returned `heading` tells the applier which (x, z) ride the offset
+ * takes. The caller authors the SAME heading as the body's root yaw, so the FK
+ * sweep and the derived cancellation stay collinear. Heading 0 keeps the
+ * legacy z-only measurement verbatim (byte-identical).
  */
 export function deriveFootDrivenTravel(
   sampleFeetAtPhase: (tMs: number) => FeetZ,
   totalMs: number,
   stanceWindows?: GaitStanceWindow[],
   steps = 120,
+  headingDeg = 0,
 ): FootDrivenTravel {
   const n = Math.max(2, steps);
   const dt = totalMs / (n - 1);
   const z = new Array<number>(n).fill(0);
+  // Heading unit vector (x, z): (0, 1) = straight ahead. Math.sin(0)/cos(0) are
+  // exactly 0/1, so the heading-0 path stays byte-identical to the old +Z ride.
+  const hx = Math.sin(headingDeg * RAD);
+  const hz = Math.cos(headingDeg * RAD);
   let prev = sampleFeetAtPhase(0);
   let planted: 'R' | 'L' = scheduledStance(stanceWindows, 0, true) ?? (prev.ry <= prev.ly ? 'R' : 'L');
   for (let i = 1; i < n; i += 1) {
@@ -698,7 +729,17 @@ export function deriveFootDrivenTravel(
       // stance foot can briefly move forward (the physical handoff hasn't
       // completed) — that is a handoff frame, not a retreat, so the advance is
       // floored at 0 (the walking root never backs up mid-window).
-      let back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
+      // For a rotated heading the backward step is the sweep's projection onto
+      // the heading unit vector; heading 0 keeps the legacy z-only expression.
+      let back: number;
+      if (headingDeg === 0) {
+        back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
+      } else {
+        back =
+          planted === 'R'
+            ? (prev.rz - cur.rz) * hz + ((prev.rx ?? 0) - (cur.rx ?? 0)) * hx
+            : (prev.lz - cur.lz) * hz + ((prev.lx ?? 0) - (cur.lx ?? 0)) * hx;
+      }
       if (scheduled != null) back = Math.max(0, back);
       z[i] = z[i - 1]! + back;
     } else {
@@ -717,18 +758,26 @@ export function deriveFootDrivenTravel(
       const k = Math.min(n - 2, Math.floor(u));
       return z[k]! + (z[k + 1]! - z[k]!) * (u - k);
     },
+    heading: [hx, hz],
   };
 }
 
 // ── Medio-lateral root shuttle (root motion FROM foot placement, X axis) ──────
 
-/** A precomputed medio-lateral (world X) pelvis-shuttle offset curve over one
- *  motion, sampled at fixed steps and lerped in between — the lateral sibling of
- *  {@link FootDrivenTravel}. */
+/** A precomputed medio-lateral pelvis-shuttle offset curve over one motion,
+ *  sampled at fixed steps and lerped in between — the lateral sibling of
+ *  {@link FootDrivenTravel}. The scalar offset rides along the derivation's
+ *  LATERAL unit vector (`lateral` — the heading's left-perpendicular); for the
+ *  default heading 0 that is world +X (the original behaviour). */
 export interface LateralShuttle {
   totalMs: number;
-  /** Medio-lateral (world X, subject-left+) root offset, meters, at tMs. */
+  /** Medio-lateral (stance-side+, subject-left+ at heading 0) root offset,
+   *  meters, at tMs — applied along `lateral`. */
   xAt(tMs: number): number;
+  /** Lateral unit vector [x, z] the offset rides: root += offset·(x, z).
+   *  [1, 0] (world +X, subject-left) for the default heading 0 — applying it
+   *  there is byte-identical to the old x-only ride. */
+  lateral: [number, number];
 }
 
 /**
@@ -755,8 +804,15 @@ export interface LateralShuttle {
  * phase-locked to the same schedule any authored trunk counter-lean was
  * authored against, so root ride and absorb can never drift apart. Without it
  * the windows are the measured contiguous planted-foot runs. Returns a
- * piecewise-linear lookup applied to root X only — vertical grounding and
- * forward travel keep their own channels.
+ * piecewise-linear lookup applied along the heading's LATERAL unit only —
+ * vertical grounding and forward travel keep their own channels.
+ *
+ * `headingDeg` (optional) keeps the shuttle PERPENDICULAR to a rotated travel
+ * heading (same convention as {@link deriveFootDrivenTravel}): the feet's
+ * lateral coordinate is their projection onto the heading's left-perpendicular
+ * (cosH, −sinH) — which needs the feet world Z in {@link FeetLateral} — and
+ * the returned `lateral` tells the applier which (x, z) ride the offset takes.
+ * Heading 0 keeps the legacy world-X measurement verbatim (byte-identical).
  */
 export function deriveGaitLateralShuttle(
   sampleFeetAtPhase: (tMs: number) => FeetLateral,
@@ -764,11 +820,20 @@ export function deriveGaitLateralShuttle(
   amplitudeM: number,
   stanceWindows?: GaitStanceWindow[],
   steps = 120,
+  headingDeg = 0,
 ): LateralShuttle {
   const n = Math.max(2, steps);
   const dt = totalMs / (n - 1);
   const x = new Array<number>(n).fill(0);
   const amp = Math.max(0, amplitudeM);
+  // Lateral unit vector (x, z) = the heading's left-perpendicular: (1, 0) for
+  // heading 0 (world +X — the legacy axis; sin(0)/cos(0) are exact, so the
+  // heading-0 path is byte-identical to the old x-only measurement).
+  const hx = Math.sin(headingDeg * RAD);
+  const hz = Math.cos(headingDeg * RAD);
+  /** Lateral (left-perpendicular-to-heading) coordinate of a foot. */
+  const latOf = (fx: number, fz: number | undefined): number =>
+    headingDeg === 0 ? fx : fx * hz - (fz ?? 0) * hx;
   if (amp > 0) {
     const feet: FeetLateral[] = [];
     for (let i = 0; i < n; i += 1) feet.push(sampleFeetAtPhase(i * dt));
@@ -782,7 +847,7 @@ export function deriveGaitLateralShuttle(
     }
     // Body centre line = mean of the two feet across the cycle.
     let centerX = 0;
-    for (const f of feet) centerX += (f.rx + f.lx) / 2;
+    for (const f of feet) centerX += (latOf(f.rx, f.rz) + latOf(f.lx, f.lz)) / 2;
     centerX /= n;
     // Stance windows in sample indices: the planned schedule when supplied,
     // else the measured contiguous planted-foot runs.
@@ -809,7 +874,8 @@ export function deriveGaitLateralShuttle(
       for (let k = i0; k <= i1; k += 1) if (planted[k] === 'R') rCount += 1;
       const foot: 'R' | 'L' = schedFoot ?? (rCount * 2 >= i1 - i0 + 1 ? 'R' : 'L');
       let stanceX = 0;
-      for (let k = i0; k <= i1; k += 1) stanceX += foot === 'R' ? feet[k]!.rx : feet[k]!.lx;
+      for (let k = i0; k <= i1; k += 1)
+        stanceX += foot === 'R' ? latOf(feet[k]!.rx, feet[k]!.rz) : latOf(feet[k]!.lx, feet[k]!.lz);
       stanceX = stanceX / (i1 - i0 + 1) - centerX;
       // Toward the stance foot, capped inside the half-stance-width (60%) so a
       // narrow stance can never be over-shuttled past its own base edge.
@@ -828,6 +894,7 @@ export function deriveGaitLateralShuttle(
       const k = Math.min(n - 2, Math.floor(u));
       return x[k]! + (x[k + 1]! - x[k]!) * (u - k);
     },
+    lateral: [hz, -hx],
   };
 }
 

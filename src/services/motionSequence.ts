@@ -399,6 +399,15 @@ export interface ComposedMotion {
    *  exists for gaits whose first/last keyframes are mid-stride poses). Ignored
    *  unless `footDrivenTravel` is set. */
   settleEnds?: boolean;
+  /** TRAVEL HEADING, degrees about the vertical axis (0 = straight ahead +Z;
+   *  + toward the subject's left, matching root `yawDeg`). The gait builder
+   *  authors the SAME angle as per-keyframe root yaw (the body orients before
+   *  walking off), and the sampler/stage pass it to the foot-driven-travel /
+   *  lateral-shuttle derivations so the derived root ride goes ALONG the
+   *  rotated heading (offset·(sinH, cosH)) with the shuttle perpendicular to
+   *  it. Only meaningful with `footDrivenTravel`; omit (or 0) for the default
+   *  straight-ahead walk — which stays byte-identical. */
+  headingDeg?: number;
   /** The body POSTURE this movement assumes at its START / leaves at its END, for
    *  the transition executor to bridge between commands (e.g. a supine exercise
    *  starts+ends 'supine'; a lie-down ends 'supine'; a get-up ends 'standing').
@@ -540,6 +549,10 @@ export interface ResolvedComposedMotion {
   /** Authored initiation/termination (pass-through) — trajectory ends are real
    *  stops, not the footDrivenTravel cyclic fly-throughs. */
   settleEnds?: boolean;
+  /** Travel heading, degrees (pass-through; absent = 0 = straight ahead) — the
+   *  sampler/stage hand it to the travel/shuttle derivations. See
+   *  {@link ComposedMotion.headingDeg}. */
+  headingDeg?: number;
   /** COM-driven postural control (pass-through) — the sampler/stage run the
    *  resolved keyframes through `balanceCoordination` before building the
    *  trajectory. See {@link ComposedMotion.balanceAssist}. */
@@ -1311,6 +1324,13 @@ export function resolveComposedMotion(
         }
       : {}),
     ...(motion.settleEnds ? { settleEnds: true } : {}),
+    // TRAVEL HEADING: pass through only a finite, non-zero heading (0 IS the
+    // default straight-ahead — omitting it keeps heading-0 plans byte-identical).
+    ...(typeof motion.headingDeg === 'number' &&
+    Number.isFinite(motion.headingDeg) &&
+    motion.headingDeg !== 0
+      ? { headingDeg: motion.headingDeg }
+      : {}),
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
     ...(motion.weightedDescent ? { weightedDescent: true } : {}),
   };
