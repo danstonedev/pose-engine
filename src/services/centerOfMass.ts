@@ -339,42 +339,105 @@ export function baseOfSupport(feet: FootContactXZ[], floorY: number): BaseOfSupp
   };
 }
 
-/** Read both feet's ankle/toe world XZ + lowest-Y from a bone map. Contact is
- *  left false — the caller flags it once the floor level is known. */
-function readFeetFromBones(bones: Map<string, THREE.Bone>): FootContactXZ[] {
-  const out: FootContactXZ[] = [];
-  for (const { key, foot, toe } of FEET) {
-    const fb = bones.get(foot);
-    if (!fb) continue;
-    fb.getWorldPosition(_p);
-    const ankle: [number, number] = [_p.x, _p.z];
-    let toeXZ: [number, number] = ankle;
-    let toeY = _p.y;
-    const tb = bones.get(toe);
-    if (tb) {
-      tb.getWorldPosition(_d);
-      toeXZ = [_d.x, _d.z];
-    }
-    out.push({ key, ankle, toe: toeXZ, ankleY: _p.y, contact: false });
-  }
-  return out;
+/** Non-foot contacts that also bear weight and widen the base of support in
+ *  non-standing postures — the hands (plank / push-up / quadruped / bird-dog /
+ *  a hand placed on the floor) and the knees/shins (kneel / quadruped /
+ *  half-kneel). Each contributes a small square patch when its bone sits within
+ *  the contact band of the floor. Keyed to a distinct label so `base.contacts`
+ *  reports what is actually bearing. Inert in standing/gait — a standing hand
+ *  (~0.7 m) and knee (~0.45 m) are far above the band, so they never appear. */
+const HAND_CONTACTS: { key: string; bone: string; half: number }[] = [
+  { key: 'L_Hand', bone: 'L_Hand', half: 0.05 },
+  { key: 'R_Hand', bone: 'R_Hand', half: 0.05 },
+];
+const KNEE_CONTACTS: { key: string; bone: string; half: number }[] = [
+  { key: 'L_Knee', bone: 'L_Leg', half: 0.06 },
+  { key: 'R_Knee', bone: 'R_Leg', half: 0.06 },
+];
+
+/** A small axis-aligned square footprint (hand/knee/forefoot patch), world XZ. */
+function squareCorners(xz: [number, number], half: number): [number, number][] {
+  const [x, z] = xz;
+  return [
+    [x - half, z - half],
+    [x + half, z - half],
+    [x + half, z + half],
+    [x - half, z + half],
+  ];
 }
 
-/** Flag which feet bear weight, given the floor level (ankle within the band). */
-function flagContacts(feet: FootContactXZ[], floorY: number): void {
-  for (const f of feet) f.contact = f.ankleY <= floorY + CONTACT_BAND_M;
+/**
+ * Build the base of support from ALL grounded contacts, not the feet alone.
+ * `getWorld(bone)` returns a bone's world [x,y,z] (or null). A contact bears
+ * weight when its bone is within {@link CONTACT_BAND_M} of the ANKLE floor:
+ *   • foot ankle down  → full sole footprint (heel→toe);
+ *   • hand / knee down → its own small square (a hand placed on the floor; and,
+ *                        as a fallback, quadruped/kneel when not skipped upstream).
+ * A foot up on its toes only (heel-raise, tiptoe, a mid-swing/stepping foot) is
+ * NOT a flat-foot base and does not contribute — feet-base balance is scored for
+ * flat-footed standing postures; toe-only and floor postures are handled
+ * elsewhere (the floor-posture skip in computeBalanceTimeline). Adding hands is
+ * what turns a hand-on-floor stance from a phantom "COM outside the base" into
+ * the broad base it really is. The floor is the lowest ANKLE only — its ~6 cm
+ * rest height above the sole is the constant every threshold is calibrated to.
+ */
+function collectBase(
+  getWorld: (bone: string) => [number, number, number] | null,
+  floorYOpt?: number,
+): BaseOfSupport {
+  const feet = FEET.map((f) => {
+    const a = getWorld(f.foot);
+    if (!a) return null;
+    const t = getWorld(f.toe);
+    return {
+      key: f.key,
+      ankle: [a[0], a[2]] as [number, number],
+      ankleY: a[1],
+      toe: (t ? [t[0], t[2]] : [a[0], a[2]]) as [number, number],
+    };
+  }).filter((f): f is NonNullable<typeof f> => f != null);
+  const others = [...HAND_CONTACTS, ...KNEE_CONTACTS]
+    .map((c) => {
+      const p = getWorld(c.bone);
+      return p ? { key: c.key, xz: [p[0], p[2]] as [number, number], y: p[1], half: c.half } : null;
+    })
+    .filter((c): c is NonNullable<typeof c> => c != null);
+
+  // Floor reference = lowest ANKLE only (its ~6 cm rest height above the sole is
+  // the constant every per-bone threshold below is calibrated against). Hands and
+  // knees are CONTACTS but never floor-setters: a grounded hand sits near the true
+  // sole (~0), which would drag floorY below the ankle reference and desync the
+  // toe/forefoot threshold (the plank bug — feet then excluded, hands-only base).
+  let floorY = floorYOpt;
+  if (floorY == null) {
+    let m = Infinity;
+    for (const f of feet) m = Math.min(m, f.ankleY);
+    floorY = Number.isFinite(m) ? m : 0;
+  }
+  const band = floorY + CONTACT_BAND_M;
+
+  const patches: { key: string; corners: [number, number][] }[] = [];
+  for (const f of feet) {
+    if (f.ankleY <= band) patches.push({ key: f.key, corners: footprintCorners(f.ankle, f.toe) });
+  }
+  for (const c of others) if (c.y <= band) patches.push({ key: c.key, corners: squareCorners(c.xz, c.half) });
+
+  if (patches.length === 0) return { polygon: [], center: [0, 0], floorY, contacts: [], airborne: true };
+  const pts: [number, number][] = [];
+  for (const p of patches) pts.push(...p.corners);
+  const polygon = convexHull(pts);
+  return { polygon, center: polygonCentroid(polygon), floorY, contacts: patches.map((p) => p.key), airborne: false };
 }
 
 /**
  * Whole-body balance at the current pose: COM, its ground projection, the base of
- * support under the bearing feet, and the signed margin of stability. Caller must
- * have updated world matrices.
+ * support under ALL grounded contacts (feet + any bearing hands/knees), and the
+ * signed margin of stability. Caller must have updated world matrices.
  *
- * `floorY` is the ground level the feet stand on. Omit it and the LOWEST foot is
- * taken as the floor (the right default for a standing query — at least one foot
- * always bears weight, never spuriously "airborne"). Pass the known floor (e.g.
- * the sampler's captured floor reference) so a genuinely airborne pose — both
- * feet lifted above the ground in a jump — is detected as unsupported.
+ * `floorY` is the ground level. Omit it and the LOWEST bearing contact is taken
+ * as the floor (the right default for a standing/plank/kneel query). Pass the
+ * known floor (e.g. the sampler's captured floor reference) so a genuinely
+ * airborne pose — everything lifted, mid-jump — is detected as unsupported.
  */
 export function computeBalanceState(
   skeleton: THREE.Skeleton,
@@ -383,10 +446,12 @@ export function computeBalanceState(
 ): BalanceState {
   const bones = buildBoneByPoseKey(skeleton, variantCfg);
   const com = computeBodyCoMFromBones(bones).world;
-  const feet = readFeetFromBones(bones);
-  const floorY = opts.floorY ?? feet.reduce((m, f) => Math.min(m, f.ankleY), Infinity);
-  flagContacts(feet, Number.isFinite(floorY) ? floorY : 0);
-  const base = baseOfSupport(feet, Number.isFinite(floorY) ? floorY : 0);
+  const base = collectBase((bone) => {
+    const b = bones.get(bone);
+    if (!b) return null;
+    b.getWorldPosition(_p);
+    return [_p.x, _p.y, _p.z];
+  }, opts.floorY);
   const comGround: [number, number] = [com[0], com[2]];
   const marginM = base.airborne ? null : signedDistToConvex(comGround, base.polygon);
   return { com, comGround, base, marginM, balanced: marginM != null && marginM > 0 };
@@ -397,7 +462,34 @@ export function computeBalanceState(
 /** Minimal structural view of a recording the balance timeline reads — just the
  *  per-frame world tracks (COM + feet), decoupled from motionRecording. */
 export interface BalanceTimelineSource {
-  frames: { tMs: number; worldTracks?: Record<string, [number, number, number]> }[];
+  frames: {
+    tMs: number;
+    worldTracks?: Record<string, [number, number, number]>;
+    /** Non-upright grounding posture, if any — the frame is then statically
+     *  supported by a non-feet base (seat/hands/knees) the feet-only model does
+     *  not represent, so it is NOT feet-base-scored (see computeBalanceTimeline). */
+    groundingPosture?: string;
+  }[];
+}
+
+/** Upright groundingPosture labels that ARE feet-base-scored (everything else —
+ *  sitting / plank / quadruped / kneeling / lying — is floor-supported and skipped). */
+const UPRIGHT_POSTURES = new Set(['standing', 'upright', 'squat']);
+
+/** Is this frame statically supported by a non-feet base (seat/hands/knees)? Such
+ *  a frame is not scored against the feet-only base — a margin there would be a
+ *  meaningless "topple", not a real one. Signalled by a non-upright grounding
+ *  posture, or (geometric fallback) a hand bearing weight near the floor. */
+function isFloorSupported(
+  groundingPosture: string | undefined,
+  tracks: Record<string, [number, number, number]>,
+  floorY: number,
+): boolean {
+  if (groundingPosture && !UPRIGHT_POSTURES.has(groundingPosture)) return true;
+  const band = floorY + CONTACT_BAND_M;
+  const lh = tracks['L_Hand'];
+  const rh = tracks['R_Hand'];
+  return (lh != null && lh[1] <= band) || (rh != null && rh[1] <= band);
 }
 
 /** Balance at one recorded frame. */
@@ -423,23 +515,11 @@ export interface BalanceTimeline {
   airborneFraction: number;
 }
 
-/** Ankle tracks — the stable floor reference (see the floor note below). */
-const BALANCE_ANKLE_KEYS = ['L_Foot', 'R_Foot'] as const;
-
-/** Read both feet from a frame's world tracks (same shape as {@link readFeetFromBones}). */
-function readFeetFromTracks(tracks: Record<string, [number, number, number]>): FootContactXZ[] {
-  const out: FootContactXZ[] = [];
-  for (const { key, foot, toe } of FEET) {
-    const fp = tracks[foot];
-    if (!fp) continue;
-    const ankle: [number, number] = [fp[0], fp[2]];
-    let toeXZ: [number, number] = ankle;
-    const tp = tracks[toe];
-    if (tp) toeXZ = [tp[0], tp[2]];
-    out.push({ key, ankle, toe: toeXZ, ankleY: fp[1], contact: false });
-  }
-  return out;
-}
+/** Whole-clip floor witnesses — the ANKLES only (their ~6 cm rest height above
+ *  the sole is the reference every per-bone contact threshold is calibrated
+ *  against). Hands/knees are contacts but not floor-setters (see collectBase);
+ *  toes dip below the floor in a deep hinge and are excluded as witnesses too. */
+const BALANCE_FLOOR_KEYS = ['L_Foot', 'R_Foot'] as const;
 
 /**
  * Compute the balance margin over an entire recording from its world tracks
@@ -457,14 +537,14 @@ export function computeBalanceTimeline(
 ): BalanceTimeline {
   let floorY = opts.floorY;
   if (floorY == null) {
-    // Floor = lowest ANKLE over the clip. Ankles are the stable ground reference;
-    // toes can rotate below the floor in a deep hinge/squat, which would drag a
-    // whole-clip minimum below the true floor and read planted feet as "lifted".
+    // Floor = lowest ANKLE / HAND / KNEE over the clip (never a toe, which can
+    // rotate below the floor in a deep hinge/squat and drag the minimum down).
+    // Hands/knees let a plank/quadruped/kneel set its own floor.
     let m = Infinity;
     for (const f of src.frames) {
       const t = f.worldTracks;
       if (!t) continue;
-      for (const k of BALANCE_ANKLE_KEYS) {
+      for (const k of BALANCE_FLOOR_KEYS) {
         const p = t[k];
         if (p) m = Math.min(m, p[1]);
       }
@@ -478,9 +558,16 @@ export function computeBalanceTimeline(
   for (const f of src.frames) {
     const tracks = f.worldTracks ?? {};
     const com = tracks['CoM'];
-    const feet = readFeetFromTracks(tracks);
-    flagContacts(feet, floorY);
-    const base = baseOfSupport(feet, floorY);
+    // FLOOR-SUPPORTED (sitting/plank/quadruped/kneeling/lying): statically stable
+    // by construction on a non-feet base the feet-only model doesn't represent —
+    // not feet-base-scored (marginM null), so it can never read as a false topple.
+    if (isFloorSupported(f.groundingPosture, tracks, floorY)) {
+      frames.push({ tMs: f.tMs, comGround: com ? [com[0], com[2]] : [0, 0], baseCenter: null, marginM: null, contacts: [], airborne: false });
+      continue;
+    }
+    // Base from ALL grounded contacts in this frame's tracks (feet + any bearing
+    // hands/knees) — the same posture-aware model the live query uses.
+    const base = collectBase((bone) => tracks[bone] ?? null, floorY);
     const comGround: [number, number] = com ? [com[0], com[2]] : [0, 0];
     if (base.airborne || !com) {
       if (base.airborne) airborneCount += 1;

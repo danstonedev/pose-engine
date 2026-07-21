@@ -169,6 +169,12 @@ export interface RecordedFrame {
   /** World positions (meters) of the tracked bone set, keyed by canonical
    *  bone key (default pelvis/head/hands/feet). */
   worldTracks?: Record<string, [number, number, number]>;
+  /** The grounding posture active at this frame (e.g. 'sitting', 'plank',
+   *  'quadruped', 'kneeling'), when the motion is not upright-standing. Lets the
+   *  balance post-pass SKIP feet-base scoring for a floor/seated posture — those
+   *  are statically supported by a base (hands/knees/seat) the feet-only model
+   *  doesn't represent, so a feet-base margin there is meaningless, not a topple. */
+  groundingPosture?: string;
 }
 
 export type MotionRecordingSourceKind = 'composed' | 'clip' | 'command' | 'manual';
@@ -1139,6 +1145,7 @@ export function sampleComposedMotion(
         ],
       },
       worldTracks,
+      ...(sample.groundingPosture ? { groundingPosture: sample.groundingPosture } : {}),
     };
   };
 
