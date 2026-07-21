@@ -1985,7 +1985,9 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
   // seeds the interpolation INTO the floating apex.)
   const propulsion = (): SequenceKeyframe => ({
     durationMs: 160, velocityClass: 'ballistic', stance: 'planted',
-    travel: { direction: 'up', meters: 0.06 },
+    // ABSOLUTE pin-height seed → raw root (raw translate = absolute position;
+    // `travel` sugar is a DELTA step per AI-SUGAR-01 and no longer fits here).
+    root: { translateM: [0, 0.06, 0] },
     // TOE ROCKER: the final push before takeoff rolls over the MTP joints (heels
     // up, toe pads driving the ground) — MTP extension ~30°, not a rigid flat foot.
     targets: [...legs(0, 0, -25), ...toes(30), ...arms(150), ...trunk(0)],
@@ -1997,13 +1999,13 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
   // peak the trajectory reshapes toward.
   const apex = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.5), velocityClass: 'ballistic', stance: 'floating',
-    travel: { direction: 'up', meters: apexM },
+    root: { translateM: [0, apexM, 0] }, // ABSOLUTE apex height (raw root)
     // Toes reset to neutral in flight (the push-off MTP extension releases at toe-off).
     targets: [...legs(5, 25, 0), ...toes(0), ...arms(150)],
   });
   const descent = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.3), velocityClass: 'ballistic', stance: 'floating',
-    travel: { direction: 'up', meters: apexM * 0.5 },
+    root: { translateM: [0, apexM * 0.5, 0] }, // ABSOLUTE mid-fall height (raw root)
     targets: [...legs(3, 15, -5), ...arms(45)], // legs reaching DOWN toward contact
   });
   // TOUCHDOWN is the contact instant: legs NEAR-EXTENDED so the feet reach the floor
@@ -2014,12 +2016,12 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
   // the knees bend, which is also the correct landing mechanics (reach → absorb).
   const touchdown = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.2), velocityClass: 'ballistic', stance: 'planted',
-    travel: { direction: 'up', meters: 0 },
+    root: { translateM: [0, 0, 0] }, // ABSOLUTE ground height (raw root)
     targets: [...legs(10, 18, 0), ...arms(30)],
   });
   const absorb = (): SequenceKeyframe => ({
     durationMs: 180, holdMs: 70, velocityClass: 'functional', stance: 'planted',
-    travel: { direction: 'up', meters: 0 },
+    root: { translateM: [0, 0, 0] }, // ABSOLUTE ground height (raw root)
     targets: [...legs(45, 65, 15), ...arms(20), ...trunk(10)],
   });
   const recovery = (): SequenceKeyframe => ({
@@ -2141,7 +2143,9 @@ function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
     durationMs: t.touchMs, velocityClass: 'ballistic', stance: 'planted',
     // Landing continuity: the flight parabola ends HERE — seed the knot with the
     // pose's rig-measured pin height so the arc lands where the pin grounds it.
-    travel: { direction: 'up', meters: -RUN_TOUCHDOWN_PIN_DROP_M },
+    // ABSOLUTE pin-height seed → raw root (raw translate = absolute position;
+    // `travel` sugar is a DELTA step per AI-SUGAR-01 and no longer fits here).
+    root: { translateM: [0, -RUN_TOUCHDOWN_PIN_DROP_M, 0] },
     targets: [
       ...leg(land, 30, 20, 5),
       ...leg(other, -5, 45, -10),
@@ -2154,7 +2158,7 @@ function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
   // the shank rides over the planted foot; the swing leg comes through.
   const absorb: SequenceKeyframe = {
     durationMs: t.absorbMs, velocityClass: 'functional', stance: 'planted',
-    travel: { direction: 'up', meters: 0 },
+    root: { translateM: [0, 0, 0] }, // ABSOLUTE ground height (raw root)
     targets: [
       ...leg(land, RUN_DRIVE_HIP_DEG + RUN_ABSORB_EXTRA_HIP_DEG, RUN_DRIVE_KNEE_DEG + RUN_ABSORB_EXTRA_KNEE_DEG, 12),
       ...leg(other, 25, 65, -5),
@@ -2168,7 +2172,7 @@ function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
     durationMs: t.driveMs, velocityClass: 'functional', stance: 'planted',
     // Takeoff continuity: the flight parabola starts HERE — seed the knot with
     // the toe-driving pose's rig-measured pin height (slightly ABOVE standing).
-    travel: { direction: 'up', meters: RUN_DRIVE_PIN_RISE_M },
+    root: { translateM: [0, RUN_DRIVE_PIN_RISE_M, 0] }, // ABSOLUTE pin-height seed (raw root)
     targets: [
       ...leg(land, RUN_DRIVE_HIP_DEG, RUN_DRIVE_KNEE_DEG, -8),
       ...leg(other, 58, 95, 0),
@@ -2180,7 +2184,7 @@ function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
   // knee toward ITS contact. FLOATING + up-travel → genuinely airborne.
   const flight: SequenceKeyframe = {
     durationMs: t.flightMs, velocityClass: 'ballistic', stance: 'floating',
-    travel: { direction: 'up', meters: RUN_RISE_M },
+    root: { translateM: [0, RUN_RISE_M, 0] }, // ABSOLUTE flight-apex height (raw root)
     targets: [
       ...leg(land, -18, 28, -15),
       ...leg(other, 45, 55, 0),
@@ -2380,17 +2384,19 @@ export function buildSingleLegHop(
   // Toe push-off while still planted seeds the floating rise (see buildJump).
   const propulsion = (): SequenceKeyframe => ({
     durationMs: 150, velocityClass: 'ballistic', stance: 'planted',
-    travel: { direction: 'up', meters: 0.05 },
+    // ABSOLUTE pin-height seed → raw root (raw translate = absolute position;
+    // `travel` sugar is a DELTA step per AI-SUGAR-01 and no longer fits here).
+    root: { translateM: [0, 0.05, 0] },
     targets: [...supLeg(5, 12, -25), ...held(), ...arms(60), ...trunk(2), ...counter()],
   });
   const apex = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.5), velocityClass: 'ballistic', stance: 'floating',
-    travel: { direction: 'up', meters: apexM },
+    root: { translateM: [0, apexM, 0] }, // ABSOLUTE apex height (raw root)
     targets: [...supLeg(18, 32, -5), ...held(), ...arms(40), ...counter()],
   });
   const descent = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.3), velocityClass: 'ballistic', stance: 'floating',
-    travel: { direction: 'up', meters: apexM * 0.5 },
+    root: { translateM: [0, apexM * 0.5, 0] }, // ABSOLUTE mid-fall height (raw root)
     targets: [...supLeg(15, 20, 0), ...held(), ...arms(25), ...counter()], // reaching DOWN toward contact
   });
   // TOUCHDOWN: near-extended support leg so the foot reaches the floor where the
@@ -2399,12 +2405,12 @@ export function buildSingleLegHop(
   // landing foot (counterbalance: the crouch pulls the pelvis behind the heel).
   const touchdown = (): SequenceKeyframe => ({
     durationMs: Math.round(flightMs * 0.2), velocityClass: 'ballistic', stance: 'planted',
-    travel: { direction: 'up', meters: 0 },
+    root: { translateM: [0, 0, 0] }, // ABSOLUTE ground height (raw root)
     targets: [...supLeg(20, 24, 0), ...held(), ...arms(18), ...trunk(8), ...counter()],
   });
   const absorb = (): SequenceKeyframe => ({
     durationMs: 170, holdMs: 60, velocityClass: 'functional', stance: 'planted',
-    travel: { direction: 'up', meters: 0 },
+    root: { translateM: [0, 0, 0] }, // ABSOLUTE ground height (raw root)
     targets: [...supLeg(32, 52, 12), ...held(), ...arms(15), ...trunk(18), ...counter()],
   });
   // Recovery HOLDS a slight forward trunk lean — the end state is still a one-leg
