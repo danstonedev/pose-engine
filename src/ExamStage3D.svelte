@@ -93,6 +93,7 @@
     READY_HOLD_MS,
     maxPoseAngleDiffDeg,
     readyTransitionNeeded,
+    readyResetRootTarget,
   } from './services/readyTransition';
   import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
 
@@ -731,6 +732,9 @@
         return readyTransitionNeeded({
           poseAngleDiffDeg: maxPoseAngleDiffDeg(currentPose, baselinePoseRef),
           rootHorizontalM: Math.hypot(composedRootTranslate[0], composedRootTranslate[2]),
+          // SEAM-10: a body left off the grounded standing Y tweens back down
+          // rather than snapping via the resetRootToRest else-branch below.
+          rootVerticalM: Math.abs(composedRootTranslate[1]),
           rootUprightW: Math.abs(composedRootQuat[3]),
         });
       }
@@ -749,19 +753,22 @@
        *  command mid-settle supersedes it. */
       async function playReadySettle(token: number): Promise<void> {
         if (!baselinePoseRef) return;
-        const keepX = composedRootTranslate[0];
-        const keepZ = composedRootTranslate[2];
+        // SEAM-10: the grounded-standing target is the ONE pure truth — upright,
+        // horizontal position preserved (stand up in place), vertical eased down
+        // to the grounded standing Y. TWEENED over READY_SETTLE_MS (never snapped),
+        // so the pelvis lands on the floor with no per-frame jump and no rootY drift.
+        const { toQuat, toTranslateM } = readyResetRootTarget(composedRootTranslate);
         await tweenTo(baselinePoseRef, READY_SETTLE_MS, {
           fromQuat: [...composedRootQuat],
-          toQuat: [0, 0, 0, 1],
+          toQuat,
           fromTranslate: [...composedRootTranslate],
-          toTranslate: [keepX, 0, keepZ],
+          toTranslate: toTranslateM,
           planted: true,
         });
-        // The body now stands ready in place; carry that root state forward so the
-        // next motion continues from here rather than snapping to the origin.
-        composedRootQuat = [0, 0, 0, 1];
-        composedRootTranslate = [keepX, 0, keepZ];
+        // The body now stands ready in place; carry that grounded root state forward
+        // so the next motion continues from here rather than snapping to the origin.
+        composedRootQuat = toQuat;
+        composedRootTranslate = toTranslateM;
         await holdReadyBeat(token);
       }
 
@@ -1178,7 +1185,66 @@
         if (eyeR) eyeR.quaternion.copy(_eyeBaseRQ);
         return true;
       }
+
+      /**
+       * SEAM-9 — snapshot the CURRENTLY-APPLIED eye-gaze locals so the capture
+       * sandwich (buildFrameNow) can restore them EXACTLY, instead of re-deriving
+       * via applyEyeGaze(0) against a base (head/root) that the idle re-bake may
+       * have moved. Returns a restore closure (which re-sets eyeGazeOn so the next
+       * frame's undo stays balanced against the untouched stored base), or null
+       * when no eye deltas are baked — nothing to restore.
+       */
+      function captureAppliedEyeGaze(): (() => void) | null {
+        if (!eyeGazeOn) return null;
+        const eyeL = motionCapBones?.get('L_Eye');
+        const eyeR = motionCapBones?.get('R_Eye');
+        const qL = eyeL ? eyeL.quaternion.clone() : null;
+        const qR = eyeR ? eyeR.quaternion.clone() : null;
+        return () => {
+          if (eyeL && qL) eyeL.quaternion.copy(qL);
+          if (eyeR && qR) eyeR.quaternion.copy(qR);
+          eyeGazeOn = true;
+        };
+      }
       // ── EYES · micro-gaze overlay — END eye block ─────────────────────────
+
+      /**
+       * MOTION-TIME liveliness (LIVE-ONLY realism): breathing at the thorax +
+       * micro-sway at the low back while a MOTION drives the skeleton, layered ON
+       * TOP of the driven pose. The animation driver (mixer/trajectory) overwrites
+       * both trunk bones every frame, so the premultiplied delta never
+       * accumulates. Applied AFTER the recording tap + streamed report (SEAM-9) —
+       * the offline sampler never sees liveliness, so a recording/report that
+       * carried it would diverge from the grade. Feet/legs + every measured driver
+       * joint are untouched; only the two trunk bones move. Wall-clock phase
+       * (livelinessTime) is incommensurate with the loop, so no cycle repeats.
+       * Returns whether anything was applied (clean mode / no bones ⇒ false, so
+       * the dirty flag stays honest).
+       */
+      function applyMotionLiveliness(dtSec: number): boolean {
+        if (!(motionLiveliness > 0) || !motionCapBones || !modelRoot) return false;
+        livelinessTime += dtSec;
+        // EXERTION-SCALED FM breathing (Wave 5): integrate the shared phase at the
+        // exertion-driven rate (phase-continuous — never t×rate, so a rate change
+        // can never jump mid-breath).
+        breathPhase = advanceBreathPhase(breathPhase, dtSec, exertionLevel);
+        const thorax = motionCapBones.get('Spine_Upper');
+        if (thorax) {
+          const breathDeg = breathingLeanFM(breathPhase, motionLiveliness, exertionLevel);
+          _liveQ.setFromAxisAngle(_swayAxisAP, (breathDeg * Math.PI) / 180);
+          thorax.quaternion.premultiply(_liveQ);
+        }
+        const lowBack = motionCapBones.get('Spine_Lower');
+        if (lowBack) {
+          const { mlDeg, apDeg } = livelinessSwayDeg(livelinessTime, motionLiveliness);
+          _liveQ.setFromAxisAngle(_swayAxisML, (mlDeg * Math.PI) / 180);
+          lowBack.quaternion.premultiply(_liveQ);
+          _liveQ.setFromAxisAngle(_swayAxisAP, (apDeg * Math.PI) / 180);
+          lowBack.quaternion.premultiply(_liveQ);
+        }
+        modelRoot.updateMatrixWorld(true);
+        return true;
+      }
       // ── Composed-motion (generative keyframe sequence) playback state ─────
       // Pose-tween driven (NOT the mixer). `composedActive` gates the same
       // guarding/sway overlays clip playback applies; `composedSeq` is a
@@ -2460,18 +2526,26 @@
        *  sampling (no motion playing) still measures fresh. */
       function buildFrameNow(tMs: number): RecordedFrame | null {
         if (!skinnedRef || !variantCfgRef || !restRef || !modelRoot) return null;
-        // Capture the CLEAN pose: lift any baked idle-liveliness deltas around
-        // the serialize/measure and restore them at the same phase (dt 0), so
-        // captureFrame/recordings never carry the idle perturbation while the
-        // rendered frame is unchanged. No-op unless idle deltas are baked
-        // (inside the rAF loop they were already lifted before the tap).
-        const hadEyeGaze = undoEyeGaze(); // eyes at rest around the capture too
+        // Capture the CLEAN pose: lift any baked idle-liveliness + eye deltas
+        // around the serialize/measure and restore them at the same phase, so
+        // captureFrame/recordings never carry the live-only perturbation while
+        // the rendered frame is unchanged. No-op unless deltas are baked (inside
+        // the rAF loop they were already lifted before the tap).
+        //
+        // SEAM-9 — the EYE deltas are restored by an EXACT snapshot, not by a
+        // re-derive (applyEyeGaze(0)). Re-deriving would recompute the gaze-absorb
+        // against the head/root as they sit AFTER the idle re-bake below — a STALE
+        // BASE if that pose differs at all from the one the deltas were first
+        // applied against. An eye local is frame-invariant, so copying the
+        // snapshotted locals back is exact under ANY intervening move.
+        const eyeRestore = captureAppliedEyeGaze(); // null when no eye deltas baked
+        undoEyeGaze(); // eyes at rest around the capture too
         const hadIdleOverlay = undoIdleOverlays();
         try {
           return buildFrameNowClean(tMs);
         } finally {
           if (hadIdleOverlay) applyIdleOverlays(0);
-          if (hadEyeGaze) applyEyeGaze(0);
+          if (eyeRestore) eyeRestore();
         }
       }
 
@@ -2654,15 +2728,15 @@
         // scales the (already velocity-floored) durations; guarding/sway run
         // through the identical per-frame overlay machinery clips use.
         const timeScale = Math.min(1.5, Math.max(0.4, mods.timeScale ?? 1));
-        // PRESERVE the host-set liveliness (breathing + cadence variability): this
-        // path applies the MOTION's own guarding/sway, but must not zero liveliness
-        // (the setter defaults an omitted key to 0), or AI-composed gait would never
-        // breathe or vary. `motionLiveliness` currently holds what the host set.
-        setMotionOverlaysImpl?.({
-          guarding: mods.guarding,
-          balanceSway: mods.balanceSway,
-          liveliness: motionLiveliness,
-        });
+        // GUARDING / SWAY are now BAKED into the resolved keyframes at resolve
+        // time (motionSequence.bakeGuardingSway — DET-LOCK-03), so the recording,
+        // the grade and this screen play the SAME motion. This path therefore
+        // does NOT re-apply them as a live overlay (that would double them and
+        // re-open the three-way disagreement). It sets ONLY liveliness, and must
+        // PRESERVE the host-set value (the setter defaults an omitted key to 0, so
+        // an explicit key is required) or AI-composed gait would never breathe or
+        // vary. `motionLiveliness` currently holds what the host set.
+        setMotionOverlaysImpl?.({ liveliness: motionLiveliness });
         composedActive = true;
         // Closed-chain foot contacts declared by this motion (Finding 4): rebuild
         // the IK plants so declared stance feet stay world-fixed as the body
@@ -3259,38 +3333,13 @@
               modelRoot.updateMatrixWorld();
             }
           }
-          // Liveliness overlay: an always-on naturalistic prior layered ON TOP of
-          // guarding/sway (same premultiply-onto-trunk approach, so it composes
-          // additively and never overwrites them). Breathing rides the THORAX
-          // (Spine_Upper) as a slow flex/extend about the A/P axis (a chest
-          // rise/fall); the micro-sway rides the LOW BACK (Spine_Lower) as ML roll
-          // + A/P pitch about the same sway axes. Feet/legs and every measured
-          // driver joint are untouched → the plant, goniometry and balance readout
-          // are unaffected; only these two trunk bones move. Wall-clock phase
-          // (livelinessTime) is incommensurate with the loop, so no cycle repeats.
-          if (motionLiveliness > 0 && motionCapBones && modelRoot) {
-            livelinessTime += motionDelta;
-            // EXERTION-SCALED FM breathing (Wave 5): integrate the shared
-            // phase at the exertion-driven rate — rate/depth climb with
-            // recent work and recover at rest, phase-continuous throughout
-            // (never t×rate, so a rate change can never jump mid-breath).
-            breathPhase = advanceBreathPhase(breathPhase, motionDelta, exertionLevel);
-            const thorax = motionCapBones.get('Spine_Upper');
-            if (thorax) {
-              const breathDeg = breathingLeanFM(breathPhase, motionLiveliness, exertionLevel);
-              _liveQ.setFromAxisAngle(_swayAxisAP, (breathDeg * Math.PI) / 180);
-              thorax.quaternion.premultiply(_liveQ);
-            }
-            const lowBack = motionCapBones.get('Spine_Lower');
-            if (lowBack) {
-              const { mlDeg, apDeg } = livelinessSwayDeg(livelinessTime, motionLiveliness);
-              _liveQ.setFromAxisAngle(_swayAxisML, (mlDeg * Math.PI) / 180);
-              lowBack.quaternion.premultiply(_liveQ);
-              _liveQ.setFromAxisAngle(_swayAxisAP, (apDeg * Math.PI) / 180);
-              lowBack.quaternion.premultiply(_liveQ);
-            }
-            modelRoot.updateMatrixWorld();
-          }
+          // Liveliness (breathing + micro-sway) is a LIVE-ONLY realism prior — it
+          // must NOT leak into recordings/streamed reports (SEAM-9: the offline
+          // sampler never sees it, so a recording that carried it would diverge).
+          // It is therefore applied via applyMotionLiveliness() AFTER the recording
+          // tap + report below, in the same undo/reapply discipline as the idle
+          // overlay — NOT here. (Guarding/sway are baked into the resolved
+          // keyframes now, so they ARE in the driven pose the tap/report sample.)
           // Pelvis-shift overlay: re-bake the constant lateral root offset.
           // Composed playback already re-baked inside applyTrajectoryRoot (a
           // no-op here); the clip (mixer) path is bones-only and never rewrites
@@ -3350,6 +3399,13 @@
           !poseLayerBusy?.() &&
           applyIdleOverlays(motionDelta)
         ) {
+          renderNeeded = true;
+        } else if (((mixer && activeMotionId) || composedActive) && applyMotionLiveliness(motionDelta)) {
+          // Motion-time liveliness (SEAM-9): the realism breathing/micro-sway is
+          // re-applied HERE — after the tap — for the SAME reason the idle overlay
+          // is (recordings/reports stay clean). It is mutually exclusive with the
+          // idle path above (a motion is driving), and the driver overwrites the
+          // trunk next frame so it never accumulates.
           renderNeeded = true;
         }
         // EYES: re-bake the micro-gaze at the advanced phase — deliberately

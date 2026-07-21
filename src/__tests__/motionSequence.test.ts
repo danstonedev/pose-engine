@@ -189,10 +189,11 @@ describe('resolveComposedMotion', () => {
   });
 
   it('enforces the minimum keyframe duration even for tiny travels', () => {
-    // The authored wrist target opts this motion out of the relaxedHands adds
-    // (which would legitimately raise the floor above MIN_KEYFRAME_MS — the
-    // 40° pinky curl needs 167 ms at 240°/s), keeping this a pure MIN-floor
-    // probe: every commanded travel is tiny, so the MIN floor rules.
+    // Authoring BOTH wrists opts this motion out of the relaxedHands adds on
+    // EITHER side (the per-side gate — DET-GATE-01 — would otherwise relax the
+    // free hand, whose 40° pinky curl legitimately raises the floor to 167 ms at
+    // 240°/s), keeping this a pure MIN-floor probe: every commanded travel is
+    // tiny, so the MIN floor rules.
     const r = resolveComposedMotion(
       {
         keyframes: [
@@ -200,6 +201,7 @@ describe('resolveComposedMotion', () => {
             [
               { joint: 'R_Foot', motion: 'ankleFlexion', deg: 5 },
               { joint: 'R_Hand', motion: 'wristFlexion', deg: 5 },
+              { joint: 'L_Hand', motion: 'wristFlexion', deg: 5 },
             ],
             10,
           ),

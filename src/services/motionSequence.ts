@@ -1140,7 +1140,12 @@ export const HAND_JOINT_KEYS: readonly string[] = (['L_', 'R_'] as const).flatMa
   `${s}Ring1`,
   `${s}Pinky1`,
 ]);
-const HAND_JOINT_SET = new Set(HAND_JOINT_KEYS);
+/** Per-side hand-complex joint sets (DET-GATE-01): the relaxed-hand gate is
+ *  decided PER HAND, so a motion that authors only the LEFT hand still lets the
+ *  RIGHT hand receive its resting curl (and vice-versa) — one authored hand no
+ *  longer strips the resting curl off the OTHER, whole-body. */
+const HAND_JOINT_SET_L = new Set(HAND_JOINT_KEYS.filter((k) => k.startsWith('L_')));
+const HAND_JOINT_SET_R = new Set(HAND_JOINT_KEYS.filter((k) => k.startsWith('R_')));
 
 /** Resting wrist flexion of a relaxed hanging hand, deg (a slight drop — not a
  *  rigid extended paddle, not a flexed claw). */
@@ -1169,6 +1174,13 @@ export const RELAXED_HAND_TARGETS: readonly SequenceTarget[] = (['L_', 'R_'] as 
     })),
   ],
 );
+/** The relaxed-hand target set split by side (6 targets each) — the per-side
+ *  gate (DET-GATE-01) adds only the sides that are neither authored nor
+ *  weight-bearing. */
+const RELAXED_HAND_TARGETS_BY_SIDE: Readonly<Record<'L' | 'R', readonly SequenceTarget[]>> = {
+  L: RELAXED_HAND_TARGETS.filter((t) => t.joint.startsWith('L_')),
+  R: RELAXED_HAND_TARGETS.filter((t) => t.joint.startsWith('R_')),
+};
 
 /** Postures in which the hands may BEAR WEIGHT (planted on the floor in plank /
  *  quadruped, or resting under/against the body when lying) — a relaxed curl
@@ -1227,22 +1239,29 @@ const RELAXED_ADDED_TARGETS = new WeakSet<SequenceTarget>();
  */
 export function relaxedHands(motion: ComposedMotion): ComposedMotion {
   if (!motion || !Array.isArray(motion.keyframes)) return motion;
-  // "…unless otherwise specified" — any authored hand-complex target anywhere in
-  // the motion means the author owns the hands (this also makes the transform
-  // idempotent with gait's coordination, which writes wrist + finger targets).
-  const authorsHands = motion.keyframes.some((kf) =>
-    kf.targets?.some((t) => HAND_JOINT_SET.has(t.joint)),
+  // PER-SIDE gate (DET-GATE-01): the resting curl is decided per HAND, so a
+  // motion that authors or loads ONE hand still gives the OTHER its curl —
+  // a one-handed wrist AROM screen no longer leaves the free hand a flat paddle.
+  //
+  // A side is left AS AUTHORED when it is either:
+  //   • AUTHORED — any wrist/finger target on that side anywhere in the motion
+  //     ("…unless otherwise specified"; also keeps idempotency with gait's
+  //     coordination, which writes both wrists + fingers), or
+  //   • PLANTED  — a declared hand contact on that side (the palm bears weight).
+  const authorsLeft = motion.keyframes.some((kf) =>
+    kf.targets?.some((t) => HAND_JOINT_SET_L.has(t.joint)),
   );
-  if (authorsHands) return motion;
-  // Declared hand contacts (the `foot` field names the contact BONE — a hand in
-  // a push-up is a legal entry): the hand bears weight, keep the flat palm.
-  const plantsHandContact = motion.contacts?.some(
-    (c) => c && (c.foot === 'L_Hand' || c.foot === 'R_Hand'),
+  const authorsRight = motion.keyframes.some((kf) =>
+    kf.targets?.some((t) => HAND_JOINT_SET_R.has(t.joint)),
   );
-  if (plantsHandContact) return motion;
+  const plantsLeft = !!motion.contacts?.some((c) => c && c.foot === 'L_Hand');
+  const plantsRight = !!motion.contacts?.some((c) => c && c.foot === 'R_Hand');
   // Weight-bearing / lying postures — grounding sets that plant a hand, lying
   // start/end postures, per-keyframe lying posture sugar, or a large raw root
-  // reorientation (same thresholds as stabilizeGaze's upright check).
+  // reorientation (same thresholds as stabilizeGaze's upright check). This gate
+  // stays WHOLE-BODY (both hands skipped): lying/plank/quadruped may bear on
+  // EITHER hand and no per-hand contact signal exists (the documented judgement
+  // call in {@link HANDS_MAY_BEAR}), so splitting it would float a bearing palm.
   const bearing =
     (motion.startPosture != null && HANDS_MAY_BEAR.includes(motion.startPosture)) ||
     (motion.endPosture != null && HANDS_MAY_BEAR.includes(motion.endPosture)) ||
@@ -1257,6 +1276,16 @@ export function relaxedHands(motion: ComposedMotion): ComposedMotion {
     );
   if (bearing) return motion;
 
+  const relaxLeft = !authorsLeft && !plantsLeft;
+  const relaxRight = !authorsRight && !plantsRight;
+  // Neither side eligible (both authored/planted) ⇒ byte-identical pass-through,
+  // exactly as before for a fully hand-authoring motion (the walk, sit-to-stand).
+  if (!relaxLeft && !relaxRight) return motion;
+  const sideTargets: readonly SequenceTarget[] = [
+    ...(relaxLeft ? RELAXED_HAND_TARGETS_BY_SIDE.L : []),
+    ...(relaxRight ? RELAXED_HAND_TARGETS_BY_SIDE.R : []),
+  ];
+
   const keyframes = motion.keyframes.map((kf) => {
     if (!kf || typeof kf !== 'object') return kf;
     const ts = kf.targets ?? [];
@@ -1267,15 +1296,16 @@ export function relaxedHands(motion: ComposedMotion): ComposedMotion {
       kf.root != null || kf.travel != null || kf.posture != null ||
       kf.stance === 'planted' || kf.stance === 'floating';
     if (ts.length === 0 && !hasDirective) return kf;
-    // Respect the per-keyframe target budget: if the 12-target hand set wouldn't
-    // fit, leave this keyframe alone rather than push targets that would
-    // overflow-drop (carry-forward keeps the hands posed from earlier keyframes).
-    if (ts.length + RELAXED_HAND_TARGETS.length > MAX_TARGETS_PER_KEYFRAME) return kf;
-    // authorsHands guaranteed no existing hand target above, so plain appends
+    // Respect the per-keyframe target budget: if the (6- or 12-target) relaxed
+    // set wouldn't fit, leave this keyframe alone rather than push targets that
+    // would overflow-drop (carry-forward keeps the hands posed from earlier
+    // keyframes).
+    if (ts.length + sideTargets.length > MAX_TARGETS_PER_KEYFRAME) return kf;
+    // The relaxed side(s) carry no existing hand target above, so plain appends
     // never dupe. Fresh clones per keyframe (no shared target objects), each
     // TAGGED as a background add so the resolver's refusal contract and outcome
     // report stay authored-only (see RELAXED_ADDED_TARGETS).
-    const adds = RELAXED_HAND_TARGETS.map((t) => {
+    const adds = sideTargets.map((t) => {
       const clone = { ...t };
       RELAXED_ADDED_TARGETS.add(clone);
       return clone;
@@ -1283,6 +1313,106 @@ export function relaxedHands(motion: ComposedMotion): ComposedMotion {
     return { ...kf, targets: [...ts, ...adds] };
   });
   return { ...motion, keyframes };
+}
+
+// ── BUILD-TIME GUARDING / SWAY BAKE (DET-LOCK-03) ───────────────────────────
+// Guarding (trunk + arm stiffness) and balance-sway (a slow postural wobble)
+// used to exist ONLY as a LIVE stage overlay (ExamStage3D setMotionOverlays), so
+// the three views of a motion DISAGREED: the offline sampler + grading saw the
+// clean keyframes, the on-screen playback added the overlay live, and a
+// recording captured whatever the overlay happened to leave. Per the kinematic
+// charter (physics MIMICKED at author/resolve time, playback deterministic), a
+// MOTION's guarding/sway is folded HERE — into the resolved keyframes the
+// offline sampler AND the live stage both build from — so the recording, the
+// grade and the screen agree BY CONSTRUCTION. (The live overlay path remains for
+// named-clip prescriptions and idle liveliness, which own no resolved keyframes
+// to bake into.)
+//
+// Pure, additive, ROM-safe and clean-mode-zeroed like every other house
+// transform: guarding SCALES the trunk/arm target excursion toward neutral (a
+// stiffer, reduced-excursion movement); sway ADDS a low-back lean sampled at
+// each keyframe's RESOLVED arrival time (deterministic — the same ms clock the
+// sampler and stage share). Applied AFTER the velocity governor + whole-plan
+// re-timing, so it never perturbs timing or the authored-target outcome report
+// (guarding/sway are a presentation overlay, narrated via `modifiers`, not a
+// per-target achievability claim).
+
+const clamp01 = (v: number | undefined): number =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+
+/** Trunk + arm joints guarding stiffens toward neutral (mirrors the stage
+ *  overlay's GUARDING_KEYS — the guarded/protective, reduced-excursion set). */
+export const GUARDING_BAKE_KEYS: readonly string[] = [
+  'Spine_Lower',
+  'Spine_Upper',
+  'Neck',
+  'L_UpperArm',
+  'R_UpperArm',
+];
+const GUARDING_BAKE_SET = new Set(GUARDING_BAKE_KEYS);
+/** guarding = 1 damps the trunk/arm excursion by this fraction (matches the
+ *  live overlay's `guarding * 0.8` slerp-toward-rest). */
+export const GUARDING_MAX_DAMP = 0.8;
+/** Balance-sway low-back lean: amplitudes (deg) + incommensurate frequencies
+ *  (Hz), mirroring the stage overlay. ML = lateral tilt (frontal), AP = flexion
+ *  (sagittal). */
+const SWAY_BAKE_ML_DEG = 8;
+const SWAY_BAKE_AP_DEG = 5;
+const SWAY_BAKE_ML_HZ = 0.45;
+const SWAY_BAKE_AP_HZ = 0.7;
+/** Spine_Lower field ROM the summed lean is clamped to (romRegistry: lateralTilt
+ *  ±25°, flexion −25..60°) so a sway added onto an authored lean can never leave
+ *  real range. */
+const SWAY_LOWBACK_LATERAL_MAX = 25;
+const SWAY_LOWBACK_FLEX_MIN = -25;
+const SWAY_LOWBACK_FLEX_MAX = 60;
+
+/** Merge a sway lean onto the low back: add to an existing Spine_Lower target of
+ *  the same field, else append a fresh one; clamp the result to field ROM. */
+function addLowBackSway(
+  targets: ResolvedSequenceKeyframe['targets'],
+  field: 'lateralTilt' | 'flexion',
+  deltaDeg: number,
+  lo: number,
+  hi: number,
+): void {
+  if (deltaDeg === 0) return;
+  const clamp = (v: number) => Math.max(lo, Math.min(hi, v));
+  const existing = targets.find((t) => t.joint === 'Spine_Lower' && t.motion === field);
+  if (existing) existing.clampedDegrees = clamp(existing.clampedDegrees + deltaDeg);
+  else targets.push({ joint: 'Spine_Lower', motion: field, clampedDegrees: clamp(deltaDeg) });
+}
+
+/** Fold this motion's guarding/sway modifiers into the RESOLVED keyframes so the
+ *  offline sampler, the live stage and the grade see ONE motion (DET-LOCK-03).
+ *  Mutates `keyframes` in place (the resolver owns these fresh objects). Identity
+ *  when the modifiers are absent/zero — clean-mode byte-identical. */
+export function bakeGuardingSway(
+  keyframes: ResolvedSequenceKeyframe[],
+  modifiers: ComposedMotionModifiers | undefined,
+): void {
+  const guarding = clamp01(modifiers?.guarding);
+  const sway = clamp01(modifiers?.balanceSway);
+  if (guarding <= 0 && sway <= 0) return; // clean mode: nothing baked
+  const damp = 1 - guarding * GUARDING_MAX_DAMP;
+  let tMs = 0;
+  for (const kf of keyframes) {
+    tMs += kf.durationMs; // arrival time of this keyframe on the resolved clock
+    if (guarding > 0) {
+      for (const t of kf.targets) if (GUARDING_BAKE_SET.has(t.joint)) t.clampedDegrees *= damp;
+    }
+    // Sway is added AFTER guarding damping (a guarded patient still sways), and
+    // only when the low-back field pair still fits the per-keyframe budget.
+    if (sway > 0 && kf.targets.length <= MAX_TARGETS_PER_KEYFRAME - 2) {
+      const tSec = tMs / 1000;
+      const mlDeg = sway * SWAY_BAKE_ML_DEG * Math.sin(2 * Math.PI * SWAY_BAKE_ML_HZ * tSec);
+      const apDeg =
+        sway * SWAY_BAKE_AP_DEG * Math.sin(2 * Math.PI * SWAY_BAKE_AP_HZ * tSec + 1.3);
+      addLowBackSway(kf.targets, 'lateralTilt', mlDeg, -SWAY_LOWBACK_LATERAL_MAX, SWAY_LOWBACK_LATERAL_MAX);
+      addLowBackSway(kf.targets, 'flexion', apDeg, SWAY_LOWBACK_FLEX_MIN, SWAY_LOWBACK_FLEX_MAX);
+    }
+    tMs += kf.holdMs;
+  }
 }
 
 // ── Persistent heading — entry-yaw rebase (SEAM-1) ──────────────────────────
@@ -1603,10 +1733,18 @@ export function resolveComposedMotion(
   motion = stabilizeGaze(motion);
 
   const startFrom: 'current' | 'neutral' = motion.startFrom === 'neutral' ? 'neutral' : 'current';
+  // Capture whether peak-timing added sub-keyframes: if it did, the resolved
+  // keyframe boundaries no longer line up 1:1 with the clock the motion's
+  // ms-authored artifacts (`contacts`/`gaitStanceWindowsMs`/`headingProfileMs`)
+  // were declared against, so the per-keyframe-boundary window remap below must
+  // stand down (gait motions never author a `peakAt`, so this never fires for
+  // them — the guard is belt-and-braces for a future contacts+peakAt template).
+  const preExpandKfCount = Array.isArray(motion.keyframes) ? motion.keyframes.length : 0;
   motion =
     startFrom === 'current' && opts?.currentAngles
       ? expandPeakTiming(motion, { fromAngles: opts.currentAngles })
       : expandPeakTiming(motion);
+  const peakExpanded = motion.keyframes.length !== preExpandKfCount;
 
   // HANDS: give every motion that leaves the hands unspecified (and unloaded) a
   // relaxed resting hand instead of the anatomical-position flat paddle —
@@ -1777,6 +1915,62 @@ export function resolveComposedMotion(
     };
   }
 
+  // ── LOOP-WRAP VELOCITY FLOOR (SEAM-7 / DET-RES-01) ────────────────────────
+  // A looping gait's FIRST keyframe is entered, at playback, from the loop WRAP
+  // (the last keyframe flows velocity-continuously back into it — buildLoop-
+  // Trajectory records one seamless period, no from-neutral intro). The per-
+  // keyframe floor above, though, seeds kf0 from NEUTRAL, so it charges kf0 the
+  // full from-rest delta the wrap never actually asks for: the walk's contact
+  // keyframe reads a 40° knee swing from 0° but only 35° from its terminal-
+  // stance predecessor. That over-conservative floor (a) sits a hair under the
+  // authored duration — a spurious floor-margin cliff (SEAM-7: walk kf0 at
+  // 1.3 ms margin) — and (b) under pace floors kf0 while its symmetric mirror
+  // keyframe (seeded from ITS real predecessor) does not, injecting a one-sided
+  // step-time limp (DET-RES-01: ~0.4% at speed 1.05, growing with pace). Re-seed
+  // kf0's floor from the loop-wrap pose so the cycle floors SYMMETRICALLY (both
+  // mirror keyframes, or — as with the shipped walk — neither): each commanded
+  // joint's "from" is its value at the END of the cycle (the last keyframe that
+  // sets it, carry-forward semantics; a joint only kf0 touches wraps to its own
+  // value → zero delta). Only kf0's floor moves; kf1…kfN already saw their true
+  // predecessors. Non-looping motions have a real from-rest/from-current entry,
+  // so they are untouched. Speed-1 templates are byte-identical (the walk's kf0
+  // is unfloored either way — the wrap floor only relaxes it further).
+  if (motion.loop === true && resolvedKeyframes.length >= 2) {
+    const kf0 = resolvedKeyframes[0]!;
+    const velCap0 = VELOCITY_CLASS_CAPS[kf0.velocityClass ?? 'deliberate'];
+    // The pose the loop wraps INTO kf0 from: the latest value set for each
+    // joint.motion, scanning keyframes backward (carry-forward = last wins).
+    const wrapFrom = new Map<string, number>();
+    for (let i = resolvedKeyframes.length - 1; i >= 1; i -= 1) {
+      for (const t of resolvedKeyframes[i]!.targets) {
+        const key = `${t.joint}.${t.motion}`;
+        if (!wrapFrom.has(key)) wrapFrom.set(key, t.clampedDegrees);
+      }
+    }
+    let wrapDelta = 0;
+    for (const t of kf0.targets) {
+      // A joint no later keyframe re-commands wraps to kf0's OWN value (set at
+      // kf0, carried unchanged round the cycle, back to kf0) → zero delta.
+      const from = wrapFrom.get(`${t.joint}.${t.motion}`) ?? t.clampedDegrees;
+      wrapDelta = Math.max(wrapDelta, Math.abs(t.clampedDegrees - from));
+    }
+    const wrapFloor = Math.max(MIN_KEYFRAME_MS, (wrapDelta / velCap0) * 1000);
+    const t0 = kfTiming[0]!;
+    t0.floorMs = wrapFloor; // the whole-plan violator count reads THIS floor
+    // Recompute kf0's duration + honesty flag from the wrap floor, on the same
+    // rules as the main loop (floor raise, MAX cap, hold cap).
+    let dur0 = t0.authoredMs < wrapFloor ? Math.ceil(wrapFloor) : t0.authoredMs;
+    let adjusted0 = t0.authoredMs < wrapFloor;
+    if (dur0 > MAX_KEYFRAME_MS) {
+      dur0 = MAX_KEYFRAME_MS;
+      adjusted0 = true;
+    }
+    if (t0.authoredHoldMs > MAX_KEYFRAME_MS) adjusted0 = true;
+    kf0.durationMs = dur0;
+    if (adjusted0) kf0.timingAdjusted = true;
+    else delete kf0.timingAdjusted;
+  }
+
   // ── WHOLE-PLAN RE-TIMING (AI-TIME-01) ─────────────────────────────────────
   // The per-keyframe floor above stretches each violating keyframe by its OWN
   // ratio, so a uniformly-too-fast plan (an AI's "quick" 8-phase gait cycle)
@@ -1794,10 +1988,11 @@ export function resolveComposedMotion(
   // isolated violation in an otherwise-realistic plan keeps the local floor —
   // dilating a slow plan wholesale to fix one rushed keyframe would
   // needlessly slow everything (the existing local behavior is kept, tested).
-  // Cyclic-ness alone deliberately does NOT trigger it either: established
-  // looping templates under `paceGait` carry a couple of isolated floor bumps
-  // (SEAM-7 / DET-RES-01 — an R4 concern) whose resolution must not change
-  // here.
+  // Cyclic-ness alone deliberately does NOT trigger it either: a paced looping
+  // template's one-sided floor bump is instead cured at its SOURCE by the
+  // loop-wrap floor above (SEAM-7 / DET-RES-01), which re-seeds kf0 from its
+  // real playback predecessor so the cycle floors symmetrically — no wholesale
+  // dilation (and no cadence loss) needed for the paced walk.
   //
   // HONESTY + TIME-BASE COHERENCE: every re-timed keyframe is flagged
   // `timingAdjusted` (the same honesty note the local floor uses), holds
@@ -1836,6 +2031,15 @@ export function resolveComposedMotion(
       }
     }
   }
+
+  // BUILD-TIME GUARDING / SWAY BAKE (DET-LOCK-03): fold this motion's
+  // guarding/sway into the resolved keyframes NOW — after the velocity floor +
+  // whole-plan re-timing, so the sway samples the FINAL resolved clock and the
+  // damping never re-opens a timing decision. The offline sampler and the live
+  // stage both build from these keyframes, so recording == grade == screen by
+  // construction. Identity (byte-identical) when the motion carries no
+  // guarding/sway — every existing motion is untouched.
+  bakeGuardingSway(resolvedKeyframes, motion.modifiers);
 
   // GAIT ENRICHMENT (2/2): the stance schedule + contacts are derived from the
   // RESOLVED keyframe timing — after the velocity floor AND the whole-plan
@@ -1944,44 +2148,153 @@ export function resolveComposedMotion(
     ...(gaitNotes.length ? { notes: gaitNotes } : {}),
   };
 
-  // WHOLE-PLAN RE-TIMING, part 2 (AI-TIME-01): the ms-authored artifacts ride
-  // the SAME uniform dilation as the keyframes they were authored against, so
-  // stance windows / plant contacts / the heading profile stay on their gait
-  // phases (a window ending at the half-cycle boundary still ends exactly
-  // there in the re-timed clock). Finite times only — a whole-motion pin's
-  // missing/±Infinity bounds pass through untouched. Identity when the plan
-  // wasn't re-timed (planStretch === 1), keeping every existing resolution
-  // byte-identical.
-  if (planStretch > 1) {
-    const scaleMs = (v: number | undefined): number | undefined =>
-      typeof v === 'number' && Number.isFinite(v) ? v * planStretch : v;
-    // A gait-enrichment-derived schedule was born on the POST-stretch clock
-    // (derived above from the already re-timed keyframes) — re-scaling it here
-    // would double-dilate; only artifacts AUTHORED on the pre-stretch clock
-    // ride the ratio. An enriched plan authored neither field by definition,
-    // so the derived schedule fully owns contacts/windows when present.
-    if (resolved.contacts && !derivedSchedule) {
-      resolved.contacts = resolved.contacts.map((c) => ({
-        ...c,
-        ...(c.fromMs != null ? { fromMs: scaleMs(c.fromMs)! } : {}),
-        ...(c.toMs != null ? { toMs: scaleMs(c.toMs)! } : {}),
-      }));
+  // ARTIFACT RE-TIMING FROM RESOLVED KEYFRAME BOUNDARIES (SEAM-7, part 2) — the
+  // per-keyframe-boundary refinement of R1's authored→trajectory TOTAL mapping.
+  // The ms-authored artifacts (`contacts`, `gaitStanceWindowsMs`,
+  // `headingProfileMs`) are declared at KEYFRAME BOUNDARIES on the AUTHORED
+  // clock; any per-keyframe re-timing above (the velocity floor, the loop-wrap
+  // floor, the whole-plan dilation) shifts those boundaries, so remap every
+  // artifact time through the piecewise-linear map from the authored cumulative
+  // boundaries onto the RESOLVED ones. A window that ended AT the half-cycle
+  // keyframe boundary still ends exactly there in the resolved clock — even
+  // when a SINGLE isolated keyframe floored (the old uniform-ratio rescale only
+  // rode the whole-plan dilation and left an isolated bump's windows behind).
+  // The shared authored→trajectory totals factor then carries them onto
+  // trajectory time by construction. Boundary-aligned times map EXACTLY (the
+  // authored artifacts always are); non-finite whole-motion pins and negatives
+  // pass through. Identity — and byte-identical — when nothing re-timed.
+  {
+    const n = resolvedKeyframes.length;
+    const bAuth = new Array<number>(n);
+    const bRes = new Array<number>(n);
+    let accA = 0;
+    let accR = 0;
+    let reflowed = false;
+    for (let i = 0; i < n; i += 1) {
+      accA += kfTiming[i]!.authoredMs + kfTiming[i]!.authoredHoldMs;
+      accR += resolvedKeyframes[i]!.durationMs + resolvedKeyframes[i]!.holdMs;
+      bAuth[i] = accA;
+      bRes[i] = accR;
+      if (accA !== accR) reflowed = true;
     }
-    if (resolved.gaitStanceWindowsMs && !derivedSchedule) {
-      resolved.gaitStanceWindowsMs = resolved.gaitStanceWindowsMs.map((w) => ({
-        ...w,
-        fromMs: scaleMs(w.fromMs)!,
-        toMs: scaleMs(w.toMs)!,
-      }));
-    }
-    if (resolved.headingProfileMs) {
-      resolved.headingProfileMs = resolved.headingProfileMs.map((p) => ({
-        ...p,
-        tMs: scaleMs(p.tMs)!,
-      }));
+    // Skip entirely (byte-identical) when no keyframe boundary moved, or when
+    // peak-timing split the keyframes so the artifact clock no longer aligns
+    // 1:1 with the resolved keyframes (guarded — gait never authors a peakAt),
+    // or when the schedule was gait-enrichment-DERIVED (already born on the
+    // resolved clock — remapping would double-count).
+    if (reflowed && !peakExpanded && !derivedSchedule) {
+      const remapMs = (t: number | undefined): number | undefined => {
+        if (typeof t !== 'number' || !Number.isFinite(t)) return t;
+        if (t <= 0) return t; // start (0) and any negative pass through
+        let prevA = 0;
+        let prevR = 0;
+        for (let i = 0; i < n; i += 1) {
+          if (t <= bAuth[i]! + 1e-9) {
+            const spanA = bAuth[i]! - prevA;
+            const frac = spanA > 0 ? (t - prevA) / spanA : 0;
+            return prevR + frac * (bRes[i]! - prevR);
+          }
+          prevA = bAuth[i]!;
+          prevR = bRes[i]!;
+        }
+        // Past the last boundary: keep the tail's distance from cycle end.
+        return t + (bRes[n - 1]! - bAuth[n - 1]!);
+      };
+      if (resolved.contacts) {
+        resolved.contacts = resolved.contacts.map((c) => ({
+          ...c,
+          ...(c.fromMs != null ? { fromMs: remapMs(c.fromMs)! } : {}),
+          ...(c.toMs != null ? { toMs: remapMs(c.toMs)! } : {}),
+        }));
+      }
+      if (resolved.gaitStanceWindowsMs) {
+        resolved.gaitStanceWindowsMs = resolved.gaitStanceWindowsMs.map((w) => ({
+          ...w,
+          fromMs: remapMs(w.fromMs)!,
+          toMs: remapMs(w.toMs)!,
+        }));
+      }
+      if (resolved.headingProfileMs) {
+        resolved.headingProfileMs = resolved.headingProfileMs.map((p) => ({
+          ...p,
+          tMs: remapMs(p.tMs)!,
+        }));
+      }
     }
   }
   return resolved;
+}
+
+/** Per-keyframe realistic-velocity floor + margins, recomputed read-only from a
+ *  RESOLVED motion (see {@link keyframeVelocityFloorsMs}). */
+export interface KeyframeFloor {
+  /** The realistic-velocity floor alone, ms: fastest joint delta ÷ class cap. */
+  velocityFloorMs: number;
+  /** The floor the resolver actually enforced: `max(MIN_KEYFRAME_MS, velocity)`. */
+  resolvedFloorMs: number;
+  /** durationMs − velocityFloorMs — headroom above the VELOCITY floor. A
+   *  ROM/velocity retune moves the velocity floor (not the fixed MIN constant),
+   *  so THIS is the retune-safety margin the floor-margin gate asserts (SEAM-7). */
+  velocityMarginMs: number;
+  /** durationMs − resolvedFloorMs — headroom above the enforced floor. 0 for a
+   *  keyframe authored tight at the immovable MIN floor (the run/hop/ballistic
+   *  family), whose velocityMarginMs is nonetheless comfortable. */
+  resolvedMarginMs: number;
+  /** True when the velocity floor is the binding floor (velocity > MIN) — i.e.
+   *  the keyframe is at a genuine VELOCITY cliff, not merely at the MIN floor. */
+  velocityBound: boolean;
+}
+
+/**
+ * Recompute each keyframe's realistic-velocity floor from a RESOLVED motion,
+ * read-only, using the EXACT rule {@link resolveComposedMotion} enforces — so a
+ * gate can assert authored durations clear their floor by a margin without
+ * duplicating (and drifting from) the resolver's formula. The fastest commanded
+ * joint's clamped delta ÷ the keyframe's velocity-class cap is the floor; kf0 of
+ * a `loop` motion measures its delta from the loop-WRAP predecessor (the last
+ * keyframe flows back into it at playback — matching the resolver's loop-wrap
+ * floor), every other keyframe from its real predecessor, and a joint's first
+ * command on a non-loop kf0 seeds from neutral (0), exactly as the resolver does
+ * when no live angles are threaded (the shipping-template gate case).
+ */
+export function keyframeVelocityFloorsMs(resolved: ResolvedComposedMotion): KeyframeFloor[] {
+  const kfs = resolved.keyframes;
+  const n = kfs.length;
+  const isLoop = resolved.loop === true && n >= 2;
+  // Loop-wrap seed for kf0: the latest value set for each joint round the cycle
+  // (scan backward from the last keyframe; carry-forward = last wins).
+  const wrapFrom = new Map<string, number>();
+  if (isLoop) {
+    for (let i = n - 1; i >= 1; i -= 1) {
+      for (const t of kfs[i]!.targets) {
+        const key = `${t.joint}.${t.motion}`;
+        if (!wrapFrom.has(key)) wrapFrom.set(key, t.clampedDegrees);
+      }
+    }
+  }
+  const last = new Map<string, number>();
+  return kfs.map((kf, i) => {
+    const velCap = VELOCITY_CLASS_CAPS[kf.velocityClass ?? 'deliberate'];
+    let maxDelta = 0;
+    for (const t of kf.targets) {
+      const key = `${t.joint}.${t.motion}`;
+      // kf0 of a loop: from the wrap pose (a joint no later keyframe re-commands
+      // wraps to its own value → 0 delta). Otherwise the running predecessor
+      // (neutral 0 for a joint's first appearance).
+      const from = i === 0 && isLoop ? wrapFrom.get(key) ?? t.clampedDegrees : last.get(key) ?? 0;
+      maxDelta = Math.max(maxDelta, Math.abs(t.clampedDegrees - from));
+      last.set(key, t.clampedDegrees);
+    }
+    const velocityFloorMs = (maxDelta / velCap) * 1000;
+    const resolvedFloorMs = Math.max(MIN_KEYFRAME_MS, velocityFloorMs);
+    return {
+      velocityFloorMs,
+      resolvedFloorMs,
+      velocityMarginMs: kf.durationMs - velocityFloorMs,
+      resolvedMarginMs: kf.durationMs - resolvedFloorMs,
+      velocityBound: velocityFloorMs > MIN_KEYFRAME_MS,
+    };
+  });
 }
 
 /** One target's MEASURED landing at its keyframe (computeJointAngles readback

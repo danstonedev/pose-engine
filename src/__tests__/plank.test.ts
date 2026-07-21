@@ -20,7 +20,13 @@ import { captureJointAngleRestReference, type JointAngleRestReference } from '..
 import { sampleMotionChain } from '../services/movementChain';
 import { planPosturePath } from '../services/posturePlan';
 import { resolveComposedMotion } from '../services/motionSequence';
-import { buildGetDownToPlank, buildPushUp, buildStandFromPlank } from '../services/movementTemplates';
+import {
+  buildGetDownToPlank,
+  buildPushUp,
+  buildStandFromPlank,
+  buildKneelDown,
+  buildStandFromKneel,
+} from '../services/movementTemplates';
 import { measureCommandMotion } from '../services/movementCommand';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
@@ -42,13 +48,20 @@ describe('planPosturePath — plank edges (pure)', () => {
   });
 });
 
-describe('DET-RES-02 — plank family authors the ankle WITHIN ROM (no silent clamp)', () => {
-  // The toe-tuck used to author 40° plantarflexion against the 20° ankleFlexion
-  // ROM limit — resolution silently clamped it, so authored intent and what
-  // actually played disagreed. The family now authors AT the limit; this pins
-  // that every ankle target survives resolution unchanged.
-  it('every ankleFlexion target in get-down/push-up/stand resolves to exactly its authored value', () => {
-    for (const motion of [buildGetDownToPlank(), buildPushUp({ reps: 2 }), buildStandFromPlank()]) {
+describe('DET-RES-02 (+ kneel sibling) — posture families author the ankle WITHIN ROM (no silent clamp)', () => {
+  // The plank toe-tuck used to author 40° plantarflexion against the 20° ankleFlexion
+  // ROM max, and the kneel foot-flatten authored −60° against the −50° dorsiflexion ROM
+  // min — resolution silently clamped BOTH, so authored intent and what actually played
+  // disagreed. Both families now author AT the limit; this pins that every ankle target
+  // survives resolution unchanged (the same silent-clamp pattern, both signs).
+  it('every ankleFlexion target in the plank + kneel families resolves to exactly its authored value', () => {
+    for (const motion of [
+      buildGetDownToPlank(),
+      buildPushUp({ reps: 2 }),
+      buildStandFromPlank(),
+      buildKneelDown(),
+      buildStandFromKneel(),
+    ]) {
       const resolved = resolveComposedMotion(motion, BODY_VARIANTS.male);
       expect(resolved.status, motion.name).toBe('ok');
       const ankles = resolved.outcomes.filter((o) => o.motion === 'ankleFlexion');

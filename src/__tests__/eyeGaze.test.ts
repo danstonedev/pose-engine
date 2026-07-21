@@ -459,20 +459,36 @@ describe('eye micro-gaze — stage wiring (source pins)', () => {
 
   it('the re-bake runs AFTER the tap and is NOT idle-gated — the eyes live during motion too', () => {
     // The idle-gated block closes, THEN the eye apply runs unconditionally.
+    // (Window widened 500→1200: the SEAM-9 motion-time-liveliness else-if — the
+    // realism breathing/micro-sway, also re-applied AFTER the tap so recordings
+    // stay clean — now sits between the idle block's close and the eye apply.)
     expect(stageSource).toMatch(
-      /applyIdleOverlays\(motionDelta\)\s*\n\s*\) \{\s*\n\s*renderNeeded = true;\s*\n\s*\}[\s\S]{0,500}if \(applyEyeGaze\(motionDelta\)\) renderNeeded = true;/,
+      /applyIdleOverlays\(motionDelta\)\s*\n\s*\) \{\s*\n\s*renderNeeded = true;\s*\n\s*\}[\s\S]{0,1200}if \(applyEyeGaze\(motionDelta\)\) renderNeeded = true;/,
     );
-    // And the eye apply is OUTSIDE the truly-idle condition (no gate between
-    // the idle block's close and the eye apply).
+    // And the eye apply is OUTSIDE the truly-idle condition: nothing between the
+    // first idle-overlay call and the eye apply RE-GATES on the idle predicate
+    // (the interposed motion-liveliness else-if uses the NON-negated motion
+    // predicate, so the negated idle tokens still never appear here).
     const between = stageSource.split('applyIdleOverlays(motionDelta)')[1]!.split(
       'applyEyeGaze(motionDelta)',
     )[0]!;
     expect(between).not.toMatch(/!activeMotionId|!composedActive|!activeTrajectory/);
   });
 
-  it('captureFrame builds from the CLEAN pose: eye deltas lift around the capture and restore at the same phase', () => {
+  it('captureFrame builds from the CLEAN pose and restores the eyes EXACTLY (SEAM-9 snapshot, not a stale-base re-derive)', () => {
+    // SEAM-9 — the eye deltas are restored by an EXACT snapshot of the applied
+    // locals (captureAppliedEyeGaze), NOT re-derived via applyEyeGaze(0). A
+    // re-derive recomputes the gaze-absorb against the head/root as the idle
+    // re-bake leaves them — a STALE BASE if that pose differs at all. undoEyeGaze
+    // still lifts the eyes around the capture; the snapshot closure copies the
+    // exact locals back after (base-independent — an eye local is frame-invariant).
     expect(stageSource).toMatch(
-      /const hadEyeGaze = undoEyeGaze\(\);[\s\S]{0,400}buildFrameNowClean\(tMs\);[\s\S]{0,300}if \(hadEyeGaze\) applyEyeGaze\(0\);/,
+      /const eyeRestore = captureAppliedEyeGaze\(\);[\s\S]{0,200}undoEyeGaze\(\);[\s\S]{0,400}buildFrameNowClean\(tMs\);[\s\S]{0,400}if \(eyeRestore\) eyeRestore\(\);/,
+    );
+    // The snapshot clones the CURRENT applied eye locals and copies them back
+    // verbatim, re-setting eyeGazeOn so the next frame's undo stays balanced.
+    expect(stageSource).toMatch(
+      /function captureAppliedEyeGaze\(\)[\s\S]{0,500}quaternion\.clone\(\)[\s\S]{0,300}quaternion\.copy\(qL\)[\s\S]{0,300}eyeGazeOn = true;/,
     );
   });
 
