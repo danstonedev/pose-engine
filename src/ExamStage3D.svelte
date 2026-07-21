@@ -93,6 +93,7 @@
     READY_HOLD_MS,
     maxPoseAngleDiffDeg,
     readyTransitionNeeded,
+    readyResetRootTarget,
   } from './services/readyTransition';
   import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
 
@@ -731,6 +732,9 @@
         return readyTransitionNeeded({
           poseAngleDiffDeg: maxPoseAngleDiffDeg(currentPose, baselinePoseRef),
           rootHorizontalM: Math.hypot(composedRootTranslate[0], composedRootTranslate[2]),
+          // SEAM-10: a body left off the grounded standing Y tweens back down
+          // rather than snapping via the resetRootToRest else-branch below.
+          rootVerticalM: Math.abs(composedRootTranslate[1]),
           rootUprightW: Math.abs(composedRootQuat[3]),
         });
       }
@@ -749,19 +753,22 @@
        *  command mid-settle supersedes it. */
       async function playReadySettle(token: number): Promise<void> {
         if (!baselinePoseRef) return;
-        const keepX = composedRootTranslate[0];
-        const keepZ = composedRootTranslate[2];
+        // SEAM-10: the grounded-standing target is the ONE pure truth — upright,
+        // horizontal position preserved (stand up in place), vertical eased down
+        // to the grounded standing Y. TWEENED over READY_SETTLE_MS (never snapped),
+        // so the pelvis lands on the floor with no per-frame jump and no rootY drift.
+        const { toQuat, toTranslateM } = readyResetRootTarget(composedRootTranslate);
         await tweenTo(baselinePoseRef, READY_SETTLE_MS, {
           fromQuat: [...composedRootQuat],
-          toQuat: [0, 0, 0, 1],
+          toQuat,
           fromTranslate: [...composedRootTranslate],
-          toTranslate: [keepX, 0, keepZ],
+          toTranslate: toTranslateM,
           planted: true,
         });
-        // The body now stands ready in place; carry that root state forward so the
-        // next motion continues from here rather than snapping to the origin.
-        composedRootQuat = [0, 0, 0, 1];
-        composedRootTranslate = [keepX, 0, keepZ];
+        // The body now stands ready in place; carry that grounded root state forward
+        // so the next motion continues from here rather than snapping to the origin.
+        composedRootQuat = toQuat;
+        composedRootTranslate = toTranslateM;
         await holdReadyBeat(token);
       }
 

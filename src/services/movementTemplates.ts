@@ -2846,9 +2846,13 @@ export function buildBirdDog(opts: { side?: 'L' | 'R'; reps?: number } = {}): Co
 // the body (groundingPosture 'kneeling' → knee vertical pin) and the pelvis rides at
 // thigh height. A tall quadruped without the hands.
 
-/** Upright-kneel legs: shins folded to lie on the floor (hip 15 / knee 110 / ankle −60
- *  lands the knee + toes at the floor), torso stacked vertically over the thighs. */
-const kneelLegs = (): SequenceTarget[] => bilatLeg(15, 110, -60);
+/** Upright-kneel legs: shins folded to lie on the floor (hip 15 / knee 110 / ankle −50
+ *  lands the knee + toes at the floor), torso stacked vertically over the thighs.
+ *  Ankle authored AT the −50° ankleFlexion (dorsiflexion) ROM min: the old −60° was
+ *  silently clamped to −50 at resolution (DET-RES-02 sibling — the plank toe-tuck had
+ *  the same silent clamp in the +plantarflexion direction), so authored intent and what
+ *  actually played disagreed; −50 is what resolves + plays. */
+const kneelLegs = (): SequenceTarget[] => bilatLeg(15, 110, -50);
 
 /** KNEEL DOWN — standing → kneeling. Lower straight down onto the knees, torso staying
  *  tall. Ends 'kneeling'. */

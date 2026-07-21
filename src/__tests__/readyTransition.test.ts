@@ -9,8 +9,10 @@ import { describe, expect, it } from 'vitest';
 import {
   maxPoseAngleDiffDeg,
   readyTransitionNeeded,
+  readyResetRootTarget,
   READY_POSE_TOLERANCE_DEG,
   READY_ROOT_TOLERANCE_M,
+  READY_ROOT_VERTICAL_TOLERANCE_M,
 } from '../services/readyTransition';
 import type { CustomPose } from '../types';
 
@@ -71,5 +73,34 @@ describe('readyTransitionNeeded', () => {
 
   it('is true when the root is reoriented (not upright — e.g. a lying posture)', () => {
     expect(readyTransitionNeeded({ ...atReady, rootUprightW: 0.7 })).toBe(true);
+  });
+
+  // SEAM-10: a body left off the grounded standing Y (pelvis raised/lowered) but
+  // otherwise at ready must TWEEN back down, not snap via the resetRootToRest
+  // else-branch — so the vertical drift warrants a settle too.
+  it('is true when the root sits off the grounded standing Y (SEAM-10)', () => {
+    // Counterfactual: without the vertical term the pose/horizontal/orientation are
+    // all at ready, so the OLD decision returns false and the reset snaps the pelvis.
+    expect(readyTransitionNeeded({ ...atReady, rootVerticalM: READY_ROOT_VERTICAL_TOLERANCE_M + 0.02 })).toBe(true);
+  });
+
+  it('a hair of vertical drift within tolerance stays false (byte-identical decision)', () => {
+    expect(readyTransitionNeeded({ ...atReady, rootVerticalM: READY_ROOT_VERTICAL_TOLERANCE_M / 2 })).toBe(false);
+    // Omitting rootVerticalM entirely is the pre-SEAM-10 decision (defaults to 0).
+    expect(readyTransitionNeeded(atReady)).toBe(false);
+  });
+});
+
+describe('readyResetRootTarget — grounded-standing tween end (SEAM-10)', () => {
+  it('lands the root at the grounded standing Y, upright, in place (tween target)', () => {
+    const from: [number, number, number] = [0.4, 0.073, -0.25]; // raised 7.3 cm, off-origin
+    const { toQuat, toTranslateM } = readyResetRootTarget(from);
+    // Vertical dropped to the grounded standing Y (0 relative to the grounded rest).
+    expect(toTranslateM[1]).toBe(0);
+    // Horizontal preserved — the body stands up IN PLACE, no teleport to origin.
+    expect(toTranslateM[0]).toBe(from[0]);
+    expect(toTranslateM[2]).toBe(from[2]);
+    // Orientation returned upright.
+    expect(toQuat).toEqual([0, 0, 0, 1]);
   });
 });

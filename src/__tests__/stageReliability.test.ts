@@ -383,3 +383,27 @@ describe('SEAM-4/SEAM-5 — the live stage runs the grounding-switch crossfade i
     );
   });
 });
+
+describe('SEAM-10 — the ready-reset tweens to the grounded standing Y (source pins)', () => {
+  // The between-command return-to-ready (startFrom:'neutral') must EASE the root
+  // back to the grounded standing Y in place, never snap it. The pure decision +
+  // tween target live in services/readyTransition (readyTransitionNeeded's vertical
+  // term + readyResetRootTarget), gated headlessly in readyTransition.test.ts. The
+  // stage cannot be mounted here, so these pin the LIVE wiring so a refactor can't
+  // silently drop the vertical check (falling back to the instant resetRootToRest
+  // snap) or hard-code a different tween end.
+  it('threads the vertical drift into the settle decision (not just pose/horizontal/orientation)', () => {
+    expect(stageSource).toContain('rootVerticalM: Math.abs(composedRootTranslate[1])');
+  });
+
+  it('tweens the ready-reset root to the shared grounded-standing target (eased, not snapped)', () => {
+    expect(stageSource).toContain('readyResetRootTarget');
+    // The pure target drives the tween end (toQuat/toTranslate) inside playReadySettle.
+    expect(stageSource).toMatch(
+      /function playReadySettle[\s\S]{0,900}readyResetRootTarget\(composedRootTranslate\)/,
+    );
+    expect(stageSource).toMatch(
+      /function playReadySettle[\s\S]{0,1200}await tweenTo\(baselinePoseRef, READY_SETTLE_MS, \{[\s\S]{0,300}toTranslate: toTranslateM/,
+    );
+  });
+});
