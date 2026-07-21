@@ -106,6 +106,26 @@ export * from './services/footContact';
 // ── Whole-body center of mass + balance (base of support, margin of stability) ──
 export * from './services/centerOfMass';
 
+// Normative gait ground-truth (Validity Gate, Workstream A) — bundled Winter /
+// Perry / CGA normative sagittal joint curves (hip/knee/ankle, mean ±1 SD) + the
+// pure math to grade a motion against them: joint-angle RMS / within-±1-SD-band,
+// Froude number + regime, spatiotemporal + walk-ratio norms, vertical-CoM band,
+// pelvic-obliquity reference. Pure data + math (no rig); the gate consumes it.
+export * from './services/normativeGait';
+
+// Unified build-time Validity Gate (Workstream A) — one deterministic, auditable
+// pass/fail over a RESOLVED composed motion across the animation-craft
+// plausibility gates (foot-skate ratio, CoM-in-base, penetration, seam-jerk) +
+// the ROM-clamp invariant, with the biomech checks (normativeGait RMS / Froude /
+// vertical-CoM) folded in for gait-shaped motions via runGaitBiomechChecks.
+export * from './services/validityGate';
+
+// Biomech half of the Validity Gate (Workstream A integration) — folds the
+// normativeGait ground truth (joint-angle RMS vs ±1 SD, Froude, vertical-CoM)
+// into the gate's `runBiomechChecks` hook for gait-shaped motions. Separate so
+// validityGate itself never depends on the normative data.
+export * from './services/gaitBiomechCheck';
+
 // Compound motion chains (simMOVE Phase 4) — sequence validated primitives with
 // cross-motion continuity (each segment continues from the previous one's end
 // pose + root), plus the seam-continuity metric so "no teleport between segments"
