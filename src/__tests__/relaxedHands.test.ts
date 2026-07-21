@@ -122,18 +122,47 @@ describe('relaxedHands — authoring (pure)', () => {
     expect(RELAXED_WRIST_FLEX_DEG).toBeLessThan(20);
   });
 
-  it('a motion that authors ANY hand/wrist/finger target passes through byte-identical', () => {
-    // sit-to-stand joined this family in Wave 5 (roadmap 5.6): its thigh-push arm
-    // strategy authors wrist targets, so the author owns the hands and the
-    // relaxed set must NOT be layered on top of the pressing palms.
-    for (const id of ['wrist-flexion-extension', 'wrist-deviation', 'sit-to-stand'] as const) {
+  it('a motion authoring BOTH hands passes through byte-identical (neither side overridden)', () => {
+    // sit-to-stand authors BOTH wrists (its thigh-push arm strategy), so the
+    // author owns the whole hand complex — no relaxed curl on either side.
+    const m = template('sit-to-stand');
+    expect(relaxedHands(m), 'sit-to-stand same reference').toBe(m);
+    const r = resolveComposedMotion(m, variantCfg);
+    expect(
+      r.keyframes.some((kf) => kf.targets.some((t) => t.motion === 'fingerFlexion')),
+      'sit-to-stand gets no finger curl',
+    ).toBe(false);
+  });
+
+  it('DET-GATE-01 — a ONE-HANDED wrist screen relaxes the OTHER (free) hand, keeping the authored side as-is', () => {
+    // A wrist AROM screen authors only the RIGHT hand. The OLD whole-body gate
+    // stripped the resting curl off BOTH hands, leaving the free left hand a flat
+    // anatomical paddle; the per-side gate now relaxes the free left hand while
+    // leaving the authored right hand exactly as the screen posed it.
+    for (const id of ['wrist-flexion-extension', 'wrist-deviation'] as const) {
       const m = template(id);
-      expect(relaxedHands(m), `${id} same reference`).toBe(m);
+      expect(relaxedHands(m), `${id} is modified (free left hand relaxed)`).not.toBe(m);
       const r = resolveComposedMotion(m, variantCfg);
-      // No finger targets appear — the author owns the whole hand complex.
+      // LEFT (free) hand carries the graded finger curl on keyframes with targets…
+      const leftCurls = r.keyframes.flatMap((kf) =>
+        kf.targets.filter((t) => t.joint.startsWith('L_') && t.motion === 'fingerFlexion'),
+      );
+      expect(leftCurls.length, `${id} free left hand curls`).toBeGreaterThan(0);
+      // …and the resting wrist flexion (not the authored screen values).
+      const leftWrist = r.keyframes
+        .flatMap((kf) => kf.targets.filter((t) => t.joint === 'L_Hand' && t.motion === 'wristFlexion'))
+        .map((t) => t.clampedDegrees);
+      expect(leftWrist.length).toBeGreaterThan(0);
       expect(
-        r.keyframes.some((kf) => kf.targets.some((t) => t.motion === 'fingerFlexion')),
-        `${id} gets no finger curl`,
+        leftWrist.every((v) => Math.abs(v - RELAXED_WRIST_FLEX_DEG) < 1e-9),
+        `${id} free left wrist rests at ${RELAXED_WRIST_FLEX_DEG}°`,
+      ).toBe(true);
+      // RIGHT (authored) hand: NO finger curl added — the author owns it.
+      expect(
+        r.keyframes.some((kf) =>
+          kf.targets.some((t) => t.joint.startsWith('R_') && t.motion === 'fingerFlexion'),
+        ),
+        `${id} authored right hand keeps no curl`,
       ).toBe(false);
     }
   });
@@ -170,14 +199,40 @@ describe('relaxedHands — authoring (pure)', () => {
     expect(relaxedHands(rawLie)).toBe(rawLie);
   });
 
-  it('a declared HAND contact skips the transform', () => {
+  it('DET-GATE-01 — a declared ONE-HAND contact keeps that palm flat but relaxes the free hand', () => {
     const m: ComposedMotion = {
       keyframes: [
         { durationMs: 600, targets: [{ joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: 40 }] },
       ],
       contacts: [{ foot: 'L_Hand' }],
     };
-    expect(relaxedHands(m)).toBe(m);
+    const out = relaxedHands(m);
+    expect(out, 'transform runs (free right hand relaxed)').not.toBe(m);
+    const added = out.keyframes[0]!.targets!;
+    // LEFT hand (planted, bearing) stays flat — no relaxed targets on the left.
+    expect(
+      added.some(
+        (t) => t.joint.startsWith('L_') && (t.motion === 'fingerFlexion' || t.motion === 'wristFlexion'),
+      ),
+      'planted left palm stays flat',
+    ).toBe(false);
+    // RIGHT hand (free) gets the full relaxed set (6 targets: wrist + 5 digits).
+    expect(
+      added.filter(
+        (t) => t.joint.startsWith('R_') && (t.motion === 'fingerFlexion' || t.motion === 'wristFlexion'),
+      ).length,
+      'free right hand gets the resting curl',
+    ).toBe(6);
+  });
+
+  it('DET-GATE-01 — a BOTH-hand contact keeps both palms flat (whole-body plant)', () => {
+    const m: ComposedMotion = {
+      keyframes: [
+        { durationMs: 600, targets: [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: 20 }] },
+      ],
+      contacts: [{ foot: 'L_Hand' }, { foot: 'R_Hand' }],
+    };
+    expect(relaxedHands(m), 'both hands planted ⇒ byte-identical').toBe(m);
   });
 
   it('the WALK is untouched byte-for-byte — its hand targets all come from its own coordination', () => {

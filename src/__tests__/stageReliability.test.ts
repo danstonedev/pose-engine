@@ -30,6 +30,10 @@ const samplerSource = readFileSync(
   fileURLToPath(new URL('../services/motionRecording.ts', import.meta.url)),
   'utf8',
 );
+const motionSequenceSource = readFileSync(
+  fileURLToPath(new URL('../services/motionSequence.ts', import.meta.url)),
+  'utf8',
+);
 
 describe('M3 — interrupted composed playback is a distinct, honest status', () => {
   it("ComposedMotionPlaybackResult admits status 'interrupted' with partial measurements + reason", () => {
@@ -224,6 +228,57 @@ describe('DET-LOCK-01 — the live vcal passes the gait vertical rise clamp (loc
     // With it, the calibrated vertical never exceeds pin + 2.5 cm (+ float eps).
     expect(worstClamped).toBeLessThanOrEqual(GAIT_VERTICAL_MAX_RISE_M + 1e-9);
     expect(GAIT_VERTICAL_MAX_RISE_M).toBeCloseTo(0.025, 10);
+  });
+});
+
+describe('DET-LOCK-03 — guarding/sway are baked at resolve time; the composed stage path never re-applies them live (source pins)', () => {
+  // The numeric behaviour (a guarded recording has reduced excursion; sampler ==
+  // stage) is gated headlessly in motionRecording.test.ts through the SAME
+  // resolveComposedMotion the stage builds from. These pin the wiring so a
+  // refactor can't silently re-open the three-way disagreement: (1) the bake
+  // runs inside resolveComposedMotion (the one path sampler + stage share), and
+  // (2) the composed stage playback sets ONLY liveliness on the live overlay —
+  // it must NOT re-apply the now-baked guarding/sway (that would double them).
+  it('resolveComposedMotion folds guarding/sway into the resolved keyframes', () => {
+    expect(motionSequenceSource).toContain('bakeGuardingSway(resolvedKeyframes, motion.modifiers)');
+    // The bake is clean-mode-zeroed (identity when neither modifier is set).
+    expect(motionSequenceSource).toMatch(
+      /export function bakeGuardingSway[\s\S]{0,400}if \(guarding <= 0 && sway <= 0\) return;/,
+    );
+  });
+
+  it('the composed playback sets ONLY liveliness on the live overlay (guarding/sway are baked, not doubled)', () => {
+    expect(stageSource).toContain('setMotionOverlaysImpl?.({ liveliness: motionLiveliness });');
+    // The composed setMotionOverlays call carries no guarding/balanceSway key.
+    const composedOverlayCall = stageSource.match(
+      /setMotionOverlaysImpl\?\.\(\{ liveliness: motionLiveliness \}\);/,
+    );
+    expect(composedOverlayCall, 'composed overlay call present').not.toBeNull();
+  });
+});
+
+describe('SEAM-9 — motion-time liveliness (realism) is applied AFTER the recording tap, not before (leak fix)', () => {
+  // The realism breathing/micro-sway is LIVE-ONLY (the offline sampler never
+  // sees it), so a recording/streamed report that carried it would diverge from
+  // the grade (the ±2.2° trunk leak). It must be re-applied AFTER the tap, in the
+  // same discipline as the idle overlay — and it is mutually exclusive with the
+  // idle re-bake (a motion is driving the skeleton).
+  it('applyMotionLiveliness runs AFTER the recording tap (else-branch of the idle re-bake)', () => {
+    expect(stageSource).toMatch(
+      /if \(recording\) \{[\s\S]{0,1500}\} else if \(\(\(mixer && activeMotionId\) \|\| composedActive\) && applyMotionLiveliness\(motionDelta\)\)/,
+    );
+  });
+
+  it('the motion-time liveliness apply is a real overlay (breathing + micro-sway), NOT inlined before the tap', () => {
+    // The function exists and moves the two trunk bones…
+    expect(stageSource).toMatch(
+      /function applyMotionLiveliness\(dtSec: number\): boolean \{[\s\S]{0,900}breathingLeanFM[\s\S]{0,400}livelinessSwayDeg/,
+    );
+    // …and the pre-tap motion-overlay block no longer applies it (only guarding /
+    // sway / pelvis remain there — a comment marks where liveliness moved to).
+    expect(stageSource).toContain(
+      'It is therefore applied via applyMotionLiveliness() AFTER the recording',
+    );
   });
 });
 
