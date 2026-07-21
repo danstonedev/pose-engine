@@ -1140,7 +1140,12 @@ export const HAND_JOINT_KEYS: readonly string[] = (['L_', 'R_'] as const).flatMa
   `${s}Ring1`,
   `${s}Pinky1`,
 ]);
-const HAND_JOINT_SET = new Set(HAND_JOINT_KEYS);
+/** Per-side hand-complex joint sets (DET-GATE-01): the relaxed-hand gate is
+ *  decided PER HAND, so a motion that authors only the LEFT hand still lets the
+ *  RIGHT hand receive its resting curl (and vice-versa) — one authored hand no
+ *  longer strips the resting curl off the OTHER, whole-body. */
+const HAND_JOINT_SET_L = new Set(HAND_JOINT_KEYS.filter((k) => k.startsWith('L_')));
+const HAND_JOINT_SET_R = new Set(HAND_JOINT_KEYS.filter((k) => k.startsWith('R_')));
 
 /** Resting wrist flexion of a relaxed hanging hand, deg (a slight drop — not a
  *  rigid extended paddle, not a flexed claw). */
@@ -1169,6 +1174,13 @@ export const RELAXED_HAND_TARGETS: readonly SequenceTarget[] = (['L_', 'R_'] as 
     })),
   ],
 );
+/** The relaxed-hand target set split by side (6 targets each) — the per-side
+ *  gate (DET-GATE-01) adds only the sides that are neither authored nor
+ *  weight-bearing. */
+const RELAXED_HAND_TARGETS_BY_SIDE: Readonly<Record<'L' | 'R', readonly SequenceTarget[]>> = {
+  L: RELAXED_HAND_TARGETS.filter((t) => t.joint.startsWith('L_')),
+  R: RELAXED_HAND_TARGETS.filter((t) => t.joint.startsWith('R_')),
+};
 
 /** Postures in which the hands may BEAR WEIGHT (planted on the floor in plank /
  *  quadruped, or resting under/against the body when lying) — a relaxed curl
@@ -1227,22 +1239,29 @@ const RELAXED_ADDED_TARGETS = new WeakSet<SequenceTarget>();
  */
 export function relaxedHands(motion: ComposedMotion): ComposedMotion {
   if (!motion || !Array.isArray(motion.keyframes)) return motion;
-  // "…unless otherwise specified" — any authored hand-complex target anywhere in
-  // the motion means the author owns the hands (this also makes the transform
-  // idempotent with gait's coordination, which writes wrist + finger targets).
-  const authorsHands = motion.keyframes.some((kf) =>
-    kf.targets?.some((t) => HAND_JOINT_SET.has(t.joint)),
+  // PER-SIDE gate (DET-GATE-01): the resting curl is decided per HAND, so a
+  // motion that authors or loads ONE hand still gives the OTHER its curl —
+  // a one-handed wrist AROM screen no longer leaves the free hand a flat paddle.
+  //
+  // A side is left AS AUTHORED when it is either:
+  //   • AUTHORED — any wrist/finger target on that side anywhere in the motion
+  //     ("…unless otherwise specified"; also keeps idempotency with gait's
+  //     coordination, which writes both wrists + fingers), or
+  //   • PLANTED  — a declared hand contact on that side (the palm bears weight).
+  const authorsLeft = motion.keyframes.some((kf) =>
+    kf.targets?.some((t) => HAND_JOINT_SET_L.has(t.joint)),
   );
-  if (authorsHands) return motion;
-  // Declared hand contacts (the `foot` field names the contact BONE — a hand in
-  // a push-up is a legal entry): the hand bears weight, keep the flat palm.
-  const plantsHandContact = motion.contacts?.some(
-    (c) => c && (c.foot === 'L_Hand' || c.foot === 'R_Hand'),
+  const authorsRight = motion.keyframes.some((kf) =>
+    kf.targets?.some((t) => HAND_JOINT_SET_R.has(t.joint)),
   );
-  if (plantsHandContact) return motion;
+  const plantsLeft = !!motion.contacts?.some((c) => c && c.foot === 'L_Hand');
+  const plantsRight = !!motion.contacts?.some((c) => c && c.foot === 'R_Hand');
   // Weight-bearing / lying postures — grounding sets that plant a hand, lying
   // start/end postures, per-keyframe lying posture sugar, or a large raw root
-  // reorientation (same thresholds as stabilizeGaze's upright check).
+  // reorientation (same thresholds as stabilizeGaze's upright check). This gate
+  // stays WHOLE-BODY (both hands skipped): lying/plank/quadruped may bear on
+  // EITHER hand and no per-hand contact signal exists (the documented judgement
+  // call in {@link HANDS_MAY_BEAR}), so splitting it would float a bearing palm.
   const bearing =
     (motion.startPosture != null && HANDS_MAY_BEAR.includes(motion.startPosture)) ||
     (motion.endPosture != null && HANDS_MAY_BEAR.includes(motion.endPosture)) ||
@@ -1257,6 +1276,16 @@ export function relaxedHands(motion: ComposedMotion): ComposedMotion {
     );
   if (bearing) return motion;
 
+  const relaxLeft = !authorsLeft && !plantsLeft;
+  const relaxRight = !authorsRight && !plantsRight;
+  // Neither side eligible (both authored/planted) ⇒ byte-identical pass-through,
+  // exactly as before for a fully hand-authoring motion (the walk, sit-to-stand).
+  if (!relaxLeft && !relaxRight) return motion;
+  const sideTargets: readonly SequenceTarget[] = [
+    ...(relaxLeft ? RELAXED_HAND_TARGETS_BY_SIDE.L : []),
+    ...(relaxRight ? RELAXED_HAND_TARGETS_BY_SIDE.R : []),
+  ];
+
   const keyframes = motion.keyframes.map((kf) => {
     if (!kf || typeof kf !== 'object') return kf;
     const ts = kf.targets ?? [];
@@ -1267,15 +1296,16 @@ export function relaxedHands(motion: ComposedMotion): ComposedMotion {
       kf.root != null || kf.travel != null || kf.posture != null ||
       kf.stance === 'planted' || kf.stance === 'floating';
     if (ts.length === 0 && !hasDirective) return kf;
-    // Respect the per-keyframe target budget: if the 12-target hand set wouldn't
-    // fit, leave this keyframe alone rather than push targets that would
-    // overflow-drop (carry-forward keeps the hands posed from earlier keyframes).
-    if (ts.length + RELAXED_HAND_TARGETS.length > MAX_TARGETS_PER_KEYFRAME) return kf;
-    // authorsHands guaranteed no existing hand target above, so plain appends
+    // Respect the per-keyframe target budget: if the (6- or 12-target) relaxed
+    // set wouldn't fit, leave this keyframe alone rather than push targets that
+    // would overflow-drop (carry-forward keeps the hands posed from earlier
+    // keyframes).
+    if (ts.length + sideTargets.length > MAX_TARGETS_PER_KEYFRAME) return kf;
+    // The relaxed side(s) carry no existing hand target above, so plain appends
     // never dupe. Fresh clones per keyframe (no shared target objects), each
     // TAGGED as a background add so the resolver's refusal contract and outcome
     // report stay authored-only (see RELAXED_ADDED_TARGETS).
-    const adds = RELAXED_HAND_TARGETS.map((t) => {
+    const adds = sideTargets.map((t) => {
       const clone = { ...t };
       RELAXED_ADDED_TARGETS.add(clone);
       return clone;
@@ -1283,6 +1313,106 @@ export function relaxedHands(motion: ComposedMotion): ComposedMotion {
     return { ...kf, targets: [...ts, ...adds] };
   });
   return { ...motion, keyframes };
+}
+
+// ── BUILD-TIME GUARDING / SWAY BAKE (DET-LOCK-03) ───────────────────────────
+// Guarding (trunk + arm stiffness) and balance-sway (a slow postural wobble)
+// used to exist ONLY as a LIVE stage overlay (ExamStage3D setMotionOverlays), so
+// the three views of a motion DISAGREED: the offline sampler + grading saw the
+// clean keyframes, the on-screen playback added the overlay live, and a
+// recording captured whatever the overlay happened to leave. Per the kinematic
+// charter (physics MIMICKED at author/resolve time, playback deterministic), a
+// MOTION's guarding/sway is folded HERE — into the resolved keyframes the
+// offline sampler AND the live stage both build from — so the recording, the
+// grade and the screen agree BY CONSTRUCTION. (The live overlay path remains for
+// named-clip prescriptions and idle liveliness, which own no resolved keyframes
+// to bake into.)
+//
+// Pure, additive, ROM-safe and clean-mode-zeroed like every other house
+// transform: guarding SCALES the trunk/arm target excursion toward neutral (a
+// stiffer, reduced-excursion movement); sway ADDS a low-back lean sampled at
+// each keyframe's RESOLVED arrival time (deterministic — the same ms clock the
+// sampler and stage share). Applied AFTER the velocity governor + whole-plan
+// re-timing, so it never perturbs timing or the authored-target outcome report
+// (guarding/sway are a presentation overlay, narrated via `modifiers`, not a
+// per-target achievability claim).
+
+const clamp01 = (v: number | undefined): number =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+
+/** Trunk + arm joints guarding stiffens toward neutral (mirrors the stage
+ *  overlay's GUARDING_KEYS — the guarded/protective, reduced-excursion set). */
+export const GUARDING_BAKE_KEYS: readonly string[] = [
+  'Spine_Lower',
+  'Spine_Upper',
+  'Neck',
+  'L_UpperArm',
+  'R_UpperArm',
+];
+const GUARDING_BAKE_SET = new Set(GUARDING_BAKE_KEYS);
+/** guarding = 1 damps the trunk/arm excursion by this fraction (matches the
+ *  live overlay's `guarding * 0.8` slerp-toward-rest). */
+export const GUARDING_MAX_DAMP = 0.8;
+/** Balance-sway low-back lean: amplitudes (deg) + incommensurate frequencies
+ *  (Hz), mirroring the stage overlay. ML = lateral tilt (frontal), AP = flexion
+ *  (sagittal). */
+const SWAY_BAKE_ML_DEG = 8;
+const SWAY_BAKE_AP_DEG = 5;
+const SWAY_BAKE_ML_HZ = 0.45;
+const SWAY_BAKE_AP_HZ = 0.7;
+/** Spine_Lower field ROM the summed lean is clamped to (romRegistry: lateralTilt
+ *  ±25°, flexion −25..60°) so a sway added onto an authored lean can never leave
+ *  real range. */
+const SWAY_LOWBACK_LATERAL_MAX = 25;
+const SWAY_LOWBACK_FLEX_MIN = -25;
+const SWAY_LOWBACK_FLEX_MAX = 60;
+
+/** Merge a sway lean onto the low back: add to an existing Spine_Lower target of
+ *  the same field, else append a fresh one; clamp the result to field ROM. */
+function addLowBackSway(
+  targets: ResolvedSequenceKeyframe['targets'],
+  field: 'lateralTilt' | 'flexion',
+  deltaDeg: number,
+  lo: number,
+  hi: number,
+): void {
+  if (deltaDeg === 0) return;
+  const clamp = (v: number) => Math.max(lo, Math.min(hi, v));
+  const existing = targets.find((t) => t.joint === 'Spine_Lower' && t.motion === field);
+  if (existing) existing.clampedDegrees = clamp(existing.clampedDegrees + deltaDeg);
+  else targets.push({ joint: 'Spine_Lower', motion: field, clampedDegrees: clamp(deltaDeg) });
+}
+
+/** Fold this motion's guarding/sway modifiers into the RESOLVED keyframes so the
+ *  offline sampler, the live stage and the grade see ONE motion (DET-LOCK-03).
+ *  Mutates `keyframes` in place (the resolver owns these fresh objects). Identity
+ *  when the modifiers are absent/zero — clean-mode byte-identical. */
+export function bakeGuardingSway(
+  keyframes: ResolvedSequenceKeyframe[],
+  modifiers: ComposedMotionModifiers | undefined,
+): void {
+  const guarding = clamp01(modifiers?.guarding);
+  const sway = clamp01(modifiers?.balanceSway);
+  if (guarding <= 0 && sway <= 0) return; // clean mode: nothing baked
+  const damp = 1 - guarding * GUARDING_MAX_DAMP;
+  let tMs = 0;
+  for (const kf of keyframes) {
+    tMs += kf.durationMs; // arrival time of this keyframe on the resolved clock
+    if (guarding > 0) {
+      for (const t of kf.targets) if (GUARDING_BAKE_SET.has(t.joint)) t.clampedDegrees *= damp;
+    }
+    // Sway is added AFTER guarding damping (a guarded patient still sways), and
+    // only when the low-back field pair still fits the per-keyframe budget.
+    if (sway > 0 && kf.targets.length <= MAX_TARGETS_PER_KEYFRAME - 2) {
+      const tSec = tMs / 1000;
+      const mlDeg = sway * SWAY_BAKE_ML_DEG * Math.sin(2 * Math.PI * SWAY_BAKE_ML_HZ * tSec);
+      const apDeg =
+        sway * SWAY_BAKE_AP_DEG * Math.sin(2 * Math.PI * SWAY_BAKE_AP_HZ * tSec + 1.3);
+      addLowBackSway(kf.targets, 'lateralTilt', mlDeg, -SWAY_LOWBACK_LATERAL_MAX, SWAY_LOWBACK_LATERAL_MAX);
+      addLowBackSway(kf.targets, 'flexion', apDeg, SWAY_LOWBACK_FLEX_MIN, SWAY_LOWBACK_FLEX_MAX);
+    }
+    tMs += kf.holdMs;
+  }
 }
 
 // ── Persistent heading — entry-yaw rebase (SEAM-1) ──────────────────────────
@@ -1836,6 +1966,15 @@ export function resolveComposedMotion(
       }
     }
   }
+
+  // BUILD-TIME GUARDING / SWAY BAKE (DET-LOCK-03): fold this motion's
+  // guarding/sway into the resolved keyframes NOW — after the velocity floor +
+  // whole-plan re-timing, so the sway samples the FINAL resolved clock and the
+  // damping never re-opens a timing decision. The offline sampler and the live
+  // stage both build from these keyframes, so recording == grade == screen by
+  // construction. Identity (byte-identical) when the motion carries no
+  // guarding/sway — every existing motion is untouched.
+  bakeGuardingSway(resolvedKeyframes, motion.modifiers);
 
   // GAIT ENRICHMENT (2/2): the stance schedule + contacts are derived from the
   // RESOLVED keyframe timing — after the velocity floor AND the whole-plan

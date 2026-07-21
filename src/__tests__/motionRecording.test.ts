@@ -250,6 +250,58 @@ describe('sampleComposedMotion — offline sampler on the real male rig', () => 
   });
 });
 
+describe('DET-LOCK-03 — guarding/sway are BAKED into the sampled recording (charter lockstep)', () => {
+  // Guarding + balance-sway used to exist ONLY as a live stage overlay, so the
+  // recording, the grade and the screen gave three answers. They are now folded
+  // into the resolved keyframes (bakeGuardingSway), so the SAME
+  // resolveComposedMotion → sampleComposedMotion the live stage builds from now
+  // carries them — recording == grade == screen by construction. Headless.
+  const reachWith = (modifiers?: ComposedMotion['modifiers']): MotionRecording => {
+    resetToAnatomic();
+    const m: ComposedMotion = { ...guardedOverheadReach(), ...(modifiers ? { modifiers } : {}) };
+    return sampleComposedMotion(resolveComposedMotion(m, variantCfg), {
+      baselinePose,
+      variantCfg,
+      rest,
+      skeletonHarness: { root, skinned },
+      sampleHz: 60,
+    });
+  };
+  const excursion = (rec: MotionRecording, joint: string, motion: string): number => {
+    const vals = rec.frames.map((f) => frameAngle(f, joint, motion));
+    return Math.max(...vals) - Math.min(...vals);
+  };
+
+  it('guarding REDUCES the trunk + arm excursion vs unguarded (measurable, headless)', () => {
+    const plain = reachWith();
+    const guarded = reachWith({ guarding: 0.9 });
+    const armPlain = excursion(plain, 'R_UpperArm', 'shoulderFlexion');
+    const armGuarded = excursion(guarded, 'R_UpperArm', 'shoulderFlexion');
+    // eslint-disable-next-line no-console
+    console.log(`DET-LOCK-03: shoulder excursion plain ${armPlain.toFixed(1)}° → guarded ${armGuarded.toFixed(1)}°`);
+    // The guarded, protective pattern damps the reach markedly — but does not freeze it.
+    expect(armGuarded, 'guarding damps the excursion').toBeLessThan(armPlain * 0.7);
+    expect(armGuarded, 'still a reach, not frozen').toBeGreaterThan(2);
+  });
+
+  it('balance-sway ADDS a low-back lean that is absent unguarded (measurable, headless)', () => {
+    const plain = reachWith();
+    const swayed = reachWith({ balanceSway: 1 });
+    const lateralPlain = excursion(plain, 'Spine_Lower', 'lateralTilt');
+    const lateralSway = excursion(swayed, 'Spine_Lower', 'lateralTilt');
+    // eslint-disable-next-line no-console
+    console.log(`DET-LOCK-03: low-back lateral excursion plain ${lateralPlain.toFixed(1)}° → sway ${lateralSway.toFixed(1)}°`);
+    // The reach authors no lateral lean; sway introduces a measurable one.
+    expect(lateralSway, 'sway adds a low-back wobble').toBeGreaterThan(lateralPlain + 2);
+  });
+
+  it('clean mode (guarding/sway 0) is byte-identical to the un-modified sample — a true no-op', () => {
+    const plainFrames = reachWith().frames.map((f) => f.angles);
+    const zeroed = reachWith({ guarding: 0, balanceSway: 0 }).frames.map((f) => f.angles);
+    expect(zeroed).toEqual(plainFrames);
+  });
+});
+
 describe('edit operations (pure, non-mutating)', () => {
   it('trimRecording keeps only [start, end], re-zeroes, preserves frames', () => {
     const { rec } = sampleReach(30);

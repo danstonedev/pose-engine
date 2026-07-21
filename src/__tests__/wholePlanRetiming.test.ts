@@ -166,7 +166,11 @@ describe('whole-plan re-timing preserves gait phase proportions (AI-TIME-01)', (
       durationMs,
       targets: [
         { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: deg },
+        // Author BOTH wrists so the per-side relaxedHands gate (DET-GATE-01)
+        // adds no resting curl to EITHER hand — keeping these analytic MIN-floor
+        // probes free of the 40° pinky-curl floor bump on the free side.
         { joint: 'R_Hand', motion: 'wristFlexion', targetDegrees: 5 },
+        { joint: 'L_Hand', motion: 'wristFlexion', targetDegrees: 5 },
       ],
     });
     const r = resolveComposedMotion(
@@ -183,7 +187,11 @@ describe('whole-plan re-timing preserves gait phase proportions (AI-TIME-01)', (
       durationMs,
       targets: [
         { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: deg },
+        // Author BOTH wrists so the per-side relaxedHands gate (DET-GATE-01)
+        // adds no resting curl to EITHER hand — keeping these analytic MIN-floor
+        // probes free of the 40° pinky-curl floor bump on the free side.
         { joint: 'R_Hand', motion: 'wristFlexion', targetDegrees: 5 },
+        { joint: 'L_Hand', motion: 'wristFlexion', targetDegrees: 5 },
       ],
     });
     const r = resolveComposedMotion(
@@ -209,7 +217,11 @@ describe('whole-plan re-timing preserves gait phase proportions (AI-TIME-01)', (
       ...(holdMs != null ? { holdMs } : {}),
       targets: [
         { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: deg },
+        // Author BOTH wrists so the per-side relaxedHands gate (DET-GATE-01)
+        // adds no resting curl to EITHER hand — keeping these analytic MIN-floor
+        // probes free of the 40° pinky-curl floor bump on the free side.
         { joint: 'R_Hand', motion: 'wristFlexion', targetDegrees: 5 },
+        { joint: 'L_Hand', motion: 'wristFlexion', targetDegrees: 5 },
       ],
     });
     const r = resolveComposedMotion(
