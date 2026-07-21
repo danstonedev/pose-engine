@@ -308,7 +308,9 @@ describe('buildRun — the in-place cycle carries the same absorption authoring'
       expect(absorb!.stance).toBe('planted');
       expect(drive!.stance).toBe('planted');
       expect(flight!.stance).toBe('floating');
-      expect(flight!.travel).toMatchObject({ direction: 'up' });
+      // Authored as a raw ABSOLUTE flight-apex root height (travel sugar is a
+      // DELTA step per AI-SUGAR-01, so the seeded heights author raw roots).
+      expect(flight!.root?.translateM?.[1]).toBeGreaterThan(0);
     }
   });
 });
