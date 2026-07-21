@@ -59,6 +59,13 @@ export * from './services/motionPrescription';
 // single commands, realistic-velocity timing, and keyframe pose folding.
 export * from './services/motionSequence';
 
+// Resolve-time gait plumbing (AI-PLUMB-01/02/03, AI-SEAM-01) — the structural
+// gait-shape predicate (looksLikeGaitPlan) and the enrichment that routes a
+// gait-shaped, plumbing-free composed plan onto the deterministic gait
+// machinery (foot-driven travel, calibrated vertical, lateral shuttle, derived
+// stance windows/contacts, settle ends), reported on ResolvedComposedMotion.notes.
+export * from './services/gaitEnrichment';
+
 // Clinician-authored movement templates — reference peak angles, timing &
 // coordination for core clinical movements (ROM-validated + rig round-trip
 // tested). Feeds the compose planner's prompt and is playable/measurable.

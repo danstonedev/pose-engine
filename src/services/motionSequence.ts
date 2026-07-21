@@ -20,7 +20,12 @@
  * against that joint's clamped value in the PREVIOUS keyframe (first
  * keyframe: from neutral 0°, the registry's clinical zero). Keyframes whose
  * duration had to be bumped are flagged `timingAdjusted` so the caller can
- * narrate honestly ("I did it, but not that fast").
+ * narrate honestly ("I did it, but not that fast"). When a strict MAJORITY of
+ * a plan's keyframes violate their floors (a uniformly-too-fast plan), the
+ * WHOLE plan is instead re-timed by the single worst stretch ratio — uniform
+ * dilation that preserves the authored phase proportions (AI-TIME-01) — with
+ * every keyframe flagged and the ms-authored contacts/stance-windows/heading
+ * profile re-timed by the same ratio so they stay on their phases.
  *
  * REFUSAL GRANULARITY — refused targets (unknown/unsupported motion, no
  * achievable travel, or overflow past {@link MAX_TARGETS_PER_KEYFRAME},
@@ -44,6 +49,11 @@ import {
   type ExamMovementRefusalReason,
 } from './movementCommand';
 import { rootOrientQuatTuple, type RootOrient, type RootTransform } from './rootMotion';
+import {
+  deriveGaitStanceSchedule,
+  GAIT_SCHEDULE_NOTE,
+  planGaitEnrichment,
+} from './gaitEnrichment';
 
 // ── Composed-motion types (structural — hosts mirror these shapes) ──────────
 
@@ -191,7 +201,13 @@ export const TRAVEL_DIRECTION_AXIS: Record<TravelDirection, readonly [number, nu
 };
 
 /** A semantic whole-body translation for a keyframe (sugar over root.translateM).
- *  `meters` is the travel distance along the named direction's signed axis. */
+ *  `meters` is the travel distance along the named direction's signed axis.
+ *  A DELTA, not a position (AI-SUGAR-01): each travel step moves the body BY
+ *  this distance FROM wherever the previous keyframe left the root — steps
+ *  accumulate ('forward' 0.3 then 'forward' 0.3 ends 0.6 m ahead), and a step
+ *  after a raw-translated keyframe composes from that raw position. Raw
+ *  `root.translateM` stays an ABSOLUTE per-keyframe position (and wins over
+ *  the sugar on the same keyframe). See {@link realizeTravelSugar}. */
 export interface SemanticTravel {
   direction: TravelDirection;
   /** Distance traveled along `direction`, meters (finite; may be 0). */
@@ -249,11 +265,14 @@ export interface SequenceKeyframe {
    *  semantic {@link SequenceKeyframe.travel}/{@link SequenceKeyframe.posture}
    *  sugar below so the engine (not the model) owns the anatomic axis signs. */
   root?: RootTransform;
-  /** SEMANTIC travel sugar: move the whole body by name ('forward' 0.4 m) and
-   *  let resolveComposedMotion apply the signed axis (forward → −Z). Fills
-   *  `root.translateM` ONLY when this keyframe has no explicit raw translate —
-   *  a raw `root.translateM` on the same keyframe WINS (see the precedence note
-   *  on resolveComposedMotion). */
+  /** SEMANTIC travel sugar: move the whole body BY a named distance ('forward'
+   *  0.4 m = a 0.4 m STEP from wherever the previous keyframe left the root;
+   *  steps accumulate) and let resolveComposedMotion apply the signed axis
+   *  (forward → +Z) and the delta composition ({@link realizeTravelSugar}).
+   *  Contrast raw `root.translateM`, which is an ABSOLUTE position per
+   *  keyframe. Fills `root.translateM` ONLY when this keyframe has no explicit
+   *  raw translate — a raw `root.translateM` on the same keyframe WINS (see
+   *  the precedence note on resolveComposedMotion). */
   travel?: SemanticTravel;
   /** SEMANTIC posture sugar: reorient the whole body by clinical name ('supine',
    *  'sidelying-left') and let resolveComposedMotion apply the signed root
@@ -573,7 +592,10 @@ export interface ResolvedSequenceKeyframe {
    *  through so playback can shape fast endings (the terminal pre-settle
    *  overshoot in motionTrajectory keys off the FINAL keyframe's class). */
   velocityClass?: VelocityClass;
-  /** True when durationMs was raised to the realistic-velocity floor. */
+  /** True when durationMs was adjusted away from the request — raised to the
+   *  realistic-velocity floor, capped at MAX_KEYFRAME_MS, or dilated by the
+   *  whole-plan re-timing (AI-TIME-01: a majority-violating plan stretches
+   *  uniformly to preserve its phase proportions). */
   timingAdjusted?: boolean;
   /** Whole-body root posture + travel for this keyframe (validated pass-through). */
   root?: RootTransform;
@@ -598,7 +620,9 @@ export interface ResolvedComposedMotion {
    *  when `loop`. The trajectory replays the cycle this many times at playback. */
   reps: number;
   /** Weight-bearing foot contacts to IK-plant during playback (pass-through from
-   *  the authored motion; the stage/sampler pin each declared foot per frame). */
+   *  the authored motion; the stage/sampler pin each declared foot per frame).
+   *  When the whole-plan re-timing fired (AI-TIME-01), the windows are dilated
+   *  by the same ratio as the keyframes so they stay in the resolved clock. */
   contacts?: StanceContact[];
   /** Calibrated gait vertical (cm), pass-through from the authored motion — the
    *  stage/sampler measure the emergent grounded pelvis arc and scale it to this
@@ -612,7 +636,9 @@ export interface ResolvedComposedMotion {
    *  foot. See {@link ComposedMotion.lateralShuttleCm}. */
   lateralShuttleCm?: number;
   /** Planned single-stance schedule (authored ms, pass-through) — drives the
-   *  travel/shuttle derivations. See {@link ComposedMotion.gaitStanceWindowsMs}. */
+   *  travel/shuttle derivations. See {@link ComposedMotion.gaitStanceWindowsMs}.
+   *  Dilated with the keyframes when the whole-plan re-timing fired
+   *  (AI-TIME-01), so the schedule stays on its phases. */
   gaitStanceWindowsMs?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[];
   /** Authored initiation/termination (pass-through) — trajectory ends are real
    *  stops, not the footDrivenTravel cyclic fly-throughs. */
@@ -647,6 +673,15 @@ export interface ResolvedComposedMotion {
    *  un-targeted drivers on a 'current' start (SEAM-6). See
    *  {@link ComposedMotion.holdUnmentioned}. */
   holdUnmentioned?: boolean;
+  /** MOTION-LEVEL resolution notes — the honesty surface for resolve-time
+   *  transformations that are not per-target `outcomes`: the gait-plumbing
+   *  enrichment (which machinery was auto-attached to a gait-shaped plan —
+   *  services/gaitEnrichment) and the loop-travel conversion (AI-SEAM-01).
+   *  Hosts append these to their summaries so an auto-enriched plan is
+   *  narrated, never silent ("gait plumbing attached: vertical, contacts,
+   *  shuttle"). ABSENT whenever resolution attached nothing — every
+   *  deterministic builder's output resolves without notes, byte-identical. */
+  notes?: string[];
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -756,6 +791,13 @@ function semanticTravelToTranslate(
  * a raw `root.translateM` keeps the raw one (the sugar is ignored for that
  * component). This lets a host expose direction NAMES to the model while a
  * calibration author can still pin a raw axis when needed.
+ *
+ * NOTE (AI-SUGAR-01): well-formed `travel` sugar is realized into raw ABSOLUTE
+ * translates by {@link realizeTravelSugar} BEFORE this runs (sugar composes as
+ * a DELTA from the carried root — see that helper), so the sugar-translate
+ * branch here only ever fires for a keyframe whose raw translate superseded it
+ * or for direct callers; the semantic validation ('invalid' on malformed
+ * sugar) still guards the resolver's shape-refusal path either way.
  */
 function resolveKeyframeRoot(kf: SequenceKeyframe): RootTransform | undefined | 'invalid' {
   const raw = validateRoot(kf.root);
@@ -776,6 +818,82 @@ function resolveKeyframeRoot(kf: SequenceKeyframe): RootTransform | undefined | 
   const translateM = raw?.translateM ?? semTranslate; // raw component wins over sugar
   if (translateM) out.translateM = translateM;
   return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Realize every keyframe's SEMANTIC {@link SequenceKeyframe.travel} sugar into
+ * a raw ABSOLUTE `root.translateM` by composing it as a DELTA from the carried
+ * root — the AI-SUGAR-01 fix. The two authoring surfaces have distinct,
+ * documented conventions that used to be conflated (the sugar resolved to the
+ * bare `axis × meters` — an absolute position — so a travel step after a raw
+ * translate re-anchored toward the origin instead of stepping onward, and
+ * successive steps never accumulated):
+ *
+ *   - RAW `root.translateM` is an ABSOLUTE position per keyframe in the
+ *     motion's authored frame ("persists forward until a later keyframe
+ *     overrides it" — see {@link offsetMotionTranslate}); it stays verbatim
+ *     and RESETS the carried position.
+ *   - SEMANTIC `travel` is a STEP: "move the body a distance by name" (the
+ *     vocabulary prompt text) — a delta FROM wherever the previous keyframe
+ *     left the root. kf1 raw [0,0,0.5] then kf2 travel 'forward' 0.5 ends at
+ *     [0,0,1.0]; three 'forward' 0.3 steps end at [0,0,0.9].
+ *
+ * Composition rules (per keyframe, in order):
+ *   - a present raw `root.translateM` wins (documented precedence) — the
+ *     carried position becomes that raw value; any sugar on the keyframe is
+ *     ignored, exactly as before;
+ *   - else well-formed sugar advances the carried position by its signed delta
+ *     and is realized as `root.translateM` at the new position (the sugar
+ *     field is dropped — one source of truth, mirroring rebaseMotionYaw);
+ *   - keyframes with neither leave the carried position untouched;
+ *   - MALFORMED raw roots or sugar are left in place so the resolver's shape
+ *     refusal fires unchanged.
+ *
+ * The carried position seeds at [0,0,0] — the motion's authored-frame origin —
+ * so a plan whose FIRST travel step is its only root directive resolves
+ * byte-identically to before (delta from origin = the old absolute), and
+ * whole-plan re-anchoring to the live body stays the job of the existing
+ * mechanisms (chain rebase / stage continuity seeding). Called by
+ * {@link resolveComposedMotion} before any direction transform, and by
+ * {@link rebaseMotionYaw} / {@link offsetMotionTranslate} so external chain
+ * callers realize the sugar with the SAME delta semantics. Pure; a motion with
+ * no sugar is returned as-is (identity).
+ */
+export function realizeTravelSugar(motion: ComposedMotion): ComposedMotion {
+  if (!motion || !Array.isArray(motion.keyframes)) return motion;
+  if (!motion.keyframes.some((kf) => kf && typeof kf === 'object' && kf.travel != null)) {
+    return motion; // identity: nothing to realize
+  }
+  let carried: [number, number, number] = [0, 0, 0];
+  let changed = false;
+  const keyframes = motion.keyframes.map((kf) => {
+    if (!kf || typeof kf !== 'object') return kf;
+    const raw = kf.root?.translateM;
+    if (raw != null) {
+      // Raw owns the translate component (absolute-per-keyframe; wins over any
+      // sugar on this keyframe). Track it as the new carried position when
+      // well-formed; malformed raw is left for the resolver's shape refusal.
+      if (
+        Array.isArray(raw) &&
+        raw.length === 3 &&
+        raw.every((n) => typeof n === 'number' && Number.isFinite(n))
+      ) {
+        carried = [raw[0], raw[1], raw[2]];
+      }
+      return kf;
+    }
+    const delta = semanticTravelToTranslate(kf.travel);
+    if (delta == null || delta === 'invalid') return kf; // no sugar / malformed → shape refusal path
+    carried = [carried[0] + delta[0], carried[1] + delta[1], carried[2] + delta[2]];
+    changed = true;
+    const out: SequenceKeyframe = {
+      ...kf,
+      root: { ...(kf.root ?? {}), translateM: [carried[0], carried[1], carried[2]] },
+    };
+    delete out.travel; // realized as raw — keep one source of truth
+    return out;
+  });
+  return changed ? { ...motion, keyframes } : motion;
 }
 
 /** Host-facing description of the semantic direction vocabulary — the enum
@@ -803,7 +921,8 @@ export function describeSemanticMotionVocabulary(): SemanticMotionVocabulary {
     promptText: [
       'Whole-body movement uses NAMED directions — never raw coordinates.',
       "travel: move the body a distance by name — { direction: 'forward' | 'backward' | 'left' | 'right' | 'up' | 'down', meters: number }. " +
-        "'left'/'right' are the SUBJECT's left/right; the engine applies the correct anatomic axis, so just say the direction.",
+        "'left'/'right' are the SUBJECT's left/right; the engine applies the correct anatomic axis, so just say the direction. " +
+        'Each travel is a STEP from wherever the body is — successive steps accumulate.',
       "posture: reorient the whole body by name — 'upright' | 'supine' (lying face-up) | 'prone' (lying face-down) | 'sidelying-left' (on the left side) | 'sidelying-right' (on the right side).",
       'Prefer these over any raw root translate/orient so travel can never come out reversed.',
     ].join('\n'),
@@ -1267,8 +1386,12 @@ function effectiveAuthoredTranslate(kf: SequenceKeyframe): [number, number, numb
  *     `headingProfileMs` point. Set/rotated only for motions that carry travel
  *     plumbing — a non-travelling motion never sprouts a heading.
  * Keyframes that author no root are untouched (they inherit the engine's
- * carry-forward, which the caller seeds from the live root). Pure — the input
- * motion is not mutated; identity at offset 0.
+ * carry-forward, which the caller seeds from the live root). Semantic `travel`
+ * sugar is first realized into raw absolutes with its documented DELTA
+ * composition ({@link realizeTravelSugar}) so the rotation acts on the
+ * composed positions — rotating each step's bare delta as if it were absolute
+ * would re-anchor mixed raw+sugar plans. Pure — the input motion is not
+ * mutated; identity at offset 0.
  */
 export function rebaseMotionYaw(motion: ComposedMotion, yawOffsetDeg: number): ComposedMotion {
   if (
@@ -1280,6 +1403,7 @@ export function rebaseMotionYaw(motion: ComposedMotion, yawOffsetDeg: number): C
   ) {
     return motion;
   }
+  motion = realizeTravelSugar(motion); // sugar → composed raw absolutes (AI-SUGAR-01)
   const half = (yawOffsetDeg * Math.PI) / 360;
   const ys = Math.sin(half);
   const yc = Math.cos(half);
@@ -1341,7 +1465,10 @@ export function rebaseMotionYaw(motion: ComposedMotion, yawOffsetDeg: number): C
  * about the origin must be re-anchored to wherever the previous motion left
  * the body. Keyframes without an authored translate (raw or semantic-travel
  * sugar) inherit the carried/seeded root and need no offset; Y is never
- * touched (vertical belongs to the grounding pins). Pure; identity at (0, 0).
+ * touched (vertical belongs to the grounding pins). Semantic `travel` sugar is
+ * first realized into raw absolutes with its documented DELTA composition
+ * ({@link realizeTravelSugar}) so the offset re-anchors the composed
+ * positions, not each step's bare delta. Pure; identity at (0, 0).
  */
 export function offsetMotionTranslate(motion: ComposedMotion, xM: number, zM: number): ComposedMotion {
   if (
@@ -1353,6 +1480,7 @@ export function offsetMotionTranslate(motion: ComposedMotion, xM: number, zM: nu
   ) {
     return motion;
   }
+  motion = realizeTravelSugar(motion); // sugar → composed raw absolutes (AI-SUGAR-01)
   const keyframes: SequenceKeyframe[] = motion.keyframes.map((kf) => {
     if (!kf || typeof kf !== 'object') return kf;
     const t = effectiveAuthoredTranslate(kf);
@@ -1410,6 +1538,32 @@ export function resolveComposedMotion(
   if (motion.keyframes.length > MAX_KEYFRAMES) {
     return refuse(motion, `too-many-keyframes (max ${MAX_KEYFRAMES})`);
   }
+
+  // TRAVEL SUGAR → COMPOSED RAW (AI-SUGAR-01): realize each keyframe's
+  // semantic `travel` as a DELTA from the carried root, producing the raw
+  // absolute translates every later step (gait enrichment's net-travel read,
+  // heading rebase, root resolution, carry-forward) consumes. Runs FIRST so
+  // all direction transforms see one convention; malformed sugar is left in
+  // place for the shape refusal below.
+  motion = realizeTravelSugar(motion);
+
+  // RESOLVE-TIME GAIT PLUMBING (AI-PLUMB-01/02/03, AI-SEAM-01 — services/
+  // gaitEnrichment): a plan that is STRUCTURALLY a reciprocal upright gait
+  // with net root travel, yet authors NONE of the engine's gait machinery
+  // (the AI compose schema cannot express it), is rewritten onto the same
+  // plumbing the deterministic gait builders attach — authored travel becomes
+  // foot-driven (the planted foot stays world-fixed instead of ice-skating),
+  // the calibrated vertical + lateral shuttle + settle ends are filled in, and
+  // a stance schedule + foot-plant contacts are derived below once keyframe
+  // timing is final. A looping plan with net travel resolves as a single pass
+  // (the wrap would teleport the body back — AI-SEAM-01), gait-shaped or not.
+  // Applied HERE — the one resolution path sampler and stage share — and
+  // reported on `notes` (never silent). Plans that author ANY plumbing field,
+  // every non-gait plan, and every in-place plan pass through byte-identical —
+  // which keeps all deterministic builders and the in-place walk template
+  // untouched by construction.
+  const gaitPlan = planGaitEnrichment(motion);
+  if (gaitPlan) motion = gaitPlan.motion;
 
   // PERSISTENT HEADING (SEAM-1): a heading-inheriting motion (`inheritHeading`
   // — the gait builders set it) that starts from the CURRENT pose is rebased
@@ -1471,6 +1625,10 @@ export function resolveComposedMotion(
    *  achievability contract and from a refused motion's outcome report. */
   const relaxedOutcomes = new Set<SequenceTargetOutcome>();
   const resolvedKeyframes: ResolvedSequenceKeyframe[] = [];
+  /** Parallel to `resolvedKeyframes`: each keyframe's AUTHORED clock + its
+   *  velocity/MIN floor, for the whole-plan re-timing decision (AI-TIME-01)
+   *  after the loop. */
+  const kfTiming: { authoredMs: number; authoredHoldMs: number; floorMs: number }[] = [];
   /** Last clamped value per `joint.motion` — the previous keyframe's position
    *  for the velocity check. Seeded from the CURRENT measured angle (cross-motion
    *  continuity) when startFrom==='current'; otherwise from neutral 0°. */
@@ -1575,8 +1733,12 @@ export function resolveComposedMotion(
     }
 
     // Realistic timing: the fastest joint may not exceed this keyframe's
-    // velocity-class cap (default 'deliberate' = 240°/s).
+    // velocity-class cap (default 'deliberate' = 240°/s). This is the LOCAL
+    // floor; a plan where MOST keyframes violate is instead re-timed as a
+    // whole after the loop (AI-TIME-01), which overwrites these durations
+    // with one uniform dilation so the authored rhythm survives.
     const floorMs = Math.max(MIN_KEYFRAME_MS, (maxDeltaDeg / velCap) * 1000);
+    kfTiming.push({ authoredMs: kf.durationMs, authoredHoldMs: kf.holdMs ?? 0, floorMs });
     let durationMs = kf.durationMs < floorMs ? Math.ceil(floorMs) : kf.durationMs;
     // Any adjustment away from the request — raised to the floor OR lowered to
     // the playability cap — is reported so the caller can narrate honestly.
@@ -1615,7 +1777,84 @@ export function resolveComposedMotion(
     };
   }
 
-  return {
+  // ── WHOLE-PLAN RE-TIMING (AI-TIME-01) ─────────────────────────────────────
+  // The per-keyframe floor above stretches each violating keyframe by its OWN
+  // ratio, so a uniformly-too-fast plan (an AI's "quick" 8-phase gait cycle)
+  // has its phases floored by DIFFERENT ratios — the authored Perry-style
+  // phase PROPORTIONS (e.g. 168/160/236/236 ms per half-cycle) flatten toward
+  // a uniform metronome and the gait loses its rhythm. When a STRICT MAJORITY
+  // of the keyframes violate their floors (violators × 2 > keyframes, and ≥ 2
+  // keyframes exist), the plan as a whole asked for a faster tempo than the
+  // velocity governor allows — so re-time the WHOLE plan by the single worst
+  // stretch ratio instead: uniform time dilation preserves every phase
+  // proportion, and each dilated duration still clears its own floor by
+  // construction (dur·r ≥ dur·(floor/dur)).
+  //
+  // The threshold is deliberately MAJORITY-ONLY (documented decision): an
+  // isolated violation in an otherwise-realistic plan keeps the local floor —
+  // dilating a slow plan wholesale to fix one rushed keyframe would
+  // needlessly slow everything (the existing local behavior is kept, tested).
+  // Cyclic-ness alone deliberately does NOT trigger it either: established
+  // looping templates under `paceGait` carry a couple of isolated floor bumps
+  // (SEAM-7 / DET-RES-01 — an R4 concern) whose resolution must not change
+  // here.
+  //
+  // HONESTY + TIME-BASE COHERENCE: every re-timed keyframe is flagged
+  // `timingAdjusted` (the same honesty note the local floor uses), holds
+  // dilate with durations (ONE clock), and the ms-authored artifacts declared
+  // against that clock — `contacts`, `gaitStanceWindowsMs`,
+  // `headingProfileMs` — are re-timed by the SAME ratio below, so they stay
+  // on their phases and the shared authored→trajectory totals mapping
+  // (motionRecording `authoredToTrajectoryTimeScale`, which reads THESE
+  // resolved keyframes) keeps them aligned by construction. A zero-duration
+  // keyframe is a teleport request, not a rhythm — it keeps its local MIN
+  // floor and never drives (or receives) the dilation.
+  let planStretch = 1;
+  {
+    const n = kfTiming.length;
+    const violators = kfTiming.filter((t) => t.authoredMs < t.floorMs).length;
+    if (n >= 2 && violators * 2 > n) {
+      // Zero-duration keyframes never drive the ratio (a teleport request, not
+      // a rhythm); if ALL violators were degenerate, planStretch stays 1 and
+      // the local floors above stand.
+      for (const t of kfTiming) {
+        if (t.authoredMs > 0) planStretch = Math.max(planStretch, t.floorMs / t.authoredMs);
+      }
+      if (planStretch > 1) {
+        for (let i = 0; i < resolvedKeyframes.length; i += 1) {
+          const rk = resolvedKeyframes[i]!;
+          const t = kfTiming[i]!;
+          if (t.authoredMs > 0) {
+            rk.durationMs = Math.min(MAX_KEYFRAME_MS, Math.ceil(t.authoredMs * planStretch));
+            rk.timingAdjusted = true;
+          }
+          if (t.authoredHoldMs > 0) {
+            rk.holdMs = Math.min(MAX_KEYFRAME_MS, Math.ceil(t.authoredHoldMs * planStretch));
+            rk.timingAdjusted = true;
+          }
+        }
+      }
+    }
+  }
+
+  // GAIT ENRICHMENT (2/2): the stance schedule + contacts are derived from the
+  // RESOLVED keyframe timing — after the velocity floor AND the whole-plan
+  // re-timing above, so the schedule is born on the FINAL authored-ms clock
+  // the sampler/stage scale by authoredToTrajectoryTimeScale (and is therefore
+  // excluded from the part-2 artifact re-scaling below, which exists for
+  // artifacts authored on the PRE-stretch clock). Null when the plan needs no
+  // schedule or the keyframe count diverged (peakAt expansion) — then the
+  // schedule is simply omitted, never guessed.
+  const derivedSchedule = gaitPlan?.deriveStanceSchedule
+    ? deriveGaitStanceSchedule(resolvedKeyframes, gaitPlan.stanceByKf)
+    : null;
+  const gaitNotes = gaitPlan
+    ? derivedSchedule
+      ? [...gaitPlan.notes, GAIT_SCHEDULE_NOTE]
+      : gaitPlan.notes
+    : [];
+
+  const resolved: ResolvedComposedMotion = {
     status: 'ok',
     ...(motion.name ? { name: motion.name } : {}),
     keyframes: resolvedKeyframes,
@@ -1692,7 +1931,57 @@ export function resolveComposedMotion(
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
     ...(motion.weightedDescent ? { weightedDescent: true } : {}),
     ...(motion.holdUnmentioned ? { holdUnmentioned: true } : {}),
+    // GAIT ENRICHMENT: the derived stance schedule + matching foot-plant
+    // contacts (only ever present for a plumbing-free gait-shaped travel plan,
+    // which by definition authored neither field — nothing is overridden), and
+    // the honesty notes for every resolve-time attachment/conversion.
+    ...(derivedSchedule
+      ? {
+          contacts: derivedSchedule.contacts,
+          gaitStanceWindowsMs: derivedSchedule.gaitStanceWindowsMs,
+        }
+      : {}),
+    ...(gaitNotes.length ? { notes: gaitNotes } : {}),
   };
+
+  // WHOLE-PLAN RE-TIMING, part 2 (AI-TIME-01): the ms-authored artifacts ride
+  // the SAME uniform dilation as the keyframes they were authored against, so
+  // stance windows / plant contacts / the heading profile stay on their gait
+  // phases (a window ending at the half-cycle boundary still ends exactly
+  // there in the re-timed clock). Finite times only — a whole-motion pin's
+  // missing/±Infinity bounds pass through untouched. Identity when the plan
+  // wasn't re-timed (planStretch === 1), keeping every existing resolution
+  // byte-identical.
+  if (planStretch > 1) {
+    const scaleMs = (v: number | undefined): number | undefined =>
+      typeof v === 'number' && Number.isFinite(v) ? v * planStretch : v;
+    // A gait-enrichment-derived schedule was born on the POST-stretch clock
+    // (derived above from the already re-timed keyframes) — re-scaling it here
+    // would double-dilate; only artifacts AUTHORED on the pre-stretch clock
+    // ride the ratio. An enriched plan authored neither field by definition,
+    // so the derived schedule fully owns contacts/windows when present.
+    if (resolved.contacts && !derivedSchedule) {
+      resolved.contacts = resolved.contacts.map((c) => ({
+        ...c,
+        ...(c.fromMs != null ? { fromMs: scaleMs(c.fromMs)! } : {}),
+        ...(c.toMs != null ? { toMs: scaleMs(c.toMs)! } : {}),
+      }));
+    }
+    if (resolved.gaitStanceWindowsMs && !derivedSchedule) {
+      resolved.gaitStanceWindowsMs = resolved.gaitStanceWindowsMs.map((w) => ({
+        ...w,
+        fromMs: scaleMs(w.fromMs)!,
+        toMs: scaleMs(w.toMs)!,
+      }));
+    }
+    if (resolved.headingProfileMs) {
+      resolved.headingProfileMs = resolved.headingProfileMs.map((p) => ({
+        ...p,
+        tMs: scaleMs(p.tMs)!,
+      }));
+    }
+  }
+  return resolved;
 }
 
 /** One target's MEASURED landing at its keyframe (computeJointAngles readback

@@ -133,7 +133,8 @@ describe('IK foot plant keeps the stance foot from sliding during travel', () =>
 describe('alternating-stance gait — each foot pins only while it bears weight (windowed contacts)', () => {
   // A 2-step forward walk: the body travels +Z over two steps; the LEFT foot is
   // stance for step 1 (0–800 ms) while the right swings, then the RIGHT foot is
-  // stance for step 2 (800–1600 ms) while the left swings.
+  // stance for step 2 (800–1600 ms) while the left swings. Travel sugar is a
+  // DELTA per step (AI-SUGAR-01): two 0.3 m steps end 0.6 m ahead.
   const twoStepWalk = (): ComposedMotion => ({
     name: 'two-step walk',
     stance: 'planted',
@@ -151,7 +152,7 @@ describe('alternating-stance gait — each foot pins only while it bears weight 
       },
       {
         durationMs: 800,
-        travel: { direction: 'forward', meters: 0.6 },
+        travel: { direction: 'forward', meters: 0.3 }, // second 0.3 m step (composes to 0.6 m)
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 25 },
           { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 30 },
