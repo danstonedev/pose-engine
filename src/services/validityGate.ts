@@ -92,6 +92,11 @@ export interface GateFrame {
   /** Model-root world translation (m), used as the root track for seam-jerk.
    *  Falls back to the `Hips` world track when absent. */
   root?: { translateM: [number, number, number] };
+  /** MEASURED clinical joint angles for this frame (computeJointAngles().joints —
+   *  `joint → motion → deg`, engine sign convention). Present on the sampler's
+   *  RecordedFrame; consumed ONLY by the biomech hook (gaitBiomechCheck) for the
+   *  normative joint-angle RMS check. The core plausibility checks never read it. */
+  angles?: Record<string, Record<string, number>>;
 }
 
 /** The extension point the Workstream-A INTEGRATION fills — see the marked block
