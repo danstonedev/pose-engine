@@ -1182,6 +1182,100 @@ export function trimRecording(
   return { ...rec, frames: kept.map((f) => copyFrame(f, f.tMs - zero)) };
 }
 
+/** Max abs per-field difference (deg) between two measured-angle reports, over
+ *  the joint.motion fields present in BOTH — 0 for identical poses. */
+function maxAngleDepartureDeg(
+  a: Record<string, Record<string, number>>,
+  b: Record<string, Record<string, number>>,
+): number {
+  let max = 0;
+  for (const [j, setA] of Object.entries(a)) {
+    const setB = b[j];
+    if (!setB) continue;
+    for (const [k, va] of Object.entries(setA)) {
+      const vb = setB[k];
+      if (typeof va === 'number' && typeof vb === 'number') max = Math.max(max, Math.abs(va - vb));
+    }
+  }
+  return max;
+}
+
+export interface TrimLoopCycleOptions {
+  /** One loop PERIOD (ms) — the resolved loop-trajectory cycle length
+   *  ({@link buildLoopTrajectory}'s `totalMs`). Keep exactly this much from the
+   *  trajectory start so the wrap first↔last lands on the SAME gait phase and
+   *  stays C¹ (the captured loop is already velocity-continuous across the wrap).
+   *  Omit to keep from the trajectory start to the recording end. */
+  periodMs?: number;
+  /** Max joint-angle departure (deg) from the held head pose still counted as
+   *  "standing at the head" — the first frame beyond it is the trajectory start
+   *  (end of the ready-settle). Default 6°. */
+  motionOnsetDeg?: number;
+  /** Minimum near-static head span (ms) to treat as a genuine ready-settle intro
+   *  worth trimming. A clip whose motion begins sooner than this has no standing
+   *  intro (a clean loop cycle that simply eases through its first knot) and is
+   *  passed through untrimmed. Default 250 ms (the ready-settle is ~950 ms). */
+  minReadySettleMs?: number;
+}
+
+/**
+ * Trim a live-captured LOOPING clip to a clean, replayable loop cycle for the
+ * Recordings rail (DET-LOCK-04). A looping motion recorded off the live stage
+ * begins with the ~950 ms READY-SETTLE — the body easing into, then briefly
+ * holding, the neutral standing "ready" pose before the gait cycle engages. A
+ * naive t=0 trim keeps that standing intro, so the rail clip loops back THROUGH
+ * the standing pose every cycle (the visible per-loop hitch).
+ *
+ * This trims from the TRAJECTORY START instead — the first frame whose measured
+ * pose DEPARTS the held head/ready pose (the end of the ready-settle) — so the
+ * clip starts at the gait cycle. When the loop `periodMs` is supplied, exactly
+ * one period is kept from that start, so the wrap first↔last lands on the same
+ * phase and stays C¹; otherwise everything from the start to the recording end
+ * is kept.
+ *
+ * Pure — returns a new recording (delegates the slice + re-zero to
+ * {@link trimRecording}). A clip with NO detectable static head (already starts
+ * mid-motion — e.g. a clean `loopCycle` recording — or too short to depart) is
+ * trimmed from 0, i.e. passed through byte-identical: the trajectory start IS 0.
+ */
+export function trimRecordingLoopCycle(
+  rec: MotionRecording,
+  opts: TrimLoopCycleOptions = {},
+): MotionRecording {
+  const frames = rec.frames;
+  const passthrough = (): MotionRecording => ({
+    ...rec,
+    frames: frames.map((f) => copyFrame(f, f.tMs)),
+  });
+  if (frames.length < 2) return passthrough();
+  const onsetDeg = Math.max(0, opts.motionOnsetDeg ?? 6);
+  const minReadySettleMs = Math.max(0, opts.minReadySettleMs ?? 250);
+  // Trajectory start = the first frame that departs the held head (ready-settle)
+  // pose by more than the onset bound. A static ready-settle hold reads ~0
+  // departure until the gait cycle engages, so the first departure IS its end.
+  const head = frames[0]!.angles;
+  let startIdx = 0;
+  for (let i = 1; i < frames.length; i += 1) {
+    if (maxAngleDepartureDeg(head, frames[i]!.angles) > onsetDeg) {
+      startIdx = i;
+      break;
+    }
+  }
+  // No static head to trim (the clip already starts in motion, or never departs):
+  // the trajectory start is 0 — trim from 0, i.e. byte-identical passthrough.
+  if (startIdx <= 1) return passthrough();
+  const startMs = frames[startIdx]!.tMs;
+  // The near-static head must be a genuine READY-SETTLE (long enough) — a clean
+  // loop cycle merely eases through its first knot for a few ms and must NOT be
+  // read as a standing intro. Below the threshold, trajectory start is 0.
+  if (startMs - frames[0]!.tMs < minReadySettleMs) return passthrough();
+  const endMs =
+    typeof opts.periodMs === 'number' && Number.isFinite(opts.periodMs) && opts.periodMs > 0
+      ? startMs + opts.periodMs
+      : recordingDurationMs(rec);
+  return trimRecording(rec, startMs, endMs);
+}
+
 /** Split at the playhead into two re-zeroed clips. The frame nearest `atMs`
  *  becomes the last frame of A AND the first frame of B (a clean seam). */
 export function splitRecording(
