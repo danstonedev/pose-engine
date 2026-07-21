@@ -106,6 +106,13 @@ export * from './services/footContact';
 // ── Whole-body center of mass + balance (base of support, margin of stability) ──
 export * from './services/centerOfMass';
 
+// Unified build-time Validity Gate (Workstream A) — one deterministic, auditable
+// pass/fail over a RESOLVED composed motion across the animation-craft
+// plausibility gates (foot-skate ratio, CoM-in-base, penetration, seam-jerk) +
+// the ROM-clamp invariant, with a marked extension point where the biomech
+// checks (normativeGait RMS / Froude / vertical-CoM) plug in at integration.
+export * from './services/validityGate';
+
 // Compound motion chains (simMOVE Phase 4) — sequence validated primitives with
 // cross-motion continuity (each segment continues from the previous one's end
 // pose + root), plus the seam-continuity metric so "no teleport between segments"
