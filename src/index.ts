@@ -113,6 +113,13 @@ export * from './services/centerOfMass';
 // pelvic-obliquity reference. Pure data + math (no rig); the gate consumes it.
 export * from './services/normativeGait';
 
+// Unified build-time Validity Gate (Workstream A) — one deterministic, auditable
+// pass/fail over a RESOLVED composed motion across the animation-craft
+// plausibility gates (foot-skate ratio, CoM-in-base, penetration, seam-jerk) +
+// the ROM-clamp invariant, with the biomech checks (normativeGait RMS / Froude /
+// vertical-CoM) folded in for gait-shaped motions via runGaitBiomechChecks.
+export * from './services/validityGate';
+
 // Compound motion chains (simMOVE Phase 4) — sequence validated primitives with
 // cross-motion continuity (each segment continues from the previous one's end
 // pose + root), plus the seam-continuity metric so "no teleport between segments"
