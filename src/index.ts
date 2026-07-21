@@ -106,6 +106,13 @@ export * from './services/footContact';
 // ── Whole-body center of mass + balance (base of support, margin of stability) ──
 export * from './services/centerOfMass';
 
+// Normative gait ground-truth (Validity Gate, Workstream A) — bundled Winter /
+// Perry / CGA normative sagittal joint curves (hip/knee/ankle, mean ±1 SD) + the
+// pure math to grade a motion against them: joint-angle RMS / within-±1-SD-band,
+// Froude number + regime, spatiotemporal + walk-ratio norms, vertical-CoM band,
+// pelvic-obliquity reference. Pure data + math (no rig); the gate consumes it.
+export * from './services/normativeGait';
+
 // Compound motion chains (simMOVE Phase 4) — sequence validated primitives with
 // cross-motion continuity (each segment continues from the previous one's end
 // pose + root), plus the seam-continuity metric so "no teleport between segments"
