@@ -44,6 +44,11 @@ import {
   type ExamMovementRefusalReason,
 } from './movementCommand';
 import { rootOrientQuatTuple, type RootOrient, type RootTransform } from './rootMotion';
+import {
+  deriveGaitStanceSchedule,
+  GAIT_SCHEDULE_NOTE,
+  planGaitEnrichment,
+} from './gaitEnrichment';
 
 // ── Composed-motion types (structural — hosts mirror these shapes) ──────────
 
@@ -647,6 +652,15 @@ export interface ResolvedComposedMotion {
    *  un-targeted drivers on a 'current' start (SEAM-6). See
    *  {@link ComposedMotion.holdUnmentioned}. */
   holdUnmentioned?: boolean;
+  /** MOTION-LEVEL resolution notes — the honesty surface for resolve-time
+   *  transformations that are not per-target `outcomes`: the gait-plumbing
+   *  enrichment (which machinery was auto-attached to a gait-shaped plan —
+   *  services/gaitEnrichment) and the loop-travel conversion (AI-SEAM-01).
+   *  Hosts append these to their summaries so an auto-enriched plan is
+   *  narrated, never silent ("gait plumbing attached: vertical, contacts,
+   *  shuttle"). ABSENT whenever resolution attached nothing — every
+   *  deterministic builder's output resolves without notes, byte-identical. */
+  notes?: string[];
   /** Why the WHOLE motion refused (invalid shape / nothing achievable). */
   reason?: string;
 }
@@ -1411,6 +1425,24 @@ export function resolveComposedMotion(
     return refuse(motion, `too-many-keyframes (max ${MAX_KEYFRAMES})`);
   }
 
+  // RESOLVE-TIME GAIT PLUMBING (AI-PLUMB-01/02/03, AI-SEAM-01 — services/
+  // gaitEnrichment): a plan that is STRUCTURALLY a reciprocal upright gait
+  // with net root travel, yet authors NONE of the engine's gait machinery
+  // (the AI compose schema cannot express it), is rewritten onto the same
+  // plumbing the deterministic gait builders attach — authored travel becomes
+  // foot-driven (the planted foot stays world-fixed instead of ice-skating),
+  // the calibrated vertical + lateral shuttle + settle ends are filled in, and
+  // a stance schedule + foot-plant contacts are derived below once keyframe
+  // timing is final. A looping plan with net travel resolves as a single pass
+  // (the wrap would teleport the body back — AI-SEAM-01), gait-shaped or not.
+  // Applied HERE — the one resolution path sampler and stage share — and
+  // reported on `notes` (never silent). Plans that author ANY plumbing field,
+  // every non-gait plan, and every in-place plan pass through byte-identical —
+  // which keeps all deterministic builders and the in-place walk template
+  // untouched by construction.
+  const gaitPlan = planGaitEnrichment(motion);
+  if (gaitPlan) motion = gaitPlan.motion;
+
   // PERSISTENT HEADING (SEAM-1): a heading-inheriting motion (`inheritHeading`
   // — the gait builders set it) that starts from the CURRENT pose is rebased
   // by the body's live entry yaw, so "walk forward" means forward FROM THE
@@ -1615,6 +1647,21 @@ export function resolveComposedMotion(
     };
   }
 
+  // GAIT ENRICHMENT (2/2): the stance schedule + contacts are derived from the
+  // RESOLVED keyframe timing (the velocity floor may have re-timed keyframes,
+  // and windows/contacts live on the resolved authored-ms clock the sampler/
+  // stage scale by authoredToTrajectoryTimeScale). Null when the plan needs no
+  // schedule or the keyframe count diverged (peakAt expansion) — then the
+  // schedule is simply omitted, never guessed.
+  const derivedSchedule = gaitPlan?.deriveStanceSchedule
+    ? deriveGaitStanceSchedule(resolvedKeyframes, gaitPlan.stanceByKf)
+    : null;
+  const gaitNotes = gaitPlan
+    ? derivedSchedule
+      ? [...gaitPlan.notes, GAIT_SCHEDULE_NOTE]
+      : gaitPlan.notes
+    : [];
+
   return {
     status: 'ok',
     ...(motion.name ? { name: motion.name } : {}),
@@ -1692,6 +1739,17 @@ export function resolveComposedMotion(
     ...(motion.balanceAssist ? { balanceAssist: true } : {}),
     ...(motion.weightedDescent ? { weightedDescent: true } : {}),
     ...(motion.holdUnmentioned ? { holdUnmentioned: true } : {}),
+    // GAIT ENRICHMENT: the derived stance schedule + matching foot-plant
+    // contacts (only ever present for a plumbing-free gait-shaped travel plan,
+    // which by definition authored neither field — nothing is overridden), and
+    // the honesty notes for every resolve-time attachment/conversion.
+    ...(derivedSchedule
+      ? {
+          contacts: derivedSchedule.contacts,
+          gaitStanceWindowsMs: derivedSchedule.gaitStanceWindowsMs,
+        }
+      : {}),
+    ...(gaitNotes.length ? { notes: gaitNotes } : {}),
   };
 }
 
