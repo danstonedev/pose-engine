@@ -870,6 +870,16 @@
       // additive premultiplied trunk rotations. Reuses the sway axes below.
       let motionLiveliness = 0;
       let livelinessTime = 0;
+      // ONSET RAMP (kills the pre-movement side/back bend): the motion-time trunk
+      // sway/breathing must ease IN over the first ~0.4 s of a movement, not apply
+      // full-strength from frame 0. A commanded motion is a zero-velocity ease-in
+      // (~stationary the first ~150-200 ms), so a full-strength free-running sway at
+      // t=0 was the ONLY thing moving then — reading as a spurious side/backward
+      // lean BEFORE the movement. `livelinessOnsetSec` accumulates from motion onset
+      // (reset by resetLivelinessOnset at each start); the applied sway is scaled by
+      // min(1, onset/LIVELINESS_ONSET_SEC).
+      const LIVELINESS_ONSET_SEC = 0.4;
+      let livelinessOnsetSec = 0;
       const _liveQ = new THREE.Quaternion();
       // ── EXERTION-SCALED BREATHING (Wave 5 life-signals) — state shared by
       // BOTH breathing paths (motion-time overlay + idle overlay), so the
@@ -1221,25 +1231,38 @@
        * Returns whether anything was applied (clean mode / no bones ⇒ false, so
        * the dirty flag stays honest).
        */
+      /** Reset the motion-time liveliness onset ramp + sway phase — call at each
+       *  movement START so the trunk eases into the sway from quiet, instead of
+       *  a full-strength free-running sway snapping on during the ease-in. */
+      function resetLivelinessOnset(): void {
+        livelinessOnsetSec = 0;
+        livelinessTime = 0; // ML sway restarts at phase 0 (breathPhase stays continuous)
+      }
       function applyMotionLiveliness(dtSec: number): boolean {
         if (!(motionLiveliness > 0) || !motionCapBones || !modelRoot) return false;
         livelinessTime += dtSec;
+        livelinessOnsetSec += dtSec;
+        // Ease the sway/breathing IN over the first ~0.4 s of the movement so the
+        // trunk is quiet through the commanded motion's zero-velocity ease-in (this
+        // is the fix for the "little side/back bend before the movement"). Also
+        // smooths the idle->motion lumbar handoff (no full-strength step at onset).
+        const onsetRamp = Math.min(1, livelinessOnsetSec / LIVELINESS_ONSET_SEC);
         // EXERTION-SCALED FM breathing (Wave 5): integrate the shared phase at the
         // exertion-driven rate (phase-continuous — never t×rate, so a rate change
         // can never jump mid-breath).
         breathPhase = advanceBreathPhase(breathPhase, dtSec, exertionLevel);
         const thorax = motionCapBones.get('Spine_Upper');
         if (thorax) {
-          const breathDeg = breathingLeanFM(breathPhase, motionLiveliness, exertionLevel);
+          const breathDeg = onsetRamp * breathingLeanFM(breathPhase, motionLiveliness, exertionLevel);
           _liveQ.setFromAxisAngle(_swayAxisAP, (breathDeg * Math.PI) / 180);
           thorax.quaternion.premultiply(_liveQ);
         }
         const lowBack = motionCapBones.get('Spine_Lower');
         if (lowBack) {
           const { mlDeg, apDeg } = livelinessSwayDeg(livelinessTime, motionLiveliness);
-          _liveQ.setFromAxisAngle(_swayAxisML, (mlDeg * Math.PI) / 180);
+          _liveQ.setFromAxisAngle(_swayAxisML, (onsetRamp * mlDeg * Math.PI) / 180);
           lowBack.quaternion.premultiply(_liveQ);
-          _liveQ.setFromAxisAngle(_swayAxisAP, (apDeg * Math.PI) / 180);
+          _liveQ.setFromAxisAngle(_swayAxisAP, (onsetRamp * apDeg * Math.PI) / 180);
           lowBack.quaternion.premultiply(_liveQ);
         }
         modelRoot.updateMatrixWorld(true);
@@ -2738,6 +2761,7 @@
         // vary. `motionLiveliness` currently holds what the host set.
         setMotionOverlaysImpl?.({ liveliness: motionLiveliness });
         composedActive = true;
+        resetLivelinessOnset();
         // Closed-chain foot contacts declared by this motion (Finding 4): rebuild
         // the IK plants so declared stance feet stay world-fixed as the body
         // travels. No-op when the motion declares none (open-chain default).
@@ -3069,6 +3093,7 @@
             finished: false,
           };
           composedActive = true;
+          resetLivelinessOnset();
           return { status: 'playing', ...base };
         }
         if (token !== composedSeq) {
@@ -3161,6 +3186,7 @@
         action.play();
         motionAction = action;
         activeMotionId = motion;
+        resetLivelinessOnset();
         motionClock.getDelta(); // drop the accumulated idle delta
         startLoop();
         requestRender();
