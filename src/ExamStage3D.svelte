@@ -214,6 +214,10 @@
   let runComposedImpl:
     | ((resolved: ResolvedComposedMotion) => Promise<ComposedMotionPlaybackResult>)
     | null = null;
+  // Out-of-band immediate cancel (PR 1) — Stop bypasses the serialized command
+  // chain: it tears down the active composed motion / clip synchronously so the
+  // motion's promise resolves 'cancelled' within a frame, not after the queue drains.
+  let cancelActiveMovementImpl: (() => void) | null = null;
   // Clinical ROM caps enforced per frame during motion (L2 modifier). The host
   // installs the constraint set (setRomScenarioConstraints); this list is the
   // joints to clamp each frame while a capped motion plays.
@@ -313,6 +317,17 @@
       () => undefined,
     );
     return run;
+  }
+
+  /**
+   * STOP the active movement immediately, OUT OF BAND (PR 1 runtime foundation).
+   * Unlike the queued stop-motion command, this does NOT wait for the serialized
+   * command chain to drain — it tears down the active composed motion (its
+   * `applyComposedMotion` promise resolves 'cancelled') and/or clip synchronously,
+   * so a Stop lands within one frame. Idempotent when nothing is playing.
+   */
+  export function cancelActiveMovement(): void {
+    cancelActiveMovementImpl?.();
   }
 
   /**
@@ -1282,6 +1297,13 @@
       // so a subsequent clip/idle recording can never inherit a stale posture.
       let composedCurrentGrounding: string | null = null;
       let composedSeq = 0;
+      // Cancellation tokens (PR 1 runtime foundation). composedActiveToken is the
+      // composedSeq of the CURRENTLY playing composed motion; composedCancelledToken
+      // marks the token a caller explicitly stopped via cancelActiveMovement, so the
+      // awaiting runComposedImpl can tell an out-of-band USER CANCEL ('cancelled')
+      // apart from being SUPERSEDED by a newer command ('interrupted').
+      let composedActiveToken = 0;
+      let composedCancelledToken: number | null = null;
       // True once at least one composed movement has played this session — gates the
       // between-command "pause at a ready stance" beat (the first command starts
       // promptly; subsequent ones get the directed pause).
@@ -1311,6 +1333,18 @@
           resolve();
         }
       }
+
+      // Out-of-band Stop (PR 1): mark the active composed token as user-cancelled
+      // (so its awaiting runComposedImpl resolves 'cancelled', not 'interrupted')
+      // and tear the motion down NOW; also stop an active clip. Not queued on the
+      // command chain, so Stop lands within a frame.
+      cancelActiveMovementImpl = () => {
+        if (composedActive) {
+          composedCancelledToken = composedActiveToken;
+          cancelComposed();
+        }
+        if (activeMotionId) stopMotion();
+      };
 
       // ── Posing-layer hooks (assigned by the posable init block below; all
       //    null when `posable` is false, so the default stage pays only a
@@ -2759,6 +2793,7 @@
         if (activeTween) finishTween();
         cancelComposed();
         const token = composedSeq;
+        composedActiveToken = token; // this motion now owns the skeleton (for cancelActiveMovement)
         const mods = resolved.modifiers ?? {};
         // Same qualitative-overlay semantics as prescribe_motion: timeScale
         // scales the (already velocity-floored) durations; guarding/sway run
@@ -3110,12 +3145,15 @@
           return { status: 'playing', ...base };
         }
         if (token !== composedSeq) {
-          // Superseded mid-play (a newer command / variant switch / unmount):
-          // answer honestly with only the keyframes that settled, so the host
-          // never narrates a partial motion as complete.
+          // Ended before the last keyframe. A USER CANCEL (cancelActiveMovement
+          // marked this token) resolves 'cancelled'; a newer command / variant
+          // switch / unmount that superseded it resolves 'interrupted'. Either way
+          // only the settled keyframes are reported (never a partial as complete).
+          const cancelled = token === composedCancelledToken;
+          if (cancelled) composedCancelledToken = null;
           return {
-            status: 'interrupted',
-            reason: disposed ? 'stage-disposed' : 'superseded',
+            status: cancelled ? 'cancelled' : 'interrupted',
+            reason: cancelled ? 'user-cancel' : disposed ? 'stage-disposed' : 'superseded',
             ...base,
           };
         }
@@ -3512,6 +3550,7 @@
         runCommandImpl = null;
         runMotionImpl = null;
         runComposedImpl = null;
+        cancelActiveMovementImpl = null;
         startRecordingImpl = null;
         stopRecordingImpl = null;
         showRecordedFrameImpl = null;

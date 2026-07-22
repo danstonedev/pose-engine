@@ -2327,11 +2327,13 @@ export interface ComposedKeyframeMeasurement {
  *  stage implements it, hosts narrate from it). */
 export interface ComposedMotionPlaybackResult {
   /** 'completed' = one-shot settled; 'playing' = loop started (measurements
-   *  are from the first pass); 'interrupted' = playback was superseded
-   *  mid-play (a newer command / variant switch / unmount) — `measurements`
-   *  hold only the keyframes that settled before the interruption and
-   *  `reason` says why; 'refused' = stage unavailable / bad input. */
-  status: 'completed' | 'playing' | 'interrupted' | 'refused';
+   *  are from the first pass); 'cancelled' = the caller stopped this motion
+   *  out-of-band (cancelActiveMovement — an immediate, queue-bypassing stop);
+   *  'interrupted' = playback was superseded mid-play by a NEWER command /
+   *  variant switch / unmount (not an explicit stop) — for both, `measurements`
+   *  hold only the keyframes that settled before the end and `reason` says why;
+   *  'refused' = stage unavailable / bad input. */
+  status: 'completed' | 'playing' | 'cancelled' | 'interrupted' | 'refused';
   name?: string;
   reason?: string;
   measurements: ComposedKeyframeMeasurement[];
