@@ -14,7 +14,7 @@
  *    lands within ±2° of the clamped target. The ankle case reproduces the
  *    authored ankle-sprain convention (~−12° plantar on R_Foot).
  */
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
@@ -29,10 +29,6 @@ import {
   computeJointAngles,
   type JointAngleRestReference,
 } from '../services/jointAngles';
-import {
-  clearRomScenarioConstraints,
-  setRomScenarioConstraints,
-} from '../services/romConstraints';
 import {
   buildCommandPose,
   finalizeOutcome,
@@ -52,10 +48,6 @@ const setJoint = (
   motion: string,
   targetDegrees: number,
 ): ExamMovementCommand => ({ action: 'set-joint', joint, motion, targetDegrees });
-
-afterEach(() => {
-  clearRomScenarioConstraints();
-});
 
 // ── 1. resolveCommandTarget clamping matrix (pure) ──────────────────────────
 
@@ -118,11 +110,9 @@ describe('resolveCommandTarget', () => {
     it('a scenario DF restriction still tightens BELOW the WB max (reduced-DF fault)', () => {
       // The teaching hook: constrain DF below the WB max to demonstrate the
       // compensations a limited-dorsiflexion squat must make to stay balanced.
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { availableRange: { min: -30, max: 12 } } },
-      });
       const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 32), variantCfg, {
         weightBearing: true,
+        constraints: { R_Foot: { ankleFlexion: { availableRange: { min: -30, max: 12 } } } },
       });
       expect(r.clampedDegrees).toBe(12);
       expect(r.limitedBy).toBe('scenario-constraint');
@@ -138,30 +128,27 @@ describe('resolveCommandTarget', () => {
 
   describe('scenario constraints clamp tighter than normative', () => {
     it('modifies at the scenario cap (dorsi 10 → 5, scenario-constraint)', () => {
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { availableRange: { min: -30, max: 5 } } },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 10), variantCfg, {
+        constraints: { R_Foot: { ankleFlexion: { availableRange: { min: -30, max: 5 } } } },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 10), variantCfg);
       expect(r.status).toBe('modified');
       expect(r.clampedDegrees).toBe(5);
       expect(r.limitedBy).toBe('scenario-constraint');
     });
 
     it('modifies at the scenario floor (plantar −40 → −30, scenario-constraint)', () => {
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { availableRange: { min: -30, max: 5 } } },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -40), variantCfg, {
+        constraints: { R_Foot: { ankleFlexion: { availableRange: { min: -30, max: 5 } } } },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -40), variantCfg);
       expect(r.status).toBe('modified');
       expect(r.clampedDegrees).toBe(-30);
       expect(r.limitedBy).toBe('scenario-constraint');
     });
 
     it('leaves the unconstrained side of the joint on the normative bound', () => {
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { availableRange: { max: 5 } } },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -60), variantCfg, {
+        constraints: { R_Foot: { ankleFlexion: { availableRange: { max: 5 } } } },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -60), variantCfg);
       expect(r.status).toBe('modified');
       expect(r.clampedDegrees).toBe(-50); // normative plantar floor still applies
       expect(r.limitedBy).toBe('normative-rom');
@@ -171,10 +158,9 @@ describe('resolveCommandTarget', () => {
   describe('refusal rule: achievable travel < 20% of requested (from neutral)', () => {
     it('refuses dorsiflexion when the available range never crosses neutral', () => {
       // Ankle stuck plantar: can move only between −30 and −5.
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { availableRange: { min: -30, max: -5 } } },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 10), variantCfg, {
+        constraints: { R_Foot: { ankleFlexion: { availableRange: { min: -30, max: -5 } } } },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 10), variantCfg);
       expect(r.status).toBe('refused');
       expect(r.reason).toBe('no-achievable-travel');
       expect(r.limitedBy).toBe('scenario-constraint');
@@ -182,28 +168,25 @@ describe('resolveCommandTarget', () => {
     });
 
     it('still moves at exactly 20% achievable travel (cap 2 on a 10° request)', () => {
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { availableRange: { max: 2 } } },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 10), variantCfg, {
+        constraints: { R_Foot: { ankleFlexion: { availableRange: { max: 2 } } } },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 10), variantCfg);
       expect(r.status).toBe('modified');
       expect(r.clampedDegrees).toBe(2);
     });
 
     it('refuses just under the threshold (cap 1.9 on a 10° request)', () => {
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { availableRange: { max: 1.9 } } },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 10), variantCfg, {
+        constraints: { R_Foot: { ankleFlexion: { availableRange: { max: 1.9 } } } },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 10), variantCfg);
       expect(r.status).toBe('refused');
       expect(r.reason).toBe('no-achievable-travel');
     });
 
     it('never refuses a return-to-neutral target — settles at the nearest bound', () => {
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { availableRange: { min: -30, max: -5 } } },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 0), variantCfg, {
+        constraints: { R_Foot: { ankleFlexion: { availableRange: { min: -30, max: -5 } } } },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 0), variantCfg);
       expect(r.status).toBe('modified'); // NOT refused
       expect(r.clampedDegrees).toBe(-5);
     });
@@ -211,33 +194,32 @@ describe('resolveCommandTarget', () => {
 
   describe('painful arc', () => {
     it('flags a compliant target inside the authored painful arc', () => {
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { painfulArc: { min: -20, max: -5 } } },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -10), variantCfg, {
+        constraints: { R_Foot: { ankleFlexion: { painfulArc: { min: -20, max: -5 } } } },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -10), variantCfg);
       expect(r.status).toBe('complied');
       expect(r.painful).toBe(true);
     });
 
     it('does not flag a target outside the arc', () => {
-      setRomScenarioConstraints({
-        R_Foot: { ankleFlexion: { painfulArc: { min: -20, max: -5 } } },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -2), variantCfg, {
+        constraints: { R_Foot: { ankleFlexion: { painfulArc: { min: -20, max: -5 } } } },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -2), variantCfg);
       expect(r.status).toBe('complied');
       expect(r.painful).toBe(false);
     });
 
     it('flags a MODIFIED target whose clamp lands inside the arc', () => {
-      setRomScenarioConstraints({
-        R_Foot: {
-          ankleFlexion: {
-            availableRange: { min: -20, max: 20 },
-            painfulArc: { min: -20, max: -15 },
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -45), variantCfg, {
+        constraints: {
+          R_Foot: {
+            ankleFlexion: {
+              availableRange: { min: -20, max: 20 },
+              painfulArc: { min: -20, max: -15 },
+            },
           },
         },
       });
-      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -45), variantCfg);
       expect(r.status).toBe('modified');
       expect(r.clampedDegrees).toBe(-20);
       expect(r.painful).toBe(true);
@@ -370,15 +352,16 @@ describe('resolveCommandTarget', () => {
     });
 
     it('trunk: the authored guarded-flexion shape (cap 32, painful 24–32) modifies + hurts', () => {
-      setRomScenarioConstraints({
-        Spine_Lower: {
-          flexion: {
-            availableRange: { min: -18, max: 32 },
-            painfulArc: { min: 24, max: 32 },
+      const r = resolveCommandTarget(setJoint('Spine_Lower', 'flexion', 45), variantCfg, {
+        constraints: {
+          Spine_Lower: {
+            flexion: {
+              availableRange: { min: -18, max: 32 },
+              painfulArc: { min: 24, max: 32 },
+            },
           },
         },
       });
-      const r = resolveCommandTarget(setJoint('Spine_Lower', 'flexion', 45), variantCfg);
       expect(r.status).toBe('modified');
       expect(r.clampedDegrees).toBe(32);
       expect(r.limitedBy).toBe('scenario-constraint');
@@ -388,13 +371,15 @@ describe('resolveCommandTarget', () => {
 
   describe('finalizeOutcome', () => {
     it('prefers the measured achieved angle and re-evaluates pain against it', () => {
-      setRomScenarioConstraints({
+      const constraints = {
         R_Foot: { ankleFlexion: { painfulArc: { min: -20, max: -5 } } },
+      };
+      const resolved = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -2), variantCfg, {
+        constraints,
       });
-      const resolved = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -2), variantCfg);
       expect(resolved.painful).toBe(false);
       // Suppose the settled skeleton measured −6.1° (inside the arc).
-      const outcome = finalizeOutcome(resolved, -6.1);
+      const outcome = finalizeOutcome(resolved, -6.1, constraints);
       expect(outcome.achievedDegrees).toBe(-6.1);
       expect(outcome.painful).toBe(true);
       expect(outcome.status).toBe('complied');
@@ -491,18 +476,18 @@ describe('buildCommandPose on the real male rig', () => {
 
   it('ankle: a scenario-clamped command settles at the constraint cap', () => {
     resetToAnatomic();
-    setRomScenarioConstraints({
+    const constraints = {
       R_Foot: { ankleFlexion: { availableRange: { min: -30, max: 5 } } },
-    });
+    };
     const cmd = setJoint('R_Foot', 'ankleFlexion', 15);
-    const resolved = resolveCommandTarget(cmd, variantCfg);
+    const resolved = resolveCommandTarget(cmd, variantCfg, { constraints });
     expect(resolved.status).toBe('modified');
     expect(resolved.clampedDegrees).toBe(5);
     const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
     const report = applyAndMeasure(pose);
     const achieved = measureCommandMotion(report, 'R_Foot', 'ankleFlexion')!;
     expect(Math.abs(achieved - 5)).toBeLessThan(2);
-    const outcome = finalizeOutcome(resolved, achieved);
+    const outcome = finalizeOutcome(resolved, achieved, constraints);
     expect(outcome.status).toBe('modified');
     expect(outcome.limitedBy).toBe('scenario-constraint');
   });
@@ -588,19 +573,19 @@ describe('buildCommandPose on the real male rig', () => {
 
   it('trunk: the guarded-flexion scenario settles at the cap, in the painful arc', () => {
     resetToAnatomic();
-    setRomScenarioConstraints({
+    const constraints = {
       Spine_Lower: {
         flexion: { availableRange: { min: -18, max: 32 }, painfulArc: { min: 24, max: 32 } },
       },
-    });
+    };
     const cmd = setJoint('Spine_Lower', 'flexion', 45);
-    const resolved = resolveCommandTarget(cmd, variantCfg);
+    const resolved = resolveCommandTarget(cmd, variantCfg, { constraints });
     expect(resolved.status).toBe('modified');
     const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
     const report = applyAndMeasure(pose);
     const achieved = measureCommandMotion(report, 'Spine_Lower', 'flexion')!;
     expect(Math.abs(achieved - 32)).toBeLessThan(2);
-    const outcome = finalizeOutcome(resolved, achieved);
+    const outcome = finalizeOutcome(resolved, achieved, constraints);
     expect(outcome.status).toBe('modified');
     expect(outcome.limitedBy).toBe('scenario-constraint');
     expect(outcome.painful).toBe(true);

@@ -55,6 +55,7 @@ import type { JointAngleRestReference } from './jointAngles';
 import { applyCustomPose } from './poseRig';
 import { computeBalanceState } from './centerOfMass';
 import { resolveCommandTarget } from './movementCommand';
+import type { RomScenarioConstraints } from './romConstraints';
 import { buildSequencePoses, type ResolvedComposedMotion } from './motionSequence';
 import {
   captureFloorReference,
@@ -175,6 +176,10 @@ export interface BalanceCoordinationHarness {
     quaternion: THREE.Quaternion;
     scale: THREE.Vector3;
   };
+  /** Per-scenario ROM constraints so a balance correction can't push a joint
+   *  past a case-authored limit — passed explicitly (no module-global store).
+   *  `null`/omitted = normative ROM only. */
+  constraints?: RomScenarioConstraints | null;
 }
 
 /**
@@ -215,13 +220,22 @@ export function balanceAssistApplies(resolved: ResolvedComposedMotion): boolean 
  *  authored command. Returns null when the registry refuses it outright (the
  *  caller then keeps the authored value — the correction is dropped, never
  *  forced). */
-function clampCorrectedTarget(joint: string, motionKey: string, deg: number): number | null {
-  const r = resolveCommandTarget({
-    action: 'set-joint',
-    joint,
-    motion: motionKey,
-    targetDegrees: deg,
-  });
+function clampCorrectedTarget(
+  joint: string,
+  motionKey: string,
+  deg: number,
+  constraints: RomScenarioConstraints | null | undefined,
+): number | null {
+  const r = resolveCommandTarget(
+    {
+      action: 'set-joint',
+      joint,
+      motion: motionKey,
+      targetDegrees: deg,
+    },
+    undefined,
+    { constraints },
+  );
   return r.clampedDegrees ?? null;
 }
 
@@ -298,6 +312,7 @@ function wipedChannelsPerKeyframe(resolved: ResolvedComposedMotion): Set<string>
 function mergeCorrections(
   resolved: ResolvedComposedMotion,
   corr: Map<string, number>[],
+  constraints: RomScenarioConstraints | null | undefined,
 ): ResolvedComposedMotion {
   // First keyframe each channel becomes active at (earliest nonzero correction).
   const activeFrom = new Map<string, number>();
@@ -329,7 +344,12 @@ function mergeCorrections(
         const authored = state.get(chan) ?? 0;
         const from = activeFrom.get(chan);
         const c = from != null && i >= from ? (corr[i]!.get(chan) ?? 0) : 0;
-        vals.set(chan, Math.abs(c) > 1e-6 ? (clampCorrectedTarget(joint, m, authored + c) ?? authored) : authored);
+        vals.set(
+          chan,
+          Math.abs(c) > 1e-6
+            ? (clampCorrectedTarget(joint, m, authored + c, constraints) ?? authored)
+            : authored,
+        );
       }
     }
     // 3. CLOSED-CHAIN DEAD ZONE (see MIN_STANCE_LEG_DEG): if a leg's merged
@@ -511,7 +531,7 @@ export function balanceCoordination(
 
     if (!adjusted) break;
     anyCorrection = true;
-    out = mergeCorrections(resolved, corr);
+    out = mergeCorrections(resolved, corr, harness.constraints);
   }
 
   // LANDING-KEYFRAME CARRY (Wave 1's authored pattern): a keyframe that brings
@@ -560,7 +580,7 @@ export function balanceCoordination(
         }
       }
     }
-    if (restaged) out = mergeCorrections(resolved, corr);
+    if (restaged) out = mergeCorrections(resolved, corr, harness.constraints);
   }
 
   // Leave the harness as we found it (pose + root), so the caller's own

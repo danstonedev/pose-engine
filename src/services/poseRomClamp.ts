@@ -29,7 +29,11 @@ import {
   type JointAngleRestReference,
 } from './jointAngles';
 import { getRomFieldDefinition, type RomRangeDeg } from './romRegistry';
-import { getEffectiveRomRange } from './romConstraints';
+import {
+  getEffectiveRomRange,
+  normalizeRomConstraints,
+  type RomScenarioConstraints,
+} from './romConstraints';
 
 const DEG = 180 / Math.PI;
 const RAD = Math.PI / 180;
@@ -321,23 +325,39 @@ export function clampBoneToRom(
   bone: THREE.Bone,
   canonicalKey: string | null | undefined,
   rest: JointAngleRestReference | null | undefined,
+  constraints?: RomScenarioConstraints | null,
 ): boolean {
   if (!bone || !canonicalKey || !rest) return false;
   if (!isClampActive()) return false;
   const strategy = STRATEGIES[canonicalKey];
   if (!strategy) return false;
 
-  switch (strategy.kind) {
-    case 'pelvis':
-      return clampPelvis(bone, canonicalKey, strategy, rest);
-    case 'body-euler':
-      return clampBodyEuler(bone, canonicalKey, strategy, rest);
-    case 'ball-joint':
-      return clampBallJoint(bone, canonicalKey, strategy, rest);
-    case 'hinge':
-      return clampHinge(bone, canonicalKey, strategy, rest);
+  // The per-scenario constraint set is passed explicitly (no module-global
+  // "active scenario" store — that broke concurrent/preflight resolves). Stash
+  // it for the synchronous span of this clamp so `lookupRange` can intersect it
+  // with the normative range, and clear it in `finally` — there is no state
+  // that outlives one clamp call.
+  _clampConstraints = normalizeRomConstraints(constraints);
+  try {
+    switch (strategy.kind) {
+      case 'pelvis':
+        return clampPelvis(bone, canonicalKey, strategy, rest);
+      case 'body-euler':
+        return clampBodyEuler(bone, canonicalKey, strategy, rest);
+      case 'ball-joint':
+        return clampBallJoint(bone, canonicalKey, strategy, rest);
+      case 'hinge':
+        return clampHinge(bone, canonicalKey, strategy, rest);
+    }
+  } finally {
+    _clampConstraints = null;
   }
 }
+
+/** The per-scenario ROM constraints for the clamp currently running — set at
+ *  `clampBoneToRom` entry, cleared in its `finally`. Only `lookupRange` reads
+ *  it, and only within one synchronous clamp; it never crosses a call. */
+let _clampConstraints: RomScenarioConstraints | null = null;
 
 /** True if the canonical key has a clamp strategy. Cheap lookup so callers
  *  can skip the work entirely for unknown bones. */
@@ -597,10 +617,11 @@ function recomposeBallJoint(
 const ZERO_RANGE: RomRangeDeg = { min: 0, max: 0 };
 
 function lookupRange(canonicalKey: string, fieldKey: string): RomRangeDeg {
-  // Effective = normative ∩ active scenario constraint (romConstraints.ts),
+  // Effective = normative ∩ the clamp's scenario constraint (romConstraints.ts),
   // so a case-authored restriction ("this elbow stops at 95°") clamps here
-  // exactly like a normative limit does.
-  const effective = getEffectiveRomRange(canonicalKey, fieldKey);
+  // exactly like a normative limit does. `_clampConstraints` is the set passed
+  // into this clamp call (null when the caller has no per-patient overrides).
+  const effective = getEffectiveRomRange(_clampConstraints, canonicalKey, fieldKey);
   if (effective) return effective;
   const def = getRomFieldDefinition(canonicalKey, fieldKey);
   return def ? def.range : ZERO_RANGE;

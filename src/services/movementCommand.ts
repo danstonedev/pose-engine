@@ -68,6 +68,7 @@ import {
   getRomFieldConstraint,
   isInRomPainfulArc,
   resolveAvailableRange,
+  type RomScenarioConstraints,
 } from './romConstraints';
 
 // ── Structural command / outcome types ─────────────────────────────────────
@@ -134,9 +135,10 @@ export interface ResolvedCommandTarget {
 
 /**
  * Validate a command against the ROM registry and clamp its target through
- * the effective range (normative ∩ active scenario constraint). Pure: reads
- * the module-level scenario-constraint store installed via
- * `setRomScenarioConstraints`, writes nothing.
+ * the effective range (normative ∩ scenario constraint). Pure: the per-scenario
+ * constraints are passed explicitly in `opts.constraints` (no module-global
+ * store — that broke concurrent/preflight resolves); omit them for normative
+ * ROM only. Writes nothing.
  *
  * `variantCfg` is accepted for forward-compat (per-variant vocabularies);
  * v1 validates against the variant-independent registry.
@@ -144,7 +146,7 @@ export interface ResolvedCommandTarget {
 export function resolveCommandTarget(
   cmd: ExamMovementCommand,
   _variantCfg?: BodyVariantConfig,
-  opts?: { weightBearing?: boolean },
+  opts?: { weightBearing?: boolean; constraints?: RomScenarioConstraints | null },
 ): ResolvedCommandTarget {
   if (cmd.action === 'relax') {
     return { status: 'complied' };
@@ -167,7 +169,7 @@ export function resolveCommandTarget(
     return { status: 'refused', joint, motion, reason: 'invalid-target' };
   }
 
-  const constraint = getRomFieldConstraint(joint, motion);
+  const constraint = getRomFieldConstraint(opts?.constraints, joint, motion);
   // Closed-chain (weight-bearing, planted) targets clamp to the field's larger
   // weightBearingMax on the positive side (ankle DF: ~35° WB vs ~20° open-chain).
   // A scenario constraint still tightens it below, so a reduced-DF fault holds.
@@ -889,6 +891,7 @@ export function measureCommandMotion(
 export function finalizeOutcome(
   resolved: ResolvedCommandTarget,
   achievedDegrees?: number,
+  constraints?: RomScenarioConstraints | null,
 ): ExamMovementOutcome {
   const outcome: ExamMovementOutcome = { status: resolved.status };
   if (resolved.joint != null) outcome.joint = resolved.joint;
@@ -903,7 +906,7 @@ export function finalizeOutcome(
     if (resolved.joint && resolved.motion) {
       outcome.painful = isInRomPainfulArc(
         achieved,
-        getRomFieldConstraint(resolved.joint, resolved.motion),
+        getRomFieldConstraint(constraints, resolved.joint, resolved.motion),
       );
     }
   } else if (resolved.painful != null) {
