@@ -2899,12 +2899,10 @@
           // chained motion enters with velocity; the final settle still stops.
           flowIn: resolved.flowIn === true,
         });
-        // Advance the continuity/root state to the final keyframe for the NEXT motion.
-        const lastRoot = built.roots[built.roots.length - 1];
-        if (lastRoot) {
-          composedRootQuat = [...lastRoot.quat];
-          composedRootTranslate = [...lastRoot.translateM];
-        }
+        // The persistent root commit for the NEXT motion moved BELOW, after the
+        // foot-driven travel is derived (PR 2) — so it folds in the real traveled
+        // distance instead of the authored ≈origin. See the commit after
+        // setComposedFootDriven.
 
         // GROUNDING-SWITCH CROSSFADE (SEAM-4/SEAM-5): derive the root-Y
         // override spans for this trajectory's grounding-posture switches —
@@ -2956,6 +2954,34 @@
         // with a heading profile — undefined for every constant-heading motion.
         const travelHeadingAt = scaledHeadingAt(trajectory, effectiveResolved);
         setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted, stanceWindows, travelHeadingDeg, travelHeadingAt);
+        // PERSISTENT ROOT COMMIT (PR 2): advance the continuity/root state to the
+        // ACTUAL end-of-motion world root for the NEXT segment — the authored last
+        // keyframe PLUS the DERIVED foot-driven travel just computed. This is the
+        // general fix that lets any chained program start at the traveled position,
+        // retiring the TUG-specific offsetMotionTranslate resync. Only NET travel
+        // persists: the transient overlays (lateral shuttle, heel-strike, gait
+        // vertical, pelvis shift) return to ~0 at a settled end and are NOT folded —
+        // matching the offline chain runner's settled-end root (movementChain.ts).
+        const lastRoot = built.roots[built.roots.length - 1];
+        if (lastRoot) {
+          composedRootQuat = [...lastRoot.quat];
+          composedRootTranslate = [...lastRoot.translateM];
+          if (composedFootDriven) {
+            let dx = 0;
+            let dz = 0;
+            if (composedFootDriven.at) {
+              const o = composedFootDriven.at(trajectory.totalMs);
+              dx = o[0];
+              dz = o[1];
+            } else {
+              const off = composedFootDriven.zAt(trajectory.totalMs);
+              dx = off * composedFootDriven.heading[0];
+              dz = off * composedFootDriven.heading[1];
+            }
+            composedRootTranslate[0] += dx;
+            composedRootTranslate[2] += dz;
+          }
+        }
         // MEDIO-LATERAL SHUTTLE: derive the stance-phase-locked pelvis ride
         // toward the planted foot (per-step weight transfer) from the same
         // trajectory — the lateral sibling of the foot-driven travel, kept
