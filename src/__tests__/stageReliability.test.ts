@@ -270,9 +270,12 @@ describe('SEAM-9 — motion-time liveliness (realism) is applied AFTER the recor
   });
 
   it('the motion-time liveliness apply is a real overlay (breathing + micro-sway), NOT inlined before the tap', () => {
-    // The function exists and moves the two trunk bones…
+    // The function exists and moves the two trunk bones… (window widened to
+    // 1300 for the onset-ramp preamble — livelinessOnsetSec + the 0→1 ramp
+    // derivation — which the onset-ramp source pins in idleLiveliness.test.ts
+    // guard in detail).
     expect(stageSource).toMatch(
-      /function applyMotionLiveliness\(dtSec: number\): boolean \{[\s\S]{0,900}breathingLeanFM[\s\S]{0,400}livelinessSwayDeg/,
+      /function applyMotionLiveliness\(dtSec: number\): boolean \{[\s\S]{0,1300}breathingLeanFM[\s\S]{0,400}livelinessSwayDeg/,
     );
     // …and the pre-tap motion-overlay block no longer applies it (only guarding /
     // sway / pelvis remain there — a comment marks where liveliness moved to).

@@ -335,3 +335,47 @@ describe('idle liveliness — stage wiring (source pins)', () => {
     );
   });
 });
+
+/**
+ * MOTION-TIME LIVELINESS ONSET RAMP (source pins) — the "little side/back bend
+ * before the movement" artifact. The motion-time trunk sway/breathing overlay
+ * (applyMotionLiveliness) ran full-strength from frame 0 off free-running clocks
+ * that were never reset at a movement start. A commanded motion is a zero-velocity
+ * ease-in (near-stationary the first ~150–200 ms), so at onset the free-running
+ * sway was the ONLY thing moving — reading as a spurious lateral/backward lean
+ * BEFORE the movement began. The fix eases the sway IN over the first ~0.4 s and
+ * resets its clocks at every motion start. Live-only (unmountable WebGL/Svelte),
+ * so pinned at the source like the idle overlay above.
+ */
+describe('motion-time liveliness — onset ramp (source pins)', () => {
+  it('declares the onset window + a per-motion onset accumulator (the ramp state)', () => {
+    expect(stageSource).toMatch(/const LIVELINESS_ONSET_SEC = 0\.4;\s*\n\s*let livelinessOnsetSec = 0;/);
+  });
+
+  it('resetLivelinessOnset zeroes BOTH the onset accumulator and the sway clock (quiet start)', () => {
+    expect(stageSource).toMatch(
+      /function resetLivelinessOnset\(\): void \{\s*\n\s*livelinessOnsetSec = 0;\s*\n\s*livelinessTime = 0;/,
+    );
+  });
+
+  it('applyMotionLiveliness advances the onset clock and derives a clamped 0→1 ramp', () => {
+    expect(stageSource).toMatch(
+      /livelinessOnsetSec \+= dtSec;[\s\S]{0,600}const onsetRamp = Math\.min\(1, livelinessOnsetSec \/ LIVELINESS_ONSET_SEC\);/,
+    );
+  });
+
+  it('the ramp scales ALL THREE sway channels — breathing (thorax), and both ML + AP lumbar sway', () => {
+    // If any channel is left un-scaled it snaps to full strength at t=0 and the
+    // pre-movement bend returns on that axis.
+    expect(stageSource).toMatch(/const breathDeg = onsetRamp \* breathingLeanFM\(/);
+    expect(stageSource).toMatch(/_liveQ\.setFromAxisAngle\(_swayAxisML, \(onsetRamp \* mlDeg \* Math\.PI\) \/ 180\)/);
+    expect(stageSource).toMatch(/_liveQ\.setFromAxisAngle\(_swayAxisAP, \(onsetRamp \* apDeg \* Math\.PI\) \/ 180\)/);
+  });
+
+  it('the ramp is RESET at every motion-onset site (else a stale full-strength ramp defeats the fix)', () => {
+    // Three onset paths: exam-command composed start, composed-playback start,
+    // and clip-motion start. Each must re-arm the ramp so the sway eases in fresh.
+    const resets = stageSource.match(/resetLivelinessOnset\(\);/g) ?? [];
+    expect(resets.length, 'reset called at each of the 3 motion-onset sites').toBeGreaterThanOrEqual(3);
+  });
+});

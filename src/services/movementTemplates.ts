@@ -2664,6 +2664,139 @@ const plankLimbs = (shoulder: number, elbow: number): SequenceTarget[] => [
   ...bilatLeg(0, 0, 20),
 ];
 
+// ─── Bodyweight squat with limited-dorsiflexion compensation (physics-informed
+//     balance seed) ────────────────────────────────────────────────────────────
+//
+// A bodyweight squat's balance failure mode under LIMITED ankle dorsiflexion (DF)
+// is BACKWARD: capping DF stops the shin advancing, so the pelvis over-sits behind
+// the heels and the whole-body CoM falls behind the base of support. A real person
+// compensates by inclining the TRUNK FORWARD — realized here, over the SHIPPED
+// closed-chain foot-root path, as extra bilateral HIP FLEXION (the hip-hinge about
+// the plant-fixed hip — the "good-morning" squat), with a bounded secondary SPINE
+// increment. That forward incline carries the CoM back over the mid-foot. When the
+// restriction is too severe for the hip+spine ROM budget to cover, the CoM stays
+// behind the base and the squat genuinely LOSES balance (margin < 0) — the
+// compensate-else-fall behaviour this seed is built around.
+//
+// PURE AUTHORING. No engine changes: no root.orient (would slide the feet or
+// distort the base), no contacts[] (would trigger the IK base-of-support
+// distortion), no balanceAssist (its generic re-centre would silently mask the
+// intended failure and its foot-rooted HIP_SAGITTAL sign is inverted). The motion
+// rides the exact same plant-fixed, base-honest path the shipped 'squat' template
+// scores +2.8 cm on, so at full DF the solver reproduces that baseline.
+//
+// FUTURE FLAVOUR (documented, NOT built here): the complementary limited-DF
+// phenotype is the FOREFOOT ROCKER / toe-root ("coming up on the balls of the
+// feet"). It is more iconic but requires editing the re-root core — plantStanceFoot
+// / captureFootFrames / stanceFootDrift all hard-filter key.endsWith('Foot') — plus
+// an ExamStage3D lockstep mirror, so it ships as a flagged engine follow-up, not in
+// this pure-authoring change.
+
+/** DF-keyed compensation solver: given the realized (weight-bearing-clamped) ankle
+ *  dorsiflexion cap, return the descent-pose angles that incline the trunk forward
+ *  enough to keep the CoM over the mid-foot. Hip is the PRIMARY lever (~3× the CoM
+ *  effect of the spine per degree and ROM-headroomed), the spine a bounded
+ *  secondary; every channel is hard-clamped at its verified ROM ceiling. At full WB
+ *  DF (≥ the value where deficit → 0) it yields the shipped squat angles exactly. */
+function squatCompensation(dfCap: number): {
+  hip: number;
+  knee: number;
+  ankle: number;
+  sl: number;
+  su: number;
+  arm: number;
+} {
+  const df = Math.max(0, Math.min(35, dfCap));
+  // Forward CoM shift (cm) needed for a safe margin, as a linear function of the DF
+  // deficit. CALIBRATED on the real balanceBaseOfSupport harness (fresh GLB per df,
+  // reset pos+quat only). Measured minMargin sweep with these constants:
+  //   df 32→+3.4 · 26→+2.2 · 20→+2.7 · 18→+1.9 · 16→+0.3 · 14→−1.4 · 12→−3.0 ·
+  //   10→−4.7 · 6→−8.1 cm. Balanced (margin>0, balancedFraction 1.0) down to
+  //   df≈16; the hip+spine ROM budget is exhausted below that and the CoM stays
+  //   behind the base (backward loss) — the compensate-else-fall crossover ≈ df 15.
+  const DEFICIT_A = 32.2;
+  const DEFICIT_B = 1.006; // 32.2 - 1.006*32 ≈ 0 at the full WB-DF squat
+  // Per-lever CoM gains (cm forward per deg), rig-fit on the harness sweep. Hip is
+  // the primary lever (closed-chain hip-hinge, ~3× the spine and ROM-headroomed);
+  // the lumbar spine is the weaker secondary.
+  const HIP_GAIN = 0.30;
+  const LUM_GAIN = 0.22;
+  const deficit = Math.max(0, DEFICIT_A - DEFICIT_B * df);
+  // Hip carries the deficit first, up to its ROM ceiling (100 → 120).
+  const dHip = Math.min(20, deficit / HIP_GAIN);
+  const rem = Math.max(0, deficit - dHip * HIP_GAIN);
+  // The lumbar spine takes the remainder, up to its ceiling (27 → 60).
+  const dLum = Math.min(33, rem / LUM_GAIN);
+  const hip = 100 + dHip; // ≤ 120 (verified hipFlexion max 120)
+  const sl = 27 + dLum; // ≤ 60 (verified Spine_Lower flexion max 60)
+  const su = Math.min(40, 10 + 0.9 * dLum); // thoracic rides at 0.9× (≤ 40, verified)
+  return { hip, knee: 120, ankle: df, sl, su, arm: 60 };
+}
+
+/**
+ * BODYWEIGHT SQUAT with automatic limited-DF balance compensation.
+ *
+ * `dorsiflexionCapDeg` is the realized weight-bearing ankle DF for this squat
+ * (default 32 = the shipped balanced WB-DF squat with a 60° arm-forward reach).
+ * Pass the SAME number a scenario constraint (setRomScenarioConstraints) will clamp
+ * the ankle to, so the authored forward incline matches the ankle that is actually
+ * realized. The solver keys a forward hip-hinge trunk incline (+ bounded spine) off
+ * that cap: moderate restriction stays balanced via visible compensation, severe
+ * restriction exhausts the hip+spine ROM budget and the CoM stays behind the base
+ * (margin < 0 — a backward loss of balance).
+ *
+ * Same builder shape the shipped 'squat' template emits (startFrom:'neutral',
+ * planted, descent+ascent, ankle leads at peakAt 0.8). NO balanceAssist / contacts[]
+ * / root.orient / weightedDescent — the motion stays on the plant-fixed, base-honest
+ * foot-root path so the balance measurement is undistorted.
+ */
+export function buildSquat(opts: { dorsiflexionCapDeg?: number } = {}): ComposedMotion {
+  const dfCap = typeof opts.dorsiflexionCapDeg === 'number' && Number.isFinite(opts.dorsiflexionCapDeg)
+    ? opts.dorsiflexionCapDeg
+    : 32;
+  const c = squatCompensation(dfCap);
+  return {
+    name: 'squat',
+    startFrom: 'neutral',
+    stance: 'planted',
+    keyframes: [
+      {
+        durationMs: 1000,
+        holdMs: 350,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: c.hip },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: c.hip },
+          { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: c.knee },
+          { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: c.knee },
+          // Ankle leads the descent (peakAt 0.8) — the shin advances over the
+          // planted foot first, exactly as the shipped squat authors it.
+          { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: c.ankle, peakAt: 0.8 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: c.ankle, peakAt: 0.8 },
+          { joint: 'Spine_Lower', motion: 'flexion', targetDegrees: c.sl },
+          { joint: 'Spine_Upper', motion: 'flexion', targetDegrees: c.su },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: c.arm },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: c.arm },
+        ],
+      },
+      {
+        durationMs: 1000,
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
+          { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
+          { joint: 'Spine_Lower', motion: 'flexion', targetDegrees: 0 },
+          { joint: 'Spine_Upper', motion: 'flexion', targetDegrees: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
+        ],
+      },
+    ],
+  };
+}
+
 /** GET INTO A PLANK — standing → plank. Crouch and hinge forward with the hands
  *  reaching to the floor, then pitch the body to the prone-frame plank line (weight
  *  on the toes + hands). Ends 'plank'. Flagged as a weighted lower with the rest
