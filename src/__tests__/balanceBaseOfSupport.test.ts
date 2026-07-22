@@ -27,6 +27,7 @@ import {
   buildGetDownToPlank,
   buildPushUp,
   buildBirdDog,
+  buildSquat,
 } from '../services/movementTemplates';
 import { computeBalanceTimeline } from '../services/centerOfMass';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
@@ -107,6 +108,23 @@ describe('posture-aware base of support', () => {
     // The stepping strategy's whole point is the CoM exceeding the base and a
     // protective step recovering it — the metric must NOT be neutered to always-positive.
     expect(timeline(tpl('stepping-strategy')).minMarginM!, 'stepping strategy').toBeLessThan(-0.02);
+  });
+
+  it('buildSquat compensates limited dorsiflexion — balanced until the ROM budget runs out, then loses balance', () => {
+    // Physics-informed compensation seed: as available ankle DF is restricted the
+    // shins can't advance and the pelvis over-sits back, so buildSquat inclines the
+    // trunk forward (hip-hinge + bounded spine) to carry the CoM over the mid-foot.
+    // Full DF matches the shipped squat; moderate restriction stays balanced VIA the
+    // compensation; severe restriction exhausts the hip+spine ROM budget and the CoM
+    // genuinely leaves the base (backward loss) — the compensate-else-fall behaviour.
+    const full = timeline(buildSquat({})).minMarginM!;
+    expect(full, 'full-DF buildSquat balanced').toBeGreaterThan(0);
+    // …and it reproduces the flat template within ~1cm (no measurement distortion).
+    expect(Math.abs(full - timeline(tpl('squat')).minMarginM!), 'buildSquat({}) ~= template').toBeLessThan(0.01);
+    // Moderate restriction (18°): still balanced, but only because of the compensation.
+    expect(timeline(buildSquat({ dorsiflexionCapDeg: 18 })).minMarginM!, 'df18 compensated').toBeGreaterThan(0);
+    // Severe restriction (10°): un-compensable → the CoM leaves the base (balance lost).
+    expect(timeline(buildSquat({ dorsiflexionCapDeg: 10 })).minMarginM!, 'df10 balance lost').toBeLessThan(0);
   });
 
   it('the bodyweight squat keeps the CoM over the mid-foot the whole descent', () => {
