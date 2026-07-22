@@ -58,10 +58,22 @@ describe('M3 — interrupted composed playback is a distinct, honest status', ()
     expect(partial.measurements).toHaveLength(1);
   });
 
-  it("the stage's supersession branch returns 'interrupted' (never 'completed' for a cancelled run)", () => {
-    // The token-superseded branch must return the distinct status + a reason.
-    expect(stageSource).toMatch(/token !== composedSeq[\s\S]{0,400}status: 'interrupted'/);
-    expect(stageSource).toMatch(/status: 'interrupted',\s*\n\s*reason:/);
+  it("the stage's end-before-last-keyframe branch distinguishes 'cancelled' (user Stop) from 'interrupted' (superseded)", () => {
+    // PR 1: the token-ended branch returns 'cancelled' when a caller stopped this
+    // token out-of-band (cancelActiveMovement), else 'interrupted' — never
+    // 'completed' for a run that didn't reach its last keyframe.
+    expect(stageSource).toMatch(
+      /token !== composedSeq[\s\S]{0,600}status: cancelled \? 'cancelled' : 'interrupted'/,
+    );
+    expect(stageSource).toMatch(/status: cancelled \? 'cancelled' : 'interrupted',\s*\n\s*reason:/);
+  });
+
+  it('the out-of-band cancelActiveMovement marks the active token so it resolves cancelled (Stop bypasses the queue)', () => {
+    // PR 1: cancelActiveMovement is a top-level export (NOT queued on the command
+    // chain) that sets composedCancelledToken = the active token before tearing
+    // the motion down, so the awaiting runComposedImpl returns 'cancelled'.
+    expect(stageSource).toMatch(/export function cancelActiveMovement\(\): void \{/);
+    expect(stageSource).toMatch(/composedCancelledToken = composedActiveToken;\s*\n\s*cancelComposed\(\);/);
   });
 });
 
