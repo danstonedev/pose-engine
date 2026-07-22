@@ -91,6 +91,51 @@ describe('resolveCommandTarget', () => {
     });
   });
 
+  describe('weight-bearing (closed-chain) dorsiflexion allowance', () => {
+    // Ankle DF has two norms: seated open-chain AROM ~20°, and the larger
+    // weight-bearing (WBLT) ~35° reached when the shin advances over a planted
+    // foot in a squat/lunge. The WB max applies ONLY to a planted target.
+    it('open-chain (default) still caps dorsiflexion at the 20° AROM', () => {
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 32), variantCfg);
+      expect(r.clampedDegrees).toBe(20);
+      expect(r.limitedBy).toBe('normative-rom');
+    });
+
+    it('a PLANTED (weight-bearing) foot reaches the WB dorsiflexion max', () => {
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 32), variantCfg, {
+        weightBearing: true,
+      });
+      expect(r.status).toBe('complied');
+      expect(r.clampedDegrees).toBe(32);
+      // …and it is bounded by the WB max (35°), not left unclamped.
+      const capped = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 40), variantCfg, {
+        weightBearing: true,
+      });
+      expect(capped.clampedDegrees).toBe(35);
+      expect(capped.limitedBy).toBe('normative-rom');
+    });
+
+    it('a scenario DF restriction still tightens BELOW the WB max (reduced-DF fault)', () => {
+      // The teaching hook: constrain DF below the WB max to demonstrate the
+      // compensations a limited-dorsiflexion squat must make to stay balanced.
+      setRomScenarioConstraints({
+        R_Foot: { ankleFlexion: { availableRange: { min: -30, max: 12 } } },
+      });
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', 32), variantCfg, {
+        weightBearing: true,
+      });
+      expect(r.clampedDegrees).toBe(12);
+      expect(r.limitedBy).toBe('scenario-constraint');
+    });
+
+    it('plantarflexion (negative side) is unaffected by the WB flag', () => {
+      const r = resolveCommandTarget(setJoint('R_Foot', 'ankleFlexion', -60), variantCfg, {
+        weightBearing: true,
+      });
+      expect(r.clampedDegrees).toBe(-50);
+    });
+  });
+
   describe('scenario constraints clamp tighter than normative', () => {
     it('modifies at the scenario cap (dorsi 10 → 5, scenario-constraint)', () => {
       setRomScenarioConstraints({

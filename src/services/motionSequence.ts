@@ -1828,6 +1828,10 @@ export function resolveComposedMotion(
       const r = resolveCommandTarget(
         { action: 'set-joint', joint: t.joint, motion: t.motion, targetDegrees: t.targetDegrees },
         variantCfg,
+        // Planted (closed-chain) = weight-bearing: ankle DF may reach its WB max.
+        // Falls back to the motion-level stance when a keyframe doesn't set its own
+        // (templates carry stance at the top level, not per phase).
+        { weightBearing: (kf.stance ?? motion.stance) === 'planted' },
       );
       const outcome: SequenceTargetOutcome = {
         keyframe: ki,
