@@ -1274,6 +1274,13 @@
       // cancellation token — any newer command bumps it and the composed
       // playback (including a detached loop cycle) stops at its next check.
       let composedActive = false;
+      // The grounding posture applied to the CURRENT composed frame (PR 1 runtime
+      // foundation) — set each frame by applyTrajectoryRoot from the trajectory
+      // sample, so a live recording frame can carry it (posture recoverable by
+      // scrub), exactly as the offline sampler stamps sample.groundingPosture.
+      // Reset to null when composed playback ends / is taken over (cancelComposed),
+      // so a subsequent clip/idle recording can never inherit a stale posture.
+      let composedCurrentGrounding: string | null = null;
       let composedSeq = 0;
       // True once at least one composed movement has played this session — gates the
       // between-command "pause at a ready stance" beat (the first command starts
@@ -1296,6 +1303,7 @@
         composedHeelStrike = null; // drop any footfall accents
         composedHeelStrikeY = 0;
         composedWorkIntensity = 0; // exertion feed stops; the accumulator decays
+        composedCurrentGrounding = null; // drop the frame grounding so a clip/idle recording can't inherit it
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
@@ -2244,6 +2252,7 @@
         groundingPosture?: string,
       ): void {
         if (!modelRoot) return;
+        composedCurrentGrounding = groundingPosture ?? null; // stamp the frame's grounding for recording
         _rootQA.set(rootQuat[0], rootQuat[1], rootQuat[2], rootQuat[3]);
         modelRoot.quaternion.copy(rootRestQuat).multiply(_rootQA);
         modelRoot.position.set(
@@ -2608,6 +2617,10 @@
             ],
           },
           worldTracks,
+          // Per-frame grounding posture (PR 1) — present during a composed motion
+          // that declares grounding, so scrubbing a live recording recovers the
+          // posture (lockstep with the offline sampler's sample.groundingPosture).
+          ...(composedCurrentGrounding ? { groundingPosture: composedCurrentGrounding } : {}),
         };
       }
 

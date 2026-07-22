@@ -609,6 +609,12 @@ export interface ResolvedSequenceKeyframe {
 export interface ResolvedComposedMotion {
   status: 'ok' | 'refused';
   name?: string;
+  /** Authored posture endpoints (pass-through from the input motion) — so the
+   *  executor commits the motion's start/end posture transactionally from the
+   *  resolved result, instead of re-inferring it or guessing a bridge. Absent
+   *  when the motion authored no posture (an ordinary in-place movement). */
+  startPosture?: PostureNode;
+  endPosture?: PostureNode;
   keyframes: ResolvedSequenceKeyframe[];
   /** Every requested target's outcome, in keyframe order. */
   outcomes: SequenceTargetOutcome[];
@@ -2075,6 +2081,10 @@ export function resolveComposedMotion(
         ? Math.max(1, Math.min(50, Math.round(motion.reps)))
         : 1,
     startFrom,
+    // POSTURE ENDPOINTS: pass the authored start/end posture through so the
+    // executor commits it transactionally (PR 1 runtime foundation).
+    ...(motion.startPosture ? { startPosture: motion.startPosture } : {}),
+    ...(motion.endPosture ? { endPosture: motion.endPosture } : {}),
     ...(motion.modifiers ? { modifiers: motion.modifiers } : {}),
     ...(Array.isArray(motion.contacts) && motion.contacts.length
       ? { contacts: motion.contacts.filter((c) => c && typeof c.foot === 'string') }
