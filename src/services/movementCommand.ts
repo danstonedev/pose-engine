@@ -144,6 +144,7 @@ export interface ResolvedCommandTarget {
 export function resolveCommandTarget(
   cmd: ExamMovementCommand,
   _variantCfg?: BodyVariantConfig,
+  opts?: { weightBearing?: boolean },
 ): ResolvedCommandTarget {
   if (cmd.action === 'relax') {
     return { status: 'complied' };
@@ -167,14 +168,23 @@ export function resolveCommandTarget(
   }
 
   const constraint = getRomFieldConstraint(joint, motion);
-  const effective = resolveAvailableRange(fieldDef.range, constraint);
+  // Closed-chain (weight-bearing, planted) targets clamp to the field's larger
+  // weightBearingMax on the positive side (ankle DF: ~35° WB vs ~20° open-chain).
+  // A scenario constraint still tightens it below, so a reduced-DF fault holds.
+  const baseRange =
+    opts?.weightBearing &&
+    fieldDef.weightBearingMax != null &&
+    fieldDef.weightBearingMax > fieldDef.range.max
+      ? { ...fieldDef.range, max: fieldDef.weightBearingMax }
+      : fieldDef.range;
+  const effective = resolveAvailableRange(baseRange, constraint);
   const clamped = Math.max(effective.min, Math.min(effective.max, requested));
 
   // Which layer owns the binding bound (for `limitedBy`)? Scenario when the
   // effective bound is tighter than the normative bound on that side.
   let limitedBy: ExamMovementLimiter | undefined;
   if (requested > effective.max + 1e-9) {
-    limitedBy = effective.max < fieldDef.range.max - 1e-9 ? 'scenario-constraint' : 'normative-rom';
+    limitedBy = effective.max < baseRange.max - 1e-9 ? 'scenario-constraint' : 'normative-rom';
   } else if (requested < effective.min - 1e-9) {
     limitedBy = effective.min > fieldDef.range.min + 1e-9 ? 'scenario-constraint' : 'normative-rom';
   }

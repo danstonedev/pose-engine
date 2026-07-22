@@ -133,10 +133,18 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 120 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 120 },
-          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 20, peakAt: 0.8 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 20, peakAt: 0.8 },
+          // Weight-bearing dorsiflexion (~32°, closed-chain WB max is 35°): the
+          // shin advances over the planted foot so the knees track forward and the
+          // pelvis does NOT over-sit-back behind the heels. This is the ROOT-cause
+          // fix — the old 20° open-chain cap forced the backward CoM excursion.
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 32, peakAt: 0.8 },
+          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 32, peakAt: 0.8 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 27 },
           { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 10 },
+          // Light arm-forward reach — the natural bodyweight-squat counterweight
+          // that trims the CoM the last few cm over the mid-foot.
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 60 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 60 },
         ],
       },
       {
@@ -151,6 +159,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
           { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
         ],
       },
     ],

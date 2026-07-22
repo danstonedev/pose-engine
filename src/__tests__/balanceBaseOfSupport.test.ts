@@ -108,4 +108,16 @@ describe('posture-aware base of support', () => {
     // protective step recovering it — the metric must NOT be neutered to always-positive.
     expect(timeline(tpl('stepping-strategy')).minMarginM!, 'stepping strategy').toBeLessThan(-0.02);
   });
+
+  it('the bodyweight squat keeps the CoM over the mid-foot the whole descent', () => {
+    // Regression for the CoM-forward finding: the old squat, capped at 20° ankle DF
+    // (open-chain AROM), over-sat the pelvis ~32 cm behind the ankles and the CoM
+    // fell ~11 cm BEHIND the heels (a backward loss of balance, min margin ≈ −11 cm).
+    // Allowing weight-bearing DF (~32°, closed-chain) advances the shins so the knees
+    // track forward, the pelvis stops over-sitting-back, and the CoM stays over the
+    // base — feet planted, no spine rounding. Must read balanced end-to-end.
+    const tl = timeline(tpl('squat'));
+    expect(tl.minMarginM!, 'squat min margin (over mid-foot, not behind the heels)').toBeGreaterThan(0);
+    expect(tl.balancedFraction, 'squat balanced across the whole rep').toBe(1);
+  });
 });

@@ -19,6 +19,14 @@ export interface RomFieldDefinition {
   warningMarginDeg?: number;
   goniometerOffsetDeg?: number;
   neutralSeparationDeg?: number;
+  /** Closed-chain / WEIGHT-BEARING max for this field, when it differs from the
+   *  open-chain AROM `range.max`. Ankle dorsiflexion is the canonical case: the
+   *  seated open-chain AROM norm is ~20°, but a weight-bearing lunge/squat (the
+   *  shin advancing over a planted foot) reaches ~35° (WBLT). Consumed by
+   *  `resolveCommandTarget` only when the target is resolved under a planted
+   *  (closed-chain) stance; a scenario restriction still tightens it, so a
+   *  reduced-dorsiflexion fault is expressed by constraining below this. */
+  weightBearingMax?: number;
 }
 
 export interface RomJointDefinition {
@@ -53,7 +61,7 @@ function field(
   plane: RomPlane,
   options: Pick<
     RomFieldDefinition,
-    'warningMarginDeg' | 'goniometerOffsetDeg' | 'neutralSeparationDeg'
+    'warningMarginDeg' | 'goniometerOffsetDeg' | 'neutralSeparationDeg' | 'weightBearingMax'
   > = {},
 ): RomFieldDefinition {
   const color = PLANE_COLORS[plane];
@@ -232,6 +240,9 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     fields: [
       field('ankleFlexion', 'Flex', 'Dorsi', 'Plantar', { min: -50, max: 20 }, 'sagittal', {
         neutralSeparationDeg: -90,
+        // Weight-bearing DF (WBLT norm) — the shin advancing over a planted foot
+        // in a squat/lunge reaches ~35°, vs the ~20° seated open-chain AROM.
+        weightBearingMax: 35,
       }),
       field('ankleInversion', 'Invert', 'Inv', 'Ev', { min: -15, max: 35 }, 'frontal'),
       field('ankleAbduction', 'Abd/Add', 'Abd', 'Add', { min: -20, max: 15 }, 'transverse'),
@@ -243,6 +254,9 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     fields: [
       field('ankleFlexion', 'Flex', 'Dorsi', 'Plantar', { min: -50, max: 20 }, 'sagittal', {
         neutralSeparationDeg: -90,
+        // Weight-bearing DF (WBLT norm) — the shin advancing over a planted foot
+        // in a squat/lunge reaches ~35°, vs the ~20° seated open-chain AROM.
+        weightBearingMax: 35,
       }),
       field('ankleInversion', 'Invert', 'Inv', 'Ev', { min: -15, max: 35 }, 'frontal'),
       field('ankleAbduction', 'Abd/Add', 'Abd', 'Add', { min: -20, max: 15 }, 'transverse'),
