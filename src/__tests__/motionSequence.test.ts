@@ -16,7 +16,7 @@
  *    the CLAMPED target at each keyframe AND that joints a keyframe doesn't
  *    mention persist from the previous keyframe.
  */
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
@@ -29,10 +29,6 @@ import {
   computeJointAngles,
   type JointAngleRestReference,
 } from '../services/jointAngles';
-import {
-  clearRomScenarioConstraints,
-  setRomScenarioConstraints,
-} from '../services/romConstraints';
 import { measureCommandMotion } from '../services/movementCommand';
 import {
   HAND_JOINT_KEYS,
@@ -91,10 +87,6 @@ const guardedOverheadReach = (): ComposedMotion => ({
       900,
     ),
   ],
-});
-
-afterEach(() => {
-  clearRomScenarioConstraints();
 });
 
 // ── 1. resolveComposedMotion (pure) ─────────────────────────────────────────
@@ -214,10 +206,9 @@ describe('resolveComposedMotion', () => {
   });
 
   it('clamps through scenario constraints and reports modified + limitedBy', () => {
-    setRomScenarioConstraints({
-      R_UpperArm: { shoulderFlexion: { availableRange: { min: -20, max: 70 } } },
+    const r = resolveComposedMotion(guardedOverheadReach(), variantCfg, {
+      constraints: { R_UpperArm: { shoulderFlexion: { availableRange: { min: -20, max: 70 } } } },
     });
-    const r = resolveComposedMotion(guardedOverheadReach(), variantCfg);
     expect(r.status).toBe('ok');
     const kf2Shoulder = r.outcomes.find(
       (o) => o.keyframe === 1 && o.joint === 'R_UpperArm' && o.motion === 'shoulderFlexion',
@@ -584,10 +575,9 @@ describe('buildSequencePoses on the real male rig', () => {
 
   it('scenario constraint caps kf2 of the overhead reach at 70° and the rig lands there', () => {
     resetToAnatomic();
-    setRomScenarioConstraints({
-      R_UpperArm: { shoulderFlexion: { availableRange: { min: -20, max: 70 } } },
+    const resolved = resolveComposedMotion(guardedOverheadReach(), variantCfg, {
+      constraints: { R_UpperArm: { shoulderFlexion: { availableRange: { min: -20, max: 70 } } } },
     });
-    const resolved = resolveComposedMotion(guardedOverheadReach(), variantCfg);
     expect(resolved.status).toBe('ok');
     const built = buildSequencePoses(baselinePose, resolved, variantCfg, rest);
     const report = applyAndMeasure(built.poses[1]!);

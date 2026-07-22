@@ -1,14 +1,13 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
-  clearRomScenarioConstraints,
   getEffectiveRomRange,
   getRomConstraintView,
   getRomFieldConstraint,
-  getRomScenarioConstraints,
   isInRomPainfulArc,
+  normalizeRomConstraints,
   resolveAvailableRange,
-  setRomScenarioConstraints,
+  type RomScenarioConstraints,
 } from '../services/romConstraints';
 import { clampBoneToRom } from '../services/poseRomClamp';
 import {
@@ -18,32 +17,38 @@ import {
 } from '../services/jointAngles';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 
-afterEach(() => {
-  clearRomScenarioConstraints();
+// Per-scenario ROM constraints are passed EXPLICITLY (no module-global store):
+// every lookup takes the constraint set as its first argument, and the clamp
+// takes it as a trailing argument. A caller with no per-patient overrides passes
+// `null` (normative ROM applies).
+
+describe('normalizeRomConstraints', () => {
+  it('collapses an empty set to null (empty === no constraints)', () => {
+    expect(normalizeRomConstraints(null)).toBeNull();
+    expect(normalizeRomConstraints(undefined)).toBeNull();
+    expect(normalizeRomConstraints({})).toBeNull();
+  });
+
+  it('passes a non-empty set through unchanged', () => {
+    const c: RomScenarioConstraints = { R_Forearm: { elbowFlexion: { availableRange: { max: 95 } } } };
+    expect(normalizeRomConstraints(c)).toBe(c);
+  });
 });
 
-describe('scenario constraint store', () => {
-  it('starts empty and clears back to empty', () => {
-    expect(getRomScenarioConstraints()).toBeNull();
-    setRomScenarioConstraints({ R_Forearm: { elbowFlexion: { availableRange: { max: 95 } } } });
-    expect(getRomScenarioConstraints()).not.toBeNull();
-    clearRomScenarioConstraints();
-    expect(getRomScenarioConstraints()).toBeNull();
-  });
-
-  it('treats an empty object as no constraints', () => {
-    setRomScenarioConstraints({});
-    expect(getRomScenarioConstraints()).toBeNull();
-  });
+describe('getRomFieldConstraint', () => {
+  const constraints: RomScenarioConstraints = {
+    R_Forearm: { elbowFlexion: { availableRange: { max: 95 }, endFeel: 'empty' } },
+  };
 
   it('looks up a field constraint by canonical + field key', () => {
-    setRomScenarioConstraints({
-      R_Forearm: { elbowFlexion: { availableRange: { max: 95 }, endFeel: 'empty' } },
-    });
-    expect(getRomFieldConstraint('R_Forearm', 'elbowFlexion')?.endFeel).toBe('empty');
-    expect(getRomFieldConstraint('R_Forearm', 'forearmRotation')).toBeUndefined();
-    expect(getRomFieldConstraint('L_Forearm', 'elbowFlexion')).toBeUndefined();
-    expect(getRomFieldConstraint(null, 'elbowFlexion')).toBeUndefined();
+    expect(getRomFieldConstraint(constraints, 'R_Forearm', 'elbowFlexion')?.endFeel).toBe('empty');
+    expect(getRomFieldConstraint(constraints, 'R_Forearm', 'forearmRotation')).toBeUndefined();
+    expect(getRomFieldConstraint(constraints, 'L_Forearm', 'elbowFlexion')).toBeUndefined();
+    expect(getRomFieldConstraint(constraints, null, 'elbowFlexion')).toBeUndefined();
+  });
+
+  it('is undefined when there are no constraints', () => {
+    expect(getRomFieldConstraint(null, 'R_Forearm', 'elbowFlexion')).toBeUndefined();
   });
 });
 
@@ -85,22 +90,23 @@ describe('resolveAvailableRange', () => {
 });
 
 describe('getEffectiveRomRange', () => {
+  const restrict: RomScenarioConstraints = {
+    R_Forearm: { elbowFlexion: { availableRange: { max: 95 } } },
+  };
+
   it('is the normative range when unconstrained', () => {
-    expect(getEffectiveRomRange('R_Forearm', 'elbowFlexion')).toEqual({ min: 0, max: 150 });
+    expect(getEffectiveRomRange(null, 'R_Forearm', 'elbowFlexion')).toEqual({ min: 0, max: 150 });
   });
 
   it('is the intersection when the scenario restricts', () => {
-    setRomScenarioConstraints({
-      R_Forearm: { elbowFlexion: { availableRange: { max: 95 } } },
-    });
-    expect(getEffectiveRomRange('R_Forearm', 'elbowFlexion')).toEqual({ min: 0, max: 95 });
+    expect(getEffectiveRomRange(restrict, 'R_Forearm', 'elbowFlexion')).toEqual({ min: 0, max: 95 });
     // Untouched fields keep the normative range.
-    expect(getEffectiveRomRange('R_Forearm', 'forearmRotation')).toEqual({ min: -90, max: 90 });
+    expect(getEffectiveRomRange(restrict, 'R_Forearm', 'forearmRotation')).toEqual({ min: -90, max: 90 });
   });
 
   it('returns null for unknown fields', () => {
-    expect(getEffectiveRomRange('R_Forearm', 'nope')).toBeNull();
-    expect(getEffectiveRomRange('NotAJoint', 'elbowFlexion')).toBeNull();
+    expect(getEffectiveRomRange(null, 'R_Forearm', 'nope')).toBeNull();
+    expect(getEffectiveRomRange(null, 'NotAJoint', 'elbowFlexion')).toBeNull();
   });
 });
 
@@ -136,7 +142,7 @@ describe('isInRomPainfulArc', () => {
 
 describe('getRomConstraintView', () => {
   it('reports an unrestricted field with the full track available', () => {
-    const view = getRomConstraintView('R_Forearm', 'elbowFlexion');
+    const view = getRomConstraintView(null, 'R_Forearm', 'elbowFlexion');
     expect(view).not.toBeNull();
     expect(view!.restricted).toBe(false);
     expect(view!.availableRange).toEqual({ min: 0, max: 150 });
@@ -146,7 +152,7 @@ describe('getRomConstraintView', () => {
   });
 
   it('maps a restriction + painful arc onto the normative track', () => {
-    setRomScenarioConstraints({
+    const constraints: RomScenarioConstraints = {
       R_Forearm: {
         elbowFlexion: {
           availableRange: { max: 75 },
@@ -154,8 +160,8 @@ describe('getRomConstraintView', () => {
           endFeel: 'empty',
         },
       },
-    });
-    const view = getRomConstraintView('R_Forearm', 'elbowFlexion')!;
+    };
+    const view = getRomConstraintView(constraints, 'R_Forearm', 'elbowFlexion')!;
     expect(view.restricted).toBe(true);
     expect(view.availableRange).toEqual({ min: 0, max: 75 });
     expect(view.availableMaxPercent).toBeCloseTo(50, 5); // 75 of 0–150
@@ -165,7 +171,7 @@ describe('getRomConstraintView', () => {
   });
 
   it('returns null for unknown fields', () => {
-    expect(getRomConstraintView('R_Forearm', 'nope')).toBeNull();
+    expect(getRomConstraintView(null, 'R_Forearm', 'nope')).toBeNull();
   });
 });
 
@@ -202,6 +208,9 @@ function buildElbowSkeleton(): { skeleton: THREE.Skeleton; forearm: THREE.Bone; 
 
 describe('clampBoneToRom with scenario constraints', () => {
   const variant = BODY_VARIANTS.male;
+  const ELBOW95: RomScenarioConstraints = {
+    L_Forearm: { elbowFlexion: { availableRange: { max: 95 } } },
+  };
 
   function setup(): {
     skeleton: THREE.Skeleton;
@@ -220,13 +229,10 @@ describe('clampBoneToRom with scenario constraints', () => {
   }
 
   it('stops the elbow at the PATIENT limit (95°), not the normative 150°', () => {
-    setRomScenarioConstraints({
-      L_Forearm: { elbowFlexion: { availableRange: { max: 95 } } },
-    });
     const { skeleton, forearm, root, rest } = setup();
     flexTo(120, forearm, root);
 
-    const changed = clampBoneToRom(forearm, 'L_Forearm', rest);
+    const changed = clampBoneToRom(forearm, 'L_Forearm', rest, ELBOW95);
     expect(changed).toBe(true);
 
     root.updateMatrixWorld(true);
@@ -235,27 +241,20 @@ describe('clampBoneToRom with scenario constraints', () => {
   });
 
   it('leaves movement inside the patient limit untouched', () => {
-    setRomScenarioConstraints({
-      L_Forearm: { elbowFlexion: { availableRange: { max: 95 } } },
-    });
     const { forearm, root, rest } = setup();
     flexTo(80, forearm, root);
 
     const before = forearm.quaternion.clone();
-    const changed = clampBoneToRom(forearm, 'L_Forearm', rest);
+    const changed = clampBoneToRom(forearm, 'L_Forearm', rest, ELBOW95);
     expect(changed).toBe(false);
     expect(forearm.quaternion.angleTo(before)).toBeLessThan(1e-6);
   });
 
-  it('reverts to the normative limit once constraints are cleared', () => {
-    setRomScenarioConstraints({
-      L_Forearm: { elbowFlexion: { availableRange: { max: 95 } } },
-    });
-    clearRomScenarioConstraints();
+  it('reverts to the normative limit when no constraints are passed', () => {
     const { skeleton, forearm, root, rest } = setup();
     flexTo(120, forearm, root);
 
-    const changed = clampBoneToRom(forearm, 'L_Forearm', rest);
+    const changed = clampBoneToRom(forearm, 'L_Forearm', rest, null);
     expect(changed).toBe(false);
 
     root.updateMatrixWorld(true);

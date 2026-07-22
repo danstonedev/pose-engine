@@ -26,9 +26,11 @@
    * flexion. The command targets are constructed pre-clamped, so nothing
    * out-of-range is ever applied.
    *
-   * Scenario constraints (`romConstraints` prop) are installed via
-   * setRomScenarioConstraints on every load + prop change and cleared on
-   * destroy — display-side data the host already holds; nothing is fetched.
+   * Scenario constraints (`romConstraints` prop) are passed EXPLICITLY into
+   * each resolve/clamp/balance call (no module-global "active scenario" store —
+   * that broke concurrent/preflight resolves). The prop is read live, so a
+   * host swap takes effect on the next command with no reload — display-side
+   * data the host already holds; nothing is fetched.
    *
    * Framework notes (same contract as {@link PoseViewer}): three + the
    * three-using services are dynamically imported inside onMount so
@@ -52,10 +54,9 @@
   // romRegistry is three-free (pure definitions) — static import stays SSR-safe.
   import { getRomJointDefinition, type RomPlane } from './services/romRegistry';
   // romConstraints is three-free (pure registry math) — static import stays
-  // SSR-safe and lets the constraint store install/clear synchronously.
+  // SSR-safe. Constraints are passed explicitly to each resolve/clamp call
+  // (no module-global store); `getEffectiveRomRange` reads the value we hand it.
   import {
-    clearRomScenarioConstraints,
-    setRomScenarioConstraints,
     getEffectiveRomRange,
     type RomScenarioConstraints,
   } from './services/romConstraints';
@@ -1491,9 +1492,9 @@
             ? serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id)
             : null;
 
-          // 4) Install the scenario's ROM constraints before any command
-          //    can resolve against them (display-side data from the host).
-          setRomScenarioConstraints(romConstraints ?? null);
+          // 4) Scenario ROM constraints are the `romConstraints` prop, read
+          //    live and passed explicitly into each resolve/clamp/balance call
+          //    (no module-global store) — display-side data from the host.
 
           // 5) Gate + apply the authored/antalgic pose (the production
           //    load gate). On drop, surface the reason and stay anatomic.
@@ -2738,12 +2739,14 @@
           if (report) onReport?.(report);
           return { status: 'complied' };
         }
-        const resolved = resolveCommandTarget(cmd, variantCfgRef);
+        const resolved = resolveCommandTarget(cmd, variantCfgRef, {
+          constraints: romConstraints ?? null,
+        });
         if (resolved.status === 'refused' || resolved.clampedDegrees == null) {
           // The patient does not move; answer with where the joint IS.
           const report = measureNow();
           const achieved = report ? measureCommandMotion(report, cmd.joint, cmd.motion) : undefined;
-          return finalizeOutcome(resolved, achieved);
+          return finalizeOutcome(resolved, achieved, romConstraints ?? null);
         }
         const target = buildCommandPose(
           baselinePoseRef,
@@ -2754,7 +2757,11 @@
           restRef, // shoulder elevation needs the rest world orientation
         );
         if (!target) {
-          return finalizeOutcome({ ...resolved, status: 'refused', reason: 'unsupported-motion' });
+          return finalizeOutcome(
+            { ...resolved, status: 'refused', reason: 'unsupported-motion' },
+            undefined,
+            romConstraints ?? null,
+          );
         }
         await tweenTo(target);
         // Settle: re-measure the skeleton — the outcome carries what the
@@ -2762,7 +2769,7 @@
         const report = measureNow();
         if (report) onReport?.(report);
         const achieved = report ? measureCommandMotion(report, cmd.joint, cmd.motion) : undefined;
-        return finalizeOutcome(resolved, achieved);
+        return finalizeOutcome(resolved, achieved, romConstraints ?? null);
       };
 
       runComposedImpl = async (
@@ -2858,6 +2865,7 @@
             currentPose,
             currentRoot: { quat: composedRootQuat, translateM: composedRootTranslate },
             rootRest: { position: rootRestPos, quaternion: rootRestQuat, scale: rootRestScale },
+            constraints: romConstraints ?? null,
           });
           pelvisShiftBakedM = 0; // transient absolute root writes — keep the tracker honest
         }
@@ -3354,7 +3362,7 @@
               const F0 =
                 (Math.acos(Math.max(-1, Math.min(1, _capThighDir.dot(_capCalfDir)))) * 180) /
                 Math.PI;
-              const cap = getEffectiveRomRange(leg.kneeKey, 'kneeFlexion')?.max ?? Infinity;
+              const cap = getEffectiveRomRange(romConstraints ?? null, leg.kneeKey, 'kneeFlexion')?.max ?? Infinity;
               if (!(F0 > cap + 0.5)) continue;
               const restArr = restRef.localQuats[leg.kneeKey];
               if (!restArr) continue;
@@ -3381,7 +3389,7 @@
                 } else {
                   leg.hipBone.quaternion.copy(_capHipW);
                 }
-                clampBoneToRom(leg.hipBone, leg.hipKey, restRef);
+                clampBoneToRom(leg.hipBone, leg.hipKey, restRef, romConstraints ?? null);
                 modelRoot.updateMatrixWorld();
               }
               changed = true;
@@ -3390,7 +3398,7 @@
             for (const key of motionCapKeys) {
               if (KNEE_TO_FOOT[key]) continue;
               const bone = motionCapBones.get(key);
-              if (bone && clampBoneToRom(bone, key, restRef)) changed = true;
+              if (bone && clampBoneToRom(bone, key, restRef, romConstraints ?? null)) changed = true;
             }
             if (changed) modelRoot.updateMatrixWorld();
           }
@@ -3589,7 +3597,6 @@
         cam.dispose(); // removes dblclick/key listeners + disposes controls
         renderer.dispose();
         if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
-        clearRomScenarioConstraints();
       };
 
       // ── OPT-IN posing layer (simMOVE unified studio) ────────────────────
@@ -3747,7 +3754,7 @@
         function poseClamp(bone: import('three').Bone, key: string): boolean {
           if (!poseRomClampOn || !restRef || !hasClampStrategy(key)) return false;
           setRomClampEnabled(true);
-          const changed = clampBoneToRom(bone, key, restRef);
+          const changed = clampBoneToRom(bone, key, restRef, romConstraints ?? null);
           setRomClampEnabled(motionCapKeys.length ? true : null);
           return changed;
         }
@@ -4775,12 +4782,6 @@
     }
   });
 
-  // Scenario constraints are hot-swappable without a reload — the resolve
-  // step reads the store live.
-  $effect(() => {
-    if (!ready) return;
-    setRomScenarioConstraints(romConstraints ?? null);
-  });
 </script>
 
 <div class="pose-viewer" style="height: {height};">

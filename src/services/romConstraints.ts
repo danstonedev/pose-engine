@@ -9,9 +9,12 @@
  * (`poseRomClamp.ts`) enforces the *effective* range (normative ∩ constraint),
  * and readout UIs can render available-vs-normal range and painful arcs.
  *
- * The store is module-level (one active scenario at a time — the same
- * lifecycle as the rig itself). Always `clearRomScenarioConstraints()` when
- * the scenario unloads.
+ * Constraints are passed EXPLICITLY (PR 2): `resolveComposedMotion` takes them in
+ * `ResolveComposedOptions.constraints`, the ROM clamp takes them as an argument,
+ * and readouts pass them in. There is no module-global "active scenario" store —
+ * hidden global state broke reliable preflight, multiple stages, and concurrent
+ * evaluation (a background preflight resolve could clobber the live scenario). A
+ * caller with no per-patient overrides passes `null` (normative ROM applies).
  */
 import {
   getRomFieldDefinition,
@@ -57,34 +60,22 @@ export type RomJointConstraints = Record<string, RomFieldConstraint>;
 /** canonicalKey → joint constraints, e.g. `{ R_Forearm: {...} }`. */
 export type RomScenarioConstraints = Record<string, RomJointConstraints>;
 
-let activeConstraints: RomScenarioConstraints | null = null;
-
-/**
- * Install the active scenario's ROM constraints (replacing any previous set).
- * Pass `null` to clear. Takes effect immediately for both the clamp and the
- * effective-range readouts.
- */
-export function setRomScenarioConstraints(constraints: RomScenarioConstraints | null): void {
-  activeConstraints = constraints && Object.keys(constraints).length > 0 ? constraints : null;
+/** Normalize a constraints object: an empty set is the same as none. */
+export function normalizeRomConstraints(
+  constraints: RomScenarioConstraints | null | undefined,
+): RomScenarioConstraints | null {
+  return constraints && Object.keys(constraints).length > 0 ? constraints : null;
 }
 
-/** Remove all scenario constraints (normative ROM applies again). */
-export function clearRomScenarioConstraints(): void {
-  activeConstraints = null;
-}
-
-/** The currently-installed scenario constraints, or null when none. */
-export function getRomScenarioConstraints(): RomScenarioConstraints | null {
-  return activeConstraints;
-}
-
-/** The active constraint for one joint field, or undefined when unconstrained. */
+/** The constraint for one joint field in the GIVEN scenario set, or undefined
+ *  when unconstrained. Constraints are passed explicitly (no module-global). */
 export function getRomFieldConstraint(
+  constraints: RomScenarioConstraints | null | undefined,
   canonicalKey: string | null | undefined,
   fieldKey: string | null | undefined,
 ): RomFieldConstraint | undefined {
-  if (!activeConstraints || !canonicalKey || !fieldKey) return undefined;
-  return activeConstraints[canonicalKey]?.[fieldKey];
+  if (!constraints || !canonicalKey || !fieldKey) return undefined;
+  return constraints[canonicalKey]?.[fieldKey];
 }
 
 /**
@@ -115,12 +106,13 @@ function clampFinite(value: number | undefined, fallback: number, bounds: RomRan
  * Unknown fields return null (callers keep their own fallback).
  */
 export function getEffectiveRomRange(
+  constraints: RomScenarioConstraints | null | undefined,
   canonicalKey: string | null | undefined,
   fieldKey: string | null | undefined,
 ): RomRangeDeg | null {
   const def = getRomFieldDefinition(canonicalKey, fieldKey);
   if (!def) return null;
-  return resolveAvailableRange(def.range, getRomFieldConstraint(canonicalKey, fieldKey));
+  return resolveAvailableRange(def.range, getRomFieldConstraint(constraints, canonicalKey, fieldKey));
 }
 
 /** Tolerance (deg) for the painful-arc test. Pain-limited ROM is usually
@@ -166,12 +158,13 @@ export interface RomConstraintView {
 
 /** Build the readout view for one joint field, or null if the field is unknown. */
 export function getRomConstraintView(
+  constraints: RomScenarioConstraints | null | undefined,
   canonicalKey: string | null | undefined,
   fieldKey: string | null | undefined,
 ): RomConstraintView | null {
   const field = getRomFieldDefinition(canonicalKey, fieldKey);
   if (!field) return null;
-  const constraint = getRomFieldConstraint(canonicalKey, fieldKey);
+  const constraint = getRomFieldConstraint(constraints, canonicalKey, fieldKey);
   const availableRange = resolveAvailableRange(field.range, constraint);
   const pct = (v: number) => toPercent(v, field.range);
   const arc = constraint?.painfulArc ?? null;

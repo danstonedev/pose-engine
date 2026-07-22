@@ -2738,9 +2738,9 @@ function squatCompensation(dfCap: number): {
  *
  * `dorsiflexionCapDeg` is the realized weight-bearing ankle DF for this squat
  * (default 32 = the shipped balanced WB-DF squat with a 60° arm-forward reach).
- * Pass the SAME number a scenario constraint (setRomScenarioConstraints) will clamp
- * the ankle to, so the authored forward incline matches the ankle that is actually
- * realized. The solver keys a forward hip-hinge trunk incline (+ bounded spine) off
+ * Pass the SAME number a scenario constraint (the `constraints` passed to
+ * `resolveComposedMotion`) will clamp the ankle to, so the authored forward
+ * incline matches the ankle that is actually realized. The solver keys a forward hip-hinge trunk incline (+ bounded spine) off
  * that cap: moderate restriction stays balanced via visible compensation, severe
  * restriction exhausts the hip+spine ROM budget and the CoM stays behind the base
  * (margin < 0 — a backward loss of balance).

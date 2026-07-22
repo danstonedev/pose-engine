@@ -48,6 +48,7 @@ import {
   type ExamMovementLimiter,
   type ExamMovementRefusalReason,
 } from './movementCommand';
+import type { RomScenarioConstraints } from './romConstraints';
 import { rootOrientQuatTuple, type RootOrient, type RootTransform } from './rootMotion';
 import {
   deriveGaitStanceSchedule,
@@ -712,6 +713,13 @@ export interface ResolveComposedOptions {
     quat?: [number, number, number, number];
     translateM?: [number, number, number];
   } | null;
+  /** Per-scenario ROM constraints (per-patient overrides of the normative
+   *  registry). Threaded into every target's {@link resolveCommandTarget} so the
+   *  effective range is normative ∩ scenario — a case-authored restriction
+   *  ("this elbow stops at 95°") clamps composed motion exactly like a normative
+   *  limit. Passed explicitly (no module-global store, which broke concurrent /
+   *  preflight resolves); omit or `null` for normative ROM only. */
+  constraints?: RomScenarioConstraints | null;
 }
 
 const isFiniteNum = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
@@ -1836,8 +1844,13 @@ export function resolveComposedMotion(
         variantCfg,
         // Planted (closed-chain) = weight-bearing: ankle DF may reach its WB max.
         // Falls back to the motion-level stance when a keyframe doesn't set its own
-        // (templates carry stance at the top level, not per phase).
-        { weightBearing: (kf.stance ?? motion.stance) === 'planted' },
+        // (templates carry stance at the top level, not per phase). Scenario
+        // constraints (per-patient ROM overrides) are threaded so composed motion
+        // clamps to normative ∩ scenario, the same truth path as single commands.
+        {
+          weightBearing: (kf.stance ?? motion.stance) === 'planted',
+          constraints: opts?.constraints,
+        },
       );
       const outcome: SequenceTargetOutcome = {
         keyframe: ki,

@@ -85,6 +85,7 @@ import {
   type WeightedDescentReshape,
 } from './rootMotion';
 import { balanceCoordination } from './balanceCoordination';
+import type { RomScenarioConstraints } from './romConstraints';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
 export { stagedBlendWithBaseline };
 import { buildComposedTrajectory, buildLoopTrajectory } from './motionTrajectory';
@@ -283,6 +284,13 @@ export interface SampleComposedOptions {
     quat?: [number, number, number, number];
     translateM?: [number, number, number];
   } | null;
+  /** Per-scenario ROM constraints, threaded into the balance-coordination
+   *  correction so a re-centering target can't push a joint past a case-authored
+   *  limit — the same effective range (normative ∩ scenario) the live stage
+   *  clamps to (lockstep). Passed explicitly (no module-global); omit/`null` for
+   *  normative ROM only. The resolved keyframes themselves are already clamped by
+   *  {@link resolveComposedMotion}; this only reaches the balance sub-resolve. */
+  constraints?: RomScenarioConstraints | null;
   /**
    * Feet to keep planted in the world (Phase 3 closed-chain contact): each
    * declared foot is IK-pinned to the world position it holds at the start of
@@ -391,6 +399,7 @@ export function sampleComposedMotion(
       rest,
       currentPose: opts.currentPose ?? null,
       currentRoot: opts.currentRoot ?? null,
+      constraints: opts.constraints ?? null,
     });
   }
 

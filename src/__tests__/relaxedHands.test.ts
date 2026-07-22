@@ -14,7 +14,7 @@
  * the sampled rig the squat's fingers measurably curl while the push-up's stay
  * flat.
  */
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
@@ -48,7 +48,6 @@ import {
   MOVEMENT_TEMPLATES,
 } from '../services/movementTemplates';
 import { measureCommandMotion } from '../services/movementCommand';
-import { clearRomScenarioConstraints, setRomScenarioConstraints } from '../services/romConstraints';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
@@ -68,10 +67,6 @@ const handTargetsOf = (r: ResolvedComposedMotion, ki: number): Map<string, numbe
 
 const hasAnyHandTarget = (r: ResolvedComposedMotion): boolean =>
   r.keyframes.some((kf) => kf.targets.some((t) => HAND_JOINT_KEYS.includes(t.joint)));
-
-afterEach(() => {
-  clearRomScenarioConstraints();
-});
 
 describe('relaxedHands — authoring (pure)', () => {
   it('squat + reach + lunge carry the FULL relaxed-hand set on every keyframe', () => {
@@ -263,8 +258,9 @@ describe('relaxedHands — authoring (pure)', () => {
   });
 
   it('the added targets ride the SAME truth path — a ROM scenario constraint clamps the curl', () => {
-    setRomScenarioConstraints({ R_Index1: { fingerFlexion: { availableRange: { max: 10 } } } });
-    const r = resolveComposedMotion(template('squat'), variantCfg);
+    const r = resolveComposedMotion(template('squat'), variantCfg, {
+      constraints: { R_Index1: { fingerFlexion: { availableRange: { max: 10 } } } },
+    });
     expect(r.status).toBe('ok');
     const indexOutcomes = r.outcomes.filter(
       (x) => x.joint === 'R_Index1' && x.motion === 'fingerFlexion',
