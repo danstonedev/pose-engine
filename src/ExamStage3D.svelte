@@ -948,29 +948,6 @@
       /** True while the ankle-pivot part of the idle overlay is baked (the
        *  trunk part can apply without it if the root/feet are unavailable). */
       let idlePivotOn = false;
-      // IDLE→MOTION FADE-OUT: the idle sway / weight-shift lean is baked every
-      // idle frame, and undoIdleOverlays() at a motion takeover would remove it
-      // in a SINGLE frame — a visible pre-movement lumbar "snap" (the artifact
-      // the onset ramp's ease-IN alone never covered: it quieted the motion sway
-      // but not the idle sway coming OFF). Snapshot the applied trunk lean at
-      // takeover and fade it out across the SAME onset ramp, so idle→motion is a
-      // crossfade, not a snap. Live-only, like the overlays themselves.
-      let idleFadeActive = false;
-      const _idleFadeLumbarQ = new THREE.Quaternion();
-      const _idleFadeThoraxQ = new THREE.Quaternion();
-      const _idleFadeScaledQ = new THREE.Quaternion();
-      const _idleFadeTmpQ = new THREE.Quaternion();
-      // The idle overlay's WHOLE-BODY components fade out too, so the entire
-      // overlay crossfades (not just the trunk): the slow weight-shift pelvis
-      // travel (idleShiftM, via a decaying term in bakePelvisShift) and the
-      // ankle-pivot (a small root roll with the feet counter-rotated to keep the
-      // soles flat). Captured at takeover, applied at (1 − onsetRamp).
-      let idleFadeShiftCapturedM = 0;
-      let idleFadeShiftM = 0;
-      let idleFadePivotWasOn = false;
-      const _idleFadeRootQ = new THREE.Quaternion();
-      const _idleFadeLFootQ = new THREE.Quaternion();
-      const _idleFadeRFootQ = new THREE.Quaternion();
       // Pelvis-shift overlay: a CONSTANT lateral offset on the MODEL ROOT X — the
       // antalgic weight-shift off a painful limb. + = the patient's left (+X, the
       // TRAVEL_DIRECTION_AXIS lateral sign). It must COMPOSE with the per-frame
@@ -984,7 +961,7 @@
       function bakePelvisShift(): void {
         // The bake target composes the antalgic overlay shift with the idle
         // weight shift (idle-only; zeroed before any motion takes the root).
-        const targetM = motionPelvisShiftM + idleShiftM + idleFadeShiftM;
+        const targetM = motionPelvisShiftM + idleShiftM;
         if (!modelRoot || pelvisShiftBakedM === targetM) return;
         modelRoot.position.x += targetM - pelvisShiftBakedM;
         pelvisShiftBakedM = targetM;
@@ -1032,10 +1009,6 @@
         const thorax = motionCapBones.get('Spine_Upper');
         const lowBack = motionCapBones.get('Spine_Lower');
         if (!thorax && !lowBack) return false;
-        // A pending idle→motion pelvis fade is moot now the stage is idle again
-        // (a motion may have ended before its onset fade finished): clear it so the
-        // bakePelvisShift below composes the fresh idle shift only — no stale offset.
-        idleFadeShiftM = 0;
         idleTime += dtSec;
         // Exertion-scaled breathing: integrate the SHARED phase accumulator
         // (phase-continuous with the motion-time overlay — the breath neither
@@ -1133,39 +1106,6 @@
         modelRoot?.updateMatrixWorld(true);
         return true;
       }
-      /** Snapshot the idle overlay's CURRENT trunk lean (lumbar + thorax deltas
-       *  vs their stored pre-overlay bases) so applyMotionLiveliness can fade it
-       *  out across the onset ramp instead of undoIdleOverlays() removing it in
-       *  one frame. Call BEFORE undoing, at a composed-motion takeover; a no-op
-       *  (clears the fade) when no idle overlay is currently baked. */
-      function captureIdleFadeForTakeover(): void {
-        idleFadeActive = false;
-        if (!idleOverlayOn || !motionCapBones) return;
-        const lowBack = motionCapBones.get('Spine_Lower');
-        const thorax = motionCapBones.get('Spine_Upper');
-        // The idle overlay PREMULTIPLIES its delta onto the base (cur = delta·base),
-        // so the applied delta is cur·base⁻¹.
-        if (lowBack) _idleFadeLumbarQ.copy(lowBack.quaternion).multiply(_idleFadeTmpQ.copy(_idleBaseLumbarQ).invert());
-        else _idleFadeLumbarQ.identity();
-        if (thorax) _idleFadeThoraxQ.copy(thorax.quaternion).multiply(_idleFadeTmpQ.copy(_idleBaseThoraxQ).invert());
-        else _idleFadeThoraxQ.identity();
-        // Whole-body components (captured BEFORE undoIdleOverlays clears them):
-        // the weight-shift pelvis travel, and the ankle-pivot root roll + the
-        // feet counter-rotations that keep the soles flat under it.
-        idleFadeShiftCapturedM = idleShiftM;
-        idleFadePivotWasOn = idlePivotOn && !!modelRoot;
-        if (idleFadePivotWasOn) {
-          _idleFadeRootQ.copy(modelRoot!.quaternion).multiply(_idleFadeTmpQ.copy(_idleBaseRootQ).invert());
-          const lFoot = motionCapBones.get('L_Foot');
-          if (lFoot) _idleFadeLFootQ.copy(lFoot.quaternion).multiply(_idleFadeTmpQ.copy(_idleBaseLFootQ).invert());
-          else _idleFadeLFootQ.identity();
-          const rFoot = motionCapBones.get('R_Foot');
-          if (rFoot) _idleFadeRFootQ.copy(rFoot.quaternion).multiply(_idleFadeTmpQ.copy(_idleBaseRFootQ).invert());
-          else _idleFadeRFootQ.identity();
-        }
-        idleFadeActive = true;
-      }
-
       // ── EYES · micro-gaze overlay (Wave 5 · 5.1) — BEGIN eye block ────────
       // LIVE-ONLY, same undo/reapply sandwich as the idle overlay above, but
       // ALWAYS-ON while the model is visible (idle AND during motion): the eye
@@ -1323,54 +1263,23 @@
         // is the fix for the "little side/back bend before the movement"). Also
         // smooths the idle->motion lumbar handoff (no full-strength step at onset).
         const onsetRamp = Math.min(1, livelinessOnsetSec / LIVELINESS_ONSET_SEC);
-        // IDLE FADE-OUT: the mirror of the ease-IN below. The captured idle trunk
-        // lean is applied at (1 − onsetRamp) so it decays to zero exactly as the
-        // motion sway rises — the idle→motion handoff is a crossfade, no snap.
-        // Cleared once the onset completes (fade reaches 0).
-        const idleFade = idleFadeActive ? 1 - onsetRamp : 0;
-        if (idleFade <= 0 && idleFadeActive) {
-          idleFadeActive = false;
-          if (idleFadeShiftM !== 0) {
-            idleFadeShiftM = 0;
-            bakePelvisShift(); // un-bake the last residual pelvis fade cleanly
-          }
-        }
         // EXERTION-SCALED FM breathing (Wave 5): integrate the shared phase at the
         // exertion-driven rate (phase-continuous — never t×rate, so a rate change
         // can never jump mid-breath).
         breathPhase = advanceBreathPhase(breathPhase, dtSec, exertionLevel);
         const thorax = motionCapBones.get('Spine_Upper');
         if (thorax) {
-          // Fade the captured idle thorax lean out first, then ease the motion breath in.
-          if (idleFade > 0) thorax.quaternion.premultiply(_idleFadeScaledQ.identity().slerp(_idleFadeThoraxQ, idleFade));
           const breathDeg = onsetRamp * breathingLeanFM(breathPhase, motionLiveliness, exertionLevel);
           _liveQ.setFromAxisAngle(_swayAxisAP, (breathDeg * Math.PI) / 180);
           thorax.quaternion.premultiply(_liveQ);
         }
         const lowBack = motionCapBones.get('Spine_Lower');
         if (lowBack) {
-          // Fade the captured idle lumbar lean out first, then ease the motion sway in.
-          if (idleFade > 0) lowBack.quaternion.premultiply(_idleFadeScaledQ.identity().slerp(_idleFadeLumbarQ, idleFade));
           const { mlDeg, apDeg } = livelinessSwayDeg(livelinessTime, motionLiveliness);
           _liveQ.setFromAxisAngle(_swayAxisML, (onsetRamp * mlDeg * Math.PI) / 180);
           lowBack.quaternion.premultiply(_liveQ);
           _liveQ.setFromAxisAngle(_swayAxisAP, (onsetRamp * apDeg * Math.PI) / 180);
           lowBack.quaternion.premultiply(_liveQ);
-        }
-        // Whole-body idle fade: the decaying weight-shift pelvis travel + the
-        // ankle-pivot root roll (feet counter-rotated to hold the soles flat).
-        // Applied on top of the motion-driven root/feet, decaying to zero over
-        // the onset — the residual lateral "settle" the trunk fade alone left.
-        if (idleFade > 0) {
-          idleFadeShiftM = idleFadeShiftCapturedM * idleFade;
-          bakePelvisShift();
-          if (idleFadePivotWasOn) {
-            modelRoot.quaternion.premultiply(_idleFadeScaledQ.identity().slerp(_idleFadeRootQ, idleFade));
-            const lFoot = motionCapBones.get('L_Foot');
-            if (lFoot) lFoot.quaternion.premultiply(_idleFadeScaledQ.identity().slerp(_idleFadeLFootQ, idleFade));
-            const rFoot = motionCapBones.get('R_Foot');
-            if (rFoot) rFoot.quaternion.premultiply(_idleFadeScaledQ.identity().slerp(_idleFadeRFootQ, idleFade));
-          }
         }
         modelRoot.updateMatrixWorld(true);
         return true;
@@ -2902,7 +2811,6 @@
         }
         // Composed playback owns the skeleton: cancel any clip / prior
         // composed loop / in-flight tween, THEN capture the cancellation token.
-        captureIdleFadeForTakeover(); // snapshot the idle trunk lean so it FADES out (not snaps)
         undoIdleOverlays(); // playback starts from the clean idle pose
         undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
         poseLayerOnTakeover?.();
