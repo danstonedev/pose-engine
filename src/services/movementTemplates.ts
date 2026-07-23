@@ -3416,11 +3416,16 @@ const GAIT_TURN_MAX_DEG = 120;
  *  entry yaw on the planted stance foot so it doesn't arc sideways. */
 const GAIT_STANCE_FOOT_X_M = -0.083;
 const GAIT_STANCE_FOOT_Z_M = -0.029;
-const GAIT_APA_SHIFT_M = 0.012; // authored pelvis shift toward the stance (R) foot, m (−X)
-const GAIT_APA_LUMBAR_DEG = -1.2; // lumbar list over the stance foot (lateralTilt + = left)
-const GAIT_APA_THORACIC_DEG = 2.0; // thoracic counter-list keeps the head centred
-const GAIT_APA_NECK_DEG = -0.8; // levels the head against the authored S-curve's residual
-const GAIT_APA_KNEE_DEG = 5; // future swing (L) knee unweights
+// GAIT INITIATION lateral lead — HALVED from the original (0.012/−1.2/2.0/−0.8):
+// the pre-step weight shift read as a distinct "lean to the right, THEN walk"
+// beat. Softening the initiation makes the walk step off more directly; the
+// IN-STRIDE weight transfer (the medio-lateral shuttle) is unchanged, so real
+// gait sway is preserved — only the standing-start lead is quieter.
+const GAIT_APA_SHIFT_M = 0.006; // authored pelvis shift toward the stance (R) foot, m (−X)
+const GAIT_APA_LUMBAR_DEG = -0.6; // lumbar list over the stance foot (lateralTilt + = left)
+const GAIT_APA_THORACIC_DEG = 1.0; // thoracic counter-list keeps the head centred
+const GAIT_APA_NECK_DEG = -0.4; // levels the head against the authored S-curve's residual
+const GAIT_APA_KNEE_DEG = 5; // future swing (L) knee unweights (unchanged — sagittal)
 // REAL GAIT TERMINATION — a braking final step: the lead (R) foot accepts weight
 // with a loading-response knee yield while the trailing (L) foot swings UP NEXT
 // TO it (feet together), then the body levels out to quiet standing (arms
