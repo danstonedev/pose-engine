@@ -110,6 +110,7 @@
     motionReportHz = 0,
     idleLiveliness = 0.4,
     posable = false,
+    diagnostics = false,
     onReport,
     onPoseDropped,
     onSelectJoint,
@@ -175,6 +176,14 @@
      *  (showRecordedFrame) is idle time, so it CAN be hand-posed and then
      *  baked via captureFrame. */
     posable?: boolean;
+    /** MEASURE-ONLY live diagnostic HUD (default OFF — other consumers are
+     *  byte-identically untouched). When true, a small on-canvas readout
+     *  reports the ACTUAL post-overlay trunk lateral lean, low-back segment
+     *  lean and pelvis lateral shift, plus which live overlays/modifiers are
+     *  active and the current frame source (idle / transition / composed /
+     *  clip / held). Reads the rendered bones — so an onset/transition tilt
+     *  self-identifies on screen. Never repositions the body. */
+    diagnostics?: boolean;
     /** Fires when the authored pose is rejected at load time ('variant',
      *  'schema', 'empty', 'no-skeleton'); the stage continues anatomic. */
     onPoseDropped?: (reason: string) => void;
@@ -186,6 +195,25 @@
   let container: HTMLDivElement;
   let loading = $state(true);
   let loadError = $state('');
+
+  // ── Live diagnostic readout (opt-in via `diagnostics`) ───────────────────
+  // Measure-only. Computed each frame from the ACTUAL rendered bones (after the
+  // idle / motion-liveliness overlays are baked), so a transient onset tilt the
+  // clean report never sees is visible on screen. Sign convention: + = the
+  // patient's LEFT (+X), matching the engine's lateral sign.
+  type StageDiagnostics = {
+    state: string;
+    trunkTiltDeg: number;
+    lumbarTiltDeg: number;
+    pelvisShiftCm: number;
+    idle: boolean;
+    pivot: boolean;
+    livelinessPct: number;
+    swayMod: number;
+    shiftModCm: number;
+  };
+  let diag = $state<StageDiagnostics | null>(null);
+  let lastDiagMs = 0;
 
   // Gesture vocabulary matches the ACTIVE interaction model: the touch
   // variant only when cooperative gestures will engage (opt-in ∧ coarse
@@ -3543,6 +3571,57 @@
         // recording tap so recordings stay clean; clean mode applies nothing
         // and never forces a draw.
         if (applyEyeGaze(motionDelta)) renderNeeded = true;
+        // MEASURE-ONLY diagnostic sample (opt-in): read the ACTUAL post-overlay
+        // trunk/pelvis + active-overlay flags at ~15 Hz. Runs before the render
+        // early-return so a held/idle frame still updates the readout.
+        if (diagnostics && modelRoot && motionCapBones) {
+          const diagNow = performance.now();
+          if (diagNow - lastDiagMs >= 66) {
+            lastDiagMs = diagNow;
+            const lower = motionCapBones.get('Spine_Lower');
+            const upper = motionCapBones.get('Spine_Upper');
+            const head = motionCapBones.get('Head');
+            const hips = motionCapBones.get('Hips') ?? lower;
+            // World position straight from matrixWorld (elements 12/13/14 =
+            // x/y/z); the overlays already ran updateMatrixWorld this frame, so
+            // no THREE temp-vector allocation and no extra world-matrix pass.
+            const tiltDeg = (
+              from: { matrixWorld: { elements: number[] } } | undefined,
+              to: { matrixWorld: { elements: number[] } } | undefined,
+            ): number => {
+              if (!from || !to) return 0;
+              const fe = from.matrixWorld.elements;
+              const te = to.matrixWorld.elements;
+              return (Math.atan2(te[12] - fe[12], te[13] - fe[13]) * 180) / Math.PI;
+            };
+            const trunkTiltDeg = tiltDeg(hips, head);
+            const lumbarTiltDeg = tiltDeg(lower, upper);
+            const motionOn = !!activeMotionId || composedActive;
+            diag = {
+              state: activeTween
+                ? 'transition'
+                : composedActive
+                  ? 'composed'
+                  : activeMotionId
+                    ? 'clip'
+                    : activeTrajectory
+                      ? 'travel'
+                      : idleOverlayOn
+                        ? 'idle'
+                        : 'held',
+              trunkTiltDeg,
+              lumbarTiltDeg,
+              pelvisShiftCm: (modelRoot.position.x - rootRestPos.x) * 100,
+              idle: idleOverlayOn,
+              pivot: idlePivotOn,
+              livelinessPct: motionOn
+                ? Math.min(1, livelinessOnsetSec / LIVELINESS_ONSET_SEC) * 100
+                : 0,
+              swayMod: motionSway,
+              shiftModCm: motionPelvisShiftM * 100,
+            };
+          }
+        }
         if (!renderNeeded) return;
         poseLayerBeforeRender?.(); // markers / gizmo / twist / slice tracking
         renderer.render(scene, camera);
@@ -4817,6 +4896,26 @@
   ></div>
   {#if loading}<div class="pose-viewer__status">Loading 3D model…</div>{/if}
   {#if loadError}<div class="pose-viewer__status pose-viewer__status--err">{loadError}</div>{/if}
+  {#if diagnostics && diag}
+    <div class="pose-viewer__diag" aria-hidden="true">
+      <span class="pose-viewer__diag-state">{diag.state}</span>
+      <span class:pose-viewer__diag-hot={Math.abs(diag.trunkTiltDeg) > 5}
+        >trunk {diag.trunkTiltDeg >= 0 ? '+' : ''}{diag.trunkTiltDeg.toFixed(1)}°</span
+      >
+      <span class:pose-viewer__diag-hot={Math.abs(diag.lumbarTiltDeg) > 5}
+        >lumbar {diag.lumbarTiltDeg >= 0 ? '+' : ''}{diag.lumbarTiltDeg.toFixed(1)}°</span
+      >
+      <span class:pose-viewer__diag-hot={Math.abs(diag.pelvisShiftCm) > 3}
+        >pelvis {diag.pelvisShiftCm >= 0 ? '+' : ''}{diag.pelvisShiftCm.toFixed(1)}cm</span
+      >
+      {#if diag.livelinessPct > 0}<span>live {diag.livelinessPct.toFixed(0)}%</span>{/if}
+      {#if diag.swayMod > 0}<span>sway {diag.swayMod.toFixed(2)}</span>{/if}
+      {#if Math.abs(diag.shiftModCm) > 0.05}<span>shiftMod {diag.shiftModCm.toFixed(1)}cm</span>{/if}
+      {#if diag.idle}<span>idle</span>{/if}
+      {#if diag.pivot}<span>pivot</span>{/if}
+      <span class="pose-viewer__diag-key">+L / −R</span>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -4852,5 +4951,36 @@
   }
   .pose-viewer__status--err {
     color: #ff9a9a;
+  }
+  .pose-viewer__diag {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px 8px;
+    max-width: calc(100% - 16px);
+    padding: 5px 8px;
+    font: 600 11px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #cfe8ff;
+    background: rgba(10, 16, 20, 0.72);
+    border: 1px solid rgba(120, 190, 255, 0.35);
+    border-radius: 7px;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .pose-viewer__diag-state {
+    color: #7fd8a0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .pose-viewer__diag-hot {
+    color: #ffb454;
+    font-weight: 700;
+  }
+  .pose-viewer__diag-key {
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 500;
   }
 </style>
