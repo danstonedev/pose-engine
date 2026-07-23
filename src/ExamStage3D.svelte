@@ -1339,12 +1339,30 @@
       // (so its awaiting runComposedImpl resolves 'cancelled', not 'interrupted')
       // and tear the motion down NOW; also stop an active clip. Not queued on the
       // command chain, so Stop lands within a frame.
+      //
+      // FREEZE-FRAME: Stop HOLDS the mannequin at its current on-screen pose
+      // rather than reverting to anatomic rest. Snapshot the live pose + root
+      // BEFORE teardown (buildFrameNow lifts only the live-only idle/eye overlays,
+      // so the freeze is the clean driven pose), tear the motion down, then
+      // re-assert the snapshot — overriding BOTH revert paths: the composed path's
+      // idle fallback AND the clip path's stopMotion()→applyPoseNow(currentPose)
+      // (which would otherwise snap back to the pre-clip pose). Idle liveliness
+      // (breathing) then resumes on top of the frozen pose.
       cancelActiveMovementImpl = () => {
+        const frozen = buildFrameNow(0);
         if (composedActive) {
           composedCancelledToken = composedActiveToken;
           cancelComposed();
         }
         if (activeMotionId) stopMotion();
+        if (frozen && skinnedRef && variantCfgRef) {
+          applyCustomPose(skinnedRef.skeleton, variantCfgRef, frozen.pose);
+          currentPose = frozen.pose;
+          composedRootQuat = [...frozen.root.orientQuat];
+          composedRootTranslate = [...frozen.root.translateM];
+          applyRootState(frozen.root.orientQuat, frozen.root.translateM);
+          requestRender();
+        }
       };
 
       // ── Posing-layer hooks (assigned by the posable init block below; all
