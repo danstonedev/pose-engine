@@ -283,31 +283,17 @@ describe('SEAM-9 — motion-time liveliness (realism) is applied AFTER the recor
 
   it('the motion-time liveliness apply is a real overlay (breathing + micro-sway), NOT inlined before the tap', () => {
     // The function exists and moves the two trunk bones… (window widened to
-    // 2000 for the onset-ramp preamble — livelinessOnsetSec + the 0→1 ramp
-    // derivation — PLUS the idle→motion FADE-OUT preamble: the captured idle
-    // trunk lean applied at (1 − onsetRamp) so it crossfades out as the motion
-    // sway eases in, instead of undoIdleOverlays() snapping it off in one frame).
+    // 1300 for the onset-ramp preamble — livelinessOnsetSec + the 0→1 ramp
+    // derivation — which the onset-ramp source pins in idleLiveliness.test.ts
+    // guard in detail).
     expect(stageSource).toMatch(
-      /function applyMotionLiveliness\(dtSec: number\): boolean \{[\s\S]{0,2000}breathingLeanFM[\s\S]{0,600}livelinessSwayDeg/,
+      /function applyMotionLiveliness\(dtSec: number\): boolean \{[\s\S]{0,1300}breathingLeanFM[\s\S]{0,400}livelinessSwayDeg/,
     );
     // …and the pre-tap motion-overlay block no longer applies it (only guarding /
     // sway / pelvis remain there — a comment marks where liveliness moved to).
     expect(stageSource).toContain(
       'It is therefore applied via applyMotionLiveliness() AFTER the recording',
     );
-  });
-
-  it('the idle→motion trunk lean CROSSFADES out (no single-frame undoIdleOverlays snap)', () => {
-    // A composed takeover SNAPSHOTS the applied idle trunk lean BEFORE undoing it…
-    expect(stageSource).toMatch(
-      /captureIdleFadeForTakeover\(\);[\s\S]{0,120}undoIdleOverlays\(\);/,
-    );
-    // …and applyMotionLiveliness fades that snapshot out at (1 − onsetRamp),
-    // premultiplied onto BOTH trunk bones, so it decays to zero as the motion
-    // sway eases in — the mirror of the ease-IN, not an instantaneous step.
-    expect(stageSource).toMatch(/const idleFade = idleFadeActive \? 1 - onsetRamp : 0;/);
-    expect(stageSource).toMatch(/thorax\.quaternion\.premultiply\(_idleFadeScaledQ\.identity\(\)\.slerp\(_idleFadeThoraxQ, idleFade\)\)/);
-    expect(stageSource).toMatch(/lowBack\.quaternion\.premultiply\(_idleFadeScaledQ\.identity\(\)\.slerp\(_idleFadeLumbarQ, idleFade\)\)/);
   });
 });
 
