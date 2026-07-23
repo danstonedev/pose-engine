@@ -318,9 +318,10 @@ describe('idle liveliness — stage wiring (source pins)', () => {
     expect(stageSource).toMatch(
       /function undoIdleOverlays\(\): boolean \{[\s\S]{0,700}copy\(_idleBaseThoraxQ\)[\s\S]{0,300}copy\(_idleBaseLumbarQ\)[\s\S]{0,900}idleShiftM = 0;\s*\n\s*bakePelvisShift\(\);/,
     );
-    // …and the bake target composes the two shifts, so idle can never clobber
-    // the antalgic overlay (or vice versa).
-    expect(stageSource).toMatch(/const targetM = motionPelvisShiftM \+ idleShiftM;/);
+    // …and the bake target composes the shifts, so none can clobber another:
+    // the antalgic overlay (motionPelvisShiftM), the idle weight-shift
+    // (idleShiftM), and the decaying idle→motion pelvis fade (idleFadeShiftM).
+    expect(stageSource).toMatch(/const targetM = motionPelvisShiftM \+ idleShiftM \+ idleFadeShiftM;/);
   });
 
   it('the ankle-pivot sway restores the root quat + BOTH counter-rotated feet inside the same undo (Wave 5)', () => {
