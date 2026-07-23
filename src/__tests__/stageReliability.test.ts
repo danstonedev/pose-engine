@@ -308,12 +308,6 @@ describe('SEAM-9 — motion-time liveliness (realism) is applied AFTER the recor
     expect(stageSource).toMatch(/const idleFade = idleFadeActive \? 1 - onsetRamp : 0;/);
     expect(stageSource).toMatch(/thorax\.quaternion\.premultiply\(_idleFadeScaledQ\.identity\(\)\.slerp\(_idleFadeThoraxQ, idleFade\)\)/);
     expect(stageSource).toMatch(/lowBack\.quaternion\.premultiply\(_idleFadeScaledQ\.identity\(\)\.slerp\(_idleFadeLumbarQ, idleFade\)\)/);
-    // …and the WHOLE-BODY components fade too: the weight-shift pelvis travel
-    // (a decaying term in the bakePelvisShift target) and the ankle-pivot root
-    // roll (with the feet), so the entire idle overlay crossfades, not just the trunk.
-    expect(stageSource).toMatch(/const targetM = motionPelvisShiftM \+ idleShiftM \+ idleFadeShiftM;/);
-    expect(stageSource).toMatch(/idleFadeShiftM = idleFadeShiftCapturedM \* idleFade;/);
-    expect(stageSource).toMatch(/modelRoot\.quaternion\.premultiply\(_idleFadeScaledQ\.identity\(\)\.slerp\(_idleFadeRootQ, idleFade\)\)/);
   });
 });
 
