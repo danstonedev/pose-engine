@@ -43,6 +43,7 @@
    * commands. Theme via `--pv-bg`.
    */
   import { onMount } from 'svelte';
+  import { computeStageDiagnostics, type StageDiagnostics } from './services/stageDiagnostics';
   import { POSE_SCHEMA_VERSION, type CustomPose, type MovementClipId } from './types';
   import type { DrivingRingMap, JointAngleReport } from './services/jointAngles';
   import type { PoseRingDrag } from './services/poseRotateRings';
@@ -65,15 +66,14 @@
   import {
     livelinessSwayDeg,
     cadenceRate,
-    idleWeightShift,
-    // Wave 5 life-signals: exertion-scaled FM breathing + ankle-pivot idle sway.
-    advanceBreathPhase,
+    // Wave 5 life-signals: exertion-scaled FM breathing.
     breathingLeanFM,
-    idleSwaySplit,
     motionWorkIntensity,
-    stepExertion,
   } from './services/liveliness';
-  import { eyeGazeAngles } from './services/eyeGaze';
+  import { createBreathState } from './services/stageBreath';
+  import { createClipBlend } from './services/stageClipBlend';
+  import { createEyeGazeOverlay } from './services/stageEyeGaze';
+  import { createIdleOverlay } from './services/stageIdleOverlay';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -197,21 +197,9 @@
   let loadError = $state('');
 
   // ── Live diagnostic readout (opt-in via `diagnostics`) ───────────────────
-  // Measure-only. Computed each frame from the ACTUAL rendered bones (after the
-  // idle / motion-liveliness overlays are baked), so a transient onset tilt the
-  // clean report never sees is visible on screen. Sign convention: + = the
-  // patient's LEFT (+X), matching the engine's lateral sign.
-  type StageDiagnostics = {
-    state: string;
-    trunkTiltDeg: number;
-    lumbarTiltDeg: number;
-    pelvisShiftCm: number;
-    idle: boolean;
-    pivot: boolean;
-    livelinessPct: number;
-    swayMod: number;
-    shiftModCm: number;
-  };
+  // Measure-only. The pure computation lives in services/stageDiagnostics; the
+  // component keeps only the per-frame throttle + the reactive value the HUD
+  // renders. Sampled from the ACTUAL rendered bones (after overlays bake).
   let diag = $state<StageDiagnostics | null>(null);
   let lastDiagMs = 0;
 
@@ -841,6 +829,13 @@
       let mixer: import('three').AnimationMixer | null = null;
       let motionAction: import('three').AnimationAction | null = null;
       let activeMotionId: MovementClipId | null = null;
+      // Clip transition ease-in (services/stageClipBlend): captures the current
+      // pose (a live outgoing clip frame OR a Stop-frozen mid-stride pose) when a
+      // clip starts and slerps it into the new clip over CLIP_BLEND_SEC, so a
+      // run→walk swap (or a start from a frozen pose) eases in instead of
+      // hard-cutting to the clip's frame 0. Does NOT change Stop-freeze itself.
+      const clipBlend = createClipBlend();
+      const CLIP_BLEND_SEC = 0.3;
       // L2 ROM-cap state: canonical-key → bone, and the keys to clamp each frame.
       let motionCapBones: Map<string, import('three').Bone> | null = null;
       let motionCapKeys: string[] = [];
@@ -928,15 +923,8 @@
       // ── EXERTION-SCALED BREATHING (Wave 5 life-signals) — state shared by
       // BOTH breathing paths (motion-time overlay + idle overlay), so the
       // breath never restarts or rate-jumps when a motion begins or ends:
-      // `breathPhase` is the INTEGRATED FM phase (advanceBreathPhase — never
-      // t×rate, so a rate change mid-breath is phase-continuous);
-      // `exertionLevel` the 0..1 accumulator stepped each frame (rises while a
-      // composed motion plays at its measured work intensity, decays over
-      // ~45 s at rest); `composedWorkIntensity` the playing motion's intensity
-      // (motionWorkIntensity over its resolved keyframes; 0 when idle).
-      let breathPhase = 0;
-      let exertionLevel = 0;
-      let composedWorkIntensity = 0;
+      // Shared phase/exertion/workIntensity clock — see services/stageBreath.
+      const breath = createBreathState();
       // ── IDLE liveliness (un-gated naturalism): breathing + micro-sway + a
       // slow weight shift while NOTHING drives the skeleton, so the patient
       // never freezes into a statue between commands. Same pure phase math as
@@ -947,35 +935,10 @@
       // frame — so the deltas can never accumulate, the recording tap always
       // samples the clean underlying pose, and any takeover (command / clip /
       // composed / scrub / hand-posing) starts from untouched state.
-      let idleTime = 0;
-      /** Weight-shift cycle seed: randomized per stage boot (two stages never
-       *  sync up), deterministic per seed (see idleWeightShift). */
-      const idleShiftSeed = Math.random() * 1000;
-      /** Idle weight-shift root X offset currently requested, meters. Composed
-       *  with the antalgic pelvis shift inside bakePelvisShift. */
-      let idleShiftM = 0;
-      /** True while the idle deltas are baked into the trunk bones / root. */
-      let idleOverlayOn = false;
-      const _idleBaseThoraxQ = new THREE.Quaternion();
-      const _idleBaseLumbarQ = new THREE.Quaternion();
-      const _idleQ = new THREE.Quaternion();
-      // ── ANKLE-PIVOT idle sway (Wave 5 life-signals): part of the idle sway
-      // is a whole-body inverted-pendulum pivot about the ankle line — a small
-      // root roll/pitch at floor level (the model root origin sits between the
-      // feet at the floor, ≤ ~9 cm below the true ankle axis, so pivoting about
-      // it errs by ≤ ~2 mm at these ≤1° angles) with each FOOT counter-rotated
-      // so the soles stay flat. Net effect: the ankle joint angle changes by
-      // the pivot angle and the pelvis/COM genuinely translates ~tan(θ)·height
-      // — sway stops being lumbar noise above a dead pelvis. Exact-undo bases:
-      const _idleBaseRootQ = new THREE.Quaternion();
-      const _idleBaseLFootQ = new THREE.Quaternion();
-      const _idleBaseRFootQ = new THREE.Quaternion();
-      const _idlePivotQ = new THREE.Quaternion();
-      const _idlePivotInvQ = new THREE.Quaternion();
-      const _idleParentQ = new THREE.Quaternion();
-      /** True while the ankle-pivot part of the idle overlay is baked (the
-       *  trunk part can apply without it if the root/feet are unavailable). */
-      let idlePivotOn = false;
+      // Idle-liveliness overlay (breathing + micro-sway + weight-shift +
+      // ankle-pivot) — services/stageIdleOverlay. Own state; the pelvis-shift
+      // bake stays here (root owner) and reads idleOverlay.shiftM.
+      const idleOverlay = createIdleOverlay(Math.random() * 1000);
       // Pelvis-shift overlay: a CONSTANT lateral offset on the MODEL ROOT X — the
       // antalgic weight-shift off a painful limb. + = the patient's left (+X, the
       // TRAVEL_DIRECTION_AXIS lateral sign). It must COMPOSE with the per-frame
@@ -989,7 +952,7 @@
       function bakePelvisShift(): void {
         // The bake target composes the antalgic overlay shift with the idle
         // weight shift (idle-only; zeroed before any motion takes the root).
-        const targetM = motionPelvisShiftM + idleShiftM;
+        const targetM = motionPelvisShiftM + idleOverlay.shiftM;
         if (!modelRoot || pelvisShiftBakedM === targetM) return;
         modelRoot.position.x += targetM - pelvisShiftBakedM;
         pelvisShiftBakedM = targetM;
@@ -1015,252 +978,56 @@
         bakePelvisShift();
       };
 
-      /**
-       * Bake the idle-liveliness deltas for the CURRENT phase onto the trunk +
-       * root: exertion-scaled FM breathing at the thorax, the RESIDUAL lumbar
-       * micro-sway + the in-phase weight-shift lean at the low back, the slow
-       * weight-shift travel on the root X (via the pelvis-shift bake, so it
-       * composes with the antalgic shift), and the ANKLE-PIVOT sway share — a
-       * whole-body roll/pitch about the ankle line (root rotation at floor
-       * level, feet counter-rotated so the soles stay flat), the inverted-
-       * pendulum shape of real quiet-stance sway (Wave 5).
-       * Stores the exact pre-overlay bone/root quats so undoIdleOverlays() is
-       * an exact restore. Assumes any previous application was undone first.
-       * Returns whether anything was applied (amount 0 / clean mode applies
-       * NOTHING, keeping the idle-render optimization honest).
-       */
+      /** Bake the idle-liveliness deltas (breathing + micro-sway + weight-shift
+       *  + ankle-pivot). Thin wrapper over services/stageIdleOverlay bound to the
+       *  live bones/root/breath + the pelvis-shift bake. */
       function applyIdleOverlays(dtSec: number): boolean {
-        const amount = Number.isFinite(idleLiveliness)
-          ? Math.max(0, Math.min(1, idleLiveliness))
-          : 0;
-        if (amount <= 0 || !motionCapBones || !modelRoot) return false;
-        const thorax = motionCapBones.get('Spine_Upper');
-        const lowBack = motionCapBones.get('Spine_Lower');
-        if (!thorax && !lowBack) return false;
-        idleTime += dtSec;
-        // Exertion-scaled breathing: integrate the SHARED phase accumulator
-        // (phase-continuous with the motion-time overlay — the breath neither
-        // restarts nor rate-jumps when a motion ends), rate/depth following
-        // the decaying exertion level.
-        breathPhase = advanceBreathPhase(breathPhase, dtSec, exertionLevel);
-        const sway = idleSwaySplit(idleTime, amount);
-        if (thorax) {
-          _idleBaseThoraxQ.copy(thorax.quaternion);
-          _idleQ.setFromAxisAngle(
-            _swayAxisAP,
-            (breathingLeanFM(breathPhase, amount, exertionLevel) * Math.PI) / 180,
-          );
-          thorax.quaternion.premultiply(_idleQ);
-        }
-        if (lowBack) {
-          _idleBaseLumbarQ.copy(lowBack.quaternion);
-          const { shiftM, leanDeg } = idleWeightShift(idleTime, amount, idleShiftSeed);
-          // Rig convention (pinned by the idleLiveliness rig gate): a POSITIVE
-          // premultiplied Z-roll at Spine_Lower moves the head toward −X, so
-          // the weight-shift lean (+ = the patient's left/+X, the shift sign)
-          // applies NEGATED to land IN PHASE with the root travel.
-          _idleQ.setFromAxisAngle(_swayAxisML, ((sway.lumbarMlDeg - leanDeg) * Math.PI) / 180);
-          lowBack.quaternion.premultiply(_idleQ);
-          _idleQ.setFromAxisAngle(_swayAxisAP, (sway.lumbarApDeg * Math.PI) / 180);
-          lowBack.quaternion.premultiply(_idleQ);
-          idleShiftM = shiftM;
-          bakePelvisShift();
-        }
-        // ANKLE-PIVOT sway: rotate the WHOLE body about the ankle line by the
-        // pivot share of the sway (root roll about the same _swayAxisML/AP
-        // world axes the trunk terms use — the root's parent is the scene), so
-        // the pelvis and head genuinely translate; then counter-rotate each
-        // foot by the conjugated inverse so its world ORIENTATION — the flat
-        // sole — is untouched. The ankle joint angle therefore changes by the
-        // pivot angle: an inverted pendulum, not lumbar noise.
-        const lFoot = motionCapBones.get('L_Foot');
-        const rFoot = motionCapBones.get('R_Foot');
-        if (Math.abs(sway.ankleRollDeg) + Math.abs(sway.anklePitchDeg) > 1e-9) {
-          _idleBaseRootQ.copy(modelRoot.quaternion);
-          _idleQ.setFromAxisAngle(_swayAxisML, (sway.ankleRollDeg * Math.PI) / 180);
-          _idlePivotQ.copy(_idleQ);
-          _idleQ.setFromAxisAngle(_swayAxisAP, (sway.anklePitchDeg * Math.PI) / 180);
-          _idlePivotQ.premultiply(_idleQ);
-          modelRoot.quaternion.premultiply(_idlePivotQ);
-          modelRoot.updateMatrixWorld(true);
-          // Foot counter-rotation: to keep a foot's world orientation W fixed
-          // under the root delta D, premultiply its LOCAL quat by P⁻¹·D⁻¹·P
-          // (P = its parent's world quat — invariant to whether P is read
-          // before or after D, since P′ = D·P conjugates to the same result).
-          _idlePivotInvQ.copy(_idlePivotQ).invert();
-          for (const foot of [lFoot, rFoot]) {
-            if (!foot?.parent) continue;
-            (foot === lFoot ? _idleBaseLFootQ : _idleBaseRFootQ).copy(foot.quaternion);
-            foot.parent.getWorldQuaternion(_idleParentQ);
-            _idleQ.copy(_idleParentQ).invert();
-            _idleQ.multiply(_idlePivotInvQ).multiply(_idleParentQ);
-            foot.quaternion.premultiply(_idleQ);
-          }
-          idlePivotOn = true;
-        }
-        idleOverlayOn = true;
-        modelRoot.updateMatrixWorld(true);
-        return true;
-      }
-
-      /**
-       * Lift the baked idle-liveliness deltas — an EXACT restore of the stored
-       * pre-overlay trunk quats + un-bake of the idle root shift. No-op unless
-       * deltas are baked. Called first thing every frame (before the recording
-       * tap, so recordings sample the clean pose) and at every takeover point
-       * (command / clip / composed / scrub / hand-posing), so nothing that
-       * measures, serializes or animates ever sees the idle perturbation.
-       * Returns whether anything was undone (the caller keeps the dirty flag
-       * honest: an undone frame still needs one render).
-       */
-      function undoIdleOverlays(): boolean {
-        if (!idleOverlayOn) return false;
-        idleOverlayOn = false;
-        const thorax = motionCapBones?.get('Spine_Upper');
-        if (thorax) thorax.quaternion.copy(_idleBaseThoraxQ);
-        const lowBack = motionCapBones?.get('Spine_Lower');
-        if (lowBack) lowBack.quaternion.copy(_idleBaseLumbarQ);
-        // Ankle-pivot restore (exact): the root quat + both counter-rotated feet.
-        if (idlePivotOn) {
-          idlePivotOn = false;
-          if (modelRoot) modelRoot.quaternion.copy(_idleBaseRootQ);
-          const lFoot = motionCapBones?.get('L_Foot');
-          if (lFoot?.parent) lFoot.quaternion.copy(_idleBaseLFootQ);
-          const rFoot = motionCapBones?.get('R_Foot');
-          if (rFoot?.parent) rFoot.quaternion.copy(_idleBaseRFootQ);
-        }
-        idleShiftM = 0;
-        bakePelvisShift();
-        modelRoot?.updateMatrixWorld(true);
-        return true;
-      }
-      // ── EYES · micro-gaze overlay (Wave 5 · 5.1) — BEGIN eye block ────────
-      // LIVE-ONLY, same undo/reapply sandwich as the idle overlay above, but
-      // ALWAYS-ON while the model is visible (idle AND during motion): the eye
-      // bones are leaves no motion machinery writes, so the overlay rides on
-      // top of any driver. Each frame both eyes get the SAME small conjugate
-      // rotation (no vergence): a gaze-absorb counter of the head's residual
-      // yaw/pitch measured in the MODEL-ROOT frame (travel heading and root
-      // reorientation cancel out — only the stabilizeGaze leftover registers)
-      // plus seeded saccades/drift (pure math in services/eyeGaze). The exact
-      // pre-overlay eye locals are stored on apply and restored before the
-      // recording tap and at every takeover/serialize/export point, so
-      // recordings, goniometry, pose serialization and GLB export always see
-      // the eyes at rest. Clean mode (idleLiveliness = 0) applies NOTHING.
-      let eyeGazeTime = 0;
-      /** Saccade seed: randomized per stage boot, deterministic per seed. */
-      const eyeGazeSeed = Math.random() * 1000;
-      /** True while the eye deltas are baked into the eye bones. */
-      let eyeGazeOn = false;
-      const _eyeBaseLQ = new THREE.Quaternion();
-      const _eyeBaseRQ = new THREE.Quaternion();
-      const _eyeQa = new THREE.Quaternion();
-      const _eyeQb = new THREE.Quaternion();
-      const _eyeQc = new THREE.Quaternion();
-      const _eyeW = new THREE.Quaternion();
-      const _eyeFwd = new THREE.Vector3();
-      const _eyeAxisYaw = new THREE.Vector3(0, 1, 0);
-      const _eyeAxisPitch = new THREE.Vector3(1, 0, 0);
-
-      /**
-       * Bake the micro-gaze deltas for the CURRENT phase onto both eye bones.
-       * Stores the exact pre-overlay eye quats so undoEyeGaze() is an exact
-       * restore. Assumes any previous application was undone first. Returns
-       * whether anything was applied (amount 0 / clean mode applies NOTHING,
-       * keeping the idle-render optimization honest).
-       */
-      function applyEyeGaze(dtSec: number): boolean {
-        const amount = Number.isFinite(idleLiveliness)
-          ? Math.max(0, Math.min(1, idleLiveliness))
-          : 0;
-        if (amount <= 0 || !motionCapBones || !modelRoot || !restRef) return false;
-        const eyeL = motionCapBones.get('L_Eye');
-        const eyeR = motionCapBones.get('R_Eye');
-        const head = motionCapBones.get('Head');
-        const headRestArr = restRef.worldQuats.Head;
-        if (!eyeL || !eyeR || !head || !eyeL.parent || !headRestArr) return false;
-        eyeGazeTime += dtSec;
-        // Head residual in the MODEL-ROOT frame: relNow vs the rest relation
-        // (restRef world quats were captured at the rootRestQuat orientation).
-        modelRoot.getWorldQuaternion(_eyeQc); // root now (also reused below)
-        head.getWorldQuaternion(_eyeQb);
-        _eyeQa.copy(_eyeQc).invert().multiply(_eyeQb); // relNow
-        _eyeQb
-          .copy(rootRestQuat)
-          .invert()
-          .multiply(_eyeW.set(headRestArr[0], headRestArr[1], headRestArr[2], headRestArr[3]))
-          .invert(); // inv(relRest)
-        _eyeQa.multiply(_eyeQb); // residual = relNow · inv(relRest)
-        _eyeFwd.set(0, 0, 1).applyQuaternion(_eyeQa); // rest-forward, deviated
-        const residualYawDeg = (Math.atan2(_eyeFwd.x, _eyeFwd.z) * 180) / Math.PI;
-        const residualPitchDeg =
-          (Math.asin(Math.max(-1, Math.min(1, _eyeFwd.y))) * 180) / Math.PI;
-        const { yawDeg, pitchDeg } = eyeGazeAngles(
-          eyeGazeTime,
-          amount,
-          eyeGazeSeed,
-          residualYawDeg,
-          residualPitchDeg,
+        return idleOverlay.apply(
+          dtSec,
+          idleLiveliness,
+          motionCapBones,
+          modelRoot,
+          breath,
+          _swayAxisAP,
+          _swayAxisML,
+          bakePelvisShift,
         );
-        // Gaze rotation in the ROOT frame (+yaw = patient's left, +pitch = up),
-        // converted into the shared eye-parent local frame:
-        //   Wlocal = inv(parentW) · rootW · Wroot · inv(rootW) · parentW
-        _eyeQa.setFromAxisAngle(_eyeAxisYaw, (yawDeg * Math.PI) / 180);
-        _eyeQb.setFromAxisAngle(_eyeAxisPitch, (-pitchDeg * Math.PI) / 180);
-        _eyeQa.multiply(_eyeQb); // Wroot
-        eyeL.parent.getWorldQuaternion(_eyeQb); // parentW (shared: FacialBone)
-        _eyeW
-          .copy(_eyeQb)
-          .invert()
-          .multiply(_eyeQc)
-          .multiply(_eyeQa)
-          .multiply(_eyeQc.invert())
-          .multiply(_eyeQb);
-        _eyeBaseLQ.copy(eyeL.quaternion);
-        _eyeBaseRQ.copy(eyeR.quaternion);
-        eyeL.quaternion.premultiply(_eyeW);
-        eyeR.quaternion.premultiply(_eyeW);
-        eyeGazeOn = true;
-        return true;
       }
 
-      /**
-       * Lift the baked micro-gaze deltas — an EXACT restore of the stored
-       * pre-overlay eye quats. No-op unless deltas are baked. Called first
-       * thing every frame (before the recording tap) and at every takeover /
-       * serialize / export point, mirroring undoIdleOverlays above.
-       */
+      /** Lift the baked idle deltas (exact restore + un-bake the idle shift).
+       *  Wrapper over stageIdleOverlay. */
+      function undoIdleOverlays(): boolean {
+        return idleOverlay.undo(motionCapBones, modelRoot, bakePelvisShift);
+      }
+      // ── EYES · micro-gaze overlay (services/stageEyeGaze) ─────────────────
+      // LIVE-ONLY, always-on gaze-absorb + seeded saccades, applied via an
+      // undo/reapply sandwich so recordings/goniometry/export see the eyes at
+      // rest. Thin wrappers below bind it to the live bones/root/rest per frame.
+      const eyeGaze = createEyeGazeOverlay(Math.random() * 1000);
+
+      /** Bake the micro-gaze onto the eye bones (live-only). Thin wrapper over
+       *  services/stageEyeGaze bound to the current bones/root/rest. */
+      function applyEyeGaze(dtSec: number): boolean {
+        return eyeGaze.apply(
+          dtSec,
+          idleLiveliness,
+          motionCapBones,
+          modelRoot,
+          restRef?.worldQuats.Head,
+          rootRestQuat,
+        );
+      }
+
+      /** Lift the baked eye deltas (exact restore). Wrapper over stageEyeGaze. */
       function undoEyeGaze(): boolean {
-        if (!eyeGazeOn) return false;
-        eyeGazeOn = false;
-        const eyeL = motionCapBones?.get('L_Eye');
-        if (eyeL) eyeL.quaternion.copy(_eyeBaseLQ);
-        const eyeR = motionCapBones?.get('R_Eye');
-        if (eyeR) eyeR.quaternion.copy(_eyeBaseRQ);
-        return true;
+        return eyeGaze.undo(motionCapBones);
       }
 
-      /**
-       * SEAM-9 — snapshot the CURRENTLY-APPLIED eye-gaze locals so the capture
-       * sandwich (buildFrameNow) can restore them EXACTLY, instead of re-deriving
-       * via applyEyeGaze(0) against a base (head/root) that the idle re-bake may
-       * have moved. Returns a restore closure (which re-sets eyeGazeOn so the next
-       * frame's undo stays balanced against the untouched stored base), or null
-       * when no eye deltas are baked — nothing to restore.
-       */
+      /** Snapshot the applied eye locals for the capture sandwich (or null).
+       *  Wrapper over stageEyeGaze (SEAM-9). */
       function captureAppliedEyeGaze(): (() => void) | null {
-        if (!eyeGazeOn) return null;
-        const eyeL = motionCapBones?.get('L_Eye');
-        const eyeR = motionCapBones?.get('R_Eye');
-        const qL = eyeL ? eyeL.quaternion.clone() : null;
-        const qR = eyeR ? eyeR.quaternion.clone() : null;
-        return () => {
-          if (eyeL && qL) eyeL.quaternion.copy(qL);
-          if (eyeR && qR) eyeR.quaternion.copy(qR);
-          eyeGazeOn = true;
-        };
+        return eyeGaze.captureApplied(motionCapBones);
       }
-      // ── EYES · micro-gaze overlay — END eye block ─────────────────────────
 
       /**
        * MOTION-TIME liveliness (LIVE-ONLY realism): breathing at the thorax +
@@ -1280,7 +1047,7 @@
        *  a full-strength free-running sway snapping on during the ease-in. */
       function resetLivelinessOnset(): void {
         livelinessOnsetSec = 0;
-        livelinessTime = 0; // ML sway restarts at phase 0 (breathPhase stays continuous)
+        livelinessTime = 0; // ML sway restarts at phase 0 (breath.phase stays continuous)
       }
       function applyMotionLiveliness(dtSec: number): boolean {
         if (!(motionLiveliness > 0) || !motionCapBones || !modelRoot) return false;
@@ -1294,10 +1061,10 @@
         // EXERTION-SCALED FM breathing (Wave 5): integrate the shared phase at the
         // exertion-driven rate (phase-continuous — never t×rate, so a rate change
         // can never jump mid-breath).
-        breathPhase = advanceBreathPhase(breathPhase, dtSec, exertionLevel);
+        breath.advancePhase(dtSec);
         const thorax = motionCapBones.get('Spine_Upper');
         if (thorax) {
-          const breathDeg = onsetRamp * breathingLeanFM(breathPhase, motionLiveliness, exertionLevel);
+          const breathDeg = onsetRamp * breathingLeanFM(breath.phase, motionLiveliness, breath.exertion);
           _liveQ.setFromAxisAngle(_swayAxisAP, (breathDeg * Math.PI) / 180);
           thorax.quaternion.premultiply(_liveQ);
         }
@@ -1353,7 +1120,7 @@
         composedLateralShuttle = null; // drop any medio-lateral shuttle
         composedHeelStrike = null; // drop any footfall accents
         composedHeelStrikeY = 0;
-        composedWorkIntensity = 0; // exertion feed stops; the accumulator decays
+        breath.setWorkIntensity(0); // exertion feed stops; the accumulator decays
         composedCurrentGrounding = null; // drop the frame grounding so a clip/idle recording can't inherit it
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
@@ -1442,6 +1209,7 @@
       function stopMotion() {
         cancelComposed();
         if (mixer) mixer.stopAllAction();
+        clipBlend.cancel(); // abandon any in-progress clip ease-in
         motionAction = null;
         activeMotionId = null;
         // Lift any ROM caps (the host clears its constraint set separately).
@@ -1597,10 +1365,8 @@
           motionCapBones = skinned ? buildBoneByPoseKey(skinned.skeleton, variantCfg) : null;
           // Fresh skeleton: any idle-liveliness bake from the previous model is
           // void (the stored base quats belong to the discarded bones).
-          idleOverlayOn = false;
-          idlePivotOn = false;
-          idleShiftM = 0;
-          eyeGazeOn = false; // same for the eye micro-gaze bake
+          idleOverlay.reset();
+          eyeGaze.reset(); // same for the eye micro-gaze bake
 
           // 7b) Fresh AnimationMixer bound to this model root for named
           //     motions. A one-shot clip that reaches its end fires 'finished',
@@ -2920,7 +2686,7 @@
         // mean joint speed + ballistic share over its resolved keyframes —
         // which the render loop feeds the exertion accumulator each frame
         // while this motion drives the skeleton (breathing rate/depth follow).
-        composedWorkIntensity = motionWorkIntensity(effectiveResolved.keyframes);
+        breath.setWorkIntensity(motionWorkIntensity(effectiveResolved.keyframes));
 
         // CROSS-MOTION CONTINUITY: fold onto the CURRENT on-stage pose + root (after
         // any ready settle above), so the motion continues from the live posture.
@@ -3317,6 +3083,9 @@
         action.play();
         motionAction = action;
         activeMotionId = motion;
+        // Ease into the clip from the CURRENT pose (still intact — the mixer only
+        // writes on update): capture it now, blend toward the clip each frame.
+        if (skinnedRef) clipBlend.begin(skinnedRef.skeleton.bones, CLIP_BLEND_SEC);
         resetLivelinessOnset();
         motionClock.getDelta(); // drop the accumulated idle delta
         startLoop();
@@ -3376,13 +3145,16 @@
         // motion's measured work intensity, decays toward 0 over ~45 s at
         // rest. Stepped every frame so the breathing overlays (motion + idle)
         // read one continuous level. Pure, framerate-independent step.
-        exertionLevel = stepExertion(
-          exertionLevel,
-          composedActive || activeTrajectory ? composedWorkIntensity : 0,
+        breath.stepExertion(
+          composedActive || activeTrajectory ? breath.workIntensity : 0,
           motionDelta,
         );
         if (mixer && activeMotionId) {
           mixer.update(motionDelta); // step the named-motion clip (bones-only)
+          // Clip ease-in: slerp the captured start pose toward the clip pose for
+          // the first CLIP_BLEND_SEC (no-op once complete). AFTER mixer.update so
+          // the bones already hold the clip pose to blend toward.
+          clipBlend.apply(motionDelta);
           modelRoot?.updateMatrixWorld();
           // L2 ROM cap: enforce the scenario-narrowed range each frame while the
           // clip plays. Leg (knee) caps re-solve the whole leg via IK so the foot
@@ -3578,48 +3350,29 @@
           const diagNow = performance.now();
           if (diagNow - lastDiagMs >= 66) {
             lastDiagMs = diagNow;
+            // matrixWorld is current here (overlays ran updateMatrixWorld this
+            // frame); computeStageDiagnostics reads it — no THREE allocations.
             const lower = motionCapBones.get('Spine_Lower');
-            const upper = motionCapBones.get('Spine_Upper');
-            const head = motionCapBones.get('Head');
-            const hips = motionCapBones.get('Hips') ?? lower;
-            // World position straight from matrixWorld (elements 12/13/14 =
-            // x/y/z); the overlays already ran updateMatrixWorld this frame, so
-            // no THREE temp-vector allocation and no extra world-matrix pass.
-            const tiltDeg = (
-              from: { matrixWorld: { elements: number[] } } | undefined,
-              to: { matrixWorld: { elements: number[] } } | undefined,
-            ): number => {
-              if (!from || !to) return 0;
-              const fe = from.matrixWorld.elements;
-              const te = to.matrixWorld.elements;
-              return (Math.atan2(te[12] - fe[12], te[13] - fe[13]) * 180) / Math.PI;
-            };
-            const trunkTiltDeg = tiltDeg(hips, head);
-            const lumbarTiltDeg = tiltDeg(lower, upper);
-            const motionOn = !!activeMotionId || composedActive;
-            diag = {
-              state: activeTween
-                ? 'transition'
-                : composedActive
-                  ? 'composed'
-                  : activeMotionId
-                    ? 'clip'
-                    : activeTrajectory
-                      ? 'travel'
-                      : idleOverlayOn
-                        ? 'idle'
-                        : 'held',
-              trunkTiltDeg,
-              lumbarTiltDeg,
-              pelvisShiftCm: (modelRoot.position.x - rootRestPos.x) * 100,
-              idle: idleOverlayOn,
-              pivot: idlePivotOn,
-              livelinessPct: motionOn
-                ? Math.min(1, livelinessOnsetSec / LIVELINESS_ONSET_SEC) * 100
-                : 0,
+            diag = computeStageDiagnostics({
+              lower,
+              upper: motionCapBones.get('Spine_Upper'),
+              head: motionCapBones.get('Head'),
+              hips: motionCapBones.get('Hips') ?? lower,
+              rootX: modelRoot.position.x,
+              rootRestX: rootRestPos.x,
+              driver: {
+                activeTween: !!activeTween,
+                composedActive,
+                activeMotion: !!activeMotionId,
+                activeTrajectory: !!activeTrajectory,
+                idleOverlayOn: idleOverlay.overlayOn,
+                idlePivotOn: idleOverlay.pivotOn,
+              },
+              livelinessOnsetSec,
+              livelinessOnsetTotalSec: LIVELINESS_ONSET_SEC,
               swayMod: motionSway,
-              shiftModCm: motionPelvisShiftM * 100,
-            };
+              shiftModM: motionPelvisShiftM,
+            });
           }
         }
         if (!renderNeeded) return;

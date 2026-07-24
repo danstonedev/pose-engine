@@ -56,6 +56,13 @@ const stageSource = readFileSync(
   fileURLToPath(new URL('../ExamStage3D.svelte', import.meta.url)),
   'utf8',
 );
+// The eye-overlay LOGIC now lives in services/stageEyeGaze (extracted from the
+// component); ExamStage3D keeps only the wiring (thin wrappers + call sites).
+// Body pins target the module; wiring pins stay on the component.
+const overlaySource = readFileSync(
+  fileURLToPath(new URL('../services/stageEyeGaze.ts', import.meta.url)),
+  'utf8',
+);
 
 async function loadGlb(url: URL): Promise<THREE.Group> {
   const buf = readFileSync(fileURLToPath(url));
@@ -487,8 +494,9 @@ describe('eye micro-gaze — stage wiring (source pins)', () => {
     );
     // The snapshot clones the CURRENT applied eye locals and copies them back
     // verbatim, re-setting eyeGazeOn so the next frame's undo stays balanced.
-    expect(stageSource).toMatch(
-      /function captureAppliedEyeGaze\(\)[\s\S]{0,500}quaternion\.clone\(\)[\s\S]{0,300}quaternion\.copy\(qL\)[\s\S]{0,300}eyeGazeOn = true;/,
+    // (Logic now in services/stageEyeGaze — captureApplied().)
+    expect(overlaySource).toMatch(
+      /function captureApplied\([\s\S]{0,500}quaternion\.clone\(\)[\s\S]{0,300}quaternion\.copy\(qL\)[\s\S]{0,300}eyeGazeOn = true;/,
     );
   });
 
@@ -524,21 +532,21 @@ describe('eye micro-gaze — stage wiring (source pins)', () => {
       /undoEyeGaze\(\); \/\/ eye deltas too — the stored bases die with the model/,
     );
     // Fresh skeleton voids the bake flag (stored bases belong to dead bones).
-    expect(stageSource).toMatch(/eyeGazeOn = false; \/\/ same for the eye micro-gaze bake/);
+    expect(stageSource).toMatch(/eyeGaze\.reset\(\); \/\/ same for the eye micro-gaze bake/);
   });
 
   it('the undo is an EXACT stored-base restore of both eyes, and clean mode applies nothing (dirty flag honest)', () => {
-    expect(stageSource).toMatch(
-      /function undoEyeGaze\(\): boolean \{[\s\S]{0,500}copy\(_eyeBaseLQ\)[\s\S]{0,300}copy\(_eyeBaseRQ\)/,
+    expect(overlaySource).toMatch(
+      /function undo\(bones[\s\S]{0,500}copy\(_eyeBaseLQ\)[\s\S]{0,300}copy\(_eyeBaseRQ\)/,
     );
-    expect(stageSource).toMatch(
-      /function applyEyeGaze\(dtSec: number\): boolean \{[\s\S]{0,300}if \(amount <= 0[^\n]*return false;/,
+    expect(overlaySource).toMatch(
+      /function apply\([\s\S]{0,800}if \(amount <= 0[^\n]*return false;/,
     );
   });
 
   it('the residual is measured in the MODEL-ROOT frame (travel heading / root reorientation never register as residual)', () => {
-    expect(stageSource).toMatch(
-      /function applyEyeGaze[\s\S]{0,1500}modelRoot\.getWorldQuaternion[\s\S]{0,600}rootRestQuat/,
+    expect(overlaySource).toMatch(
+      /function apply\([\s\S]{0,1500}modelRoot\.getWorldQuaternion[\s\S]{0,600}rootRestQuat/,
     );
   });
 });
