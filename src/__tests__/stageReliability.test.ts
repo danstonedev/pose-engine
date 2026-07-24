@@ -34,6 +34,11 @@ const motionSequenceSource = readFileSync(
   fileURLToPath(new URL('../services/motionSequence.ts', import.meta.url)),
   'utf8',
 );
+// Motion-time liveliness overlay logic now lives in its own module.
+const motionLiveSource = readFileSync(
+  fileURLToPath(new URL('../services/stageMotionLiveliness.ts', import.meta.url)),
+  'utf8',
+);
 
 describe('M3 — interrupted composed playback is a distinct, honest status', () => {
   it("ComposedMotionPlaybackResult admits status 'interrupted' with partial measurements + reason", () => {
@@ -277,7 +282,7 @@ describe('SEAM-9 — motion-time liveliness (realism) is applied AFTER the recor
   // idle re-bake (a motion is driving the skeleton).
   it('applyMotionLiveliness runs AFTER the recording tap (else-branch of the idle re-bake)', () => {
     expect(stageSource).toMatch(
-      /if \(recording\) \{[\s\S]{0,1500}\} else if \(\(\(mixer && activeMotionId\) \|\| composedActive\) && applyMotionLiveliness\(motionDelta\)\)/,
+      /recordingTap\.sample\([\s\S]{0,1500}\} else if \(\(\(mixer && activeMotionId\) \|\| composedActive\) && applyMotionLiveliness\(motionDelta\)\)/,
     );
   });
 
@@ -286,8 +291,8 @@ describe('SEAM-9 — motion-time liveliness (realism) is applied AFTER the recor
     // 1300 for the onset-ramp preamble — livelinessOnsetSec + the 0→1 ramp
     // derivation — which the onset-ramp source pins in idleLiveliness.test.ts
     // guard in detail).
-    expect(stageSource).toMatch(
-      /function applyMotionLiveliness\(dtSec: number\): boolean \{[\s\S]{0,1300}breathingLeanFM[\s\S]{0,400}livelinessSwayDeg/,
+    expect(motionLiveSource).toMatch(
+      /function apply\([\s\S]{0,1300}breathingLeanFM[\s\S]{0,400}livelinessSwayDeg/,
     );
     // …and the pre-tap motion-overlay block no longer applies it (only guarding /
     // sway / pelvis remain there — a comment marks where liveliness moved to).

@@ -46,6 +46,11 @@ const overlaySource = readFileSync(
   fileURLToPath(new URL('../services/stageIdleOverlay.ts', import.meta.url)),
   'utf8',
 );
+// The motion-time liveliness overlay LOGIC now lives in services/stageMotionLiveliness.
+const motionLiveSource = readFileSync(
+  fileURLToPath(new URL('../services/stageMotionLiveliness.ts', import.meta.url)),
+  'utf8',
+);
 
 // The stage's overlay axes (ExamStage3D _swayAxisAP / _swayAxisML).
 const AXIS_AP = new THREE.Vector3(1, 0, 0);
@@ -286,7 +291,7 @@ describe('idle liveliness — measured on the rig', () => {
 describe('idle liveliness — stage wiring (source pins)', () => {
   it('the loop LIFTS the idle deltas before the recording tap (recordings sample the clean pose)', () => {
     expect(stageSource).toMatch(
-      /if \(undoIdleOverlays\(\)\) renderNeeded = true;[\s\S]{0,700}if \(recording\) \{/,
+      /if \(undoIdleOverlays\(\)\) renderNeeded = true;[\s\S]{0,700}recordingTap\.sample\(/,
     );
   });
 
@@ -298,7 +303,7 @@ describe('idle liveliness — stage wiring (source pins)', () => {
 
   it('the re-bake happens AFTER the recording tap and wakes the render only when deltas applied (dirty flag honest)', () => {
     expect(stageSource).toMatch(
-      /if \(recording\) \{[\s\S]{0,1500}applyIdleOverlays\(motionDelta\)\s*\n\s*\) \{\s*\n\s*renderNeeded = true;/,
+      /recordingTap\.sample\([\s\S]{0,1500}applyIdleOverlays\(motionDelta\)\s*\n\s*\) \{\s*\n\s*renderNeeded = true;/,
     );
   });
 
@@ -357,17 +362,18 @@ describe('idle liveliness — stage wiring (source pins)', () => {
  */
 describe('motion-time liveliness — onset ramp (source pins)', () => {
   it('declares the onset window + a per-motion onset accumulator (the ramp state)', () => {
-    expect(stageSource).toMatch(/const LIVELINESS_ONSET_SEC = 0\.4;\s*\n\s*let livelinessOnsetSec = 0;/);
+    expect(motionLiveSource).toMatch(/export const LIVELINESS_ONSET_SEC = 0\.4;/);
+    expect(motionLiveSource).toMatch(/let livelinessOnsetSec = 0;/);
   });
 
-  it('resetLivelinessOnset zeroes BOTH the onset accumulator and the sway clock (quiet start)', () => {
-    expect(stageSource).toMatch(
-      /function resetLivelinessOnset\(\): void \{\s*\n\s*livelinessOnsetSec = 0;\s*\n\s*livelinessTime = 0;/,
+  it('reset() zeroes BOTH the onset accumulator and the sway clock (quiet start)', () => {
+    expect(motionLiveSource).toMatch(
+      /function reset\(\): void \{\s*\n\s*livelinessOnsetSec = 0;\s*\n\s*livelinessTime = 0;/,
     );
   });
 
-  it('applyMotionLiveliness advances the onset clock and derives a clamped 0→1 ramp', () => {
-    expect(stageSource).toMatch(
+  it('apply advances the onset clock and derives a clamped 0→1 ramp', () => {
+    expect(motionLiveSource).toMatch(
       /livelinessOnsetSec \+= dtSec;[\s\S]{0,600}const onsetRamp = Math\.min\(1, livelinessOnsetSec \/ LIVELINESS_ONSET_SEC\);/,
     );
   });
@@ -375,9 +381,9 @@ describe('motion-time liveliness — onset ramp (source pins)', () => {
   it('the ramp scales ALL THREE sway channels — breathing (thorax), and both ML + AP lumbar sway', () => {
     // If any channel is left un-scaled it snaps to full strength at t=0 and the
     // pre-movement bend returns on that axis.
-    expect(stageSource).toMatch(/const breathDeg = onsetRamp \* breathingLeanFM\(/);
-    expect(stageSource).toMatch(/_liveQ\.setFromAxisAngle\(_swayAxisML, \(onsetRamp \* mlDeg \* Math\.PI\) \/ 180\)/);
-    expect(stageSource).toMatch(/_liveQ\.setFromAxisAngle\(_swayAxisAP, \(onsetRamp \* apDeg \* Math\.PI\) \/ 180\)/);
+    expect(motionLiveSource).toMatch(/const breathDeg = onsetRamp \* breathingLeanFM\(/);
+    expect(motionLiveSource).toMatch(/_liveQ\.setFromAxisAngle\(swayAxisML, \(onsetRamp \* mlDeg \* Math\.PI\) \/ 180\)/);
+    expect(motionLiveSource).toMatch(/_liveQ\.setFromAxisAngle\(swayAxisAP, \(onsetRamp \* apDeg \* Math\.PI\) \/ 180\)/);
   });
 
   it('the ramp is RESET at every motion-onset site (else a stale full-strength ramp defeats the fix)', () => {

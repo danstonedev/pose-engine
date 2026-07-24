@@ -63,17 +63,13 @@
   } from './services/romConstraints';
   // liveliness is three-free (pure angle math) — static import stays SSR-safe;
   // it feeds the live rAF overlay only, never the offline sampler.
-  import {
-    livelinessSwayDeg,
-    cadenceRate,
-    // Wave 5 life-signals: exertion-scaled FM breathing.
-    breathingLeanFM,
-    motionWorkIntensity,
-  } from './services/liveliness';
+  import { cadenceRate, motionWorkIntensity } from './services/liveliness';
   import { createBreathState } from './services/stageBreath';
   import { createClipBlend } from './services/stageClipBlend';
   import { createEyeGazeOverlay } from './services/stageEyeGaze';
   import { createIdleOverlay } from './services/stageIdleOverlay';
+  import { createMotionLiveliness, LIVELINESS_ONSET_SEC } from './services/stageMotionLiveliness';
+  import { createRecordingTap } from './services/stageRecordingTap';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -907,19 +903,11 @@
       // loop, so cycle K ≠ K+1 for free. Angle math lives in the pure, testable
       // ./services/liveliness module; here we only accumulate time + apply it as
       // additive premultiplied trunk rotations. Reuses the sway axes below.
-      let motionLiveliness = 0;
-      let livelinessTime = 0;
-      // ONSET RAMP (kills the pre-movement side/back bend): the motion-time trunk
-      // sway/breathing must ease IN over the first ~0.4 s of a movement, not apply
-      // full-strength from frame 0. A commanded motion is a zero-velocity ease-in
-      // (~stationary the first ~150-200 ms), so a full-strength free-running sway at
-      // t=0 was the ONLY thing moving then — reading as a spurious side/backward
-      // lean BEFORE the movement. `livelinessOnsetSec` accumulates from motion onset
-      // (reset by resetLivelinessOnset at each start); the applied sway is scaled by
-      // min(1, onset/LIVELINESS_ONSET_SEC).
-      const LIVELINESS_ONSET_SEC = 0.4;
-      let livelinessOnsetSec = 0;
-      const _liveQ = new THREE.Quaternion();
+      let motionLiveliness = 0; // modifier (setMotionOverlays.liveliness)
+      // Motion-time liveliness overlay (breathing + micro-sway during motion) —
+      // services/stageMotionLiveliness. Owns its onset ramp + sway phase; the
+      // onset ease (kills the pre-movement side/back bend) lives in the module.
+      const motionLive = createMotionLiveliness();
       // ── EXERTION-SCALED BREATHING (Wave 5 life-signals) — state shared by
       // BOTH breathing paths (motion-time overlay + idle overlay), so the
       // breath never restarts or rate-jumps when a motion begins or ends:
@@ -1005,6 +993,11 @@
       // rest. Thin wrappers below bind it to the live bones/root/rest per frame.
       const eyeGaze = createEyeGazeOverlay(Math.random() * 1000);
 
+      // Recording tap: owns the ActiveRecording buffer + sample throttle. It
+      // never touches the scene — buildFrameNow (below) snapshots the stage and
+      // is injected at each call, so the *Impl wiring stays trivial.
+      const recordingTap = createRecordingTap();
+
       /** Bake the micro-gaze onto the eye bones (live-only). Thin wrapper over
        *  services/stageEyeGaze bound to the current bones/root/rest. */
       function applyEyeGaze(dtSec: number): boolean {
@@ -1029,55 +1022,23 @@
         return eyeGaze.captureApplied(motionCapBones);
       }
 
-      /**
-       * MOTION-TIME liveliness (LIVE-ONLY realism): breathing at the thorax +
-       * micro-sway at the low back while a MOTION drives the skeleton, layered ON
-       * TOP of the driven pose. The animation driver (mixer/trajectory) overwrites
-       * both trunk bones every frame, so the premultiplied delta never
-       * accumulates. Applied AFTER the recording tap + streamed report (SEAM-9) —
-       * the offline sampler never sees liveliness, so a recording/report that
-       * carried it would diverge from the grade. Feet/legs + every measured driver
-       * joint are untouched; only the two trunk bones move. Wall-clock phase
-       * (livelinessTime) is incommensurate with the loop, so no cycle repeats.
-       * Returns whether anything was applied (clean mode / no bones ⇒ false, so
-       * the dirty flag stays honest).
-       */
-      /** Reset the motion-time liveliness onset ramp + sway phase — call at each
-       *  movement START so the trunk eases into the sway from quiet, instead of
-       *  a full-strength free-running sway snapping on during the ease-in. */
+      /** Reset the motion-time liveliness onset ramp + sway phase (each START).
+       *  Wrapper over stageMotionLiveliness. */
       function resetLivelinessOnset(): void {
-        livelinessOnsetSec = 0;
-        livelinessTime = 0; // ML sway restarts at phase 0 (breath.phase stays continuous)
+        motionLive.reset();
       }
+      /** Bake the motion-time breathing + micro-sway. Wrapper over
+       *  stageMotionLiveliness bound to the live bones/root/breath + modifier. */
       function applyMotionLiveliness(dtSec: number): boolean {
-        if (!(motionLiveliness > 0) || !motionCapBones || !modelRoot) return false;
-        livelinessTime += dtSec;
-        livelinessOnsetSec += dtSec;
-        // Ease the sway/breathing IN over the first ~0.4 s of the movement so the
-        // trunk is quiet through the commanded motion's zero-velocity ease-in (this
-        // is the fix for the "little side/back bend before the movement"). Also
-        // smooths the idle->motion lumbar handoff (no full-strength step at onset).
-        const onsetRamp = Math.min(1, livelinessOnsetSec / LIVELINESS_ONSET_SEC);
-        // EXERTION-SCALED FM breathing (Wave 5): integrate the shared phase at the
-        // exertion-driven rate (phase-continuous — never t×rate, so a rate change
-        // can never jump mid-breath).
-        breath.advancePhase(dtSec);
-        const thorax = motionCapBones.get('Spine_Upper');
-        if (thorax) {
-          const breathDeg = onsetRamp * breathingLeanFM(breath.phase, motionLiveliness, breath.exertion);
-          _liveQ.setFromAxisAngle(_swayAxisAP, (breathDeg * Math.PI) / 180);
-          thorax.quaternion.premultiply(_liveQ);
-        }
-        const lowBack = motionCapBones.get('Spine_Lower');
-        if (lowBack) {
-          const { mlDeg, apDeg } = livelinessSwayDeg(livelinessTime, motionLiveliness);
-          _liveQ.setFromAxisAngle(_swayAxisML, (onsetRamp * mlDeg * Math.PI) / 180);
-          lowBack.quaternion.premultiply(_liveQ);
-          _liveQ.setFromAxisAngle(_swayAxisAP, (onsetRamp * apDeg * Math.PI) / 180);
-          lowBack.quaternion.premultiply(_liveQ);
-        }
-        modelRoot.updateMatrixWorld(true);
-        return true;
+        return motionLive.apply(
+          dtSec,
+          motionLiveliness,
+          motionCapBones,
+          modelRoot,
+          breath,
+          _swayAxisAP,
+          _swayAxisML,
+        );
       }
       // ── Composed-motion (generative keyframe sequence) playback state ─────
       // Pose-tween driven (NOT the mixer). `composedActive` gates the same
@@ -2387,16 +2348,8 @@
       }
 
       // ── Motion recording tap (samples inside the existing rAF loop) ────
-      interface ActiveRecording {
-        sampleHz: number;
-        name: string;
-        sourceKind: MotionRecordingSourceKind;
-        sourceName?: string;
-        startT: number;
-        lastSample: number;
-        frames: RecordedFrame[];
-      }
-      let recording: ActiveRecording | null = null;
+      // The ActiveRecording buffer + sample throttle live in the recordingTap
+      // module (declared up top); buildFrameNow below is the injected snapshot.
       const _recPos = new THREE.Vector3();
       const _recQ = new THREE.Quaternion();
 
@@ -2471,45 +2424,23 @@
         };
       }
 
-      function captureRecordingFrame(rec: ActiveRecording, nowMs: number): void {
-        const frame = buildFrameNow(nowMs - rec.startT);
-        if (frame) rec.frames.push(frame);
-      }
+      // buildFrameNow is the stage snapshot the tap samples with — inject it at
+      // each call so the module stays scene-agnostic.
+      const buildFrame: (tMs: number) => RecordedFrame | null = (tMs) => buildFrameNow(tMs);
 
       captureFrameImpl = () => buildFrameNow(0);
 
       startRecordingImpl = (opts) => {
-        const now = performance.now();
-        recording = {
-          sampleHz: Math.max(1, Math.min(120, opts?.sampleHz ?? 30)),
-          name: opts?.name ?? 'recording',
-          sourceKind: opts?.sourceKind ?? 'manual',
-          ...(opts?.sourceName ? { sourceName: opts.sourceName } : {}),
-          startT: now,
-          lastSample: now,
-          frames: [],
-        };
-        captureRecordingFrame(recording, now); // frame 0 — the starting pose
+        recordingTap.start(opts, performance.now(), buildFrame);
         startLoop();
       };
 
-      stopRecordingImpl = () => {
-        const rec = recording;
-        recording = null;
-        if (!rec) return null;
-        // Final frame at stop time so the settle pose is always captured.
-        captureRecordingFrame(rec, performance.now());
-        return {
+      stopRecordingImpl = () =>
+        recordingTap.stop(performance.now(), buildFrame, {
           id: `rec-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-          name: rec.name,
           variant: variantCfgRef?.id ?? '',
-          sourceKind: rec.sourceKind,
-          ...(rec.sourceName ? { sourceName: rec.sourceName } : {}),
-          sampleHz: rec.sampleHz,
-          frames: rec.frames,
           createdAtIso: new Date().toISOString(),
-        };
-      };
+        });
 
       showRecordedFrameImpl = (frame: RecordedFrame) => {
         if (!skinnedRef || !variantCfgRef) return;
@@ -3306,13 +3237,7 @@
         // regardless of what drives the skeleton (clip, exam tween, composed
         // playback, or idle manual time). Same throttle pattern as the
         // motionReportHz streaming above; a single null check when inactive.
-        if (recording) {
-          const nowMs = performance.now();
-          if (nowMs - recording.lastSample >= 1000 / recording.sampleHz - 4) {
-            recording.lastSample = nowMs;
-            captureRecordingFrame(recording, nowMs);
-          }
-        }
+        recordingTap.sample(performance.now(), buildFrame);
         // Idle liveliness, part 2: while the stage is truly IDLE — no clip, no
         // composed playback, no exam tween, no trajectory, posing layer not
         // engaged — re-bake the overlay at the advanced phase so the patient
@@ -3368,7 +3293,7 @@
                 idleOverlayOn: idleOverlay.overlayOn,
                 idlePivotOn: idleOverlay.pivotOn,
               },
-              livelinessOnsetSec,
+              livelinessOnsetSec: motionLive.onsetSec,
               livelinessOnsetTotalSec: LIVELINESS_ONSET_SEC,
               swayMod: motionSway,
               shiftModM: motionPelvisShiftM,
