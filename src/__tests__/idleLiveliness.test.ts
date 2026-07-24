@@ -39,6 +39,13 @@ const stageSource = readFileSync(
   fileURLToPath(new URL('../ExamStage3D.svelte', import.meta.url)),
   'utf8',
 );
+// The idle-overlay LOGIC now lives in services/stageIdleOverlay (extracted from
+// the component). Body pins target the module; wiring/call-site pins stay on the
+// component (which keeps thin wrappers + the pelvis-shift bake).
+const overlaySource = readFileSync(
+  fileURLToPath(new URL('../services/stageIdleOverlay.ts', import.meta.url)),
+  'utf8',
+);
 
 // The stage's overlay axes (ExamStage3D _swayAxisAP / _swayAxisML).
 const AXIS_AP = new THREE.Vector3(1, 0, 0);
@@ -315,22 +322,23 @@ describe('idle liveliness — stage wiring (source pins)', () => {
   });
 
   it('the undo is an exact stored-base restore and un-bakes the idle root shift through the pelvis-shift tracker', () => {
-    expect(stageSource).toMatch(
-      /function undoIdleOverlays\(\): boolean \{[\s\S]{0,700}copy\(_idleBaseThoraxQ\)[\s\S]{0,300}copy\(_idleBaseLumbarQ\)[\s\S]{0,900}idleShiftM = 0;\s*\n\s*bakePelvisShift\(\);/,
+    expect(overlaySource).toMatch(
+      /function undo\([\s\S]{0,700}copy\(_idleBaseThoraxQ\)[\s\S]{0,300}copy\(_idleBaseLumbarQ\)[\s\S]{0,900}idleShiftM = 0;\s*\n\s*bakePelvisShift\(\);/,
     );
     // …and the bake target composes the two shifts, so idle can never clobber
-    // the antalgic overlay (or vice versa).
-    expect(stageSource).toMatch(/const targetM = motionPelvisShiftM \+ idleShiftM;/);
+    // the antalgic overlay (or vice versa). (The bake stays in the component,
+    // reading the overlay's idle shift.)
+    expect(stageSource).toMatch(/const targetM = motionPelvisShiftM \+ idleOverlay\.shiftM;/);
   });
 
   it('the ankle-pivot sway restores the root quat + BOTH counter-rotated feet inside the same undo (Wave 5)', () => {
-    expect(stageSource).toMatch(
-      /function undoIdleOverlays\(\): boolean \{[\s\S]{0,900}copy\(_idleBaseRootQ\)[\s\S]{0,300}copy\(_idleBaseLFootQ\)[\s\S]{0,200}copy\(_idleBaseRFootQ\)/,
+    expect(overlaySource).toMatch(
+      /function undo\([\s\S]{0,900}copy\(_idleBaseRootQ\)[\s\S]{0,300}copy\(_idleBaseLFootQ\)[\s\S]{0,200}copy\(_idleBaseRFootQ\)/,
     );
     // …and the apply path counter-rotates the feet by the conjugated inverse
     // pivot so the soles stay flat (the ankle-pivot contract).
-    expect(stageSource).toMatch(/_idlePivotInvQ\.copy\(_idlePivotQ\)\.invert\(\);/);
-    expect(stageSource).toMatch(
+    expect(overlaySource).toMatch(/_idlePivotInvQ\.copy\(_idlePivotQ\)\.invert\(\);/);
+    expect(overlaySource).toMatch(
       /_idleQ\.copy\(_idleParentQ\)\.invert\(\);\s*\n\s*_idleQ\.multiply\(_idlePivotInvQ\)\.multiply\(_idleParentQ\);/,
     );
   });
