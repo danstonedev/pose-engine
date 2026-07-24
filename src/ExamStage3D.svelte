@@ -43,6 +43,7 @@
    * commands. Theme via `--pv-bg`.
    */
   import { onMount } from 'svelte';
+  import { computeStageDiagnostics, type StageDiagnostics } from './services/stageDiagnostics';
   import { POSE_SCHEMA_VERSION, type CustomPose, type MovementClipId } from './types';
   import type { DrivingRingMap, JointAngleReport } from './services/jointAngles';
   import type { PoseRingDrag } from './services/poseRotateRings';
@@ -197,21 +198,9 @@
   let loadError = $state('');
 
   // ── Live diagnostic readout (opt-in via `diagnostics`) ───────────────────
-  // Measure-only. Computed each frame from the ACTUAL rendered bones (after the
-  // idle / motion-liveliness overlays are baked), so a transient onset tilt the
-  // clean report never sees is visible on screen. Sign convention: + = the
-  // patient's LEFT (+X), matching the engine's lateral sign.
-  type StageDiagnostics = {
-    state: string;
-    trunkTiltDeg: number;
-    lumbarTiltDeg: number;
-    pelvisShiftCm: number;
-    idle: boolean;
-    pivot: boolean;
-    livelinessPct: number;
-    swayMod: number;
-    shiftModCm: number;
-  };
+  // Measure-only. The pure computation lives in services/stageDiagnostics; the
+  // component keeps only the per-frame throttle + the reactive value the HUD
+  // renders. Sampled from the ACTUAL rendered bones (after overlays bake).
   let diag = $state<StageDiagnostics | null>(null);
   let lastDiagMs = 0;
 
@@ -3578,48 +3567,29 @@
           const diagNow = performance.now();
           if (diagNow - lastDiagMs >= 66) {
             lastDiagMs = diagNow;
+            // matrixWorld is current here (overlays ran updateMatrixWorld this
+            // frame); computeStageDiagnostics reads it — no THREE allocations.
             const lower = motionCapBones.get('Spine_Lower');
-            const upper = motionCapBones.get('Spine_Upper');
-            const head = motionCapBones.get('Head');
-            const hips = motionCapBones.get('Hips') ?? lower;
-            // World position straight from matrixWorld (elements 12/13/14 =
-            // x/y/z); the overlays already ran updateMatrixWorld this frame, so
-            // no THREE temp-vector allocation and no extra world-matrix pass.
-            const tiltDeg = (
-              from: { matrixWorld: { elements: number[] } } | undefined,
-              to: { matrixWorld: { elements: number[] } } | undefined,
-            ): number => {
-              if (!from || !to) return 0;
-              const fe = from.matrixWorld.elements;
-              const te = to.matrixWorld.elements;
-              return (Math.atan2(te[12] - fe[12], te[13] - fe[13]) * 180) / Math.PI;
-            };
-            const trunkTiltDeg = tiltDeg(hips, head);
-            const lumbarTiltDeg = tiltDeg(lower, upper);
-            const motionOn = !!activeMotionId || composedActive;
-            diag = {
-              state: activeTween
-                ? 'transition'
-                : composedActive
-                  ? 'composed'
-                  : activeMotionId
-                    ? 'clip'
-                    : activeTrajectory
-                      ? 'travel'
-                      : idleOverlayOn
-                        ? 'idle'
-                        : 'held',
-              trunkTiltDeg,
-              lumbarTiltDeg,
-              pelvisShiftCm: (modelRoot.position.x - rootRestPos.x) * 100,
-              idle: idleOverlayOn,
-              pivot: idlePivotOn,
-              livelinessPct: motionOn
-                ? Math.min(1, livelinessOnsetSec / LIVELINESS_ONSET_SEC) * 100
-                : 0,
+            diag = computeStageDiagnostics({
+              lower,
+              upper: motionCapBones.get('Spine_Upper'),
+              head: motionCapBones.get('Head'),
+              hips: motionCapBones.get('Hips') ?? lower,
+              rootX: modelRoot.position.x,
+              rootRestX: rootRestPos.x,
+              driver: {
+                activeTween: !!activeTween,
+                composedActive,
+                activeMotion: !!activeMotionId,
+                activeTrajectory: !!activeTrajectory,
+                idleOverlayOn,
+                idlePivotOn,
+              },
+              livelinessOnsetSec,
+              livelinessOnsetTotalSec: LIVELINESS_ONSET_SEC,
               swayMod: motionSway,
-              shiftModCm: motionPelvisShiftM * 100,
-            };
+              shiftModM: motionPelvisShiftM,
+            });
           }
         }
         if (!renderNeeded) return;
