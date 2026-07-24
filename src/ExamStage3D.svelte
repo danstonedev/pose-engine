@@ -68,12 +68,11 @@
     cadenceRate,
     idleWeightShift,
     // Wave 5 life-signals: exertion-scaled FM breathing + ankle-pivot idle sway.
-    advanceBreathPhase,
     breathingLeanFM,
     idleSwaySplit,
     motionWorkIntensity,
-    stepExertion,
   } from './services/liveliness';
+  import { createBreathState } from './services/stageBreath';
   import { createEyeGazeOverlay } from './services/stageEyeGaze';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
@@ -917,15 +916,8 @@
       // ── EXERTION-SCALED BREATHING (Wave 5 life-signals) — state shared by
       // BOTH breathing paths (motion-time overlay + idle overlay), so the
       // breath never restarts or rate-jumps when a motion begins or ends:
-      // `breathPhase` is the INTEGRATED FM phase (advanceBreathPhase — never
-      // t×rate, so a rate change mid-breath is phase-continuous);
-      // `exertionLevel` the 0..1 accumulator stepped each frame (rises while a
-      // composed motion plays at its measured work intensity, decays over
-      // ~45 s at rest); `composedWorkIntensity` the playing motion's intensity
-      // (motionWorkIntensity over its resolved keyframes; 0 when idle).
-      let breathPhase = 0;
-      let exertionLevel = 0;
-      let composedWorkIntensity = 0;
+      // Shared phase/exertion/workIntensity clock — see services/stageBreath.
+      const breath = createBreathState();
       // ── IDLE liveliness (un-gated naturalism): breathing + micro-sway + a
       // slow weight shift while NOTHING drives the skeleton, so the patient
       // never freezes into a statue between commands. Same pure phase math as
@@ -1031,13 +1023,13 @@
         // (phase-continuous with the motion-time overlay — the breath neither
         // restarts nor rate-jumps when a motion ends), rate/depth following
         // the decaying exertion level.
-        breathPhase = advanceBreathPhase(breathPhase, dtSec, exertionLevel);
+        breath.advancePhase(dtSec);
         const sway = idleSwaySplit(idleTime, amount);
         if (thorax) {
           _idleBaseThoraxQ.copy(thorax.quaternion);
           _idleQ.setFromAxisAngle(
             _swayAxisAP,
-            (breathingLeanFM(breathPhase, amount, exertionLevel) * Math.PI) / 180,
+            (breathingLeanFM(breath.phase, amount, breath.exertion) * Math.PI) / 180,
           );
           thorax.quaternion.premultiply(_idleQ);
         }
@@ -1171,7 +1163,7 @@
        *  a full-strength free-running sway snapping on during the ease-in. */
       function resetLivelinessOnset(): void {
         livelinessOnsetSec = 0;
-        livelinessTime = 0; // ML sway restarts at phase 0 (breathPhase stays continuous)
+        livelinessTime = 0; // ML sway restarts at phase 0 (breath.phase stays continuous)
       }
       function applyMotionLiveliness(dtSec: number): boolean {
         if (!(motionLiveliness > 0) || !motionCapBones || !modelRoot) return false;
@@ -1185,10 +1177,10 @@
         // EXERTION-SCALED FM breathing (Wave 5): integrate the shared phase at the
         // exertion-driven rate (phase-continuous — never t×rate, so a rate change
         // can never jump mid-breath).
-        breathPhase = advanceBreathPhase(breathPhase, dtSec, exertionLevel);
+        breath.advancePhase(dtSec);
         const thorax = motionCapBones.get('Spine_Upper');
         if (thorax) {
-          const breathDeg = onsetRamp * breathingLeanFM(breathPhase, motionLiveliness, exertionLevel);
+          const breathDeg = onsetRamp * breathingLeanFM(breath.phase, motionLiveliness, breath.exertion);
           _liveQ.setFromAxisAngle(_swayAxisAP, (breathDeg * Math.PI) / 180);
           thorax.quaternion.premultiply(_liveQ);
         }
@@ -1244,7 +1236,7 @@
         composedLateralShuttle = null; // drop any medio-lateral shuttle
         composedHeelStrike = null; // drop any footfall accents
         composedHeelStrikeY = 0;
-        composedWorkIntensity = 0; // exertion feed stops; the accumulator decays
+        breath.setWorkIntensity(0); // exertion feed stops; the accumulator decays
         composedCurrentGrounding = null; // drop the frame grounding so a clip/idle recording can't inherit it
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
@@ -2811,7 +2803,7 @@
         // mean joint speed + ballistic share over its resolved keyframes —
         // which the render loop feeds the exertion accumulator each frame
         // while this motion drives the skeleton (breathing rate/depth follow).
-        composedWorkIntensity = motionWorkIntensity(effectiveResolved.keyframes);
+        breath.setWorkIntensity(motionWorkIntensity(effectiveResolved.keyframes));
 
         // CROSS-MOTION CONTINUITY: fold onto the CURRENT on-stage pose + root (after
         // any ready settle above), so the motion continues from the live posture.
@@ -3267,9 +3259,8 @@
         // motion's measured work intensity, decays toward 0 over ~45 s at
         // rest. Stepped every frame so the breathing overlays (motion + idle)
         // read one continuous level. Pure, framerate-independent step.
-        exertionLevel = stepExertion(
-          exertionLevel,
-          composedActive || activeTrajectory ? composedWorkIntensity : 0,
+        breath.stepExertion(
+          composedActive || activeTrajectory ? breath.workIntensity : 0,
           motionDelta,
         );
         if (mixer && activeMotionId) {
