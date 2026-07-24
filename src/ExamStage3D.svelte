@@ -71,6 +71,7 @@
     motionWorkIntensity,
   } from './services/liveliness';
   import { createBreathState } from './services/stageBreath';
+  import { createClipBlend } from './services/stageClipBlend';
   import { createEyeGazeOverlay } from './services/stageEyeGaze';
   import { createIdleOverlay } from './services/stageIdleOverlay';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
@@ -828,6 +829,13 @@
       let mixer: import('three').AnimationMixer | null = null;
       let motionAction: import('three').AnimationAction | null = null;
       let activeMotionId: MovementClipId | null = null;
+      // Clip transition ease-in (services/stageClipBlend): captures the current
+      // pose (a live outgoing clip frame OR a Stop-frozen mid-stride pose) when a
+      // clip starts and slerps it into the new clip over CLIP_BLEND_SEC, so a
+      // run→walk swap (or a start from a frozen pose) eases in instead of
+      // hard-cutting to the clip's frame 0. Does NOT change Stop-freeze itself.
+      const clipBlend = createClipBlend();
+      const CLIP_BLEND_SEC = 0.3;
       // L2 ROM-cap state: canonical-key → bone, and the keys to clamp each frame.
       let motionCapBones: Map<string, import('three').Bone> | null = null;
       let motionCapKeys: string[] = [];
@@ -1201,6 +1209,7 @@
       function stopMotion() {
         cancelComposed();
         if (mixer) mixer.stopAllAction();
+        clipBlend.cancel(); // abandon any in-progress clip ease-in
         motionAction = null;
         activeMotionId = null;
         // Lift any ROM caps (the host clears its constraint set separately).
@@ -3074,6 +3083,9 @@
         action.play();
         motionAction = action;
         activeMotionId = motion;
+        // Ease into the clip from the CURRENT pose (still intact — the mixer only
+        // writes on update): capture it now, blend toward the clip each frame.
+        if (skinnedRef) clipBlend.begin(skinnedRef.skeleton.bones, CLIP_BLEND_SEC);
         resetLivelinessOnset();
         motionClock.getDelta(); // drop the accumulated idle delta
         startLoop();
@@ -3139,6 +3151,10 @@
         );
         if (mixer && activeMotionId) {
           mixer.update(motionDelta); // step the named-motion clip (bones-only)
+          // Clip ease-in: slerp the captured start pose toward the clip pose for
+          // the first CLIP_BLEND_SEC (no-op once complete). AFTER mixer.update so
+          // the bones already hold the clip pose to blend toward.
+          clipBlend.apply(motionDelta);
           modelRoot?.updateMatrixWorld();
           // L2 ROM cap: enforce the scenario-narrowed range each frame while the
           // clip plays. Leg (knee) caps re-solve the whole leg via IK so the foot

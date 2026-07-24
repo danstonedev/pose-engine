@@ -20,9 +20,10 @@ Each is code-cited and confirmed against the actual code/assets. Address AFTER t
    rides idle overlays on top of it. Owner has decided to KEEP freeze. Revisit only if we make
    it locomotion-aware later. (Not a bug to fix now — recorded for context.)
 
-2. **Clip→clip is a hard cut (no crossfade).** `runMotionImpl` (~3298-3317): `resetRootToRest`
-   → `mixer.stopAllAction()` → `action.play()`. No `crossFadeTo`. run→walk jumps. The ready-settle
-   (~2880-2893) is composed-path only. FIX LATER: crossfade locomotion clip transitions.
+2. **Clip→clip is a hard cut (no crossfade).** ✅ FIXED — `services/stageClipBlend.ts`: a pose-space
+   ease-in captures the current pose (live outgoing frame OR Stop-frozen pose) when a clip starts and
+   slerps it into the clip over 0.3 s. Offline harness: run→walk worst single-frame trunk jump
+   12.1° → 0.99° (12× smoother). Stop-freeze unchanged.
 
 3. **`resetRootToRest` snaps the root** (`~761-769`, `.copy` not tween). For a traveling clip this
    is a position pop. FIX LATER: ease, or preserve continuity.
