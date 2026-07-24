@@ -47,6 +47,32 @@ Each is code-cited and confirmed against the actual code/assets. Address AFTER t
 
 ---
 
+## Refactor progress (paused — resumable)
+
+Behavior-preserving extractions landed on `claude/handoff-prompt-block-oy15fn`, each
+green (svelte-check + full suite 1055 + build):
+
+- **step 1** `services/stageDiagnostics.ts` — pure diag compute + 15 unit tests.
+- **step 2** `services/stageEyeGaze.ts` — eye micro-gaze overlay (own state).
+- **step 3** `services/stageBreath.ts` — shared breath/exertion clock (the first strand
+  of the root↔pelvis-shift↔overlay↔breath knot).
+- **step 4** `services/stageIdleOverlay.ts` — idle breathing/sway/weight-shift/ankle-pivot.
+
+ExamStage3D.svelte: **4986 → 4723**. Pattern: move logic+state to a factory module,
+keep thin same-named wrappers in the component so call sites don't churn; retarget the
+body source-pins to the module, keep wiring pins on the component.
+
+### Remaining decomposition (in order), to get under 500/file
+1. **motion-time liveliness** overlay (`applyMotionLiveliness`) → fold into an overlay module
+   (shares breath — now owned; entangled with `resetLivelinessOnset` + `setMotionOverlays`).
+2. **recording tap** (`captureRecordingFrame` + buildFrameNow) → `stageRecordingTap`.
+3. **composed player** (`runComposedImpl` trajectory player, ~880 lines) → `stageComposedPlayer` (split).
+4. **posing layer** (~1180 lines, isolated via `poseLayer*` hooks) → `stagePosingLayer` (split 2–3).
+   NOTE: zero behavioral tests — write a characterization test FIRST, then extract.
+5. **root/context** LAST — `rootRestPos`/`rootRestQuat`/`composedRoot*`/`pelvisShiftBakedM` are
+   the shared coordinate frame (30+ refs each across every subsystem); extract via a `StageContext`
+   after its consumers are modules, or the renames swamp the diff for no line win.
+
 ## Refactor caveats / gotchas discovered
 
 - **Source-pinned tests exist.** Some tests regex the *source text* of `ExamStage3D.svelte`
