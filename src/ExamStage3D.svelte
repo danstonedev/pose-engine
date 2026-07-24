@@ -74,7 +74,7 @@
     motionWorkIntensity,
     stepExertion,
   } from './services/liveliness';
-  import { eyeGazeAngles } from './services/eyeGaze';
+  import { createEyeGazeOverlay } from './services/stageEyeGaze';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -1123,133 +1123,35 @@
         modelRoot?.updateMatrixWorld(true);
         return true;
       }
-      // ── EYES · micro-gaze overlay (Wave 5 · 5.1) — BEGIN eye block ────────
-      // LIVE-ONLY, same undo/reapply sandwich as the idle overlay above, but
-      // ALWAYS-ON while the model is visible (idle AND during motion): the eye
-      // bones are leaves no motion machinery writes, so the overlay rides on
-      // top of any driver. Each frame both eyes get the SAME small conjugate
-      // rotation (no vergence): a gaze-absorb counter of the head's residual
-      // yaw/pitch measured in the MODEL-ROOT frame (travel heading and root
-      // reorientation cancel out — only the stabilizeGaze leftover registers)
-      // plus seeded saccades/drift (pure math in services/eyeGaze). The exact
-      // pre-overlay eye locals are stored on apply and restored before the
-      // recording tap and at every takeover/serialize/export point, so
-      // recordings, goniometry, pose serialization and GLB export always see
-      // the eyes at rest. Clean mode (idleLiveliness = 0) applies NOTHING.
-      let eyeGazeTime = 0;
-      /** Saccade seed: randomized per stage boot, deterministic per seed. */
-      const eyeGazeSeed = Math.random() * 1000;
-      /** True while the eye deltas are baked into the eye bones. */
-      let eyeGazeOn = false;
-      const _eyeBaseLQ = new THREE.Quaternion();
-      const _eyeBaseRQ = new THREE.Quaternion();
-      const _eyeQa = new THREE.Quaternion();
-      const _eyeQb = new THREE.Quaternion();
-      const _eyeQc = new THREE.Quaternion();
-      const _eyeW = new THREE.Quaternion();
-      const _eyeFwd = new THREE.Vector3();
-      const _eyeAxisYaw = new THREE.Vector3(0, 1, 0);
-      const _eyeAxisPitch = new THREE.Vector3(1, 0, 0);
+      // ── EYES · micro-gaze overlay (services/stageEyeGaze) ─────────────────
+      // LIVE-ONLY, always-on gaze-absorb + seeded saccades, applied via an
+      // undo/reapply sandwich so recordings/goniometry/export see the eyes at
+      // rest. Thin wrappers below bind it to the live bones/root/rest per frame.
+      const eyeGaze = createEyeGazeOverlay(Math.random() * 1000);
 
-      /**
-       * Bake the micro-gaze deltas for the CURRENT phase onto both eye bones.
-       * Stores the exact pre-overlay eye quats so undoEyeGaze() is an exact
-       * restore. Assumes any previous application was undone first. Returns
-       * whether anything was applied (amount 0 / clean mode applies NOTHING,
-       * keeping the idle-render optimization honest).
-       */
+      /** Bake the micro-gaze onto the eye bones (live-only). Thin wrapper over
+       *  services/stageEyeGaze bound to the current bones/root/rest. */
       function applyEyeGaze(dtSec: number): boolean {
-        const amount = Number.isFinite(idleLiveliness)
-          ? Math.max(0, Math.min(1, idleLiveliness))
-          : 0;
-        if (amount <= 0 || !motionCapBones || !modelRoot || !restRef) return false;
-        const eyeL = motionCapBones.get('L_Eye');
-        const eyeR = motionCapBones.get('R_Eye');
-        const head = motionCapBones.get('Head');
-        const headRestArr = restRef.worldQuats.Head;
-        if (!eyeL || !eyeR || !head || !eyeL.parent || !headRestArr) return false;
-        eyeGazeTime += dtSec;
-        // Head residual in the MODEL-ROOT frame: relNow vs the rest relation
-        // (restRef world quats were captured at the rootRestQuat orientation).
-        modelRoot.getWorldQuaternion(_eyeQc); // root now (also reused below)
-        head.getWorldQuaternion(_eyeQb);
-        _eyeQa.copy(_eyeQc).invert().multiply(_eyeQb); // relNow
-        _eyeQb
-          .copy(rootRestQuat)
-          .invert()
-          .multiply(_eyeW.set(headRestArr[0], headRestArr[1], headRestArr[2], headRestArr[3]))
-          .invert(); // inv(relRest)
-        _eyeQa.multiply(_eyeQb); // residual = relNow · inv(relRest)
-        _eyeFwd.set(0, 0, 1).applyQuaternion(_eyeQa); // rest-forward, deviated
-        const residualYawDeg = (Math.atan2(_eyeFwd.x, _eyeFwd.z) * 180) / Math.PI;
-        const residualPitchDeg =
-          (Math.asin(Math.max(-1, Math.min(1, _eyeFwd.y))) * 180) / Math.PI;
-        const { yawDeg, pitchDeg } = eyeGazeAngles(
-          eyeGazeTime,
-          amount,
-          eyeGazeSeed,
-          residualYawDeg,
-          residualPitchDeg,
+        return eyeGaze.apply(
+          dtSec,
+          idleLiveliness,
+          motionCapBones,
+          modelRoot,
+          restRef?.worldQuats.Head,
+          rootRestQuat,
         );
-        // Gaze rotation in the ROOT frame (+yaw = patient's left, +pitch = up),
-        // converted into the shared eye-parent local frame:
-        //   Wlocal = inv(parentW) · rootW · Wroot · inv(rootW) · parentW
-        _eyeQa.setFromAxisAngle(_eyeAxisYaw, (yawDeg * Math.PI) / 180);
-        _eyeQb.setFromAxisAngle(_eyeAxisPitch, (-pitchDeg * Math.PI) / 180);
-        _eyeQa.multiply(_eyeQb); // Wroot
-        eyeL.parent.getWorldQuaternion(_eyeQb); // parentW (shared: FacialBone)
-        _eyeW
-          .copy(_eyeQb)
-          .invert()
-          .multiply(_eyeQc)
-          .multiply(_eyeQa)
-          .multiply(_eyeQc.invert())
-          .multiply(_eyeQb);
-        _eyeBaseLQ.copy(eyeL.quaternion);
-        _eyeBaseRQ.copy(eyeR.quaternion);
-        eyeL.quaternion.premultiply(_eyeW);
-        eyeR.quaternion.premultiply(_eyeW);
-        eyeGazeOn = true;
-        return true;
       }
 
-      /**
-       * Lift the baked micro-gaze deltas — an EXACT restore of the stored
-       * pre-overlay eye quats. No-op unless deltas are baked. Called first
-       * thing every frame (before the recording tap) and at every takeover /
-       * serialize / export point, mirroring undoIdleOverlays above.
-       */
+      /** Lift the baked eye deltas (exact restore). Wrapper over stageEyeGaze. */
       function undoEyeGaze(): boolean {
-        if (!eyeGazeOn) return false;
-        eyeGazeOn = false;
-        const eyeL = motionCapBones?.get('L_Eye');
-        if (eyeL) eyeL.quaternion.copy(_eyeBaseLQ);
-        const eyeR = motionCapBones?.get('R_Eye');
-        if (eyeR) eyeR.quaternion.copy(_eyeBaseRQ);
-        return true;
+        return eyeGaze.undo(motionCapBones);
       }
 
-      /**
-       * SEAM-9 — snapshot the CURRENTLY-APPLIED eye-gaze locals so the capture
-       * sandwich (buildFrameNow) can restore them EXACTLY, instead of re-deriving
-       * via applyEyeGaze(0) against a base (head/root) that the idle re-bake may
-       * have moved. Returns a restore closure (which re-sets eyeGazeOn so the next
-       * frame's undo stays balanced against the untouched stored base), or null
-       * when no eye deltas are baked — nothing to restore.
-       */
+      /** Snapshot the applied eye locals for the capture sandwich (or null).
+       *  Wrapper over stageEyeGaze (SEAM-9). */
       function captureAppliedEyeGaze(): (() => void) | null {
-        if (!eyeGazeOn) return null;
-        const eyeL = motionCapBones?.get('L_Eye');
-        const eyeR = motionCapBones?.get('R_Eye');
-        const qL = eyeL ? eyeL.quaternion.clone() : null;
-        const qR = eyeR ? eyeR.quaternion.clone() : null;
-        return () => {
-          if (eyeL && qL) eyeL.quaternion.copy(qL);
-          if (eyeR && qR) eyeR.quaternion.copy(qR);
-          eyeGazeOn = true;
-        };
+        return eyeGaze.captureApplied(motionCapBones);
       }
-      // ── EYES · micro-gaze overlay — END eye block ─────────────────────────
 
       /**
        * MOTION-TIME liveliness (LIVE-ONLY realism): breathing at the thorax +
@@ -1589,7 +1491,7 @@
           idleOverlayOn = false;
           idlePivotOn = false;
           idleShiftM = 0;
-          eyeGazeOn = false; // same for the eye micro-gaze bake
+          eyeGaze.reset(); // same for the eye micro-gaze bake
 
           // 7b) Fresh AnimationMixer bound to this model root for named
           //     motions. A one-shot clip that reaches its end fires 'finished',
