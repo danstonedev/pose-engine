@@ -282,7 +282,7 @@ describe('SEAM-9 — motion-time liveliness (realism) is applied AFTER the recor
   // idle re-bake (a motion is driving the skeleton).
   it('applyMotionLiveliness runs AFTER the recording tap (else-branch of the idle re-bake)', () => {
     expect(stageSource).toMatch(
-      /if \(recording\) \{[\s\S]{0,1500}\} else if \(\(\(mixer && activeMotionId\) \|\| composedActive\) && applyMotionLiveliness\(motionDelta\)\)/,
+      /recordingTap\.sample\([\s\S]{0,1500}\} else if \(\(\(mixer && activeMotionId\) \|\| composedActive\) && applyMotionLiveliness\(motionDelta\)\)/,
     );
   });
 

@@ -64,9 +64,11 @@ keep thin same-named wrappers in the component so call sites don't churn; retarg
 body source-pins to the module, keep wiring pins on the component.
 
 ### Remaining decomposition (in order), to get under 500/file
-1. **motion-time liveliness** overlay (`applyMotionLiveliness`) → fold into an overlay module
-   (shares breath — now owned; entangled with `resetLivelinessOnset` + `setMotionOverlays`).
-2. **recording tap** (`captureRecordingFrame` + buildFrameNow) → `stageRecordingTap`.
+1. ~~**motion-time liveliness** overlay~~ ✅ `services/stageMotionLiveliness.ts` (step 5).
+2. ~~**recording tap**~~ ✅ `services/stageRecordingTap.ts` (step 6) — the ActiveRecording buffer +
+   sample throttle moved to a scene-agnostic module; `buildFrameNow`/`buildFrameNowClean` (the stage
+   SNAPSHOT, coupled to root/measure/serialize) stay in the component and are injected as `buildFrame`.
+   10 unit tests (fake clock + fake buildFrame). Clock-derived id/createdAtIso are caller-stamped.
 3. **composed player** (`runComposedImpl` trajectory player, ~880 lines) → `stageComposedPlayer` (split).
 4. **posing layer** (~1180 lines, isolated via `poseLayer*` hooks) → `stagePosingLayer` (split 2–3).
    NOTE: zero behavioral tests — write a characterization test FIRST, then extract.

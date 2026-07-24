@@ -69,6 +69,7 @@
   import { createEyeGazeOverlay } from './services/stageEyeGaze';
   import { createIdleOverlay } from './services/stageIdleOverlay';
   import { createMotionLiveliness, LIVELINESS_ONSET_SEC } from './services/stageMotionLiveliness';
+  import { createRecordingTap } from './services/stageRecordingTap';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -991,6 +992,11 @@
       // undo/reapply sandwich so recordings/goniometry/export see the eyes at
       // rest. Thin wrappers below bind it to the live bones/root/rest per frame.
       const eyeGaze = createEyeGazeOverlay(Math.random() * 1000);
+
+      // Recording tap: owns the ActiveRecording buffer + sample throttle. It
+      // never touches the scene — buildFrameNow (below) snapshots the stage and
+      // is injected at each call, so the *Impl wiring stays trivial.
+      const recordingTap = createRecordingTap();
 
       /** Bake the micro-gaze onto the eye bones (live-only). Thin wrapper over
        *  services/stageEyeGaze bound to the current bones/root/rest. */
@@ -2342,16 +2348,8 @@
       }
 
       // ── Motion recording tap (samples inside the existing rAF loop) ────
-      interface ActiveRecording {
-        sampleHz: number;
-        name: string;
-        sourceKind: MotionRecordingSourceKind;
-        sourceName?: string;
-        startT: number;
-        lastSample: number;
-        frames: RecordedFrame[];
-      }
-      let recording: ActiveRecording | null = null;
+      // The ActiveRecording buffer + sample throttle live in the recordingTap
+      // module (declared up top); buildFrameNow below is the injected snapshot.
       const _recPos = new THREE.Vector3();
       const _recQ = new THREE.Quaternion();
 
@@ -2426,45 +2424,23 @@
         };
       }
 
-      function captureRecordingFrame(rec: ActiveRecording, nowMs: number): void {
-        const frame = buildFrameNow(nowMs - rec.startT);
-        if (frame) rec.frames.push(frame);
-      }
+      // buildFrameNow is the stage snapshot the tap samples with — inject it at
+      // each call so the module stays scene-agnostic.
+      const buildFrame: (tMs: number) => RecordedFrame | null = (tMs) => buildFrameNow(tMs);
 
       captureFrameImpl = () => buildFrameNow(0);
 
       startRecordingImpl = (opts) => {
-        const now = performance.now();
-        recording = {
-          sampleHz: Math.max(1, Math.min(120, opts?.sampleHz ?? 30)),
-          name: opts?.name ?? 'recording',
-          sourceKind: opts?.sourceKind ?? 'manual',
-          ...(opts?.sourceName ? { sourceName: opts.sourceName } : {}),
-          startT: now,
-          lastSample: now,
-          frames: [],
-        };
-        captureRecordingFrame(recording, now); // frame 0 — the starting pose
+        recordingTap.start(opts, performance.now(), buildFrame);
         startLoop();
       };
 
-      stopRecordingImpl = () => {
-        const rec = recording;
-        recording = null;
-        if (!rec) return null;
-        // Final frame at stop time so the settle pose is always captured.
-        captureRecordingFrame(rec, performance.now());
-        return {
+      stopRecordingImpl = () =>
+        recordingTap.stop(performance.now(), buildFrame, {
           id: `rec-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-          name: rec.name,
           variant: variantCfgRef?.id ?? '',
-          sourceKind: rec.sourceKind,
-          ...(rec.sourceName ? { sourceName: rec.sourceName } : {}),
-          sampleHz: rec.sampleHz,
-          frames: rec.frames,
           createdAtIso: new Date().toISOString(),
-        };
-      };
+        });
 
       showRecordedFrameImpl = (frame: RecordedFrame) => {
         if (!skinnedRef || !variantCfgRef) return;
@@ -3261,13 +3237,7 @@
         // regardless of what drives the skeleton (clip, exam tween, composed
         // playback, or idle manual time). Same throttle pattern as the
         // motionReportHz streaming above; a single null check when inactive.
-        if (recording) {
-          const nowMs = performance.now();
-          if (nowMs - recording.lastSample >= 1000 / recording.sampleHz - 4) {
-            recording.lastSample = nowMs;
-            captureRecordingFrame(recording, nowMs);
-          }
-        }
+        recordingTap.sample(performance.now(), buildFrame);
         // Idle liveliness, part 2: while the stage is truly IDLE — no clip, no
         // composed playback, no exam tween, no trajectory, posing layer not
         // engaged — re-bake the overlay at the advanced phase so the patient

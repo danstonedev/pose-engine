@@ -460,7 +460,7 @@ describe('eye micro-gaze — measured on the rig', () => {
 describe('eye micro-gaze — stage wiring (source pins)', () => {
   it('the loop LIFTS the eye deltas before the recording tap (recordings sample the eyes at rest)', () => {
     expect(stageSource).toMatch(
-      /if \(undoEyeGaze\(\)\) renderNeeded = true;[\s\S]{0,700}if \(recording\) \{/,
+      /if \(undoEyeGaze\(\)\) renderNeeded = true;[\s\S]{0,700}recordingTap\.sample\(/,
     );
   });
 

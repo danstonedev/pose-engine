@@ -291,7 +291,7 @@ describe('idle liveliness — measured on the rig', () => {
 describe('idle liveliness — stage wiring (source pins)', () => {
   it('the loop LIFTS the idle deltas before the recording tap (recordings sample the clean pose)', () => {
     expect(stageSource).toMatch(
-      /if \(undoIdleOverlays\(\)\) renderNeeded = true;[\s\S]{0,700}if \(recording\) \{/,
+      /if \(undoIdleOverlays\(\)\) renderNeeded = true;[\s\S]{0,700}recordingTap\.sample\(/,
     );
   });
 
@@ -303,7 +303,7 @@ describe('idle liveliness — stage wiring (source pins)', () => {
 
   it('the re-bake happens AFTER the recording tap and wakes the render only when deltas applied (dirty flag honest)', () => {
     expect(stageSource).toMatch(
-      /if \(recording\) \{[\s\S]{0,1500}applyIdleOverlays\(motionDelta\)\s*\n\s*\) \{\s*\n\s*renderNeeded = true;/,
+      /recordingTap\.sample\([\s\S]{0,1500}applyIdleOverlays\(motionDelta\)\s*\n\s*\) \{\s*\n\s*renderNeeded = true;/,
     );
   });
 
