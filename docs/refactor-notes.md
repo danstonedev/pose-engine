@@ -86,8 +86,20 @@ body source-pins to the module, keep wiring pins on the component.
      pin applier — needs the applier seam first).
    - ⬜ `runComposedImpl` itself (~425 lines) is ORCHESTRATION (overlays, drivers, balance,
      buildSequencePoses). Extract last, if at all — it is the stage's own composition root.
-4. **posing layer** (~1180 lines, isolated via `poseLayer*` hooks) → `stagePosingLayer` (split 2–3).
-   NOTE: zero behavioral tests — write a characterization test FIRST, then extract.
+4. ✅ **posing layer** → `services/stagePosingLayer.ts` (step 9). The whole `if (posable)` block
+   (1142 lines) moved behind a `PosingLayerContext`: live getters for the rig/driver state it
+   observes, plain callbacks for the stage behaviour it triggers, and ONE `setCurrentPose` for the
+   only stage state it writes (coupling measured first: 107 read-only refs vs 4 writes). It now
+   RETURNS its `hooks` + `api` instead of assigning stage variables, so ownership runs one way.
+   Bonus: the layer is a **separate lazy chunk** (44.8 kB) — the main bundle dropped 1341.9 → 1325.3 kB.
+   Verified by **verbatim proof**: reversing the documented renames reproduces the original block
+   byte-for-byte except the two lines deliberately hoisted into the stage's dispose wrapper
+   (`poseLayerBusy = null` first, `poseApiImpl = null` last — same order).
+   Two hazards caught by reading, not by types:
+   - the block's `if (disposed) return;` returned from the **boot IIFE** (skipping `loadModel`), so
+     the module returns `null` and the stage re-raises the abort;
+   - the block already had a local `const ctx` (an `IKChainContext`) — the context parameter is
+     named `stageCtx` to avoid silently capturing it.
 5. **root/context** LAST — `rootRestPos`/`rootRestQuat`/`composedRoot*`/`pelvisShiftBakedM` are
    the shared coordinate frame (30+ refs each across every subsystem); extract via a `StageContext`
    after its consumers are modules, or the renames swamp the diff for no line win.

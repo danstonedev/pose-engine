@@ -46,6 +46,12 @@ const overlaySource = readFileSync(
   fileURLToPath(new URL('../services/stageIdleOverlay.ts', import.meta.url)),
   'utf8',
 );
+// The opt-in posing layer (pose API + pose-play preview) now lives in its own
+// module; the stage keeps the core + the lifecycle hooks.
+const posingSource = readFileSync(
+  fileURLToPath(new URL('../services/stagePosingLayer.ts', import.meta.url)),
+  'utf8',
+);
 // The motion-time liveliness overlay LOGIC now lives in services/stageMotionLiveliness.
 const motionLiveSource = readFileSync(
   fileURLToPath(new URL('../services/stageMotionLiveliness.ts', import.meta.url)),
@@ -321,9 +327,9 @@ describe('idle liveliness — stage wiring (source pins)', () => {
   });
 
   it('the pose API serializes/writes only the clean pose (getPose / loadPose / pose-play snapshot)', () => {
-    expect(stageSource).toMatch(/getPose: \(\) => \{[\s\S]{0,400}undoIdleOverlays\(\);[\s\S]{0,200}serializeCustomPose/);
-    expect(stageSource).toMatch(/loadPose: \(pose: CustomPose\) => \{[\s\S]{0,400}undoIdleOverlays\(\);/);
-    expect(stageSource).toMatch(/undoIdleOverlays\(\);\s*\n\s*posePlayPosed = serializeCustomPose/);
+    expect(posingSource).toMatch(/getPose: \(\) => \{[\s\S]{0,400}undoIdleOverlays\(\);[\s\S]{0,200}serializeCustomPose/);
+    expect(posingSource).toMatch(/loadPose: \(pose: CustomPose\) => \{[\s\S]{0,400}undoIdleOverlays\(\);/);
+    expect(posingSource).toMatch(/undoIdleOverlays\(\);\s*\n\s*posePlayPosed = serializeCustomPose/);
   });
 
   it('the undo is an exact stored-base restore and un-bakes the idle root shift through the pelvis-shift tracker', () => {
