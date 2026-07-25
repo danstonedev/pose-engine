@@ -70,6 +70,8 @@
   import { createIdleOverlay } from './services/stageIdleOverlay';
   import { createMotionLiveliness, LIVELINESS_ONSET_SEC } from './services/stageMotionLiveliness';
   import { createRecordingTap } from './services/stageRecordingTap';
+  // Type-only — the module itself is dynamically imported (it pulls three).
+  import type { StanceWindow } from './services/stageComposedDerivations';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -570,9 +572,7 @@
         buildComposedTrajectory,
         buildLoopTrajectory,
         DEFAULT_TRACKED_BONES,
-        GAIT_VERTICAL_MAX_RISE_M,
         authoredToTrajectoryTimeScale,
-        scaleStanceWindowsMs,
       } = await import('./services/motionRecording');
       const {
         captureFloorReference,
@@ -583,7 +583,6 @@
         plantStanceFoot,
         stanceFootDrift,
         rotateRestReferenceByRoot,
-        deriveVerticalCalibration,
         applyVerticalCalibration,
         NO_VERTICAL_CALIBRATION,
         VCAL_HANDOFF_BLEND_MS,
@@ -603,6 +602,11 @@
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant, solveFootPlantWeighted, PLANT_RELEASE_BLEND_MS, buildHandPlant, solveHandReach } =
         await import('./services/footContact');
+      // Rig-facing composed derivations (the four trajectory pre-passes). Dynamic
+      // like every other three-using service, so this component stays SSR-safe.
+      const { createComposedDerivations, scaledStanceWindows, scaledHeadingAt } = await import(
+        './services/stageComposedDerivations'
+      );
       const { balanceCoordination } = await import('./services/balanceCoordination');
       const { computeBodyCoMFromBones } = await import('./services/centerOfMass');
       const { resolveMotionCommand } = await import('./services/motionCommand');
@@ -721,6 +725,29 @@
       const _rootInv = new THREE.Quaternion();
       const _rootPosA = new THREE.Vector3();
       const _rootPosB = new THREE.Vector3();
+
+      /** The live rig as the composed derivations see it — getters, so the module
+       *  always reads the CURRENT refs (a model reload swaps them) instead of a
+       *  snapshot taken at boot. */
+      const derivations = createComposedDerivations({
+        get root() {
+          return modelRoot;
+        },
+        get skinned() {
+          return skinnedRef;
+        },
+        get variantCfg() {
+          return variantCfgRef;
+        },
+        get floor() {
+          return floorRef;
+        },
+        rootRestPos,
+        rootRestQuat,
+        clearPelvisShiftBake() {
+          pelvisShiftBakedM = 0;
+        },
+      });
 
       /** Set the model root to a composed root state (orient quat relative to
        *  rest + translate in meters from the anatomic origin). */
@@ -1563,57 +1590,26 @@
        *  the offline sampler records single passes and never hands off. */
       let composedVcalHandoff: { deltaYM: number; startedAtMs: number } | null = null;
 
-      /** SHARED TRAJECTORY PRE-PASS. Pose the rig at `tMs` of `traj` and place the
-       *  root on the SAME base applyTrajectoryRoot uses — rest ∘ sample, then the
-       *  floor pin when the sample is planted — and return the sample. Every
-       *  composed derivation below (vertical calibration, foot-driven travel,
-       *  lateral shuttle, heel-strike accents) pre-passes exactly this way, so one
-       *  source of truth keeps them from drifting apart from each other or from the
-       *  offline sampler. Callers must have already checked the rig refs (each
-       *  derivation returns early without them). Poses the rig transiently — the
-       *  player re-poses every frame. */
-      function previewTrajectoryAt(traj: PoseTrajectory, tMs: number) {
-        const s = traj.sampleAt(tMs);
-        applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
-        _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
-        modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
-        modelRoot!.position.set(
-          rootRestPos.x + s.rootTranslate[0],
-          rootRestPos.y + s.rootTranslate[1],
-          rootRestPos.z + s.rootTranslate[2],
-        );
-        pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
-        modelRoot!.updateMatrixWorld(true);
-        if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
-        return s;
-      }
-
       /** Measure the emergent grounded pelvis arc of a starting composed motion's
        *  trajectory and set `composedVcal` to hit its requested excursion. Called
        *  once when a calibrated planted motion begins; resets to identity
-       *  otherwise. Poses the rig transiently (the player re-poses every frame). */
+       *  otherwise. Thin wrapper over services/stageComposedDerivations. */
       function setComposedVerticalCalibration(
         traj: PoseTrajectory,
         targetCm: number | undefined,
         hasPlanted: boolean,
       ): void {
-        composedVcal = NO_VERTICAL_CALIBRATION;
-        composedVcalCycleMs = 0;
         composedVcalPhaseOffsetMs = 0;
         composedVcalRampMs = 0;
         composedVcalHandoff = null;
-        if (targetCm == null || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
-        composedVcalCycleMs = traj.totalMs;
-        composedVcal = deriveVerticalCalibration((u01) => {
-          previewTrajectoryAt(traj, u01 * traj.totalMs);
-          return modelRoot!.position.y;
-          // smooth: round the sharp double-support valley. When feet are foot-plant IK'd
-          // (the travelling walk), clamp how far the smoothed pelvis may rise above the pin
-          // so a planted stance leg doesn't over-reach and slide the foot — the SAME
-          // maxRiseM the offline sampler passes, under the SAME plants-active condition
-          // (DET-LOCK-01 lockstep); the contact-free in-place walk (treadmill) has no such
-          // foot to over-reach, so no clamp.
-        }, targetCm / 100, 48, true, composedPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined);
+        const { table, cycleMs } = derivations.verticalCalibration(
+          traj,
+          targetCm,
+          hasPlanted,
+          composedPlants.length > 0,
+        );
+        composedVcal = table;
+        composedVcalCycleMs = cycleMs;
       }
 
       /** FOOT-DRIVEN forward travel for the ACTIVE composed motion — the derived
@@ -1621,76 +1617,24 @@
        *  via the SAME shared helper. Null unless the motion requests it. */
       let composedFootDriven: ReturnType<typeof deriveFootDrivenTravel> | null = null;
 
-      /** The planned stance schedule of a resolved motion (gaitStanceWindowsMs),
-       *  scaled from authored ms to trajectory time by the same uniform factor
-       *  the trajectory applies — so the derivations stay phase-locked to the
-       *  knots at any pace (mirrors the offline sampler). */
-      function scaledStanceWindows(
-        traj: PoseTrajectory,
-        resolvedMotion: {
-          gaitStanceWindowsMs?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[];
-          keyframes: { durationMs: number; holdMs: number }[];
-          loop: boolean;
-          reps: number;
-        },
-      ): { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[] | undefined {
-        // SEAM-2: the SAME shared authored→trajectory factor the offline sampler
-        // (and the plant contacts) use — one source of truth for the time base.
-        return scaleStanceWindowsMs(
-          resolvedMotion.gaitStanceWindowsMs,
-          authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs),
-        );
-      }
-
-      /** The per-time heading lookup of a CURVED motion (headingProfileMs),
-       *  scaled from authored ms to trajectory time by the SAME uniform factor
-       *  as {@link scaledStanceWindows} — so heading and stance phase can never
-       *  drift apart at a non-1 pace. Undefined for a constant heading (the
-       *  byte-identical legacy path). Mirrors the offline sampler. */
-      function scaledHeadingAt(
-        traj: PoseTrajectory,
-        resolvedMotion: {
-          headingProfileMs?: { tMs: number; headingDeg: number }[];
-          keyframes: { durationMs: number; holdMs: number }[];
-          loop: boolean;
-          reps: number;
-        },
-      ): ((tMs: number) => number) | undefined {
-        const prof = resolvedMotion.headingProfileMs;
-        if (!prof || prof.length < 2) return undefined;
-        // SEAM-2: the SAME shared factor as the stance windows + plant contacts.
-        const scale = authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs);
-        const lookup = headingProfileLookup(prof);
-        return scale > 0 ? (tMs: number): number => lookup(tMs / scale) : lookup;
-      }
-
-      /** Pre-pass the starting motion's trajectory (FK + floor-pin, no travel),
-       *  read the feet, and derive the travel curve that keeps the planted foot
-       *  fixed — along the motion's heading (0 = straight ahead, the
-       *  byte-identical legacy +Z ride). Resets to null otherwise. */
+      /** Derive the travel curve that keeps the planted foot fixed, along the
+       *  motion's heading. Thin wrapper over services/stageComposedDerivations. */
       function setComposedFootDriven(
         traj: PoseTrajectory,
         enabled: boolean,
         hasPlanted: boolean,
-        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+        stanceWindows?: StanceWindow[],
         headingDeg = 0,
         headingAt?: (tMs: number) => number,
       ): void {
-        composedFootDriven = null;
-        if (!enabled || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
-        const bones = buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef);
-        const rBone = bones.get('R_Foot');
-        const lBone = bones.get('L_Foot');
-        if (!rBone || !lBone) return;
-        composedFootDriven = deriveFootDrivenTravel((tMs) => {
-          const s = previewTrajectoryAt(traj, tMs);
-          const rp = rBone.getWorldPosition(new THREE.Vector3());
-          const lp = lBone.getWorldPosition(new THREE.Vector3());
-          // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
-          // airborne): the travel derivation holds its advance through it
-          // (mirrors the offline sampler's closure exactly).
-          return { rz: rp.z, ry: rp.y, rx: rp.x, lz: lp.z, ly: lp.y, lx: lp.x, bothAirborne: !s.planted };
-        }, traj.totalMs, stanceWindows, 120, headingDeg, headingAt);
+        composedFootDriven = derivations.footDrivenTravel(
+          traj,
+          enabled,
+          hasPlanted,
+          stanceWindows,
+          headingDeg,
+          headingAt,
+        );
       }
 
       /** MEDIO-LATERAL SHUTTLE for the ACTIVE composed motion — the derived ±X
@@ -1699,30 +1643,24 @@
        *  motion requests it (`lateralShuttleCm`). */
       let composedLateralShuttle: ReturnType<typeof deriveGaitLateralShuttle> | null = null;
 
-      /** Pre-pass the starting motion's trajectory (FK + floor-pin, no travel),
-       *  read the feet, and derive the stance-phase-locked lateral shuttle —
-       *  perpendicular to the motion's heading (0 = the byte-identical legacy
-       *  world-X ride). Resets to null otherwise. Mirrors setComposedFootDriven. */
+      /** Derive the stance-phase-locked lateral shuttle, perpendicular to the
+       *  motion's heading. Thin wrapper over services/stageComposedDerivations. */
       function setComposedLateralShuttle(
         traj: PoseTrajectory,
         shuttleCm: number | undefined,
         hasPlanted: boolean,
-        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+        stanceWindows?: StanceWindow[],
         headingDeg = 0,
         headingAt?: (tMs: number) => number,
       ): void {
-        composedLateralShuttle = null;
-        if (!shuttleCm || shuttleCm <= 0 || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
-        const bones = buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef);
-        const rBone = bones.get('R_Foot');
-        const lBone = bones.get('L_Foot');
-        if (!rBone || !lBone) return;
-        composedLateralShuttle = deriveGaitLateralShuttle((tMs) => {
-          previewTrajectoryAt(traj, tMs);
-          const rp = rBone.getWorldPosition(new THREE.Vector3());
-          const lp = lBone.getWorldPosition(new THREE.Vector3());
-          return { rx: rp.x, ry: rp.y, rz: rp.z, lx: lp.x, ly: lp.y, lz: lp.z };
-        }, traj.totalMs, shuttleCm / 100, stanceWindows, 120, headingDeg, headingAt);
+        composedLateralShuttle = derivations.lateralShuttle(
+          traj,
+          shuttleCm,
+          hasPlanted,
+          stanceWindows,
+          headingDeg,
+          headingAt,
+        );
       }
 
       /** HEEL-STRIKE TRANSIENT for the ACTIVE composed motion — the brief
@@ -1736,40 +1674,21 @@
        *  natural (un-dipped) contact point and the dip is absorbed by the leg IK. */
       let composedHeelStrikeY = 0;
 
-      /** Pre-pass the starting gait's trajectory through the SAME pin + vertical
-       *  calibration applyTrajectoryRoot uses (the smoothed arc the accent rides
-       *  on) and derive the footfall accents from the stance-window starts. Must
-       *  run AFTER setComposedVerticalCalibration for the motion. Resets to null
-       *  otherwise. Poses the rig transiently (the player re-poses every frame). */
+      /** Derive the footfall accents on the CALIBRATED root-Y arc. Must run AFTER
+       *  setComposedVerticalCalibration for the motion (it rides on that arc).
+       *  Thin wrapper over services/stageComposedDerivations. */
       function setComposedHeelStrike(
         traj: PoseTrajectory,
         enabled: boolean,
-        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+        stanceWindows?: StanceWindow[],
       ): void {
-        composedHeelStrike = null;
         composedHeelStrikeY = 0;
-        if (!enabled || !stanceWindows?.length || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
-        composedHeelStrike = deriveHeelStrikeAccents(
-          (tMs) => {
-            const s = previewTrajectoryAt(traj, tMs);
-            let y = modelRoot!.position.y;
-            if (s.planted && (composedVcal.gain !== 1 || composedVcal.smoothed)) {
-              // Same phase mapping + entry ramp as applyTrajectoryRoot (loop-form
-              // table alignment, DET-LOCK-02) — identity for non-loop gaits.
-              const u01 =
-                composedVcalCycleMs > 0
-                  ? (tMs - composedVcalPhaseOffsetMs) / composedVcalCycleMs
-                  : 0;
-              let yc = applyVerticalCalibration(y, composedVcal, u01);
-              if (composedVcalRampMs > 0 && tMs < composedVcalRampMs)
-                yc = y + (yc - y) * (tMs / composedVcalRampMs);
-              y = yc;
-            }
-            return y;
-          },
-          stanceWindows.map((w) => w.fromMs),
-          traj.totalMs,
-        );
+        composedHeelStrike = derivations.heelStrikeAccents(traj, enabled, stanceWindows, {
+          table: composedVcal,
+          cycleMs: composedVcalCycleMs,
+          phaseOffsetMs: composedVcalPhaseOffsetMs,
+          rampMs: composedVcalRampMs,
+        });
       }
 
       /** GRAVITY-SHAPED GROUNDED DESCENT for the ACTIVE composed motion — the
