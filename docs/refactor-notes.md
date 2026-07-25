@@ -103,6 +103,31 @@ body source-pins to the module, keep wiring pins on the component.
 5. **root/context** LAST — `rootRestPos`/`rootRestQuat`/`composedRoot*`/`pelvisShiftBakedM` are
    the shared coordinate frame (30+ refs each across every subsystem); extract via a `StageContext`
    after its consumers are modules, or the renames swamp the diff for no line win.
+   `StageRigContext` (step 8) is the first slice of it — grow that, don't start a parallel one.
+
+### Where the file stands (after step 9): **3504 lines**, from 4986
+
+Largest remaining blocks, with the honest read on each:
+
+| lines | block | verdict |
+|------:|-------|---------|
+| 425 | `runComposedImpl` | ORCHESTRATION (overlays → drivers → balance → build → play). This is the stage's composition root; extracting it just moves the wiring. Leave, or split only the *setup* half. |
+| 293 | `resize` + the boot tail | mostly the resize/observer + boot completion; small, cohesive, fine where it is. |
+| 254 | `loop` (the rAF frame) | the frame ORDER is the contract (lift overlays → tap → re-bake → measure). Highly readable in one place; extracting it would scatter the ordering the SEAM-9 pins protect. Leave. |
+| 191 | `applyTrajectoryRoot` | **best next extraction** — pure-ish root placement + grounding/plant branches. Needs the same `StageRigContext` plus the composed-enrichment tables passed in. |
+| 128 | `loadModel` | boot sequencing; leave. |
+| 124 | `stepTween` | exam-tween player; a reasonable small module if more is wanted. |
+| ~250 | the composed **appliers** (`applyFootPlants`, `applyComposedGroundingPin`, `stepTrajectory`, `setComposedContacts`, `setComposedHandPlants`, `setComposedWeightedDescent`) | cohesive with `applyTrajectoryRoot` — take them together as `stageComposedPlayer`. |
+
+**A note on the < 500-line target.** The remaining bulk is not one more extractable subsystem; it
+is the stage's own composition root plus the per-frame ordering contract. Splitting those further
+trades a real invariant (one readable frame order) for a line count. The honest target for
+`ExamStage3D.svelte` is "the stage core and nothing else" — roughly 1200–1500 lines once the
+composed player lands — with every *subsystem* under 500 in its own tested module. Every module
+extracted so far is: diagnostics 120, clip blend 95, breath 60, eye gaze 150, idle overlay 192,
+motion liveliness 101, recording tap 130, composed derivations 331. The posing layer (1299) is the
+one exception and is itself a candidate for a 2–3 way split (gizmo/selection · handles+twist ·
+planes/slice/export) now that it is isolated and independently loadable.
 
 ## The safety net — what it actually is (red-teamed, verified)
 
