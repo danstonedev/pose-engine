@@ -77,53 +77,23 @@ export const CLINICAL_DOLLY_STEP_FRACTION = 0.1;
 /** Duration of the focus / reset camera tweens (ms). */
 export const CLINICAL_CAMERA_TWEEN_MS = 320;
 
-/** Concise interaction summary for the focusable container's aria-label. */
-export const CLINICAL_CAMERA_ARIA_LABEL =
-  '3D patient. Drag to rotate, right-drag to pan, scroll to zoom, ' +
-  'double-click to focus, arrow keys pan, + and − zoom, 0 resets.';
+// The aria/gesture vocabulary and the pointer-capability probe live in
+// clinicalCameraLabels.ts, which imports no three. Components need them during
+// render, so they must be imported statically — and a static import of anything
+// in THIS module would pull three and OrbitControls into the host's initial
+// chunk, defeating the lazy-three contract. Re-exported here so the public
+// surface (and `export *` from src/index.ts) is unchanged.
+import { isCoarsePointer } from './clinicalCameraLabels';
 
-/** Touch variant of {@link CLINICAL_CAMERA_ARIA_LABEL} — the cooperative
- *  coarse-pointer vocabulary (one finger belongs to the page). */
-export const CLINICAL_CAMERA_ARIA_LABEL_TOUCH =
-  '3D patient. Two-finger drag moves the camera, pinch zooms, ' +
-  'double-tap focuses, double-tap empty space resets. ' +
-  'One-finger swipe scrolls the page.';
-
-/** Short gesture-legend line hosts render under the stage (mouse). */
-export const CLINICAL_CAMERA_GESTURE_LEGEND =
-  'Drag rotates · right-drag pans · scroll zooms · double-click focuses';
-
-/** Short gesture-legend line hosts render under the stage (touch). */
-export const CLINICAL_CAMERA_GESTURE_LEGEND_TOUCH =
-  'Two-finger drag moves · pinch zooms · double-tap focuses';
-
-/** True when the device's PRIMARY pointer is coarse (a finger). Safe
- *  everywhere: no matchMedia (SSR, Node tests) → false. */
-export function isCoarsePointer(): boolean {
-  if (typeof matchMedia !== 'function') return false;
-  try {
-    return matchMedia('(pointer: coarse)').matches;
-  } catch {
-    return false;
-  }
-}
-
-/** Aria label for the active gesture model: touch vocabulary when the
- *  cooperative coarse-pointer model is in effect, mouse vocabulary
- *  otherwise. Defaults to plain pointer capability for hosts that always
- *  run cooperative gestures on touch. */
-export function resolveClinicalCameraAriaLabel(
-  cooperativeTouch: boolean = isCoarsePointer(),
-): string {
-  return cooperativeTouch ? CLINICAL_CAMERA_ARIA_LABEL_TOUCH : CLINICAL_CAMERA_ARIA_LABEL;
-}
-
-/** Gesture-legend counterpart of {@link resolveClinicalCameraAriaLabel}. */
-export function resolveClinicalCameraGestureLegend(
-  cooperativeTouch: boolean = isCoarsePointer(),
-): string {
-  return cooperativeTouch ? CLINICAL_CAMERA_GESTURE_LEGEND_TOUCH : CLINICAL_CAMERA_GESTURE_LEGEND;
-}
+export {
+  CLINICAL_CAMERA_ARIA_LABEL,
+  CLINICAL_CAMERA_ARIA_LABEL_TOUCH,
+  CLINICAL_CAMERA_GESTURE_LEGEND,
+  CLINICAL_CAMERA_GESTURE_LEGEND_TOUCH,
+  isCoarsePointer,
+  resolveClinicalCameraAriaLabel,
+  resolveClinicalCameraGestureLegend,
+} from './clinicalCameraLabels';
 
 // ── Cooperative touch-gesture configuration (pure, Node-testable) ──────────
 

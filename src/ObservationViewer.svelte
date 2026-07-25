@@ -29,7 +29,7 @@
   import { onMount } from 'svelte';
   import { POSE_SCHEMA_VERSION, type CustomPose } from './types';
   import type { JointAngleReport } from './services/jointAngles';
-  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
+  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraLabels';
 
   let {
     variant = 'male',

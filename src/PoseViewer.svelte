@@ -36,7 +36,7 @@
     allowPageScrollOnMiss?: boolean;
   } = $props();
 
-  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
+  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraLabels';
 
   let container: HTMLDivElement;
   let loading = $state(true);

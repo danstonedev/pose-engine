@@ -71,9 +71,6 @@
     motionWorkIntensity,
   } from './services/liveliness';
   import { createBreathState } from './services/stageBreath';
-  import { createClipBlend } from './services/stageClipBlend';
-  import { createEyeGazeOverlay } from './services/stageEyeGaze';
-  import { createIdleOverlay } from './services/stageIdleOverlay';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -96,7 +93,7 @@
     readyTransitionNeeded,
     readyResetRootTarget,
   } from './services/readyTransition';
-  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
+  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraLabels';
 
   let {
     variant = 'male',
@@ -568,6 +565,11 @@
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
       const { buildSequencePoses } = await import('./services/motionSequence');
+      // These three import three at module scope, so they must be dynamic to keep the
+      // component's lazy-three contract intact (see the header note).
+      const { createClipBlend } = await import('./services/stageClipBlend');
+      const { createEyeGazeOverlay } = await import('./services/stageEyeGaze');
+      const { createIdleOverlay } = await import('./services/stageIdleOverlay');
       const {
         composedTweenEase,
         stagedBlendWithBaseline,
