@@ -1563,6 +1563,31 @@
        *  the offline sampler records single passes and never hands off. */
       let composedVcalHandoff: { deltaYM: number; startedAtMs: number } | null = null;
 
+      /** SHARED TRAJECTORY PRE-PASS. Pose the rig at `tMs` of `traj` and place the
+       *  root on the SAME base applyTrajectoryRoot uses — rest ∘ sample, then the
+       *  floor pin when the sample is planted — and return the sample. Every
+       *  composed derivation below (vertical calibration, foot-driven travel,
+       *  lateral shuttle, heel-strike accents) pre-passes exactly this way, so one
+       *  source of truth keeps them from drifting apart from each other or from the
+       *  offline sampler. Callers must have already checked the rig refs (each
+       *  derivation returns early without them). Poses the rig transiently — the
+       *  player re-poses every frame. */
+      function previewTrajectoryAt(traj: PoseTrajectory, tMs: number) {
+        const s = traj.sampleAt(tMs);
+        applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
+        _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+        modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
+        modelRoot!.position.set(
+          rootRestPos.x + s.rootTranslate[0],
+          rootRestPos.y + s.rootTranslate[1],
+          rootRestPos.z + s.rootTranslate[2],
+        );
+        pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
+        modelRoot!.updateMatrixWorld(true);
+        if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+        return s;
+      }
+
       /** Measure the emergent grounded pelvis arc of a starting composed motion's
        *  trajectory and set `composedVcal` to hit its requested excursion. Called
        *  once when a calibrated planted motion begins; resets to identity
@@ -1580,18 +1605,7 @@
         if (targetCm == null || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
         composedVcalCycleMs = traj.totalMs;
         composedVcal = deriveVerticalCalibration((u01) => {
-          const s = traj.sampleAt(u01 * traj.totalMs);
-          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
-          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
-          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
-          modelRoot!.position.set(
-            rootRestPos.x + s.rootTranslate[0],
-            rootRestPos.y + s.rootTranslate[1],
-            rootRestPos.z + s.rootTranslate[2],
-          );
-          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
-          modelRoot!.updateMatrixWorld(true);
-          if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+          previewTrajectoryAt(traj, u01 * traj.totalMs);
           return modelRoot!.position.y;
           // smooth: round the sharp double-support valley. When feet are foot-plant IK'd
           // (the travelling walk), clamp how far the smoothed pelvis may rise above the pin
@@ -1669,18 +1683,7 @@
         const lBone = bones.get('L_Foot');
         if (!rBone || !lBone) return;
         composedFootDriven = deriveFootDrivenTravel((tMs) => {
-          const s = traj.sampleAt(tMs);
-          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
-          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
-          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
-          modelRoot!.position.set(
-            rootRestPos.x + s.rootTranslate[0],
-            rootRestPos.y + s.rootTranslate[1],
-            rootRestPos.z + s.rootTranslate[2],
-          );
-          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
-          modelRoot!.updateMatrixWorld(true);
-          if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+          const s = previewTrajectoryAt(traj, tMs);
           const rp = rBone.getWorldPosition(new THREE.Vector3());
           const lp = lBone.getWorldPosition(new THREE.Vector3());
           // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
@@ -1715,18 +1718,7 @@
         const lBone = bones.get('L_Foot');
         if (!rBone || !lBone) return;
         composedLateralShuttle = deriveGaitLateralShuttle((tMs) => {
-          const s = traj.sampleAt(tMs);
-          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
-          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
-          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
-          modelRoot!.position.set(
-            rootRestPos.x + s.rootTranslate[0],
-            rootRestPos.y + s.rootTranslate[1],
-            rootRestPos.z + s.rootTranslate[2],
-          );
-          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
-          modelRoot!.updateMatrixWorld(true);
-          if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+          previewTrajectoryAt(traj, tMs);
           const rp = rBone.getWorldPosition(new THREE.Vector3());
           const lp = lBone.getWorldPosition(new THREE.Vector3());
           return { rx: rp.x, ry: rp.y, rz: rp.z, lx: lp.x, ly: lp.y, lz: lp.z };
@@ -1759,18 +1751,7 @@
         if (!enabled || !stanceWindows?.length || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
         composedHeelStrike = deriveHeelStrikeAccents(
           (tMs) => {
-            const s = traj.sampleAt(tMs);
-            applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
-            _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
-            modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
-            modelRoot!.position.set(
-              rootRestPos.x + s.rootTranslate[0],
-              rootRestPos.y + s.rootTranslate[1],
-              rootRestPos.z + s.rootTranslate[2],
-            );
-            pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
-            modelRoot!.updateMatrixWorld(true);
-            if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
+            const s = previewTrajectoryAt(traj, tMs);
             let y = modelRoot!.position.y;
             if (s.planted && (composedVcal.gain !== 1 || composedVcal.smoothed)) {
               // Same phase mapping + entry ramp as applyTrajectoryRoot (loop-form

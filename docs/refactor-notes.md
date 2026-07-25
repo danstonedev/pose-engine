@@ -76,6 +76,26 @@ body source-pins to the module, keep wiring pins on the component.
    the shared coordinate frame (30+ refs each across every subsystem); extract via a `StageContext`
    after its consumers are modules, or the renames swamp the diff for no line win.
 
+## The safety net — what it actually is (red-teamed, verified)
+
+**`ExamStage3D.svelte` is NEVER MOUNTED in any test.** All three "stage" test files
+(`eyeGaze`, `idleLiveliness`, `stageReliability`) only `readFileSync` its source and regex it.
+The 1070-test suite is behavioral over `services/` (GLB-loaded rig), not over the component.
+
+Consequences that drive the whole refactor:
+
+- The component's own logic — composed player, posing layer, render loop, root writes — has
+  **zero behavioral coverage**. Only textual pins guard it.
+- So **extraction IS the quality win**: every block moved from the component into a
+  `services/stage*.ts` module becomes unit-testable for the first time. Steps 1–6 added 30 unit
+  tests over code that previously had none.
+- Discipline for each move: **relocate verbatim** (never edit logic during a move — a move is
+  verifiable by textual identity, a rewrite is not), THEN add unit tests against the new module,
+  THEN retarget any source-pins. `svelte-check` + build + the service suite catch wiring/type
+  breaks; they cannot catch a semantic slip inside moved code.
+- A pure de-duplication inside the component (e.g. `previewTrajectoryAt`) is safe only when the
+  collapsed blocks are byte-identical — verify by diffing them, not by eye.
+
 ## Refactor caveats / gotchas discovered
 
 - **Source-pinned tests exist.** Some tests regex the *source text* of `ExamStage3D.svelte`
