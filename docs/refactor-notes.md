@@ -136,11 +136,77 @@ anti-pattern: the module boundary would *hide* the coupling instead of removing 
 invariant (phase continuity across the handoff) would still span two files — now less visibly, and
 with no runtime test to catch a slip.
 
-**Verdict: do not split here.** The coherent unit is `runComposedImpl` + the appliers + the state
-(~900 lines) extracted TOGETHER as `stageComposedPlayer`, with the derivations (already extracted)
-injected. That is a larger, riskier job than the posing layer because the mutations are
-bidirectional and the invariant is a timing contract. It should be its own carefully-verified step,
-using the same verbatim-proof technique step 9 used — not bolted onto another change.
+**Verdict: do not split here.** The coherent unit looked like `runComposedImpl` + the appliers +
+the state extracted TOGETHER. That was then measured too — and it fails the same test, harder.
+
+#### Measured again (the whole-unit attempt): the composed player IS the stage core
+
+Scoping the full unit (state + wrappers + appliers + `runComposedImpl` = **1111 lines**) gives an
+external surface of ~106 identifiers, and — the deciding number — of the 13 shared driver-state
+variables, **10 are written by BOTH sides**:
+
+| written by both | module-owned | stage-owned |
+|---|---|---|
+| `composedActive`, `composedActiveToken`, `composedCancelledToken`, `composedHasPlayed`, `composedRootQuat`, `composedRootTranslate`, `composedCurrentGrounding`, `currentPose`, `pelvisShiftBakedM`, `activeTrajectory` | — | `composedSeq`, `activeMotionId`, `activeTween` |
+
+Compare the posing layer, which was safe to cut: **107 read-only refs vs 4 writes, one way.**
+
+Here the stage's other halves — `cancelComposed`, the rAF loop, `showRecordedFrame`,
+`resetRootToRest`, `applyRootState`, `buildFrameNow` — write the same fields. A module boundary
+would need ~10 setters + ~13 getters mirroring stage fields, and the invariants it exists to
+protect (supersession tokens, root-frame continuity, pose continuity) would then span two files
+through an accessor layer that hides them. That is strictly worse than one scope.
+
+**Conclusion: the composed player is not a subsystem hiding inside the stage — it IS the stage
+core.** What remains in `ExamStage3D.svelte` after nine extractions is the driver state machine,
+the shared root frame, the rAF ordering contract, and the composition root: exactly what a
+component of this kind should own. The subsystem-level refactor is DONE.
+
+If this core is ever to shrink, the lever is **deferred fix #5** (one driver-owner state machine +
+an overlay bake/undo contract), which makes the co-ownership representable in the first place —
+a behaviour change, not a move, and therefore out of scope until the owner asks for it.
+
+#### Measured a third time: the posing layer does not sub-split either
+
+`stagePosingLayer.ts` (1299) is the one module over the 500 guideline, so its most promising
+internal seam — planes / slice / section cap — was measured the same way. That state
+(`planes`, `sectionCap`, `planeVis`, `sliceState`, `clipTargets`, `obliqueDot/Hit`,
+`obliqueRingDrag/Press`) is referenced **53× inside its own functions and 59× outside them**:
+`dispose` (14), `onPosePointerMove` (11), `updatePoseHandles` (6), `onPosePointerDown` (6),
+`beforeRender` (6), `onPosePointerUp` (4), `updateRingGizmo` (3)…
+
+The oblique-plane handle IS pointer interaction; the slice refresh IS part of the frame; teardown
+spans everything. It is one interaction system over a shared state pool, not three systems sharing
+a file — so the same verdict applies.
+
+### The refactor has reached its natural boundaries
+
+Three candidate further splits, three measurements, one principled reason to stop each time: **the
+state is co-owned, and a module boundary would hide the coupling instead of removing it.** The
+containment test that authorised the cuts we DID make (posing layer: 107 read-only refs vs 4
+writes, one direction) fails for all three.
+
+What remains is two files that are each exactly one concern:
+
+- `ExamStage3D.svelte` (3504) — the stage driver core: driver state machine, shared root frame,
+  rAF ordering contract, composition root.
+- `services/stagePosingLayer.ts` (1299) — the interactive posing studio, isolated behind a
+  one-way contract, lazily loaded, contract-tested.
+
+…plus eight subsystems, every one under 500 and unit-tested, that were genuinely separable:
+
+| module | lines | tests |
+|---|---:|---|
+| `stageBreath` | 57 | via idle/motion overlays |
+| `stageClipBlend` | 96 | 5 |
+| `stageMotionLiveliness` | 101 | source-pinned + rig |
+| `stageDiagnostics` | 111 | 15 |
+| `stageRecordingTap` | 131 | 10 |
+| `stageEyeGaze` | 150 | rig + pins |
+| `stageIdleOverlay` | 192 | rig + pins |
+| `stageComposedDerivations` | 331 | 11 (rig) |
+
+`ExamStage3D.svelte`: **4986 → 3504** across nine steps, every one behaviour-preserving and shipped.
 
 **A note on the < 500-line target.** The remaining bulk is not one more extractable subsystem; it
 is the stage's own composition root plus the per-frame ordering contract. Splitting those further
