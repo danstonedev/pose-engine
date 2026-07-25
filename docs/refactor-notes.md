@@ -103,6 +103,54 @@ body source-pins to the module, keep wiring pins on the component.
 5. **root/context** LAST — `rootRestPos`/`rootRestQuat`/`composedRoot*`/`pelvisShiftBakedM` are
    the shared coordinate frame (30+ refs each across every subsystem); extract via a `StageContext`
    after its consumers are modules, or the renames swamp the diff for no line win.
+   `StageRigContext` (step 8) is the first slice of it — grow that, don't start a parallel one.
+
+### Where the file stands (after step 9): **3504 lines**, from 4986
+
+Largest remaining blocks, with the honest read on each:
+
+| lines | block | verdict |
+|------:|-------|---------|
+| 425 | `runComposedImpl` | ORCHESTRATION (overlays → drivers → balance → build → play). This is the stage's composition root; extracting it just moves the wiring. Leave, or split only the *setup* half. |
+| 293 | `resize` + the boot tail | mostly the resize/observer + boot completion; small, cohesive, fine where it is. |
+| 254 | `loop` (the rAF frame) | the frame ORDER is the contract (lift overlays → tap → re-bake → measure). Highly readable in one place; extracting it would scatter the ordering the SEAM-9 pins protect. Leave. |
+| 191 | `applyTrajectoryRoot` | **best next extraction** — pure-ish root placement + grounding/plant branches. Needs the same `StageRigContext` plus the composed-enrichment tables passed in. |
+| 128 | `loadModel` | boot sequencing; leave. |
+| 124 | `stepTween` | exam-tween player; a reasonable small module if more is wanted. |
+| ~250 | the composed **appliers** (`applyFootPlants`, `applyComposedGroundingPin`, `stepTrajectory`, `setComposedContacts`, `setComposedHandPlants`, `setComposedWeightedDescent`) | cohesive with `applyTrajectoryRoot` — but see the measurement below: NOT separable from `runComposedImpl`. |
+
+#### Measured: the composed player and `runComposedImpl` are ONE subsystem
+
+Coupling was measured before attempting the cut (same discipline that made the posing layer safe).
+The 17 `composed*` state variables are referenced 77× inside the applier region and 61× outside —
+but the outside refs break down as **41 declarations/wrappers** (which would move with the state),
+**19 in `runComposedImpl`**, and 1 in `buildFrameNow`. The 19 are the problem: **8 of them are
+direct WRITES** to `composedVcalPhaseOffsetMs` / `composedVcalRampMs` / `composedVcalHandoff` —
+the loop-form phase alignment and first-pass→loop handoff (DET-LOCK-02) — which
+`applyTrajectoryRoot` then reads every frame.
+
+So the vcal phase state is **co-owned**: the orchestration sets the phase contract while building
+the trajectory; the applier consumes it per frame. Extracting the appliers alone would require
+setters that mirror those internal fields one-for-one. That is the getter/setter-mirror
+anti-pattern: the module boundary would *hide* the coupling instead of removing it, and the real
+invariant (phase continuity across the handoff) would still span two files — now less visibly, and
+with no runtime test to catch a slip.
+
+**Verdict: do not split here.** The coherent unit is `runComposedImpl` + the appliers + the state
+(~900 lines) extracted TOGETHER as `stageComposedPlayer`, with the derivations (already extracted)
+injected. That is a larger, riskier job than the posing layer because the mutations are
+bidirectional and the invariant is a timing contract. It should be its own carefully-verified step,
+using the same verbatim-proof technique step 9 used — not bolted onto another change.
+
+**A note on the < 500-line target.** The remaining bulk is not one more extractable subsystem; it
+is the stage's own composition root plus the per-frame ordering contract. Splitting those further
+trades a real invariant (one readable frame order) for a line count. The honest target for
+`ExamStage3D.svelte` is "the stage core and nothing else" — roughly 1200–1500 lines once the
+composed player lands — with every *subsystem* under 500 in its own tested module. Every module
+extracted so far is: diagnostics 120, clip blend 95, breath 60, eye gaze 150, idle overlay 192,
+motion liveliness 101, recording tap 130, composed derivations 331. The posing layer (1299) is the
+one exception and is itself a candidate for a 2–3 way split (gizmo/selection · handles+twist ·
+planes/slice/export) now that it is isolated and independently loadable.
 
 ## The safety net — what it actually is (red-teamed, verified)
 
