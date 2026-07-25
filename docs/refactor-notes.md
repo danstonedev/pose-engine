@@ -117,7 +117,30 @@ Largest remaining blocks, with the honest read on each:
 | 191 | `applyTrajectoryRoot` | **best next extraction** — pure-ish root placement + grounding/plant branches. Needs the same `StageRigContext` plus the composed-enrichment tables passed in. |
 | 128 | `loadModel` | boot sequencing; leave. |
 | 124 | `stepTween` | exam-tween player; a reasonable small module if more is wanted. |
-| ~250 | the composed **appliers** (`applyFootPlants`, `applyComposedGroundingPin`, `stepTrajectory`, `setComposedContacts`, `setComposedHandPlants`, `setComposedWeightedDescent`) | cohesive with `applyTrajectoryRoot` — take them together as `stageComposedPlayer`. |
+| ~250 | the composed **appliers** (`applyFootPlants`, `applyComposedGroundingPin`, `stepTrajectory`, `setComposedContacts`, `setComposedHandPlants`, `setComposedWeightedDescent`) | cohesive with `applyTrajectoryRoot` — but see the measurement below: NOT separable from `runComposedImpl`. |
+
+#### Measured: the composed player and `runComposedImpl` are ONE subsystem
+
+Coupling was measured before attempting the cut (same discipline that made the posing layer safe).
+The 17 `composed*` state variables are referenced 77× inside the applier region and 61× outside —
+but the outside refs break down as **41 declarations/wrappers** (which would move with the state),
+**19 in `runComposedImpl`**, and 1 in `buildFrameNow`. The 19 are the problem: **8 of them are
+direct WRITES** to `composedVcalPhaseOffsetMs` / `composedVcalRampMs` / `composedVcalHandoff` —
+the loop-form phase alignment and first-pass→loop handoff (DET-LOCK-02) — which
+`applyTrajectoryRoot` then reads every frame.
+
+So the vcal phase state is **co-owned**: the orchestration sets the phase contract while building
+the trajectory; the applier consumes it per frame. Extracting the appliers alone would require
+setters that mirror those internal fields one-for-one. That is the getter/setter-mirror
+anti-pattern: the module boundary would *hide* the coupling instead of removing it, and the real
+invariant (phase continuity across the handoff) would still span two files — now less visibly, and
+with no runtime test to catch a slip.
+
+**Verdict: do not split here.** The coherent unit is `runComposedImpl` + the appliers + the state
+(~900 lines) extracted TOGETHER as `stageComposedPlayer`, with the derivations (already extracted)
+injected. That is a larger, riskier job than the posing layer because the mutations are
+bidirectional and the invariant is a timing contract. It should be its own carefully-verified step,
+using the same verbatim-proof technique step 9 used — not bolted onto another change.
 
 **A note on the < 500-line target.** The remaining bulk is not one more extractable subsystem; it
 is the stage's own composition root plus the per-frame ordering contract. Splitting those further
