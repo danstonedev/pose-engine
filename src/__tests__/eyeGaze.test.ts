@@ -63,6 +63,12 @@ const overlaySource = readFileSync(
   fileURLToPath(new URL('../services/stageEyeGaze.ts', import.meta.url)),
   'utf8',
 );
+// The opt-in posing layer (pose API, committed posing, pose-play preview, GLB
+// export) now lives in its own module; the stage keeps the core + the hooks.
+const posingSource = readFileSync(
+  fileURLToPath(new URL('../services/stagePosingLayer.ts', import.meta.url)),
+  'utf8',
+);
 
 async function loadGlb(url: URL): Promise<THREE.Group> {
   const buf = readFileSync(fileURLToPath(url));
@@ -501,16 +507,16 @@ describe('eye micro-gaze — stage wiring (source pins)', () => {
   });
 
   it('every serialize/export path lifts the eye deltas first: getPose, committed posing, pose-play snapshot, GLB export', () => {
-    expect(stageSource).toMatch(
+    expect(posingSource).toMatch(
       /getPose: \(\) => \{[\s\S]{0,500}undoEyeGaze\(\);[\s\S]{0,200}serializeCustomPose/,
     );
-    expect(stageSource).toMatch(
+    expect(posingSource).toMatch(
       /undoEyeGaze\(\); \/\/ committed poses carry the eyes at rest[\s\S]{0,300}serializeCustomPose/,
     );
-    expect(stageSource).toMatch(
+    expect(posingSource).toMatch(
       /undoEyeGaze\(\); \/\/ nor a baked eye delta[\s\S]{0,200}undoIdleOverlays\(\);\s*\n\s*posePlayPosed = serializeCustomPose/,
     );
-    expect(stageSource).toMatch(
+    expect(posingSource).toMatch(
       /exportAnimationGlb[\s\S]{0,900}undoEyeGaze\(\); \/\/ exported bone tracks carry the eyes at rest/,
     );
   });

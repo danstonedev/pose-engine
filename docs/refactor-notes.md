@@ -69,12 +69,60 @@ body source-pins to the module, keep wiring pins on the component.
    sample throttle moved to a scene-agnostic module; `buildFrameNow`/`buildFrameNowClean` (the stage
    SNAPSHOT, coupled to root/measure/serialize) stay in the component and are injected as `buildFrame`.
    10 unit tests (fake clock + fake buildFrame). Clock-derived id/createdAtIso are caller-stamped.
-3. **composed player** (`runComposedImpl` trajectory player, ~880 lines) → `stageComposedPlayer` (split).
-4. **posing layer** (~1180 lines, isolated via `poseLayer*` hooks) → `stagePosingLayer` (split 2–3).
-   NOTE: zero behavioral tests — write a characterization test FIRST, then extract.
+3. **composed player** (~880 lines) — split in progress:
+   - ✅ **rig derivations** → `services/stageComposedDerivations.ts` (step 8): the four trajectory
+     pre-passes (vertical calibration, foot-driven travel, lateral shuttle, heel-strike accents) plus
+     the SEAM-2 time-scaling helpers. Each is a pure function of (context, trajectory, params) → table,
+     so the stage keeps owning the `composed*` state its per-frame appliers read — no getter churn
+     across ~60 read sites. Introduces **`StageRigContext`** (getters over root/skinned/variantCfg/floor
+     + the rest frame + a `clearPelvisShiftBake` callback) — the first piece of the eventual StageContext,
+     landed where it was actually needed. Loaded by **dynamic import** like every other three-using
+     service, so the component's SSR-safety contract is unchanged. 11 rig-based tests
+     (`stageComposedDerivations.test.ts`) — the first behavioral coverage this logic has ever had;
+     verified by counterfactual (sabotaging the pelvis-shift clear and the DET-LOCK-01 clamp both fail).
+   - ⬜ remaining: the per-frame **appliers** (`applyTrajectoryRoot` ~190 lines, `applyFootPlants`,
+     `applyComposedGroundingPin`, `stepTrajectory`) + `setComposedContacts`/`setComposedHandPlants`
+     + `setComposedWeightedDescent` (its pre-pass is grounding-aware and calls back into the stage's
+     pin applier — needs the applier seam first).
+   - ⬜ `runComposedImpl` itself (~425 lines) is ORCHESTRATION (overlays, drivers, balance,
+     buildSequencePoses). Extract last, if at all — it is the stage's own composition root.
+4. ✅ **posing layer** → `services/stagePosingLayer.ts` (step 9). The whole `if (posable)` block
+   (1142 lines) moved behind a `PosingLayerContext`: live getters for the rig/driver state it
+   observes, plain callbacks for the stage behaviour it triggers, and ONE `setCurrentPose` for the
+   only stage state it writes (coupling measured first: 107 read-only refs vs 4 writes). It now
+   RETURNS its `hooks` + `api` instead of assigning stage variables, so ownership runs one way.
+   Bonus: the layer is a **separate lazy chunk** (44.8 kB) — the main bundle dropped 1341.9 → 1325.3 kB.
+   Verified by **verbatim proof**: reversing the documented renames reproduces the original block
+   byte-for-byte except the two lines deliberately hoisted into the stage's dispose wrapper
+   (`poseLayerBusy = null` first, `poseApiImpl = null` last — same order).
+   Two hazards caught by reading, not by types:
+   - the block's `if (disposed) return;` returned from the **boot IIFE** (skipping `loadModel`), so
+     the module returns `null` and the stage re-raises the abort;
+   - the block already had a local `const ctx` (an `IKChainContext`) — the context parameter is
+     named `stageCtx` to avoid silently capturing it.
 5. **root/context** LAST — `rootRestPos`/`rootRestQuat`/`composedRoot*`/`pelvisShiftBakedM` are
    the shared coordinate frame (30+ refs each across every subsystem); extract via a `StageContext`
    after its consumers are modules, or the renames swamp the diff for no line win.
+
+## The safety net — what it actually is (red-teamed, verified)
+
+**`ExamStage3D.svelte` is NEVER MOUNTED in any test.** All three "stage" test files
+(`eyeGaze`, `idleLiveliness`, `stageReliability`) only `readFileSync` its source and regex it.
+The 1070-test suite is behavioral over `services/` (GLB-loaded rig), not over the component.
+
+Consequences that drive the whole refactor:
+
+- The component's own logic — composed player, posing layer, render loop, root writes — has
+  **zero behavioral coverage**. Only textual pins guard it.
+- So **extraction IS the quality win**: every block moved from the component into a
+  `services/stage*.ts` module becomes unit-testable for the first time. Steps 1–6 added 30 unit
+  tests over code that previously had none.
+- Discipline for each move: **relocate verbatim** (never edit logic during a move — a move is
+  verifiable by textual identity, a rewrite is not), THEN add unit tests against the new module,
+  THEN retarget any source-pins. `svelte-check` + build + the service suite catch wiring/type
+  breaks; they cannot catch a semantic slip inside moved code.
+- A pure de-duplication inside the component (e.g. `previewTrajectoryAt`) is safe only when the
+  collapsed blocks are byte-identical — verify by diffing them, not by eye.
 
 ## Refactor caveats / gotchas discovered
 
