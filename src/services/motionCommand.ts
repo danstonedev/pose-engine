@@ -172,14 +172,19 @@ export type MotionCommand =
 export type MotionCommandRefusalReason =
   | 'unknown-motion'
   | 'clip-unavailable'
-  | 'stage-unavailable';
+  | 'stage-unavailable'
+  /** A Stop (or a newer command) landed while this motion's clip was loading, so
+   *  it never took the skeleton. Distinct from a failure: nothing went wrong and
+   *  the clip is cached for next time — the command was simply overtaken. */
+  | 'superseded';
 
 export interface MotionCommandOutcome {
   /**
    *  - `playing`   — a looping motion started and is running (walk, stand).
    *  - `completed` — a one-shot motion played through and settled (sit).
    *  - `stopped`   — a `stop-motion` returned the avatar to idle.
-   *  - `refused`   — the motion is unknown or its clip is unavailable.
+   *  - `refused`   — the motion is unknown, its clip is unavailable, or a
+   *                  newer command/Stop superseded it before it could start.
    */
   status: 'playing' | 'completed' | 'stopped' | 'refused';
   motion?: MovementClipId;

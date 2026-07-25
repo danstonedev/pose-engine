@@ -28,17 +28,35 @@ Each is code-cited and confirmed against the actual code/assets. Address AFTER t
 3. **`resetRootToRest` snaps the root** (`~761-769`, `.copy` not tween). For a traveling clip this
    is a position pop. FIX LATER: ease, or preserve continuity.
 
-4. **Out-of-band Stop vs in-flight clip load — race.** Stop bypasses the serialized `commandChain`
-   (~247, 358) and mutates state synchronously; but `runMotionImpl` after `await getClips()` checks
-   only `disposed` (~3283), with NO supersession token (the composed path re-checks
-   `token !== composedSeq` after every await). A Stop / newer command during an *uncached* clip load
-   is silently overridden and the stale clip plays. FIX LATER: add a clip supersession token.
+4. **Out-of-band Stop vs in-flight clip load — race.** ✅ **FIXED** (with #5, `services/stageDriver.ts`).
+   The root cause was worse than this entry originally said. Stop advanced the generation only
+   *inside* `cancelComposed()` — i.e. only when a COMPOSED motion happened to be active. With a clip
+   mid-load and nothing composed running, Stop hit **no branch at all**: it was a complete no-op, and
+   the superseded clip played when the load resolved. Now `cancelActiveMovement` supersedes
+   unconditionally, `cancelComposed` advances the SAME counter (`composedSeq = driver.supersede()` —
+   one generation, not two), and `runMotionImpl` snapshots before the load and re-checks
+   `driver.holds(claim)` after it. It bails **before** the takeover cascade (so a command that never
+   plays cannot disturb the pose), still caches the loaded clip, and reports the new honest outcome
+   `'superseded'` instead of pretending the clip was unavailable.
 
-5. **No driver ownership / overlay contract.** "Which of `activeMotionId`/`composedActive`/
-   `activeTween`/`activeTrajectory` is set" is four booleans, not one owner; idle re-bakes on
-   whatever pose is current (`applyIdleOverlays` ~1019 captures current bones as its base). This is
-   the STRUCTURAL cause of #1/#4 — and is what the refactor should make unrepresentable (a single
-   driver state machine + an overlay stack with one bake/undo contract).
+5. **No driver ownership.** ✅ **FIXED** — `services/stageDriver.ts` is one authority for "what is
+   driving the skeleton?" and one command generation.
+   - **One idle question.** The render loop asked `!activeMotionId && !composedActive &&
+     !activeTween && !activeTrajectory`; it now asks `driver.idle`. Adding a mechanism can no longer
+     silently miss a gate.
+   - **Drift-proof by construction.** Each handle keeps its DATA (which clip / tween / trajectory)
+     but is written ONLY through a paired setter that registers the mechanism
+     (`setActiveMotionId` → `driver.setRunning('clip', …)`). `stageDriverWiring.test.ts`
+     machine-checks that **no raw assignment escapes its setter** — the single rule that makes
+     `driver.idle` trustworthy, so it is enforced rather than left to review.
+   - **Supersession on every path**, which is what actually closed #4.
+   - 13 model tests + 14 wiring pins, counterfactual-verified (removing the Stop bump fails the suite).
+
+   **Not done, deliberately: the overlay bake/undo contract.** Folding the paired
+   `undoIdleOverlays(); undoEyeGaze();` calls at each takeover into one stack is a separate
+   behaviour-preserving change with its own risk; the existing pairs are correct and pinned by the
+   eye/idle suites, and neither #1 nor #4 depended on it. Left as the next candidate if the
+   scattered pairs ever cause a miss.
 
 ### Asset issues (separate from code)
 - **`run.glb` is asymmetric:** trunk lean measured −0.7°→−11.7°, ALWAYS rightward; frame0 = −7.8°.
