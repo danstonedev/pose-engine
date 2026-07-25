@@ -189,7 +189,7 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
   });
 
   it('drops the plants when the motion ends (no stale IK on the next motion)', () => {
-    expect(stageSource).toMatch(/function cancelComposed[\s\S]{0,200}composedPlants = \[\]/);
+    expect(stageSource).toMatch(/function cancelComposed[\s\S]{0,400}composedPlants = \[\]/);
   });
 });
 

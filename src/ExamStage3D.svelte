@@ -70,6 +70,7 @@
   import { createIdleOverlay } from './services/stageIdleOverlay';
   import { createMotionLiveliness, LIVELINESS_ONSET_SEC } from './services/stageMotionLiveliness';
   import { createRecordingTap } from './services/stageRecordingTap';
+  import { createStageDriver, type DriverMechanism } from './services/stageDriver';
   // Type-only — the module itself is dynamically imported (it pulls three).
   import type { StanceWindow } from './services/stageComposedDerivations';
   // Type-only — the posing layer module itself is dynamically imported (it pulls
@@ -819,12 +820,27 @@
         return d ? rotateRestReferenceByRoot(restRef, d) : restRef;
       }
 
+      // ── DRIVER OWNERSHIP (services/stageDriver) ───────────────────────────
+      // ONE authority for "what is driving the skeleton?" and ONE command
+      // generation. Every mechanism below registers through the paired setter
+      // next to its handle — the handle carries the DATA (which clip, which
+      // tween, which trajectory), the driver carries the OWNERSHIP — so the two
+      // can never drift and `driver.idle` is the single question the render loop
+      // asks instead of spelling out four booleans.
+      const driver = createStageDriver();
+
       // ── Named-motion (clip) playback state ─────────────────────────────────
       // A THREE.AnimationMixer drives walk/sit/stand clips. Motions and exam
       // pose tweens are mutually exclusive — starting either cancels the other.
       let mixer: import('three').AnimationMixer | null = null;
       let motionAction: import('three').AnimationAction | null = null;
       let activeMotionId: MovementClipId | null = null;
+      /** Set the active clip AND its driver ownership together (never one without
+       *  the other — that pairing is what keeps `driver.idle` honest). */
+      function setActiveMotionId(id: MovementClipId | null): void {
+        activeMotionId = id;
+        driver.setRunning('clip', id !== null);
+      }
       // Clip transition ease-in (services/stageClipBlend): captures the current
       // pose (a live outgoing clip frame OR a Stop-frozen mid-stride pose) when a
       // clip starts and slerps it into the new clip over CLIP_BLEND_SEC, so a
@@ -1046,6 +1062,11 @@
       // cancellation token — any newer command bumps it and the composed
       // playback (including a detached loop cycle) stops at its next check.
       let composedActive = false;
+      /** Set composed-playback state AND its driver ownership together. */
+      function setComposedActive(on: boolean): void {
+        composedActive = on;
+        driver.setRunning('composed', on);
+      }
       // The grounding posture applied to the CURRENT composed frame (PR 1 runtime
       // foundation) — set each frame by applyTrajectoryRoot from the trajectory
       // sample, so a live recording frame can carry it (posture recoverable by
@@ -1066,8 +1087,8 @@
       // promptly; subsequent ones get the directed pause).
       let composedHasPlayed = false;
       function cancelComposed() {
-        composedSeq += 1;
-        composedActive = false;
+        composedSeq = driver.supersede(); // ONE command generation for every path
+        setComposedActive(false);
         updateSeatProp(false); // hide the seat when a motion ends / is taken over
         composedPlants = []; // drop any foot-contact IK for the ended motion
         composedPlantRest = null; // drop any heading-rotated plant-clamp frame
@@ -1086,7 +1107,7 @@
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
-          activeTrajectory = null;
+          setActiveTrajectory(null);
           resolve();
         }
       }
@@ -1109,6 +1130,14 @@
         if (composedActive) {
           composedCancelledToken = composedActiveToken;
           cancelComposed();
+        } else {
+          // SUPERSEDE UNCONDITIONALLY. Stop used to bump the generation only via
+          // cancelComposed — i.e. only when a COMPOSED motion was active. With a
+          // clip still loading (uncached) and nothing composed running, Stop hit
+          // neither branch and was a complete no-op, so the superseded clip
+          // started playing when its load resolved. The generation now advances
+          // on every Stop, and runMotionImpl re-checks it after the load.
+          driver.supersede();
         }
         if (activeMotionId) stopMotion();
         if (frozen && skinnedRef && variantCfgRef) {
@@ -1172,7 +1201,7 @@
         if (mixer) mixer.stopAllAction();
         clipBlend.cancel(); // abandon any in-progress clip ease-in
         motionAction = null;
-        activeMotionId = null;
+        setActiveMotionId(null);
         // Lift any ROM caps (the host clears its constraint set separately).
         motionCapKeys = [];
         motionCapLegs = [];
@@ -1336,7 +1365,7 @@
           mixer.addEventListener('finished', () => {
             const r = motionFinishResolve;
             motionFinishResolve = null;
-            activeMotionId = null;
+            setActiveMotionId(null);
             r?.();
           });
 
@@ -1401,6 +1430,11 @@
         resolve: () => void;
       }
       let activeTween: ActiveTween | null = null;
+      /** Set the exam pose tween AND its driver ownership together. */
+      function setActiveTween(t: ActiveTween | null): void {
+        activeTween = t;
+        driver.setRunning('tween', t !== null);
+      }
 
       /** Interpolate + apply the root transform for a tween at parameter t, and
        *  (planted) re-pin the lower foot to the floor. */
@@ -1435,7 +1469,7 @@
       function finishTween() {
         const tw = activeTween;
         if (!tw) return;
-        activeTween = null;
+        setActiveTween(null);
         applyPoseNow(tw.to);
         currentPose = tw.to;
         if (tw.root) applyRootTween(tw.root, 1);
@@ -1485,6 +1519,11 @@
         warpPrevNow?: number;
       }
       let activeTrajectory: ActiveTrajectory | null = null;
+      /** Set the trajectory player AND its driver ownership together. */
+      function setActiveTrajectory(t: ActiveTrajectory | null): void {
+        activeTrajectory = t;
+        driver.setRunning('trajectory', t !== null);
+      }
 
       /** CLOSED-CHAIN FOOT CONTACT (Finding 4): the IK plants for the ACTIVE
        *  composed motion's `contacts`, mirroring the offline sampler. Each foot
@@ -2164,7 +2203,7 @@
         if (done && !at.finished) {
           at.finished = true;
           const resolve = at.resolve;
-          activeTrajectory = null;
+          setActiveTrajectory(null);
           resolve();
         }
       }
@@ -2185,7 +2224,7 @@
       ): Promise<void> {
         return new Promise((resolve) => {
           if (activeTween) finishTween(); // safety — commands are serialized
-          activeTween = { from: currentPose, to, start: performance.now(), durationMs, ...(root ? { root } : {}), resolve };
+          setActiveTween({ from: currentPose, to, start: performance.now(), durationMs, ...(root ? { root } : {}), resolve });
           startLoop();
           requestRender();
           // Hidden stage / background tab: the loop is parked (or rAF frozen),
@@ -2431,7 +2470,7 @@
         // an explicit key is required) or AI-composed gait would never breathe or
         // vary. `motionLiveliness` currently holds what the host set.
         setMotionOverlaysImpl?.({ liveliness: motionLiveliness });
-        composedActive = true;
+        setComposedActive(true);
         resetLivelinessOnset();
         // Closed-chain foot contacts declared by this motion (Finding 4): rebuild
         // the IK plants so declared stance feet stay world-fixed as the body
@@ -2708,7 +2747,7 @@
             resolve();
             return;
           }
-          activeTrajectory = {
+          setActiveTrajectory({
             traj: trajectory,
             start: performance.now(),
             settleAtMs,
@@ -2717,7 +2756,7 @@
             loop: false,
             resolve,
             finished: false,
-          };
+          });
         });
 
         // Final measured angles at the last keyframe for every touched field
@@ -2780,7 +2819,7 @@
           // so the one-shot pass's crossfade spans can never misapply to the
           // wrapped loop clock.
           setComposedGroundingBlend(loopTraj);
-          activeTrajectory = {
+          setActiveTrajectory({
             traj: loopTraj,
             start: performance.now() - enterAtMs,
             settleAtMs: [],
@@ -2789,8 +2828,8 @@
             loop: true,
             resolve: () => {},
             finished: false,
-          };
-          composedActive = true;
+          });
+          setComposedActive(true);
           resetLivelinessOnset();
           return { status: 'playing', ...base };
         }
@@ -2808,7 +2847,7 @@
           };
         }
         // One-shot: settle, lift the overlays.
-        composedActive = false;
+        setComposedActive(false);
         setMotionOverlaysImpl?.(null);
         return { status: 'completed', ...base };
       };
@@ -2843,6 +2882,13 @@
         const cacheable = motion !== 'sandbox';
         let clip = cacheable ? (motionClipCache.get(motion) ?? null) : null;
         if (!clip) {
+          // SUPERSESSION (services/stageDriver). An uncached load is the one
+          // await on this path, and an out-of-band Stop bypasses the serialized
+          // command chain — so snapshot the command generation BEFORE suspending
+          // and re-check it after. Without this the clip path had no
+          // supersession at all (only `disposed` was re-checked): a Stop during
+          // the load hit no branch and the stale clip played anyway.
+          const claim = driver.snapshot();
           let clips: import('three').AnimationClip[] | null = null;
           try {
             clips = (await motionClipProvider.getClips(motion)) ?? null;
@@ -2852,6 +2898,17 @@
           }
           if (disposed || !mixer || !modelRoot) {
             return { status: 'refused', motion, reason: 'stage-unavailable' };
+          }
+          if (!driver.holds(claim)) {
+            // A Stop / newer command landed while the clip was loading. Cache the
+            // clip anyway (the work is done and the next play should be instant),
+            // but do NOT take the skeleton.
+            if (clips && clips.length > 0 && cacheable && !motionClipCache.has(motion)) {
+              const cloned = clips[0]!.clone();
+              const skel = skinnedRef?.skeleton;
+              motionClipCache.set(motion, skel ? remapClipToSkeleton(cloned, skel) : cloned);
+            }
+            return { status: 'refused', motion, reason: 'superseded' };
           }
           if (!clips || clips.length === 0) {
             return { status: 'refused', motion, reason: 'clip-unavailable' };
@@ -2886,7 +2943,7 @@
         action.enabled = true;
         action.play();
         motionAction = action;
-        activeMotionId = motion;
+        setActiveMotionId(motion);
         // Ease into the clip from the CURRENT pose (still intact — the mixer only
         // writes on update): capture it now, blend toward the clip each frame.
         if (skinnedRef) clipBlend.begin(skinnedRef.skeleton.bones, CLIP_BLEND_SEC);
@@ -2907,7 +2964,7 @@
         if (hidden) {
           mixer.setTime(clip.duration / Math.max(speed, 1e-3));
           modelRoot.updateMatrixWorld(true);
-          activeMotionId = null;
+          setActiveMotionId(null);
           return { status: 'completed', ...outcomeBase };
         }
         // Visible one-shot: await the mixer 'finished' event.
@@ -2936,7 +2993,7 @@
             modelRoot?.updateMatrixWorld(true);
             const r = motionFinishResolve;
             motionFinishResolve = null;
-            activeMotionId = null;
+            setActiveMotionId(null);
             r();
           }
           return; // parked — startLoop() (via the ResizeObserver) resumes
@@ -3118,14 +3175,11 @@
         // AFTER the recording tap: recordings stay clean. Waking the render
         // only when deltas actually applied keeps the idle-render optimization
         // honest — clean mode (idleLiveliness 0) never forces a draw.
-        if (
-          !activeMotionId &&
-          !composedActive &&
-          !activeTween &&
-          !activeTrajectory &&
-          !poseLayerBusy?.() &&
-          applyIdleOverlays(motionDelta)
-        ) {
+        // `driver.idle` is THE ownership question (services/stageDriver) — it
+        // replaces spelling out every mechanism here, so adding a driver can no
+        // longer silently miss this gate. The posing layer is a separate,
+        // host-owned suspension and is still ANDed in.
+        if (driver.idle && !poseLayerBusy?.() && applyIdleOverlays(motionDelta)) {
           renderNeeded = true;
         } else if (((mixer && activeMotionId) || composedActive) && applyMotionLiveliness(motionDelta)) {
           // Motion-time liveliness (SEAM-9): the realism breathing/micro-sway is
@@ -3203,7 +3257,7 @@
           modelRoot?.updateMatrixWorld(true);
           const r = motionFinishResolve;
           motionFinishResolve = null;
-          activeMotionId = null;
+          setActiveMotionId(null);
           r();
         }
       };

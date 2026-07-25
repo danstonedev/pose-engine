@@ -301,15 +301,24 @@ describe('idle liveliness — stage wiring (source pins)', () => {
     );
   });
 
-  it('re-bakes ONLY when truly idle: no clip, no composed playback, no tween, no trajectory, posing layer not engaged', () => {
+  it('re-bakes ONLY when truly idle — ONE ownership question, plus the posing suspension', () => {
+    // The gate used to spell out every mechanism (!activeMotionId &&
+    // !composedActive && !activeTween && !activeTrajectory), so adding a driver
+    // could silently miss it. It now asks services/stageDriver once.
     expect(stageSource).toMatch(
-      /!activeMotionId &&\s*\n\s*!composedActive &&\s*\n\s*!activeTween &&\s*\n\s*!activeTrajectory &&\s*\n\s*!poseLayerBusy\?\.\(\) &&\s*\n\s*applyIdleOverlays\(motionDelta\)/,
+      /if \(driver\.idle && !poseLayerBusy\?\.\(\) && applyIdleOverlays\(motionDelta\)\)/,
     );
+    // …and `idle` is only honest because every mechanism registers through the
+    // setter paired with its handle — no raw assignment may bypass the driver.
+    expect(stageSource).toMatch(/function setActiveMotionId[\s\S]{0,200}driver\.setRunning\('clip', id !== null\)/);
+    expect(stageSource).toMatch(/function setComposedActive[\s\S]{0,200}driver\.setRunning\('composed', on\)/);
+    expect(stageSource).toMatch(/function setActiveTween[\s\S]{0,200}driver\.setRunning\('tween', t !== null\)/);
+    expect(stageSource).toMatch(/function setActiveTrajectory[\s\S]{0,200}driver\.setRunning\('trajectory', t !== null\)/);
   });
 
   it('the re-bake happens AFTER the recording tap and wakes the render only when deltas applied (dirty flag honest)', () => {
     expect(stageSource).toMatch(
-      /recordingTap\.sample\([\s\S]{0,1500}applyIdleOverlays\(motionDelta\)\s*\n\s*\) \{\s*\n\s*renderNeeded = true;/,
+      /recordingTap\.sample\([\s\S]{0,1500}applyIdleOverlays\(motionDelta\)\)\s*\{\s*\n\s*renderNeeded = true;/,
     );
   });
 

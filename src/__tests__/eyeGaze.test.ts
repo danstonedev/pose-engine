@@ -476,7 +476,7 @@ describe('eye micro-gaze — stage wiring (source pins)', () => {
     // realism breathing/micro-sway, also re-applied AFTER the tap so recordings
     // stay clean — now sits between the idle block's close and the eye apply.)
     expect(stageSource).toMatch(
-      /applyIdleOverlays\(motionDelta\)\s*\n\s*\) \{\s*\n\s*renderNeeded = true;\s*\n\s*\}[\s\S]{0,1200}if \(applyEyeGaze\(motionDelta\)\) renderNeeded = true;/,
+      /applyIdleOverlays\(motionDelta\)\)\s*\{\s*\n\s*renderNeeded = true;\s*\n\s*\}[\s\S]{0,1200}if \(applyEyeGaze\(motionDelta\)\) renderNeeded = true;/,
     );
     // And the eye apply is OUTSIDE the truly-idle condition: nothing between the
     // first idle-overlay call and the eye apply RE-GATES on the idle predicate
