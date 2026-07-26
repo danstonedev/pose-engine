@@ -896,7 +896,7 @@ describe('buildCommandPose on the real male rig', () => {
   // angles and the local-Z curl axis is not perpendicular to the metacarpal.
   // Commands below it land on the digit's most-extended pose (see FINGER_CURVE).
   const MALE_FINGER_FLOOR: Record<string, number> = {
-    Thumb1: 28.1,
+    Thumb1: 40.5,
     Index1: 20.0,
     Mid1: 5.8,
     Ring1: 6.9,
@@ -973,6 +973,44 @@ describe('buildCommandPose on the real male rig', () => {
     expect(mcp).toBeLessThan(pip);
     expect(dip / pip).toBeGreaterThan(0.6);
     expect(dip / pip).toBeLessThan(0.8);
+  });
+
+  it('the THUMB is carried adducted — tucked toward the index, not splayed off the hand', () => {
+    // The rig's rest thumb stands off the hand, which reads as a splayed hand
+    // rather than a relaxed one. The adduction rides WITH the curl because there
+    // is no thumb-adduction channel in the registry (see THUMB_ADD_DEG).
+    //
+    // Assert on the ROTATION THE CODE BUILT, not on a rotation this test applies.
+    // The first version of this check undid the adduction itself and compared the
+    // two — which passes just as happily when the feature is switched off, since
+    // it was really measuring its own undo.
+    resetToAnatomic();
+    const cmd = setJoint('R_Thumb1', 'fingerFlexion', 45);
+    const resolved = resolveCommandTarget(cmd, variantCfg);
+    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg, null, rest)!;
+
+    const q = (key: string, from: CustomPose) =>
+      new THREE.Quaternion(...(from.bones![key] as [number, number, number, number]));
+    const deltaOf = (key: string) => q(key, baselinePose).invert().multiply(q(key, pose));
+
+    // The PIP carries FINGER_PIP_SHARE of the total curl and nothing else, so it
+    // recovers the curl the MCP must also be carrying.
+    const pipAngle = 2 * Math.asin(Math.min(1, Math.abs(deltaOf('R_Thumb2').z)));
+    const mcpCurl = (pipAngle / 0.65) * (1 - 0.65);
+
+    // Strip the MCP's curl; whatever remains is the adduction the code added.
+    const residual = new THREE.Quaternion()
+      .setFromAxisAngle(new THREE.Vector3(0, 0, 1), mcpCurl)
+      .invert()
+      .multiply(deltaOf('R_Thumb1'));
+    const axis = new THREE.Vector3(residual.x, residual.y, residual.z).normalize();
+    const angleDeg = (2 * Math.acos(Math.min(1, Math.abs(residual.w))) * 180) / Math.PI;
+
+    // …about the metacarpal's X axis (rig-probed as the ad/abduction axis)…
+    expect(Math.abs(axis.x), 'the residual is a rotation about the thumb X axis').toBeGreaterThan(0.97);
+    // …by the authored amount, in the ADducting direction (negative X).
+    expect(Math.sign(residual.z === 0 ? residual.x : residual.x), 'adducting, not abducting').toBeLessThan(0);
+    expect(Math.abs(angleDeg - 14), `adduction magnitude (got ${angleDeg.toFixed(1)}°)`).toBeLessThan(1.5);
   });
 
   it('fingers: the fingertip travels toward the palm and keeps going as the curl deepens', () => {
@@ -1123,7 +1161,7 @@ describe('female-variant canary (calibration transfers)', () => {
     // male table read several degrees off here. Same full-range walk as the male
     // rig, above each digit's own floor.
     const floor: Record<string, number> = {
-      Thumb1: 22.6,
+      Thumb1: 36.4,
       Index1: 18.4,
       Mid1: 4.4,
       Ring1: 8.3,

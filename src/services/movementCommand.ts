@@ -224,6 +224,11 @@ const REST_DOWN = new THREE.Vector3(0, -1, 0);
 /** Local-Z axis — the pinned finger-curl ring (see `computeDrivingRingMap`);
  *  a rest-frame rotation about it curls the MCP toward the palm. */
 const LOCAL_Z = new THREE.Vector3(0, 0, 1);
+/** The thumb metacarpal's ADduction axis — rig-probed: rotating R_Thumb1 about
+ *  local X swings the thumb toward the index, local Y does nothing (it is the
+ *  twist), and local Z is the curl `fingerFlexion` already uses. Both hands take
+ *  the SAME sign; the rig mirrors so that −X adducts on the left too. */
+const LOCAL_X = new THREE.Vector3(1, 0, 0);
 
 /** Parent-local delta for a body-euler sagittal motion: pure X rotation in
  *  the YXZ order the readout decomposes with. For the foot, readout
@@ -613,7 +618,9 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   //    past the minimum starts INCREASING the reading again, so the floor is a
   //    property of the measurement, not of the pose or of this table (an
   //    MCP-only realization floors within ~1° of the same place). The male index
-  //    cannot read below ~20° and the male thumb below ~28° at ANY pose.
+  //    cannot read below ~20° at ANY pose, and the thumb below ~40° — its floor
+  //    is high BECAUSE of THUMB_ADD_DEG: adduction swings the proximal phalanx
+  //    away from the metacarpal, and the readout sums that angle unsigned.
   //    Commands under the floor land on the digit's most-extended pose and
   //    `finalizeOutcome` reports what was actually measured, as always.
   //    Callers wanting a wide, faithfully-measured curl range should drive the
@@ -629,25 +636,25 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   /** Commanded fingerFlexion (deg) that `FINGER_CURVE` rows are sampled at.
    *  Dense below 30° — that is where the response bends AND where the resting
    *  hand postures live — and sparse above, where it has straightened out. */
-  const FINGER_CURVE_CMD = [0, 6, 12, 18, 24, 30, 40, 55, 75, 100, 130, 160];
+  const FINGER_CURVE_CMD = [0, 6, 12, 18, 24, 30, 38, 46, 55, 75, 100, 130, 160];
   /** Total local curl (deg) that makes the DISTRIBUTED digit read back the
    *  corresponding `FINGER_CURVE_CMD` entry. Rig-measured, per variant — the
    *  geometry is shared L/R (probed bit-identical), so one row covers both.
    *  Entries at or below a digit's floor hold its most-extended pose. */
   const FINGER_CURVE: Record<string, Record<string, number[]>> = {
     male: {
-      Thumb1: [20.0, 20.0, 20.0, 20.0, 20.0, 30.8, 47.0, 65.0, 87.0, 113.7, 145.2, 176.6], // floor 28.1
-      Index1: [-4.3, -4.3, -4.3, -4.3, 2.9, 10.7, 22.9, 40.1, 61.9, 88.4, 119.6, 150.4], // floor 20.0
-      Mid1: [-2.3, -1.5, 5.4, 11.6, 17.8, 23.9, 34.0, 49.1, 69.2, 94.3, 124.3, 154.3], // floor 5.8
-      Ring1: [-2.8, -2.8, 5.0, 12.7, 19.6, 26.1, 36.7, 52.2, 72.5, 97.8, 128.0, 158.1], // floor 6.9
-      Pinky1: [0.5, 0.5, 0.5, 0.5, 8.6, 18.1, 32.2, 50.9, 73.7, 100.7, 132.2, 163.2], // floor 20.2
+      Thumb1: [13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 13.0, 35.7, 52.0, 79.1, 108.3, 141.4, 173.8], // floor 40.5
+      Index1: [-4.3, -4.3, -4.3, -4.3, 2.9, 10.7, 20.5, 29.9, 40.1, 61.9, 88.4, 119.6, 150.4], // floor 20.0
+      Mid1: [-2.3, -1.5, 5.4, 11.6, 17.8, 23.9, 32.0, 40.0, 49.1, 69.2, 94.3, 124.3, 154.3], // floor 5.8
+      Ring1: [-2.8, -2.8, 5.0, 12.7, 19.6, 26.1, 34.6, 42.9, 52.2, 72.5, 97.8, 128.0, 158.1], // floor 6.9
+      Pinky1: [0.5, 0.5, 0.5, 0.5, 8.6, 18.1, 29.5, 39.9, 50.9, 73.7, 100.7, 132.2, 163.2], // floor 20.2
     },
     female: {
-      Thumb1: [22.3, 22.3, 22.3, 22.3, 27.5, 37.6, 50.9, 68.5, 90.5, 117.1, 148.6, 179.9], // floor 22.6
-      Index1: [-5.0, -5.0, -5.0, -5.0, 5.0, 13.4, 26.2, 43.9, 66.0, 92.6, 123.8, 154.6], // floor 18.4
-      Mid1: [-3.3, -0.7, 6.9, 13.5, 19.8, 26.0, 36.3, 51.4, 71.6, 96.7, 126.7, 156.8], // floor 4.4
-      Ring1: [-5.8, -5.8, 3.8, 13.2, 20.6, 27.3, 37.8, 53.2, 73.5, 98.7, 128.8, 158.9], // floor 8.3
-      Pinky1: [-5.5, -5.5, -5.5, -5.5, 4.4, 13.7, 27.4, 45.8, 68.3, 95.0, 126.3, 157.2], // floor 19.5
+      Thumb1: [18.5, 18.5, 18.5, 18.5, 18.5, 18.5, 29.6, 47.2, 60.6, 85.5, 113.7, 146.2, 178.3], // floor 36.4
+      Index1: [-5.0, -5.0, -5.0, -5.0, 5.0, 13.4, 23.8, 33.5, 43.9, 66.0, 92.6, 123.8, 154.6], // floor 18.4
+      Mid1: [-3.3, -0.7, 6.9, 13.5, 19.8, 26.0, 34.2, 42.3, 51.4, 71.6, 96.7, 126.7, 156.8], // floor 4.4
+      Ring1: [-5.8, -5.8, 3.8, 13.2, 20.6, 27.3, 35.7, 44.0, 53.2, 73.5, 98.7, 128.8, 158.9], // floor 8.3
+      Pinky1: [-5.5, -5.5, -5.5, -5.5, 4.4, 13.7, 24.8, 35.0, 45.8, 68.3, 95.0, 126.3, 157.2], // floor 19.5
     },
   };
   const makeFinger = (sideSign: number, digit: string): SupportedMotionSpec => {
@@ -699,8 +706,13 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
        */
       phalanges: (deg, ctx) => {
         const full = fullLocalDeg(deg, ctx);
+        const mcp = about(full * (1 - FINGER_PIP_SHARE));
+        // The thumb also carries its resting ADduction, in the same rotation —
+        // see THUMB_ADD_DEG for why it rides here rather than as its own command.
+        if (digit === 'Thumb1')
+          mcp.multiply(new THREE.Quaternion().setFromAxisAngle(LOCAL_X, THUMB_ADD_DEG * RAD));
         return {
-          mcp: about(full * (1 - FINGER_PIP_SHARE)),
+          mcp,
           pip: about(full * FINGER_PIP_SHARE),
           dip: about(full * FINGER_DIP_SHARE),
         };
@@ -810,6 +822,25 @@ const FINGER_PIP_SHARE = 0.65;
  *  0.00°), so this is pure shape — set at ~2/3 of the PIP, the tenodesis grip
  *  proportion, which is what makes the fingertip curl rather than point. */
 const FINGER_DIP_SHARE = 0.45;
+/**
+ * Resting ADduction of the thumb metacarpal, degrees about LOCAL_X (negative =
+ * in toward the index).
+ *
+ * The rig's rest thumb stands off the hand: the tip sits 5.4cm from the index
+ * knuckle, which reads as a splayed, slightly startled hand rather than a
+ * relaxed one. −14° brings it to 4.0cm — tucked alongside the index without
+ * collapsing onto it (rig-probed: −20° reaches 3.2cm and starts to look pinched).
+ *
+ * It is applied WITH the curl, not as a separate command, because there is no
+ * thumb-adduction channel in the registry and adding one would mean a new ROM
+ * row, a new readout field and a two-dimensional calibration for a posture
+ * detail. The cost is that it perturbs the thumb's OWN fingerFlexion readout —
+ * that readout is the unsigned metacarpal-to-proximal angle, and adduction
+ * swings the proximal — so the thumb's FINGER_CURVE rows are calibrated WITH
+ * this rotation applied. Change this constant and those rows must be
+ * regenerated, exactly like the PIP/DIP shares.
+ */
+const THUMB_ADD_DEG = -14;
 
 /** The middle/distal phalanx pose keys for a digit's MCP key (`R_Index1` → 2, 3). */
 function phalanxKeys(mcpKey: string): { pip: string; dip: string } {

@@ -1221,11 +1221,11 @@ export const RELAXED_WRIST_FLEX_DEG = 2;
  *  Registry fingerFlexion is a composite 0..160 curl, so these sit well inside
  *  ROM. */
 export const RELAXED_FINGER_CURL_DEG: Readonly<Record<string, number>> = {
-  Thumb1: 20,
-  Index1: 24,
-  Mid1: 30,
-  Ring1: 36,
-  Pinky1: 40,
+  Thumb1: 26,
+  Index1: 31,
+  Mid1: 39,
+  Ring1: 47,
+  Pinky1: 52,
 };
 
 /** The full relaxed-hand target set (both sides): slight wrist flexion + the
