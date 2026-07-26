@@ -63,6 +63,36 @@ ExamStage3D.svelte: **4986 → 4723**. Pattern: move logic+state to a factory mo
 keep thin same-named wrappers in the component so call sites don't churn; retarget the
 body source-pins to the module, keep wiring pins on the component.
 
+### Measured ceiling on extraction (2026-07-26) — read before continuing
+
+The `< 500 lines per file` target is **not reachable by extraction alone**, and it is worth
+knowing that before spending more increments on it. Measured against the current file:
+
+- The `onMount` closure holds **63 shared mutable `let`s** and **45 named inner functions**.
+- **Only 5 of those 45 touch none of the 63.** Everything else reads or writes shared state.
+- Those 5 total ~54 lines — about **1.3%** of the closure.
+
+So the closure is not a large file that happens to need splitting; it is one scope with 63
+variables and 40 functions that co-own them. Each remaining item in the list below is
+blocked on the same thing: the extraction is easy, but the *state* it needs is shared, so it
+comes out as either a long parameter list or a passed-around mutable bag — and the second is
+the current design with extra indirection.
+
+This is the same conclusion deferred item **5** reaches from the behaviour side ("four
+booleans, not one owner"). Both point at state ownership, so the ordering below is probably
+inverted: the `StageContext` in item 5 is listed LAST as a consequence, but it is closer to
+being the precondition. Establishing one owner for the driver state and one bake/undo
+contract for the overlay stack is what makes items 1–4 mechanical instead of fiddly.
+
+Two constraints that do not change:
+- Behaviour-preserving still applies. Item 5's own note says the overlay/driver tangle is the
+  structural cause of deferred #1 and #4 — untangling it and *keeping* Stop-freeze semantics
+  is the hard part, not the file moves.
+- Coverage is thin exactly where it matters. `stageReliability.test.ts` asserts regexes against
+  this file as raw text and has been loosened repeatedly (its own comments record
+  "Window widened 700→1600"). Any real decomposition invalidates most of it, so budget for a
+  window with no stage coverage and shorten it deliberately.
+
 ### Remaining decomposition (in order), to get under 500/file
 1. **motion-time liveliness** overlay (`applyMotionLiveliness`) → fold into an overlay module
    (shares breath — now owned; entangled with `resetLivelinessOnset` + `setMotionOverlays`).
