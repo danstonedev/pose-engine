@@ -328,11 +328,32 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     // velocity is ~350–400 °/s [Winter] and a real loading response is
     // ~100–120 ms — so the gait phases declare `velocityClass: 'functional'`
     // (600 °/s cap, 90 ms floor) and the authored rhythm survives resolve
-    // intact. Step length is unchanged (it is emergent from the hip/knee
-    // excursion below, not authored), so raising cadence alone also brings the
-    // walk RATIO — step length ÷ cadence — back inside
-    // `normativeGait.WALK_RATIO_M_PER_SPM`; at 75 steps/min the same normative
-    // step length read as an over-long stride at a trudging tempo.
+    // intact.
+    //
+    // Step length is deliberately UNCHANGED by the retime — it is emergent from
+    // the hip/knee excursion below, not authored (rig-measured peak A-P ankle
+    // separation 0.917 m before, 0.912 m after). Raising cadence alone therefore
+    // moves the whole spatiotemporal set into the normative range, measured over
+    // the STEADY cycle (`buildTravelWalk`, male rig, offline sampler):
+    //
+    //   cadence     104.9 steps/min   CADENCE_SPM          [100, 120]   in band
+    //   speed       1.407 m/s         comfortable ~1.3-1.4              in band
+    //   walk ratio  0.00767           WALK_RATIO_M_PER_SPM [.0055,.0075] +2%
+    //   Froude      0.187             comfortable walking               in band
+    //   step        0.805 m / stride 1.610 m (this rig's hip height is ~1.08 m —
+    //               STRIDE_M [1.3, 1.5] is an ABSOLUTE band for average stature,
+    //               so read it normalized, not literally, for a tall mannequin)
+    //
+    // MEASURE THE STEADY CYCLE, NOT THE WHOLE CLIP. The travel walk's ENTRY
+    // step-off is a longer step than the gait it settles into (0.893 m vs
+    // 0.805 m) and its hip peaks 37.9° against an authored 30°, because the R
+    // foot's contact window opens at t=0 — pinning that foot through the
+    // initiation and step-off, while the authored pose has it reaching forward to
+    // its first contact. The IK reconciles the two by over-flexing the hip. That
+    // is a pre-existing ENTRY artifact (identical before this retime), but it
+    // inflates any spatiotemporal measured across the full clip by ~11%, which
+    // reads as a phantom over-stride. Do not shrink the authored hip peaks —
+    // they are SME-flagged normative values and they are not the problem.
     phases: [
       {
         name: 'right-initial-contact',
