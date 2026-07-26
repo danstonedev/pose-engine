@@ -471,6 +471,8 @@ export function buildIKChainContext(
   return { bones, canonicalKeys };
 }
 
+/** Default CCD passes per solve — the historic budget for every caller that does
+ *  not ask for more (pose editing, exam-command IK). */
 const _ikIterations = 4;
 const _ikEffectorWorld = new THREE.Vector3();
 const _ikJointWorld = new THREE.Vector3();
@@ -527,12 +529,20 @@ export function solveIKChain(
      *  axis (body-left is no longer world +X). Local axes are rotation
      *  invariant, so the ORIGINAL rest always names the correct one. */
     hingeAxisRest?: JointAngleRestReference | null;
+    /** CCD passes for this solve (default {@link _ikIterations} = 4). CCD's
+     *  residual scales with how far the effector starts from its target, so a
+     *  solve that must track a FAST-moving chain (the gait foot-plant at a
+     *  normative cadence, where the root advances further per frame) needs more
+     *  passes to hold the same tolerance. Raising it is strictly more accurate;
+     *  it is opt-in only so every existing caller stays byte-identical. */
+    iterations?: number;
   },
 ): void {
   const { bones, canonicalKeys } = ctx;
   const effector = bones[0];
+  const iterations = Math.max(1, Math.floor(clamp?.iterations ?? _ikIterations));
 
-  for (let iter = 0; iter < _ikIterations; iter += 1) {
+  for (let iter = 0; iter < iterations; iter += 1) {
     // bones[1] is the joint closest to the effector (e.g. wrist's parent).
     // bones[bones.length-1] is the root of the chain (e.g. UpperArm).
     for (let i = 1; i < bones.length; i += 1) {

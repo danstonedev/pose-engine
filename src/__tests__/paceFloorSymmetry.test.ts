@@ -53,38 +53,58 @@ describe('DET-RES-01 — the paced walk floors symmetrically (loop-wrap seed)', 
     });
   }
 
-  it('BEFORE/AFTER — the fix (loop-wrap seed) is what removes the limp', () => {
-    // Reproduce the OLD behaviour by dropping `loop`: with no wrap, kf0 is seeded
-    // from NEUTRAL, so the paced right-initial-contact floors one-sidedly and the
-    // half-cycles desync — the DET-RES-01 limp. WITH `loop`, the wrap seed keeps
-    // it symmetric. Measured at 0.9 / 1.05 / 1.2.
-    const measure = (speed: number) => {
-      const paced = paceGait(templateToComposedMotion(walkTemplate()), speed);
-      const after = halfCycleAsymmetryPct(durs({ ...paced }));
-      const { loop: _loop, ...noLoop } = paced; // strip loop → from-neutral kf0 seed
-      const before = halfCycleAsymmetryPct(durs(noLoop as ComposedMotion));
-      return { before, after };
-    };
-    const at105 = measure(1.05);
-    const at120 = measure(1.2);
-    // AFTER: symmetric at every pace.
-    expect(at105.after).toBe(0);
-    expect(at120.after).toBe(0);
-    // BEFORE: the from-neutral seed injected a one-sided bump (grows with pace).
-    expect(at105.before).toBeGreaterThan(0);
-    expect(at120.before).toBeGreaterThan(at105.before);
-    // eslint-disable-next-line no-console
-    console.log(
-      `DET-RES-01 step-time asymmetry — 1.05: before ${at105.before.toFixed(2)}% → after 0%; ` +
-        `1.2: before ${at120.before.toFixed(2)}% → after 0%`,
-    );
+  it('the loop-wrap seed is what stops a floor-bound kf0 from limping', () => {
+    // The walk itself no longer reaches its duration floor at any pace: its
+    // phases declare the locomotor velocity class, whose 600 °/s cap and 90 ms
+    // minimum leave headroom the old deliberate-class floors did not (see
+    // gaitPerryTiming). So the limp this seed fixes can no longer be provoked by
+    // pacing the walk — and a test that pins the bug to the walk's incidental
+    // timing would pass or fail for the wrong reason.
+    //
+    // Exercise the MECHANISM directly instead: a looping motion whose kf0 carries
+    // a large delta FROM NEUTRAL but a small one from its wrap pose. Seeded from
+    // the wrap (correct, because a loop re-enters kf0 from its own last
+    // keyframe) it does not floor; seeded from neutral it floors one-sidedly —
+    // exactly the desync DET-RES-01 describes.
+    const cyclic = (): ComposedMotion => ({
+      name: 'wrap-seed-probe',
+      startFrom: 'neutral',
+      stance: 'planted',
+      loop: true,
+      keyframes: [
+        // 60° of knee flexion from neutral needs 250 ms at the 240 °/s deliberate
+        // cap; authored at 160 ms it floors — UNLESS it is seeded from the wrap
+        // pose (kf3, also 55°), whose 5° delta needs nothing.
+        { durationMs: 160, targets: [{ joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 60 }] },
+        { durationMs: 160, targets: [{ joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 55 }] },
+        { durationMs: 160, targets: [{ joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 60 }] },
+        { durationMs: 160, targets: [{ joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 55 }] },
+      ],
+    });
+    const looped = resolveComposedMotion(cyclic(), variantCfg);
+    const { loop: _loop, ...noLoop } = cyclic(); // strip loop → from-neutral kf0 seed
+    const unlooped = resolveComposedMotion(noLoop as ComposedMotion, variantCfg);
+
+    // AFTER (looping): the wrap seed keeps every keyframe at its authored time.
+    expect(looped.keyframes.map((k) => k.durationMs)).toEqual([160, 160, 160, 160]);
+    expect(looped.keyframes.some((k) => k.timingAdjusted)).toBe(false);
+    // BEFORE (no loop): kf0 alone is bumped — the one-sided floor.
+    expect(unlooped.keyframes[0]!.timingAdjusted).toBe(true);
+    expect(unlooped.keyframes[0]!.durationMs).toBeGreaterThan(160);
+    expect(unlooped.keyframes.slice(1).some((k) => k.timingAdjusted)).toBe(false);
   });
 
-  it('speed-1 walk template is byte-identical (the loop-wrap seed only relaxes kf0)', () => {
-    const t = templateToComposedMotion(walkTemplate());
-    const r = resolveComposedMotion(t, variantCfg);
-    expect(r.keyframes.map((k) => k.durationMs)).toEqual(t.keyframes.map((k) => k.durationMs));
-    expect(r.keyframes.some((k) => k.timingAdjusted)).toBe(false);
+  it('the shipped walk reaches its duration floor at NO pace (the limp is unreachable)', () => {
+    for (const speed of [0.4, 0.9, 1.0, 1.2, 1.5]) {
+      const paced = paceGait(templateToComposedMotion(walkTemplate()), speed);
+      const r = resolveComposedMotion(paced, variantCfg);
+      expect(
+        r.keyframes.some((k) => k.timingAdjusted),
+        `speed ${speed}: no keyframe floors`,
+      ).toBe(false);
+      const d = durs(paced);
+      expect(d.slice(0, 4), `speed ${speed}: half-cycles stay symmetric`).toEqual(d.slice(4, 8));
+    }
   });
 });
 
@@ -99,8 +119,18 @@ describe('SEAM-7 — ms-authored windows/contacts ride the RESOLVED keyframe bou
     }
   });
 
-  it('pace 1.5: the left-initial-contact floors — its windows/contacts carry to the RESOLVED boundary', () => {
-    const tw = buildTravelWalk({ speed: 1.5 });
+  it('when a keyframe DOES floor, its windows/contacts carry to the RESOLVED boundary', () => {
+    // The shipped walk no longer floors at any pace (its phases are 'functional'),
+    // so the floor is forced here by demoting the left-initial-contact keyframe to
+    // the deliberate class — the seam logic under test is "windows ride resolved
+    // boundaries", not "the walk happens to floor".
+    const base = buildTravelWalk({ speed: 1.5 });
+    const tw: ComposedMotion = {
+      ...base,
+      keyframes: base.keyframes.map((k, i) =>
+        i === 5 ? { ...k, velocityClass: 'deliberate' as const } : k,
+      ),
+    };
     const r = resolveComposedMotion(tw, variantCfg);
     // The left-initial-contact keyframe (cycle index 4 → resolved kf5) floors.
     expect(r.keyframes[5]!.timingAdjusted).toBe(true);

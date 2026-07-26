@@ -32,6 +32,7 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
     ...(p.stance ? { stance: p.stance } : {}),
     ...(p.travel ? { travel: p.travel } : {}),
     ...(p.root ? { root: p.root } : {}),
+    ...(p.velocityClass ? { velocityClass: p.velocityClass } : {}),
   }));
   // Phase-indexed contact windows → absolute-ms StanceContact windows (a phase's
   // window covers its travel AND its hold). Phase boundaries are preserved by

@@ -254,9 +254,33 @@ const SCAP_PROT_GAIN = 0.35; // scapular protraction/retraction: the shoulder GI
 const SCAP_PROT_MAX = 10; // fore/aft on the ribcage WITH the arm swing (protract on the
 // forward swing, retract on the backswing) — arm swing isn't purely glenohumeral. Coupled
 // to the same arm's flexion, so the two scapulae counter-phase like a real girdle.
-const WRIST_FLEX_BASE = 10; // a relaxed swinging hand isn't a rigid paddle: the wrist carries
-const WRIST_DRAG = 0.28; // a slight resting flexion and DRAGS behind the forearm — trailing
-const WRIST_FLEX_MAX = 22; // (less flexion on the forward swing, more on the backswing).
+// A relaxed swinging hand isn't a rigid paddle: the wrist carries a slight resting
+// flexion and DRAGS behind the forearm.
+const WRIST_FLEX_BASE = 10; // resting flexion of a hanging, unloaded hand, deg
+const WRIST_FLEX_MAX = 22; // …and the total excursion never leaves this band
+/**
+ * Passive wrist drag per unit of shoulder ANGULAR VELOCITY, deg per (deg/s).
+ *
+ * The hand is a passive mass on the end of the forearm, so its lag is set by how
+ * FAST the arm is moving, not by where the arm is. This used to be driven by the
+ * shoulder ANGLE (`WRIST_FLEX_BASE − 0.28 × shoulderFlexion`), which put peak
+ * wrist deflection at the swing EXTREMES — precisely where the arm reverses and
+ * is momentarily stationary, so the true drag is ZERO. The physical peak is at
+ * MID-SWING, where the arm is fastest; the old model was a quarter-cycle out of
+ * phase, and the hand appeared to "set" at the ends of the swing rather than
+ * trail through the middle of it.
+ *
+ * Driving it from velocity also makes the drag track CADENCE for free: shorten
+ * the gait cycle and the same swing amplitude yields a proportionally higher
+ * angular velocity, so the hand trails harder — no per-cadence tuning constant,
+ * and no separate energy gain (velocity already carries both the amplitude and
+ * the tempo, so the old `WRIST_DRAG_ENERGY_GAIN` would double-count).
+ *
+ * 0.072 is calibrated to reproduce the previous peak drag magnitude (~5.6° at a
+ * ~78 °/s peak arm velocity) so the CHARACTER of the walk's hand is preserved;
+ * what changes is its phase, and how it responds to tempo.
+ */
+const WRIST_DRAG_PER_DEG_S = 0.072;
 const FINGER_CURL_DEG = 32; // the fingers rest gently CURLED (a loose relaxed hand), not
 // splayed straight. Constant posture (carried across the cycle), applied per digit.
 // ─── DISTAL ENERGY AT SPEED (roadmap 5.4) ────────────────────────────────────
@@ -272,8 +296,8 @@ const FINGER_CURL_MIN_DEG = 14; // …floored at a loose open hand (never splaye
 const ELBOW_PUMP_ENERGY_GAIN = 0.22; // extra elbow pump ∝ the arm's own swing phase, counter-
 const ELBOW_PUMP_ENERGY_MAX = 14; // phased like the authored pump (more flexion on the back-
 // swing, unwinding as the arm comes forward) so the pump AMPLITUDE grows about its mean.
-const WRIST_DRAG_ENERGY_GAIN = 0.5; // the passive wrist drag deepens with speed (the
-// WRIST_FLEX_MAX cap still applies on top).
+// (The wrist drag deepens with speed intrinsically — it is velocity-driven; see
+// WRIST_DRAG_PER_DEG_S. No energy gain, or the tempo would be counted twice.)
 const HEADSTAB_ENERGY_RELAX = 0.08; // headStabilize fraction released per energy unit — a
 const HEADSTAB_ENERGY_FLOOR = 0.85; // runner's head rides a touch more; never below 85%.
 /** Locomotor-intensity ceiling: buildRun's 1.6 speed cap × the run's energy
@@ -357,7 +381,10 @@ export function spinalGaitCoordination(
   const energy = Math.min(ENERGY_MAX, Math.max(1, Number.isFinite(energyRaw) ? energyRaw : 1));
   const dE = energy - 1;
   const fingerCurlDeg = Math.max(FINGER_CURL_MIN_DEG, FINGER_CURL_DEG - FINGER_CURL_OPEN_PER_ENERGY * dE);
-  const wristDrag = WRIST_DRAG * (1 + WRIST_DRAG_ENERGY_GAIN * dE);
+  // Playback pace: paceGait expresses a faster walk as `timeScale` (durations are
+  // divided by it downstream), so the authored keyframe spacing alone understates
+  // how fast the arm actually swings. Folded into the wrist-drag velocity below.
+  const paceMul = Math.min(1.5, Math.max(0.4, typeof tsMod === 'number' && Number.isFinite(tsMod) ? tsMod : 1));
   const headStab =
     Math.max(0, Math.min(1, opts.headStabilize ?? 1)) *
     Math.max(HEADSTAB_ENERGY_FLOOR, 1 - HEADSTAB_ENERGY_RELAX * dE);
@@ -384,6 +411,41 @@ export function spinalGaitCoordination(
       cursor += kf.holdMs ?? 0;
     }
   }
+  // Per-side SHOULDER ANGULAR VELOCITY at each keyframe, deg/s of playback time —
+  // the driver of passive wrist drag (see WRIST_DRAG_PER_DEG_S). Central
+  // difference over each keyframe's neighbours, one-sided at the ends of a
+  // non-looping motion; a LOOPING gait wraps, because a cycle has no stationary
+  // frame and the seam carries velocity like any other instant.
+  const shoulderVelDegS = (S: 'L' | 'R'): number[] => {
+    const kfs = motion.keyframes;
+    const n = kfs.length;
+    const looping = !!motion.loop && n > 1;
+    const ang = kfs.map(
+      (kf) =>
+        kf.targets?.find((t) => t.joint === `${S}_UpperArm` && t.motion === 'shoulderFlexion')
+          ?.targetDegrees,
+    );
+    // Playback ms from keyframe i−1's pose to keyframe i's pose: i's travel plus
+    // any dwell held at i−1.
+    const spanInto = (i: number): number =>
+      ((kfs[i]!.durationMs ?? 0) + (kfs[(i - 1 + n) % n]!.holdMs ?? 0)) / paceMul;
+    return kfs.map((_, i) => {
+      if (n < 2) return 0;
+      const prev = looping ? (i - 1 + n) % n : Math.max(0, i - 1);
+      const next = looping ? (i + 1) % n : Math.min(n - 1, i + 1);
+      const a = ang[prev];
+      const b = ang[next];
+      if (typeof a !== 'number' || typeof b !== 'number') return 0;
+      // Sum only the spans actually traversed between `prev` and `next`.
+      const dtMs = (prev === i ? 0 : spanInto(i)) + (next === i ? 0 : spanInto(next));
+      if (!(dtMs > 0)) return 0;
+      return ((b - a) / dtMs) * 1000;
+    });
+  };
+  const shVelDegS: Record<'L' | 'R', number[]> = {
+    L: shoulderVelDegS('L'),
+    R: shoulderVelDegS('R'),
+  };
   const keyframes = motion.keyframes.map((kf, kfIndex) => {
     const ts = kf.targets;
     if (!ts || !ts.length) return kf;
@@ -468,11 +530,21 @@ export function spinalGaitCoordination(
         // Scapular girdle glides fore/aft WITH the arm: protract on the forward swing
         // (sh > 0), retract on the backswing (sh < 0). + protraction = Pro (romRegistry).
         additions.push({ joint: `${S}_Shoulder`, motion: 'protraction', deg: cap(SCAP_PROT_GAIN * sh, SCAP_PROT_MAX) });
-        // WRIST: a relaxed hand isn't a rigid paddle — it holds a slight resting flexion and
-        // DRAGS behind the forearm (less flexion as the arm swings forward, more on the
-        // backswing), so the hand passively wobbles with the swing instead of locking stiff.
-        // The drag deepens with energy (a runner's wrist trails harder).
-        additions.push({ joint: `${S}_Hand`, motion: 'wristFlexion', deg: cap(WRIST_FLEX_BASE - wristDrag * sh, WRIST_FLEX_MAX) });
+        // WRIST: a relaxed hand isn't a rigid paddle — it holds a slight resting flexion
+        // and DRAGS behind the forearm. The drag follows the arm's angular VELOCITY, so it
+        // is DEEPEST AT MID-SWING (where the arm is fastest) and releases toward the swing
+        // extremes (where the arm reverses and the hand momentarily catches up) — the
+        // physical behaviour of a passive mass on the end of a swinging lever. Forward
+        // swing (velocity > 0) extends the wrist as the hand trails behind; the backswing
+        // flexes it. Faster cadence ⇒ higher velocity ⇒ a harder trail, for free.
+        additions.push({
+          joint: `${S}_Hand`,
+          motion: 'wristFlexion',
+          deg: cap(
+            WRIST_FLEX_BASE - WRIST_DRAG_PER_DEG_S * (shVelDegS[S][kfIndex] ?? 0),
+            WRIST_FLEX_MAX,
+          ),
+        });
         // FINGERS: rest gently curled (a loose relaxed hand), not splayed rigid-straight.
         // The curl OPENS with energy — a runner's hand un-curls toward a loose blade.
         for (const fk of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const)

@@ -18,6 +18,13 @@ import { sampleComposedMotion } from '../services/motionRecording';
 import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
+/** The walk template's own authored cycle length — DERIVED, not pinned, so a
+ *  cadence retime moves this gate with the template instead of failing it. */
+const WALK_CYCLE_MS = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk')!.phases.reduce(
+  (s, p) => s + p.durationMs + (p.holdMs ?? 0),
+  0,
+);
+
 
 const variantCfg = BODY_VARIANTS.male;
 const GLB_URL = new URL('../../models/painmap3D_male.runtime.glb', import.meta.url);
@@ -91,7 +98,7 @@ describe('loopCycle recording — clean, seamless gait cycle', () => {
       baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz: 60, loopCycle: true,
     });
     const dur = cycle.frames[cycle.frames.length - 1]!.tMs;
-    expect(dur).toBeCloseTo(1600, -1); // one 8×200 ms period (±)
+    expect(dur).toBeCloseTo(WALK_CYCLE_MS, -1); // one authored gait period (±)
     // Wrap continuity: the last sampled frame is one period from the first, so
     // they represent the same phase — the same knee angle within tolerance.
     expect(Math.abs(kneeAt(cycle, dur) - kneeAt(cycle, 0))).toBeLessThan(6);

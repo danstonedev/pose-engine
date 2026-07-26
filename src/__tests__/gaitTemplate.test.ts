@@ -30,7 +30,7 @@ import {
   type JointAngleRestReference,
 } from '../services/jointAngles';
 import {
-  MIN_KEYFRAME_MS,
+  minKeyframeMsFor,
   resolveComposedMotion,
   type ComposedMotion,
 } from '../services/motionSequence';
@@ -89,6 +89,12 @@ function resetToAnatomic(): void {
 }
 
 const walkTemplate = () => MOVEMENT_TEMPLATES.find((t) => t.id === 'walk')!;
+/** The walk's own authored cycle length, derived — phase probes below are
+ *  expressed as fractions of it so they follow a cadence retime. */
+const WALK_CYCLE_MS = walkTemplate().phases.reduce(
+  (acc, p) => acc + p.durationMs + (p.holdMs ?? 0),
+  0,
+);
 
 function sampleMotion(motion: ComposedMotion): MotionRecording {
   resetToAnatomic();
@@ -185,7 +191,10 @@ describe('walk template — plan-level non-degeneracy', () => {
     const resolved = resolveComposedMotion(templateToComposedMotion(walkTemplate()), variantCfg);
     expect(resolved.status).toBe('ok');
     for (const kf of resolved.keyframes) {
-      expect(kf.durationMs).toBeGreaterThanOrEqual(MIN_KEYFRAME_MS);
+      // Floored per the keyframe's OWN velocity class: the gait phases are
+      // 'functional' (a normative cadence needs sub-150 ms phases — see the
+      // template's timing note), so the deliberate 150 ms floor does not apply.
+      expect(kf.durationMs).toBeGreaterThanOrEqual(minKeyframeMsFor(kf.velocityClass));
       expect(kf.timingAdjusted ?? false, 'authored cadence survives the governor').toBe(false);
     }
   });
@@ -266,27 +275,34 @@ describe('walk template — sampled gait kinematics on the real rig', () => {
     const hipsDriftXZ = Math.hypot(hipsEnd[0] - hipsStart[0], hipsEnd[2] - hipsStart[2]);
     expect(hipsDriftXZ, 'net pelvis horizontal drift').toBeLessThan(0.05);
 
-    // RIGHT STANCE (contact settle ~200ms → terminal stance ~800ms): the stance
+    // The R foot bears through the FIRST half-cycle and swings through the
+    // second, so every probe below is a FRACTION OF THE AUTHORED CYCLE — pinning
+    // absolute ms would silently sample the wrong phase after any cadence
+    // retime (and would then measure the swinging foot against a stance bound).
+    const atFrac = (f: number): number[] => worldAt(rec, 'R_Foot', f * WALK_CYCLE_MS);
+
+    // RIGHT STANCE (contact settle → terminal stance, the first half): the stance
     // foot sweeps BACKWARD relative to the world — the treadmill belt. The
     // opposite sign (stance foot gliding forward) is the moonwalk.
-    const stanceFrom = worldAt(rec, 'R_Foot', 220);
-    const stanceTo = worldAt(rec, 'R_Foot', 780);
+    const stanceFrom = atFrac(0.1375);
+    const stanceTo = atFrac(0.4875);
     expect(stanceTo[2] - stanceFrom[2], 'stance foot sweeps backward (−Z)').toBeLessThan(-0.1);
     // …and it stays grounded while loaded (no float): tiny vertical envelope.
     expect(Math.abs(stanceTo[1] - stanceFrom[1]), 'stance foot stays low').toBeLessThan(0.08);
 
-    // RIGHT SWING (pre-swing ~1000ms → terminal swing ~1600ms): the foot
+    // RIGHT SWING (pre-swing → terminal swing, the second half): the foot
     // advances FORWARD (+Z, the body's facing) with real clearance.
-    const swingFrom = worldAt(rec, 'R_Foot', 1020);
-    const swingTo = worldAt(rec, 'R_Foot', 1580);
+    const swingFrom = atFrac(0.6375);
+    const swingTo = atFrac(0.9875);
     expect(swingTo[2] - swingFrom[2], 'swing foot advances (+Z)').toBeGreaterThan(0.1);
     let swingPeakY = -Infinity;
     let stanceMinY = Infinity;
     for (const f of rec.frames) {
       const p = f.worldTracks?.['R_Foot'];
       if (!p) continue;
-      if (f.tMs >= 1000 && f.tMs <= 1600) swingPeakY = Math.max(swingPeakY, p[1]);
-      if (f.tMs >= 200 && f.tMs <= 800) stanceMinY = Math.min(stanceMinY, p[1]);
+      const frac = f.tMs / WALK_CYCLE_MS;
+      if (frac >= 0.625 && frac <= 1) swingPeakY = Math.max(swingPeakY, p[1]);
+      if (frac >= 0.125 && frac <= 0.5) stanceMinY = Math.min(stanceMinY, p[1]);
     }
     expect(swingPeakY - stanceMinY, 'swing foot clearance').toBeGreaterThan(0.05);
   });

@@ -21,16 +21,21 @@
  * stance schedule adapts (windows/contacts recomputed from the new durations).
  */
 import { describe, expect, it } from 'vitest';
-import { resolveComposedMotion } from '../services/motionSequence';
+import { minKeyframeMsFor, resolveComposedMotion } from '../services/motionSequence';
 import {
   buildTravelWalk,
   MOVEMENT_TEMPLATES,
   templateToComposedMotion,
 } from '../services/movementTemplates';
+import { CADENCE_SPM } from '../services/normativeGait';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 
 const variantCfg = BODY_VARIANTS.male;
 const walkTemplate = () => MOVEMENT_TEMPLATES.find((t) => t.id === 'walk')!;
+
+/** The authored cycle: 4 Perry-fraction phases per half, mirrored. ~105 steps/min. */
+const HALF_CYCLE_MS = 572;
+const CYCLE_MS = HALF_CYCLE_MS * 2;
 
 const PHASE_ORDER = [
   'right-initial-contact',
@@ -44,15 +49,23 @@ const PHASE_ORDER = [
 ] as const;
 
 describe('walk template — Perry phase re-timing (4.2)', () => {
-  it('keeps the cycle invariants: 8 phases, 800 ms per half-cycle, 1.6 s per cycle', () => {
+  it('keeps the cycle invariants: 8 phases, symmetric halves, a NORMATIVE-cadence cycle', () => {
     const t = walkTemplate();
     expect(t.phases.map((p) => p.name)).toEqual([...PHASE_ORDER]);
     const dur = t.phases.map((p) => p.durationMs + (p.holdMs ?? 0));
     const firstHalf = dur.slice(0, 4).reduce((a, b) => a + b, 0);
     const secondHalf = dur.slice(4).reduce((a, b) => a + b, 0);
-    expect(firstHalf, 'R half-cycle sum unchanged (cadence/pace gates)').toBe(800);
-    expect(secondHalf, 'L half-cycle sum unchanged').toBe(800);
-    expect(firstHalf + secondHalf, 'full cycle stays ~1.6 s').toBe(1600);
+    expect(firstHalf, 'R half-cycle').toBe(HALF_CYCLE_MS);
+    expect(secondHalf, 'L half-cycle matches the R half').toBe(HALF_CYCLE_MS);
+    expect(firstHalf + secondHalf, 'full cycle').toBe(CYCLE_MS);
+    // THE POINT OF THE CYCLE LENGTH: two steps per cycle, so cadence =
+    // 2 / cycleSec × 60. This must land inside the engine's OWN normative band —
+    // the walk used to author a 1600 ms cycle (75 steps/min), a third below it,
+    // because the resolver's deliberate-class floors could not admit anything
+    // shorter (see the template's phase-timing note).
+    const cadenceSpm = (2 / (CYCLE_MS / 1000)) * 60;
+    expect(cadenceSpm).toBeGreaterThanOrEqual(CADENCE_SPM[0]);
+    expect(cadenceSpm).toBeLessThanOrEqual(CADENCE_SPM[1]);
   });
 
   it('the phase durations are NON-UNIFORM and mirror-symmetric between the halves', () => {
@@ -98,6 +111,23 @@ describe('walk template — Perry phase re-timing (4.2)', () => {
     for (const kf of resolved.keyframes) {
       expect(kf.timingAdjusted ?? false, 'authored Perry cadence survives the governor').toBe(false);
     }
+    // WHY it survives: the phases declare the locomotor velocity class, whose
+    // floors (600 °/s, 90 ms) admit a normative-cadence rhythm. Under the default
+    // 'deliberate' class every phase would be floored back up to 150 ms and the
+    // cadence would silently fall out of band — so the class is part of the
+    // contract, not an incidental annotation.
+    for (const p of walkTemplate().phases) {
+      expect(p.velocityClass, `${p.name} declares its locomotor class`).toBe('functional');
+      expect(p.durationMs, `${p.name} clears the functional floor`).toBeGreaterThanOrEqual(
+        minKeyframeMsFor('functional'),
+      );
+    }
+    // …and the class is LOAD-BEARING: the short phases genuinely sit below the
+    // deliberate floor, so under the default class the rhythm could not survive.
+    const wouldFloor = walkTemplate().phases.filter(
+      (p) => p.durationMs < minKeyframeMsFor('deliberate'),
+    );
+    expect(wouldFloor.length, "phases that 'deliberate' would have floored").toBeGreaterThan(0);
   });
 
   it('the travel builder’s stance schedule + contacts are DERIVED from the new durations', () => {
@@ -115,8 +145,11 @@ describe('walk template — Perry phase re-timing (4.2)', () => {
     // The foot-plant contact windows share the same duration-derived boundaries.
     expect(m.contacts?.[0]).toMatchObject({ foot: 'R_Foot', fromMs: 0, toMs: rStanceEnd });
     expect(m.contacts?.[1]).toMatchObject({ foot: 'L_Foot', fromMs: rStanceEnd, toMs: lStanceEnd });
-    // And the re-timed half-cycles still sum to the invariant 800 ms each (the
-    // step-off entry replaces the first phase's duration by design).
-    expect(lStanceEnd - rStanceEnd, 'the second half-cycle keeps the 800 ms sum').toBe(800);
+    // And the L half-cycle sums to the authored half exactly (the step-off entry
+    // replaces the FIRST phase's duration by design, so only the second half is
+    // a clean check on the template's own timing).
+    expect(lStanceEnd - rStanceEnd, 'the second half-cycle sums to the authored half').toBe(
+      HALF_CYCLE_MS,
+    );
   });
 });
