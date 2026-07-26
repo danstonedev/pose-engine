@@ -157,6 +157,52 @@ describe('disposeObject3DTree', () => {
     expect(material.dispose).toHaveBeenCalledTimes(1);
   });
 
+  it('disposes textures held in ShaderMaterial uniforms', () => {
+    // A custom shader keeps its textures under uniforms[name].value, not as own
+    // properties, so scanning only Object.values(material) misses all of them.
+    const map = texture();
+    const noise = texture();
+    const material = {
+      uniforms: { uMap: { value: map }, uNoise: { value: noise }, uScale: { value: 2 } },
+      dispose: vi.fn(),
+    };
+
+    disposeObject3DTree(node({ material }) as never);
+
+    expect(map.dispose).toHaveBeenCalledTimes(1);
+    expect(noise.dispose).toHaveBeenCalledTimes(1);
+    expect(material.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('disposes textures inside uniform arrays', () => {
+    const a = texture();
+    const b = texture();
+    const material = { uniforms: { uMaps: { value: [a, b] } }, dispose: vi.fn() };
+
+    disposeObject3DTree(node({ material }) as never);
+
+    expect(a.dispose).toHaveBeenCalledTimes(1);
+    expect(b.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('disposes a shared texture exactly once', () => {
+    // The same texture reached from two materials, and from both a property and
+    // a uniform, must not be disposed repeatedly.
+    const shared = texture();
+    const child = node({ material: { uniforms: { uMap: { value: shared } }, dispose: vi.fn() } });
+    const root = node({ material: { map: shared, dispose: vi.fn() }, children: [child] });
+
+    disposeObject3DTree(root as never);
+
+    expect(shared.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('tolerates a material with no uniforms', () => {
+    const material = { map: texture(), dispose: vi.fn() };
+    expect(() => disposeObject3DTree(node({ material }) as never)).not.toThrow();
+    expect(material.dispose).toHaveBeenCalledTimes(1);
+  });
+
   it('is a no-op for null and undefined roots', () => {
     expect(() => disposeObject3DTree(null)).not.toThrow();
     expect(() => disposeObject3DTree(undefined)).not.toThrow();

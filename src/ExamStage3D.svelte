@@ -3117,6 +3117,9 @@
       // promises never strand.
       let raf = 0;
       let loopRunning = false;
+      // Set while the WebGL context is gone. startLoop() honours it, so a resize
+      // or visibility change cannot restart rendering against a dead context.
+      let contextLost = false;
       let lastMotionReport = 0;
       const loop = () => {
         if (container.offsetParent === null) {
@@ -3379,7 +3382,7 @@
         renderNeeded = false;
       };
       const startLoop = () => {
-        if (loopRunning) return;
+        if (loopRunning || contextLost) return;
         loopRunning = true;
         raf = requestAnimationFrame(loop);
       };
@@ -3388,10 +3391,12 @@
       // Park the loop if the GPU takes the context away, and resume on restore.
       const detachContextLoss = attachContextLossRecovery(renderer.domElement, {
         onLost: () => {
+          contextLost = true;
           cancelAnimationFrame(raf);
           loopRunning = false;
         },
         onRestored: () => {
+          contextLost = false;
           requestRender();
           startLoop();
         },
