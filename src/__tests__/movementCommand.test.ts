@@ -30,6 +30,7 @@ import {
   type JointAngleRestReference,
 } from '../services/jointAngles';
 import {
+  buildComposedCommandPose,
   buildCommandPose,
   finalizeOutcome,
   isMovementCommandSupported,
@@ -38,6 +39,10 @@ import {
   resolveCommandTarget,
   type ExamMovementCommand,
 } from '../services/movementCommand';
+import { buildSequencePoses, resolveComposedMotion } from '../services/motionSequence';
+import { hasClampStrategy } from '../services/poseRomClamp';
+import { ROM_JOINT_ROWS } from '../services/romRegistry';
+import { DEFAULT_TRACKED_BONES } from '../services/motionRecording';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
@@ -886,15 +891,91 @@ describe('buildCommandPose on the real male rig', () => {
     }
   });
 
-  it('fingers: composite curl reads back near commanded and bends the fingertip toward the palm', () => {
-    // The finger readback is absolute-geometric; buildDelta pre-compensates the
-    // per-digit slope/offset so commanded ≈ measured across the usable range.
-    for (const digit of ['L_Mid1', 'R_Mid1', 'L_Thumb1', 'R_Index1', 'L_Pinky1'] as const) {
-      for (const deg of [30, 60, 90]) {
-        expectMeasured(digit, 'fingerFlexion', deg, 5);
+  // The floor of each digit's response curve — the LOWEST `fingerFlexion` the
+  // rig can read at any pose, because the readout sums UNSIGNED inter-bone
+  // angles and the local-Z curl axis is not perpendicular to the metacarpal.
+  // Commands below it land on the digit's most-extended pose (see FINGER_CURVE).
+  const MALE_FINGER_FLOOR: Record<string, number> = {
+    Thumb1: 28.1,
+    Index1: 20.0,
+    Mid1: 5.8,
+    Ring1: 6.9,
+    Pinky1: 20.2,
+  };
+
+  it('fingers: commanded == measured across the WHOLE 0–160° ROM, every digit, both hands', () => {
+    // Not a spot check. The previous affine pre-compensation passed at 30/60 and
+    // read 16° low at 90 on the thumb, because it was a chord across a curved
+    // response. Walking the range at 1° is what catches that class of error.
+    let worst = { err: 0, digit: '', deg: 0, measured: 0 };
+    for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
+      for (const side of ['L_', 'R_'] as const) {
+        const key = `${side}${digit}`;
+        for (let deg = Math.ceil(MALE_FINGER_FLOOR[digit]!) + 1; deg <= 160; deg++) {
+          resetToAnatomic();
+          const cmd = setJoint(key, 'fingerFlexion', deg);
+          const resolved = resolveCommandTarget(cmd, variantCfg);
+          const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg, null, rest)!;
+          const measured = measureCommandMotion(applyAndMeasure(pose), key, 'fingerFlexion')!;
+          const err = Math.abs(measured - deg);
+          if (err > worst.err) worst = { err, digit: key, deg, measured };
+        }
       }
     }
-    // Direction: a curl moves the fingertip closer to the wrist/palm.
+    expect(
+      worst.err,
+      `worst: ${worst.digit} commanded ${worst.deg}° measured ${worst.measured.toFixed(1)}°`,
+    ).toBeLessThan(2);
+  });
+
+  it('fingers: each digit has a rig floor it cannot read below, and lands ON it when commanded lower', () => {
+    // Stated rather than hidden: this is a property of the readout's geometry,
+    // not of the pre-compensation. A caller asking for 0° on the thumb gets the
+    // most-extended thumb the rig has, and the report says so.
+    for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
+      const floor = MALE_FINGER_FLOOR[digit]!;
+      const at = (deg: number) => {
+        resetToAnatomic();
+        const cmd = setJoint(`R_${digit}`, 'fingerFlexion', deg);
+        const resolved = resolveCommandTarget(cmd, variantCfg);
+        const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg, null, rest)!;
+        return measureCommandMotion(applyAndMeasure(pose), `R_${digit}`, 'fingerFlexion')!;
+      };
+      // Commanding 0 settles at the floor, not below it.
+      expect(Math.abs(at(0) - floor)).toBeLessThan(1.5);
+      // And nothing in the achievable range reads below it.
+      expect(at(Math.ceil(floor) + 5)).toBeGreaterThan(floor - 1);
+    }
+  });
+
+  it('fingers: the curl CASCADES down all three phalanges (MCP trails PIP, DIP two-thirds of PIP)', () => {
+    // The clinical readout only sees MCP+PIP, so it cannot catch a distal
+    // phalanx that never moves. Measure the bone rotations directly.
+    resetToAnatomic();
+    const restLocals = new Map<string, THREE.Quaternion>();
+    for (const b of ['R_Mid1', 'R_Mid2', 'R_Mid3'])
+      restLocals.set(b, boneLookup.get(b)!.quaternion.clone());
+
+    const cmd = setJoint('R_Mid1', 'fingerFlexion', 60);
+    const resolved = resolveCommandTarget(cmd, variantCfg);
+    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg, null, rest)!;
+    applyAndMeasure(pose);
+
+    const travel = (key: string) => {
+      const now = boneLookup.get(key)!.quaternion;
+      const delta = restLocals.get(key)!.clone().invert().multiply(now);
+      return 2 * Math.acos(Math.min(1, Math.abs(delta.w))) * (180 / Math.PI);
+    };
+    const [mcp, pip, dip] = [travel('R_Mid1'), travel('R_Mid2'), travel('R_Mid3')];
+    // Every segment moves — the distal end curls rather than pointing.
+    expect(dip).toBeGreaterThan(15);
+    // The PIP leads the cascade; the DIP follows it at roughly two-thirds.
+    expect(mcp).toBeLessThan(pip);
+    expect(dip / pip).toBeGreaterThan(0.6);
+    expect(dip / pip).toBeLessThan(0.8);
+  });
+
+  it('fingers: the fingertip travels toward the palm and keeps going as the curl deepens', () => {
     resetToAnatomic();
     const wrist = boneLookup.get('R_Hand')!.getWorldPosition(new THREE.Vector3());
     const deepest = (b: THREE.Bone): THREE.Bone => {
@@ -906,13 +987,25 @@ describe('buildCommandPose on the real male rig', () => {
       }
     };
     const tip = deepest(boneLookup.get('R_Mid1')!);
-    const tipRest = tip.getWorldPosition(new THREE.Vector3());
-    const cmd = setJoint('R_Mid1', 'fingerFlexion', 90);
-    const resolved = resolveCommandTarget(cmd, variantCfg);
-    const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg)!;
-    applyAndMeasure(pose);
-    const tipCurl = tip.getWorldPosition(new THREE.Vector3());
-    expect(tipCurl.distanceTo(wrist)).toBeLessThan(tipRest.distanceTo(wrist));
+    const reach = (deg: number) => {
+      resetToAnatomic();
+      const cmd = setJoint('R_Mid1', 'fingerFlexion', deg);
+      const resolved = resolveCommandTarget(cmd, variantCfg);
+      const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg, null, rest)!;
+      applyAndMeasure(pose);
+      return tip.getWorldPosition(new THREE.Vector3()).distanceTo(wrist);
+    };
+    // MONOTONE, not just "moved": a distribution that over-rotates one phalanx
+    // can pull the tip back out again past a certain depth. It must not.
+    const rest0 = tip.getWorldPosition(new THREE.Vector3()).distanceTo(wrist);
+    let prev = rest0;
+    for (const deg of [20, 40, 60, 80, 100, 120, 140, 160]) {
+      const d = reach(deg);
+      expect(d).toBeLessThan(prev);
+      prev = d;
+    }
+    // …and the deepest curl brings the tip meaningfully in toward the palm.
+    expect(prev).toBeLessThan(rest0 - 0.03);
   });
 
   it('preserves the rest of a fromPose (sequential commands compose)', () => {
@@ -1025,10 +1118,143 @@ describe('female-variant canary (calibration transfers)', () => {
     measureFemale('L_UpperArm', 'shoulderRotation', -30);
   });
 
-  it('fingers use the FEMALE fit constants (all five digits within ±3° at 60°)', () => {
-    for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
-      measureFemale(`L_${digit}`, 'fingerFlexion', 60, 3);
-      measureFemale(`R_${digit}`, 'fingerFlexion', 60, 3);
+  it('fingers use the FEMALE curve: commanded == measured across the whole ROM, both hands', () => {
+    // The female rest hand posture differs, so the response curve differs — the
+    // male table read several degrees off here. Same full-range walk as the male
+    // rig, above each digit's own floor.
+    const floor: Record<string, number> = {
+      Thumb1: 22.6,
+      Index1: 18.4,
+      Mid1: 4.4,
+      Ring1: 8.3,
+      Pinky1: 19.5,
+    };
+    for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const)
+      for (const side of ['L_', 'R_'] as const)
+        for (let deg = Math.ceil(floor[digit]!) + 1; deg <= 160; deg += 3)
+          measureFemale(`${side}${digit}`, 'fingerFlexion', deg, 2);
+  });
+});
+
+// ── 4. The MIDDLE + DISTAL phalanges are mapped so a transform can reach them
+//    and pose serialization carries their quats — and for NOTHING else. Same
+//    contract as the eye bones (eyeGaze.test.ts), pinned the same way: mapping a
+//    bone must not quietly enrol it in clinical machinery, or a digit's shape
+//    bones start showing up as goniometry rows and getting ROM-clamped.
+
+describe('finger phalanges are mapped WITHOUT joining any clinical machinery', () => {
+  const PHALANGES = ['Thumb', 'Index', 'Mid', 'Ring', 'Pinky'].flatMap((d) =>
+    ['L_', 'R_'].flatMap((s) => [`${s}${d}2`, `${s}${d}3`]),
+  );
+
+  it('no ROM row, no clamp strategy, no pose handle, no tracked bone', () => {
+    for (const key of PHALANGES) {
+      expect(ROM_JOINT_ROWS.some((j) => j.canonicalKey === key), `${key} ROM row`).toBe(false);
+      expect(hasClampStrategy(key), `${key} clamp strategy`).toBe(false);
+      expect(BODY_VARIANTS.male.poseRig.handles.some((h) => h.canonicalKey === key)).toBe(false);
+      expect((DEFAULT_TRACKED_BONES as readonly string[]).includes(key), `${key} tracked`).toBe(
+        false,
+      );
     }
+  });
+
+  it('a baseline pose WITHOUT the phalanges degrades to single-bone, not to a third of the curl', () => {
+    // The MCP share is only 35% of a digit's curl. Writing it before confirming
+    // the PIP/DIP are writable would leave a caller-supplied partial pose driving
+    // the digit at a third of what it asked for — silently, since the readout is
+    // never consulted. It must fall back to the whole curl at the knuckle.
+    const partial: CustomPose = { variant: 'male', bones: { R_Mid1: baselinePose.bones!.R_Mid1! } };
+    const cmd = setJoint('R_Mid1', 'fingerFlexion', 90);
+    const built = buildCommandPose(partial, cmd, 90, variantCfg, null, rest)!;
+    expect(built).not.toBeNull();
+    // No phalanx bones invented on a pose that did not carry them.
+    expect(built.bones.R_Mid2).toBeUndefined();
+    expect(built.bones.R_Mid3).toBeUndefined();
+    // And the knuckle carries the FULL curl, matching what buildDelta alone builds.
+    const full = new THREE.Quaternion(...(built.bones.R_Mid1 as [number, number, number, number]));
+    const restQ = new THREE.Quaternion(...(baselinePose.bones!.R_Mid1 as [number, number, number, number]));
+    const travelled = (2 * Math.acos(Math.min(1, Math.abs(restQ.clone().invert().multiply(full).w))) * 180) / Math.PI;
+    // Whole-digit curl for a commanded 90 is ~84°; a 35% share would be ~29°.
+    expect(travelled).toBeGreaterThan(60);
+  });
+
+  it('a startFrom:current CONTINUATION keeps the phalanx spread (the settle must not un-curl it)', () => {
+    // buildSequencePoses eases bones the motion does not drive back toward
+    // baseline. A digit's command targets only its MCP key, so a joint-key-only
+    // notion of "driven" classifies the PIP/DIP as residuals and slerps the
+    // spread away — leaving the knuckle carrying a curl calibrated for a spread
+    // that is no longer there. Nothing else covers this: every other sequence
+    // test starts from neutral, where the settle pass does not run at all.
+    const base: CustomPose = {
+      variant: 'male',
+      bones: {
+        R_Mid1: baselinePose.bones!.R_Mid1!,
+        R_Mid2: baselinePose.bones!.R_Mid2!,
+        R_Mid3: baselinePose.bones!.R_Mid3!,
+      },
+    };
+    const motion = {
+      id: 'curl',
+      label: 'curl',
+      startFrom: 'current' as const,
+      keyframes: [0, 1].map((i) => ({
+        label: `k${i}`,
+        durationMs: 400,
+        holdMs: 0,
+        targets: [{ joint: 'R_Mid1', motion: 'fingerFlexion', targetDegrees: 90 }],
+      })),
+    };
+    const resolvedSeq = resolveComposedMotion(motion as never, variantCfg);
+    expect(resolvedSeq.status).toBe('ok');
+    // A live pose whose phalanges sit away from baseline — what any prior finger
+    // motion leaves behind, and what makes them look like residuals.
+    const live: CustomPose = {
+      variant: 'male',
+      bones: { ...base.bones, R_Mid2: [0, 0, 0.3, 0.954], R_Mid3: [0, 0, 0.3, 0.954] },
+    };
+    const cont = buildSequencePoses(base, resolvedSeq as never, variantCfg, rest, {
+      currentPose: live,
+    } as never);
+    const fresh = buildSequencePoses(base, resolvedSeq as never, variantCfg, rest);
+    for (let i = 0; i < cont.poses.length; i += 1)
+      for (const key of ['R_Mid2', 'R_Mid3'] as const) {
+        const a = new THREE.Quaternion(...(cont.poses[i]!.bones[key] as [number, number, number, number]));
+        const b = new THREE.Quaternion(...(fresh.poses[i]!.bones[key] as [number, number, number, number]));
+        const off = (2 * Math.acos(Math.min(1, Math.abs(a.dot(b)))) * 180) / Math.PI;
+        expect(off, `kf${i} ${key} continuation vs fresh`).toBeLessThan(1);
+      }
+  });
+
+  it('a non-finite command never writes a NaN quaternion into the pose', () => {
+    // buildComposedCommandPose takes raw target degrees with no resolveCommandTarget
+    // gate in front of it; one NaN reaching the interpolation poisons the skeleton.
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const built = buildComposedCommandPose(
+        baselinePose,
+        'R_Mid1',
+        [{ motion: 'fingerFlexion', degrees: bad }],
+        variantCfg,
+        null,
+        rest,
+      )!;
+      expect(built).not.toBeNull();
+      for (const k of ['R_Mid1', 'R_Mid2', 'R_Mid3'] as const)
+        for (const c of built.bones[k]!) expect(Number.isFinite(c), `${k} ${bad}`).toBe(true);
+    }
+  });
+
+  it('but they ARE reachable and serializable — the reason they are mapped at all', () => {
+    // A rotation written to an unmapped bone is silently dropped by
+    // serializeCustomPose, which would desync live playback from its recording.
+    for (const key of PHALANGES) expect(baselinePose.bones?.[key], key).toBeDefined();
+  });
+
+  it('fingerFlexion stays ONE composite per digit — the phalanges add no motions', () => {
+    const vocab = listSupportedMovementCommands();
+    for (const key of PHALANGES)
+      expect(vocab.some((c) => c.joint === key), `${key} commandable`).toBe(false);
+    expect(vocab.filter((c) => c.joint === 'R_Mid1').map((c) => c.motion)).toEqual([
+      'fingerFlexion',
+    ]);
   });
 });

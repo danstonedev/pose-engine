@@ -1353,8 +1353,22 @@
           skinnedRef = skinned;
           restRef = rest;
           baselinePoseRef = baseline;
-          restingPoseRef = resting;
-          currentPose = resting;
+          // RELAX TARGET = the authored resting pose OVERLAID ON THE FULL BASELINE.
+          // An authored pose only carries the bones it chose to specify, and
+          // `relax` tweens straight to it — so any bone it omits keeps whatever
+          // the last command left there. That was harmless while commands only
+          // ever wrote the bones an authored pose also names; it stopped being
+          // harmless once a digit's command started writing its middle/distal
+          // phalanges, which poses authored before that carry no keys for, and a
+          // curled hand would survive a relax. Filling from the baseline resets
+          // every mapped bone while leaving a complete authored pose untouched —
+          // and costs no saved pose its schema gate, which bumping
+          // POSE_SCHEMA_VERSION for this would.
+          restingPoseRef =
+            resting && baseline
+              ? { ...resting, bones: { ...baseline.bones, ...resting.bones } }
+              : resting;
+          currentPose = restingPoseRef;
           // Canonical-key → bone lookup for the per-frame motion ROM clamp.
           motionCapBones = skinned ? buildBoneByPoseKey(skinned.skeleton, variantCfg) : null;
           // Fresh skeleton: any idle-liveliness bake from the previous model is

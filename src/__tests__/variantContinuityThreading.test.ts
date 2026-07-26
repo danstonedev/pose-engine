@@ -33,10 +33,14 @@ function quatAngleDeg(a: [number, number, number, number], b: [number, number, n
 }
 
 describe('DET-APP-01 — a non-default variant derives with its OWN proportions', () => {
-  // The finger fit's rest MCP offset is variant-keyed (male vs female differ,
+  // The finger curve is variant-keyed (male vs female rest hand postures differ,
   // rig-verified). buildCommandPose threads variantCfg.id into the derivation, so
-  // the SAME commanded curl lands on a DIFFERENT bone quat per variant.
-  const baseline: CustomPose = { variant: 'male', bones: { L_Index1: [0, 0, 0, 1] } };
+  // the SAME commanded curl lands on DIFFERENT bone quats per variant — across
+  // ALL THREE phalanges, which is where the digit's curl actually lives.
+  const baseline: CustomPose = {
+    variant: 'male',
+    bones: { L_Index1: [0, 0, 0, 1], L_Index2: [0, 0, 0, 1], L_Index3: [0, 0, 0, 1] },
+  };
   const curl: ExamMovementCommand = {
     action: 'set-joint',
     joint: 'L_Index1',
@@ -49,12 +53,21 @@ describe('DET-APP-01 — a non-default variant derives with its OWN proportions'
     const female = buildCommandPose(baseline, curl, 90, BODY_VARIANTS.female);
     expect(male, 'male finger pose builds').not.toBeNull();
     expect(female, 'female finger pose builds').not.toBeNull();
-    const qm = male!.bones!['L_Index1']!;
-    const qf = female!.bones!['L_Index1']!;
     // Counterfactual: if the derivation defaulted the variant to 'male', the female
-    // curl would be IDENTICAL to the male curl (angle 0). The variant-keyed offset
-    // makes them meaningfully apart — the non-default variant used its own fit.
-    expect(quatAngleDeg(qm, qf), 'female curl derived with its own MCP offset').toBeGreaterThan(2);
+    // curl would be IDENTICAL to the male curl (angle 0) on every phalanx. Summed
+    // across the digit, the variant-keyed curve puts them meaningfully apart — the
+    // non-default variant used its own calibration. Summing (rather than checking
+    // the knuckle alone) is what keeps this honest now that the MCP carries only
+    // a third of the curl: a variant leak in the PIP or DIP would slip past a
+    // single-bone assertion.
+    const spread = (['L_Index1', 'L_Index2', 'L_Index3'] as const).reduce(
+      (sum, key) => sum + quatAngleDeg(male!.bones![key]!, female!.bones![key]!),
+      0,
+    );
+    expect(spread, 'female curl derived with its own curve, on every phalanx').toBeGreaterThan(2);
+    // …and no phalanx is silently variant-blind.
+    for (const key of ['L_Index1', 'L_Index2', 'L_Index3'] as const)
+      expect(quatAngleDeg(male!.bones![key]!, female!.bones![key]!), key).toBeGreaterThan(0.5);
   });
 
   it('the SAME variant is deterministic (identical input → bit-identical bone quat)', () => {

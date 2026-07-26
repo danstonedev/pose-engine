@@ -329,6 +329,14 @@ interface SupportedMotionSpec {
    *  only when buildCommandPose has the rest reference; specs that need it
    *  (shoulder elevation) return the identity delta without it. */
   buildDelta(clinicalDeg: number, ctx?: BuildCtx): THREE.Quaternion;
+  /** OPTIONAL multi-bone realization. A digit's curl is ONE clinical value but
+   *  three bones; a motion that supplies this gets its MCP delta from here
+   *  instead of `buildDelta`, plus deltas for the middle/distal phalanges.
+   *  Absent for every other motion, which stays exactly single-bone. */
+  phalanges?(
+    clinicalDeg: number,
+    ctx?: BuildCtx,
+  ): { mcp: THREE.Quaternion; pip: THREE.Quaternion; dip: THREE.Quaternion };
   /** How the delta composes with the rest local quaternion:
    *  - 'parent': bone.local = delta × restLocal — a PARENT-frame delta.
    *    Exact for body-euler readouts (ankle), which decompose exactly this.
@@ -578,43 +586,129 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   // knee readout twistSign=−1 flips the pattern vs the forearm: L −deg / R +deg.
   const kneeRotL: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(-deg), compose: 'rest', fromReport: (deg) => deg };
   const kneeRotR: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(deg), compose: 'rest', fromReport: (deg) => deg };
-  // FINGERS / THUMB: composite MCP+PIP curl about the pinned local-Z ring. The
-  // readback is ABSOLUTE-geometric (not rest-relative), so it carries a per-digit
-  // slope+offset (linear fit on the flexion branch). buildDelta PRE-COMPENSATES
-  // (inverts the fit) so commanded == measured across the usable range; fromReport is
-  // identity. sideSign L −1 / R +1 curls the fingertip toward the palm. Usable to
-  // ~110° (single MCP bone; the full 160° would also drive the PIP child).
-  // The fits are VARIANT-KEYED: the slopes are shared rig geometry, but the
-  // OFFSETS are each hand's rest MCP posture, which differs male vs female
-  // (rig-verified on both GLBs; L and R are bit-identical per variant).
-  const FINGER_FIT: Record<string, Record<string, { slope: number; offset: number }>> = {
+  // FINGERS / THUMB: one composite curl command realized across all three
+  // phalanges about the pinned local-Z ring. sideSign L −1 / R +1 curls the
+  // fingertip toward the palm; `fromReport` is identity.
+  //
+  // WHY A TABLE AND NOT A FORMULA. `computeJointAngles` measures `fingerFlexion`
+  // as an ABSOLUTE-geometric sum of two UNSIGNED inter-bone angles — MCP
+  // (metacarpal→proximal) plus PIP (proximal→middle); the distal phalanx is not
+  // measured at all (rig-probed: rotating it moves the readout 0.00°). The PIP
+  // term is linear in its rotation (it IS the inter-bone angle), but the MCP
+  // term is NOT: the local-Z curl axis is not perpendicular to the metacarpal,
+  // so the unsigned angle sweeps through a MINIMUM and then climbs. Measured
+  // male thumb response, total local curl → readout:
+  //
+  //     0° → 32.9    20° → 26.4 (min)    40° → 35.4    80° → 69.4    130° → 116.4
+  //
+  // An affine fit is a chord across that curve. It is accurate only at the curl
+  // amplitude it was regressed at, which is why the previous slope/offset form
+  // read 16° low at the top of the thumb's range — and why raising the sample
+  // range or re-regressing cannot fix it. The curve is smooth and (past its
+  // minimum) monotone, so the honest inverse is a measured one.
+  //
+  // Two consequences worth stating plainly:
+  //  - Each digit has an ACHIEVABLE FLOOR — the minimum of its curve, listed per
+  //    row below. Because the readout sums UNSIGNED angles, extending a digit
+  //    past the minimum starts INCREASING the reading again, so the floor is a
+  //    property of the measurement, not of the pose or of this table (an
+  //    MCP-only realization floors within ~1° of the same place). The male index
+  //    cannot read below ~20° and the male thumb below ~28° at ANY pose.
+  //    Commands under the floor land on the digit's most-extended pose and
+  //    `finalizeOutcome` reports what was actually measured, as always.
+  //    Callers wanting a wide, faithfully-measured curl range should drive the
+  //    MIDDLE or RING digit — those floor near 5°.
+  //  - The shares below and this table are ONE calibration: change a share and
+  //    the table must be regenerated, or commanded stops equalling measured.
+  //
+  // Regenerate: sweep total local curl on both runtime GLBs (INCLUDING negative
+  // curl — the floor search must see the extension side, or a digit's rest
+  // posture gets mistaken for its floor and every command below rest collapses
+  // onto one pose), bisect the rising branch for each grid command, and check
+  // the round trip (movementCommand.test.ts walks the whole 0–160° ROM at 1°).
+  /** Commanded fingerFlexion (deg) that `FINGER_CURVE` rows are sampled at.
+   *  Dense below 30° — that is where the response bends AND where the resting
+   *  hand postures live — and sparse above, where it has straightened out. */
+  const FINGER_CURVE_CMD = [0, 6, 12, 18, 24, 30, 40, 55, 75, 100, 130, 160];
+  /** Total local curl (deg) that makes the DISTRIBUTED digit read back the
+   *  corresponding `FINGER_CURVE_CMD` entry. Rig-measured, per variant — the
+   *  geometry is shared L/R (probed bit-identical), so one row covers both.
+   *  Entries at or below a digit's floor hold its most-extended pose. */
+  const FINGER_CURVE: Record<string, Record<string, number[]>> = {
     male: {
-      Thumb1: { slope: 0.99, offset: 11.5 },
-      Index1: { slope: 0.93, offset: 14 },
-      Mid1: { slope: 1.0, offset: 6 },
-      Ring1: { slope: 0.99, offset: 3 },
-      Pinky1: { slope: 0.91, offset: 4 },
+      Thumb1: [20.0, 20.0, 20.0, 20.0, 20.0, 30.8, 47.0, 65.0, 87.0, 113.7, 145.2, 176.6], // floor 28.1
+      Index1: [-4.3, -4.3, -4.3, -4.3, 2.9, 10.7, 22.9, 40.1, 61.9, 88.4, 119.6, 150.4], // floor 20.0
+      Mid1: [-2.3, -1.5, 5.4, 11.6, 17.8, 23.9, 34.0, 49.1, 69.2, 94.3, 124.3, 154.3], // floor 5.8
+      Ring1: [-2.8, -2.8, 5.0, 12.7, 19.6, 26.1, 36.7, 52.2, 72.5, 97.8, 128.0, 158.1], // floor 6.9
+      Pinky1: [0.5, 0.5, 0.5, 0.5, 8.6, 18.1, 32.2, 50.9, 73.7, 100.7, 132.2, 163.2], // floor 20.2
     },
     female: {
-      Thumb1: { slope: 1.0, offset: 15.2 },
-      Index1: { slope: 0.93, offset: 9.8 },
-      Mid1: { slope: 1.0, offset: 3.5 },
-      Ring1: { slope: 0.99, offset: 1.7 },
-      Pinky1: { slope: 0.93, offset: 7.9 },
+      Thumb1: [22.3, 22.3, 22.3, 22.3, 27.5, 37.6, 50.9, 68.5, 90.5, 117.1, 148.6, 179.9], // floor 22.6
+      Index1: [-5.0, -5.0, -5.0, -5.0, 5.0, 13.4, 26.2, 43.9, 66.0, 92.6, 123.8, 154.6], // floor 18.4
+      Mid1: [-3.3, -0.7, 6.9, 13.5, 19.8, 26.0, 36.3, 51.4, 71.6, 96.7, 126.7, 156.8], // floor 4.4
+      Ring1: [-5.8, -5.8, 3.8, 13.2, 20.6, 27.3, 37.8, 53.2, 73.5, 98.7, 128.8, 158.9], // floor 8.3
+      Pinky1: [-5.5, -5.5, -5.5, -5.5, 4.4, 13.7, 27.4, 45.8, 68.3, 95.0, 126.3, 157.2], // floor 19.5
     },
   };
-  const makeFinger = (sideSign: number, digit: string): SupportedMotionSpec => ({
-    buildDelta: (deg, ctx) => {
-      const variant = FINGER_FIT[ctx?.variantId ?? 'male'] ?? FINGER_FIT.male!;
-      const fit = variant[digit] ?? FINGER_FIT.male![digit]!;
-      return new THREE.Quaternion().setFromAxisAngle(
-        LOCAL_Z,
-        ((sideSign * (deg - fit.offset)) / fit.slope) * RAD,
-      );
-    },
-    compose: 'rest',
-    fromReport: (deg) => deg,
-  });
+  const makeFinger = (sideSign: number, digit: string): SupportedMotionSpec => {
+    /** Total local curl (deg, signed for the side) realizing a clinical target:
+     *  the measured inverse, interpolated on `FINGER_CURVE_CMD`. Commands past
+     *  the last grid point extrapolate along the final segment rather than
+     *  saturating (the response is straight up there). */
+    const fullLocalDeg = (deg: number, ctx?: BuildCtx) => {
+      // A non-finite command must not reach the interpolation: NaN makes the
+      // segment search exit on its first (always-false) comparison and Infinity
+      // makes `t` infinite, either way writing a NaN quaternion into the pose —
+      // which poisons the whole skeleton the moment it is applied. `buildCommandPose`
+      // is shielded by resolveCommandTarget's 'invalid-target' refusal, but
+      // `buildComposedCommandPose` takes raw target degrees with no such gate.
+      if (!Number.isFinite(deg)) return 0;
+      const variant = FINGER_CURVE[ctx?.variantId ?? 'male'] ?? FINGER_CURVE.male!;
+      const row = variant[digit] ?? FINGER_CURVE.male![digit]!;
+      let i = FINGER_CURVE_CMD.length - 2;
+      while (i > 0 && deg < FINGER_CURVE_CMD[i]!) i--;
+      const t = (deg - FINGER_CURVE_CMD[i]!) / (FINGER_CURVE_CMD[i + 1]! - FINGER_CURVE_CMD[i]!);
+      return sideSign * (row[i]! + t * (row[i + 1]! - row[i]!));
+    };
+    const about = (d: number) => new THREE.Quaternion().setFromAxisAngle(LOCAL_Z, d * RAD);
+    return {
+      // Single-bone fallback for callers without the phalanx bones mapped: the
+      // whole curl at the knuckle. Reads back low (the table assumes the spread),
+      // but it is the graceful degradation, not the supported path.
+      buildDelta: (deg, ctx) => about(fullLocalDeg(deg, ctx)),
+      /**
+       * SPREAD THE CURL ALONG THE DIGIT. The shares follow the cascade a
+       * relaxed hand actually takes — the PIP leads, the MCP trails it, and the
+       * DIP carries about two-thirds of the PIP (measured tenodesis grip
+       * proportions). At a firm relaxed grip (commanded 60°) that lands the male
+       * middle finger at MCP 19° / PIP 35° / DIP 24°, and at the 160° ROM
+       * ceiling at MCP 54° / PIP 100° / DIP 69° — each inside its own limit.
+       *
+       * THE THUMB IS NOT A FINGER and these shares are only approximately right
+       * for it. Its chain is metacarpal / proximal / distal (rig-measured: the
+       * first bone is 6.4cm against the middle finger's 5.3cm), so the three
+       * rotations land on CMC / MP / IP — two true phalangeal joints, not three.
+       * Its readout is also the least efficient of the five, needing 176° of
+       * total local curl to reach a measured 160°, which puts the MP near 115°
+       * against an anatomical ~60°. The thumb is therefore only anatomically
+       * sound up to about 80° commanded (MP ~60°) — far above anything gait or
+       * the relaxed hand ask for, both of which sit at or under its 28° floor.
+       * Capping the thumb's fingerFlexion ROM in romRegistry would make that
+       * limit explicit instead of documented; deliberately left for its own
+       * change, since the ROM row is shared by all five digits.
+       */
+      phalanges: (deg, ctx) => {
+        const full = fullLocalDeg(deg, ctx);
+        return {
+          mcp: about(full * (1 - FINGER_PIP_SHARE)),
+          pip: about(full * FINGER_PIP_SHARE),
+          dip: about(full * FINGER_DIP_SHARE),
+        };
+      },
+      compose: 'rest',
+      fromReport: (deg) => deg,
+    };
+  };
   return {
     L_Foot: { ankleFlexion: ankle, ankleInversion: ankleInvL, ankleAbduction: ankleAbdL },
     R_Foot: { ankleFlexion: ankle, ankleInversion: ankleInvR, ankleAbduction: ankleAbdR },
@@ -701,6 +795,45 @@ function copyPose(pose: CustomPose, variantId: string): CustomPose {
  * @returns The target pose, or `null` when the joint/motion is unsupported
  *   (callers should have refused via {@link resolveCommandTarget} first).
  */
+/**
+ * How the one composite curl command splits across a digit's three phalanges,
+ * as fractions of the digit's total local curl. The PIP LEADS and the MCP
+ * trails it (MCP:PIP ≈ 0.54), which is the cascade a relaxed hand takes rather
+ * than the equal split a naive spread would give.
+ *
+ * These are part of the `FINGER_CURVE` calibration, NOT free parameters: the
+ * table is the measured inverse of the readout AT THIS SPLIT. Change a share
+ * without regenerating the table and commanded stops equalling measured.
+ */
+const FINGER_PIP_SHARE = 0.65;
+/** The distal phalanx is unmeasured (rig-probed: rotating it moves the readout
+ *  0.00°), so this is pure shape — set at ~2/3 of the PIP, the tenodesis grip
+ *  proportion, which is what makes the fingertip curl rather than point. */
+const FINGER_DIP_SHARE = 0.45;
+
+/** The middle/distal phalanx pose keys for a digit's MCP key (`R_Index1` → 2, 3). */
+function phalanxKeys(mcpKey: string): { pip: string; dip: string } {
+  return { pip: `${mcpKey.slice(0, -1)}2`, dip: `${mcpKey.slice(0, -1)}3` };
+}
+
+/**
+ * EVERY bone key a command on `joint` may write — not just the joint itself.
+ *
+ * A digit's one clinical `fingerFlexion` is realized across three bones, so any
+ * caller reasoning about which bones a motion DRIVES must ask here instead of
+ * assuming the target key is the only one touched. The settle pass in
+ * buildSequencePoses is exactly that caller: it eases un-driven bones home, and
+ * with a joint-key-only notion of "driven" it classified the phalanges as
+ * residuals and slerped the spread back out of every commanded digit — leaving
+ * the knuckle carrying a curl calibrated for a spread that no longer existed.
+ */
+export function commandedBoneKeys(joint: string): string[] {
+  const specs = SUPPORTED_MOTIONS[joint];
+  if (!specs || !Object.values(specs).some((s) => s.phalanges)) return [joint];
+  const { pip, dip } = phalanxKeys(joint);
+  return [joint, pip, dip];
+}
+
 export function buildCommandPose(
   baselinePose: CustomPose,
   cmd: ExamMovementCommand,
@@ -735,7 +868,60 @@ export function buildCommandPose(
       ? delta.multiply(restQ) // parent-frame: delta × rest
       : restQ.clone().multiply(delta); // rest-frame: rest × delta
   target.bones[cmd.joint] = [q.x, q.y, q.z, q.w];
+
+  writePhalanges(target, baselinePose, cmd.joint, spec, clampedDegrees, ctx, restQ);
   return target;
+}
+
+/**
+ * Realize a digit across its three phalanges instead of hinging it entirely at
+ * the knuckle, overwriting the single-bone result already written for the MCP.
+ *
+ * BOTH pose builders must call this. `buildComposedCommandPose` is the path the
+ * whole composed-motion pipeline (and therefore gait) runs through; a spread
+ * applied in only one of them means the calibration — which is measured against
+ * the SPREAD geometry — is wrong wherever it is missing, and the digits read
+ * several degrees low while looking like stiff paddles.
+ *
+ * A no-op for every non-digit motion (`phalanges` is undefined) and for any
+ * variant whose middle/distal phalanges are unmapped: those keep the MCP-only
+ * result, which is the graceful degradation.
+ */
+function writePhalanges(
+  target: CustomPose,
+  baselinePose: CustomPose,
+  joint: string,
+  spec: SupportedMotionSpec,
+  deg: number,
+  ctx: BuildCtx,
+  restQ: THREE.Quaternion,
+): void {
+  const spread = spec.phalanges?.(deg, ctx);
+  if (!spread) return;
+  const { pip, dip } = phalanxKeys(joint);
+  const restPip = baselinePose.bones?.[pip];
+  const restDip = baselinePose.bones?.[dip];
+  // ALL OR NOTHING. The MCP share is only 35% of the digit's curl — the rest
+  // lives in the PIP and DIP — so writing the MCP before confirming the other
+  // two are writable would leave a digit driven at a third of its commanded
+  // angle. Bail instead, leaving the single-bone result buildDelta already
+  // wrote. That is the documented degradation, and it is reachable: callers
+  // supply their own baseline pose, and a partial one need not carry phalanges.
+  if (!restPip || !restDip) return;
+  const mcpQ = restQ.clone().multiply(spread.mcp);
+  target.bones[joint] = [mcpQ.x, mcpQ.y, mcpQ.z, mcpQ.w];
+  for (const [key, restArrP, delta] of [
+    [pip, restPip, spread.pip],
+    [dip, restDip, spread.dip],
+  ] as const) {
+    const composed = new THREE.Quaternion(
+      restArrP[0],
+      restArrP[1],
+      restArrP[2],
+      restArrP[3],
+    ).multiply(delta);
+    target.bones[key] = [composed.x, composed.y, composed.z, composed.w];
+  }
 }
 
 /** True when a joint composes as a swing-twist BALL joint (shoulder / hip) —
@@ -835,6 +1021,11 @@ export function buildComposedCommandPose(
     const spec = specs[usable[0]!.motion]!;
     const delta = spec.buildDelta(usable[0]!.degrees, ctx);
     q = spec.compose === 'parent' ? delta.multiply(restQ) : restQ.clone().multiply(delta);
+    target.bones[joint] = [q.x, q.y, q.z, q.w];
+    // Digits spread across their phalanges here too — this is the builder the
+    // composed-motion pipeline (and gait) uses. See writePhalanges.
+    writePhalanges(target, baselinePose, joint, spec, usable[0]!.degrees, ctx, restQ);
+    return target;
   } else if (isBallJoint(joint) && ctx.restDir) {
     // Fold flexion/abduction/rotation into one delta (shoulder world / hip canonical).
     const side: 'L' | 'R' = joint.startsWith('R_') ? 'R' : 'L';

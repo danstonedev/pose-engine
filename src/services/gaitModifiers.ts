@@ -656,13 +656,18 @@ export function spinalGaitCoordination(
           // The THUMB is excluded from the tenodesis swing (gain 0), for two
           // reasons. Anatomically its carpometacarpal joint absorbs most of the
           // excursion, so flexor pollicis longus moves it far less than the long
-          // finger flexors move the digits. And practically, the thumb's
-          // `fingerFlexion` does NOT read back cleanly on this rig: driving it at
-          // half gain authored ~22.6° and MEASURED 25.7°, moving opposite to the
-          // authored direction, because the thumb's axis is rotated at the CMC and
-          // the measurement decomposes against a different frame. Rather than ship
-          // a channel whose direction cannot be verified, the thumb carries its
-          // resting cascade value and nothing else.
+          // finger flexors move the digits.
+          //
+          // And practically, the swing would be INVISIBLE. `fingerFlexion` sums
+          // two UNSIGNED inter-bone angles against a metacarpal proxy, which for
+          // the thumb points well out of the curl plane — so the readout bottoms
+          // out at ~28° (male) / ~23° (female) and cannot represent anything
+          // below that at any pose. The resting cascade already sits at 20°, so
+          // the thumb is pinned at its floor and every degree of tenodesis on top
+          // would read as zero (rig-probed walk-vs-run delta: 0.00°). The index
+          // is nearly as blind (floor ~20°, delta 0.20°); the middle, ring and
+          // pinky floor low enough to carry the channel honestly. See FINGER_CURVE
+          // in movementCommand.ts for the per-digit floors.
           const gain = fk === 'Thumb1' ? 0 : 1;
           additions.push({
             joint: `${S}_${fk}`,
