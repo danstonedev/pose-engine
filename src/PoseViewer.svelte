@@ -37,6 +37,7 @@
   } = $props();
 
   import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraLabels';
+  import { attachContextLossRecovery, disposeObject3DTree } from './services/webglLifecycle';
 
   let container: HTMLDivElement;
   let loading = $state(true);
@@ -121,15 +122,9 @@
       function disposeModel() {
         if (!modelRoot) return;
         scene.remove(modelRoot);
-        modelRoot.traverse((o) => {
-          const mesh = o as import('three').Mesh;
-          mesh.geometry?.dispose?.();
-          const mat = mesh.material as
-            | import('three').Material
-            | import('three').Material[]
-            | undefined;
-          if (mat) (Array.isArray(mat) ? mat : [mat]).forEach((m) => m.dispose?.());
-        });
+        // Shared helper — also disposes the textures the materials hold,
+        // which the previous inline traverse leaked on every variant swap.
+        disposeObject3DTree(modelRoot, { textures: true });
         modelRoot = null;
       }
 
@@ -213,6 +208,18 @@
       };
       startLoop();
 
+      // Park the loop if the GPU takes the context away, and resume on restore.
+      const detachContextLoss = attachContextLossRecovery(renderer.domElement, {
+        onLost: () => {
+          cancelAnimationFrame(raf);
+          loopRunning = false;
+        },
+        onRestored: () => {
+          requestRender();
+          startLoop();
+        },
+      });
+
       const resize = () => {
         const w = container.clientWidth;
         const h = container.clientHeight;
@@ -237,6 +244,7 @@
 
       cleanup = () => {
         cancelAnimationFrame(raf);
+        detachContextLoss();
         ro.disconnect();
         controls.removeEventListener('change', requestRender);
         disposeModel();
