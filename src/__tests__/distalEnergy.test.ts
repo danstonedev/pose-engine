@@ -279,8 +279,17 @@ describe('distal energy — measured on the rig', () => {
   };
 
   it('at run speed the MEASURED finger curl opens and the elbow visibly pumps vs the walk', () => {
-    const walkCurl = measure(spinalGaitCoordination(walk()), 'R_Index1', 'fingerFlexion');
-    const runCurl = measure(buildRun(), 'R_Index1', 'fingerFlexion');
+    // MEASURED ON THE MIDDLE DIGIT, deliberately. `fingerFlexion` sums two
+    // UNSIGNED inter-bone angles, which gives every digit a floor it cannot read
+    // below — and on the male rig the INDEX floors at 20.0° and the THUMB at
+    // 28.1°, right inside the range gait drives them through (resting 24°/20°,
+    // opening toward the 14° run floor). Both are therefore blind to this
+    // effect: rig-probed walk-vs-run deltas of 0.20° and 0.00°, pinned at their
+    // floors, while the middle/ring/pinky (floors ~6°/7°/20°) all report the
+    // same clean 9.4°. Measuring the index here would test the readout's floor,
+    // not the coordinator.
+    const walkCurl = measure(spinalGaitCoordination(walk()), 'R_Mid1', 'fingerFlexion');
+    const runCurl = measure(buildRun(), 'R_Mid1', 'fingerFlexion');
     const runElbow = measure(buildRun(), 'R_Forearm', 'elbowFlexion');
     // Settled distal posture: median of the second half of each recording (past
     // the neutral→gait entry transient).
@@ -298,9 +307,9 @@ describe('distal energy — measured on the rig', () => {
     console.log(`rig distal energy: walk curl ${wc.toFixed(1)}° · run curl ${rc.toFixed(1)}° · run elbow range ${elbowRange.toFixed(1)}°`);
     // Compared on the settled value: energy opens the resting curl, while the
     // tenodesis swing rides about it in both motions (deeper in the run, whose
-    // wrist drag is faster), so the honest margin is smaller than the pre-tenodesis
-    // 5° — the mean genuinely opens, the instantaneous peaks overlap.
-    expect(rc, 'the running hand is measurably more open').toBeLessThan(wc - 1.5);
+    // wrist drag is faster). On a digit the readout can actually resolve, the
+    // separation is a clean ~9°.
+    expect(rc, 'the running hand is measurably more open').toBeLessThan(wc - 6);
     expect(rc, 'still gently curled, not splayed').toBeGreaterThan(5);
     expect(elbowRange, 'the run elbow pumps').toBeGreaterThan(6);
   });

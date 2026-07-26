@@ -37,7 +37,26 @@ export type CanonicalBone =
   | 'Index1'
   | 'Mid1'
   | 'Ring1'
-  | 'Pinky1';
+  | 'Pinky1'
+  // …and the MIDDLE + DISTAL phalanges, mapped for the SAME reason the eye bones
+  // are (see 'Eye' above): so a transform can reach them and pose serialization
+  // carries their quats, WITHOUT enrolling them in any clinical machinery — no ROM
+  // row, no clamp strategy, no pose handle. `fingerFlexion` stays ONE per-digit
+  // composite commanded on the MCP; these are how it is realized.
+  //
+  // They must be MAPPED, not merely traversed: `serializeCustomPose` reads mapped
+  // keys only, so a rotation written to an unmapped bone is silently dropped —
+  // which would desync live playback from its own recording.
+  | 'Thumb2'
+  | 'Thumb3'
+  | 'Index2'
+  | 'Index3'
+  | 'Mid2'
+  | 'Mid3'
+  | 'Ring2'
+  | 'Ring3'
+  | 'Pinky2'
+  | 'Pinky3';
 
 export type FingerToken = 'HandThumb' | 'HandIndex' | 'HandMiddle' | 'HandRing' | 'HandPinky';
 
@@ -254,6 +273,17 @@ const CC_BONE_NAME_MAP: BoneNameMap = {
     Mid1: ['Mid1'],
     Ring1: ['Ring1'],
     Pinky1: ['Pinky1'],
+    // Middle/distal phalanges — cosmetic realization of the MCP's composite curl.
+    Thumb2: ['Thumb2'],
+    Thumb3: ['Thumb3'],
+    Index2: ['Index2'],
+    Index3: ['Index3'],
+    Mid2: ['Mid2'],
+    Mid3: ['Mid3'],
+    Ring2: ['Ring2'],
+    Ring3: ['Ring3'],
+    Pinky2: ['Pinky2'],
+    Pinky3: ['Pinky3'],
   },
   fingers: [
     { pattern: /^(Finger0|Thumb)/, token: 'HandThumb' },
