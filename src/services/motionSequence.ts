@@ -1201,9 +1201,20 @@ export const HAND_JOINT_KEYS: readonly string[] = (['L_', 'R_'] as const).flatMa
 const HAND_JOINT_SET_L = new Set(HAND_JOINT_KEYS.filter((k) => k.startsWith('L_')));
 const HAND_JOINT_SET_R = new Set(HAND_JOINT_KEYS.filter((k) => k.startsWith('R_')));
 
-/** Resting wrist flexion of a relaxed hanging hand, deg (a slight drop — not a
- *  rigid extended paddle, not a flexed claw). */
-export const RELAXED_WRIST_FLEX_DEG = 8;
+/**
+ * Resting wrist flexion of a relaxed hanging hand, deg — a WHISPER of drop, not
+ * the 8° this used to apply.
+ *
+ * The rig's own rest pose already hangs the hand slightly forward: rig-measured,
+ * the anatomic-rest hand long axis points [−0.21, −0.96, 0.16], i.e. 9.5° forward
+ * of vertical. A resting-flexion constant stacks ON TOP of that, and because wrist
+ * flexion carries the hand ANTERIORLY when the arm is at the side, 8° put the hand
+ * ~17° forward — which from a side view reads as a hand held out in front rather
+ * than an arm hanging relaxed. (Reported on the deployed build against gait, whose
+ * equivalent +10° base is now 0; this is the same defect on the non-gait path, so
+ * it gets the same correction rather than being left inconsistent.)
+ */
+export const RELAXED_WRIST_FLEX_DEG = 2;
 /** Graded per-digit resting curl, deg — a LOOSE open hand (radial digits
  *  straighter, ulnar digits more curled — the natural cascade), NOT a fist.
  *  Registry fingerFlexion is a composite 0..160 curl, so these sit well inside

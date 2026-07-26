@@ -258,17 +258,25 @@ const ARM_ADD_MAX = 12; // (not winged OUT — abduction reads as a stiff gunsli
 // on screen, so the forearm read as locked. 0.35 gives ~±7° (a ~14° excursion),
 // inside the reported band and actually visible.
 //
-// NOTE ON THE BASE'S SIGN — deliberately NOT changed here. The registry and the
-// exam layer both define **+ = supination** (romRegistry `forearmRotation`
-// positiveAs 'Sup'; movementCommand.ts "+ = supination", rig-tested), so this
-// POSITIVE base holds the gait arm in ~12° of SUPINATION while the comment it
-// replaced claimed "pronation: palm toward the thigh". One of the two is wrong,
-// and which depends on what the rig's rest pose already is — if `anatomicPose` is
-// true anatomical position the palms start supinated, and reaching palm-to-thigh
-// needs a LARGE pronation, not 12°. That is a visible re-orientation of the whole
-// arm carriage and wants a look on the stage before it ships, so it is flagged
-// rather than flipped blind.
-const ARM_PRO_BASE = 12;
+// THE BASE'S SIGN — now resolved on the rig, and it was inverted. The registry
+// and the exam layer both define **+ = supination** (romRegistry
+// `forearmRotation` positiveAs 'Sup'; movementCommand.ts "+ = supination",
+// rig-tested), so the old +12 held the gait arm in 12° of SUPINATION while its
+// own comment claimed "pronation: palm toward the thigh".
+//
+// Measuring the palm normal on the rig settles which was intended. At the
+// anatomic rest the right palm already faces MEDIALLY — normal [0.90, −0.13,
+// 0.42], i.e. mostly +X (subject-left = toward the thigh for the right hand).
+// The rig does NOT start in a fully supinated anatomical position, so no large
+// pronation is needed. But the walk measured [0.78, 0.20, 0.59]: the +12 rotated
+// the palm AWAY from the thigh and toward facing forward (+Z 0.42 → 0.59), which
+// is the opposite of the stated intent and part of why the arm carriage did not
+// read as relaxed.
+//
+// Negative (a little pronation from rest) keeps the palm on the thigh through the
+// swing. Kept SMALL — the rest pose is already close to right, so this is a
+// nudge, not the 90° re-orientation a truly supinated rest would have needed.
+const ARM_PRO_BASE = -8;
 const ARM_PRO_SWING = 0.35;
 const ARM_PRO_MAX = 28;
 // WRIST RADIAL/ULNAR DEVIATION through the swing. This channel was never driven
@@ -282,17 +290,36 @@ const ARM_PRO_MAX = 28;
 // there is no bundled normative curve for wrist deviation in gait arm swing the
 // way there is for the sagittal joints, so these are plausible-and-bounded, NOT
 // claimed as normative.
-const WRIST_DEV_BASE = -5; // resting ulnar bias of the hanging hand, deg
-const WRIST_DEV_SWING = 0.2; // radial through the forward swing, ulnar on the backswing
-const WRIST_DEV_MAX = 12; // well inside the ±20/30 ROM — a texture, not a gesture
+// First pass at these was too quiet to see: base −5 with a 0.2 gain measured a
+// 6.9° excursion that never left the ulnar side, and it read on screen as no
+// deviation at all. A relaxed hand hangs with ~10° of ulnar deviation, so the
+// resting bias is deepened and the swing gain raised to give a ~12° excursion
+// that is actually legible at tutorial camera distance — still less than half
+// the 30° ulnar ROM, so it stays a texture rather than a gesture.
+const WRIST_DEV_BASE = -8; // resting ulnar bias of the hanging hand, deg
+const WRIST_DEV_SWING = 0.3; // toward radial through the forward swing, ulnar on the backswing
+const WRIST_DEV_MAX = 16; // well inside the +20 radial / −30 ulnar ROM
 const SCAP_PROT_GAIN = 0.35; // scapular protraction/retraction: the shoulder GIRDLE glides
 const SCAP_PROT_MAX = 10; // fore/aft on the ribcage WITH the arm swing (protract on the
 // forward swing, retract on the backswing) — arm swing isn't purely glenohumeral. Coupled
 // to the same arm's flexion, so the two scapulae counter-phase like a real girdle.
-// A relaxed swinging hand isn't a rigid paddle: the wrist carries a slight resting
-// flexion and DRAGS behind the forearm.
-const WRIST_FLEX_BASE = 10; // resting flexion of a hanging, unloaded hand, deg
-const WRIST_FLEX_MAX = 22; // …and the total excursion never leaves this band
+// A relaxed swinging hand isn't a rigid paddle: it hangs, and DRAGS behind the
+// forearm as the arm swings.
+//
+// The resting base is ZERO, and that matters. It used to be +10°, a CONSTANT
+// flexion applied on every frame — and with the arm hanging at the side, wrist
+// flexion carries the hand ANTERIORLY, so the hand sat permanently tipped
+// forward. Rig-measured, the hand's long axis pointed [−0.02, −0.94, 0.34]
+// through the whole walk: 19.9° forward of vertical against the 9.5° the rig's
+// own rest pose already has. Viewed from the side that reads as a hand held
+// forward rather than an arm hanging relaxed — reported from the deployed build,
+// and the constant is exactly the 10° difference.
+//
+// At 0 the drag term below oscillates the wrist AROUND neutral instead of on top
+// of a permanent offset, so it eases into slight extension through the forward
+// swing and slight flexion on the backswing — which is what a relaxed hand does.
+const WRIST_FLEX_BASE = 0;
+const WRIST_FLEX_MAX = 22; // the total excursion never leaves this band
 /**
  * Passive wrist drag per unit of shoulder ANGULAR VELOCITY, deg per (deg/s).
  *
