@@ -247,9 +247,44 @@ const PELVIS_YAW_MAX = 6;
 const ARM_ADD_BASE = 5; // shoulder ADduction: the arm hangs IN close to the body…
 const ARM_ADD_SWING = 0.1; // …and comes a touch more across on the forward swing
 const ARM_ADD_MAX = 12; // (not winged OUT — abduction reads as a stiff gunslinger carriage)
-const ARM_PRO_BASE = 12; // forearm pronation: palm toward the thigh, not a rigid stick
-const ARM_PRO_SWING = 0.12;
+// FOREARM PRO/SUP through the swing. The forearm does not ride the swing as a
+// rigid stick: it rotates about its own long axis, supinating a little as the arm
+// comes forward and pronating again on the backswing (the humerus internally
+// rotates with flexion and the forearm follows). Reported pro/sup excursion in
+// walking arm swing is on the order of 10-20°.
+//
+// The SWING gain used to be 0.12 — ±2.4° at a ±20° arm swing, about a 12° base.
+// That is a 4° total excursion on a 90° ROM: measurable in the readout, invisible
+// on screen, so the forearm read as locked. 0.35 gives ~±7° (a ~14° excursion),
+// inside the reported band and actually visible.
+//
+// NOTE ON THE BASE'S SIGN — deliberately NOT changed here. The registry and the
+// exam layer both define **+ = supination** (romRegistry `forearmRotation`
+// positiveAs 'Sup'; movementCommand.ts "+ = supination", rig-tested), so this
+// POSITIVE base holds the gait arm in ~12° of SUPINATION while the comment it
+// replaced claimed "pronation: palm toward the thigh". One of the two is wrong,
+// and which depends on what the rig's rest pose already is — if `anatomicPose` is
+// true anatomical position the palms start supinated, and reaching palm-to-thigh
+// needs a LARGE pronation, not 12°. That is a visible re-orientation of the whole
+// arm carriage and wants a look on the stage before it ships, so it is flagged
+// rather than flipped blind.
+const ARM_PRO_BASE = 12;
+const ARM_PRO_SWING = 0.35;
 const ARM_PRO_MAX = 28;
+// WRIST RADIAL/ULNAR DEVIATION through the swing. This channel was never driven
+// by gait at all — `wristDeviation` measured exactly 0.000° on every frame of the
+// walk, so the hand had no frontal-plane life whatsoever. A relaxed hanging hand
+// sits in slight ULNAR deviation (the hand's mass falls to the ulnar side of the
+// forearm axis), and it oscillates a few degrees through the swing as the arm
+// adducts and the hand's inertia lags the frontal-plane motion.
+//
+// Registry sign: + = Radial (to +20°), − = Ulnar (to −30°). Authored coupling —
+// there is no bundled normative curve for wrist deviation in gait arm swing the
+// way there is for the sagittal joints, so these are plausible-and-bounded, NOT
+// claimed as normative.
+const WRIST_DEV_BASE = -5; // resting ulnar bias of the hanging hand, deg
+const WRIST_DEV_SWING = 0.2; // radial through the forward swing, ulnar on the backswing
+const WRIST_DEV_MAX = 12; // well inside the ±20/30 ROM — a texture, not a gesture
 const SCAP_PROT_GAIN = 0.35; // scapular protraction/retraction: the shoulder GIRDLE glides
 const SCAP_PROT_MAX = 10; // fore/aft on the ribcage WITH the arm swing (protract on the
 // forward swing, retract on the backswing) — arm swing isn't purely glenohumeral. Coupled
@@ -544,6 +579,15 @@ export function spinalGaitCoordination(
             WRIST_FLEX_BASE - WRIST_DRAG_PER_DEG_S * (shVelDegS[S][kfIndex] ?? 0),
             WRIST_FLEX_MAX,
           ),
+        });
+        // …and the hand deviates in the FRONTAL plane too: a resting ulnar bias
+        // (the hand's mass hangs to the ulnar side) carried toward radial through
+        // the forward swing and back toward ulnar on the backswing. Position-
+        // coupled, so it is phase-locked to the stride and scales with it.
+        additions.push({
+          joint: `${S}_Hand`,
+          motion: 'wristDeviation',
+          deg: cap(WRIST_DEV_BASE + WRIST_DEV_SWING * sh, WRIST_DEV_MAX),
         });
         // FINGERS: rest gently curled (a loose relaxed hand), not splayed rigid-straight.
         // The curl OPENS with energy — a runner's hand un-curls toward a loose blade.

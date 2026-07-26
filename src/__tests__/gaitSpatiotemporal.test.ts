@@ -56,6 +56,7 @@ import {
   walkRatio,
   type NormativeBand,
 } from '../services/normativeGait';
+import { NORMAL_GAIT_VERTICAL_CM } from '../services/gaitConstants';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
@@ -109,6 +110,7 @@ interface Measured {
   ratio: number;
   froude: number;
   entryStepM: number;
+  bobCm: number;
 }
 
 /** Measure the walk's steady-cycle spatiotemporals on the rig. */
@@ -170,6 +172,12 @@ function measureWalk(): Measured {
     strideM: stepM * 2,
     speedMps,
     ratio: walkRatio(stepM, cadenceSpm),
+    bobCm: (() => {
+      const ys = frames
+        .filter((f) => f.tMs >= steadyFrom && f.tMs <= steadyTo)
+        .map((f) => f.root.translateM[1]!);
+      return ys.length ? (Math.max(...ys) - Math.min(...ys)) * 100 : Number.NaN;
+    })(),
     froude: (speedMps * speedMps) / (9.81 * legM),
     entryStepM: peakSeparation(ends[0]!, ends[1]!),
   };
@@ -218,6 +226,35 @@ describe('the travel walk’s MEASURED spatiotemporals sit in the engine’s nor
     expect(m.strideM, `stride vs ${strideBand}`).toBeLessThanOrEqual(strideBand[1]);
     expect(m.ratio, `walk ratio vs ${ratioBand}`).toBeGreaterThanOrEqual(ratioBand[0]);
     expect(m.ratio, `walk ratio vs ${ratioBand}`).toBeLessThanOrEqual(ratioBand[1]);
+  });
+
+  it('the pelvis vertical excursion sits on its authored target', () => {
+    // The pelvis bob is GEOMETRY first: a step of `stepM` on a leg of `legM`
+    // forces a straight stance leg to drop legM − √(legM² − (stepM/2)²) — 7.95 cm
+    // at this walk's proportions, well above the 5 cm `NORMAL_GAIT_VERTICAL_CM`
+    // the builder authors. `deriveVerticalCalibration` reshapes the arc toward the
+    // target, but `GAIT_VERTICAL_MAX_RISE_M` bounds how far it may lift the pelvis
+    // off the live pin, and wherever that clamp binds the raw pin's deeper valley
+    // leaks back through. At the clamp's former 0.025 the walk measured 6.26 cm —
+    // 25% above its own target — for exactly that reason.
+    //
+    // Gate the MEASURED excursion, not the constant: this is the number a viewer
+    // sees, and it is the product of the step length, the leg, the calibration
+    // target and the clamp together. Any of those moving should have to answer here.
+    const geometricDropCm =
+      (m.legM - Math.sqrt(Math.max(0, m.legM * m.legM - (m.stepM / 2) ** 2))) * 100;
+    expect(geometricDropCm, 'the geometry really does demand more than the target').toBeGreaterThan(
+      NORMAL_GAIT_VERTICAL_CM,
+    );
+    // eslint-disable-next-line no-console
+    console.log(
+      `pelvis: geometric demand ${geometricDropCm.toFixed(2)} cm → measured ${m.bobCm.toFixed(2)} cm ` +
+        `(authored target ${NORMAL_GAIT_VERTICAL_CM} cm)`,
+    );
+    // Within 15% of the authored target — tight enough to catch the 25% regression
+    // the clamp used to cause, loose enough not to pin float-level reshape detail.
+    expect(m.bobCm).toBeGreaterThan(NORMAL_GAIT_VERTICAL_CM * 0.85);
+    expect(m.bobCm).toBeLessThan(NORMAL_GAIT_VERTICAL_CM * 1.15);
   });
 
   it('the ENTRY step is longer than the steady step — measure the cycle, not the clip', () => {

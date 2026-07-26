@@ -35,13 +35,14 @@ const SPINE_MOTIONS = new Set(['rotation', 'lateralTilt']);
 /** A joint/motion the gait coordinator is allowed to author: spine/neck rotation +
  *  lateral tilt (thorax counter-rotation, lean, gaze), the hip counter-rotation that holds
  *  the feet forward as the pelvis rotates, and the SUBTLE limb non-sagittal set (shoulder
- *  abduction, forearm rotation, hip abduction, knee rotation, ankle inversion) that keeps
- *  the arms/legs from swinging as flat 2-D pendulums. */
+ *  abduction, forearm rotation, wrist flexion AND radial/ulnar deviation, hip abduction,
+ *  knee rotation, ankle inversion) that keeps the arms/legs from swinging as flat 2-D
+ *  pendulums. */
 const LIMB_NONSAG: Record<string, string> = {
   L_Shoulder: 'protraction', R_Shoulder: 'protraction',
   L_UpperArm: 'shoulderAbduction', R_UpperArm: 'shoulderAbduction',
   L_Forearm: 'forearmRotation', R_Forearm: 'forearmRotation',
-  L_Hand: 'wristFlexion', R_Hand: 'wristFlexion',
+  L_Hand: 'wristFlexion|wristDeviation', R_Hand: 'wristFlexion|wristDeviation',
   L_Thumb1: 'fingerFlexion', L_Index1: 'fingerFlexion', L_Mid1: 'fingerFlexion',
   L_Ring1: 'fingerFlexion', L_Pinky1: 'fingerFlexion',
   R_Thumb1: 'fingerFlexion', R_Index1: 'fingerFlexion', R_Mid1: 'fingerFlexion',
