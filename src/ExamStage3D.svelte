@@ -1151,7 +1151,7 @@
         }
         if (activeMotionId) stopMotion();
         if (frozen && skinnedRef && variantCfgRef) {
-          applyCustomPose(skinnedRef.skeleton, variantCfgRef, frozen.pose);
+          applyPoseComplete(skinnedRef.skeleton, variantCfgRef, frozen.pose);
           currentPose = frozen.pose;
           composedRootQuat = [...frozen.root.orientQuat];
           composedRootTranslate = [...frozen.root.translateM];
@@ -1477,10 +1477,46 @@
         }
       }
 
+      /**
+       * Apply an ABSOLUTE pose, filling any bone it does not mention from the
+       * baseline.
+       *
+       * `applyCustomPose` is a PARTIAL write: bones absent from the pose keep
+       * whatever the skeleton was last left holding. That is invisible while every
+       * writer emits the same key set — and every pose this stage generates does,
+       * since they all derive from `baselinePose` via `copyPose`, which is why
+       * this overlay is a no-op for them.
+       *
+       * It stops being invisible for a pose that PREDATES a change to the mapped
+       * bone set. Recordings saved before the finger phalanges were mapped carry
+       * no keys for them, so scrubbing such a frame after any newer motion left
+       * the digits curled inherits that curl — and `fingerFlexion` reads the
+       * middle phalanx by child traversal, so the frame then MEASURES something
+       * it was never recorded as. Rig-probed: a frame recorded at 7.1° replays at
+       * 81.2° if a 120° finger command ran first. Order-dependent, silent, and
+       * exactly the contract this engine exists to keep.
+       *
+       * Filling from the baseline makes an absolute pose actually absolute. The
+       * alternative — bumping POSE_SCHEMA_VERSION — would drop every saved pose
+       * and recording at the load gate instead of replaying them correctly.
+       */
+      function applyPoseComplete(
+        skeleton: import('three').Skeleton,
+        cfg: NonNullable<typeof variantCfgRef>,
+        pose: CustomPose,
+      ) {
+        const base = baselinePoseRef?.bones;
+        applyCustomPose(
+          skeleton,
+          cfg,
+          base ? { ...pose, bones: { ...base, ...pose.bones } } : pose,
+        );
+      }
+
       function applyPoseNow(pose: CustomPose | null) {
         if (!skinnedRef || !variantCfgRef) return;
         const effective = pose ?? baselinePoseRef;
-        if (effective) applyCustomPose(skinnedRef.skeleton, variantCfgRef, effective);
+        if (effective) applyPoseComplete(skinnedRef.skeleton, variantCfgRef, effective);
       }
 
       /** Complete the active tween immediately (settle at the target). */
@@ -1509,7 +1545,7 @@
           // proximal) leads on the plain eased scalar. Both settle exactly on
           // target at t=1 — see services/motionStagger.
           const blended = stagedBlendWithBaseline(tw.from, tw.to, baselinePoseRef, t);
-          if (blended) applyCustomPose(skinnedRef.skeleton, variantCfgRef, blended);
+          if (blended) applyPoseComplete(skinnedRef.skeleton, variantCfgRef, blended);
         }
         if (tw.root) applyRootTween(tw.root, eased);
         requestRender();
@@ -1762,7 +1798,7 @@
         if (!applies || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
         composedDescent = deriveWeightedDescent((tMs) => {
           const s = traj.sampleAt(tMs);
-          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
+          applyPoseComplete(skinnedRef!.skeleton, variantCfgRef!, s.pose);
           _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
           modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
           modelRoot!.position.set(
@@ -2183,7 +2219,7 @@
         while (at.nextSettle < at.settleAtMs.length && raw >= at.settleAtMs[at.nextSettle]!) {
           const st = at.traj.sampleAt(at.settleAtMs[at.nextSettle]!);
           if (skinnedRef && variantCfgRef)
-            applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
+            applyPoseComplete(skinnedRef.skeleton, variantCfgRef, st.pose);
           applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, at.settleAtMs[at.nextSettle]!, st.groundingPosture);
           applyFootPlants(at.settleAtMs[at.nextSettle]!);
           at.onSettle(at.nextSettle);
@@ -2212,7 +2248,7 @@
           elapsed = Math.min(total, raw);
         }
         const s = at.traj.sampleAt(elapsed);
-        if (skinnedRef && variantCfgRef) applyCustomPose(skinnedRef.skeleton, variantCfgRef, s.pose);
+        if (skinnedRef && variantCfgRef) applyPoseComplete(skinnedRef.skeleton, variantCfgRef, s.pose);
         currentPose = s.pose;
         applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed, s.groundingPosture);
         // Closed-chain foot contact for this frame (pins declared stance feet).
@@ -2382,7 +2418,7 @@
         cancelComposed();
         if (activeMotionId) stopMotion();
         if (activeTween) finishTween();
-        applyCustomPose(skinnedRef.skeleton, variantCfgRef, frame.pose);
+        applyPoseComplete(skinnedRef.skeleton, variantCfgRef, frame.pose);
         currentPose = frame.pose;
         composedRootQuat = [...frame.root.orientQuat];
         composedRootTranslate = [...frame.root.translateM];
@@ -2751,14 +2787,14 @@
             for (let i = 0; i < settleAtMs.length; i += 1) {
               const st = trajectory.sampleAt(settleAtMs[i]!);
               if (skinnedRef && variantCfgRef)
-                applyCustomPose(skinnedRef.skeleton, variantCfgRef, st.pose);
+                applyPoseComplete(skinnedRef.skeleton, variantCfgRef, st.pose);
               applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, settleAtMs[i]!, st.groundingPosture);
               applyFootPlants(settleAtMs[i]!);
               measureSettle(i);
             }
             const end = trajectory.sampleAt(trajectory.totalMs);
             if (skinnedRef && variantCfgRef)
-              applyCustomPose(skinnedRef.skeleton, variantCfgRef, end.pose);
+              applyPoseComplete(skinnedRef.skeleton, variantCfgRef, end.pose);
             currentPose = end.pose;
             applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs, end.groundingPosture);
             applyFootPlants(trajectory.totalMs);
@@ -2824,7 +2860,7 @@
             composedVcalHandoff = null;
             const s0 = loopTraj.sampleAt(enterAtMs);
             if (skinnedRef && variantCfgRef)
-              applyCustomPose(skinnedRef.skeleton, variantCfgRef, s0.pose);
+              applyPoseComplete(skinnedRef.skeleton, variantCfgRef, s0.pose);
             applyTrajectoryRoot(s0.rootQuat, s0.rootTranslate, s0.planted, enterAtMs, s0.groundingPosture);
             const deltaYM = modelRoot ? liveY - modelRoot.position.y : 0;
             if (Math.abs(deltaYM) > 1e-4)
