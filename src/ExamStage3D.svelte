@@ -63,14 +63,25 @@
   } from './services/romConstraints';
   // liveliness is three-free (pure angle math) — static import stays SSR-safe;
   // it feeds the live rAF overlay only, never the offline sampler.
-  import {
-    livelinessSwayDeg,
-    cadenceRate,
-    // Wave 5 life-signals: exertion-scaled FM breathing.
-    breathingLeanFM,
-    motionWorkIntensity,
-  } from './services/liveliness';
+  import { cadenceRate, motionWorkIntensity } from './services/liveliness';
   import { createBreathState } from './services/stageBreath';
+  // stageRecordingTap and stageDriver are three-free (frame bookkeeping and a
+  // pure state machine) — static imports stay SSR-safe. The stage services that
+  // DO pull three — stageClipBlend, stageEyeGaze, stageIdleOverlay,
+  // stageMotionLiveliness — are dynamically imported inside onMount instead, so
+  // importing this component never drags three into a host's initial chunk.
+  import { createRecordingTap } from './services/stageRecordingTap';
+  import { createStageDriver, type DriverMechanism } from './services/stageDriver';
+  // Type-only — the module itself is dynamically imported (it pulls three).
+  import type { StanceWindow } from './services/stageComposedDerivations';
+  // Type-only — the posing layer module itself is dynamically imported (it pulls
+  // three + TransformControls) and only for a `posable` host.
+  import type {
+    StagePoseApi,
+    StagePosingOptions as PosingOptions,
+    StagePlaneVisibility as PlaneVisibility,
+    StageSliceOptions as SliceOptions,
+  } from './services/stagePosingLayer';
   import type { ExamMovementCommand, ExamMovementOutcome } from './services/movementCommand';
   import type {
     ComposedMotionPlaybackResult,
@@ -435,48 +446,13 @@
   }
 
   // ── Posing layer surface (posable hosts only; no-ops otherwise) ──────────
-  export interface StagePosingOptions {
-    /** ROM-clamp hand posing to normative range (default true). */
-    romClamp?: boolean;
-    /** Coupled forearm/hand twist distribution while posing (default true). */
-    twistRig?: boolean;
-    /** Show the clickable joint markers (default true). */
-    showJoints?: boolean;
-    /** Show the per-limb axis overlay (default false). */
-    showAxes?: boolean;
-  }
-  export interface StagePlaneVisibility {
-    sagittal?: boolean;
-    frontal?: boolean;
-    transverse?: boolean;
-    oblique?: boolean;
-  }
-  export interface StageSliceOptions {
-    plane: 'off' | 'sagittal' | 'frontal' | 'transverse' | 'oblique';
-    flip?: boolean;
-    /** Solid stencil cap on the cut (default true). */
-    cap?: boolean;
-    /** Cardinal-plane slice depth, −1..1 of the model radius (default 0). */
-    depth?: number;
-  }
+  // Defined with the layer that implements them; re-exported here so hosts keep
+  // importing them from the component.
+  export type StagePosingOptions = PosingOptions;
+  export type StagePlaneVisibility = PlaneVisibility;
+  export type StageSliceOptions = SliceOptions;
 
-  interface PoseApi {
-    getPose: () => CustomPose | null;
-    loadPose: (pose: CustomPose) => void;
-    resetPose: () => void;
-    togglePosePlay: () => boolean;
-    focusSelectedJoint: () => void;
-    deselectJoint: () => void;
-    setPosingOptions: (opts: StagePosingOptions) => void;
-    setPlanes: (planes: StagePlaneVisibility) => void;
-    setSlice: (slice: StageSliceOptions) => void;
-    exportAnimationGlb: (
-      frames: { t: number; pose: CustomPose }[],
-      name: string,
-      rootMotion?: boolean,
-    ) => Promise<void>;
-  }
-  let poseApiImpl: PoseApi | null = null;
+  let poseApiImpl: StagePoseApi | null = null;
   // Setter calls that arrive BEFORE the async boot wires the posing layer
   // (hosts push their persisted toggles from $effects at mount) are buffered
   // and flushed when the layer comes up, so no host state is ever dropped.
@@ -566,20 +542,21 @@
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
       const { buildSequencePoses } = await import('./services/motionSequence');
-      // These three import three at module scope, so they must be dynamic to keep the
+      // These four import three at module scope, so they must be dynamic to keep the
       // component's lazy-three contract intact (see the header note).
       const { createClipBlend } = await import('./services/stageClipBlend');
       const { createEyeGazeOverlay } = await import('./services/stageEyeGaze');
       const { createIdleOverlay } = await import('./services/stageIdleOverlay');
+      const { createMotionLiveliness, LIVELINESS_ONSET_SEC } = await import(
+        './services/stageMotionLiveliness'
+      );
       const {
         composedTweenEase,
         stagedBlendWithBaseline,
         buildComposedTrajectory,
         buildLoopTrajectory,
         DEFAULT_TRACKED_BONES,
-        GAIT_VERTICAL_MAX_RISE_M,
         authoredToTrajectoryTimeScale,
-        scaleStanceWindowsMs,
       } = await import('./services/motionRecording');
       const {
         captureFloorReference,
@@ -590,7 +567,6 @@
         plantStanceFoot,
         stanceFootDrift,
         rotateRestReferenceByRoot,
-        deriveVerticalCalibration,
         applyVerticalCalibration,
         NO_VERTICAL_CALIBRATION,
         VCAL_HANDOFF_BLEND_MS,
@@ -610,6 +586,11 @@
       } = await import('./services/rootMotion');
       const { buildFootPlant, solveFootPlant, solveFootPlantWeighted, PLANT_RELEASE_BLEND_MS, buildHandPlant, solveHandReach } =
         await import('./services/footContact');
+      // Rig-facing composed derivations (the four trajectory pre-passes). Dynamic
+      // like every other three-using service, so this component stays SSR-safe.
+      const { createComposedDerivations, scaledStanceWindows, scaledHeadingAt } = await import(
+        './services/stageComposedDerivations'
+      );
       const { balanceCoordination } = await import('./services/balanceCoordination');
       const { computeBodyCoMFromBones } = await import('./services/centerOfMass');
       const { resolveMotionCommand } = await import('./services/motionCommand');
@@ -729,6 +710,29 @@
       const _rootPosA = new THREE.Vector3();
       const _rootPosB = new THREE.Vector3();
 
+      /** The live rig as the composed derivations see it — getters, so the module
+       *  always reads the CURRENT refs (a model reload swaps them) instead of a
+       *  snapshot taken at boot. */
+      const derivations = createComposedDerivations({
+        get root() {
+          return modelRoot;
+        },
+        get skinned() {
+          return skinnedRef;
+        },
+        get variantCfg() {
+          return variantCfgRef;
+        },
+        get floor() {
+          return floorRef;
+        },
+        rootRestPos,
+        rootRestQuat,
+        clearPelvisShiftBake() {
+          pelvisShiftBakedM = 0;
+        },
+      });
+
       /** Set the model root to a composed root state (orient quat relative to
        *  rest + translate in meters from the anatomic origin). */
       function applyRootState(
@@ -826,12 +830,27 @@
         return d ? rotateRestReferenceByRoot(restRef, d) : restRef;
       }
 
+      // ── DRIVER OWNERSHIP (services/stageDriver) ───────────────────────────
+      // ONE authority for "what is driving the skeleton?" and ONE command
+      // generation. Every mechanism below registers through the paired setter
+      // next to its handle — the handle carries the DATA (which clip, which
+      // tween, which trajectory), the driver carries the OWNERSHIP — so the two
+      // can never drift and `driver.idle` is the single question the render loop
+      // asks instead of spelling out four booleans.
+      const driver = createStageDriver();
+
       // ── Named-motion (clip) playback state ─────────────────────────────────
       // A THREE.AnimationMixer drives walk/sit/stand clips. Motions and exam
       // pose tweens are mutually exclusive — starting either cancels the other.
       let mixer: import('three').AnimationMixer | null = null;
       let motionAction: import('three').AnimationAction | null = null;
       let activeMotionId: MovementClipId | null = null;
+      /** Set the active clip AND its driver ownership together (never one without
+       *  the other — that pairing is what keeps `driver.idle` honest). */
+      function setActiveMotionId(id: MovementClipId | null): void {
+        activeMotionId = id;
+        driver.setRunning('clip', id !== null);
+      }
       // Clip transition ease-in (services/stageClipBlend): captures the current
       // pose (a live outgoing clip frame OR a Stop-frozen mid-stride pose) when a
       // clip starts and slerps it into the new clip over CLIP_BLEND_SEC, so a
@@ -910,19 +929,11 @@
       // loop, so cycle K ≠ K+1 for free. Angle math lives in the pure, testable
       // ./services/liveliness module; here we only accumulate time + apply it as
       // additive premultiplied trunk rotations. Reuses the sway axes below.
-      let motionLiveliness = 0;
-      let livelinessTime = 0;
-      // ONSET RAMP (kills the pre-movement side/back bend): the motion-time trunk
-      // sway/breathing must ease IN over the first ~0.4 s of a movement, not apply
-      // full-strength from frame 0. A commanded motion is a zero-velocity ease-in
-      // (~stationary the first ~150-200 ms), so a full-strength free-running sway at
-      // t=0 was the ONLY thing moving then — reading as a spurious side/backward
-      // lean BEFORE the movement. `livelinessOnsetSec` accumulates from motion onset
-      // (reset by resetLivelinessOnset at each start); the applied sway is scaled by
-      // min(1, onset/LIVELINESS_ONSET_SEC).
-      const LIVELINESS_ONSET_SEC = 0.4;
-      let livelinessOnsetSec = 0;
-      const _liveQ = new THREE.Quaternion();
+      let motionLiveliness = 0; // modifier (setMotionOverlays.liveliness)
+      // Motion-time liveliness overlay (breathing + micro-sway during motion) —
+      // services/stageMotionLiveliness. Owns its onset ramp + sway phase; the
+      // onset ease (kills the pre-movement side/back bend) lives in the module.
+      const motionLive = createMotionLiveliness();
       // ── EXERTION-SCALED BREATHING (Wave 5 life-signals) — state shared by
       // BOTH breathing paths (motion-time overlay + idle overlay), so the
       // breath never restarts or rate-jumps when a motion begins or ends:
@@ -1008,6 +1019,11 @@
       // rest. Thin wrappers below bind it to the live bones/root/rest per frame.
       const eyeGaze = createEyeGazeOverlay(Math.random() * 1000);
 
+      // Recording tap: owns the ActiveRecording buffer + sample throttle. It
+      // never touches the scene — buildFrameNow (below) snapshots the stage and
+      // is injected at each call, so the *Impl wiring stays trivial.
+      const recordingTap = createRecordingTap();
+
       /** Bake the micro-gaze onto the eye bones (live-only). Thin wrapper over
        *  services/stageEyeGaze bound to the current bones/root/rest. */
       function applyEyeGaze(dtSec: number): boolean {
@@ -1032,55 +1048,23 @@
         return eyeGaze.captureApplied(motionCapBones);
       }
 
-      /**
-       * MOTION-TIME liveliness (LIVE-ONLY realism): breathing at the thorax +
-       * micro-sway at the low back while a MOTION drives the skeleton, layered ON
-       * TOP of the driven pose. The animation driver (mixer/trajectory) overwrites
-       * both trunk bones every frame, so the premultiplied delta never
-       * accumulates. Applied AFTER the recording tap + streamed report (SEAM-9) —
-       * the offline sampler never sees liveliness, so a recording/report that
-       * carried it would diverge from the grade. Feet/legs + every measured driver
-       * joint are untouched; only the two trunk bones move. Wall-clock phase
-       * (livelinessTime) is incommensurate with the loop, so no cycle repeats.
-       * Returns whether anything was applied (clean mode / no bones ⇒ false, so
-       * the dirty flag stays honest).
-       */
-      /** Reset the motion-time liveliness onset ramp + sway phase — call at each
-       *  movement START so the trunk eases into the sway from quiet, instead of
-       *  a full-strength free-running sway snapping on during the ease-in. */
+      /** Reset the motion-time liveliness onset ramp + sway phase (each START).
+       *  Wrapper over stageMotionLiveliness. */
       function resetLivelinessOnset(): void {
-        livelinessOnsetSec = 0;
-        livelinessTime = 0; // ML sway restarts at phase 0 (breath.phase stays continuous)
+        motionLive.reset();
       }
+      /** Bake the motion-time breathing + micro-sway. Wrapper over
+       *  stageMotionLiveliness bound to the live bones/root/breath + modifier. */
       function applyMotionLiveliness(dtSec: number): boolean {
-        if (!(motionLiveliness > 0) || !motionCapBones || !modelRoot) return false;
-        livelinessTime += dtSec;
-        livelinessOnsetSec += dtSec;
-        // Ease the sway/breathing IN over the first ~0.4 s of the movement so the
-        // trunk is quiet through the commanded motion's zero-velocity ease-in (this
-        // is the fix for the "little side/back bend before the movement"). Also
-        // smooths the idle->motion lumbar handoff (no full-strength step at onset).
-        const onsetRamp = Math.min(1, livelinessOnsetSec / LIVELINESS_ONSET_SEC);
-        // EXERTION-SCALED FM breathing (Wave 5): integrate the shared phase at the
-        // exertion-driven rate (phase-continuous — never t×rate, so a rate change
-        // can never jump mid-breath).
-        breath.advancePhase(dtSec);
-        const thorax = motionCapBones.get('Spine_Upper');
-        if (thorax) {
-          const breathDeg = onsetRamp * breathingLeanFM(breath.phase, motionLiveliness, breath.exertion);
-          _liveQ.setFromAxisAngle(_swayAxisAP, (breathDeg * Math.PI) / 180);
-          thorax.quaternion.premultiply(_liveQ);
-        }
-        const lowBack = motionCapBones.get('Spine_Lower');
-        if (lowBack) {
-          const { mlDeg, apDeg } = livelinessSwayDeg(livelinessTime, motionLiveliness);
-          _liveQ.setFromAxisAngle(_swayAxisML, (onsetRamp * mlDeg * Math.PI) / 180);
-          lowBack.quaternion.premultiply(_liveQ);
-          _liveQ.setFromAxisAngle(_swayAxisAP, (onsetRamp * apDeg * Math.PI) / 180);
-          lowBack.quaternion.premultiply(_liveQ);
-        }
-        modelRoot.updateMatrixWorld(true);
-        return true;
+        return motionLive.apply(
+          dtSec,
+          motionLiveliness,
+          motionCapBones,
+          modelRoot,
+          breath,
+          _swayAxisAP,
+          _swayAxisML,
+        );
       }
       // ── Composed-motion (generative keyframe sequence) playback state ─────
       // Pose-tween driven (NOT the mixer). `composedActive` gates the same
@@ -1088,6 +1072,11 @@
       // cancellation token — any newer command bumps it and the composed
       // playback (including a detached loop cycle) stops at its next check.
       let composedActive = false;
+      /** Set composed-playback state AND its driver ownership together. */
+      function setComposedActive(on: boolean): void {
+        composedActive = on;
+        driver.setRunning('composed', on);
+      }
       // The grounding posture applied to the CURRENT composed frame (PR 1 runtime
       // foundation) — set each frame by applyTrajectoryRoot from the trajectory
       // sample, so a live recording frame can carry it (posture recoverable by
@@ -1108,8 +1097,8 @@
       // promptly; subsequent ones get the directed pause).
       let composedHasPlayed = false;
       function cancelComposed() {
-        composedSeq += 1;
-        composedActive = false;
+        composedSeq = driver.supersede(); // ONE command generation for every path
+        setComposedActive(false);
         updateSeatProp(false); // hide the seat when a motion ends / is taken over
         composedPlants = []; // drop any foot-contact IK for the ended motion
         composedPlantRest = null; // drop any heading-rotated plant-clamp frame
@@ -1128,7 +1117,7 @@
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
-          activeTrajectory = null;
+          setActiveTrajectory(null);
           resolve();
         }
       }
@@ -1151,6 +1140,14 @@
         if (composedActive) {
           composedCancelledToken = composedActiveToken;
           cancelComposed();
+        } else {
+          // SUPERSEDE UNCONDITIONALLY. Stop used to bump the generation only via
+          // cancelComposed — i.e. only when a COMPOSED motion was active. With a
+          // clip still loading (uncached) and nothing composed running, Stop hit
+          // neither branch and was a complete no-op, so the superseded clip
+          // started playing when its load resolved. The generation now advances
+          // on every Stop, and runMotionImpl re-checks it after the load.
+          driver.supersede();
         }
         if (activeMotionId) stopMotion();
         if (frozen && skinnedRef && variantCfgRef) {
@@ -1214,7 +1211,7 @@
         if (mixer) mixer.stopAllAction();
         clipBlend.cancel(); // abandon any in-progress clip ease-in
         motionAction = null;
-        activeMotionId = null;
+        setActiveMotionId(null);
         // Lift any ROM caps (the host clears its constraint set separately).
         motionCapKeys = [];
         motionCapLegs = [];
@@ -1372,7 +1369,7 @@
           mixer.addEventListener('finished', () => {
             const r = motionFinishResolve;
             motionFinishResolve = null;
-            activeMotionId = null;
+            setActiveMotionId(null);
             r?.();
           });
 
@@ -1437,6 +1434,11 @@
         resolve: () => void;
       }
       let activeTween: ActiveTween | null = null;
+      /** Set the exam pose tween AND its driver ownership together. */
+      function setActiveTween(t: ActiveTween | null): void {
+        activeTween = t;
+        driver.setRunning('tween', t !== null);
+      }
 
       /** Interpolate + apply the root transform for a tween at parameter t, and
        *  (planted) re-pin the lower foot to the floor. */
@@ -1471,7 +1473,7 @@
       function finishTween() {
         const tw = activeTween;
         if (!tw) return;
-        activeTween = null;
+        setActiveTween(null);
         applyPoseNow(tw.to);
         currentPose = tw.to;
         if (tw.root) applyRootTween(tw.root, 1);
@@ -1521,6 +1523,11 @@
         warpPrevNow?: number;
       }
       let activeTrajectory: ActiveTrajectory | null = null;
+      /** Set the trajectory player AND its driver ownership together. */
+      function setActiveTrajectory(t: ActiveTrajectory | null): void {
+        activeTrajectory = t;
+        driver.setRunning('trajectory', t !== null);
+      }
 
       /** CLOSED-CHAIN FOOT CONTACT (Finding 4): the IK plants for the ACTIVE
        *  composed motion's `contacts`, mirroring the offline sampler. Each foot
@@ -1602,40 +1609,23 @@
       /** Measure the emergent grounded pelvis arc of a starting composed motion's
        *  trajectory and set `composedVcal` to hit its requested excursion. Called
        *  once when a calibrated planted motion begins; resets to identity
-       *  otherwise. Poses the rig transiently (the player re-poses every frame). */
+       *  otherwise. Thin wrapper over services/stageComposedDerivations. */
       function setComposedVerticalCalibration(
         traj: PoseTrajectory,
         targetCm: number | undefined,
         hasPlanted: boolean,
       ): void {
-        composedVcal = NO_VERTICAL_CALIBRATION;
-        composedVcalCycleMs = 0;
         composedVcalPhaseOffsetMs = 0;
         composedVcalRampMs = 0;
         composedVcalHandoff = null;
-        if (targetCm == null || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
-        composedVcalCycleMs = traj.totalMs;
-        composedVcal = deriveVerticalCalibration((u01) => {
-          const s = traj.sampleAt(u01 * traj.totalMs);
-          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
-          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
-          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
-          modelRoot!.position.set(
-            rootRestPos.x + s.rootTranslate[0],
-            rootRestPos.y + s.rootTranslate[1],
-            rootRestPos.z + s.rootTranslate[2],
-          );
-          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
-          modelRoot!.updateMatrixWorld(true);
-          if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
-          return modelRoot!.position.y;
-          // smooth: round the sharp double-support valley. When feet are foot-plant IK'd
-          // (the travelling walk), clamp how far the smoothed pelvis may rise above the pin
-          // so a planted stance leg doesn't over-reach and slide the foot — the SAME
-          // maxRiseM the offline sampler passes, under the SAME plants-active condition
-          // (DET-LOCK-01 lockstep); the contact-free in-place walk (treadmill) has no such
-          // foot to over-reach, so no clamp.
-        }, targetCm / 100, 48, true, composedPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined);
+        const { table, cycleMs } = derivations.verticalCalibration(
+          traj,
+          targetCm,
+          hasPlanted,
+          composedPlants.length > 0,
+        );
+        composedVcal = table;
+        composedVcalCycleMs = cycleMs;
       }
 
       /** FOOT-DRIVEN forward travel for the ACTIVE composed motion — the derived
@@ -1643,87 +1633,24 @@
        *  via the SAME shared helper. Null unless the motion requests it. */
       let composedFootDriven: ReturnType<typeof deriveFootDrivenTravel> | null = null;
 
-      /** The planned stance schedule of a resolved motion (gaitStanceWindowsMs),
-       *  scaled from authored ms to trajectory time by the same uniform factor
-       *  the trajectory applies — so the derivations stay phase-locked to the
-       *  knots at any pace (mirrors the offline sampler). */
-      function scaledStanceWindows(
-        traj: PoseTrajectory,
-        resolvedMotion: {
-          gaitStanceWindowsMs?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[];
-          keyframes: { durationMs: number; holdMs: number }[];
-          loop: boolean;
-          reps: number;
-        },
-      ): { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[] | undefined {
-        // SEAM-2: the SAME shared authored→trajectory factor the offline sampler
-        // (and the plant contacts) use — one source of truth for the time base.
-        return scaleStanceWindowsMs(
-          resolvedMotion.gaitStanceWindowsMs,
-          authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs),
-        );
-      }
-
-      /** The per-time heading lookup of a CURVED motion (headingProfileMs),
-       *  scaled from authored ms to trajectory time by the SAME uniform factor
-       *  as {@link scaledStanceWindows} — so heading and stance phase can never
-       *  drift apart at a non-1 pace. Undefined for a constant heading (the
-       *  byte-identical legacy path). Mirrors the offline sampler. */
-      function scaledHeadingAt(
-        traj: PoseTrajectory,
-        resolvedMotion: {
-          headingProfileMs?: { tMs: number; headingDeg: number }[];
-          keyframes: { durationMs: number; holdMs: number }[];
-          loop: boolean;
-          reps: number;
-        },
-      ): ((tMs: number) => number) | undefined {
-        const prof = resolvedMotion.headingProfileMs;
-        if (!prof || prof.length < 2) return undefined;
-        // SEAM-2: the SAME shared factor as the stance windows + plant contacts.
-        const scale = authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs);
-        const lookup = headingProfileLookup(prof);
-        return scale > 0 ? (tMs: number): number => lookup(tMs / scale) : lookup;
-      }
-
-      /** Pre-pass the starting motion's trajectory (FK + floor-pin, no travel),
-       *  read the feet, and derive the travel curve that keeps the planted foot
-       *  fixed — along the motion's heading (0 = straight ahead, the
-       *  byte-identical legacy +Z ride). Resets to null otherwise. */
+      /** Derive the travel curve that keeps the planted foot fixed, along the
+       *  motion's heading. Thin wrapper over services/stageComposedDerivations. */
       function setComposedFootDriven(
         traj: PoseTrajectory,
         enabled: boolean,
         hasPlanted: boolean,
-        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+        stanceWindows?: StanceWindow[],
         headingDeg = 0,
         headingAt?: (tMs: number) => number,
       ): void {
-        composedFootDriven = null;
-        if (!enabled || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
-        const bones = buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef);
-        const rBone = bones.get('R_Foot');
-        const lBone = bones.get('L_Foot');
-        if (!rBone || !lBone) return;
-        composedFootDriven = deriveFootDrivenTravel((tMs) => {
-          const s = traj.sampleAt(tMs);
-          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
-          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
-          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
-          modelRoot!.position.set(
-            rootRestPos.x + s.rootTranslate[0],
-            rootRestPos.y + s.rootTranslate[1],
-            rootRestPos.z + s.rootTranslate[2],
-          );
-          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
-          modelRoot!.updateMatrixWorld(true);
-          if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
-          const rp = rBone.getWorldPosition(new THREE.Vector3());
-          const lp = lBone.getWorldPosition(new THREE.Vector3());
-          // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
-          // airborne): the travel derivation holds its advance through it
-          // (mirrors the offline sampler's closure exactly).
-          return { rz: rp.z, ry: rp.y, rx: rp.x, lz: lp.z, ly: lp.y, lx: lp.x, bothAirborne: !s.planted };
-        }, traj.totalMs, stanceWindows, 120, headingDeg, headingAt);
+        composedFootDriven = derivations.footDrivenTravel(
+          traj,
+          enabled,
+          hasPlanted,
+          stanceWindows,
+          headingDeg,
+          headingAt,
+        );
       }
 
       /** MEDIO-LATERAL SHUTTLE for the ACTIVE composed motion — the derived ±X
@@ -1732,41 +1659,24 @@
        *  motion requests it (`lateralShuttleCm`). */
       let composedLateralShuttle: ReturnType<typeof deriveGaitLateralShuttle> | null = null;
 
-      /** Pre-pass the starting motion's trajectory (FK + floor-pin, no travel),
-       *  read the feet, and derive the stance-phase-locked lateral shuttle —
-       *  perpendicular to the motion's heading (0 = the byte-identical legacy
-       *  world-X ride). Resets to null otherwise. Mirrors setComposedFootDriven. */
+      /** Derive the stance-phase-locked lateral shuttle, perpendicular to the
+       *  motion's heading. Thin wrapper over services/stageComposedDerivations. */
       function setComposedLateralShuttle(
         traj: PoseTrajectory,
         shuttleCm: number | undefined,
         hasPlanted: boolean,
-        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+        stanceWindows?: StanceWindow[],
         headingDeg = 0,
         headingAt?: (tMs: number) => number,
       ): void {
-        composedLateralShuttle = null;
-        if (!shuttleCm || shuttleCm <= 0 || !hasPlanted || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
-        const bones = buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef);
-        const rBone = bones.get('R_Foot');
-        const lBone = bones.get('L_Foot');
-        if (!rBone || !lBone) return;
-        composedLateralShuttle = deriveGaitLateralShuttle((tMs) => {
-          const s = traj.sampleAt(tMs);
-          applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
-          _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
-          modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
-          modelRoot!.position.set(
-            rootRestPos.x + s.rootTranslate[0],
-            rootRestPos.y + s.rootTranslate[1],
-            rootRestPos.z + s.rootTranslate[2],
-          );
-          pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
-          modelRoot!.updateMatrixWorld(true);
-          if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
-          const rp = rBone.getWorldPosition(new THREE.Vector3());
-          const lp = lBone.getWorldPosition(new THREE.Vector3());
-          return { rx: rp.x, ry: rp.y, rz: rp.z, lx: lp.x, ly: lp.y, lz: lp.z };
-        }, traj.totalMs, shuttleCm / 100, stanceWindows, 120, headingDeg, headingAt);
+        composedLateralShuttle = derivations.lateralShuttle(
+          traj,
+          shuttleCm,
+          hasPlanted,
+          stanceWindows,
+          headingDeg,
+          headingAt,
+        );
       }
 
       /** HEEL-STRIKE TRANSIENT for the ACTIVE composed motion — the brief
@@ -1780,51 +1690,21 @@
        *  natural (un-dipped) contact point and the dip is absorbed by the leg IK. */
       let composedHeelStrikeY = 0;
 
-      /** Pre-pass the starting gait's trajectory through the SAME pin + vertical
-       *  calibration applyTrajectoryRoot uses (the smoothed arc the accent rides
-       *  on) and derive the footfall accents from the stance-window starts. Must
-       *  run AFTER setComposedVerticalCalibration for the motion. Resets to null
-       *  otherwise. Poses the rig transiently (the player re-poses every frame). */
+      /** Derive the footfall accents on the CALIBRATED root-Y arc. Must run AFTER
+       *  setComposedVerticalCalibration for the motion (it rides on that arc).
+       *  Thin wrapper over services/stageComposedDerivations. */
       function setComposedHeelStrike(
         traj: PoseTrajectory,
         enabled: boolean,
-        stanceWindows?: { foot: string; fromMs: number; toMs: number; travelLock?: boolean }[],
+        stanceWindows?: StanceWindow[],
       ): void {
-        composedHeelStrike = null;
         composedHeelStrikeY = 0;
-        if (!enabled || !stanceWindows?.length || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot) return;
-        composedHeelStrike = deriveHeelStrikeAccents(
-          (tMs) => {
-            const s = traj.sampleAt(tMs);
-            applyCustomPose(skinnedRef!.skeleton, variantCfgRef!, s.pose);
-            _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
-            modelRoot!.quaternion.copy(rootRestQuat).multiply(_rootQA);
-            modelRoot!.position.set(
-              rootRestPos.x + s.rootTranslate[0],
-              rootRestPos.y + s.rootTranslate[1],
-              rootRestPos.z + s.rootTranslate[2],
-            );
-            pelvisShiftBakedM = 0; // transient absolute write — keep the tracker honest
-            modelRoot!.updateMatrixWorld(true);
-            if (s.planted) pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
-            let y = modelRoot!.position.y;
-            if (s.planted && (composedVcal.gain !== 1 || composedVcal.smoothed)) {
-              // Same phase mapping + entry ramp as applyTrajectoryRoot (loop-form
-              // table alignment, DET-LOCK-02) — identity for non-loop gaits.
-              const u01 =
-                composedVcalCycleMs > 0
-                  ? (tMs - composedVcalPhaseOffsetMs) / composedVcalCycleMs
-                  : 0;
-              let yc = applyVerticalCalibration(y, composedVcal, u01);
-              if (composedVcalRampMs > 0 && tMs < composedVcalRampMs)
-                yc = y + (yc - y) * (tMs / composedVcalRampMs);
-              y = yc;
-            }
-            return y;
-          },
-          stanceWindows.map((w) => w.fromMs),
-          traj.totalMs,
-        );
+        composedHeelStrike = derivations.heelStrikeAccents(traj, enabled, stanceWindows, {
+          table: composedVcal,
+          cycleMs: composedVcalCycleMs,
+          phaseOffsetMs: composedVcalPhaseOffsetMs,
+          rampMs: composedVcalRampMs,
+        });
       }
 
       /** GRAVITY-SHAPED GROUNDED DESCENT for the ACTIVE composed motion — the
@@ -2327,7 +2207,7 @@
         if (done && !at.finished) {
           at.finished = true;
           const resolve = at.resolve;
-          activeTrajectory = null;
+          setActiveTrajectory(null);
           resolve();
         }
       }
@@ -2348,7 +2228,7 @@
       ): Promise<void> {
         return new Promise((resolve) => {
           if (activeTween) finishTween(); // safety — commands are serialized
-          activeTween = { from: currentPose, to, start: performance.now(), durationMs, ...(root ? { root } : {}), resolve };
+          setActiveTween({ from: currentPose, to, start: performance.now(), durationMs, ...(root ? { root } : {}), resolve });
           startLoop();
           requestRender();
           // Hidden stage / background tab: the loop is parked (or rAF frozen),
@@ -2384,16 +2264,8 @@
       }
 
       // ── Motion recording tap (samples inside the existing rAF loop) ────
-      interface ActiveRecording {
-        sampleHz: number;
-        name: string;
-        sourceKind: MotionRecordingSourceKind;
-        sourceName?: string;
-        startT: number;
-        lastSample: number;
-        frames: RecordedFrame[];
-      }
-      let recording: ActiveRecording | null = null;
+      // The ActiveRecording buffer + sample throttle live in the recordingTap
+      // module (declared up top); buildFrameNow below is the injected snapshot.
       const _recPos = new THREE.Vector3();
       const _recQ = new THREE.Quaternion();
 
@@ -2468,45 +2340,23 @@
         };
       }
 
-      function captureRecordingFrame(rec: ActiveRecording, nowMs: number): void {
-        const frame = buildFrameNow(nowMs - rec.startT);
-        if (frame) rec.frames.push(frame);
-      }
+      // buildFrameNow is the stage snapshot the tap samples with — inject it at
+      // each call so the module stays scene-agnostic.
+      const buildFrame: (tMs: number) => RecordedFrame | null = (tMs) => buildFrameNow(tMs);
 
       captureFrameImpl = () => buildFrameNow(0);
 
       startRecordingImpl = (opts) => {
-        const now = performance.now();
-        recording = {
-          sampleHz: Math.max(1, Math.min(120, opts?.sampleHz ?? 30)),
-          name: opts?.name ?? 'recording',
-          sourceKind: opts?.sourceKind ?? 'manual',
-          ...(opts?.sourceName ? { sourceName: opts.sourceName } : {}),
-          startT: now,
-          lastSample: now,
-          frames: [],
-        };
-        captureRecordingFrame(recording, now); // frame 0 — the starting pose
+        recordingTap.start(opts, performance.now(), buildFrame);
         startLoop();
       };
 
-      stopRecordingImpl = () => {
-        const rec = recording;
-        recording = null;
-        if (!rec) return null;
-        // Final frame at stop time so the settle pose is always captured.
-        captureRecordingFrame(rec, performance.now());
-        return {
+      stopRecordingImpl = () =>
+        recordingTap.stop(performance.now(), buildFrame, {
           id: `rec-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-          name: rec.name,
           variant: variantCfgRef?.id ?? '',
-          sourceKind: rec.sourceKind,
-          ...(rec.sourceName ? { sourceName: rec.sourceName } : {}),
-          sampleHz: rec.sampleHz,
-          frames: rec.frames,
           createdAtIso: new Date().toISOString(),
-        };
-      };
+        });
 
       showRecordedFrameImpl = (frame: RecordedFrame) => {
         if (!skinnedRef || !variantCfgRef) return;
@@ -2624,7 +2474,7 @@
         // an explicit key is required) or AI-composed gait would never breathe or
         // vary. `motionLiveliness` currently holds what the host set.
         setMotionOverlaysImpl?.({ liveliness: motionLiveliness });
-        composedActive = true;
+        setComposedActive(true);
         resetLivelinessOnset();
         // Closed-chain foot contacts declared by this motion (Finding 4): rebuild
         // the IK plants so declared stance feet stay world-fixed as the body
@@ -2901,7 +2751,7 @@
             resolve();
             return;
           }
-          activeTrajectory = {
+          setActiveTrajectory({
             traj: trajectory,
             start: performance.now(),
             settleAtMs,
@@ -2910,7 +2760,7 @@
             loop: false,
             resolve,
             finished: false,
-          };
+          });
         });
 
         // Final measured angles at the last keyframe for every touched field
@@ -2973,7 +2823,7 @@
           // so the one-shot pass's crossfade spans can never misapply to the
           // wrapped loop clock.
           setComposedGroundingBlend(loopTraj);
-          activeTrajectory = {
+          setActiveTrajectory({
             traj: loopTraj,
             start: performance.now() - enterAtMs,
             settleAtMs: [],
@@ -2982,8 +2832,8 @@
             loop: true,
             resolve: () => {},
             finished: false,
-          };
-          composedActive = true;
+          });
+          setComposedActive(true);
           resetLivelinessOnset();
           return { status: 'playing', ...base };
         }
@@ -3001,7 +2851,7 @@
           };
         }
         // One-shot: settle, lift the overlays.
-        composedActive = false;
+        setComposedActive(false);
         setMotionOverlaysImpl?.(null);
         return { status: 'completed', ...base };
       };
@@ -3036,6 +2886,13 @@
         const cacheable = motion !== 'sandbox';
         let clip = cacheable ? (motionClipCache.get(motion) ?? null) : null;
         if (!clip) {
+          // SUPERSESSION (services/stageDriver). An uncached load is the one
+          // await on this path, and an out-of-band Stop bypasses the serialized
+          // command chain — so snapshot the command generation BEFORE suspending
+          // and re-check it after. Without this the clip path had no
+          // supersession at all (only `disposed` was re-checked): a Stop during
+          // the load hit no branch and the stale clip played anyway.
+          const claim = driver.snapshot();
           let clips: import('three').AnimationClip[] | null = null;
           try {
             clips = (await motionClipProvider.getClips(motion)) ?? null;
@@ -3045,6 +2902,17 @@
           }
           if (disposed || !mixer || !modelRoot) {
             return { status: 'refused', motion, reason: 'stage-unavailable' };
+          }
+          if (!driver.holds(claim)) {
+            // A Stop / newer command landed while the clip was loading. Cache the
+            // clip anyway (the work is done and the next play should be instant),
+            // but do NOT take the skeleton.
+            if (clips && clips.length > 0 && cacheable && !motionClipCache.has(motion)) {
+              const cloned = clips[0]!.clone();
+              const skel = skinnedRef?.skeleton;
+              motionClipCache.set(motion, skel ? remapClipToSkeleton(cloned, skel) : cloned);
+            }
+            return { status: 'refused', motion, reason: 'superseded' };
           }
           if (!clips || clips.length === 0) {
             return { status: 'refused', motion, reason: 'clip-unavailable' };
@@ -3079,7 +2947,7 @@
         action.enabled = true;
         action.play();
         motionAction = action;
-        activeMotionId = motion;
+        setActiveMotionId(motion);
         // Ease into the clip from the CURRENT pose (still intact — the mixer only
         // writes on update): capture it now, blend toward the clip each frame.
         if (skinnedRef) clipBlend.begin(skinnedRef.skeleton.bones, CLIP_BLEND_SEC);
@@ -3100,7 +2968,7 @@
         if (hidden) {
           mixer.setTime(clip.duration / Math.max(speed, 1e-3));
           modelRoot.updateMatrixWorld(true);
-          activeMotionId = null;
+          setActiveMotionId(null);
           return { status: 'completed', ...outcomeBase };
         }
         // Visible one-shot: await the mixer 'finished' event.
@@ -3132,7 +3000,7 @@
             modelRoot?.updateMatrixWorld(true);
             const r = motionFinishResolve;
             motionFinishResolve = null;
-            activeMotionId = null;
+            setActiveMotionId(null);
             r();
           }
           return; // parked — startLoop() (via the ResizeObserver) resumes
@@ -3306,13 +3174,7 @@
         // regardless of what drives the skeleton (clip, exam tween, composed
         // playback, or idle manual time). Same throttle pattern as the
         // motionReportHz streaming above; a single null check when inactive.
-        if (recording) {
-          const nowMs = performance.now();
-          if (nowMs - recording.lastSample >= 1000 / recording.sampleHz - 4) {
-            recording.lastSample = nowMs;
-            captureRecordingFrame(recording, nowMs);
-          }
-        }
+        recordingTap.sample(performance.now(), buildFrame);
         // Idle liveliness, part 2: while the stage is truly IDLE — no clip, no
         // composed playback, no exam tween, no trajectory, posing layer not
         // engaged — re-bake the overlay at the advanced phase so the patient
@@ -3320,14 +3182,11 @@
         // AFTER the recording tap: recordings stay clean. Waking the render
         // only when deltas actually applied keeps the idle-render optimization
         // honest — clean mode (idleLiveliness 0) never forces a draw.
-        if (
-          !activeMotionId &&
-          !composedActive &&
-          !activeTween &&
-          !activeTrajectory &&
-          !poseLayerBusy?.() &&
-          applyIdleOverlays(motionDelta)
-        ) {
+        // `driver.idle` is THE ownership question (services/stageDriver) — it
+        // replaces spelling out every mechanism here, so adding a driver can no
+        // longer silently miss this gate. The posing layer is a separate,
+        // host-owned suspension and is still ANDed in.
+        if (driver.idle && !poseLayerBusy?.() && applyIdleOverlays(motionDelta)) {
           renderNeeded = true;
         } else if (((mixer && activeMotionId) || composedActive) && applyMotionLiveliness(motionDelta)) {
           // Motion-time liveliness (SEAM-9): the realism breathing/micro-sway is
@@ -3368,7 +3227,7 @@
                 idleOverlayOn: idleOverlay.overlayOn,
                 idlePivotOn: idleOverlay.pivotOn,
               },
-              livelinessOnsetSec,
+              livelinessOnsetSec: motionLive.onsetSec,
               livelinessOnsetTotalSec: LIVELINESS_ONSET_SEC,
               swayMod: motionSway,
               shiftModM: motionPelvisShiftM,
@@ -3419,7 +3278,7 @@
           modelRoot?.updateMatrixWorld(true);
           const r = motionFinishResolve;
           motionFinishResolve = null;
-          activeMotionId = null;
+          setActiveMotionId(null);
           r();
         }
       };
@@ -3470,1133 +3329,100 @@
       // command surface all share one mannequin + one continuity state
       // (`currentPose`). Never initialised unless `posable` — default
       // consumers keep the exact pre-existing behaviour.
+      // ── OPT-IN posing layer (simMOVE unified studio) ────────────────────
+      // Mounts the same modular posing services PoseLab uses on THIS stage's
+      // skeleton, so hand posing, motion playback, recordings, and the AI
+      // command surface all share one mannequin + one continuity state
+      // (`currentPose`). Never loaded unless `posable` — the whole
+      // TransformControls / gizmo / slicing stack stays out of a default
+      // consumer's bundle, and default consumers keep the exact pre-existing
+      // behaviour.
       if (posable) {
-        const { TransformControls } = await import(
-          'three/examples/jsm/controls/TransformControls.js'
-        );
-        const {
-          buildIKChainContext,
-          solveIKChain,
-          disposeIKChainContext,
-          distributeChainCurve,
-          readAxialTwist,
-          setAxialTwist,
-          pinBonesToRestWorld,
-        } = await import('./services/poseRig');
-        const { gizmoSpaceForJoint, computeDrivingRingMap } = await import(
-          './services/jointAngles'
-        );
-        const { configureRingRotateGizmo } = await import('./services/poseGizmoHelpers');
-        const { PoseRotateRingGizmo } = await import('./services/poseRotateRings');
-        const { PoseClickDeselect } = await import('./services/poseClickDeselect');
-        const { buildTwistRig, applyTwistRig } = await import('./services/twistRig');
-        const { buildLimbAxisModel, ALL_LIMB_IDS } = await import('./services/limbAxisModel');
-        const { createAnatomicalPlanes } = await import('./services/anatomicalPlanes');
-        const { createSectionCap } = await import('./services/sectionCap');
+        const { createPosingLayer } = await import('./services/stagePosingLayer');
         if (disposed) return;
-
         // Cross-section slicing needs local clipping planes.
         renderer.localClippingEnabled = true;
-
-        // ── Posing behaviour / overlay state (host-set via the exports) ──
-        let poseRomClampOn = true;
-        let poseTwistOn = true;
-        let poseShowJoints = true;
-        let poseShowAxes = false;
-        const planeVis = { sagittal: false, frontal: false, transverse: false, oblique: false };
-        const sliceState: {
-          plane: 'off' | 'sagittal' | 'frontal' | 'transverse' | 'oblique';
-          flip: boolean;
-          cap: boolean;
-          depth: number;
-        } = { plane: 'off', flip: false, cap: true, depth: 0 };
-
-        /** Region curve handles distribute their bend across a 2-bone chain. */
-        const POSE_CURVE_CHAINS: Record<string, { keys: string[]; control: number }> = {
-          Spine_Upper: { keys: ['Spine_Mid', 'Spine_Upper'], control: 1 },
-          Neck: { keys: ['Neck_Lower', 'Neck'], control: 1 },
-        };
-        /** Knees stay hinge-locked while the feet are pinned during a pelvis tilt. */
-        const POSE_PLANT_HINGES = new Set(['L_Leg', 'R_Leg']);
-        /** Coupled pronation/supination keys (forearm ↔ hand, ±45° per segment). */
-        const PROSUP_KEYS = new Set(['L_Forearm', 'R_Forearm', 'L_Hand', 'R_Hand']);
-        const PROSUP_SEG_LIMIT_RAD = (45 * Math.PI) / 180;
-        /** Plane → ring colour: sagittal red, frontal blue, transverse green. */
-        const POSE_PLANE_RING_HEX: Record<RomPlane, number> = {
-          sagittal: 0xff3653,
-          frontal: 0x2c8fff,
-          transverse: 0x8adb00,
-        };
-        /** Bright cross-section colour per plane (matches the plane visuals). */
-        const PLANE_COLOR: Record<string, number> = {
-          sagittal: 0xff3653,
-          frontal: 0x2c8fff,
-          transverse: 0x8adb00,
-          oblique: 0xffb020,
-        };
-        const LIMB_COLORS: Record<string, number> = {
-          'left-upper-extremity': 0x60a5fa,
-          'right-upper-extremity': 0x34d399,
-          'left-lower-extremity': 0xfb923c,
-          'right-lower-extremity': 0xf472b6,
-          'axial-spine': 0xa78bfa,
-        };
-
-        // FK rotate gizmo: TC keeps only its camera-space 'E' ring; the shared
-        // PoseRotateRingGizmo draws + grabs the X/Y/Z plane rings.
-        const tc = new TransformControls(camera, renderer.domElement);
-        tc.setMode('rotate');
-        tc.size = 0.675; // MUST match the ring gizmo size
-        tc.enabled = false;
-        const tcHelper = tc.getHelper();
-        tcHelper.visible = false;
-        configureRingRotateGizmo(tcHelper);
-        tcHelper.traverse((o) => (o.renderOrder = 1000));
-        scene.add(tcHelper);
-        const ringGizmo = new PoseRotateRingGizmo({ size: 0.675 });
-        const clickDeselect = new PoseClickDeselect(5);
-
-        type PoseHandle = {
-          key: string;
-          bone: import('three').Bone;
-          mesh: import('three').Mesh;
-          hit: import('three').Mesh;
-          type: 'fk' | 'ik-effector';
-          chain: number;
-        };
-        let poseHandles: PoseHandle[] = [];
-        let handleGroup: import('three').Group | null = null;
-        let selected: PoseHandle | null = null;
-        let axesGroup: import('three').Group | null = null;
-        let reverseBoneMap: Map<import('three').Object3D, string> | null = null;
-        let press: { handle: PoseHandle; startX: number; startY: number; dragging: boolean } | null =
-          null;
-        let ikCtx: IKChainContext | null = null;
-        let ringDrag: PoseRingDrag | null = null;
-        let drivingRings: DrivingRingMap | null = null;
-        let twistRig: TwistSegment[] = [];
-        let fingerCurls: Map<
-          string,
-          { bones: import('three').Object3D[]; rest: import('three').Quaternion[] }
-        > | null = null;
-        let pelvisPlant: { ctx: IKChainContext; pos: import('three').Vector3 }[] | null = null;
-        const _plantFootBones: import('three').Object3D[] = [];
-        const _plantFootQuats: import('three').Quaternion[] = [];
-        let planes: AnatomicalPlanes | null = null;
-        let obliqueDot: import('three').Mesh | null = null;
-        let obliqueHit: import('three').Mesh | null = null;
-        let obliqueRingDrag: PoseRingDrag | null = null;
-        let obliquePress: { startX: number; startY: number; dragging: boolean } | null = null;
-        const sliceClipPlane = new THREE.Plane();
-        let clipTargets: import('three').Material[] = [];
-        let clipMeshes: import('three').Mesh[] = [];
-        let sectionCap: SectionCap | null = null;
-        const handleGeo = new THREE.SphereGeometry(0.022, 14, 10);
-        const hitGeo = new THREE.SphereGeometry(0.06, 10, 8);
-        const raycaster = new THREE.Raycaster();
-        const _ndc = new THREE.Vector2();
-        const _v = new THREE.Vector3();
-        const _camDir = new THREE.Vector3();
-        const _dragPlane = new THREE.Plane();
-        const _dragTarget = new THREE.Vector3();
-        const _ringPos = new THREE.Vector3();
-        const _ringQuat = new THREE.Quaternion();
-        const _ringQuat2 = new THREE.Quaternion();
-
-        // ── Pose-motion preview (baseline ↔ current, smoothstep triangle) ──
-        let posePlayActive = false;
-        let posePlayRaf = 0;
-        let posePlayPosed: CustomPose | null = null;
-        const POSE_PLAY_DUR = 700;
-
-        /** Posing is suspended while ANYTHING else drives the skeleton. A
-         *  paused recording frame sets none of these → posable idle time. */
-        const posingSuspended = () =>
-          !!activeMotionId || composedActive || !!activeTween || posePlayActive;
-
-        /** ROM-clamp a bone for HAND POSING without disturbing the motion-cap
-         *  clamp override machinery (which stopMotion/setMotionRomCaps own). */
-        function poseClamp(bone: import('three').Bone, key: string): boolean {
-          if (!poseRomClampOn || !restRef || !hasClampStrategy(key)) return false;
-          setRomClampEnabled(true);
-          const changed = clampBoneToRom(bone, key, restRef, romConstraints ?? null);
-          setRomClampEnabled(motionCapKeys.length ? true : null);
-          return changed;
-        }
-
-        /** Fold the hand-posed skeleton into the stage's continuity state so
-         *  the next motion/command starts from — and captureFrame bakes —
-         *  exactly what was posed. */
-        function commitPosedState(): void {
-          if (!skinnedRef || !variantCfgRef) return;
-          // Belt-and-braces: idle liveliness suspends while the layer is
-          // engaged, but a same-frame press→release could still commit with
-          // deltas baked — lift them so the committed pose is always clean.
-          undoIdleOverlays();
-          undoEyeGaze(); // committed poses carry the eyes at rest
-          modelRoot?.updateMatrixWorld(true);
-          currentPose = serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
-        }
-
-        // Live angle streaming while posing (~30Hz + forced at settle) — the
-        // same onReport contract motion playback uses.
-        let lastPoseReport = 0;
-        function reportPosing(force = false): void {
-          if (!onReport) return;
-          const nowMs = performance.now();
-          if (!force && nowMs - lastPoseReport < 33) return;
-          lastPoseReport = nowMs;
-          const report = measureNow();
-          if (report) onReport(report);
-        }
-
-        function obliqueEditing(): boolean {
-          return planeVis.oblique || sliceState.plane === 'oblique';
-        }
-        function jointsActive(): boolean {
-          return poseShowJoints && !obliqueEditing() && !posingSuspended();
-        }
-
-        /** Colour each plane ring by the motion it drives (via the driving-
-         *  ring map); hide the wrist's redundant pro/sup ring. */
-        function applyPoseRingColors(key: string): void {
-          const def = getRomJointDefinition(key);
-          const dr = drivingRings?.[key];
-          if (!def || !dr) {
-            ringGizmo.setRingColors({});
-            ringGizmo.setHiddenRings([]);
-            return;
-          }
-          const colors: { x?: number; y?: number; z?: number } = {};
-          for (const f of def.fields) {
-            const ring = dr[f.plane]?.ring;
-            if (ring) colors[ring] = POSE_PLANE_RING_HEX[f.plane];
-          }
-          ringGizmo.setRingColors(colors);
-          const proSupRing = dr.transverse?.ring;
-          ringGizmo.setHiddenRings(
-            (key === 'L_Hand' || key === 'R_Hand') && proSupRing ? [proSupRing] : [],
-          );
-        }
-
-        /** Position the plane rings at the selected joint (or the oblique
-         *  plane node while it is being edited). */
-        function updateRingGizmo(): void {
-          if (obliqueEditing() && planes && !posingSuspended()) {
-            planes.oblique.getWorldPosition(_ringPos);
-            planes.oblique.getWorldQuaternion(_ringQuat);
-            ringGizmo.update(camera, _ringPos, _ringQuat, true);
-            return;
-          }
-          if (!selected) {
-            ringGizmo.update(camera, _ringPos, _ringQuat, false);
-            return;
-          }
-          selected.bone.getWorldPosition(_ringPos);
-          if (gizmoSpaceForJoint(selected.key) === 'world') _ringQuat.identity();
-          else selected.bone.getWorldQuaternion(_ringQuat);
-          ringGizmo.update(camera, _ringPos, _ringQuat, true);
-        }
-
-        /** Capture each finger's MCP→PIP→DIP chain + rest rotations. */
-        function buildFingerCurls(): void {
-          fingerCurls = new Map();
-          for (const h of poseHandles) {
-            if (!/(Thumb1|Index1|Mid1|Ring1|Pinky1)$/.test(h.key)) continue;
-            const bones: import('three').Object3D[] = [h.bone];
-            let node: import('three').Object3D = h.bone;
-            for (let i = 0; i < 2; i++) {
-              const next = node.children.find((c) => (c as import('three').Bone).isBone);
-              if (!next) break;
-              bones.push(next);
-              node = next;
-            }
-            fingerCurls.set(h.key, {
-              bones,
-              rest: bones.map((b) => (b as import('three').Bone).quaternion.clone()),
-            });
-          }
-        }
-
-        /** Region curve handles (spine/neck): spread the bend across a chain,
-         *  ROM-clamping the REGIONAL total on the control bone first. */
-        function applyPoseCurveChain(key: string, target: import('three').Quaternion): boolean {
-          const chain = POSE_CURVE_CHAINS[key];
-          if (!chain || !motionCapBones || !restRef) return false;
-          const segs: import('three').Object3D[] = [];
-          const rests: import('three').Quaternion[] = [];
-          for (const k of chain.keys) {
-            const b = motionCapBones.get(k);
-            const rl = restRef.localQuats[k];
-            if (!b || !rl) return false;
-            segs.push(b);
-            rests.push(new THREE.Quaternion(rl[0], rl[1], rl[2], rl[3]));
-          }
-          let clamped = target;
-          const ctrl = motionCapBones.get(key);
-          if (ctrl && poseRomClampOn && hasClampStrategy(key)) {
-            ctrl.quaternion.copy(target);
-            poseClamp(ctrl, key);
-            clamped = ctrl.quaternion.clone();
-          }
-          distributeChainCurve(segs, rests, chain.control, clamped);
-          return true;
-        }
-
-        /** Coupled pronation/supination: a twist (Y-ring) drag on the forearm
-         *  OR hand drives ONE shared rotation split 1:1 across both segments. */
-        function applyProSup(key: string, target: import('three').Quaternion): boolean {
-          if (!PROSUP_KEYS.has(key) || !motionCapBones || !restRef) return false;
-          const side = key.startsWith('L_') ? 'L_' : 'R_';
-          const forearm = motionCapBones.get(`${side}Forearm`);
-          const hand = motionCapBones.get(`${side}Hand`);
-          const rfArr = restRef.localQuats[`${side}Forearm`];
-          const rhArr = restRef.localQuats[`${side}Hand`];
-          if (!forearm || !hand || !rfArr || !rhArr) return false;
-          const restF = new THREE.Quaternion(rfArr[0], rfArr[1], rfArr[2], rfArr[3]);
-          const restH = new THREE.Quaternion(rhArr[0], rhArr[1], rhArr[2], rhArr[3]);
-          const selIsForearm = key.endsWith('Forearm');
-          const sel = selIsForearm ? forearm : hand;
-          const restSel = selIsForearm ? restF : restH;
-          const twist = Math.max(
-            -PROSUP_SEG_LIMIT_RAD,
-            Math.min(PROSUP_SEG_LIMIT_RAD, readAxialTwist(target, restSel)),
-          );
-          sel.quaternion.copy(target);
-          poseClamp(sel, key);
-          setAxialTwist(sel, restSel, twist);
-          const sib = selIsForearm ? hand : forearm;
-          const restSib = selIsForearm ? restH : restF;
-          setAxialTwist(sib, restSib, twist);
-          return true;
-        }
-
-        /** On a Hips grab: snapshot each foot's world transform + an IK chain. */
-        function capturePelvisPlant(): void {
-          releasePelvisPlant();
-          if (!skinnedRef || !variantCfgRef || !motionCapBones) return;
-          const plant: { ctx: IKChainContext; pos: import('three').Vector3 }[] = [];
-          for (const k of ['L_Foot', 'R_Foot']) {
-            const foot = motionCapBones.get(k);
-            if (!foot) continue;
-            const ctx = buildIKChainContext(skinnedRef, foot, 2, variantCfgRef);
-            if (!ctx) continue;
-            const pos = new THREE.Vector3();
-            foot.getWorldPosition(pos);
-            const quat = new THREE.Quaternion();
-            foot.getWorldQuaternion(quat);
-            plant.push({ ctx, pos });
-            _plantFootBones.push(foot);
-            _plantFootQuats.push(quat);
-          }
-          pelvisPlant = plant.length ? plant : null;
-        }
-        function applyPelvisPlant(): void {
-          if (!pelvisPlant) return;
-          for (const leg of pelvisPlant) {
-            solveIKChain(leg.ctx, leg.pos, { rest: restRef, hinges: POSE_PLANT_HINGES });
-          }
-          pinBonesToRestWorld(_plantFootBones, _plantFootQuats);
-        }
-        function releasePelvisPlant(): void {
-          if (pelvisPlant) {
-            for (const leg of pelvisPlant) disposeIKChainContext(leg.ctx);
-            pelvisPlant = null;
-          }
-          _plantFootBones.length = 0;
-          _plantFootQuats.length = 0;
-        }
-
-        function clearPoseHandles(): void {
-          if (!handleGroup) return;
-          scene.remove(handleGroup);
-          handleGroup.traverse((o) => {
-            const m = o as import('three').Mesh;
-            if (m.material) (m.material as import('three').Material).dispose?.();
-          });
-          poseHandles = [];
-          handleGroup = null;
-        }
-
-        function buildPoseHandles(): void {
-          clearPoseHandles();
-          if (!motionCapBones || !variantCfgRef) return;
-          handleGroup = new THREE.Group();
-          for (const h of variantCfgRef.poseRig.handles) {
-            const bone = motionCapBones.get(h.canonicalKey);
-            if (!bone) continue;
-            const mesh = new THREE.Mesh(
-              handleGeo,
-              new THREE.MeshBasicMaterial({
-                color: 0x57d46a,
-                depthTest: false,
-                transparent: true,
-                opacity: 0.85,
-              }),
-            );
-            mesh.renderOrder = 999;
-            const hit = new THREE.Mesh(
-              hitGeo,
-              new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }),
-            );
-            mesh.add(hit);
-            handleGroup.add(mesh);
-            poseHandles.push({
-              key: h.canonicalKey,
-              bone,
-              mesh,
-              hit,
-              type: h.type,
-              chain: h.chainParentCount ?? 1,
-            });
-          }
-          scene.add(handleGroup);
-        }
-
-        function updatePoseHandles(): void {
-          const d = camera.position.distanceTo(controls.target);
-          const s = Math.max(0.6, Math.min(2, d / 4));
-          if (obliqueDot && obliqueDot.visible && planes) {
-            planes.oblique.getWorldPosition(_v);
-            obliqueDot.position.copy(_v);
-            obliqueDot.scale.setScalar(s);
-          }
-          if (!handleGroup) return;
-          for (const h of poseHandles) {
-            h.bone.getWorldPosition(_v);
-            h.mesh.position.copy(_v);
-            h.mesh.scale.setScalar(s);
-            const mat = h.mesh.material as import('three').MeshBasicMaterial;
-            const sel = h === selected;
-            mat.color.setHex(sel ? 0x4dd5ff : 0x57d46a);
-            mat.opacity = sel ? 1 : 0.85;
-          }
-        }
-
-        function clearAxes(): void {
-          if (!axesGroup) return;
-          scene.remove(axesGroup);
-          axesGroup.traverse((o) => {
-            const m = o as import('three').Mesh;
-            m.geometry?.dispose?.();
-            if (m.material) (m.material as import('three').Material).dispose?.();
-          });
-          axesGroup = null;
-        }
-        function buildAxes(): void {
-          clearAxes();
-          if (!skinnedRef || !variantCfgRef) return;
-          const model = buildLimbAxisModel(skinnedRef.skeleton, variantCfgRef, 0, 1);
-          axesGroup = new THREE.Group();
-          for (const limbId of ALL_LIMB_IDS) {
-            const axis = model.axes[limbId];
-            if (!axis || axis.points.length < 2) continue;
-            const pts = axis.points.map((p) => new THREE.Vector3(p.x, p.y, p.z));
-            const color = LIMB_COLORS[limbId] ?? 0xffffff;
-            const line = new THREE.Line(
-              new THREE.BufferGeometry().setFromPoints(pts),
-              new THREE.LineBasicMaterial({
-                color,
-                depthTest: false,
-                transparent: true,
-                opacity: 0.9,
-              }),
-            );
-            line.renderOrder = 998;
-            axesGroup.add(line);
-            for (const p of pts) {
-              const dot = new THREE.Mesh(
-                new THREE.SphereGeometry(0.012, 8, 6),
-                new THREE.MeshBasicMaterial({ color, depthTest: false }),
-              );
-              dot.position.copy(p);
-              dot.renderOrder = 999;
-              axesGroup.add(dot);
-            }
-          }
-          scene.add(axesGroup);
-        }
-
-        /** A plane's quad is shown if its toggle is on, or it's the active
-         *  slice in hollow mode (the cap replaces the quad when solid). */
-        function planeShown(name: 'sagittal' | 'frontal' | 'transverse' | 'oblique'): boolean {
-          const checked = planeVis[name];
-          if (sliceState.plane === name) return sliceState.cap ? checked : true;
-          return checked;
-        }
-        function applyJointVisibility(): void {
-          if (handleGroup) handleGroup.visible = jointsActive();
-          if (!jointsActive() && selected) deselectImpl();
-        }
-        function applyPlaneState(): void {
-          if (!planes) return;
-          planes.setCardinalVisible('sagittal', planeShown('sagittal'));
-          planes.setCardinalVisible('frontal', planeShown('frontal'));
-          planes.setCardinalVisible('transverse', planeShown('transverse'));
-          planes.setObliqueVisible(planeShown('oblique'));
-          if (obliqueDot) obliqueDot.visible = obliqueEditing();
-          if (obliqueEditing()) {
-            if (selected) deselectImpl();
-            ringGizmo.setRingColors({});
-            ringGizmo.setHiddenRings([]);
-          } else {
-            obliqueRingDrag = null;
-            ringGizmo.hide();
-          }
-          applyJointVisibility();
-          requestRender();
-        }
-
-        /** Collect model materials (clipping) + meshes (cap) for slicing. */
-        function collectClipTargets(): void {
-          clipTargets = [];
-          clipMeshes = [];
-          if (!modelRoot) return;
-          modelRoot.traverse((o) => {
-            const mesh = o as import('three').Mesh;
-            if (!mesh.isMesh) return;
-            clipMeshes.push(mesh);
-            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            for (const m of mats) if (m) clipTargets.push(m);
-          });
-          sectionCap?.dispose();
-          sectionCap = createSectionCap(clipMeshes, (modelRadius || 1) * 2.5);
-          sectionCap.setVisible(false);
-          scene.add(sectionCap.group);
-        }
-        function refreshSlicePlane(): void {
-          if (!planes || sliceState.plane === 'off') return;
-          planes.getClipPlane(sliceState.plane, sliceClipPlane);
-          if (sliceState.flip) sliceClipPlane.negate();
-          sectionCap?.setPlane(sliceClipPlane);
-        }
-        function applySlice(): void {
-          if (planes) {
-            const r = modelRadius || 1;
-            for (const c of ['sagittal', 'frontal', 'transverse'] as const) {
-              planes.setCardinalOffset(c, sliceState.plane === c ? sliceState.depth * r : 0);
-            }
-          }
-          const on = sliceState.plane !== 'off';
-          if (on) refreshSlicePlane();
-          for (const m of clipTargets) {
-            m.clippingPlanes = on ? [sliceClipPlane] : [];
-            m.clipShadows = on;
-          }
-          if (sectionCap) {
-            sectionCap.setVisible(on && sliceState.cap);
-            if (on) sectionCap.setColor(PLANE_COLOR[sliceState.plane] ?? 0xffb020);
-          }
-          applyPlaneState();
-          requestRender();
-        }
-        function ensurePlanes(): void {
-          if (planes) return;
-          planes = createAnatomicalPlanes();
-          scene.add(planes.group);
-          obliqueDot = new THREE.Mesh(
-            handleGeo,
-            new THREE.MeshBasicMaterial({
-              color: 0xffb020,
-              depthTest: false,
-              transparent: true,
-              opacity: 0.9,
-            }),
-          );
-          obliqueDot.renderOrder = 999;
-          obliqueHit = new THREE.Mesh(
-            hitGeo,
-            new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }),
-          );
-          obliqueDot.add(obliqueHit);
-          obliqueDot.visible = false;
-          scene.add(obliqueDot);
-        }
-
-        // ── Selection ──────────────────────────────────────────────────────
-        function selectHandle(h: PoseHandle): void {
-          clickDeselect.cancel();
-          selected = h;
-          const space = gizmoSpaceForJoint(h.key);
-          tc.setSpace(space);
-          tc.attach(h.bone);
-          tc.enabled = true;
-          tcHelper.visible = true;
-          applyPoseRingColors(h.key);
-          updatePoseHandles();
-          reportPosing(true);
-          requestRender();
-          onSelectJoint?.(h.key);
-        }
-        function deselectImpl(): void {
-          const had = !!selected;
-          selected = null;
-          tc.detach();
-          tc.enabled = false;
-          tcHelper.visible = false;
-          ringGizmo.hide();
-          controls.enabled = true;
-          updatePoseHandles();
-          requestRender();
-          if (had) onSelectJoint?.(null);
-        }
-
-        // ── TC (camera-space E ring) events ────────────────────────────────
-        let tcDragging = false;
-        tc.addEventListener('dragging-changed', (e) => {
-          tcDragging = (e as unknown as { value: boolean }).value;
-          controls.enabled = !tcDragging;
-          if (!tcDragging) {
-            commitPosedState();
-            reportPosing(true);
-          }
+        const layer = createPosingLayer({
+          get skinnedRef() {
+            return skinnedRef;
+          },
+          get variantCfgRef() {
+            return variantCfgRef;
+          },
+          get restRef() {
+            return restRef;
+          },
+          get baselinePoseRef() {
+            return baselinePoseRef;
+          },
+          get modelRoot() {
+            return modelRoot;
+          },
+          get motionCapBones() {
+            return motionCapBones;
+          },
+          get motionCapKeys() {
+            return motionCapKeys;
+          },
+          get modelCenter() {
+            return modelCenter;
+          },
+          get modelRadius() {
+            return modelRadius;
+          },
+          get activeMotionId() {
+            return activeMotionId;
+          },
+          get activeTween() {
+            return activeTween;
+          },
+          get composedActive() {
+            return composedActive;
+          },
+          get mixer() {
+            return mixer;
+          },
+          get disposed() {
+            return disposed;
+          },
+          get romConstraints() {
+            return romConstraints ?? null;
+          },
+          renderer,
+          camera,
+          scene,
+          controls,
+          cam,
+          requestRender,
+          startLoop,
+          measureNow,
+          applyPoseNow,
+          cancelComposed,
+          finishTween,
+          stopMotion,
+          resetRootToRest,
+          undoIdleOverlays,
+          undoEyeGaze,
+          setCurrentPose: (pose) => {
+            currentPose = pose;
+          },
+          onReport,
+          onSelectJoint,
         });
-        tc.addEventListener('change', () => {
-          if (!selected || !tcDragging || !modelRoot) return;
-          modelRoot.updateMatrixWorld(true);
-          if (poseClamp(selected.bone, selected.key)) modelRoot.updateMatrixWorld(true);
-          updatePoseHandles();
-          reportPosing();
-          requestRender();
-        });
-
-        // ── Pointer interaction (select / IK drag / ring rotate / oblique) ──
-        function setNdc(e: PointerEvent): void {
-          const r = renderer.domElement.getBoundingClientRect();
-          _ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
-          _ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
-        }
-        function onPosePointerDown(e: PointerEvent): void {
-          if (tcDragging || posingSuspended()) return;
-          // A drag may capture chain/bone state synchronously below — lift any
-          // idle-liveliness deltas first so posing starts from the clean pose.
-          undoIdleOverlays();
-          undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
-          setNdc(e);
-          raycaster.setFromCamera(_ndc, camera);
-          // Oblique-plane editing owns the gizmo + centre dot while active.
-          if (obliqueEditing() && planes && obliqueHit) {
-            const node = planes.oblique;
-            node.getWorldPosition(_ringPos);
-            node.getWorldQuaternion(_ringQuat);
-            const drag = ringGizmo.beginDrag(raycaster, {
-              centerWorld: _ringPos,
-              frameQuat: _ringQuat,
-              boneLocalQuat: node.quaternion,
-              parentWorldQuat: (node.parent ?? node).getWorldQuaternion(_ringQuat2),
-            });
-            if (drag) {
-              obliqueRingDrag = drag;
-              controls.enabled = false;
-              e.preventDefault();
-              return;
-            }
-            if (raycaster.intersectObject(obliqueHit, false)[0]) {
-              node.getWorldPosition(_v);
-              camera.getWorldDirection(_camDir);
-              _dragPlane.setFromNormalAndCoplanarPoint(_camDir, _v);
-              obliquePress = { startX: e.clientX, startY: e.clientY, dragging: false };
-              controls.enabled = false;
-              e.preventDefault();
-              return;
-            }
-            return;
-          }
-          if (!handleGroup || !handleGroup.visible) return;
-          // Ring rotate grab has PRIORITY over marker picking.
-          if (ringGizmo.visible && selected) {
-            selected.bone.getWorldPosition(_ringPos);
-            if (gizmoSpaceForJoint(selected.key) === 'world') _ringQuat.identity();
-            else selected.bone.getWorldQuaternion(_ringQuat);
-            const drag = ringGizmo.beginDrag(raycaster, {
-              centerWorld: _ringPos,
-              frameQuat: _ringQuat,
-              boneLocalQuat: selected.bone.quaternion,
-              parentWorldQuat: (selected.bone.parent ?? selected.bone).getWorldQuaternion(
-                _ringQuat2,
-              ),
-            });
-            if (drag) {
-              ringDrag = drag;
-              if (selected.key === 'Hips') capturePelvisPlant();
-              controls.enabled = false;
-              e.preventDefault();
-              return;
-            }
-          }
-          const hit = raycaster.intersectObjects(
-            poseHandles.flatMap((h) => [h.mesh, h.hit]),
-            false,
-          )[0];
-          if (!hit) {
-            if (selected) clickDeselect.arm(e.pointerId, e.clientX, e.clientY);
-            return;
-          }
-          const h = poseHandles.find((x) => x.mesh === hit.object || x.hit === hit.object);
-          if (!h) return;
-          selectHandle(h);
-          if (h.type === 'ik-effector') {
-            h.bone.getWorldPosition(_v);
-            camera.getWorldDirection(_camDir);
-            _dragPlane.setFromNormalAndCoplanarPoint(_camDir, _v);
-            press = { handle: h, startX: e.clientX, startY: e.clientY, dragging: false };
-            controls.enabled = false;
-          }
-        }
-        function onPosePointerMove(e: PointerEvent): void {
-          clickDeselect.handleMove(e.pointerId, e.clientX, e.clientY);
-          if (obliqueRingDrag && planes) {
-            setNdc(e);
-            raycaster.setFromCamera(_ndc, camera);
-            planes.oblique.quaternion.copy(obliqueRingDrag.update(raycaster));
-            requestRender();
-            e.preventDefault();
-            return;
-          }
-          if (obliquePress && planes) {
-            if (!obliquePress.dragging) {
-              if (Math.hypot(e.clientX - obliquePress.startX, e.clientY - obliquePress.startY) < 5)
-                return;
-              obliquePress.dragging = true;
-            }
-            setNdc(e);
-            raycaster.setFromCamera(_ndc, camera);
-            if (raycaster.ray.intersectPlane(_dragPlane, _dragTarget)) {
-              planes.oblique.position.copy(_dragTarget);
-              requestRender();
-            }
-            e.preventDefault();
-            return;
-          }
-          if (ringDrag && selected && modelRoot) {
-            setNdc(e);
-            raycaster.setFromCamera(_ndc, camera);
-            const target = ringDrag.update(raycaster);
-            const fc = fingerCurls?.get(selected.key);
-            if (applyPoseCurveChain(selected.key, target)) {
-              // spine/neck region curve distributed across its chain
-            } else if (ringDrag.axis === 'Y' && applyProSup(selected.key, target)) {
-              // coupled forearm↔hand pronation/supination
-            } else if (fc) {
-              distributeChainCurve(fc.bones, fc.rest, 0, target); // finger curl
-            } else if (selected.key === 'Hips') {
-              selected.bone.quaternion.copy(target);
-              modelRoot.updateMatrixWorld(true);
-              applyPelvisPlant(); // keep feet planted while tilting the pelvis
-            } else {
-              selected.bone.quaternion.copy(target);
-              poseClamp(selected.bone, selected.key);
-            }
-            modelRoot.updateMatrixWorld(true);
-            updatePoseHandles();
-            reportPosing();
-            requestRender();
-            e.preventDefault();
-            return;
-          }
-          if (!press || tcDragging || !modelRoot) return;
-          if (!press.dragging) {
-            if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) < 5) return;
-            press.dragging = true;
-          }
-          setNdc(e);
-          raycaster.setFromCamera(_ndc, camera);
-          if (!raycaster.ray.intersectPlane(_dragPlane, _dragTarget)) return;
-          if (!ikCtx && skinnedRef && variantCfgRef) {
-            ikCtx = buildIKChainContext(skinnedRef, press.handle.bone, press.handle.chain, variantCfgRef);
-          }
-          if (!ikCtx) return;
-          solveIKChain(ikCtx, _dragTarget);
-          // ROM-clamp the solved chain (effector up through its parents).
-          if (restRef && poseRomClampOn && reverseBoneMap) {
-            let b: import('three').Object3D | null = press.handle.bone;
-            for (let i = 0; i <= press.handle.chain && b; i++) {
-              const key = reverseBoneMap.get(b);
-              if (key) poseClamp(b as import('three').Bone, key);
-              const parent: import('three').Object3D | null = b.parent;
-              if (!parent || !(parent as import('three').Bone).isBone) break;
-              b = parent;
-            }
-          }
-          modelRoot.updateMatrixWorld(true);
-          updatePoseHandles();
-          reportPosing();
-          requestRender();
-        }
-        function onPosePointerUp(e: PointerEvent): void {
-          if (obliqueRingDrag || obliquePress) {
-            obliqueRingDrag = null;
-            obliquePress = null;
-            controls.enabled = true;
-            return;
-          }
-          if (ringDrag) {
-            ringDrag = null;
-            releasePelvisPlant();
-            controls.enabled = true;
-            commitPosedState();
-            reportPosing(true);
-            return;
-          }
-          if (ikCtx) {
-            disposeIKChainContext(ikCtx);
-            ikCtx = null;
-          }
-          if (press) {
-            const dragged = press.dragging;
-            press = null;
-            controls.enabled = true;
-            if (dragged) {
-              commitPosedState();
-              reportPosing(true);
-            }
-          }
-          if (clickDeselect.shouldDeselect(e.pointerId)) deselectImpl();
-        }
-        function onPoseKey(e: KeyboardEvent): void {
-          if (e.key === 'Escape') deselectImpl();
-        }
-        renderer.domElement.addEventListener('pointerdown', onPosePointerDown);
-        window.addEventListener('pointermove', onPosePointerMove);
-        window.addEventListener('pointerup', onPosePointerUp);
-        window.addEventListener('pointercancel', onPosePointerUp);
-        window.addEventListener('keydown', onPoseKey);
-
-        // ── Pose-motion preview (baseline ↔ current) ───────────────────────
-        function stopPosePlay(restore = true): void {
-          if (!posePlayActive) {
-            posePlayPosed = null;
-            return;
-          }
-          cancelAnimationFrame(posePlayRaf);
-          posePlayActive = false;
-          if (posePlayPosed) {
-            currentPose = posePlayPosed;
-            if (restore) {
-              applyPoseNow(posePlayPosed);
-              modelRoot?.updateMatrixWorld(true);
-              requestRender();
-            }
-          }
-          posePlayPosed = null;
-        }
-        function togglePosePlayImpl(): boolean {
-          if (posePlayActive) {
-            stopPosePlay();
-            return false;
-          }
-          if (!skinnedRef || !variantCfgRef || !baselinePoseRef || posingSuspended()) return false;
-          deselectImpl();
-          // The preview snapshot must be the CLEAN pose, never an idle delta.
-          undoEyeGaze(); // nor a baked eye delta
-          undoIdleOverlays();
-          posePlayPosed = serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
-          posePlayActive = true;
-          const start = performance.now();
-          const tick = () => {
-            if (!posePlayActive) return;
-            const phase = ((performance.now() - start) % (2 * POSE_PLAY_DUR)) / POSE_PLAY_DUR;
-            const tri = phase <= 1 ? phase : 2 - phase; // 0..1..0
-            const eased = tri * tri * (3 - 2 * tri); // smoothstep
-            const blended = blendCustomPoseWithBaseline(
-              baselinePoseRef,
-              posePlayPosed,
-              baselinePoseRef,
-              eased,
-            );
-            if (blended && skinnedRef && variantCfgRef) {
-              applyCustomPose(skinnedRef.skeleton, variantCfgRef, blended);
-              modelRoot?.updateMatrixWorld(true);
-              reportPosing();
-              requestRender();
-            }
-            posePlayRaf = requestAnimationFrame(tick);
-          };
-          tick();
-          return true;
-        }
-
-        /** Rotation-track decimation (slerp-reproducible keys dropped) so the
-         *  exported clip stays small even when resampled to bake easing. */
-        function decimateQuatTrack(
-          times: number[],
-          values: number[],
-          tolDeg = 1,
-        ): { times: number[]; values: number[] } {
-          const n = times.length;
-          if (n <= 2) return { times, values };
-          const tol = (tolDeg * Math.PI) / 180;
-          const qa = new THREE.Quaternion();
-          const qb = new THREE.Quaternion();
-          const qk = new THREE.Quaternion();
-          const qi = new THREE.Quaternion();
-          const get = (i: number, o: import('three').Quaternion) =>
-            o.set(values[i * 4]!, values[i * 4 + 1]!, values[i * 4 + 2]!, values[i * 4 + 3]!);
-          const keep = [0];
-          let last = 0;
-          for (let i = 1; i < n - 1; i++) {
-            get(last, qa);
-            get(i + 1, qb);
-            const frac = (times[i]! - times[last]!) / (times[i + 1]! - times[last]! || 1);
-            qk.copy(qa).slerp(qb, frac);
-            get(i, qi);
-            if (qk.angleTo(qi) > tol) {
-              keep.push(i);
-              last = i;
-            }
-          }
-          keep.push(n - 1);
-          const nt: number[] = [];
-          const nv: number[] = [];
-          for (const idx of keep) {
-            nt.push(times[idx]!);
-            nv.push(values[idx * 4]!, values[idx * 4 + 1]!, values[idx * 4 + 2]!, values[idx * 4 + 3]!);
-          }
-          return { times: nt, values: nv };
-        }
-
-        // ── Lifecycle hooks the stage core calls ──────────────────────────
-        poseLayerOnTakeover = () => {
-          ringDrag = null;
-          press = null;
-          obliqueRingDrag = null;
-          obliquePress = null;
-          if (ikCtx) {
-            disposeIKChainContext(ikCtx);
-            ikCtx = null;
-          }
-          releasePelvisPlant();
-          stopPosePlay(false); // the incoming motion owns the skeleton
-          if (selected) deselectImpl();
-          controls.enabled = true;
-        };
-
-        poseLayerOnModelLoaded = () => {
-          poseLayerOnTakeover?.();
-          reverseBoneMap = new Map();
-          if (motionCapBones) for (const [k, b] of motionCapBones) reverseBoneMap.set(b, k);
-          drivingRings = restRef ? computeDrivingRingMap(restRef) : null;
-          twistRig =
-            skinnedRef && variantCfgRef ? buildTwistRig(skinnedRef.skeleton, variantCfgRef) : [];
-          buildPoseHandles();
-          buildFingerCurls();
-          if (poseShowAxes) buildAxes();
-          else clearAxes();
-          ensurePlanes();
-          planes?.setExtents(modelCenter, modelRadius);
-          collectClipTargets();
-          applySlice();
-        };
-
-        poseLayerBeforeRender = () => {
-          const suspended = posingSuspended();
-          if (suspended && selected) deselectImpl();
-          if (handleGroup) handleGroup.visible = jointsActive();
-          if (obliqueDot) obliqueDot.visible = obliqueEditing() && !suspended;
-          // Twist distribution only while posing owns the skeleton — a mixer
-          // clip / tween must never be post-processed by the pose twist rig.
-          if (poseTwistOn && twistRig.length && !suspended) {
-            applyTwistRig(twistRig);
-            modelRoot?.updateMatrixWorld(true);
-          }
-          updatePoseHandles();
-          updateRingGizmo();
-          if (sliceState.plane !== 'off') {
-            refreshSlicePlane(); // live-track gizmo moves + motion + depth
-            if (sliceState.cap && sectionCap) sectionCap.update();
-          }
-        };
-        poseLayerAfterRender = () => {
-          ringGizmo.render(renderer, camera);
-        };
-        // Idle liveliness suspends while the layer is ENGAGED — a selected
-        // joint (rings up), an in-flight marker/ring/oblique drag, or the
-        // pose-motion preview — so hand-posing is never perturbed. Merely
-        // being posable does NOT suspend it: an untouched studio still breathes.
-        poseLayerBusy = () =>
-          !!selected || !!press || !!ringDrag || !!obliqueRingDrag || !!obliquePress ||
-          tcDragging || posePlayActive;
-
+        // Disposed while the layer module loaded — abort the boot exactly as the
+        // old inline `if (disposed) return;` did (loadModel below never runs).
+        if (!layer) return;
+        poseLayerOnTakeover = layer.hooks.onTakeover;
+        poseLayerOnModelLoaded = layer.hooks.onModelLoaded;
+        poseLayerBeforeRender = layer.hooks.beforeRender;
+        poseLayerAfterRender = layer.hooks.afterRender;
+        poseLayerBusy = layer.hooks.busy;
         poseLayerDispose = () => {
-          poseLayerBusy = null;
-          renderer.domElement.removeEventListener('pointerdown', onPosePointerDown);
-          window.removeEventListener('pointermove', onPosePointerMove);
-          window.removeEventListener('pointerup', onPosePointerUp);
-          window.removeEventListener('pointercancel', onPosePointerUp);
-          window.removeEventListener('keydown', onPoseKey);
-          cancelAnimationFrame(posePlayRaf);
-          if (ikCtx) disposeIKChainContext(ikCtx);
-          releasePelvisPlant();
-          clearPoseHandles();
-          clearAxes();
-          ringGizmo.dispose();
-          tc.detach();
-          tc.dispose();
-          if (obliqueDot) {
-            scene.remove(obliqueDot);
-            (obliqueDot.material as import('three').Material).dispose?.();
-            (obliqueHit?.material as import('three').Material | undefined)?.dispose?.();
-          }
-          planes?.dispose();
-          sectionCap?.dispose();
+          poseLayerBusy = null; // stop suspending idle liveliness first
+          layer.hooks.dispose();
           poseApiImpl = null;
         };
-
-        // ── Host-facing pose API ───────────────────────────────────────────
-        poseApiImpl = {
-          getPose: () => {
-            if (!skinnedRef || !variantCfgRef) return null;
-            // Serialize the CLEAN pose — never a baked idle-liveliness delta
-            // (the rAF loop re-bakes it next frame; phase is continuous).
-            undoIdleOverlays();
-            undoEyeGaze(); // eyes at rest in the serialized pose
-            return serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
-          },
-          loadPose: (pose: CustomPose) => {
-            if (!skinnedRef || !variantCfgRef) return;
-            // A loaded pose owns the skeleton — same cancels as scrubbing
-            // (idle deltas lift BEFORE the absolute pose/root writes).
-            undoIdleOverlays();
-            undoEyeGaze(); // eye deltas lift before the absolute pose writes
-            poseLayerOnTakeover?.();
-            cancelComposed();
-            if (activeMotionId) stopMotion();
-            if (activeTween) finishTween();
-            resetRootToRest(); // authored poses are upright, rotation-only
-            applyCustomPose(skinnedRef.skeleton, variantCfgRef, pose);
-            currentPose = pose;
-            modelRoot?.updateMatrixWorld(true);
-            updatePoseHandles();
-            reportPosing(true);
-            requestRender();
-            startLoop();
-          },
-          resetPose: () => {
-            if (!skinnedRef || !variantCfgRef) return;
-            undoIdleOverlays();
-            undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
-            poseLayerOnTakeover?.();
-            cancelComposed();
-            if (activeMotionId) stopMotion();
-            if (activeTween) finishTween();
-            resetRootToRest();
-            applyPoseNow(null);
-            currentPose = null;
-            modelRoot?.updateMatrixWorld(true);
-            updatePoseHandles();
-            reportPosing(true);
-            requestRender();
-            startLoop();
-          },
-          togglePosePlay: togglePosePlayImpl,
-          focusSelectedJoint: () => {
-            if (!selected) return;
-            selected.bone.getWorldPosition(_v);
-            cam.focusOn(_v);
-          },
-          deselectJoint: deselectImpl,
-          setPosingOptions: (opts) => {
-            if (opts.romClamp !== undefined) poseRomClampOn = opts.romClamp;
-            if (opts.twistRig !== undefined) poseTwistOn = opts.twistRig;
-            if (opts.showJoints !== undefined) {
-              poseShowJoints = opts.showJoints;
-              applyJointVisibility();
-            }
-            if (opts.showAxes !== undefined && opts.showAxes !== poseShowAxes) {
-              poseShowAxes = opts.showAxes;
-              if (poseShowAxes) buildAxes();
-              else clearAxes();
-            }
-            requestRender();
-          },
-          setPlanes: (p) => {
-            if (p.sagittal !== undefined) planeVis.sagittal = p.sagittal;
-            if (p.frontal !== undefined) planeVis.frontal = p.frontal;
-            if (p.transverse !== undefined) planeVis.transverse = p.transverse;
-            if (p.oblique !== undefined) planeVis.oblique = p.oblique;
-            applyPlaneState();
-          },
-          setSlice: (s) => {
-            sliceState.plane = s.plane;
-            if (s.flip !== undefined) sliceState.flip = s.flip;
-            if (s.cap !== undefined) sliceState.cap = s.cap;
-            if (s.depth !== undefined) sliceState.depth = s.depth;
-            applySlice();
-          },
-          exportAnimationGlb: async (frames, name, rootMotion = false) => {
-            if (!skinnedRef || !variantCfgRef || !modelRoot || frames.length < 2) return;
-            const [{ GLTFExporter }, { clone: cloneSkeleton }] = await Promise.all([
-              import('three/examples/jsm/exporters/GLTFExporter.js'),
-              import('three/examples/jsm/utils/SkeletonUtils.js'),
-            ]);
-            const skel = skinnedRef.skeleton;
-            const variantCfg = variantCfgRef;
-            // Preserve the working pose; the live skeleton is mutated to sample.
-            // Idle deltas lift first so the export + restore are both clean.
-            undoIdleOverlays();
-            undoEyeGaze(); // exported bone tracks carry the eyes at rest
-            const saved = serializeCustomPose(skel, variantCfg, variantCfg.id);
-            const times = frames.map((f) => f.t);
-            const perBone = new Map<string, number[]>();
-            for (const b of skel.bones) perBone.set(b.name, []);
-            const rootBone =
-              skel.bones.find((b) => !(b.parent as import('three').Bone)?.isBone) ?? skel.bones[0]!;
-            const rootPos: number[] = [];
-            for (const f of frames) {
-              applyCustomPose(skel, variantCfg, f.pose);
-              for (const b of skel.bones) {
-                const q = b.quaternion;
-                perBone.get(b.name)!.push(q.x, q.y, q.z, q.w);
-              }
-              if (rootMotion)
-                rootPos.push(rootBone.position.x, rootBone.position.y, rootBone.position.z);
-            }
-            applyCustomPose(skel, variantCfg, saved);
-            modelRoot.updateMatrixWorld(true);
-            updatePoseHandles();
-            reportPosing(true);
-            requestRender();
-
-            const tracks: import('three').KeyframeTrack[] = [];
-            for (const [boneName, vals] of perBone) {
-              const thin = decimateQuatTrack(times, vals);
-              tracks.push(
-                new THREE.QuaternionKeyframeTrack(`${boneName}.quaternion`, thin.times, thin.values),
-              );
-            }
-            if (rootMotion) {
-              tracks.push(
-                new THREE.VectorKeyframeTrack(`${rootBone.name}.position`, times.slice(), rootPos),
-              );
-            }
-            const clip = new THREE.AnimationClip(name || 'authored', times[times.length - 1]!, tracks);
-
-            // Export a bones-only clone of the mannequin + the clip → slim GLB.
-            const cloneRoot = cloneSkeleton(modelRoot);
-            const meshes: import('three').Object3D[] = [];
-            cloneRoot.traverse((o) => {
-              if ((o as import('three').SkinnedMesh).isSkinnedMesh || (o as import('three').Mesh).isMesh)
-                meshes.push(o);
-            });
-            for (const m of meshes) m.parent?.remove(m);
-
-            const glb = await new Promise<ArrayBuffer>((resolve, reject) => {
-              new GLTFExporter().parse(
-                cloneRoot,
-                (r) => resolve(r as ArrayBuffer),
-                reject,
-                { binary: true, animations: [clip], onlyVisible: false },
-              );
-            });
-            const blob = new Blob([glb], { type: 'model/gltf-binary' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${name || 'authored'}.glb`;
-            a.click();
-            URL.revokeObjectURL(url);
-          },
-        };
+        poseApiImpl = layer.api;
 
         // Flush host state pushed before the layer was wired.
         if (pendingPosingOptions) {

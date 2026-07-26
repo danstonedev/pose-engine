@@ -34,6 +34,18 @@ const motionSequenceSource = readFileSync(
   fileURLToPath(new URL('../services/motionSequence.ts', import.meta.url)),
   'utf8',
 );
+// Motion-time liveliness overlay logic now lives in its own module.
+const motionLiveSource = readFileSync(
+  fileURLToPath(new URL('../services/stageMotionLiveliness.ts', import.meta.url)),
+  'utf8',
+);
+// The rig-facing composed trajectory pre-passes (vertical calibration,
+// foot-driven travel, lateral shuttle, heel-strike accents) now live in their
+// own module; the stage keeps the state + the per-frame appliers.
+const derivationsSource = readFileSync(
+  fileURLToPath(new URL('../services/stageComposedDerivations.ts', import.meta.url)),
+  'utf8',
+);
 
 describe('M3 — interrupted composed playback is a distinct, honest status', () => {
   it("ComposedMotionPlaybackResult admits status 'interrupted' with partial measurements + reason", () => {
@@ -161,7 +173,7 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     expect(stageSource).toMatch(
       /function scaleComposedPlantsToTrajectory[\s\S]{0,700}authoredToTrajectoryTimeScale\(resolvedMotion, traj\.totalMs\)/,
     );
-    expect(stageSource).toMatch(
+    expect(derivationsSource).toMatch(
       /function scaledStanceWindows[\s\S]{0,700}authoredToTrajectoryTimeScale\(resolvedMotion, traj\.totalMs\)/,
     );
   });
@@ -177,7 +189,7 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
   });
 
   it('drops the plants when the motion ends (no stale IK on the next motion)', () => {
-    expect(stageSource).toMatch(/function cancelComposed[\s\S]{0,200}composedPlants = \[\]/);
+    expect(stageSource).toMatch(/function cancelComposed[\s\S]{0,400}composedPlants = \[\]/);
   });
 });
 
@@ -193,25 +205,28 @@ describe('DET-LOCK-01 — the live vcal passes the gait vertical rise clamp (loc
     );
   });
 
-  it('the stage imports the sampler’s clamp constant (one shared value, not a copy)', () => {
+  it('the live derivation imports the sampler’s clamp constant (one shared value, not a copy)', () => {
     // Anywhere in the motionRecording import block (other shared helpers —
     // e.g. the SEAM-2 time-scale pair — may follow it in the destructuring).
-    expect(stageSource).toMatch(
-      /GAIT_VERTICAL_MAX_RISE_M,[\s\S]{0,200}\} = await import\('\.\/services\/motionRecording'\)/,
+    expect(derivationsSource).toMatch(
+      /GAIT_VERTICAL_MAX_RISE_M,[\s\S]{0,200}\} from '\.\/motionRecording'/,
     );
   });
 
-  it('the stage’s deriveVerticalCalibration mirrors the sampler’s clamp argument', () => {
-    // The exact 5th argument: clamp iff this motion built foot plants (the
-    // travelling walk), mirroring the sampler's footPlants gate.
-    expect(stageSource).toContain(
-      "}, targetCm / 100, 48, true, composedPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined);",
+  it('the live deriveVerticalCalibration mirrors the sampler’s clamp argument', () => {
+    // The exact trailing arguments: clamp iff this motion built foot plants (the
+    // travelling walk), mirroring the sampler's footPlants gate. `plantsActive`
+    // is `composedPlants.length > 0`, threaded in from the stage.
+    expect(derivationsSource).toMatch(
+      /targetCm \/ 100,\s*\n\s*48,[\s\S]{0,700}true,\s*\n\s*plantsActive \? GAIT_VERTICAL_MAX_RISE_M : undefined,/,
     );
-    // …and that tail belongs to setComposedVerticalCalibration's derive call.
-    // (Window 2100: the derive closure body + the lockstep comment block sit
-    // between the function head and the argument tail.)
+    // …and that tail belongs to the verticalCalibration derive call.
+    expect(derivationsSource).toMatch(
+      /function verticalCalibration[\s\S]{0,2100}plantsActive \? GAIT_VERTICAL_MAX_RISE_M : undefined/,
+    );
+    // The stage still supplies the plants gate from its own plant list.
     expect(stageSource).toMatch(
-      /function setComposedVerticalCalibration[\s\S]{0,2100}composedPlants\.length > 0 \? GAIT_VERTICAL_MAX_RISE_M : undefined/,
+      /derivations\.verticalCalibration\([\s\S]{0,300}composedPlants\.length > 0,/,
     );
   });
 
@@ -277,7 +292,7 @@ describe('SEAM-9 — motion-time liveliness (realism) is applied AFTER the recor
   // idle re-bake (a motion is driving the skeleton).
   it('applyMotionLiveliness runs AFTER the recording tap (else-branch of the idle re-bake)', () => {
     expect(stageSource).toMatch(
-      /if \(recording\) \{[\s\S]{0,1500}\} else if \(\(\(mixer && activeMotionId\) \|\| composedActive\) && applyMotionLiveliness\(motionDelta\)\)/,
+      /recordingTap\.sample\([\s\S]{0,1500}\} else if \(\(\(mixer && activeMotionId\) \|\| composedActive\) && applyMotionLiveliness\(motionDelta\)\)/,
     );
   });
 
@@ -286,8 +301,8 @@ describe('SEAM-9 — motion-time liveliness (realism) is applied AFTER the recor
     // 1300 for the onset-ramp preamble — livelinessOnsetSec + the 0→1 ramp
     // derivation — which the onset-ramp source pins in idleLiveliness.test.ts
     // guard in detail).
-    expect(stageSource).toMatch(
-      /function applyMotionLiveliness\(dtSec: number\): boolean \{[\s\S]{0,1300}breathingLeanFM[\s\S]{0,400}livelinessSwayDeg/,
+    expect(motionLiveSource).toMatch(
+      /function apply\([\s\S]{0,1300}breathingLeanFM[\s\S]{0,400}livelinessSwayDeg/,
     );
     // …and the pre-tap motion-overlay block no longer applies it (only guarding /
     // sway / pelvis remain there — a comment marks where liveliness moved to).
