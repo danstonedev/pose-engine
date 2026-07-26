@@ -81,6 +81,33 @@ ExamStage3D.svelte: **4986 → 4723**. Pattern: move logic+state to a factory mo
 keep thin same-named wrappers in the component so call sites don't churn; retarget the
 body source-pins to the module, keep wiring pins on the component.
 
+### Measured ceiling on extraction (2026-07-26) — SUPERSEDED, and wrong in its main claim
+
+Kept as a record of a bad measurement, because the method is the useful part.
+
+I measured the `onMount` closure at **63 shared mutable `let`s and 45 inner functions, only 5
+of which touched none of the 63** — ~54 lines, **1.3%** — and concluded that the `< 500` target
+was "not reachable by extraction alone". Steps 5–9 (`stageMotionLiveliness`, `stageRecordingTap`,
+`stageComposedDerivations`, the posing layer) then extracted roughly **1,400 lines**, taking the
+file 4986 → 3504. The 1.3% figure was falsified by a factor of ~25.
+
+**Where the method went wrong:** "touches no shared state" is the wrong containment test. It
+treats any read of a shared variable as coupling, so it rules out exactly the subsystems that
+read a lot and write almost nothing — which is what most of them are. The test that actually
+authorised the cuts is the one recorded below: **direction and asymmetry** (posing layer: 107
+read-only refs vs 4 writes, one direction), not raw contact count. A subsystem that only reads
+shared state extracts cleanly behind getters; one that writes it does not.
+
+The narrower claim survives, and is reached properly with evidence in
+**"The refactor has reached its natural boundaries"** below: the *stage core* will not reach 500
+lines, because what remains is the composition root plus the per-frame ordering contract. Read
+that section instead of this one — it is the same conclusion with the work behind it.
+
+One constraint from the original note that does still hold: coverage is thin exactly where it
+matters. `stageReliability.test.ts` asserts regexes against this file as raw text and has been
+loosened repeatedly (its own comments record "Window widened 700→1600"), so any decomposition
+step invalidates part of it and opens a window with reduced stage coverage.
+
 ### Remaining decomposition (in order), to get under 500/file
 1. ~~**motion-time liveliness** overlay~~ ✅ `services/stageMotionLiveliness.ts` (step 5).
 2. ~~**recording tap**~~ ✅ `services/stageRecordingTap.ts` (step 6) — the ActiveRecording buffer +

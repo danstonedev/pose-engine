@@ -33,8 +33,8 @@ import { getBodyVariant, buildBoneByPoseKey, solveIKChain, computeJointAngles } 
 
 ```
 npm install
-npm run check   # tsc --noEmit
-npm test        # vitest (86 pose tests)
+npm run check   # svelte-check (auto-discovers tsconfig.json; checks .ts and .svelte)
+npm test        # vitest (full unit + behavioural suite)
 ```
 
 > Note: `getMovementClipSpeed` / the `MOVEMENT_CLIPS` catalog are intentionally

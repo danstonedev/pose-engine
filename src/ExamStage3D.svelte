@@ -65,10 +65,11 @@
   // it feeds the live rAF overlay only, never the offline sampler.
   import { cadenceRate, motionWorkIntensity } from './services/liveliness';
   import { createBreathState } from './services/stageBreath';
-  import { createClipBlend } from './services/stageClipBlend';
-  import { createEyeGazeOverlay } from './services/stageEyeGaze';
-  import { createIdleOverlay } from './services/stageIdleOverlay';
-  import { createMotionLiveliness, LIVELINESS_ONSET_SEC } from './services/stageMotionLiveliness';
+  // stageRecordingTap and stageDriver are three-free (frame bookkeeping and a
+  // pure state machine) — static imports stay SSR-safe. The stage services that
+  // DO pull three — stageClipBlend, stageEyeGaze, stageIdleOverlay,
+  // stageMotionLiveliness — are dynamically imported inside onMount instead, so
+  // importing this component never drags three into a host's initial chunk.
   import { createRecordingTap } from './services/stageRecordingTap';
   import { createStageDriver, type DriverMechanism } from './services/stageDriver';
   // Type-only — the module itself is dynamically imported (it pulls three).
@@ -103,7 +104,8 @@
     readyTransitionNeeded,
     readyResetRootTarget,
   } from './services/readyTransition';
-  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraControls';
+  import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraLabels';
+  import { attachContextLossRecovery, disposeObject3DTree } from './services/webglLifecycle';
 
   let {
     variant = 'male',
@@ -540,6 +542,14 @@
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
       const { buildSequencePoses } = await import('./services/motionSequence');
+      // These four import three at module scope, so they must be dynamic to keep the
+      // component's lazy-three contract intact (see the header note).
+      const { createClipBlend } = await import('./services/stageClipBlend');
+      const { createEyeGazeOverlay } = await import('./services/stageEyeGaze');
+      const { createIdleOverlay } = await import('./services/stageIdleOverlay');
+      const { createMotionLiveliness, LIVELINESS_ONSET_SEC } = await import(
+        './services/stageMotionLiveliness'
+      );
       const {
         composedTweenEase,
         stagedBlendWithBaseline,
@@ -1233,15 +1243,9 @@
         }
         motionClipCache.clear();
         scene.remove(modelRoot);
-        modelRoot.traverse((o) => {
-          const mesh = o as import('three').Mesh;
-          mesh.geometry?.dispose?.();
-          const mat = mesh.material as
-            | import('three').Material
-            | import('three').Material[]
-            | undefined;
-          if (mat) (Array.isArray(mat) ? mat : [mat]).forEach((m) => m.dispose?.());
-        });
+        // Shared helper — also disposes the textures the materials hold,
+        // which the previous inline traverse leaked on every variant swap.
+        disposeObject3DTree(modelRoot, { textures: true });
         modelRoot = null;
       }
 
@@ -2981,6 +2985,9 @@
       // promises never strand.
       let raf = 0;
       let loopRunning = false;
+      // Set while the WebGL context is gone. startLoop() honours it, so a resize
+      // or visibility change cannot restart rendering against a dead context.
+      let contextLost = false;
       let lastMotionReport = 0;
       const loop = () => {
         if (container.offsetParent === null) {
@@ -3234,11 +3241,25 @@
         renderNeeded = false;
       };
       const startLoop = () => {
-        if (loopRunning) return;
+        if (loopRunning || contextLost) return;
         loopRunning = true;
         raf = requestAnimationFrame(loop);
       };
       startLoop();
+
+      // Park the loop if the GPU takes the context away, and resume on restore.
+      const detachContextLoss = attachContextLossRecovery(renderer.domElement, {
+        onLost: () => {
+          contextLost = true;
+          cancelAnimationFrame(raf);
+          loopRunning = false;
+        },
+        onRestored: () => {
+          contextLost = false;
+          requestRender();
+          startLoop();
+        },
+      });
 
       // Background tab: visibilityState 'hidden' freezes rAF WITHOUT hiding
       // the element (offsetParent stays non-null), so an in-flight tween
@@ -3292,6 +3313,7 @@
         showRecordedFrameImpl = null;
         captureFrameImpl = null;
         cancelAnimationFrame(raf);
+        detachContextLoss();
         document.removeEventListener('visibilitychange', onVisibilityChange);
         ro.disconnect();
         controls.removeEventListener('change', requestRender);
