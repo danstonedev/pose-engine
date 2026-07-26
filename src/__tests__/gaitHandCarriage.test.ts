@@ -166,6 +166,74 @@ describe('the walking hand hangs relaxed rather than held forward', () => {
     );
   });
 
+  it('the fingers carry a graded cascade AND move with the swing (tenodesis)', () => {
+    const resolved = resolveComposedMotion(buildTravelWalk(), variantCfg);
+    const rec = sampleComposedMotion(resolved, {
+      baselinePose,
+      variantCfg,
+      rest,
+      skeletonHarness: { root, skinned },
+      sampleHz: 120,
+    });
+    const ends: number[] = [];
+    let acc = 0;
+    for (const k of resolved.keyframes) {
+      acc += k.durationMs + (k.holdMs ?? 0);
+      ends.push(acc);
+    }
+    const steady = rec.frames.filter((f) => f.tMs >= ends[2]! && f.tMs <= ends[8]!);
+    const curl = (f: (typeof steady)[number], joint: string): number | undefined =>
+      (f.angles as Record<string, Record<string, number>> | undefined)?.[joint]?.fingerFlexion;
+
+    // 1. THE CASCADE, at every instant: index straightest → little finger most
+    //    curled. Gait used to apply ONE flat value to all five digits, which is a
+    //    uniform claw; the graded shape is what reads as a relaxed hand.
+    let checked = 0;
+    for (const f of steady) {
+      const i = curl(f, 'R_Index1');
+      const m = curl(f, 'R_Mid1');
+      const r2 = curl(f, 'R_Ring1');
+      const p = curl(f, 'R_Pinky1');
+      if (i == null || m == null || r2 == null || p == null) continue;
+      expect(i).toBeLessThan(m);
+      expect(m).toBeLessThan(r2);
+      expect(r2).toBeLessThan(p);
+      checked += 1;
+    }
+    expect(checked, 'the digits are measured across the cycle').toBeGreaterThan(10);
+
+    // 2. THEY MOVE — and move WITH THE WRIST, which is the tenodesis coupling:
+    //    the finger flexors cross the wrist, so extension curls the digits and
+    //    flexion releases them. Correlating the two series is what distinguishes
+    //    a real coupling from an arbitrary wiggle, so the sign is asserted, not
+    //    just the excursion.
+    const wrist = steady
+      .map((f) => (f.angles as Record<string, Record<string, number>> | undefined)?.R_Hand?.wristFlexion)
+      .filter((v): v is number => typeof v === 'number');
+    const mid = steady.map((f) => curl(f, 'R_Mid1')).filter((v): v is number => typeof v === 'number');
+    expect(mid.length).toBe(wrist.length);
+    const excursion = (v: number[]) => Math.max(...v) - Math.min(...v);
+    // eslint-disable-next-line no-console
+    console.log(
+      `fingers: Mid1 excursion ${excursion(mid).toFixed(1)}° over a wrist excursion of ` +
+        `${excursion(wrist).toFixed(1)}° · range [${Math.min(...mid).toFixed(1)}, ${Math.max(...mid).toFixed(1)}]`,
+    );
+    expect(excursion(mid), 'the digits actually move through the cycle').toBeGreaterThan(4);
+
+    // Negative correlation: MORE wrist flexion ⇒ LESS curl.
+    const mean = (v: number[]) => v.reduce((a, b) => a + b, 0) / v.length;
+    const wBar = mean(wrist);
+    const mBar = mean(mid);
+    const cov = wrist.reduce((acc, w, k) => acc + (w - wBar) * (mid[k]! - mBar), 0);
+    expect(cov, 'wrist extension curls the digits, flexion releases them').toBeLessThan(0);
+
+    // 3. Never splayed straight, never a fist.
+    for (const v of mid) {
+      expect(v).toBeGreaterThan(8);
+      expect(v).toBeLessThan(70);
+    }
+  });
+
   it('all three wrist/forearm channels carry visible excursion, and flexion crosses neutral', () => {
     const resolved = resolveComposedMotion(buildTravelWalk(), variantCfg);
     const rec = sampleComposedMotion(resolved, {

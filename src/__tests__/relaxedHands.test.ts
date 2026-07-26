@@ -241,14 +241,35 @@ describe('relaxedHands — authoring (pure)', () => {
 
     const r = resolveComposedMotion(walk, variantCfg);
     expect(r.status).toBe('ok');
-    // Every finger target carries the coordination's own constant curl (32° —
-    // FINGER_CURL_DEG in movementTemplates), NEVER the relaxed graded cascade.
-    const fingerVals = new Set<number>();
-    for (const kf of r.keyframes)
-      for (const t of kf.targets) if (t.motion === 'fingerFlexion') fingerVals.add(t.clampedDegrees);
-    expect(fingerVals.size, 'ONE constant coordination curl for every digit').toBe(1);
-    const gaitCurl = [...fingerVals][0]!;
-    expect(Object.values(RELAXED_FINGER_CURL_DEG)).not.toContain(gaitCurl);
+    // The walk's finger targets come from its OWN coordination, not from the
+    // relaxed set. This used to be proven by value-distinctness — gait applied a
+    // flat 32° that appeared nowhere in RELAXED_FINGER_CURL_DEG. It now reuses
+    // that cascade deliberately (one hand posture, not two), so distinctness no
+    // longer discriminates and would be the wrong thing to pin anyway.
+    //
+    // The discriminator is now BEHAVIOURAL, and it is a stronger one: relaxedHands
+    // writes a STATIC resting set — one value per digit, identical on every
+    // keyframe — whereas gait's coordination drives the digits through the cycle
+    // via tenodesis (wrist extension curls them, flexion releases them). So a
+    // finger series that VARIES can only have come from the coordinator.
+    const indexSeries = r.keyframes.map(
+      (kf) => kf.targets.find((t) => t.joint === 'R_Index1' && t.motion === 'fingerFlexion')?.clampedDegrees ?? 0,
+    );
+    expect(
+      Math.max(...indexSeries) - Math.min(...indexSeries),
+      'the digits move across the cycle (coordination, not the static relaxed set)',
+    ).toBeGreaterThan(2);
+    // …and the cascade ordering holds at every keyframe: radial digits straighter,
+    // ulnar more curled — a relaxed hand, never a uniform claw.
+    for (const kf of r.keyframes) {
+      const curl = (j: string) =>
+        kf.targets.find((t) => t.joint === j && t.motion === 'fingerFlexion')?.clampedDegrees;
+      const [idx, mid, ring, pinky] = ['R_Index1', 'R_Mid1', 'R_Ring1', 'R_Pinky1'].map(curl);
+      if (idx == null || mid == null || ring == null || pinky == null) continue;
+      expect(idx).toBeLessThan(mid);
+      expect(mid).toBeLessThan(ring);
+      expect(ring).toBeLessThan(pinky);
+    }
     // The coordinated wrist DRAGS with the arm swing (oscillates across the
     // cycle) — the relaxed set would be one constant value on every keyframe.
     const wristVals = r.keyframes.map(
