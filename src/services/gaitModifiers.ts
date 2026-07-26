@@ -18,7 +18,11 @@
  * existing importer) is unchanged.
  */
 
-import { SPINE_NECK_MAX, SPINE_NECK_LATERAL_MAX } from './motionSequence';
+import {
+  SPINE_NECK_MAX,
+  SPINE_NECK_LATERAL_MAX,
+  RELAXED_FINGER_CURL_DEG,
+} from './motionSequence';
 import type {
   ComposedMotion,
   MovementAsymmetry,
@@ -343,8 +347,32 @@ const WRIST_FLEX_MAX = 22; // the total excursion never leaves this band
  * what changes is its phase, and how it responds to tempo.
  */
 const WRIST_DRAG_PER_DEG_S = 0.072;
-const FINGER_CURL_DEG = 32; // the fingers rest gently CURLED (a loose relaxed hand), not
-// splayed straight. Constant posture (carried across the cycle), applied per digit.
+// FINGERS. A relaxed hand rests gently CURLED, not splayed straight — but not as
+// a uniform claw either. Gait used to apply ONE flat 32° to all five digits,
+// thumb included, held constant for the whole cycle: no cascade, no thumb, no
+// movement. Two corrections:
+//
+//  1. THE GRADED CASCADE, shared with the non-gait resting hand. The digits curl
+//     progressively from radial to ulnar (index straightest, little finger most
+//     curled) with the thumb differentiated — which `relaxedHands` already
+//     authored for every OTHER motion (RELAXED_FINGER_CURL_DEG). Gait disagreeing
+//     with it was the same split that had the two paths carrying different wrist
+//     postures, so it reuses that table rather than keeping a second opinion.
+//  2. TENODESIS. The finger flexors cross the wrist, so wrist position drives
+//     finger curl passively: extend the wrist and the tendons tighten and the
+//     fingers curl; flex it and they release. It is the reason a relaxed hand
+//     opens and closes slightly as the arm swings, and it is why this reads as
+//     ALIVE rather than as a posed prop — the movement is not decoration, it is
+//     the same tendon coupling a clinician tests for. Driven off the wrist value
+//     this coordinator already computes, so it stays phase-locked for free.
+const FINGER_TENODESIS_GAIN = 1.0;
+/** Curl may never go below this (a loose open hand) or above a soft-fist bound —
+ *  the registry allows 0..160, which is a clenched fist at the top. 12° because
+ *  the design intent is "curled, never splayed straight": at the 1.6 run cap the
+ *  energy opening and the tenodesis release compound, and an 8° floor let the
+ *  digits reach very nearly straight at peak wrist flexion. */
+const FINGER_CURL_FLOOR_DEG = 12;
+const FINGER_CURL_CEIL_DEG = 60;
 // ─── DISTAL ENERGY AT SPEED (roadmap 5.4) ────────────────────────────────────
 // The DERIVED gains above scale with the stride for free (a bigger arm swing ⇒ a
 // bigger counter-rotation), but the distal CONSTANTS were speed-invariant: a
@@ -442,7 +470,13 @@ export function spinalGaitCoordination(
     opts.energy ?? (typeof tsMod === 'number' && Number.isFinite(tsMod) ? tsMod * tsMod : 1);
   const energy = Math.min(ENERGY_MAX, Math.max(1, Number.isFinite(energyRaw) ? energyRaw : 1));
   const dE = energy - 1;
-  const fingerCurlDeg = Math.max(FINGER_CURL_MIN_DEG, FINGER_CURL_DEG - FINGER_CURL_OPEN_PER_ENERGY * dE);
+  /** Resting curl for one digit at this energy: the shared graded cascade, opened
+   *  by speed (a runner's hand un-curls toward a loose blade). */
+  const restingCurlFor = (digit: string): number =>
+    Math.max(
+      FINGER_CURL_MIN_DEG,
+      (RELAXED_FINGER_CURL_DEG[digit] ?? 32) - FINGER_CURL_OPEN_PER_ENERGY * dE,
+    );
   // Playback pace: paceGait expresses a faster walk as `timeScale` (durations are
   // divided by it downstream), so the authored keyframe spacing alone understates
   // how fast the arm actually swings. Folded into the wrist-drag velocity below.
@@ -599,14 +633,11 @@ export function spinalGaitCoordination(
         // physical behaviour of a passive mass on the end of a swinging lever. Forward
         // swing (velocity > 0) extends the wrist as the hand trails behind; the backswing
         // flexes it. Faster cadence ⇒ higher velocity ⇒ a harder trail, for free.
-        additions.push({
-          joint: `${S}_Hand`,
-          motion: 'wristFlexion',
-          deg: cap(
-            WRIST_FLEX_BASE - WRIST_DRAG_PER_DEG_S * (shVelDegS[S][kfIndex] ?? 0),
-            WRIST_FLEX_MAX,
-          ),
-        });
+        const wristDeg = cap(
+          WRIST_FLEX_BASE - WRIST_DRAG_PER_DEG_S * (shVelDegS[S][kfIndex] ?? 0),
+          WRIST_FLEX_MAX,
+        );
+        additions.push({ joint: `${S}_Hand`, motion: 'wristFlexion', deg: wristDeg });
         // …and the hand deviates in the FRONTAL plane too: a resting ulnar bias
         // (the hand's mass hangs to the ulnar side) carried toward radial through
         // the forward swing and back toward ulnar on the backswing. Position-
@@ -616,10 +647,32 @@ export function spinalGaitCoordination(
           motion: 'wristDeviation',
           deg: cap(WRIST_DEV_BASE + WRIST_DEV_SWING * sh, WRIST_DEV_MAX),
         });
-        // FINGERS: rest gently curled (a loose relaxed hand), not splayed rigid-straight.
-        // The curl OPENS with energy — a runner's hand un-curls toward a loose blade.
-        for (const fk of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const)
-          additions.push({ joint: `${S}_${fk}`, motion: 'fingerFlexion', deg: fingerCurlDeg });
+        // FINGERS: the graded resting cascade, plus the TENODESIS swing — wrist
+        // extension tightens the long flexors and curls the digits, wrist flexion
+        // releases them. `wristDeg` is this keyframe's wrist value (registry sign,
+        // + = flexion), so −wristDeg is the extension that drives the curl.
+        const tenodesis = -FINGER_TENODESIS_GAIN * wristDeg;
+        for (const fk of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
+          // The THUMB is excluded from the tenodesis swing (gain 0), for two
+          // reasons. Anatomically its carpometacarpal joint absorbs most of the
+          // excursion, so flexor pollicis longus moves it far less than the long
+          // finger flexors move the digits. And practically, the thumb's
+          // `fingerFlexion` does NOT read back cleanly on this rig: driving it at
+          // half gain authored ~22.6° and MEASURED 25.7°, moving opposite to the
+          // authored direction, because the thumb's axis is rotated at the CMC and
+          // the measurement decomposes against a different frame. Rather than ship
+          // a channel whose direction cannot be verified, the thumb carries its
+          // resting cascade value and nothing else.
+          const gain = fk === 'Thumb1' ? 0 : 1;
+          additions.push({
+            joint: `${S}_${fk}`,
+            motion: 'fingerFlexion',
+            deg: Math.max(
+              FINGER_CURL_FLOOR_DEG,
+              Math.min(FINGER_CURL_CEIL_DEG, restingCurlFor(fk) + gain * tenodesis),
+            ),
+          });
+        }
       }
       // LEG: the SWING leg ADducts toward the midline as it advances (the feet track near
       // the line of progression — a narrow base), NOT abducts (a wide, waddling splay); the
