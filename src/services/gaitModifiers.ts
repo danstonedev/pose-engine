@@ -248,9 +248,19 @@ const PELVIS_YAW_MAX = 6;
 // as a robotic 2-D walker. These add SUBTLE frontal + transverse components — physiologic
 // amounts, well inside ROM — derived per-limb from that limb's own sagittal phase, so the
 // arms and legs carry natural out-of-plane motion. ROM-clamped on resolve.
-const ARM_ADD_BASE = 5; // shoulder ADduction: the arm hangs IN close to the body…
-const ARM_ADD_SWING = 0.1; // …and comes a touch more across on the forward swing
-const ARM_ADD_MAX = 12; // (not winged OUT — abduction reads as a stiff gunslinger carriage)
+// The arm hangs IN close to the body, a touch more across on the forward swing —
+// never winged OUT (abduction reads as a stiff gunslinger carriage).
+//
+// The base is larger than a textbook "physiologic adduction from neutral" because
+// it is not working from an anatomical hang. The rig's REST carriage already holds
+// the hand 26.3cm from the thigh axis while the readout calls that 0° abduction,
+// so part of this constant is closing a gap the rest pose opens, not adding a
+// stylisation on top of a natural one. Rig-measured hand→thigh-axis distance
+// through the walk: 15-19cm here against 26.3cm at rest, with visible daylight at
+// every keyframe (gaitHandCarriage.test.ts gates both ends of that).
+const ARM_ADD_BASE = 12;
+const ARM_ADD_SWING = 0.1;
+const ARM_ADD_MAX = 20;
 // FOREARM PRO/SUP through the swing. The forearm does not ride the swing as a
 // rigid stick: it rotates about its own long axis, supinating a little as the arm
 // comes forward and pronating again on the backswing (the humerus internally
