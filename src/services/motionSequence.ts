@@ -43,6 +43,7 @@ import type { CustomPose } from '../types';
 import type { JointAngleRestReference } from './jointAngles';
 import {
   buildComposedCommandPose,
+  commandedBoneKeys,
   resolveCommandTarget,
   type ComposedJointTarget,
   type ExamMovementLimiter,
@@ -2194,8 +2195,13 @@ export function buildSequencePoses(
     resolved.keyframes.some((kf) => kf.targets.length > 0) &&
     !resolved.keyframes.some((kf) => kf.groundingPosture != null)
   ) {
+    // DRIVEN means every bone the command WRITES, not just the target key — a
+    // digit's single fingerFlexion writes all three of its phalanges. Asking
+    // movementCommand keeps that knowledge with the code that does the writing;
+    // hard-coding the target key here silently un-curls every commanded finger.
     const driven = new Set<string>();
-    for (const kf of resolved.keyframes) for (const t of kf.targets) driven.add(t.joint);
+    for (const kf of resolved.keyframes)
+      for (const t of kf.targets) for (const k of commandedBoneKeys(t.joint)) driven.add(k);
     // Residuals: bones the motion never drives, measurably away from baseline.
     const residuals: { key: string; live: QuatTuple; base: QuatTuple }[] = [];
     for (const [key, liveArr] of Object.entries(settleFrom.bones)) {

@@ -656,6 +656,13 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
      *  the last grid point extrapolate along the final segment rather than
      *  saturating (the response is straight up there). */
     const fullLocalDeg = (deg: number, ctx?: BuildCtx) => {
+      // A non-finite command must not reach the interpolation: NaN makes the
+      // segment search exit on its first (always-false) comparison and Infinity
+      // makes `t` infinite, either way writing a NaN quaternion into the pose —
+      // which poisons the whole skeleton the moment it is applied. `buildCommandPose`
+      // is shielded by resolveCommandTarget's 'invalid-target' refusal, but
+      // `buildComposedCommandPose` takes raw target degrees with no such gate.
+      if (!Number.isFinite(deg)) return 0;
       const variant = FINGER_CURVE[ctx?.variantId ?? 'male'] ?? FINGER_CURVE.male!;
       const row = variant[digit] ?? FINGER_CURVE.male![digit]!;
       let i = FINGER_CURVE_CMD.length - 2;
@@ -675,7 +682,20 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
        * DIP carries about two-thirds of the PIP (measured tenodesis grip
        * proportions). At a firm relaxed grip (commanded 60°) that lands the male
        * middle finger at MCP 19° / PIP 35° / DIP 24°, and at the 160° ROM
-       * ceiling no phalanx exceeds its own anatomical limit.
+       * ceiling at MCP 54° / PIP 100° / DIP 69° — each inside its own limit.
+       *
+       * THE THUMB IS NOT A FINGER and these shares are only approximately right
+       * for it. Its chain is metacarpal / proximal / distal (rig-measured: the
+       * first bone is 6.4cm against the middle finger's 5.3cm), so the three
+       * rotations land on CMC / MP / IP — two true phalangeal joints, not three.
+       * Its readout is also the least efficient of the five, needing 176° of
+       * total local curl to reach a measured 160°, which puts the MP near 115°
+       * against an anatomical ~60°. The thumb is therefore only anatomically
+       * sound up to about 80° commanded (MP ~60°) — far above anything gait or
+       * the relaxed hand ask for, both of which sit at or under its 28° floor.
+       * Capping the thumb's fingerFlexion ROM in romRegistry would make that
+       * limit explicit instead of documented; deliberately left for its own
+       * change, since the ROM row is shared by all five digits.
        */
       phalanges: (deg, ctx) => {
         const full = fullLocalDeg(deg, ctx);
@@ -796,6 +816,24 @@ function phalanxKeys(mcpKey: string): { pip: string; dip: string } {
   return { pip: `${mcpKey.slice(0, -1)}2`, dip: `${mcpKey.slice(0, -1)}3` };
 }
 
+/**
+ * EVERY bone key a command on `joint` may write — not just the joint itself.
+ *
+ * A digit's one clinical `fingerFlexion` is realized across three bones, so any
+ * caller reasoning about which bones a motion DRIVES must ask here instead of
+ * assuming the target key is the only one touched. The settle pass in
+ * buildSequencePoses is exactly that caller: it eases un-driven bones home, and
+ * with a joint-key-only notion of "driven" it classified the phalanges as
+ * residuals and slerped the spread back out of every commanded digit — leaving
+ * the knuckle carrying a curl calibrated for a spread that no longer existed.
+ */
+export function commandedBoneKeys(joint: string): string[] {
+  const specs = SUPPORTED_MOTIONS[joint];
+  if (!specs || !Object.values(specs).some((s) => s.phalanges)) return [joint];
+  const { pip, dip } = phalanxKeys(joint);
+  return [joint, pip, dip];
+}
+
 export function buildCommandPose(
   baselinePose: CustomPose,
   cmd: ExamMovementCommand,
@@ -860,15 +898,22 @@ function writePhalanges(
 ): void {
   const spread = spec.phalanges?.(deg, ctx);
   if (!spread) return;
+  const { pip, dip } = phalanxKeys(joint);
+  const restPip = baselinePose.bones?.[pip];
+  const restDip = baselinePose.bones?.[dip];
+  // ALL OR NOTHING. The MCP share is only 35% of the digit's curl — the rest
+  // lives in the PIP and DIP — so writing the MCP before confirming the other
+  // two are writable would leave a digit driven at a third of its commanded
+  // angle. Bail instead, leaving the single-bone result buildDelta already
+  // wrote. That is the documented degradation, and it is reachable: callers
+  // supply their own baseline pose, and a partial one need not carry phalanges.
+  if (!restPip || !restDip) return;
   const mcpQ = restQ.clone().multiply(spread.mcp);
   target.bones[joint] = [mcpQ.x, mcpQ.y, mcpQ.z, mcpQ.w];
-  const { pip, dip } = phalanxKeys(joint);
-  for (const [key, delta] of [
-    [pip, spread.pip],
-    [dip, spread.dip],
+  for (const [key, restArrP, delta] of [
+    [pip, restPip, spread.pip],
+    [dip, restDip, spread.dip],
   ] as const) {
-    const restArrP = baselinePose.bones?.[key];
-    if (!restArrP) continue;
     const composed = new THREE.Quaternion(
       restArrP[0],
       restArrP[1],

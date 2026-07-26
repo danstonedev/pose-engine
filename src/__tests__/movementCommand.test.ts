@@ -30,6 +30,7 @@ import {
   type JointAngleRestReference,
 } from '../services/jointAngles';
 import {
+  buildComposedCommandPose,
   buildCommandPose,
   finalizeOutcome,
   isMovementCommandSupported,
@@ -38,6 +39,7 @@ import {
   resolveCommandTarget,
   type ExamMovementCommand,
 } from '../services/movementCommand';
+import { buildSequencePoses, resolveComposedMotion } from '../services/motionSequence';
 import { hasClampStrategy } from '../services/poseRomClamp';
 import { ROM_JOINT_ROWS } from '../services/romRegistry';
 import { DEFAULT_TRACKED_BONES } from '../services/motionRecording';
@@ -1153,6 +1155,91 @@ describe('finger phalanges are mapped WITHOUT joining any clinical machinery', (
       expect((DEFAULT_TRACKED_BONES as readonly string[]).includes(key), `${key} tracked`).toBe(
         false,
       );
+    }
+  });
+
+  it('a baseline pose WITHOUT the phalanges degrades to single-bone, not to a third of the curl', () => {
+    // The MCP share is only 35% of a digit's curl. Writing it before confirming
+    // the PIP/DIP are writable would leave a caller-supplied partial pose driving
+    // the digit at a third of what it asked for — silently, since the readout is
+    // never consulted. It must fall back to the whole curl at the knuckle.
+    const partial: CustomPose = { variant: 'male', bones: { R_Mid1: baselinePose.bones!.R_Mid1! } };
+    const cmd = setJoint('R_Mid1', 'fingerFlexion', 90);
+    const built = buildCommandPose(partial, cmd, 90, variantCfg, null, rest)!;
+    expect(built).not.toBeNull();
+    // No phalanx bones invented on a pose that did not carry them.
+    expect(built.bones.R_Mid2).toBeUndefined();
+    expect(built.bones.R_Mid3).toBeUndefined();
+    // And the knuckle carries the FULL curl, matching what buildDelta alone builds.
+    const full = new THREE.Quaternion(...(built.bones.R_Mid1 as [number, number, number, number]));
+    const restQ = new THREE.Quaternion(...(baselinePose.bones!.R_Mid1 as [number, number, number, number]));
+    const travelled = (2 * Math.acos(Math.min(1, Math.abs(restQ.clone().invert().multiply(full).w))) * 180) / Math.PI;
+    // Whole-digit curl for a commanded 90 is ~84°; a 35% share would be ~29°.
+    expect(travelled).toBeGreaterThan(60);
+  });
+
+  it('a startFrom:current CONTINUATION keeps the phalanx spread (the settle must not un-curl it)', () => {
+    // buildSequencePoses eases bones the motion does not drive back toward
+    // baseline. A digit's command targets only its MCP key, so a joint-key-only
+    // notion of "driven" classifies the PIP/DIP as residuals and slerps the
+    // spread away — leaving the knuckle carrying a curl calibrated for a spread
+    // that is no longer there. Nothing else covers this: every other sequence
+    // test starts from neutral, where the settle pass does not run at all.
+    const base: CustomPose = {
+      variant: 'male',
+      bones: {
+        R_Mid1: baselinePose.bones!.R_Mid1!,
+        R_Mid2: baselinePose.bones!.R_Mid2!,
+        R_Mid3: baselinePose.bones!.R_Mid3!,
+      },
+    };
+    const motion = {
+      id: 'curl',
+      label: 'curl',
+      startFrom: 'current' as const,
+      keyframes: [0, 1].map((i) => ({
+        label: `k${i}`,
+        durationMs: 400,
+        holdMs: 0,
+        targets: [{ joint: 'R_Mid1', motion: 'fingerFlexion', targetDegrees: 90 }],
+      })),
+    };
+    const resolvedSeq = resolveComposedMotion(motion as never, variantCfg);
+    expect(resolvedSeq.status).toBe('ok');
+    // A live pose whose phalanges sit away from baseline — what any prior finger
+    // motion leaves behind, and what makes them look like residuals.
+    const live: CustomPose = {
+      variant: 'male',
+      bones: { ...base.bones, R_Mid2: [0, 0, 0.3, 0.954], R_Mid3: [0, 0, 0.3, 0.954] },
+    };
+    const cont = buildSequencePoses(base, resolvedSeq as never, variantCfg, rest, {
+      currentPose: live,
+    } as never);
+    const fresh = buildSequencePoses(base, resolvedSeq as never, variantCfg, rest);
+    for (let i = 0; i < cont.poses.length; i += 1)
+      for (const key of ['R_Mid2', 'R_Mid3'] as const) {
+        const a = new THREE.Quaternion(...(cont.poses[i]!.bones[key] as [number, number, number, number]));
+        const b = new THREE.Quaternion(...(fresh.poses[i]!.bones[key] as [number, number, number, number]));
+        const off = (2 * Math.acos(Math.min(1, Math.abs(a.dot(b)))) * 180) / Math.PI;
+        expect(off, `kf${i} ${key} continuation vs fresh`).toBeLessThan(1);
+      }
+  });
+
+  it('a non-finite command never writes a NaN quaternion into the pose', () => {
+    // buildComposedCommandPose takes raw target degrees with no resolveCommandTarget
+    // gate in front of it; one NaN reaching the interpolation poisons the skeleton.
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const built = buildComposedCommandPose(
+        baselinePose,
+        'R_Mid1',
+        [{ motion: 'fingerFlexion', degrees: bad }],
+        variantCfg,
+        null,
+        rest,
+      )!;
+      expect(built).not.toBeNull();
+      for (const k of ['R_Mid1', 'R_Mid2', 'R_Mid3'] as const)
+        for (const c of built.bones[k]!) expect(Number.isFinite(c), `${k} ${bad}`).toBe(true);
     }
   });
 
