@@ -283,7 +283,15 @@ export function resolveKeyframePlan(motion: ComposedMotion, ctx: KeyframePlanCon
 
       const key = `${t.joint}.${t.motion}`;
       const from = lastClamped.get(key) ?? 0; // first command of a joint: from neutral
-      maxDeltaDeg = Math.max(maxDeltaDeg, Math.abs(r.clampedDegrees - from));
+      // A relaxedHands background add never PACES the keyframe either. The
+      // velocity floor exists so an authored movement cannot be played faster
+      // than a body can move it; the resting hand is not the movement, it is
+      // posture that rides along, and the digits are light and fast in a way the
+      // 240°/s whole-limb cap does not describe. Letting it in meant a deeper
+      // resting curl silently stretched every short keyframe in the app — a hip
+      // raise paced by how far the fingers had to travel. Same reasoning that
+      // already keeps these adds out of `survivors` below.
+      if (!isRelaxedAdd) maxDeltaDeg = Math.max(maxDeltaDeg, Math.abs(r.clampedDegrees - from));
       lastClamped.set(key, r.clampedDegrees);
       // A joint.motion re-commanded within one keyframe: last wins (absolute).
       const dup = targets.findIndex((x) => x.joint === t.joint && x.motion === t.motion);
