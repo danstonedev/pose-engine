@@ -342,14 +342,38 @@ const _svB = new THREE.Vector3();
 // stance foot) is imported from services/rootMotion — one constant shared with
 // the live stage and the balanceCoordination pre-pass.
 
-/** How far (m) the SMOOTHED gait vertical may raise the pelvis above the live floor-pin
- *  when the stance feet are foot-plant IK'd. Rounding the double-support valley raises
- *  the pelvis; too much makes a planted stance leg over-reach and slide the foot. This
- *  bounds the over-reach so the smoothing stays foot-safe (rig-swept vs the slide gate).
- *  Exported because the live stage's mirror deriveVerticalCalibration call MUST pass the
- *  SAME clamp under the same plants-active condition (DET-LOCK-01 lockstep — source-pinned
- *  in stageReliability.test.ts), or live playback diverges from every recording. */
-export const GAIT_VERTICAL_MAX_RISE_M = 0.025;
+/**
+ * How far (m) the SMOOTHED gait vertical may raise the pelvis above the live
+ * floor-pin when the stance feet are foot-plant IK'd. Rounding the double-support
+ * valley raises the pelvis; too much makes a planted stance leg over-reach and
+ * slide the foot, so this bounds the over-reach (rig-swept against the slide gate).
+ *
+ * THIS IS THE PELVIS-BOUNCE KNOB, and it binds. A step length of 0.805 m on this
+ * rig's 1.059 m leg geometrically forces a **7.95 cm** pelvis drop for a straight
+ * stance leg; `deriveVerticalCalibration` reshapes that toward the authored 5 cm
+ * (`NORMAL_GAIT_VERTICAL_CM`), but wherever this clamp binds, the raw pin's deeper
+ * valley leaks back through and the excursion inflates. At the previous 0.025 the
+ * walk measured **6.26 cm** — 25% above its own target — for exactly that reason.
+ *
+ * Rig sweep of the measured steady-cycle excursion and the worst in-window planted
+ * slide (male GLB, offline sampler; slide budget 4 cm):
+ *
+ *   0.025 → bob 6.26 cm, slide 2.98 cm      (clamp binding; the old value)
+ *   0.035 → bob 5.26 cm, slide 2.80 cm      ← on target
+ *   0.040 → bob 4.76 cm, slide 2.71 cm
+ *   0.060 → bob 3.74 cm, slide 2.71 cm      (clamp no longer binds at all)
+ *
+ * Raising it IMPROVES the slide — a pelvis held nearer its calibrated height
+ * leaves the stance leg less extended, so the plant IK fights it less. 0.035 lands
+ * the excursion on the authored target with the clamp still doing its protective
+ * job (0.060+ stops bounding anything).
+ *
+ * Exported because the live stage's mirror deriveVerticalCalibration call MUST pass
+ * the SAME clamp under the same plants-active condition (DET-LOCK-01 lockstep —
+ * source-pinned in stageReliability.test.ts), or live playback diverges from every
+ * recording.
+ */
+export const GAIT_VERTICAL_MAX_RISE_M = 0.035;
 
 /**
  * Offline-sample a RESOLVED composed motion: replay the exact per-keyframe

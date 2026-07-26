@@ -233,9 +233,14 @@ describe('DET-LOCK-01 — the live vcal passes the gait vertical rise clamp (loc
   it('numerically: the clamped calibration never lifts the pelvis more than the rise limit above the pin', () => {
     // A gait-like floor-pin arc: flat single-stance plateaus with two sharp
     // V-valleys (double support) per cycle — the sawtooth shape the smoothing
-    // was built to round. Depth 6 cm, width 5% of the cycle.
+    // was built to round. Depth 12 cm, width 5% of the cycle: deep enough that
+    // the smoothed valley rides well clear of ANY plausible rise limit, so this
+    // fixture keeps exercising the clamp if the shipped constant is retuned
+    // (at a 6 cm depth it only cleared a 0.035 limit by 2 mm, and the margin
+    // assertion below started failing for a reason that had nothing to do with
+    // the behaviour under test).
     const valley = (u: number, c: number, w: number) => Math.max(0, 1 - Math.abs(u - c) / w);
-    const pinY = (u01: number) => 0.95 - 0.06 * (valley(u01, 0.25, 0.05) + valley(u01, 0.75, 0.05));
+    const pinY = (u01: number) => 0.95 - 0.12 * (valley(u01, 0.25, 0.05) + valley(u01, 0.75, 0.05));
     const targetM = 0.03; // a typical requested vertical excursion (3 cm)
 
     const unclamped = deriveVerticalCalibration(pinY, targetM, 48, true);
@@ -252,9 +257,11 @@ describe('DET-LOCK-01 — the live vcal passes the gait vertical rise clamp (loc
     // Without the clamp the smoothed valley rides well above the pin — the exact
     // live-only over-reach DET-LOCK-01 measured (stage omitted the 5th argument).
     expect(worstUnclamped).toBeGreaterThan(GAIT_VERTICAL_MAX_RISE_M + 0.005);
-    // With it, the calibrated vertical never exceeds pin + 2.5 cm (+ float eps).
+    // With it, the calibrated vertical never exceeds pin + the rise limit.
     expect(worstClamped).toBeLessThanOrEqual(GAIT_VERTICAL_MAX_RISE_M + 1e-9);
-    expect(GAIT_VERTICAL_MAX_RISE_M).toBeCloseTo(0.025, 10);
+    // Pin the shipped value: it is the pelvis-bounce knob (see the constant's
+    // note in motionRecording), and the live stage must pass this exact number.
+    expect(GAIT_VERTICAL_MAX_RISE_M).toBeCloseTo(0.035, 10);
   });
 });
 
