@@ -285,3 +285,59 @@ describe('the walking hand hangs relaxed rather than held forward', () => {
     expect(dev.reduce((a, b) => a + b, 0) / dev.length, 'mean deviation is ulnar').toBeLessThan(0);
   });
 });
+
+describe('the walking arm is carried CLOSER to the body than it hangs at rest', () => {
+  /** Hand → thigh-bone-axis distance. The thigh is what the swinging hand would
+   *  actually collide with, and its surface sits ~8cm off that axis, so this is
+   *  the number that decides both halves of the ask: close enough to read as a
+   *  walk, far enough not to touch. */
+  const thighGap = (S: 'L' | 'R'): number => {
+    const map = buildBoneByPoseKey(skinned.skeleton, variantCfg);
+    const at = (k: string) => map.get(k)!.getWorldPosition(new THREE.Vector3());
+    const hip = at(`${S}_UpLeg`);
+    const ax = at(`${S}_Leg`).sub(hip);
+    const hand = at(`${S}_Hand`);
+    const t = Math.max(0, Math.min(1, hand.clone().sub(hip).dot(ax) / ax.lengthSq()));
+    return hand.distanceTo(hip.clone().addScaledVector(ax, t));
+  };
+
+  it('closes the rest carriage without letting the arm reach the thigh', () => {
+    // REST is the reference the ask names: "closer through the swing than they
+    // are in a more relaxed shoulder position". Note the readout calls this pose
+    // 0° abduction while the hand sits ~26cm off the thigh — the rig's rest is
+    // not an anatomical hang, which is why the gait adduction has to be more than
+    // a textbook physiologic value to look right.
+    applyAnatomicPose(root, variantCfg);
+    root.updateMatrixWorld(true);
+    const restGap = Math.min(thighGap('L'), thighGap('R'));
+    expect(restGap).toBeGreaterThan(0.2); // the rest carriage really is wide
+
+    const resolved = resolveComposedMotion(buildTravelWalk(), variantCfg);
+    expect(resolved.status).toBe('ok');
+    const rec = sampleComposedMotion(resolved, {
+      baselinePose,
+      variantCfg,
+      rest,
+      skeletonHarness: { root, skinned },
+      sampleHz: 20,
+    });
+    const gaps: number[] = [];
+    for (const f of rec.frames) {
+      applyCustomPose(skinned.skeleton, variantCfg, f.pose as CustomPose);
+      root.updateMatrixWorld(true);
+      gaps.push(Math.min(thighGap('L'), thighGap('R')));
+    }
+    // Skip the neutral→gait entry, which legitimately still carries the rest pose.
+    const steady = gaps.slice(Math.floor(gaps.length / 4));
+    const mean = steady.reduce((a, b) => a + b, 0) / steady.length;
+    const min = Math.min(...steady);
+
+    // CLOSER than rest, and not marginally — this is the whole ask.
+    expect(mean, 'the swinging arm is carried closer than it hangs at rest').toBeLessThan(
+      restGap - 0.05,
+    );
+    // …and NEVER touching. The thigh surface is ~8cm off the axis and the hand is
+    // ~3cm thick, so anything under ~11cm is contact.
+    expect(min, 'the hand never reaches the thigh').toBeGreaterThan(0.12);
+  });
+});
