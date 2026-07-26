@@ -58,6 +58,14 @@ export interface TemplatePhase {
    *  body forward rigidly — paired with a matching `travel` so the feet stay at
    *  their floor spots by construction (the ankle-pivot inverted pendulum). */
   root?: SequenceKeyframe['root'];
+  /** OPTIONAL velocity class for this phase (pass-through to the keyframe's
+   *  `velocityClass`). Omitted = 'deliberate' (240 °/s), the right cap for a
+   *  clinical ROM screen. LOCOMOTION needs 'functional' (600 °/s): peak
+   *  swing-phase knee angular velocity in normal gait is ~350–400 °/s [Winter],
+   *  so under the deliberate cap the velocity governor floors the gait phases
+   *  and the cycle cannot reach a normative cadence — see the walk's phase
+   *  timing note below. */
+  velocityClass?: SequenceKeyframe['velocityClass'];
 }
 
 /** A weight-bearing foot-contact window declared by PHASE INDEX (robust to
@@ -299,24 +307,58 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       'One full gait cycle authored as 8 phases (both steps), looping. Sagittal peaks per normal free gait [Perry & Burnfield; Neumann]: hip 30° flexion at initial contact → −10° extension at terminal stance; knee ~5° at contact, ~18° loading-response shock absorption, ~40° at pre-swing, ~60° peak in initial swing; ankle rockers — plantarflexion to foot-flat after contact (−8°), dorsiflexion to 10° as the tibia advances over the stance foot, push-off plantarflexion −15° at pre-swing. THIRD (forefoot) rocker: as the heel rises the foot pivots at the MTP joints — toe extension builds through terminal stance (~12°) and peaks at pre-swing push-off (~28°; normative MTP extension in gait ~30° [Perry & Burnfield]), releasing to neutral through swing so the foot is flat again at contact. Reciprocal arm swing ~±20° shoulder flexion, each arm peaking WITH the contralateral leg. The elbows are NOT rigid: they carry ~20° flexion and pump through the swing (overlapping action — more flexion on the backswing, unwinding as the arm comes forward, ~11-30°), so the forearms swing dynamically instead of marching stiff-armed [Elftman 1939; normal arm-swing elbow excursion ~10-20°]. Presented IN PLACE (treadmill convention — no root travel) so the looping cycle stays on stage; the pre-swing knee flexion + push-off happens across the loop seam (last phase flows back into the first). Planted.',
     stance: 'planted',
     loop: true,
-    // PERRY PHASE TIMING (wave 4.2): the 8 phase durations follow physiologic
-    // gait-cycle fractions instead of a metronomic 8×200 ms. Each phase's
-    // duration is the interval ENDING at its named pose, so per half-cycle
-    // (800 ms of the 1.6 s cycle, both sums unchanged — cadence/pace gates
-    // hold): loading response is BRISK (160 ms ≈ 10% of the cycle — weight
-    // acceptance is quick), mid-stance and terminal stance are LONG (236 ms ≈
-    // 14.75% each — the slow rollover of single support), and the arrival at
-    // the next initial contact is QUICK (168 ms ≈ 10.5% — the contralateral
-    // pre-swing push-off). Best 8-keyframe fit to Perry's ~12/19/19/12%
-    // stance-phase splits under the half-cycle sum + velocity-governor
-    // constraints (the contact keyframe reaches a 40° knee delta from neutral,
-    // so its interval must stay ≥167 ms at the 240°/s deliberate cap); the
-    // ~60:40 stance:swing rhythm emerges [Perry & Burnfield]. Gated in
-    // gaitPerryTiming.test.ts.
+    // PERRY PHASE TIMING (wave 4.2) at a NORMATIVE CADENCE. The 8 phase
+    // durations follow physiologic gait-cycle fractions; each phase's duration
+    // is the interval ENDING at its named pose. Per half-cycle (572 ms of the
+    // 1144 ms cycle): loading response is BRISK (114 ms ≈ 10% of the cycle —
+    // weight acceptance is quick), mid-stance and terminal stance are LONG
+    // (169 ms ≈ 14.75% each — the slow rollover of single support), and the
+    // arrival at the next initial contact is QUICK (120 ms ≈ 10.5% — the
+    // contralateral pre-swing push-off). Best 8-keyframe fit to Perry's
+    // ~12/19/19/12% stance splits; the ~60:40 stance:swing rhythm emerges
+    // [Perry & Burnfield]. Gated in gaitPerryTiming.test.ts.
+    //
+    // WHY 1144 ms, AND WHY 'functional'. A 1144 ms cycle is ~105 steps/min —
+    // inside `normativeGait.CADENCE_SPM` [100, 120]. The cycle was previously
+    // 1600 ms (~75 steps/min), a full third below that band, and it could not
+    // be shortened because BOTH halves of the resolver's duration floor are
+    // tuned for deliberate clinical motion: the 240 °/s angular cap (the
+    // contact keyframe carries a 40° knee delta, so ≥167 ms) and the flat
+    // 150 ms MIN_KEYFRAME_MS. Real gait needs neither — peak swing-phase knee
+    // velocity is ~350–400 °/s [Winter] and a real loading response is
+    // ~100–120 ms — so the gait phases declare `velocityClass: 'functional'`
+    // (600 °/s cap, 90 ms floor) and the authored rhythm survives resolve
+    // intact.
+    //
+    // Step length is deliberately UNCHANGED by the retime — it is emergent from
+    // the hip/knee excursion below, not authored (rig-measured peak A-P ankle
+    // separation 0.917 m before, 0.912 m after). Raising cadence alone therefore
+    // moves the whole spatiotemporal set into the normative range, measured over
+    // the STEADY cycle (`buildTravelWalk`, male rig, offline sampler):
+    //
+    //   cadence     104.9 steps/min   CADENCE_SPM          [100, 120]   in band
+    //   speed       1.407 m/s         comfortable ~1.3-1.4              in band
+    //   walk ratio  0.00767           WALK_RATIO_M_PER_SPM [.0055,.0075] +2%
+    //   Froude      0.187             comfortable walking               in band
+    //   step        0.805 m / stride 1.610 m (this rig's hip height is ~1.08 m —
+    //               STRIDE_M [1.3, 1.5] is an ABSOLUTE band for average stature,
+    //               so read it normalized, not literally, for a tall mannequin)
+    //
+    // MEASURE THE STEADY CYCLE, NOT THE WHOLE CLIP. The travel walk's ENTRY
+    // step-off is a longer step than the gait it settles into (0.893 m vs
+    // 0.805 m) and its hip peaks 37.9° against an authored 30°, because the R
+    // foot's contact window opens at t=0 — pinning that foot through the
+    // initiation and step-off, while the authored pose has it reaching forward to
+    // its first contact. The IK reconciles the two by over-flexing the hip. That
+    // is a pre-existing ENTRY artifact (identical before this retime), but it
+    // inflates any spatiotemporal measured across the full clip by ~11%, which
+    // reads as a phantom over-stride. Do not shrink the authored hip peaks —
+    // they are SME-flagged normative values and they are not the problem.
     phases: [
       {
         name: 'right-initial-contact',
-        durationMs: 168,
+        durationMs: 120,
+        velocityClass: 'functional',
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
@@ -334,7 +376,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'right-loading-response',
-        durationMs: 160,
+        durationMs: 114,
+        velocityClass: 'functional',
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 25 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 18 },
@@ -352,7 +395,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'right-mid-stance',
-        durationMs: 236,
+        durationMs: 169,
+        velocityClass: 'functional',
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 8 },
@@ -370,7 +414,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'right-terminal-stance',
-        durationMs: 236,
+        durationMs: 169,
+        velocityClass: 'functional',
         targets: [
           { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 5 },
@@ -388,7 +433,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'left-initial-contact',
-        durationMs: 168,
+        durationMs: 120,
+        velocityClass: 'functional',
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 30 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },
@@ -406,7 +452,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'left-loading-response',
-        durationMs: 160,
+        durationMs: 114,
+        velocityClass: 'functional',
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 25 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 18 },
@@ -424,7 +471,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'left-mid-stance',
-        durationMs: 236,
+        durationMs: 169,
+        velocityClass: 'functional',
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 5 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 8 },
@@ -442,7 +490,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       },
       {
         name: 'left-terminal-stance',
-        durationMs: 236,
+        durationMs: 169,
+        velocityClass: 'functional',
         targets: [
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 5 },

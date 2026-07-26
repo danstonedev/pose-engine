@@ -88,9 +88,11 @@ export function gaitFootContacts(motion: ComposedMotion): StanceContact[] {
 // declaration further down the module.
 // Step-off entry duration (ms) for a travelling walk: the neutral→first-gait-pose
 // transition covers a big limb delta (~40° knee), so give it ~2 gait phases of time so
-// the limbs ease in at stride cadence instead of whipping (a normal 200 ms phase would
-// demand ~300°/s). ~natural gait initiation; the cycle phases themselves stay 200 ms.
-const GAIT_STEP_OFF_MS = 400;
+// the limbs ease in at stride cadence instead of whipping. Scaled WITH the walk's
+// normative-cadence retime (400 ms was ~2 phases of the old 1600 ms cycle; 285 ms is
+// ~2 phases of the 1144 ms cycle), so the entry stays proportionate to the stride
+// instead of dragging for three phases and stretching the walk's one cycle.
+const GAIT_STEP_OFF_MS = 285;
 // ─── Gait initiation / termination / weight transfer (travel walk) ───────────
 // REAL GAIT INITIATION — the anticipatory postural adjustment (APA): before the
 // first swing foot ever leaves the floor, the pelvis/COM shifts over the future

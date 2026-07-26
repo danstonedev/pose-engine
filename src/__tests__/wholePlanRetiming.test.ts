@@ -26,6 +26,7 @@ import {
 } from '../services/motionRecording';
 import {
   MIN_KEYFRAME_MS,
+  minKeyframeMsFor,
   resolveComposedMotion,
   type ComposedMotion,
   type SequenceKeyframe,
@@ -265,21 +266,25 @@ describe('whole-plan re-timing preserves gait phase proportions (AI-TIME-01)', (
 
   it('the jump keeps its ISOLATED local floor exactly as before (no whole-plan dilation of a 1-of-7 violation)', () => {
     // buildJump's ballistic touchdown (flight × 0.2 ≈ 114 ms at the default
-    // height) sits under the 150 ms MIN floor BY AUTHORSHIP — the one keyframe
-    // the governor has always bumped locally. A single violator is a minority,
-    // so the majority gate must leave the rest of the plan untouched.
+    // height) is authored from flight physics. It used to be bumped to 150 ms by
+    // the flat MIN floor; now that the duration floor follows the keyframe's
+    // VELOCITY CLASS, a 'ballistic' keyframe floors at 60 ms, so the authored
+    // ballistic timing survives instead of being stretched by a bound meant for
+    // deliberate clinical motion. Either way the majority gate must leave the
+    // rest of the plan untouched — that is what this test pins.
     const jump = buildJump();
     const r = resolveComposedMotion(jump, variantCfg);
     expect(r.status).toBe('ok');
     const authored = jump.keyframes.map((k) => k.durationMs);
     const resolved = r.keyframes.map((k) => k.durationMs);
+    const floorOf = (i: number): number => minKeyframeMsFor(jump.keyframes[i]!.velocityClass);
     for (let i = 0; i < authored.length; i += 1) {
-      expect(resolved[i]).toBe(Math.max(authored[i]!, MIN_KEYFRAME_MS));
+      expect(resolved[i]).toBe(Math.max(authored[i]!, floorOf(i)));
     }
     // Only the under-floor keyframes were touched (and flagged) — everything
     // else is byte-identical.
     expect(
       r.keyframes.map((k) => k.timingAdjusted ?? false),
-    ).toEqual(authored.map((d) => d < MIN_KEYFRAME_MS));
+    ).toEqual(authored.map((d, i) => d < floorOf(i)));
   });
 });

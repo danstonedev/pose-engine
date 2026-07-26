@@ -558,8 +558,38 @@ export const MAX_ANGULAR_VELOCITY_DEG_S = VELOCITY_CLASS_CAPS.deliberate;
  *  so both correct the gaze against the same cervical limits. */
 export const SPINE_NECK_MAX = 24; // cervical axial-rotation cap, deg
 export const SPINE_NECK_LATERAL_MAX = 18; // cervical lateral-flexion cap, deg
-/** Shortest a keyframe's travel may be, ms. */
+/** Shortest a keyframe's travel may be, ms — the DEFAULT ('deliberate') floor.
+ *  Class-aware callers should use {@link minKeyframeMsFor}. */
 export const MIN_KEYFRAME_MS = 150;
+/**
+ * Shortest a keyframe's travel may be, ms, PER VELOCITY CLASS.
+ *
+ * 150 ms is the right floor for a DELIBERATE clinical motion (a goniometric
+ * screen should not flicker between poses), but it is not a property of human
+ * movement — and applied to LOCOMOTION it silently caps cadence. A normal gait
+ * cycle at the normative 100–120 steps/min is ~1.0–1.2 s, and Perry's phase
+ * fractions put the loading response at ~10 % of it — i.e. ~110 ms, BELOW the
+ * deliberate floor. With every phase floored at 150 ms the shortest cycle the
+ * resolver will emit is ~1.5 s (≈80 steps/min), so the walk could not reach its
+ * own `normativeGait.CADENCE_SPM` band no matter what the template authored.
+ *
+ * So the floor follows the class: 'functional' admits the ~90–110 ms phases real
+ * locomotion needs, 'ballistic' the ~60 ms of a true impact transient. Both stay
+ * well above a visible-flicker threshold at 60 fps (≥4 frames).
+ *
+ * 'deliberate' is unchanged at {@link MIN_KEYFRAME_MS}, and a keyframe with no
+ * declared class resolves as 'deliberate' — so every motion that predates this
+ * table is byte-identical.
+ */
+export const VELOCITY_CLASS_MIN_KEYFRAME_MS: Record<VelocityClass, number> = {
+  deliberate: MIN_KEYFRAME_MS,
+  functional: 90,
+  ballistic: 60,
+};
+/** The duration floor governing a keyframe of `cls` (absent = 'deliberate'). */
+export function minKeyframeMsFor(cls?: VelocityClass): number {
+  return VELOCITY_CLASS_MIN_KEYFRAME_MS[cls ?? 'deliberate'];
+}
 /** Longest a keyframe's travel — or its hold — may be, ms. Caps requested
  *  durations (and even the velocity floor at pathological angular travel) so a
  *  single keyframe can never freeze a host's serialized command chain. */
@@ -1908,13 +1938,16 @@ export function keyframeVelocityFloorsMs(resolved: ResolvedComposedMotion): Keyf
       last.set(key, t.clampedDegrees);
     }
     const velocityFloorMs = (maxDelta / velCap) * 1000;
-    const resolvedFloorMs = Math.max(MIN_KEYFRAME_MS, velocityFloorMs);
+    // Same class-aware minimum the resolver enforces (motionResolvePhases), so
+    // the reported floor/margins can never disagree with what actually shipped.
+    const minMs = minKeyframeMsFor(kf.velocityClass);
+    const resolvedFloorMs = Math.max(minMs, velocityFloorMs);
     return {
       velocityFloorMs,
       resolvedFloorMs,
       velocityMarginMs: kf.durationMs - velocityFloorMs,
       resolvedMarginMs: kf.durationMs - resolvedFloorMs,
-      velocityBound: velocityFloorMs > MIN_KEYFRAME_MS,
+      velocityBound: velocityFloorMs > minMs,
     };
   });
 }

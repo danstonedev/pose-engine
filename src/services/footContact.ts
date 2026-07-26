@@ -39,6 +39,23 @@ export interface FootPlantSolver {
 /** Parents of the foot up to the hip: Foot → Leg(knee) → UpLeg(hip). */
 const LEG_CHAIN_PARENTS = 2;
 
+/**
+ * CCD passes for a stance-foot plant solve (the shared default is 4).
+ *
+ * The plant target is FIXED for the whole stance window while the FK pose and the
+ * root travel keep moving the foot away from it, so each frame's solve starts
+ * further from its target the faster the body is moving — and CCD's residual
+ * grows with that starting distance. At the walk's old ~75 steps/min the 4-pass
+ * budget held the in-window drift near 2.6–3.0 cm; at the normative ~105
+ * steps/min the same budget left 4.5 cm, breaking the < 4 cm slide gate. Eight
+ * passes hold it at ~2.5–3.5 cm across the whole pace range — tighter than the
+ * slow walk ever was (rig-measured, gaitContactSync.test.ts).
+ *
+ * Scoped to the plant so pose editing and exam-command IK keep the historic
+ * 4-pass result byte-for-byte.
+ */
+export const FOOT_PLANT_IK_ITERATIONS = 8;
+
 /** The knee key for a foot key ('L_Foot' → 'L_Leg', 'R_Foot' → 'R_Leg'). */
 export function kneeKeyForFoot(footKey: string): string {
   return footKey.replace(/Foot$/, 'Leg');
@@ -85,6 +102,7 @@ export function solveFootPlant(
   solveIKChain(solver.ctx, targetWorldPos, {
     rest,
     hinges: new Set([solver.kneeKey]),
+    iterations: FOOT_PLANT_IK_ITERATIONS,
     ...(hingeAxisRest ? { hingeAxisRest } : {}),
   });
 }

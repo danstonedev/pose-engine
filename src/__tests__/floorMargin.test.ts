@@ -37,6 +37,7 @@
  * does floor.
  */
 import { describe, expect, it } from 'vitest';
+import { minKeyframeMsFor } from '../services/motionSequence';
 import {
   keyframeVelocityFloorsMs,
   resolveComposedMotion,
@@ -145,20 +146,28 @@ describe('floor-margin gate — shipped keyframes clear their velocity floor (SE
     expect(violators, `keyframes within ${FLOOR_MARGIN_MS} ms of their velocity floor:\n${violators.join('\n')}`).toEqual([]);
   });
 
-  it('the run/jump/hop family sits AT the immovable MIN floor by design, but clears its VELOCITY floor', () => {
-    // These author durations pre-floored at MIN_KEYFRAME_MS (ballistic airtime
-    // from physics / runStepTiming's MIN clamp), so their resolved-floor margin
-    // is ~0 — legitimately "at the floor". The gate does not flag them because a
-    // ROM/velocity retune cannot move MIN, and their VELOCITY floor is far below
-    // their duration (checked above). This test pins that reasoning: for each,
-    // ≥1 keyframe sits at the MIN floor AND every keyframe keeps ≥10 ms velocity
-    // headroom.
+  it('the run/jump/hop family clears BOTH floors — its class minimum and its velocity floor', () => {
+    // These author their durations from physics (ballistic airtime / runStepTiming),
+    // pre-clamped at MIN_KEYFRAME_MS = 150. They used to sit exactly AT the
+    // resolved floor, because the flat 150 ms minimum applied to every keyframe
+    // regardless of class. Now the minimum follows the VELOCITY CLASS these
+    // keyframes actually declare ('ballistic' 60 ms / 'functional' 90 ms), so
+    // their authored 150 ms carries real headroom above BOTH bounds and the
+    // resolver stretches nothing. (Their builders' own MIN_KEYFRAME_MS clamps are
+    // now conservative rather than binding — a deliberate authoring choice left
+    // alone here, not a floor the engine imposes.)
     for (const motion of [buildRun(), buildTravelRun(), buildJump(), buildSingleLegHop()]) {
       const r = resolveComposedMotion(motion, variantCfg);
       const floors = keyframeVelocityFloorsMs(r);
       const checkKf0 = kf0HasAuthoredPredecessor(motion);
-      const atMinFloor = floors.filter((f) => !f.velocityBound && f.resolvedMarginMs < FLOOR_MARGIN_MS);
-      expect(atMinFloor.length, `${motion.name}: authored tight at the MIN floor`).toBeGreaterThan(0);
+      floors.forEach((f, i) => {
+        expect(
+          f.resolvedMarginMs,
+          `${motion.name} kf${i}: headroom above its CLASS minimum (${minKeyframeMsFor(
+            r.keyframes[i]!.velocityClass,
+          )} ms)`,
+        ).toBeGreaterThanOrEqual(0);
+      });
       floors.forEach((f, i) => {
         if (i === 0 && !checkKf0) return;
         expect(

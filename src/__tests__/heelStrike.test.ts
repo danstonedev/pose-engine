@@ -29,7 +29,11 @@ import { applyAnatomicPose } from '../services/anatomicPose';
 import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
 import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
-import { sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
+import {
+  sampleComposedMotion,
+  type MotionRecording,
+  type RecordedFrame,
+} from '../services/motionRecording';
 import { measureContactSlide } from '../services/footContact';
 import {
   applyHeelStrikeAccent,
@@ -157,6 +161,44 @@ function sample(motion: ComposedMotion, sampleHz = 120): MotionRecording {
 /** Contact instants of the travel walk (recording time base): the starts of
  *  its planned stance schedule, scaled authored→recording exactly as the
  *  sampler scales them, skipping the t=0 standing entry. */
+/**
+ * "The accent touches nothing else", asserted NUMERICALLY rather than by
+ * byte-identity of the serialized frame.
+ *
+ * The accent is root-Y-only and recovers to exactly 0 by the end of its span, so
+ * outside the spans the two runs are the same motion. They are not the same
+ * BITS, though: a stance foot's plant target is captured on the first sampled
+ * frame at or after its window opens, and a contact instant IS a window start,
+ * so on a sampling grid that does not divide the window boundary exactly the
+ * capture frame sits a fraction of a frame INTO the accent — perturbing the
+ * captured target by ~1e-16 m and letting the CCD solve carry that through the
+ * window as last-bit noise. Bounding the physical quantities (below) proves the
+ * isolation; demanding identical floats only pins which frame the sampler
+ * happened to land on.
+ */
+const ROOT_EPS_M = 1e-9; // 1 nanometre
+const ANGLE_EPS_DEG = 1e-6;
+function expectFrameUnchanged(a: RecordedFrame, b: RecordedFrame, tMs: number): void {
+  const where = `frame @${tMs.toFixed(0)}ms`;
+  for (let k = 0; k < 3; k += 1) {
+    expect(
+      Math.abs(a.root.translateM[k]! - b.root.translateM[k]!),
+      `${where} root translate[${k}] untouched`,
+    ).toBeLessThan(ROOT_EPS_M);
+  }
+  for (const boneKey of Object.keys(a.angles ?? {})) {
+    const am = (a.angles as Record<string, Record<string, number>>)[boneKey]!;
+    const bm = (b.angles as Record<string, Record<string, number>> | undefined)?.[boneKey];
+    expect(bm, `${where} ${boneKey} present in both runs`).toBeDefined();
+    for (const motionKey of Object.keys(am)) {
+      expect(
+        Math.abs((am[motionKey] ?? 0) - (bm![motionKey] ?? 0)),
+        `${where} ${boneKey}.${motionKey} untouched`,
+      ).toBeLessThan(ANGLE_EPS_DEG);
+    }
+  }
+}
+
 function contactInstants(m: ComposedMotion, rec: MotionRecording): number[] {
   const authoredMs = m.keyframes.reduce((s, k) => s + (k.durationMs ?? 0) + (k.holdMs ?? 0), 0);
   const scale = rec.frames[rec.frames.length - 1]!.tMs / authoredMs;
@@ -232,9 +274,7 @@ describe('travel walk — the footfall accent measured on the rig', () => {
     for (let i = 0; i < accented.frames.length; i += 1) {
       const t = accented.frames[i]!.tMs;
       if (inSpan(t)) continue;
-      expect(JSON.stringify(accented.frames[i]), `frame @${t.toFixed(0)}ms untouched`).toBe(
-        JSON.stringify(control.frames[i]),
-      );
+      expectFrameUnchanged(accented.frames[i]!, control.frames[i]!, t);
       compared += 1;
     }
     expect(compared, 'the comparison covered most of the walk').toBeGreaterThan(accented.frames.length * 0.7);

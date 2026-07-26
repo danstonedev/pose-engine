@@ -169,14 +169,17 @@ describe('turn 180° → travel walk: the walk continues the POST-turn heading (
 
   it('gate 2 — feet/toes move < 5 cm/frame through the seam window (was 32 cm/frame)', () => {
     // The whip lived in the seam frame + the first frames of the walk (the
-    // measured teleport was inside 50 ms): gate the boundary pair and every
-    // pair through the 400 ms APA initiation — quiet standing weight shift,
-    // nothing may move fast there. (Beyond it the step-off swing legitimately
-    // approaches ~5 cm/frame at 60 Hz — that is gait, not a seam.)
+    // measured teleport was inside 50 ms): gate the boundary pair and every pair
+    // through the APA INITIATION — the quiet standing weight shift, where nothing
+    // may move fast. The window is the initiation keyframe's OWN duration, not a
+    // magic 400 ms: past it the step-off swing legitimately moves fast (that is
+    // gait, not a seam), and the step-off is now shorter than the window used to
+    // be, so a fixed bound would start policing the swing instead of the seam.
+    const initiationMs = resolveComposedMotion(buildTravelWalk(), variantCfg).keyframes[0]!.durationMs;
     const seamPairs: [RecordedFrame, RecordedFrame][] = [
       [turnRec.frames[turnRec.frames.length - 1]!, walkRec.frames[0]!],
     ];
-    for (let i = 1; i < walkRec.frames.length && walkRec.frames[i]!.tMs <= 400; i += 1) {
+    for (let i = 1; i < walkRec.frames.length && walkRec.frames[i]!.tMs <= initiationMs; i += 1) {
       seamPairs.push([walkRec.frames[i - 1]!, walkRec.frames[i]!]);
     }
     for (const key of ['R_Toes', 'L_Toes', 'R_Foot', 'L_Foot'] as const) {

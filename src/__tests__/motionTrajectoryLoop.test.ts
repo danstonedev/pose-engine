@@ -26,6 +26,13 @@ import { buildComposedTrajectory, buildLoopTrajectory } from '../services/motion
 import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
+/** The walk template's own authored cycle length — DERIVED, not pinned, so a
+ *  cadence retime moves this gate with the template instead of failing it. */
+const WALK_CYCLE_MS = MOVEMENT_TEMPLATES.find((t) => t.id === 'walk')!.phases.reduce(
+  (s, p) => s + p.durationMs + (p.holdMs ?? 0),
+  0,
+);
+
 
 const variantCfg = BODY_VARIANTS.male;
 const GLB_URL = new URL('../../models/painmap3D_male.runtime.glb', import.meta.url);
@@ -100,7 +107,7 @@ describe('loop-seam fix — the walk cycle loops seamlessly', () => {
     const built = walkBuilt();
     const { trajectory: loop } = buildLoopTrajectory(built, { timeScale: 1 });
     const period = loop.totalMs;
-    expect(period).toBeCloseTo(1600, 0);
+    expect(period).toBeCloseTo(WALK_CYCLE_MS, 0);
 
     // Sample densely across TWO periods; the frame-to-frame pose delta at the
     // wrap must be no worse than the interior motion (continuity in pose AND
@@ -159,8 +166,8 @@ describe('loop-seam fix — the walk cycle loops seamlessly', () => {
     const built = walkBuilt();
     const fast = buildLoopTrajectory(built, { timeScale: 1.5 });
     const slow = buildLoopTrajectory(built, { timeScale: 0.4 });
-    expect(fast.trajectory.totalMs).toBeCloseTo(1600 / 1.5, 0);
-    expect(slow.trajectory.totalMs).toBeCloseTo(1600 / 0.4, 0);
+    expect(fast.trajectory.totalMs).toBeCloseTo(WALK_CYCLE_MS / 1.5, 0);
+    expect(slow.trajectory.totalMs).toBeCloseTo(WALK_CYCLE_MS / 0.4, 0);
     // Still continuous at the (rescaled) wrap.
     const p = fast.trajectory.totalMs;
     const dt = 1000 / 120;

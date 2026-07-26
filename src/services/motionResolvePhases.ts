@@ -37,6 +37,7 @@ import {
   MIN_KEYFRAME_MS,
   VELOCITY_CLASS_CAPS,
   isRelaxedHandAdd,
+  minKeyframeMsFor,
   rebaseMotionYaw,
   resolveKeyframeRoot,
   rootYawDegFromQuat,
@@ -309,7 +310,13 @@ export function resolveKeyframePlan(motion: ComposedMotion, ctx: KeyframePlanCon
     // floor; a plan where MOST keyframes violate is instead re-timed as a
     // whole after the loop (AI-TIME-01), which overwrites these durations
     // with one uniform dilation so the authored rhythm survives.
-    const floorMs = Math.max(MIN_KEYFRAME_MS, (maxDeltaDeg / velCap) * 1000);
+    // Both halves of the floor follow the keyframe's velocity class: the angular
+    // cap AND the absolute minimum. A 'deliberate' keyframe (the default) keeps
+    // the historic max(150, delta/240) exactly.
+    const floorMs = Math.max(
+      minKeyframeMsFor(kf.velocityClass),
+      (maxDeltaDeg / velCap) * 1000,
+    );
     kfTiming.push({ authoredMs: kf.durationMs, authoredHoldMs: kf.holdMs ?? 0, floorMs });
     let durationMs = kf.durationMs < floorMs ? Math.ceil(floorMs) : kf.durationMs;
     // Any adjustment away from the request — raised to the floor OR lowered to
@@ -397,7 +404,10 @@ export function applyLoopWrapFloor(
     const from = wrapFrom.get(`${t.joint}.${t.motion}`) ?? t.clampedDegrees;
     wrapDelta = Math.max(wrapDelta, Math.abs(t.clampedDegrees - from));
   }
-  const wrapFloor = Math.max(MIN_KEYFRAME_MS, (wrapDelta / velCap0) * 1000);
+  const wrapFloor = Math.max(
+    minKeyframeMsFor(kf0.velocityClass),
+    (wrapDelta / velCap0) * 1000,
+  );
   const t0 = kfTiming[0]!;
   t0.floorMs = wrapFloor; // the whole-plan violator count reads THIS floor
   // Recompute kf0's duration + honesty flag from the wrap floor, on the same
