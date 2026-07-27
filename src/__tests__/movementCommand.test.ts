@@ -891,60 +891,30 @@ describe('buildCommandPose on the real male rig', () => {
     }
   });
 
-  // The floor of each digit's response curve — the LOWEST `fingerFlexion` the
-  // rig can read at any pose, because the readout sums UNSIGNED inter-bone
-  // angles and the local-Z curl axis is not perpendicular to the metacarpal.
-  // Commands below it land on the digit's most-extended pose (see FINGER_CURVE).
-  const MALE_FINGER_FLOOR: Record<string, number> = {
-    Thumb1: 40.5,
-    Index1: 20.0,
-    Mid1: 5.8,
-    Ring1: 6.9,
-    Pinky1: 20.2,
-  };
+  it('fingers: a straight digit reads ZERO, and extension is representable', () => {
+    // This replaced a test that asserted each digit had a "floor" it could not
+    // read below — male thumb 40°, index 20° — and that commanding lower landed
+    // ON that floor. Those floors were not a property of the hand; they were a
+    // property of a readout that summed UNSIGNED angles against a splayed
+    // reference, so a geometrically straight index finger reported 22°.
+    resetToAnatomic();
+    const restReport = computeJointAngles(skinned.skeleton, variantCfg, 'male', rest);
+    for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const)
+      for (const side of ['L_', 'R_'] as const)
+        expect(
+          Math.abs(restReport.joints[`${side}${digit}`]!.fingerFlexion),
+          `${side}${digit} at anatomic rest`,
+        ).toBeLessThan(0.5);
 
-  it('fingers: commanded == measured across the WHOLE 0–160° ROM, every digit, both hands', () => {
-    // Not a spot check. The previous affine pre-compensation passed at 30/60 and
-    // read 16° low at 90 on the thumb, because it was a chord across a curved
-    // response. Walking the range at 1° is what catches that class of error.
-    let worst = { err: 0, digit: '', deg: 0, measured: 0 };
-    for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
-      for (const side of ['L_', 'R_'] as const) {
-        const key = `${side}${digit}`;
-        for (let deg = Math.ceil(MALE_FINGER_FLOOR[digit]!) + 1; deg <= 160; deg++) {
-          resetToAnatomic();
-          const cmd = setJoint(key, 'fingerFlexion', deg);
-          const resolved = resolveCommandTarget(cmd, variantCfg);
-          const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg, null, rest)!;
-          const measured = measureCommandMotion(applyAndMeasure(pose), key, 'fingerFlexion')!;
-          const err = Math.abs(measured - deg);
-          if (err > worst.err) worst = { err, digit: key, deg, measured };
-        }
-      }
-    }
-    expect(
-      worst.err,
-      `worst: ${worst.digit} commanded ${worst.deg}° measured ${worst.measured.toFixed(1)}°`,
-    ).toBeLessThan(2);
-  });
-
-  it('fingers: each digit has a rig floor it cannot read below, and lands ON it when commanded lower', () => {
-    // Stated rather than hidden: this is a property of the readout's geometry,
-    // not of the pre-compensation. A caller asking for 0° on the thumb gets the
-    // most-extended thumb the rig has, and the report says so.
-    for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
-      const floor = MALE_FINGER_FLOOR[digit]!;
-      const at = (deg: number) => {
-        resetToAnatomic();
-        const cmd = setJoint(`R_${digit}`, 'fingerFlexion', deg);
-        const resolved = resolveCommandTarget(cmd, variantCfg);
-        const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg, null, rest)!;
-        return measureCommandMotion(applyAndMeasure(pose), `R_${digit}`, 'fingerFlexion')!;
-      };
-      // Commanding 0 settles at the floor, not below it.
-      expect(Math.abs(at(0) - floor)).toBeLessThan(1.5);
-      // And nothing in the achievable range reads below it.
-      expect(at(Math.ceil(floor) + 5)).toBeGreaterThan(floor - 1);
+    // And the response passes through zero rather than folding back over it: a
+    // small commanded curl reads small, not floored.
+    for (const deg of [2, 5, 10]) {
+      resetToAnatomic();
+      const cmd = setJoint('R_Index1', 'fingerFlexion', deg);
+      const resolved = resolveCommandTarget(cmd, variantCfg);
+      const pose = buildCommandPose(baselinePose, cmd, resolved.clampedDegrees!, variantCfg, null, rest)!;
+      const measured = measureCommandMotion(applyAndMeasure(pose), 'R_Index1', 'fingerFlexion')!;
+      expect(Math.abs(measured - deg), `commanded ${deg}`).toBeLessThan(0.5);
     }
   });
 
@@ -1157,19 +1127,12 @@ describe('female-variant canary (calibration transfers)', () => {
   });
 
   it('fingers use the FEMALE curve: commanded == measured across the whole ROM, both hands', () => {
-    // The female rest hand posture differs, so the response curve differs — the
-    // male table read several degrees off here. Same full-range walk as the male
-    // rig, above each digit's own floor.
-    const floor: Record<string, number> = {
-      Thumb1: 36.4,
-      Index1: 18.4,
-      Mid1: 4.4,
-      Ring1: 8.3,
-      Pinky1: 19.5,
-    };
+    // The readout is rest-referenced per variant, so the female hand's different
+    // rest posture needs no separate constants — it subtracts its own rest. Same
+    // full-range walk as the male rig, and now from zero rather than from a floor.
     for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const)
       for (const side of ['L_', 'R_'] as const)
-        for (let deg = Math.ceil(floor[digit]!) + 1; deg <= 160; deg += 3)
+        for (let deg = 0; deg <= (digit === 'Thumb1' ? 85 : 160); deg += 3)
           measureFemale(`${side}${digit}`, 'fingerFlexion', deg, 2);
   });
 });

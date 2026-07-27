@@ -48,26 +48,25 @@ describe('DET-APP-01 — a non-default variant derives with its OWN proportions'
     targetDegrees: 90,
   };
 
-  it('the female finger curl resolves to a different bone quat than the male curl', () => {
+  it('the finger curl is now variant-INDEPENDENT by construction — the readout carries the variant', () => {
     const male = buildCommandPose(baseline, curl, 90, BODY_VARIANTS.male);
     const female = buildCommandPose(baseline, curl, 90, BODY_VARIANTS.female);
     expect(male, 'male finger pose builds').not.toBeNull();
     expect(female, 'female finger pose builds').not.toBeNull();
-    // Counterfactual: if the derivation defaulted the variant to 'male', the female
-    // curl would be IDENTICAL to the male curl (angle 0) on every phalanx. Summed
-    // across the digit, the variant-keyed curve puts them meaningfully apart — the
-    // non-default variant used its own calibration. Summing (rather than checking
-    // the knuckle alone) is what keeps this honest now that the MCP carries only
-    // a third of the curl: a variant leak in the PIP or DIP would slip past a
-    // single-bone assertion.
-    const spread = (['L_Index1', 'L_Index2', 'L_Index3'] as const).reduce(
-      (sum, key) => sum + quatAngleDeg(male!.bones![key]!, female!.bones![key]!),
-      0,
-    );
-    expect(spread, 'female curl derived with its own curve, on every phalanx').toBeGreaterThan(2);
-    // …and no phalanx is silently variant-blind.
+    // This used to assert the OPPOSITE — that the two variants produced measurably
+    // different quats — because the command inverted a per-variant calibration
+    // table. That table existed only to undo a readout that reported a straight
+    // digit as ~22° of flexion, and each variant's rest hand posture made its own
+    // offset. The readout is now signed and rest-referenced, so it subtracts each
+    // variant's rest itself: the same clinical value is the same local rotation on
+    // any rig, and the variant enters at measurement rather than at authoring.
+    // That is strictly better — a variant with no calibration row used to fall
+    // back to the male table and silently misreport.
     for (const key of ['L_Index1', 'L_Index2', 'L_Index3'] as const)
-      expect(quatAngleDeg(male!.bones![key]!, female!.bones![key]!), key).toBeGreaterThan(0.5);
+      expect(quatAngleDeg(male!.bones![key]!, female!.bones![key]!), key).toBeLessThan(0.01);
+    // The per-variant guarantee that matters is that each rig still MEASURES the
+    // commanded value — held by the female canary in movementCommand.test.ts,
+    // which walks the whole ROM on the female GLB.
   });
 
   it('the SAME variant is deterministic (identical input → bit-identical bone quat)', () => {

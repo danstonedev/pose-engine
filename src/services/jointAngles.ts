@@ -94,6 +94,12 @@ export interface JointAngleRestReference {
    *  construction, where the twisted humeral local frame means the bone's
    *  local -Y is NOT the arm axis. Optional for backward compatibility. */
   worldDirs?: Record<string, [number, number, number]>;
+  /** Rest value of the raw finger curl sum (MCP + PIP, signed, in-plane) per
+   *  digit key. `fingerFlexion` is reported as the DELTA from this, so a
+   *  geometrically straight digit reads 0 the way every clinical scale defines
+   *  it. Optional for backward compatibility; absent means no subtraction, which
+   *  reproduces the rig's own rest offset in the reading. */
+  fingerCurlRest?: Record<string, number>;
 }
 
 // ── Constants + scratch state ──────────────────────────────────────────────
@@ -202,13 +208,20 @@ export function captureJointAngleRestReference(
     const dir = boneWorldDirection(bone);
     if (dir) worldDirs[key] = [dir.x, dir.y, dir.z];
   }
+  // Finger curl at rest — subtracted at measure time so a straight digit reads 0.
+  const fingerCurlRest: Record<string, number> = {};
+  for (const side of ['L_', 'R_'] as const)
+    for (const d of DIGIT_KEYS) {
+      const raw = rawFingerCurl(lookup, side, d);
+      if (raw != null) fingerCurlRest[`${side}${d}`] = raw;
+    }
   let pelvisWorldQuat: [number, number, number, number] = [0, 0, 0, 1];
   const hips = lookup.get('Hips');
   if (hips) {
     const wq = hips.getWorldQuaternion(_q1);
     pelvisWorldQuat = [wq.x, wq.y, wq.z, wq.w];
   }
-  return { pelvisWorldQuat, localQuats, worldQuats, worldDirs };
+  return { pelvisWorldQuat, localQuats, worldQuats, worldDirs, fingerCurlRest };
 }
 
 // ── Gizmo ring ↔ clinical motion mapping ─────────────────────────────────────
@@ -347,6 +360,67 @@ export function localAxisTowardBodyLeft(
  *  twist bones that the CC rig parks exactly on a joint (e.g. R_Calf's first
  *  child is `R_KneeShareBone` sitting on the knee), which would otherwise yield a
  *  zero-length vector and break the hinge angle. Returns a *new* Vector3. */
+/**
+ * SIGNED angle from `p` to `d`, measured in the plane whose normal is `axis`.
+ *
+ * Both vectors are PROJECTED into that plane first. That projection is the whole
+ * point: the digit's "metacarpal" reference is a ray from one wrist origin out to
+ * five knuckles, so it carries a fixed out-of-plane splay — rig-measured at a
+ * constant 18.4° on the index at every MCP angle. An UNSIGNED 3D angle reports
+ * that splay as flexion, which is why a geometrically straight index finger used
+ * to read 22°. Projecting removes it; `atan2` then gives a signed value, so
+ * extension is negative instead of folding back over zero.
+ */
+function signedAngleInPlane(
+  p: THREE.Vector3,
+  d: THREE.Vector3,
+  axis: THREE.Vector3,
+): number {
+  const pp = _sa1.copy(p).addScaledVector(axis, -p.dot(axis));
+  const dd = _sa2.copy(d).addScaledVector(axis, -d.dot(axis));
+  if (pp.lengthSq() < 1e-10 || dd.lengthSq() < 1e-10) return 0;
+  pp.normalize();
+  dd.normalize();
+  return Math.atan2(_sa3.crossVectors(pp, dd).dot(axis), pp.dot(dd)) * DEG;
+}
+const _sa1 = new THREE.Vector3();
+const _sa2 = new THREE.Vector3();
+const _sa3 = new THREE.Vector3();
+const _fAxis = new THREE.Vector3();
+const _fQ = new THREE.Quaternion();
+const LOCAL_Z_AXIS = new THREE.Vector3(0, 0, 1);
+
+/** The raw (pre-rest-subtraction) curl sum for one digit: the signed in-plane
+ *  MCP angle plus the signed in-plane PIP angle, each about its own bone's curl
+ *  axis. Side-agnostic — the caller applies the anatomical sign. */
+function rawFingerCurl(
+  lookup: Map<string, THREE.Bone>,
+  side: string,
+  digit: string,
+): number | null {
+  const mcp = lookup.get(`${side}${digit}`);
+  const hand = lookup.get(`${side}Hand`);
+  if (!mcp || !hand) return null;
+  const d1 = boneWorldDirection(mcp);
+  if (!d1) return null;
+  const meta = mcp.getWorldPosition(new THREE.Vector3()).sub(hand.getWorldPosition(new THREE.Vector3()));
+  let deg = 0;
+  if (meta.lengthSq() > 1e-8) {
+    _fAxis.copy(LOCAL_Z_AXIS).applyQuaternion(mcp.getWorldQuaternion(_fQ)).normalize();
+    deg += signedAngleInPlane(meta, d1, _fAxis);
+  }
+  const pipBone = mcp.children.find((c) => (c as THREE.Bone).isBone) as THREE.Bone | undefined;
+  const d2 = pipBone ? boneWorldDirection(pipBone) : null;
+  if (pipBone && d2) {
+    _fAxis.copy(LOCAL_Z_AXIS).applyQuaternion(pipBone.getWorldQuaternion(_fQ)).normalize();
+    deg += signedAngleInPlane(d1, d2, _fAxis);
+  }
+  return deg;
+}
+
+/** Digit keys, in the order every finger loop walks them. */
+const DIGIT_KEYS = ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const;
+
 function boneWorldDirection(bone: THREE.Bone): THREE.Vector3 | null {
   const here = bone.getWorldPosition(new THREE.Vector3());
   // Breadth-first to the NEAREST descendant with a meaningful offset. The CC rig
@@ -763,27 +837,33 @@ export function computeJointAngles(
     joints[key] = { toeFlexion: -a.flexion }; // + = extension (PROVISIONAL — verify)
   }
 
-  // ── Fingers (composite curl = MCP + PIP bend; geometric, ~0 when straight) ──
-  const _fHand = new THREE.Vector3();
-  const _fMcp = new THREE.Vector3();
-  const _fMeta = new THREE.Vector3();
+  // ── Fingers: composite curl = MCP + PIP, SIGNED, in the curl plane, measured
+  //    as a DELTA FROM REST. Flexion positive on both hands; a straight digit
+  //    reads 0 and extension reads negative, which is what every clinical scale
+  //    means by finger flexion.
+  //
+  //    This was previously a sum of UNSIGNED 3D angles with no rest subtraction,
+  //    and it made a geometrically straight index finger report 22°. The cause
+  //    was the reference vector: `knuckleWorldPos − handWorldPos` is one origin
+  //    at the wrist radiating to five knuckles, so it is splayed radially for the
+  //    index and ulnarly for the little finger, and an unsigned sum reports that
+  //    fixed splay as flexion. Every digit therefore had a "floor" it could not
+  //    read below, the response was non-monotone through it, and a 130-constant
+  //    per-digit per-variant lookup table existed to invert the result. Projecting
+  //    into the curl plane removes the splay, the signed atan2 removes the fold,
+  //    and the rest subtraction removes what is left — after which measured equals
+  //    the authored curl exactly and linearly (rig-verified: ratio 1.000 on all
+  //    five digits, both hands, both variants, from −30° through +176°).
   for (const side of ['L_', 'R_'] as const) {
-    const hand = lookup.get(`${side}Hand`);
-    if (!hand) continue;
-    hand.getWorldPosition(_fHand);
-    for (const d of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
-      const mcp = lookup.get(`${side}${d}`);
-      if (!mcp) continue;
-      const d1 = boneWorldDirection(mcp); // proximal phalanx (MCP → PIP)
-      if (!d1) continue;
-      mcp.getWorldPosition(_fMcp);
-      _fMeta.copy(_fMcp).sub(_fHand); // metacarpal (wrist → knuckle)
-      let deg = 0;
-      if (_fMeta.lengthSq() > 1e-8) deg += angleBetween(_fMeta, d1) * DEG; // MCP
-      const pip = mcp.children.find((c) => (c as THREE.Bone).isBone) as THREE.Bone | undefined;
-      const d2 = pip ? boneWorldDirection(pip) : null;
-      if (d2) deg += angleBetween(d1, d2) * DEG; // PIP
-      joints[`${side}${d}`] = { fingerFlexion: deg };
+    // Flexion is positive on BOTH hands. Each bone's own local +Z is the curl
+    // axis, and the rig mirrors, so the left hand's signed value comes out
+    // negated; this restores the anatomical convention.
+    const sideSign = side === 'R_' ? 1 : -1;
+    for (const d of DIGIT_KEYS) {
+      const raw = rawFingerCurl(lookup, side, d);
+      if (raw == null) continue;
+      const key = `${side}${d}`;
+      joints[key] = { fingerFlexion: sideSign * (raw - (rest.fingerCurlRest?.[key] ?? 0)) };
     }
   }
 

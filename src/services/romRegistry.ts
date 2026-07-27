@@ -273,20 +273,31 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     label: 'R Toes',
     fields: [field('toeFlexion', 'MTP', 'Ext', 'Flex', { min: -40, max: 70 }, 'sagittal')],
   },
-  // Fingers — composite total-flexion (curl) per digit. Geometric, ~0 straight.
+  // Fingers — composite total-flexion (curl) per digit. Geometric, 0 when
+  // straight, negative into extension.
+  //
+  // THE THUMB IS CAPPED LOWER, and separately, because it is not a finger: it has
+  // TWO phalanges and its joints are CMC / MP / IP. The composite is realized
+  // across them with the same shares, so the MP takes FINGER_PIP_SHARE of the
+  // commanded value — which means the fingers' 160° ceiling would drive the thumb
+  // MP past 100° against an AAOS normal of 50–60°. The engine used to return
+  // 'complied' for that, and the calibration gate asserted commanded == measured
+  // all the way to 160, so the correctness contract was certifying an
+  // anatomically impossible thumb. 85 is measurement-derived: the MP reaches ~55°
+  // there and crosses 60° near commanded 92.
   ...(['L_', 'R_'] as const).flatMap((side) =>
     (
       [
-        ['Thumb1', 'Thumb'],
-        ['Index1', 'Index'],
-        ['Mid1', 'Mid'],
-        ['Ring1', 'Ring'],
-        ['Pinky1', 'Pinky'],
+        ['Thumb1', 'Thumb', 85],
+        ['Index1', 'Index', 160],
+        ['Mid1', 'Mid', 160],
+        ['Ring1', 'Ring', 160],
+        ['Pinky1', 'Pinky', 160],
       ] as const
-    ).map(([key, label]) => ({
+    ).map(([key, label, max]) => ({
       canonicalKey: `${side}${key}`,
       label: `${side === 'L_' ? 'L' : 'R'} ${label}`,
-      fields: [field('fingerFlexion', 'Curl', 'Flex', 'Ext', { min: 0, max: 160 }, 'sagittal')],
+      fields: [field('fingerFlexion', 'Curl', 'Flex', 'Ext', { min: 0, max }, 'sagittal')],
     })),
   ),
 ];
