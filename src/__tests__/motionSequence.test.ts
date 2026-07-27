@@ -30,6 +30,7 @@ import {
   type JointAngleRestReference,
 } from '../services/jointAngles';
 import { measureCommandMotion } from '../services/movementCommand';
+import { ROM_JOINT_ROWS } from '../services/romRegistry';
 import {
   HAND_JOINT_KEYS,
   MAX_ANGULAR_VELOCITY_DEG_S,
@@ -277,67 +278,31 @@ describe('resolveComposedMotion', () => {
     expect(r.reason).toContain('too-many-keyframes');
   });
 
-  // A coordinated full-body keyframe: 6 legs + 4 arms + the spinal-coordination set +
-  // the limb non-sagittal + distal (scapula/wrist/fingers) detail = 48 that all survive,
-  // plus a Neck flexion as the (MAX+1)th (overflow). Order matters: the overflow one is
-  // LAST so it's the one deterministically dropped.
-  const fullBodyTargets = [
-    ['L_UpLeg', 'hipFlexion'],
-    ['R_UpLeg', 'hipFlexion'],
-    ['L_Leg', 'kneeFlexion'],
-    ['R_Leg', 'kneeFlexion'],
-    ['L_Foot', 'ankleFlexion'],
-    ['R_Foot', 'ankleFlexion'],
-    ['L_Forearm', 'elbowFlexion'],
-    ['R_Forearm', 'elbowFlexion'],
-    ['L_UpperArm', 'shoulderFlexion'],
-    ['R_UpperArm', 'shoulderFlexion'],
-    ['Spine_Lower', 'flexion'],
-    ['Spine_Upper', 'flexion'],
-    ['Spine_Lower', 'rotation'],
-    ['Spine_Upper', 'rotation'],
-    ['Spine_Lower', 'lateralTilt'],
-    ['Spine_Upper', 'lateralTilt'],
-    ['Neck', 'rotation'],
-    ['Neck', 'lateralTilt'],
-    ['L_UpLeg', 'hipAbduction'],
-    ['R_UpLeg', 'hipAbduction'],
-    // the limb NON-SAGITTAL set (brings a fully-coordinated gait keyframe up to 32)
-    ['L_UpperArm', 'shoulderAbduction'],
-    ['R_UpperArm', 'shoulderAbduction'],
-    ['L_Forearm', 'forearmRotation'],
-    ['R_Forearm', 'forearmRotation'],
-    ['L_UpLeg', 'hipRotation'],
-    ['R_UpLeg', 'hipRotation'],
-    ['L_Leg', 'kneeRotation'],
-    ['R_Leg', 'kneeRotation'],
-    ['L_Foot', 'ankleInversion'],
-    ['R_Foot', 'ankleInversion'],
-    ['L_UpperArm', 'shoulderRotation'],
-    ['R_UpperArm', 'shoulderRotation'],
-    // the DISTAL detail set (scapular glide, wrist, finger curls) — brings a
-    // fully-coordinated gait keyframe up to 42, still under the 48 cap.
-    ['L_Shoulder', 'protraction'],
-    ['R_Shoulder', 'protraction'],
-    ['L_Hand', 'wristFlexion'],
-    ['R_Hand', 'wristFlexion'],
-    ['L_Toes', 'toeFlexion'],
-    ['R_Toes', 'toeFlexion'],
-    ['L_Thumb1', 'fingerFlexion'],
-    ['L_Index1', 'fingerFlexion'],
-    ['L_Mid1', 'fingerFlexion'],
-    ['L_Ring1', 'fingerFlexion'],
-    ['L_Pinky1', 'fingerFlexion'],
-    ['R_Thumb1', 'fingerFlexion'],
-    ['R_Index1', 'fingerFlexion'],
-    ['R_Mid1', 'fingerFlexion'],
-    ['R_Ring1', 'fingerFlexion'],
-    ['R_Pinky1', 'fingerFlexion'],
-    ['Neck', 'flexion'], // the (MAX+1)th — overflow
-  ].map(([joint, motion]) => ({ joint: joint!, motion: motion!, deg: 5 }));
+  // Six registry channels are READOUT-ONLY (elbowDeviation, proSup, kneeDeviation
+  // per side) — measured but not commandable — leaving 60 a keyframe can actually
+  // command. The cap sits just below that at 58, deliberately: at 60+ no plan
+  // could overflow and the guard would become untested dead code.
+  //
+  // DERIVED from the registry rather than hand-listed. The hand-listed version had
+  // to be extended by hand every time the cap moved, and when it moved to 64 the
+  // list was short AND named a `Head` row that does not exist — so the test failed
+  // for reasons that had nothing to do with what it measures.
+  const READOUT_ONLY = new Set(['elbowDeviation', 'proSup', 'kneeDeviation']);
+  const commandable = ROM_JOINT_ROWS.flatMap((row) =>
+    row.fields
+      .filter((f) => !READOUT_ONLY.has(f.key))
+      .map((f) => ({ joint: row.canonicalKey, motion: f.key, deg: 5 })),
+  );
+  // MAX+1 DISTINCT targets — duplicates collapse on resolve, so a repeated list
+  // could never trigger the overflow this exercises.
+  const fullBodyTargets = commandable.slice(0, MAX_TARGETS_PER_KEYFRAME + 1);
 
   it(`a keyframe with exactly ${MAX_TARGETS_PER_KEYFRAME} targets resolves clean`, () => {
-    expect(MAX_TARGETS_PER_KEYFRAME).toBe(48);
+    // Pinned so raising the cap is a deliberate act with a reason attached, not
+    // something that drifts. It went 48 → 58 when gait gained sagittal spine and
+    // scapular rotation; see the constant for why that was NOT optional, and why
+    // it stops short of the 60 that would retire the overflow guard.
+    expect(MAX_TARGETS_PER_KEYFRAME).toBe(58);
     const r = resolveComposedMotion(
       { keyframes: [kf(fullBodyTargets.slice(0, MAX_TARGETS_PER_KEYFRAME), 500)] },
       variantCfg,
@@ -355,14 +320,18 @@ describe('resolveComposedMotion', () => {
     expect(r.keyframes[0]!.targets.map((t) => t.joint)).toEqual(
       fullBodyTargets.slice(0, MAX_TARGETS_PER_KEYFRAME).map((t) => t.joint),
     );
-    // …and the (MAX+1)th (the neck flexion) is refused-with-reason, still fully reported.
+    // …and the (MAX+1)th is refused-with-reason, still fully reported. WHICH one
+    // that is comes from the list, not from a literal — pinning the joint by name
+    // made this test fail every time the cap moved, for a reason unrelated to the
+    // overflow behaviour it exists to check.
+    const overflowed = fullBodyTargets[MAX_TARGETS_PER_KEYFRAME]!;
     expect(r.outcomes).toHaveLength(MAX_TARGETS_PER_KEYFRAME + 1);
     const dropped = r.outcomes.filter((o) => o.reason === 'target-limit');
     expect(dropped).toEqual([
       {
         keyframe: 0,
-        joint: 'Neck',
-        motion: 'flexion',
+        joint: overflowed.joint,
+        motion: overflowed.motion,
         status: 'refused',
         requestedDegrees: 5,
         reason: 'target-limit',

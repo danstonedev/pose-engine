@@ -538,16 +538,34 @@ export interface ComposedMotion {
  *  two jumps. 48 covers ~8 jumps / 6 gait cycles / a long exercise set while
  *  still bounding an AI plan's size + token cost. */
 export const MAX_KEYFRAMES = 48;
-/** Most joint targets a single keyframe may hold. 48 covers a FULLY-COORDINATED gait
+/** Most joint targets a single keyframe may hold. 58 covers a FULLY-COORDINATED gait
  *  keyframe: 6 legs + 4 arms (10 sagittal) + the spinal set (thoracic/lumbar rotation,
- *  spine + neck lateral tilt, neck gaze counter, + the 2 hip counter-rotations — 8) + the
- *  limb NON-SAGITTAL / DISTAL set (per-arm shoulder abduction + forearm rotation + scapular
- *  protraction + wrist flexion + 5 finger curls, per-leg hip abduction + knee rotation +
- *  ankle inversion — 24) = 42, with headroom for a fault overlay. (Was 32 before the
- *  scapular/wrist/finger detail; 20 before the limb non-sagittal; 12 before the spinal.)
- *  Overflow beyond it is NON-FATAL — the first N play, the rest are refused per-target
- *  with reason 'target-limit'. */
-export const MAX_TARGETS_PER_KEYFRAME = 48;
+ *  spine + neck lateral tilt, neck gaze counter, the 3 PELVIS channels, + the 2 hip
+ *  counter-rotations — 11) + the SAGITTAL spine set (lumbar/thoracic flexion + the neck's
+ *  sagittal gaze counter — 3) + the limb NON-SAGITTAL / DISTAL set (per-arm shoulder
+ *  abduction + forearm rotation + all 3 SCAPULAR channels + wrist flexion + wrist deviation
+ *  + 5 finger curls, per-leg hip abduction + knee rotation + ankle inversion — 30) = 54,
+ *  with headroom for a fault overlay. (Was 48 before the sagittal spine + scapular rotation;
+ *  32 before the scapular/wrist/finger detail; 20 before the limb non-sagittal; 12 before
+ *  the spinal.)
+ *
+ *  WHY 58 AND NOT MORE. The registry defines 66 channels, but six are READOUT-ONLY
+ *  (elbowDeviation / proSup / kneeDeviation, per side), so only 60 can ever be commanded,
+ *  and duplicate targets collapse on resolve. A cap at 60 or above is therefore
+ *  UNREACHABLE by any plan — which sounds safe but silently retires the overflow guard
+ *  below into untested dead code. 58 keeps it live and reachable while clearing the
+ *  busiest measured gait keyframe (a travel walk peaks at 55) with room for an overlay.
+ *
+ *  RAISING THIS IS PART OF ADDING A CHANNEL, and forgetting costs more than it looks.
+ *  Overflow is NON-FATAL and SILENT to the pose: the first N play and the rest are refused
+ *  per-target with reason 'target-limit'. Because the coordinator appends left-side limb
+ *  targets before right-side ones, an overflowing gait keyframe amputates the RIGHT side
+ *  specifically — measured, when the sagittal spine landed against the old 48: a walk at 55
+ *  targets silently dropped 33 of them, every one of them right-side (fingers, hip
+ *  abduction, knee rotation, ankle inversion). Nothing failed loudly; two unrelated hand
+ *  tests failed with values that looked like a measurement bug. `gaitTargetBudget` in
+ *  gaitSpineSagittalAndGirdle.test.ts gates this directly now. */
+export const MAX_TARGETS_PER_KEYFRAME = 58;
 /** Fast clinical motion bound — the DEFAULT ('deliberate') velocity-class cap;
  *  no commanded joint may be asked to travel faster than this unless a keyframe
  *  opts into a higher {@link VelocityClass}. Keyframe durations are raised to
