@@ -33,12 +33,15 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { applyAnatomicPose } from '../services/anatomicPose';
 import { buildBoneByPoseKey } from '../services/poseRig';
+import type { CustomPose } from '../types';
 import {
   captureJointAngleRestReference,
   computeJointAngles,
   type JointAngleRestReference,
 } from '../services/jointAngles';
 import { clampBoneToRom } from '../services/poseRomClamp';
+import { buildComposedCommandPose } from '../services/movementCommand';
+import { applyCustomPose, serializeCustomPose } from '../services/poseRig';
 import { rotateRestReferenceByPelvis } from '../services/rootMotion';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 
@@ -51,6 +54,7 @@ let skinned: THREE.SkinnedMesh;
 let rest: JointAngleRestReference;
 let lookup: Map<string, THREE.Bone>;
 let anatomic: Map<THREE.Bone, THREE.Quaternion>;
+let basePose: CustomPose;
 
 beforeAll(async () => {
   const buf = readFileSync(fileURLToPath(GLB_URL));
@@ -72,6 +76,7 @@ beforeAll(async () => {
   lookup = buildBoneByPoseKey(skinned.skeleton, variantCfg);
   anatomic = new Map();
   for (const b of skinned.skeleton.bones) anatomic.set(b, b.quaternion.clone());
+  basePose = serializeCustomPose(skinned.skeleton, variantCfg, 'male');
 }, 60_000);
 
 /** Angle between two bone quaternions, in degrees, NORMALIZED first.
@@ -107,6 +112,46 @@ function tiltPelvis(xDeg: number, yDeg: number, zDeg: number): void {
 function pelvisAwareRest(): JointAngleRestReference {
   return rotateRestReferenceByPelvis(rest, skinned.skeleton, variantCfg);
 }
+
+describe('the pelvis is COMMANDABLE — commanded == measured on all three planes', () => {
+  it('reads back every commanded pelvic channel within a degree', () => {
+    for (const [motion, vals] of [
+      ['anteriorTilt', [-20, -8, 8, 20, 30]],
+      ['lateralTilt', [-15, -5, 5, 15]],
+      ['rotation', [-25, -6, 6, 25]],
+    ] as const) {
+      for (const deg of vals) {
+        resetToAnatomic();
+        const pose = buildComposedCommandPose(
+          basePose, 'Hips', [{ motion, degrees: deg }], variantCfg, basePose, rest,
+        );
+        expect(pose, `${motion} ${deg} builds`).not.toBeNull();
+        applyCustomPose(skinned.skeleton, variantCfg, pose!);
+        root.updateMatrixWorld(true);
+        const r = computeJointAngles(skinned.skeleton, variantCfg, 'male', rest);
+        expect(r.joints.Hips![motion], `Hips.${motion} ${deg}`).toBeCloseTo(deg, 0);
+      }
+    }
+  });
+
+  it('does not smear across planes — one commanded channel leaves the other two near zero', () => {
+    for (const [motion, others] of [
+      ['anteriorTilt', ['lateralTilt', 'rotation']],
+      ['lateralTilt', ['anteriorTilt', 'rotation']],
+      ['rotation', ['anteriorTilt', 'lateralTilt']],
+    ] as const) {
+      resetToAnatomic();
+      const pose = buildComposedCommandPose(
+        basePose, 'Hips', [{ motion, degrees: 20 }], variantCfg, basePose, rest,
+      )!;
+      applyCustomPose(skinned.skeleton, variantCfg, pose);
+      root.updateMatrixWorld(true);
+      const r = computeJointAngles(skinned.skeleton, variantCfg, 'male', rest);
+      for (const o of others)
+        expect(Math.abs(r.joints.Hips![o] ?? 0), `${motion} 20 smears into ${o}`).toBeLessThan(2);
+    }
+  });
+});
 
 describe('a rotating pelvis and the PARENT-LOCAL readouts', () => {
   it('leaves hip, knee and lumbar angles exactly invariant — they are already pelvis-relative', () => {

@@ -266,6 +266,14 @@ describe('resolveCommandTarget', () => {
         .map((c) => `${c.joint}.${c.motion}`)
         .sort();
       expect(list).toEqual([
+        // PELVIS (v1.7). The pelvis was the one rig-reported joint with no
+        // command entry at all — declared in romRegistry, clamped by
+        // poseRomClamp, read back by computeJointAngles, and drivable by
+        // nothing, which is why every shipped motion measured a hard zero on all
+        // three pelvic channels.
+        'Hips.anteriorTilt',
+        'Hips.lateralTilt',
+        'Hips.rotation',
         'L_Foot.ankleAbduction',
         'L_Foot.ankleFlexion',
         'L_Foot.ankleInversion',
