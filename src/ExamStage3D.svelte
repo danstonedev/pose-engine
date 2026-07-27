@@ -567,6 +567,7 @@
         plantStanceFoot,
         stanceFootDrift,
         rotateRestReferenceByRoot,
+        rotateRestReferenceByPelvis,
         applyVerticalCalibration,
         NO_VERTICAL_CALIBRATION,
         VCAL_HANDOFF_BLEND_MS,
@@ -827,7 +828,15 @@
       function activeRestRef(): ReturnType<typeof captureJointAngleRestReference> | null {
         if (!restRef) return null;
         const d = rootOrientDelta();
-        return d ? rotateRestReferenceByRoot(restRef, d) : restRef;
+        // ROOT first, then PELVIS — the same two-frame composition the offline
+        // sampler uses (motionRecording), so the stage and the recording can
+        // never disagree about what a joint reads. The pelvis pass keeps the
+        // world-frame consumers (ROM clamp, shoulder elevation) from reading a
+        // pelvic tilt as limb motion, and is a strict no-op at pelvic rest.
+        const rooted = d ? rotateRestReferenceByRoot(restRef, d) : restRef;
+        return skinnedRef && variantCfgRef
+          ? rotateRestReferenceByPelvis(rooted, skinnedRef.skeleton, variantCfgRef)
+          : rooted;
       }
 
       // ── DRIVER OWNERSHIP (services/stageDriver) ───────────────────────────
