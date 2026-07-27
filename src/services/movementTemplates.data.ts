@@ -537,8 +537,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           // off the femur AXIS ≈ palm on the thigh surface.
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 10 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 10 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
-          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
+          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
           { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 18 },
           { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 18 },
           { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: -18 },
@@ -563,8 +563,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           // axis (still riding the thigh).
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 15 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 15 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
-          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
+          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
           { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 45 },
           { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 45 },
           { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: -24 },
@@ -589,8 +589,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           // the visible push. Rig-calibrated ~10 cm off the femur axis.
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 5 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 5 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
-          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -20 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
+          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
           { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
           { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
           { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: -14 },

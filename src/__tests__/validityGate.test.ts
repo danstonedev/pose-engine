@@ -297,6 +297,51 @@ describe('validity gate — injected counterfactuals are caught', () => {
     expect(rom.note).toContain('R_Leg.kneeFlexion');
     expect(report.overall).toBe('fail');
   });
+
+  it('a HAND DRIVEN INTO THE THIGH → self-intersection FAIL', () => {
+    // The class of defect no other check in this gate can see. Every one of them
+    // measures angles, timing or the floor, so a pose can be inside every ROM
+    // band, correctly phased and properly grounded while the hand occupies the
+    // same space as the thigh — which is exactly what shipped, reported as
+    // fingers moving through the legs during walking swing.
+    const { resolved, rec } = sample(buildTravelWalk());
+    const frames = rec.frames.map((f, i) =>
+      i === Math.floor(rec.frames.length / 2) && f.worldTracks?.R_UpLeg
+        ? {
+            ...f,
+            worldTracks: {
+              ...f.worldTracks,
+              // Teleport the right hand onto the right thigh's centre-line.
+              R_Hand: f.worldTracks.R_UpLeg,
+              R_Mid1: f.worldTracks.R_UpLeg,
+            },
+          }
+        : f,
+    );
+    const report = assessValidity(resolved, frames, { floorY });
+    const si = checkById(report.checks, 'self-intersection')!;
+    expect(si.pass, 'a hand inside the thigh is caught').toBe(false);
+    expect(si.measured, 'reported as interpenetration depth').toBeLessThan(0);
+    expect(si.note).toContain('INTERPENETRATES');
+    expect(report.overall).toBe('fail');
+  });
+
+  it('an UNMEASURABLE pair FAILS rather than passing quietly', () => {
+    // The mechanism by which the defect survived. A volumetric check that cannot
+    // see the bones it needs must say so — reporting "fine" because nothing was
+    // tracked is worse than having no check, since it manufactures confidence.
+    const { resolved, rec } = sample(buildTravelWalk());
+    const frames = rec.frames.map((f) => ({
+      ...f,
+      worldTracks: Object.fromEntries(
+        Object.entries(f.worldTracks ?? {}).filter(([k]) => !/UpLeg|_Leg$/.test(k)),
+      ) as Record<string, [number, number, number]>,
+    }));
+    const report = assessValidity(resolved, frames, { floorY });
+    const si = checkById(report.checks, 'self-intersection')!;
+    expect(si.pass, 'no legs tracked → cannot pass').toBe(false);
+    expect(si.note).toContain('UNMEASURABLE');
+  });
 });
 
 // ── 3. Rig-free / structural mode + report contract ──────────────────────────

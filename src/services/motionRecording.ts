@@ -208,6 +208,21 @@ export const DEFAULT_TRACKED_BONES = [
   'R_Foot',
   'L_Toes',
   'R_Toes',
+  // KNEES, ELBOWS AND KNUCKLES — the segment ENDPOINTS the self-intersection
+  // check needs (services/limbClearance). Without them a limb is a point rather
+  // than a capsule and arm↔leg clearance cannot be measured at all, which is how
+  // the hand passed through the thigh unobserved: every gate here measured
+  // angles, and a pose can sit inside every ROM band while occupying the same
+  // space as another limb. `measureLimbClearance` reports an unmeasurable pair
+  // rather than passing it, so dropping one of these fails loudly.
+  'L_UpLeg',
+  'R_UpLeg',
+  'L_Leg',
+  'R_Leg',
+  'L_Forearm',
+  'R_Forearm',
+  'L_Mid1',
+  'R_Mid1',
 ] as const;
 
 /** Total duration of a recording, ms (last frame's timestamp). */

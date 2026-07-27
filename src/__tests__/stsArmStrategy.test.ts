@@ -32,6 +32,7 @@ import { captureJointAngleRestReference, type JointAngleRestReference } from '..
 import { relaxedHands, resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
 import { measureCommandMotion } from '../services/movementCommand';
+import { THIGH_RADIUS_M, HAND_RADIUS_M } from '../services/limbClearance';
 import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
@@ -83,9 +84,23 @@ function sampleSts(): MotionRecording {
   });
 }
 
-/** Distance (m) from a hand to the SEGMENT hip→knee of the same side — the
- *  honest "hand on the thigh" metric (point-to-segment, not point-to-midpoint,
- *  so a hand anywhere along the thigh counts as riding it). */
+/**
+ * SURFACE clearance (m) between the hand and the thigh — negative means they
+ * overlap, ~0 means the hand rests on it.
+ *
+ * THIS USED TO MEASURE TO THE THIGH'S AXIS, and calling that "the honest 'hand
+ * on the thigh' metric" is how a real defect got locked in by a green test. The
+ * thigh carries 10.3 cm of flesh around that axis and the hand 7.3 cm
+ * (rig-measured, services/limbClearance), so surfaces merely TOUCH at 17.6 cm of
+ * axis separation — and this file asserted the seated hand sit within 13 cm of
+ * it, which mandates 4.6 cm of interpenetration. The template obliged: the
+ * shipped sit-to-stand buried its hands 9.2 cm inside its thighs, and the arms
+ * were adducted 20° to achieve it.
+ *
+ * Subtracting both radii is the whole fix. The thresholds below are re-expressed
+ * against the surface, where "resting on the thigh" is a number near zero rather
+ * than a number that has to be read together with two radii nobody had.
+ */
 function handToThighM(f: MotionRecording['frames'][number], side: 'L' | 'R'): number {
   const w = f.worldTracks!;
   const hand = w[`${side}_Hand`]!;
@@ -98,7 +113,7 @@ function handToThighM(f: MotionRecording['frames'][number], side: 'L' | 'R'): nu
   const px = hip[0] + ab[0] * t;
   const py = hip[1] + ab[1] * t;
   const pz = hip[2] + ab[2] * t;
-  return Math.hypot(hand[0] - px, hand[1] - py, hand[2] - pz);
+  return Math.hypot(hand[0] - px, hand[1] - py, hand[2] - pz) - THIGH_RADIUS_M - HAND_RADIUS_M;
 }
 
 /** Frame nearest an absolute time. */
@@ -133,9 +148,14 @@ describe('sit-to-stand arm strategy — measured on the rig', () => {
         `STS ${side} hand→thigh: seated ${(seated * 100).toFixed(1)}cm · lean ${(lean * 100).toFixed(1)}cm · push ${(push * 100).toFixed(1)}cm · stand ${(stand * 100).toFixed(1)}cm (push-window min ${(pushMin * 100).toFixed(1)}cm)`,
       );
       // Proximity: the hand rides close to its thigh line through the push.
-      expect(seated, `${side} seated hand rests on the thigh`).toBeLessThan(0.13);
-      expect(lean, `${side} pressing hand stays on the thigh through the lean`).toBeLessThan(0.13);
-      expect(push, `${side} hand still on the thigh at seat-off`).toBeLessThan(0.16);
+      // RESTS ON, not inside. The lower bound is what the axis-based version
+      // could not express and what let the hands bury themselves.
+      expect(seated, `${side} seated hand rests on the thigh`).toBeLessThan(0.04);
+      expect(seated, `${side} seated hand is not INSIDE the thigh`).toBeGreaterThan(-0.02);
+      expect(lean, `${side} pressing hand stays on the thigh through the lean`).toBeLessThan(0.04);
+      expect(lean, `${side} pressing hand is not INSIDE the thigh`).toBeGreaterThan(-0.02);
+      expect(push, `${side} hand still on the thigh at seat-off`).toBeLessThan(0.07);
+      expect(push, `${side} pushing hand is not INSIDE the thigh`).toBeGreaterThan(-0.02);
       // Release: the upright hang is clearly farther from the (now vertical)
       // thigh line than the pushing minimum.
       expect(stand, `${side} arm released at upright`).toBeGreaterThan(pushMin + 0.04);

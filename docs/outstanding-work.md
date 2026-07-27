@@ -238,6 +238,41 @@ never diagnosed.
 | #120 | Seven channels measured a flat zero through an entire walk | lumbar/thoracic/cervical flexion **0.005/0.022/0.026 → 2.00/1.50/3.49°** p2p; scapular upRotation + tilt **0.000 → 8.8-11.5 / 6.4-8.2°** |
 | #121 | Head protraction had no channel at all | 20° command → **1.32 cm** anterior, **0.00°** pitch |
 | #122 | The sagittal spine shipped four times too loud | total trunk pitch **11° → 3.5°** p2p |
+| #123 | The body passed through itself, and nothing measured volume | walk hand↔thigh **−2.85 → +2.77 cm**; sit-to-stand **−9.21 → −1.3 cm** (contact, not burial) |
+
+### The class of defect nothing was measuring
+
+Reported from the deployed build: *"the model's fingers/hands are now moving
+through the model's legs during swing."* True, and **not a regression** — the
+per-vertex hand↔leg minimum on the travel walk was **0.27 cm before** the
+movement-realism work and **0.57 cm after** it. Both are "touching". The work
+that got blamed had moved the number slightly the RIGHT way; what changed was
+that the spine stopped being distracting.
+
+The reason no gate caught it is the useful part. **Every check in this engine
+measured angles, timing or the floor — none measured VOLUME.** A pose can sit
+inside every ROM band, correctly phased and properly grounded, while the hand
+occupies the same cubic centimetres as the thigh. Joint-space validity and
+volumetric validity are different claims and only the first was being made.
+
+Worse, a green test was *enforcing* the defect. `stsArmStrategy` asserted the
+seated hand sit within 13 cm of the thigh AXIS and called that "the honest 'hand
+on the thigh' metric". The thigh carries 10.3 cm of flesh around that axis and
+the hand 7.3 cm, so surfaces merely touch at 17.6 cm — the assertion mandated
+4.6 cm of interpenetration, and the template obliged with 20° of adduction and
+hands buried **9.2 cm** inside the thighs. The same axis-distance reasoning sat
+in `ARM_ADD_BASE`'s comment, justifying the gait's carriage as "visible daylight
+at every keyframe".
+
+Fixed with `services/limbClearance` (capsule model, rig-measured radii,
+validated against per-vertex ground truth and measured ~3.2 cm conservative) and
+a `self-intersection` check in the validity gate. **Never tune limb proximity
+against an axis distance.**
+
+Two tiers, because the gate can see geometry but not intent: limbs touching may
+be right (hands on thighs in a sit-to-stand) or wrong (a hand through a thigh in
+gait), so contact WARNS and only burial FAILS. Motions that must never touch
+assert it where the intent is known.
 
 ### The one that shipped visibly wrong
 

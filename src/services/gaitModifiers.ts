@@ -324,10 +324,31 @@ const PELVIC_TILT_MAX = 2.5;
 // it is not working from an anatomical hang. The rig's REST carriage already holds
 // the hand 26.3cm from the thigh axis while the readout calls that 0° abduction,
 // so part of this constant is closing a gap the rest pose opens, not adding a
-// stylisation on top of a natural one. Rig-measured hand→thigh-axis distance
-// through the walk: 15-19cm here against 26.3cm at rest, with visible daylight at
-// every keyframe (gaitHandCarriage.test.ts gates both ends of that).
-const ARM_ADD_BASE = 12;
+// stylisation on top of a natural one.
+//
+// 12 → 6, AND THE REASON THE OLD VALUE SURVIVED IS IN THE SENTENCE THIS REPLACES.
+// It read: "Rig-measured hand→thigh-AXIS distance through the walk: 15-19cm
+// against 26.3cm at rest, with visible daylight at every keyframe." Every number
+// there was true and the conclusion was wrong, because a distance to the thigh's
+// AXIS is not daylight. The thigh carries 10.3cm of flesh around that axis and
+// the hand 7.3cm (rig-measured, services/limbClearance), so 15-19cm of axis
+// separation is 2.4cm of overlap at the tight end — and the hand went through the
+// leg, which is what was reported from the deployed build.
+//
+// Measured with capsules that know their own radius (worst hand↔thigh SURFACE
+// clearance on the travel walk, and the near-linear response that sized this):
+//
+//     ARM_ADD_BASE   12      10       8       6       4
+//     clearance   −2.85   −0.89   +0.95   +2.77   +4.56  cm
+//
+// 6 sits ~3cm clear rather than barely positive, because the capsule model is
+// itself ~3cm conservative against per-vertex truth and there is no value in
+// spending that margin. Per-vertex, the walk went 0.57cm → 6.09cm.
+//
+// Do not tune this against an axis distance again. `limbClearance.test.ts` gates
+// the surface, and the validity gate's `self-intersection` check now carries it
+// for every composed motion, not just the shipped gaits.
+const ARM_ADD_BASE = 6;
 const ARM_ADD_SWING = 0.1;
 const ARM_ADD_MAX = 20;
 // FOREARM PRO/SUP through the swing. The forearm does not ride the swing as a
