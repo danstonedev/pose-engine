@@ -66,10 +66,10 @@ laterally on its own — see 3.4).
 
 ---
 
-## 2. Blocked on horizontal foot-lock IK
+## 2. Foot grounding
 
 The walk grounds its feet with a **vertical pin plus a foot-plant IK**, not a
-horizontal foot-lock. Three separate items are limited by the same gap, and the
+horizontal foot-lock. Two of the items below are limited by that gap, and the
 engine flagged it in `gaitModifiers` before any of this work started: *"a bigger
 pelvic yaw … drags the planted foot, since the walk grounds the feet with a
 vertical pin, not a horizontal foot-lock IK."*
@@ -82,11 +82,46 @@ floor). The diagnostic content is intact at the reduced amplitude — the drop i
 contralateral and phase-locked to the swing limb at **r = 0.994** — so this is a
 fidelity cap, not a correctness bug.
 
-### 2.2 The travel derivation tracks the ANKLE through the toe roll — BLOCKED
-Stance slide sits at **2.9 cm**. Early stance is near-exact (**0.2 cm**); all the
-error is in late stance, where the heel lifts and the true contact migrates to
-the forefoot while `deriveFootDrivenTravel` keeps measuring the ankle bone. The
-fix is a roll-over model: track the ankle before heel-off and the toe after.
+### 2.2 The travel derivation tracks the ANKLE through the toe roll — OPEN, **not blocked**
+**Correction to an earlier grouping in this file:** this was listed as blocked on
+foot-lock IK. It is not — it is a derivation change, and it has now been written
+and measured. Moved here only because it sits next to the items it interacts
+with.
+
+Localised precisely (worst stance slide, per pattern):
+
+| | ankle total | early stance | late stance |
+|---|---|---|---|
+| jog | 2.91 cm | **0.07 cm** | 2.86 cm |
+| run | 3.39 cm | **0.05 cm** | 3.31 cm |
+| sprint | 5.08 cm | **0.14 cm** | 4.94 cm |
+
+While the ankle IS the contact point the cancellation is essentially perfect.
+Every bit of the error is on the far side of the roll, where the heel lifts and
+the real contact has migrated to the forefoot.
+
+**The roll-over model is written, measured, and preserved unlanded** at
+`scratchpad/rollover-wip/` (patch + notes). Tracking whichever of ankle/forefoot
+is lower *relative to its own rest*:
+
+| | ankle before → after | toe before → after |
+|---|---|---|
+| walk | 2.62 → 3.16 | 3.20 → 3.87 |
+| jog | 2.91 → 4.94 | 3.71 → **3.09** |
+| run | 3.39 → 6.30 | 4.54 → **3.33** |
+| sprint | 5.08 → 15.12 | 6.87 → **3.84** |
+
+It **works for the run patterns** — the true late-stance contact is held far
+better. The ankle moving more is *physically correct*: during heel-off the ankle
+genuinely travels forward over a planted forefoot. Two things must happen before
+it can land:
+1. **The slide gates must measure the CONTACT point, not the ankle**, or the fix
+   reads as a regression everywhere.
+2. **The walk regresses on both measures** and needs understanding first — most
+   likely because a walk's early-stance contact is the HEEL, which sits behind
+   the ankle and has no bone in this rig, so "ankle vs toe" is the wrong pair for
+   the first half of a walking stance. A three-point model, or gating the
+   roll-over to flight gaits only, are the obvious next moves.
 
 ### 2.3 `plantStanceFoot` treats the pelvis as the chain root — BLOCKED
 Its own docstring says so. A 20° pelvic yaw makes it counter-rotate the model
