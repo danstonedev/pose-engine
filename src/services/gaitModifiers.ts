@@ -238,6 +238,26 @@ const SPINE_LUMBAR_AXIAL_MAX = 8; // lumbar rotation cap (tight ROM ±10)
 // UNIVERSAL gaze stabilizer (stabilizeGaze) so both correct against the same cervical ROM.
 // (SPINE_NECK_MAX / SPINE_NECK_LATERAL_MAX imported from motionSequence.)
 const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
+// SAGITTAL SPINE IN GAIT. This authoring used to be forbidden outright, and the
+// comment on spinalGaitCoordination said so: "NEVER sagittal flexion, which would
+// shift the world-anchored shoulderFlexion motor (trunkSum)". The coupling was
+// real — shoulderFlexion is measured in a WORLD frame, so a flexed trunk moves the
+// arm readout by the trunk's own angle. But `trunkSum` (motionSequence) was
+// afterwards taught to compensate exactly that, and the ban outlived the problem:
+// it left lumbar, thoracic AND cervical flexion reading a flat 0.00° through an
+// entire walk, which is the defect this fixes.
+//
+// Measured cost of lifting it, walk without → with: shoulderFlexion p2p
+// 39.88 → 38.88°, head lateral excursion 2.17 → 2.09 cm, worst stance-foot slide
+// 2.62 → 2.62 cm. The compensation absorbs it; nothing downstream moves.
+//
+// The caps are HALF-excursions about neutral, so the gated peak-to-peak is
+// roughly double. Approximate working bands — trunk and cervical sagittal
+// excursions in walking are NOT standardised to anything like the precision of
+// the lower-limb norms, so these are declared conventions, not findings.
+const SPINE_SAGITTAL_LUMBAR_MAX = 3; // ⇒ ~4-6° p2p (ROM −25..60)
+const SPINE_SAGITTAL_THORACIC_MAX = 2.5; // ⇒ ~3-5° p2p (ROM −25..40)
+const SPINE_SAGITTAL_NECK_MAX = 2.5; // gaze counter, not an independent excursion
 // Transverse pelvic-rotation cap (root yaw). Real free-gait pelvic rotation is ~±4°; 6°
 // leaves a little headroom for speed while staying in a natural range (a bigger pelvic
 // yaw reads as a twist/shimmy AND drags the planted foot, since the walk grounds the feet
@@ -344,6 +364,30 @@ const ARM_PRO_MAX = 28;
 const WRIST_DEV_BASE = -8; // resting ulnar bias of the hanging hand, deg
 const WRIST_DEV_SWING = 0.3; // toward radial through the forward swing, ulnar on the backswing
 const WRIST_DEV_MAX = 16; // well inside the +20 radial / −30 ulnar ROM
+// SCAPULAR ROTATION IN GAIT. Protraction below was for a long time the ONLY
+// girdle channel gait authored, which left `upRotation` and `scapularTilt`
+// measuring a FLAT 0.000° across an entire walk — reported from the deployed
+// build, and confirmed by audit.
+//
+// The cause is worth stating precisely, because it is not a bug in either piece.
+// The only other writer of girdle rotation is `girdleSplit` (the scapulohumeral
+// rhythm), and that returns EXACTLY ZERO below its setting phase — 60° flexion /
+// 30° abduction. A walk peaks at 20.2° / 14.0°, so the rhythm never engages and
+// never could: the split models ELEVATION, and gait is not elevation. The girdle
+// still rotates during arm swing, just by a different route, and nothing was
+// authoring that route.
+//
+// These two are that route. Coupled to the same arm-swing signal protraction
+// uses, so all three girdle channels stay phase-locked to each other and to the
+// stride. Gains are small on purpose — this is girdle TEXTURE riding an arm
+// swing, not the large upward rotation of reaching overhead, and the two must
+// not be confused. Both stay well inside their ROM at walk and run amplitude
+// (±20° of swing ⇒ ±4.4° / ±3.2°), so neither flat-tops the way protraction
+// already does at run energy (see docs/outstanding-work.md 3.6).
+const SCAP_UPROT_GAIN = 0.22; // upward rotation with the FORWARD swing (sh > 0)
+const SCAP_UPROT_MAX = 7; // ROM is −5..60, so the backswing side is the tight one
+const SCAP_TILT_GAIN = 0.16; // POSTERIOR tilt with the forward swing (+ = Post)
+const SCAP_TILT_MAX = 5; // ROM is −10..40 — comfortable at these amplitudes
 const SCAP_PROT_GAIN = 0.35; // scapular protraction/retraction: the shoulder GIRDLE glides
 const SCAP_PROT_MAX = 10; // fore/aft on the ribcage WITH the arm swing (protract on the
 // forward swing, retract on the backswing) — arm swing isn't purely glenohumeral. Coupled
@@ -458,8 +502,16 @@ const NECK_AXIAL_ROLL_COMP = 0.28;
  *     counter-rotates to hold the gaze forward (vestibulo-collic head stabilisation).
  *   • Lateral trunk sway — a few degrees of lateral flexion TOWARD the stance
  *     (less-flexed) hip each step, damped through any airborne phase.
- * Only `rotation` + `lateralTilt` on the spine — NEVER sagittal `flexion`, which
- * would shift the world-anchored shoulderFlexion motor (trunkSum). Feet, leg angles
+ *   • Sagittal trunk flexion/extension — twice per stride, flexing around each
+ *     double support and extending through mid-stance, with the neck countering
+ *     so the gaze stays level. This was BANNED here until the `trunkSum`
+ *     compensation in motionSequence made the ban unnecessary; see the note on
+ *     SPINE_SAGITTAL_LUMBAR_MAX for what lifting it actually cost (measured:
+ *     nothing downstream).
+ *   • Scapular upward rotation + posterior tilt with the arm swing — the girdle
+ *     channels the scapulohumeral rhythm structurally cannot reach, because that
+ *     split models elevation and never engages below 60°. See SCAP_UPROT_GAIN.
+ * All three planes of the spine are now authored. Feet, leg angles
  * and every graded driver are untouched (the spine sits above the hips). Additive on
  * any existing spine target (e.g. an antalgic lean), ROM-clamped on resolve. Identity
  * when both gains are 0. Sign of `rotation` follows romRegistry (+ = toward-R); the
@@ -549,6 +601,13 @@ export function spinalGaitCoordination(
   // still contralateral and phase-locked to the swing limb at r = 0.994.
   const kObl = kPel > 0 ? 0.065 : 0;
   const kTilt = kPel > 0 ? 0.05 : 0;
+  // Sagittal trunk ON/OFF. There is no gain here on purpose: the amplitude comes
+  // from the caps, and the SHAPE from the normalised stride envelope below, so
+  // the excursion is the same at walk and sprint energy rather than growing with
+  // a driver that has no reason to stay in band. Gated on the SPINE gains rather
+  // than the pelvis one, so it rides with the coordination it belongs to and the
+  // identity guarantee on the next line stays exact.
+  const kSag = kAx > 0 || kLat > 0 ? 1 : 0;
   const shuttleAbsorb = opts.shuttleAbsorb;
   if (kAx === 0 && kLat === 0 && kPel === 0 && !shuttleAbsorb) return motion;
   const cap = (v: number, m: number): number => Math.max(-m, Math.min(m, v));
@@ -565,6 +624,44 @@ export function spinalGaitCoordination(
       cursor += kf.holdMs ?? 0;
     }
   }
+  // LOCAL STRIDE AMPLITUDE — the running envelope of |hipDiff| over each
+  // keyframe's neighbourhood. This is what lets the sagittal trunk oscillation
+  // (below) scale itself instead of carrying a hard-coded amplitude, and it
+  // fixes two defects a fixed constant produced, both rig-measured:
+  //
+  //   • SATURATION. A fixed centre calibrated on the walk (|hipDiff| peaks ~48°)
+  //     rails on the run, whose |hipDiff| reaches ~74° — the trace flat-topped at
+  //     BOTH ends of every cycle, the same defect protraction already has at run
+  //     energy (docs/outstanding-work.md 3.6). Normalising by the envelope makes
+  //     the excursion the same shape at any gait energy.
+  //   • A FALSE LEAN AT STANDSTILL. |hipDiff| → 0 when the gait terminates, which
+  //     against a fixed centre reads as maximum EXTENSION — the walk settled into
+  //     a 3.4° backward lean it should never have had. Against the envelope it
+  //     reads as "no stride", and the oscillation fades out with the gait.
+  //
+  // A neighbourhood max rather than the whole motion's, so a gait that starts,
+  // travels and stops fades in and out with its own stride rather than being
+  // scaled by its most vigorous moment throughout.
+  const hipDiffAt: number[] = motion.keyframes.map((kf) =>
+    kf.targets
+      ? at(kf.targets, 'L_UpLeg', 'hipFlexion') - at(kf.targets, 'R_UpLeg', 'hipFlexion')
+      : 0,
+  );
+  const strideEnvelope: number[] = hipDiffAt.map((_, i) => {
+    let m = 0;
+    for (let j = Math.max(0, i - 1); j <= Math.min(hipDiffAt.length - 1, i + 1); j += 1)
+      m = Math.max(m, Math.abs(hipDiffAt[j]!));
+    return m;
+  });
+  // How vigorous this keyframe's stride is against the motion's OWN best. The
+  // normalised drive alone is not enough to kill the standstill lean: at the
+  // termination |hipDiff| is 0 while a neighbour still carries a full stride, so
+  // the ratio reads −1 (maximum extension) instead of "no stride". This fades the
+  // whole excursion out with the gait, and is 1 through any steady stretch.
+  const strideVigour: number[] = (() => {
+    const peakEnv = Math.max(0, ...strideEnvelope);
+    return strideEnvelope.map((e) => (peakEnv > 1 ? Math.min(1, e / (peakEnv * 0.6)) : 0));
+  })();
   // Per-side SHOULDER ANGULAR VELOCITY at each keyframe, deg/s of playback time —
   // the driver of passive wrist drag (see WRIST_DRAG_PER_DEG_S). Central
   // difference over each keyframe's neighbours, one-sided at the ends of a
@@ -624,6 +721,35 @@ export function spinalGaitCoordination(
     // sign — the pelvis tilts anteriorly around each double-support and settles
     // back through mid-stance.
     const pelvicTilt = cap(kTilt * (Math.abs(hipDiff) - 20), PELVIC_TILT_MAX);
+    // TRUNK SAGITTAL — twice per stride, on the same |hipDiff| driver the pelvic
+    // tilt uses and for the same reason: the trunk flexes slightly around each
+    // DOUBLE SUPPORT (hips maximally split, |hipDiff| peaks) and extends back
+    // through each MID-STANCE (hips passing, |hipDiff| ≈ 0). Two flexion peaks
+    // per stride, phase-locked to the stride for free — no cycle clock, exactly
+    // as everything else derived here.
+    // Normalised to [−1, +1] against this keyframe's own stride envelope: +1 at
+    // maximum hip split (double support, peak flexion), −1 as the hips pass
+    // (mid-stance, peak extension). A keyframe with no stride around it — a
+    // standstill, or a spine-only motion run through this coordinator — has no
+    // envelope and so contributes nothing, which is the correct answer for both.
+    const env = strideEnvelope[kfIndex] ?? 0;
+    const sagDrive =
+      env > 1 ? ((Math.abs(hipDiff) / env) * 2 - 1) * (strideVigour[kfIndex] ?? 0) : 0;
+    // Both segments flex TOGETHER, the thoracic contributing less — the simple
+    // claim, and the one worth making without better evidence than I have. An
+    // earlier revision counter-phased the thoracic into a sagittal S-curve and
+    // justified it as protecting the arms from `trunkSum`; that justification was
+    // wrong. The arm regressions it claimed to fix were the per-keyframe target
+    // cap silently amputating the right side (see MAX_TARGETS_PER_KEYFRAME), and
+    // they survived the S-curve untouched — identical to nine decimal places,
+    // which is what an amputation looks like and a perturbation never does.
+    //
+    // `trunkSum` coupling IS real, just small: it adds lumbar + thoracic to every
+    // shoulderFlexion command so the world-anchored arm readout still lands on
+    // its commanded value, and at this amplitude that moved the walk's shoulder
+    // excursion 39.88 → 38.88°. Measured, not assumed.
+    const lumbarFlex = kSag > 0 ? SPINE_SAGITTAL_LUMBAR_MAX * sagDrive : 0;
+    const thoracicFlex = kSag > 0 ? SPINE_SAGITTAL_THORACIC_MAX * sagDrive : 0;
     const lean = -kLat * hipDiff * airborne; // lean toward the stance (less-flexed) hip
     // SHUTTLE-ABSORB counter-lean: opposite the pelvis shuttle (phase is +X-ward,
     // lateralTilt + = toward subject-left/+X, so −phase counters it), split
@@ -685,10 +811,21 @@ export function spinalGaitCoordination(
       -headStab * (-obliquityLean + leanLower + leanUpper) + NECK_AXIAL_ROLL_COMP * neckAxial,
       SPINE_NECK_LATERAL_MAX,
     );
+    // CERVICAL SAGITTAL — the same gaze logic the axial and lateral counters use,
+    // on the third plane. The head sits on top of the trunk, so trunk flexion
+    // would pitch the gaze at the ground twice a stride; the neck gives it back.
+    // This is a COUNTER, not an independent excursion, which is the honest
+    // description: a walking neck's own sagittal contribution is small, and the
+    // motion that is actually visible here is the head staying level while the
+    // trunk beneath it does not.
+    const neckSagittal = cap(-headStab * (lumbarFlex + thoracicFlex), SPINE_SAGITTAL_NECK_MAX);
     const additions: { joint: string; motion: string; deg: number }[] = [
       { joint: 'Spine_Upper', motion: 'rotation', deg: thoracic },
       { joint: 'Spine_Lower', motion: 'rotation', deg: lumbar },
       { joint: 'Neck', motion: 'rotation', deg: neckAxial },
+      { joint: 'Spine_Lower', motion: 'flexion', deg: lumbarFlex },
+      { joint: 'Spine_Upper', motion: 'flexion', deg: thoracicFlex },
+      { joint: 'Neck', motion: 'flexion', deg: neckSagittal },
       { joint: 'Spine_Lower', motion: 'lateralTilt', deg: leanLower },
       { joint: 'Spine_Upper', motion: 'lateralTilt', deg: leanUpper },
       { joint: 'Neck', motion: 'lateralTilt', deg: neckLateral },
@@ -728,6 +865,12 @@ export function spinalGaitCoordination(
         // Scapular girdle glides fore/aft WITH the arm: protract on the forward swing
         // (sh > 0), retract on the backswing (sh < 0). + protraction = Pro (romRegistry).
         additions.push({ joint: `${S}_Shoulder`, motion: 'protraction', deg: cap(SCAP_PROT_GAIN * sh, SCAP_PROT_MAX) });
+        // …and it ROTATES as well as glides. The forward swing carries the
+        // scapula into upward rotation and posterior tilt; the backswing unwinds
+        // both. Same `sh` driver as the protraction above, so the three girdle
+        // channels move as one segment instead of one channel moving alone.
+        additions.push({ joint: `${S}_Shoulder`, motion: 'upRotation', deg: cap(SCAP_UPROT_GAIN * sh, SCAP_UPROT_MAX) });
+        additions.push({ joint: `${S}_Shoulder`, motion: 'scapularTilt', deg: cap(SCAP_TILT_GAIN * sh, SCAP_TILT_MAX) });
         // WRIST: a relaxed hand isn't a rigid paddle — it holds a slight resting flexion
         // and DRAGS behind the forearm. The drag follows the arm's angular VELOCITY, so it
         // is DEEPEST AT MID-SWING (where the arm is fastest) and releases toward the swing

@@ -165,6 +165,26 @@ planted↔floating seam closes there and leaves a residual at the speed extremes
 The real fix anchors the arc to the grounding solve at sample time.
 **`buildJump` and `buildSingleLegHop` carry the same latent defect.**
 
+### 3.6b Head/cervical protraction–retraction has no channel — OPEN
+Reported alongside the flat spine and scapular channels, but it is a different
+kind of gap: the others were unauthored, this one **does not exist**. The `Neck`
+registry row carries `flexion` / `lateralTilt` / `rotation` only, and there is no
+`Head` row at all.
+
+**Correction to an earlier claim in this file's discussion:** it was flagged as
+possibly *unrepresentable* on this rig — an ASSET finding. That was wrong. The
+chain is `Spine02 → NeckTwist01 → NeckTwist02 → Head`: two stacked cervical
+segments, which is exactly what protraction needs, since the motion is a
+translation produced by lower-cervical flexion against upper-cervical extension.
+
+The measurement is already orthogonal to what exists — `Neck.flexion` is the SUM
+of the two segments (`addRegion`), so an equal-and-opposite pair reads zero
+flexion. Protraction is their DIFFERENCE. What blocks it is authoring, not
+anatomy: the `Neck` handle is a *curve* control (`chainParentCount: 1`) that
+bends both segments the same way, and the command spec writes one bone. It needs
+a companion-bone write like the shoulder's `girdle` hook, which is currently
+shoulder-specific.
+
 ### 3.6 The run saturates its protraction cap — OPEN
 `0.35 × 48° = 16.8°` clipped to the 10° cap, so the girdle flat-tops across two
 adjacent keyframes. Small fix, but it changes gait output, so it wants its own
@@ -210,6 +230,28 @@ never diagnosed.
 | #115 | The engine certified an anatomically impossible humerus as `complied` | 180° all-glenohumeral → **120 GH + 60 scapular** |
 | #116 | Pelvic rotation was invisible to its own readout | clamp rewriting an untouched knee **13.29° → 0.0000°** |
 | #117 | The pelvis was not commandable; the walk had none | obliquity peak **2.8°**, contralateral **r = 0.994** |
+| #120 | Seven channels measured a flat zero through an entire walk | lumbar/thoracic/cervical flexion **0.005/0.022/0.026 → 5.99/4.99/5.50°** p2p; scapular upRotation + tilt **0.000 → 8.8-11.5 / 6.4-8.2°** |
+
+### The one that nearly shipped invisibly
+
+Adding seven channels took the walk's busiest keyframe from 48 targets to 55,
+against a `MAX_TARGETS_PER_KEYFRAME` of **48** — and overflow truncates by arrival
+order, silently. **33 targets were dropped, every one of them right-side**
+(R fingers, R hip abduction, R knee rotation, R ankle inversion), because the
+coordinator appends the left limb first.
+
+Nothing reported it. What surfaced was two unrelated hand tests failing with
+numbers that read like a measurement bug — a finger at 39° beside a finger at
+9e-8. The tell was that **halving the girdle gains changed the failures not at
+all**, identical to nine decimal places: a perturbation scales, an amputation
+does not. The cap is 58 now (see below), and `gaitTargetBudget` asserts zero
+`target-limit` outcomes on walk and run so it can never happen quietly again.
+
+Why 58 and not higher: the registry defines 66 channels, six are readout-only, so
+60 are commandable and duplicates collapse on resolve. **A cap of 60+ is
+unreachable by any plan**, which would retire the overflow guard into untested
+dead code. 58 clears the busiest real keyframe (46 non-hand + the 12-target hand
+set) exactly.
 
 ### Two process lessons worth keeping
 

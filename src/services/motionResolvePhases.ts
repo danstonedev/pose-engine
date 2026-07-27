@@ -239,9 +239,12 @@ export function resolveKeyframePlan(motion: ComposedMotion, ctx: KeyframePlanCon
     }
     const velCap = VELOCITY_CLASS_CAPS[kf.velocityClass ?? 'deliberate'];
 
-    // Overflow beyond MAX_TARGETS_PER_KEYFRAME is NON-FATAL: the first 12 (in
-    // the deterministic order received) play; the rest are refused per-target
-    // with reason 'target-limit' — the keyframe and plan survive.
+    // Overflow beyond MAX_TARGETS_PER_KEYFRAME is NON-FATAL: the first N (in the
+    // deterministic order received) play; the rest are refused per-target with
+    // reason 'target-limit' — the keyframe and plan survive. The truncation is
+    // by ARRIVAL ORDER, which carries no notion of importance, so for a gait it
+    // amputates whichever side the coordinator appends last rather than shedding
+    // anything it could afford to lose. See the note on the constant.
     const keptTargets = requestedTargets.slice(0, MAX_TARGETS_PER_KEYFRAME);
     const overflowTargets = requestedTargets.slice(MAX_TARGETS_PER_KEYFRAME);
 

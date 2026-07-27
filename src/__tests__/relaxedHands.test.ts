@@ -23,6 +23,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { applyAnatomicPose } from '../services/anatomicPose';
 import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
+import { ROM_JOINT_ROWS } from '../services/romRegistry';
 import {
   relaxedHands,
   resolveComposedMotion,
@@ -301,36 +302,40 @@ describe('relaxedHands — authoring (pure)', () => {
     expect(pinky[pinky.length - 1]!.status).toBe('complied');
   });
 
-  it('respects the per-keyframe target budget — a keyframe the 12-target set cannot fit is left alone', () => {
-    // 40 legal non-hand targets: 40 + 12 = 52 > 48, so the transform must skip
-    // this keyframe instead of pushing targets that would overflow-drop.
-    const joints: [string, string][] = [
-      ['Neck', 'flexion'], ['Neck', 'rotation'], ['Neck', 'lateralTilt'],
-      ['Spine_Upper', 'flexion'], ['Spine_Upper', 'rotation'], ['Spine_Upper', 'lateralTilt'],
-      ['Spine_Lower', 'flexion'], ['Spine_Lower', 'rotation'], ['Spine_Lower', 'lateralTilt'],
-      ['L_UpperArm', 'shoulderFlexion'], ['L_UpperArm', 'shoulderAbduction'], ['L_UpperArm', 'shoulderRotation'],
-      ['R_UpperArm', 'shoulderFlexion'], ['R_UpperArm', 'shoulderAbduction'], ['R_UpperArm', 'shoulderRotation'],
-      ['L_Shoulder', 'protraction'], ['R_Shoulder', 'protraction'],
-      ['L_Forearm', 'elbowFlexion'], ['L_Forearm', 'forearmRotation'],
-      ['R_Forearm', 'elbowFlexion'], ['R_Forearm', 'forearmRotation'],
-      ['L_UpLeg', 'hipFlexion'], ['L_UpLeg', 'hipAbduction'], ['L_UpLeg', 'hipRotation'],
-      ['R_UpLeg', 'hipFlexion'], ['R_UpLeg', 'hipAbduction'], ['R_UpLeg', 'hipRotation'],
-      ['L_Leg', 'kneeFlexion'], ['L_Leg', 'kneeRotation'],
-      ['R_Leg', 'kneeFlexion'], ['R_Leg', 'kneeRotation'],
-      ['L_Foot', 'ankleFlexion'], ['L_Foot', 'ankleInversion'],
-      ['R_Foot', 'ankleFlexion'], ['R_Foot', 'ankleInversion'],
-      ['L_Toes', 'toeFlexion'], ['R_Toes', 'toeFlexion'],
-      ['Head', 'flexion'], ['Head', 'rotation'], ['Head', 'lateralTilt'],
-    ];
-    expect(joints.length).toBe(40);
+  it('respects the per-keyframe target budget — the biggest possible keyframe still fits the hand set', () => {
+    // THIS TEST CHANGED MEANING when MAX_TARGETS_PER_KEYFRAME went 48 → 58, and
+    // saying so is the point. It used to prove the transform SKIPS a keyframe too
+    // full to take the 12-target resting-hand set: 40 non-hand + 12 = 52 > 48.
+    //
+    // At 58 that scenario is no longer constructible. The registry commands 60
+    // channels, 14 of them on the hands (10 finger curls + wrist flexion and
+    // deviation per side), leaving exactly 46 non-hand ones — and 46 + 12 = 58,
+    // the cap precisely. So the busiest keyframe anyone can author now takes the
+    // full hand set with nothing dropped, and the skip branch is unreachable by
+    // any real plan rather than merely untriggered by this one.
+    //
+    // DERIVED from the registry so it tracks the real channel count instead of a
+    // hand-maintained list; the old one silently carried three `Head` targets for
+    // a row that does not exist, so it was really only 37.
+    const READOUT_ONLY = new Set(['elbowDeviation', 'proSup', 'kneeDeviation']);
+    const joints: [string, string][] = ROM_JOINT_ROWS.filter(
+      (row) => !HAND_JOINT_KEYS.includes(row.canonicalKey),
+    ).flatMap((row) =>
+      row.fields
+        .filter((f) => !READOUT_ONLY.has(f.key))
+        .map((f) => [row.canonicalKey, f.key] as [string, string]),
+    );
+    expect(joints.length, 'every non-hand commandable channel').toBe(46);
     const m: ComposedMotion = {
       keyframes: [
         { durationMs: 800, targets: joints.map(([joint, motion]) => ({ joint, motion, targetDegrees: 5 })) },
       ],
     };
     const out = relaxedHands(m);
-    expect(out.keyframes[0]!.targets!.length).toBe(40); // untouched — the set wouldn't fit
-    const r = resolveComposedMotion(m, variantCfg);
+    expect(out.keyframes[0]!.targets!.length, 'the hand set fits exactly at the cap').toBe(
+      MAX_TARGETS_PER_KEYFRAME,
+    );
+    const r = resolveComposedMotion(out, variantCfg);
     expect(r.status).toBe('ok');
     expect(r.outcomes.every((o) => o.reason !== 'target-limit'), 'nothing overflow-dropped').toBe(true);
   });

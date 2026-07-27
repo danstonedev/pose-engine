@@ -31,7 +31,13 @@ import { measureCommandMotion } from '../services/movementCommand';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
-const SPINE_MOTIONS = new Set(['rotation', 'lateralTilt']);
+/** `flexion` joined this set when the sagittal ban was lifted. It had been
+ *  excluded on purpose — the coordinator was forbidden from authoring sagittal
+ *  spine because it would shift the world-anchored shoulderFlexion readout — but
+ *  `trunkSum` (motionSequence) compensates that now, and the ban's only surviving
+ *  effect was that lumbar, thoracic and cervical flexion measured a flat 0.00°
+ *  through an entire walk. See gaitSpineSagittalAndGirdle.test.ts. */
+const SPINE_MOTIONS = new Set(['rotation', 'lateralTilt', 'flexion']);
 /** A joint/motion the gait coordinator is allowed to author: spine/neck rotation +
  *  lateral tilt (thorax counter-rotation, lean, gaze), the hip counter-rotation that holds
  *  the feet forward as the pelvis rotates, and the SUBTLE limb non-sagittal set (shoulder
@@ -39,7 +45,12 @@ const SPINE_MOTIONS = new Set(['rotation', 'lateralTilt']);
  *  knee rotation, ankle inversion) that keeps the arms/legs from swinging as flat 2-D
  *  pendulums. */
 const LIMB_NONSAG: Record<string, string> = {
-  L_Shoulder: 'protraction', R_Shoulder: 'protraction',
+  // All THREE girdle channels now, not just the glide. `upRotation` and
+  // `scapularTilt` were unreachable in gait: their only other writer is
+  // girdleSplit, which returns zero below its 60°/30° setting phase, and a walk
+  // peaks at 20.2°/14.0°. They measured exactly 0.000° until gait authored them.
+  L_Shoulder: 'protraction|upRotation|scapularTilt',
+  R_Shoulder: 'protraction|upRotation|scapularTilt',
   L_UpperArm: 'shoulderAbduction', R_UpperArm: 'shoulderAbduction',
   L_Forearm: 'forearmRotation', R_Forearm: 'forearmRotation',
   L_Hand: 'wristFlexion|wristDeviation', R_Hand: 'wristFlexion|wristDeviation',
