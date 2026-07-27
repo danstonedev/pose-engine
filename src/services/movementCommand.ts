@@ -315,7 +315,181 @@ function armSwingDelta(ctx: BuildCtx | undefined, worldAxis: THREE.Vector3, deg:
     .clone()
     .applyQuaternion(new THREE.Quaternion().setFromAxisAngle(worldAxis, deg * RAD));
   const worldSwing = new THREE.Quaternion().setFromUnitVectors(ctx.restDir, target);
-  return ctx.restWorldQuat.clone().invert().multiply(worldSwing).multiply(ctx.restWorldQuat);
+  return unparentGirdle(
+    ctx,
+    ctx.restWorldQuat.clone().invert().multiply(worldSwing).multiply(ctx.restWorldQuat),
+  );
+}
+
+/**
+ * Correct a humeral delta for the girdle rotation applied ALONGSIDE it, so the
+ * humerus lands on the SAME world orientation it would have reached without the
+ * split — which is what keeps the humerothoracic readout exact and, because the
+ * clavicle moved underneath it, is exactly what reduces the glenohumeral angle
+ * by the scapular share.
+ *
+ * THE BUG THIS FIXES, because it was subtle and expensive. The first version of
+ * the split simply handed `buildDelta` the reduced GH share and let the clavicle
+ * add the rest. Flexion and abduction read back correctly, so it looked right —
+ * but the humerus is a CHILD of the clavicle, so tilting the clavicle also
+ * carries the humerus's axial frame with it. Rig-measured, apparent axial
+ * rotation went 0° → 24.6° at 135° flexion → 104.4° at 180°, against exactly 0°
+ * before the split. A visibly wrung arm, and a `shoulderRotation` readout
+ * reporting a twist nobody commanded.
+ *
+ * The construction, with `W` the humerus rest world quat and `C` the girdle's
+ * world-frame rotation. Un-split, the target world orientation is `W · full`.
+ * Split, the achieved orientation is `C · W · delta`. Setting them equal:
+ *
+ *     delta = W⁻¹ · C⁻¹ · W · full
+ *
+ * so the delta is the FULL (unreduced) swing pre-rotated by the girdle's inverse
+ * in the humerus's rest frame. Exact — no calibration table, no per-angle fit.
+ * Identity when no girdle rotation accompanies the command, which is every
+ * motion other than shoulder elevation and every elevation inside the setting
+ * phase, so those paths stay byte-identical.
+ */
+function unparentGirdle(ctx: BuildCtx, delta: THREE.Quaternion): THREE.Quaternion {
+  const { girdleWorld, restWorldQuat } = ctx;
+  if (!girdleWorld || !restWorldQuat) return delta;
+  return restWorldQuat
+    .clone()
+    .invert()
+    .multiply(girdleWorld.clone().invert())
+    .multiply(restWorldQuat)
+    .multiply(delta);
+}
+
+/** The WORLD-frame rotation a girdle contribution applies to the clavicle.
+ *  The scapular specs are PARENT-frame (`local = delta · restLocal`), so the
+ *  world-frame rotation they realize is `parentWorld · delta · parentWorld⁻¹`.
+ *  Null when the contributions are all zero or the clavicle's rest frame is
+ *  unavailable — in which case no correction is needed or possible. */
+function girdleWorldRotation(
+  joint: string,
+  contributions: { motion: string; degrees: number }[],
+  baselinePose: CustomPose,
+  rest: JointAngleRestReference | null | undefined,
+): THREE.Quaternion | null {
+  const key = girdleKeyFor(joint);
+  const specs = key ? SUPPORTED_MOTIONS[key] : undefined;
+  const restLocalArr = baselinePose.bones?.[key ?? ''];
+  const restWorldArr = rest?.worldQuats?.[key ?? ''];
+  if (!key || !specs || !restLocalArr || !restWorldArr) return null;
+  const e = new THREE.Euler();
+  let gx = 0;
+  let gz = 0;
+  for (const c of contributions) {
+    const spec = specs[c.motion];
+    if (!spec || !Number.isFinite(c.degrees) || Math.abs(c.degrees) < 1e-9) continue;
+    e.setFromQuaternion(spec.buildDelta(c.degrees), 'YXZ');
+    gx += e.x;
+    gz += e.z;
+  }
+  if (Math.abs(gx) < 1e-9 && Math.abs(gz) < 1e-9) return null;
+  const delta = new THREE.Quaternion().setFromEuler(new THREE.Euler(gx, 0, gz, 'YXZ'));
+  const restLocal = new THREE.Quaternion(
+    restLocalArr[0],
+    restLocalArr[1],
+    restLocalArr[2],
+    restLocalArr[3],
+  );
+  const restWorld = new THREE.Quaternion(
+    restWorldArr[0],
+    restWorldArr[1],
+    restWorldArr[2],
+    restWorldArr[3],
+  );
+  const parentWorld = restWorld.multiply(restLocal.invert());
+  return parentWorld.clone().multiply(delta).multiply(parentWorld.invert());
+}
+
+// ── SCAPULOHUMERAL RHYTHM ────────────────────────────────────────────────────
+// The engine used to realize the ENTIRE commanded shoulder elevation as one
+// quaternion on the UpperArm bone, with the clavicle untouched. Glenohumeral
+// capacity is ~120°, so a commanded 180° asked the humerus for 180° of
+// glenohumeral rotation — a 60° overdraft — and resolveCommandTarget returned
+// 'complied'. The engine was certifying an anatomically impossible humerus as
+// normal, which is the identical defect already fixed for the thumb (see
+// romRegistry's Thumb1 note). Postures do command into that band.
+//
+// A goniometric "shoulder flexion" is the HUMEROTHORACIC angle — humerus
+// relative to the trunk, scapular contribution included — so the registry
+// ceiling of 180° is the right CLINICAL number. What was wrong was the
+// REALIZATION. Elevation is now split across the two joints that actually
+// produce it, and because the readout is world-anchored off the humerus (which
+// is a CHILD of the clavicle) the girdle share is picked up automatically:
+// commanded == measured still holds, on the humerothoracic angle.
+//
+// WHICH GIRDLE CHANNEL CARRIES WHICH PLANE — rig-measured, not assumed:
+//   scapularTilt → shoulderFlexion     1:1 exactly  (40° tilt ⇒ +40.00° flexion)
+//   upRotation   → shoulderAbduction   ~1:1         (60° upRot ⇒ +58.4° abduction)
+//   upRotation   → shoulderFlexion     ~0           (and NEGATIVE past ~40°)
+// That is also the correct anatomy: posterior tilt is the sagittal-plane girdle
+// contribution, upward rotation the frontal-plane one (Ludewig et al. 2009
+// measures both — +39° UR and +21° PT over 0→120° humerothoracic).
+//
+// THE MODEL. Below the SETTING PHASE (Inman, Saunders & Abbott 1944 — the first
+// ~30° of abduction / ~60° of flexion) elevation is predominantly glenohumeral
+// and scapular motion is small, variable and subject-specific; past it the
+// ratio is ~2:1 GH:scapular. The setting phase is not a rounding detail here —
+// it is what keeps GAIT untouched. Walking arm swing is ±12-15° and running
+// ~±25°, both inside it, so neither authors any girdle rotation. That matters:
+// there is no normative dataset of scapulothoracic joint kinematics in walking,
+// and the real scapular upward rotation over a walking arm swing is ~0-5°.
+// Adding a rhythm to gait would be inventing a motion that is not there.
+const SCAPULOHUMERAL_SETTING_FLEX_DEG = 60;
+const SCAPULOHUMERAL_SETTING_ABD_DEG = 30;
+/** Glenohumeral : scapulothoracic elevation ratio past the setting phase.
+ *  Inman's 2:1. Real values range 1.5:1-3:1 by phase and load (Kibler 1998;
+ *  McQuade & Smidt 1998), so gates should band it rather than pin it. */
+const SCAPULOHUMERAL_RATIO = 2;
+/** Glenohumeral elevation capacity (deg). The whole point of the split. */
+const GH_ELEVATION_MAX_DEG = 120;
+/** Girdle excursion ceilings — the romRegistry bands for the clavicle bone.
+ *  Kept in sync with romRegistry's L/R_Shoulder row. */
+const GIRDLE_TILT_MAX_DEG = 40;
+const GIRDLE_UPROT_MAX_DEG = 60;
+
+/**
+ * Split a commanded HUMEROTHORACIC elevation into its glenohumeral and
+ * scapulothoracic shares. Below the setting phase it is all glenohumeral; past
+ * it the remainder divides {@link SCAPULOHUMERAL_RATIO}:1; the humerus is then
+ * hard-capped at {@link GH_ELEVATION_MAX_DEG} and the overflow spills to the
+ * girdle, which is what makes a commanded 180° abduction land on Inman's exact
+ * 120° GH + 60° scapular.
+ *
+ * THE RESIDUAL, stated plainly. The rig has ONE clavicle bone where anatomy has
+ * two joints (sternoclavicular + acromioclavicular), so its sagittal excursion
+ * is finite. Flexion beyond ~160° needs more girdle than the physiologic
+ * `scapularTilt` band can supply, and rather than author an unphysiologic
+ * girdle value the surplus goes BACK to the humerus. So the overdraft is not
+ * eliminated at the very top of the flexion range — it is 20° at a commanded
+ * 180°, down from 60°, and zero at or below 160°. Inflating the girdle band to
+ * hide it would move the lie rather than remove it.
+ *
+ * Negative values (extension / adduction) pass through untouched: the rhythm
+ * describes ELEVATION.
+ */
+export function girdleSplit(
+  deg: number,
+  plane: 'flexion' | 'abduction',
+): { gh: number; girdle: number } {
+  const settingDeg =
+    plane === 'flexion' ? SCAPULOHUMERAL_SETTING_FLEX_DEG : SCAPULOHUMERAL_SETTING_ABD_DEG;
+  if (!Number.isFinite(deg) || deg <= settingDeg) return { gh: deg, girdle: 0 };
+  const girdleMaxDeg = plane === 'flexion' ? GIRDLE_TILT_MAX_DEG : GIRDLE_UPROT_MAX_DEG;
+  let gh = settingDeg + (deg - settingDeg) * (SCAPULOHUMERAL_RATIO / (SCAPULOHUMERAL_RATIO + 1));
+  let girdle = deg - gh;
+  if (gh > GH_ELEVATION_MAX_DEG) {
+    girdle += gh - GH_ELEVATION_MAX_DEG;
+    gh = GH_ELEVATION_MAX_DEG;
+  }
+  if (girdle > girdleMaxDeg) {
+    gh += girdle - girdleMaxDeg; // the documented residual
+    girdle = girdleMaxDeg;
+  }
+  return { gh, girdle };
 }
 
 /** Build context a few specs need beyond the rest local quaternion: the body
@@ -326,6 +500,15 @@ interface BuildCtx {
   variantId?: string;
   restWorldQuat?: THREE.Quaternion;
   restDir?: THREE.Vector3;
+  /** The commanded bone's PARENT world orientation at anatomic rest. Shoulder
+   *  elevation needs it to express the clavicle's girdle rotation in world
+   *  terms — see {@link girdleWorldRotation}. */
+  parentRestWorldQuat?: THREE.Quaternion;
+  /** The girdle (clavicle) rotation this command also applies, as a WORLD-frame
+   *  rotation. Present only for humeral elevation with a nonzero scapular
+   *  share; {@link armSwingDelta} and {@link composeShoulderDelta} correct for
+   *  it so the humerothoracic result is unchanged by the split. */
+  girdleWorld?: THREE.Quaternion;
 }
 
 interface SupportedMotionSpec {
@@ -342,6 +525,13 @@ interface SupportedMotionSpec {
     clinicalDeg: number,
     ctx?: BuildCtx,
   ): { mcp: THREE.Quaternion; pip: THREE.Quaternion; dip: THREE.Quaternion };
+  /** OPTIONAL SHOULDER-GIRDLE realization. Shoulder ELEVATION is one clinical
+   *  value (the humerothoracic angle a goniometer reads) but TWO joints: the
+   *  glenohumeral joint and the scapulothoracic girdle. A motion that supplies
+   *  this gets its humeral share from `buildDelta` and hands the remainder to
+   *  the clavicle bone. See {@link girdleSplit} and {@link writeGirdle}.
+   *  Absent for every other motion, which stays exactly single-bone. */
+  girdle?(clinicalDeg: number): { gh: number; motion: string; degrees: number };
   /** How the delta composes with the rest local quaternion:
    *  - 'parent': bone.local = delta × restLocal — a PARENT-frame delta.
    *    Exact for body-euler readouts (ankle), which decompose exactly this.
@@ -527,20 +717,35 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   // flexion = world sagittal swing (same both arms; forward is forward); abduction =
   // world frontal swing (mirrored per side, away-from-midline +); rotation = rest-frame
   // twist. SIGN_* pin the world-axis direction to the clinical + convention.
+  //
+  // ELEVATION IS SPLIT ACROSS TWO JOINTS (see girdleSplit): the commanded value is
+  // the HUMEROTHORACIC angle, and only its glenohumeral share reaches the humerus.
   const SHOULDER_FLEX_SIGN = -1; // +deg flexion = forward (anterior)
   const SHOULDER_ABD_SIGN = 1; // +deg abduction = away from midline (L); R mirrors
   const shoulderFlex: SupportedMotionSpec = {
     buildDelta: (deg, ctx) => armSwingDelta(ctx, WORLD_X, SHOULDER_FLEX_SIGN * deg),
+    girdle: (deg) => {
+      const { gh, girdle } = girdleSplit(deg, 'flexion');
+      return { gh, motion: 'scapularTilt', degrees: girdle };
+    },
     compose: 'rest',
     fromReport: (deg) => deg,
   };
   const shoulderAbdL: SupportedMotionSpec = {
     buildDelta: (deg, ctx) => armSwingDelta(ctx, WORLD_Z, SHOULDER_ABD_SIGN * deg),
+    girdle: (deg) => {
+      const { gh, girdle } = girdleSplit(deg, 'abduction');
+      return { gh, motion: 'upRotation', degrees: girdle };
+    },
     compose: 'rest',
     fromReport: (deg) => deg,
   };
   const shoulderAbdR: SupportedMotionSpec = {
     buildDelta: (deg, ctx) => armSwingDelta(ctx, WORLD_Z, -SHOULDER_ABD_SIGN * deg),
+    girdle: (deg) => {
+      const { gh, girdle } = girdleSplit(deg, 'abduction');
+      return { gh, motion: 'upRotation', degrees: girdle };
+    },
     compose: 'rest',
     fromReport: (deg) => deg,
   };
@@ -807,7 +1012,15 @@ function phalanxKeys(mcpKey: string): { pip: string; dip: string } {
  */
 export function commandedBoneKeys(joint: string): string[] {
   const specs = SUPPORTED_MOTIONS[joint];
-  if (!specs || !Object.values(specs).some((s) => s.phalanges)) return [joint];
+  if (!specs) return [joint];
+  // Shoulder elevation drives the clavicle as well as the humerus (writeGirdle),
+  // so a settle pass that only knew about the humerus would erase the girdle
+  // share — the exact failure the phalanx spread hit before this function
+  // existed.
+  const girdleKey = Object.values(specs).some((s) => s.girdle) ? girdleKeyFor(joint) : null;
+  if (!Object.values(specs).some((s) => s.phalanges)) {
+    return girdleKey ? [joint, girdleKey] : [joint];
+  }
   const { pip, dip } = phalanxKeys(joint);
   return [joint, pip, dip];
 }
@@ -840,6 +1053,12 @@ export function buildCommandPose(
     ctx.restWorldQuat = new THREE.Quaternion(rwArr[0], rwArr[1], rwArr[2], rwArr[3]);
     ctx.restDir = new THREE.Vector3(rdArr[0], rdArr[1], rdArr[2]);
   }
+  // The girdle share must be known BEFORE the humeral delta is built — the delta
+  // is corrected for it (unparentGirdle), not merely reduced by it.
+  const girdleShare = spec.girdle?.(clampedDegrees);
+  if (girdleShare)
+    ctx.girdleWorld =
+      girdleWorldRotation(cmd.joint, [girdleShare], baselinePose, rest) ?? undefined;
   const delta = spec.buildDelta(clampedDegrees, ctx);
   const q =
     spec.compose === 'parent'
@@ -848,6 +1067,7 @@ export function buildCommandPose(
   target.bones[cmd.joint] = [q.x, q.y, q.z, q.w];
 
   writePhalanges(target, baselinePose, cmd.joint, spec, clampedDegrees, ctx, restQ);
+  if (girdleShare) writeGirdle(target, baselinePose, cmd.joint, [girdleShare]);
   return target;
 }
 
@@ -902,6 +1122,80 @@ function writePhalanges(
   }
 }
 
+/** The clavicle ('…_Shoulder', the scapular-girdle bone) that carries a
+ *  humerus's scapulothoracic share, or null for any non-humeral joint. */
+function girdleKeyFor(joint: string): string | null {
+  const m = /^([LR]_)UpperArm$/.exec(joint);
+  return m ? `${m[1]}Shoulder` : null;
+}
+
+/**
+ * Write the SCAPULOTHORACIC share of one or more commanded shoulder elevations
+ * onto the clavicle bone — the girdle sibling of {@link writePhalanges}.
+ *
+ * The contributions are realized through {@link buildComposedCommandPose} on the
+ * clavicle joint itself rather than by hand, so flexion's `scapularTilt` and
+ * abduction's `upRotation` fold into ONE body-euler delta exactly the way a
+ * directly-commanded scapula would (writing them independently would have the
+ * second silently clobber the first). The clavicle carries no `girdle` hook of
+ * its own, so the recursion terminates immediately.
+ *
+ * AXIS-SCOPED, and that is load-bearing in both directions. The clavicle is a
+ * parent-euler joint whose three clinical fields are three Euler axes:
+ * `scapularTilt` = X, `protraction` = Y, `upRotation` = Z. This writes ONLY X
+ * and Z — the two the rhythm drives — and carries Y through untouched:
+ *   • Writing all three would erase gait's protraction, the one girdle channel
+ *     the engine already drives (gaitModifiers), every time an arm elevated.
+ *   • Skipping the write when the share is ZERO leaks the previous keyframe's
+ *     share forward: a reach to 110° then back to 20° measured 36.67° for a
+ *     commanded 20°, because the clavicle kept its 16.67° of tilt. So the write
+ *     is unconditional and absolute from the anatomic rest, exactly like every
+ *     other commanded value — never accumulated onto the incoming pose.
+ * A scapular tilt / upward rotation commanded EXPLICITLY on the same side in
+ * the same keyframe is therefore superseded by the humeral share. That is the
+ * documented precedence: elevation owns the sagittal and frontal girdle axes.
+ *
+ * Degrades to a no-op when the clavicle is unmapped on this variant or the
+ * caller's baseline does not carry it — the humerus keeps whatever
+ * `buildDelta` already wrote, which is the glenohumeral share. That under-
+ * rotates rather than over-rotates, which is the safe direction: it can never
+ * re-introduce the impossible-humerus defect this split exists to fix.
+ */
+function writeGirdle(
+  target: CustomPose,
+  baselinePose: CustomPose,
+  joint: string,
+  contributions: { motion: string; degrees: number }[],
+): void {
+  const key = girdleKeyFor(joint);
+  const restArr = baselinePose.bones?.[key ?? ''];
+  const specs = key ? SUPPORTED_MOTIONS[key] : undefined;
+  if (!key || !restArr || !specs) return;
+  const restQ = new THREE.Quaternion(restArr[0], restArr[1], restArr[2], restArr[3]);
+  // The girdle's own X/Z contribution, summed in the body-euler frame the
+  // scapular specs are built in (same summation the parent-euler branch uses).
+  const e = new THREE.Euler();
+  let gx = 0;
+  let gz = 0;
+  for (const c of contributions) {
+    const spec = specs[c.motion];
+    if (!spec || !Number.isFinite(c.degrees)) continue;
+    e.setFromQuaternion(spec.buildDelta(c.degrees), 'YXZ');
+    gx += e.x;
+    gz += e.z;
+  }
+  // Preserve whatever protraction (Y) the incoming pose already carries.
+  const curArr = target.bones[key] ?? restArr;
+  const existing = new THREE.Quaternion(curArr[0], curArr[1], curArr[2], curArr[3]).multiply(
+    restQ.clone().invert(),
+  );
+  e.setFromQuaternion(existing, 'YXZ');
+  const q = new THREE.Quaternion()
+    .setFromEuler(new THREE.Euler(gx, e.y, gz, 'YXZ'))
+    .multiply(restQ);
+  target.bones[key] = [q.x, q.y, q.z, q.w];
+}
+
 /** True when a joint composes as a swing-twist BALL joint (shoulder / hip) —
  *  its three clinical fields (flexion/abduction/rotation) must be composed into
  *  ONE delta rather than written independently, or later fields silently
@@ -927,7 +1221,11 @@ function composeShoulderDelta(ctx: BuildCtx, side: 'L' | 'R', F: number, A: numb
   const worldSwing = new THREE.Quaternion().setFromUnitVectors(restDir, target);
   const delta = restWorldQuat.clone().invert().multiply(worldSwing).multiply(restWorldQuat);
   const twSign = side === 'R' ? 1 : -1;
-  return delta.multiply(new THREE.Quaternion().setFromAxisAngle(REST_DOWN, twSign * R * RAD));
+  // Girdle-corrected (see unparentGirdle): identity when nothing accompanies it.
+  return unparentGirdle(
+    ctx,
+    delta.multiply(new THREE.Quaternion().setFromAxisAngle(REST_DOWN, twSign * R * RAD)),
+  );
 }
 
 /** Hip (canonical rest-frame readout): compose flexion F, abduction A, rotation
@@ -997,12 +1295,18 @@ export function buildComposedCommandPose(
   let q: THREE.Quaternion;
   if (usable.length === 1) {
     const spec = specs[usable[0]!.motion]!;
+    const share = spec.girdle?.(usable[0]!.degrees);
+    if (share)
+      ctx.girdleWorld = girdleWorldRotation(joint, [share], baselinePose, rest) ?? undefined;
     const delta = spec.buildDelta(usable[0]!.degrees, ctx);
     q = spec.compose === 'parent' ? delta.multiply(restQ) : restQ.clone().multiply(delta);
     target.bones[joint] = [q.x, q.y, q.z, q.w];
     // Digits spread across their phalanges here too — this is the builder the
     // composed-motion pipeline (and gait) uses. See writePhalanges.
     writePhalanges(target, baselinePose, joint, spec, usable[0]!.degrees, ctx, restQ);
+    // …and shoulder elevation spreads across the glenohumeral joint and the
+    // scapular girdle. See writeGirdle.
+    if (share) writeGirdle(target, baselinePose, joint, [share]);
     return target;
   } else if (isBallJoint(joint) && ctx.restDir) {
     // Fold flexion/abduction/rotation into one delta (shoulder world / hip canonical).
@@ -1013,10 +1317,24 @@ export function buildComposedCommandPose(
       else if (t.motion.endsWith('Abduction')) A = t.degrees;
       else if (t.motion.endsWith('Rotation')) R = t.degrees;
     }
-    const delta = joint.endsWith('UpperArm')
-      ? composeShoulderDelta(ctx, side, F, A, R)
-      : composeHipDelta(side, F, A, R);
-    q = restQ.clone().multiply(delta);
+    if (joint.endsWith('UpperArm')) {
+      // SCAPULOHUMERAL SPLIT on the composed path too — the humerus receives only
+      // the glenohumeral share of EACH plane, and both girdle contributions fold
+      // into one clavicle delta. Without this branch a keyframe that commands
+      // flexion and abduction together would bypass the split entirely and put
+      // the whole elevation back on the humerus.
+      const contributions = [
+        { motion: 'scapularTilt', degrees: girdleSplit(F, 'flexion').girdle },
+        { motion: 'upRotation', degrees: girdleSplit(A, 'abduction').girdle },
+      ];
+      ctx.girdleWorld =
+        girdleWorldRotation(joint, contributions, baselinePose, rest) ?? undefined;
+      q = restQ.clone().multiply(composeShoulderDelta(ctx, side, F, A, R));
+      target.bones[joint] = [q.x, q.y, q.z, q.w];
+      writeGirdle(target, baselinePose, joint, contributions);
+      return target;
+    }
+    q = restQ.clone().multiply(composeHipDelta(side, F, A, R));
   } else if (usable.every((t) => specs[t.motion]!.compose === 'parent')) {
     // Body-frame parent-euler joints: sum the single-axis Euler contributions.
     const e = new THREE.Euler();
