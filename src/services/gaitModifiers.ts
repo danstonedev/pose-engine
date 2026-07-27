@@ -668,16 +668,15 @@ export function spinalGaitCoordination(
           // excursion, so flexor pollicis longus moves it far less than the long
           // finger flexors move the digits.
           //
-          // And practically, the swing would be INVISIBLE. `fingerFlexion` sums
-          // two UNSIGNED inter-bone angles against a metacarpal proxy, which for
-          // the thumb points well out of the curl plane — so the readout bottoms
-          // out at ~28° (male) / ~23° (female) and cannot represent anything
-          // below that at any pose. The resting cascade already sits at 20°, so
-          // the thumb is pinned at its floor and every degree of tenodesis on top
-          // would read as zero (rig-probed walk-vs-run delta: 0.00°). The index
-          // is nearly as blind (floor ~20°, delta 0.20°); the middle, ring and
-          // pinky floor low enough to carry the channel honestly. See FINGER_CURVE
-          // in movementCommand.ts for the per-digit floors.
+          // The second reason was a MEASUREMENT artefact and is now gone: the
+          // readout used to sum UNSIGNED angles against a splayed metacarpal
+          // proxy, which gave every digit a floor it could not read below (~28°
+          // on the male thumb, ~20° on the index) and left both channels dead —
+          // rig-probed walk-vs-run deltas of 0.00° and 0.20°. The readout is now
+          // signed and rest-referenced and those floors do not exist, so the
+          // thumb COULD carry a tenodesis swing. It still does not, on the
+          // anatomical argument above alone — and that is now a deliberate choice
+          // rather than a limitation. Worth revisiting with a proper CMC model.
           const gain = fk === 'Thumb1' ? 0 : 1;
           additions.push({
             joint: `${S}_${fk}`,
