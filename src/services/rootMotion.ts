@@ -122,6 +122,98 @@ export function rotateRestReferenceByRoot(
   };
 }
 
+/**
+ * The PELVIS sibling of {@link rotateRestReferenceByRoot}, and the prerequisite
+ * for letting the pelvis carry rotation of its own.
+ *
+ * THE PROBLEM IT SOLVES. The engine has two families of readout. PARENT-LOCAL
+ * ones (hip, knee, lumbar) measure `bone.quaternion` against a parent that IS
+ * the pelvis, so they are already implicitly pelvis-relative and exactly
+ * invariant under pelvic rotation — verified, not assumed. WORLD-FRAME
+ * machinery has no such luck: the ROM clamp decomposes bone WORLD quaternions
+ * (poseRomClamp's clampBallJoint / clampHinge) and shoulder elevation is read
+ * off the humerus's world long axis. Rotate only the pelvis and an UNTOUCHED
+ * knee reads 8.31° of abduction against its ±5° band — `clampBoneToRom` then
+ * rewrites the shin by 5.43° — while an arm that never moved reads ~32° of
+ * shoulder rotation. Clamping defaults ON in node/SSR, so the offline sampler
+ * and the test suite eat it before anything visible does.
+ *
+ * `rotateRestReferenceByRoot` cannot be reused: it takes a ROOT quaternion and
+ * the pelvis sits BELOW the root, so every one of its callers passes a
+ * transform that knows nothing about pelvic motion.
+ *
+ * WHAT IT DOES. Pre-rotates every world-frame reference by the pelvis's CURRENT
+ * world-frame delta from its own rest — because everything in the skeleton
+ * hangs off the pelvis, so a pelvic rotation carries every distal world frame
+ * with it. Parent-local references are untouched (they are invariant).
+ *
+ * THE TRAP, and it is the whole reason the pelvis reads zero today. The pelvis's
+ * OWN reference is deliberately NOT rotated. Rotating it would cancel pelvic
+ * motion out of the pelvic readout — which is exactly the defect that makes the
+ * walk's root-yaw "pelvic rotation" invisible to the clinical measurement
+ * (rotateRestReferenceByRoot pre-rotates `pelvisWorldQuat` by the root, so the
+ * fake cancels itself). A frame that hides its own subject is not a measurement.
+ *
+ * Identity — and byte-identical — when the pelvis is at rest, which is every
+ * motion that does not author it.
+ */
+export function rotateRestReferenceByPelvis(
+  rest: JointAngleRestReference,
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+): JointAngleRestReference {
+  const hips = findPelvisBone(skeleton, variantCfg);
+  const restArr = rest.worldQuats[PELVIS_KEY] ?? rest.pelvisWorldQuat;
+  if (!hips || !restArr) return rest;
+  hips.updateWorldMatrix(true, false);
+  const restWorld = new THREE.Quaternion(restArr[0], restArr[1], restArr[2], restArr[3]);
+  const delta = hips.getWorldQuaternion(new THREE.Quaternion()).multiply(restWorld.clone().invert());
+  // Cheap identity check: an un-rotated pelvis must cost nothing and change
+  // nothing, so every motion that never touches it stays byte-identical.
+  if (2 * Math.acos(Math.min(1, Math.abs(delta.w))) < 1e-6) return rest;
+  const rot4 = (a: [number, number, number, number]): [number, number, number, number] => {
+    const q = new THREE.Quaternion(a[0], a[1], a[2], a[3]).premultiply(delta);
+    return [q.x, q.y, q.z, q.w];
+  };
+  const rot3 = (a: [number, number, number]): [number, number, number] => {
+    const v = new THREE.Vector3(a[0], a[1], a[2]).applyQuaternion(delta);
+    return [v.x, v.y, v.z];
+  };
+  const worldQuats: Record<string, [number, number, number, number]> = {};
+  for (const k in rest.worldQuats)
+    worldQuats[k] = k === PELVIS_KEY ? rest.worldQuats[k]! : rot4(rest.worldQuats[k]!);
+  let worldDirs: Record<string, [number, number, number]> | undefined;
+  if (rest.worldDirs) {
+    worldDirs = {};
+    for (const k in rest.worldDirs)
+      worldDirs[k] = k === PELVIS_KEY ? rest.worldDirs[k]! : rot3(rest.worldDirs[k]!);
+  }
+  return {
+    pelvisWorldQuat: rest.pelvisWorldQuat, // the subject of the measurement — see above
+    localQuats: rest.localQuats,
+    worldQuats,
+    ...(worldDirs ? { worldDirs } : {}),
+  };
+}
+
+/** Canonical key of the pelvis bone — the one reference {@link
+ *  rotateRestReferenceByPelvis} must leave alone. */
+const PELVIS_KEY = 'Hips';
+
+/** The pelvis bone, resolved the same way {@link contactBones} resolves the
+ *  feet — by canonical name, without reaching into poseRig (which imports this
+ *  module). */
+function findPelvisBone(
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+): THREE.Bone | null {
+  for (const bone of skeleton.bones) {
+    const norm = normalizeBoneNameForVariant(bone.name, variantCfg.boneNameMap);
+    if (norm.canonical === PELVIS_KEY && !norm.side) return bone;
+  }
+  return null;
+}
+
 /** Canonical bones that can touch the floor (heel/ankle + forefoot). */
 const CONTACT_KEYS = ['L_Foot', 'R_Foot', 'L_Toes', 'R_Toes'] as const;
 

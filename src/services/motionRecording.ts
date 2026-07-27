@@ -75,6 +75,7 @@ import {
   groundingContactsFor,
   plantStanceFoot,
   rotateRestReferenceByRoot,
+  rotateRestReferenceByPelvis,
   stanceFootDrift,
   VCAL_HANDOFF_BLEND_MS,
   weightedDescentApplies,
@@ -1148,9 +1149,17 @@ export function sampleComposedMotion(
     } else {
       orientQuat = [_sq.x, _sq.y, _sq.z, _sq.w];
     }
-    const measureRest = isIdentityQuat(orientQuat)
-      ? rest
-      : rotateRestReferenceByRoot(rest, _sqB);
+    // TWO frames compose here, and they are not interchangeable. The ROOT
+    // rotation is removed first (a body walking a curve reads its joints
+    // relative to its own facing); then the PELVIS rotation is removed from
+    // everything hanging off the pelvis, so the world-frame consumers — the ROM
+    // clamp and the shoulder elevation readout — do not read a pelvic tilt as
+    // limb motion. The pelvis pass deliberately leaves the pelvis's OWN
+    // reference alone, or it would cancel the very motion it exists to expose.
+    // Both are strict no-ops at rest, so a motion that authors neither is
+    // byte-identical.
+    const rootRest = isIdentityQuat(orientQuat) ? rest : rotateRestReferenceByRoot(rest, _sqB);
+    const measureRest = rotateRestReferenceByPelvis(rootRest, skinned.skeleton, variantCfg);
     const report = computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, measureRest);
 
     const worldTracks: Record<string, [number, number, number]> = {};
