@@ -131,11 +131,34 @@ describe('the seven flat channels now move', () => {
 
   it('sagittal spine moves on BOTH gaits — the flat 0.00° is gone', () => {
     // The reported defect, stated as a gate. These were 0.005 / 0.022 / 0.026.
+    // The floors are LOW on purpose: the point is that the channels are driven at
+    // all, and the amplitude is bounded from above by the gate below, which is
+    // where the real risk turned out to be.
     for (const g of ['walk', 'run'] as const) {
       const { rec } = sampled[g]!;
-      expect(p2p(chan(rec, 'Spine_Lower', 'flexion')), `${g} lumbar flexion`).toBeGreaterThan(2);
-      expect(p2p(chan(rec, 'Spine_Upper', 'flexion')), `${g} thoracic flexion`).toBeGreaterThan(1.5);
-      expect(p2p(chan(rec, 'Neck', 'flexion')), `${g} cervical flexion`).toBeGreaterThan(1);
+      expect(p2p(chan(rec, 'Spine_Lower', 'flexion')), `${g} lumbar flexion`).toBeGreaterThan(1);
+      expect(p2p(chan(rec, 'Spine_Upper', 'flexion')), `${g} thoracic flexion`).toBeGreaterThan(0.7);
+      expect(p2p(chan(rec, 'Neck', 'flexion')), `${g} cervical flexion`).toBeGreaterThan(0.7);
+    }
+  }, 300_000);
+
+  it('the TRUNK AS A WHOLE stays sagittally quiet — the number that was actually wrong', () => {
+    // THE GATE THAT SHOULD HAVE EXISTED FIRST. Every per-segment band passed
+    // while the visible defect was real, because lumbar and thoracic flex IN
+    // PHASE and what a viewer sees is their SUM. At 3 / 2.5 that sum reached
+    // ~11° peak-to-peak twice per stride and read as the whole spine pumping.
+    //
+    // Gating the segments individually cannot catch this; only the sum can. The
+    // sagittal plane is the one plane a walking trunk is genuinely still in, so
+    // this bound is deliberately tight.
+    for (const g of ['walk', 'run'] as const) {
+      const f = steady(sampled[g]!.rec);
+      const trunk = f.map((x) => ang(x, 'Spine_Lower', 'flexion') + ang(x, 'Spine_Upper', 'flexion'));
+      const excursion = p2p(trunk);
+      // eslint-disable-next-line no-console
+      console.log(`[${g}] TOTAL trunk sagittal excursion ${excursion.toFixed(2)}°`);
+      expect(excursion, `${g} trunk sagittal excursion`).toBeLessThan(5);
+      expect(excursion, `${g} trunk still moves sagittally`).toBeGreaterThan(1);
     }
   }, 300_000);
 
@@ -260,9 +283,9 @@ describe('lifting the sagittal ban costs nothing the walk already guaranteed', (
     // the mean, and the oscillation rides on top of it.
     for (const g of ['walk', 'run'] as const) {
       const { rec } = sampled[g]!;
-      expect(p2p(chan(rec, 'Spine_Lower', 'flexion')), `${g} lumbar excursion`).toBeLessThan(8);
-      expect(p2p(chan(rec, 'Spine_Upper', 'flexion')), `${g} thoracic excursion`).toBeLessThan(7);
-      expect(p2p(chan(rec, 'Neck', 'flexion')), `${g} cervical excursion`).toBeLessThan(7);
+      expect(p2p(chan(rec, 'Spine_Lower', 'flexion')), `${g} lumbar excursion`).toBeLessThan(3);
+      expect(p2p(chan(rec, 'Spine_Upper', 'flexion')), `${g} thoracic excursion`).toBeLessThan(2.5);
+      expect(p2p(chan(rec, 'Neck', 'flexion')), `${g} cervical excursion`).toBeLessThan(5);
       for (const S of ['L', 'R'] as const) {
         expect(p2p(chan(rec, `${S}_Shoulder`, 'upRotation')), `${g} ${S} upRot excursion`).toBeLessThan(18);
         expect(p2p(chan(rec, `${S}_Shoulder`, 'scapularTilt')), `${g} ${S} tilt excursion`).toBeLessThan(14);

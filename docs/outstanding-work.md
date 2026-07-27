@@ -235,7 +235,31 @@ never diagnosed.
 | #115 | The engine certified an anatomically impossible humerus as `complied` | 180° all-glenohumeral → **120 GH + 60 scapular** |
 | #116 | Pelvic rotation was invisible to its own readout | clamp rewriting an untouched knee **13.29° → 0.0000°** |
 | #117 | The pelvis was not commandable; the walk had none | obliquity peak **2.8°**, contralateral **r = 0.994** |
-| #120 | Seven channels measured a flat zero through an entire walk | lumbar/thoracic/cervical flexion **0.005/0.022/0.026 → 5.99/4.99/5.50°** p2p; scapular upRotation + tilt **0.000 → 8.8-11.5 / 6.4-8.2°** |
+| #120 | Seven channels measured a flat zero through an entire walk | lumbar/thoracic/cervical flexion **0.005/0.022/0.026 → 2.00/1.50/3.49°** p2p; scapular upRotation + tilt **0.000 → 8.8-11.5 / 6.4-8.2°** |
+| #121 | Head protraction had no channel at all | 20° command → **1.32 cm** anterior, **0.00°** pitch |
+| #122 | The sagittal spine shipped four times too loud | total trunk pitch **11° → 3.5°** p2p |
+
+### The one that shipped visibly wrong
+
+The sagittal spine landed at **four times** the amplitude it should have, and
+went out. Reported back from the deployed build: *"a LOT of excess movement in
+the whole spine with flexion/extension … looks very odd."* It was.
+
+Two compounding errors, and only the second is interesting. The bands were too
+generous — the sagittal plane is the one plane a walking trunk is genuinely
+STILL in, and its whole excursion is a couple of degrees. But the reason it got
+past the gates is that lumbar and thoracic flex **in phase**, so what a viewer
+sees is their **SUM**, and every gate measured them **individually**. Each
+segment sat inside its own declared band while the trunk pitched ~11°
+peak-to-peak twice a stride.
+
+A per-segment bound cannot catch a stacking error. There is a total-trunk gate
+now, and it is the tight one.
+
+The other lesson is about where to put a guess. These numbers were labelled
+"declared conventions, not findings", which was honest — but a convention should
+sit at the **quiet** end of a range it cannot pin down. Guessing high is visibly
+wrong; guessing low is merely subtle.
 
 ### The one that nearly shipped invisibly
 

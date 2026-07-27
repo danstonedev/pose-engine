@@ -251,13 +251,31 @@ const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
 // 39.88 → 38.88°, head lateral excursion 2.17 → 2.09 cm, worst stance-foot slide
 // 2.62 → 2.62 cm. The compensation absorbs it; nothing downstream moves.
 //
-// The caps are HALF-excursions about neutral, so the gated peak-to-peak is
-// roughly double. Approximate working bands — trunk and cervical sagittal
-// excursions in walking are NOT standardised to anything like the precision of
-// the lower-limb norms, so these are declared conventions, not findings.
-const SPINE_SAGITTAL_LUMBAR_MAX = 3; // ⇒ ~4-6° p2p (ROM −25..60)
-const SPINE_SAGITTAL_THORACIC_MAX = 2.5; // ⇒ ~3-5° p2p (ROM −25..40)
-const SPINE_SAGITTAL_NECK_MAX = 2.5; // gaze counter, not an independent excursion
+// THESE CAPS WERE FIRST SET FOUR TIMES TOO HIGH, and the mistake is worth
+// keeping written down because the arithmetic error is easy to repeat.
+//
+// They shipped at 3 / 2.5, quoted as "lumbar ~4-6° p2p, thoracic ~3-5° p2p"
+// against approximate bands. Two things were wrong. The bands themselves were
+// too generous — the sagittal plane is the one plane in which a walking trunk is
+// remarkably STILL, and its whole flexion/extension excursion is a couple of
+// degrees, not five. And they STACK: lumbar and thoracic flex in phase, so the
+// trunk's total pitch was their SUM, ~11° peak-to-peak twice per stride, with
+// the neck's counter pumping on top. Reported from the deployed build as "a LOT
+// of excess movement in the whole spine … looks very odd", which it was.
+//
+// The caps are HALF-excursions about neutral, so peak-to-peak is roughly double,
+// and what matters visually is LUMBAR + THORACIC — the number to keep small.
+// At 1.0 / 0.75 the whole trunk pitches ~3.5° peak-to-peak, which reads as
+// texture on the stride rather than as a bob.
+//
+// Still declared conventions, not findings: trunk and cervical sagittal
+// excursions in walking are not standardised to anything like the precision of
+// the lower-limb norms. But a convention should sit at the quiet end of a range
+// it cannot pin down, not the loud end — the failure mode of guessing high is
+// visible and wrong, and guessing low is merely subtle.
+const SPINE_SAGITTAL_LUMBAR_MAX = 1; // ⇒ ~2° p2p (ROM −25..60)
+const SPINE_SAGITTAL_THORACIC_MAX = 0.75; // ⇒ ~1.5° p2p (ROM −25..40)
+const SPINE_SAGITTAL_NECK_MAX = 1.75; // gaze counter, not an independent excursion
 // Transverse pelvic-rotation cap (root yaw). Real free-gait pelvic rotation is ~±4°; 6°
 // leaves a little headroom for speed while staying in a natural range (a bigger pelvic
 // yaw reads as a twist/shimmy AND drags the planted foot, since the walk grounds the feet
