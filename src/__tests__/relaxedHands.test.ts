@@ -302,21 +302,22 @@ describe('relaxedHands — authoring (pure)', () => {
     expect(pinky[pinky.length - 1]!.status).toBe('complied');
   });
 
-  it('respects the per-keyframe target budget — the biggest possible keyframe still fits the hand set', () => {
-    // THIS TEST CHANGED MEANING when MAX_TARGETS_PER_KEYFRAME went 48 → 58, and
-    // saying so is the point. It used to prove the transform SKIPS a keyframe too
-    // full to take the 12-target resting-hand set: 40 non-hand + 12 = 52 > 48.
+  it('respects the per-keyframe target budget — a keyframe the 12-target set cannot fit is left alone', () => {
+    // The arithmetic behind this test has moved twice and is worth writing down
+    // rather than re-deriving. The registry commands 61 channels, 14 of them on
+    // the hands (10 finger curls plus wrist flexion and deviation per side),
+    // leaving 47 non-hand ones. 47 + 12 = 59, against a cap of 58 — so the
+    // busiest possible keyframe CANNOT take the resting-hand set, and the
+    // transform must skip it rather than push targets that would be silently
+    // overflow-dropped.
     //
-    // At 58 that scenario is no longer constructible. The registry commands 60
-    // channels, 14 of them on the hands (10 finger curls + wrist flexion and
-    // deviation per side), leaving exactly 46 non-hand ones — and 46 + 12 = 58,
-    // the cap precisely. So the busiest keyframe anyone can author now takes the
-    // full hand set with nothing dropped, and the skip branch is unreachable by
-    // any real plan rather than merely untriggered by this one.
+    // It briefly could fit, at 46 non-hand channels, until `Neck.protraction`
+    // was added and pushed it back over. That is the useful thing to notice: this
+    // margin is one channel wide, and every new channel moves it.
     //
-    // DERIVED from the registry so it tracks the real channel count instead of a
+    // DERIVED from the registry so it tracks the real count instead of a
     // hand-maintained list; the old one silently carried three `Head` targets for
-    // a row that does not exist, so it was really only 37.
+    // a row that does not exist, so it was really only 37 where it claimed 40.
     const READOUT_ONLY = new Set(['elbowDeviation', 'proSup', 'kneeDeviation']);
     const joints: [string, string][] = ROM_JOINT_ROWS.filter(
       (row) => !HAND_JOINT_KEYS.includes(row.canonicalKey),
@@ -325,17 +326,20 @@ describe('relaxedHands — authoring (pure)', () => {
         .filter((f) => !READOUT_ONLY.has(f.key))
         .map((f) => [row.canonicalKey, f.key] as [string, string]),
     );
-    expect(joints.length, 'every non-hand commandable channel').toBe(46);
+    expect(joints.length, 'every non-hand commandable channel').toBe(47);
+    expect(joints.length + 12, 'the hand set would overflow the cap').toBeGreaterThan(
+      MAX_TARGETS_PER_KEYFRAME,
+    );
     const m: ComposedMotion = {
       keyframes: [
         { durationMs: 800, targets: joints.map(([joint, motion]) => ({ joint, motion, targetDegrees: 5 })) },
       ],
     };
     const out = relaxedHands(m);
-    expect(out.keyframes[0]!.targets!.length, 'the hand set fits exactly at the cap').toBe(
-      MAX_TARGETS_PER_KEYFRAME,
+    expect(out.keyframes[0]!.targets!.length, 'untouched — the set would not fit').toBe(
+      joints.length,
     );
-    const r = resolveComposedMotion(out, variantCfg);
+    const r = resolveComposedMotion(m, variantCfg);
     expect(r.status).toBe('ok');
     expect(r.outcomes.every((o) => o.reason !== 'target-limit'), 'nothing overflow-dropped').toBe(true);
   });

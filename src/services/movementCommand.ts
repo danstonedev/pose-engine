@@ -532,6 +532,26 @@ interface SupportedMotionSpec {
    *  the clavicle bone. See {@link girdleSplit} and {@link writeGirdle}.
    *  Absent for every other motion, which stays exactly single-bone. */
   girdle?(clinicalDeg: number): { gh: number; motion: string; degrees: number };
+  /** OPTIONAL COMPANION-BONE realization — a SECOND bone this motion also
+   *  writes, as a parent-frame Euler delta summed with any other motion writing
+   *  the same companion.
+   *
+   *  The cervical spine needs it and the shoulder's `girdle` hook could not
+   *  supply it: `girdle` hands a fixed sibling a DIFFERENT motion's share, which
+   *  is the anatomy of an elevating arm, not of a two-segment curve. Head
+   *  protraction is a TRANSLATION produced by rotating two stacked segments in
+   *  OPPOSITE directions — lower-cervical flexion against upper-cervical
+   *  extension — so both bones carry the same motion with opposite sign.
+   *
+   *  That also makes the two cervical channels orthogonal, which is what makes
+   *  them measurable: the readout takes the SUM of the two segments as flexion
+   *  and their HALF-DIFFERENCE as protraction, so neither can contaminate the
+   *  other no matter what combination is commanded. See `writeCompanions`. */
+  companion?: {
+    /** Canonical key of the second bone. */
+    key: string;
+    buildDelta(clinicalDeg: number, ctx?: BuildCtx): THREE.Quaternion;
+  };
   /** How the delta composes with the rest local quaternion:
    *  - 'parent': bone.local = delta × restLocal — a PARENT-frame delta.
    *    Exact for body-euler readouts (ankle), which decompose exactly this.
@@ -698,8 +718,46 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     fromReport: (deg) => deg,
   };
   // Cervical (v1.3): Neck parent-local frame is body-aligned like the waist.
+  //
+  // FLEXION IS SPLIT ACROSS BOTH CERVICAL SEGMENTS (v1.8), half to each. It used
+  // to hinge entirely at NeckTwist02 and the readout summed both segments, which
+  // measured correctly only because the lower segment never moved. Two reasons to
+  // split it:
+  //
+  //   • It is what the rig already claims. The `Neck` handle is documented as a
+  //     CURVE control that "curves both neck bones"; hinging one of them is not
+  //     that, and reads as a break at the top of the neck rather than a bend.
+  //   • It is what makes PROTRACTION measurable. With flexion on one bone the
+  //     two channels are not separable — any flexion would leak into a
+  //     protraction readout built from the segments' difference. Split evenly,
+  //     flexion contributes ZERO difference and protraction contributes ZERO sum,
+  //     so the pair is exactly orthogonal and each reads back its own command.
   const cervicalFlex: SupportedMotionSpec = {
-    buildDelta: (deg) => eulerXDelta(deg),
+    buildDelta: (deg) => eulerXDelta(deg / 2),
+    companion: { key: 'Neck_Lower', buildDelta: (deg) => eulerXDelta(deg / 2) },
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  };
+  /**
+   * HEAD PROTRACTION / RETRACTION — the forward-head translation, and the
+   * clinically loud one this rig had no channel for at all.
+   *
+   * It is not a rotation of the neck; it is a TRANSLATION of the head, produced
+   * by flexing the LOWER cervical spine while EXTENDING the upper. Two stacked
+   * segments turning opposite ways carry the head forward while leaving it level
+   * — which is exactly why it cannot be expressed by the `Neck` curve control,
+   * which bends both segments the same way.
+   *
+   * The rig can do it: the chain is Spine02 → NeckTwist01 → NeckTwist02 → Head,
+   * two cervical segments, which is the minimum the motion needs. (An earlier
+   * note in the ledger called this unrepresentable and an ASSET problem. It was
+   * neither; it was simply unbuilt.)
+   *
+   * + = protracted (chin forward), matching the shoulder girdle's Pro/Ret sign.
+   */
+  const cervicalProtraction: SupportedMotionSpec = {
+    buildDelta: (deg) => eulerXDelta(-deg), // upper cervical EXTENDS
+    companion: { key: 'Neck_Lower', buildDelta: (deg) => eulerXDelta(deg) }, // lower FLEXES
     compose: 'parent',
     fromReport: (deg) => deg,
   };
@@ -916,7 +974,12 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     Hips: { anteriorTilt: pelvisTilt, lateralTilt: pelvisLateral, rotation: pelvisRotation },
     Spine_Lower: { flexion: lumbar, lateralTilt: lumbarLateral, rotation: lumbarRotation },
     Spine_Upper: { flexion: thoracicFlex, lateralTilt: thoracicLateral, rotation: thoracicRotation },
-    Neck: { flexion: cervicalFlex, rotation: cervicalRotation, lateralTilt: cervicalLateral },
+    Neck: {
+      flexion: cervicalFlex,
+      rotation: cervicalRotation,
+      lateralTilt: cervicalLateral,
+      protraction: cervicalProtraction,
+    },
     L_Shoulder: { upRotation: scapUpRotL, scapularTilt: scapTilt, protraction: scapProtractL },
     R_Shoulder: { upRotation: scapUpRotR, scapularTilt: scapTilt, protraction: scapProtractR },
     L_UpperArm: { shoulderFlexion: shoulderFlex, shoulderAbduction: shoulderAbdL, shoulderRotation: shoulderRotL },
@@ -1049,8 +1112,14 @@ export function commandedBoneKeys(joint: string): string[] {
   // share — the exact failure the phalanx spread hit before this function
   // existed.
   const girdleKey = Object.values(specs).some((s) => s.girdle) ? girdleKeyFor(joint) : null;
+  // Cervical flexion and protraction both drive the LOWER neck segment as a
+  // companion; a settle pass that only knew about `Neck` would slerp it back out
+  // — the same failure the phalanx spread and the girdle share both hit.
+  const companionKeys = [
+    ...new Set(Object.values(specs).flatMap((s) => (s.companion ? [s.companion.key] : []))),
+  ];
   if (!Object.values(specs).some((s) => s.phalanges)) {
-    return girdleKey ? [joint, girdleKey] : [joint];
+    return [joint, ...(girdleKey ? [girdleKey] : []), ...companionKeys];
   }
   const { pip, dip } = phalanxKeys(joint);
   return [joint, pip, dip];
@@ -1104,6 +1173,14 @@ export function buildCommandPose(
 
   writePhalanges(target, baselinePose, cmd.joint, spec, clampedDegrees, ctx, restQ);
   if (girdleShare) writeGirdle(target, baselinePose, cmd.joint, [girdleShare]);
+  // …and the cervical pair spreads across both neck segments. See writeCompanions.
+  writeCompanions(
+    target,
+    baselinePose,
+    SUPPORTED_MOTIONS[cmd.joint] ?? {},
+    [{ motion: cmd.motion, degrees: clampedDegrees }],
+    ctx,
+  );
   return target;
 }
 
@@ -1232,6 +1309,55 @@ function writeGirdle(
   target.bones[key] = [q.x, q.y, q.z, q.w];
 }
 
+/**
+ * Write every COMPANION bone a joint's commanded motions also drive, summing
+ * their parent-frame Euler deltas per companion.
+ *
+ * WRITTEN UNCONDITIONALLY AND ABSOLUTE FROM REST — including when no usable
+ * motion has a companion, which zeroes it. That is deliberate and it is the
+ * lesson `writeGirdle` learned the expensive way: a companion written only when
+ * commanded LEAKS across keyframes, so a value authored at one keyframe survives
+ * into the next that meant to leave it alone, and the readout drifts away from
+ * the command. Absolute-from-rest cannot drift.
+ *
+ * Unlike `writeGirdle` this owns the WHOLE companion rather than scoped axes,
+ * because a companion bone has no independent authoring path — nothing else
+ * writes `Neck_Lower`. If a second companion user ever arrives that shares its
+ * bone with another writer, this needs the same axis-scoping treatment.
+ */
+function writeCompanions(
+  target: CustomPose,
+  baselinePose: CustomPose,
+  specs: Record<string, SupportedMotionSpec>,
+  motions: { motion: string; degrees: number }[],
+  ctx: BuildCtx,
+): void {
+  const byKey = new Map<string, { x: number; y: number; z: number }>();
+  for (const m of Object.values(specs)) {
+    if (m.companion) byKey.set(m.companion.key, { x: 0, y: 0, z: 0 });
+  }
+  if (byKey.size === 0) return;
+  const e = new THREE.Euler();
+  for (const t of motions) {
+    const companion = specs[t.motion]?.companion;
+    if (!companion || !Number.isFinite(t.degrees)) continue;
+    const acc = byKey.get(companion.key)!;
+    e.setFromQuaternion(companion.buildDelta(t.degrees, ctx), 'YXZ');
+    acc.x += e.x;
+    acc.y += e.y;
+    acc.z += e.z;
+  }
+  for (const [key, acc] of byKey) {
+    const restArr = baselinePose.bones?.[key];
+    if (!restArr) continue;
+    const restQ = new THREE.Quaternion(restArr[0], restArr[1], restArr[2], restArr[3]);
+    const q = new THREE.Quaternion()
+      .setFromEuler(new THREE.Euler(acc.x, acc.y, acc.z, 'YXZ'))
+      .multiply(restQ);
+    target.bones[key] = [q.x, q.y, q.z, q.w];
+  }
+}
+
 /** True when a joint composes as a swing-twist BALL joint (shoulder / hip) —
  *  its three clinical fields (flexion/abduction/rotation) must be composed into
  *  ONE delta rather than written independently, or later fields silently
@@ -1348,6 +1474,8 @@ export function buildComposedCommandPose(
     // …and shoulder elevation spreads across the glenohumeral joint and the
     // scapular girdle. See writeGirdle.
     if (share) writeGirdle(target, baselinePose, joint, [share]);
+    // …and the cervical pair across both neck segments. See writeCompanions.
+    writeCompanions(target, baselinePose, specs, usable, ctx);
     return target;
   } else if (isBallJoint(joint) && ctx.restDir) {
     // Fold flexion/abduction/rotation into one delta (shoulder world / hip canonical).
@@ -1391,6 +1519,7 @@ export function buildComposedCommandPose(
     for (const t of usable) q.multiply(specs[t.motion]!.buildDelta(t.degrees, ctx));
   }
   target.bones[joint] = [q.x, q.y, q.z, q.w];
+  writeCompanions(target, baselinePose, specs, usable, ctx);
   return target;
 }
 

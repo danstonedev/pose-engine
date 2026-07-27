@@ -676,7 +676,25 @@ export function computeJointAngles(
     };
   };
   addRegion('Spine_Upper', 'Spine_Mid', 'Spine_Upper'); // Thoracic
+  // HEAD PROTRACTION — the two cervical segments' HALF-DIFFERENCE, taken before
+  // the region sum folds them together and the lower one is deleted.
+  //
+  // Protraction is a TRANSLATION of the head, not a bend of the neck: the lower
+  // cervical flexes while the upper extends, carrying the head forward while
+  // leaving it level. Sum and half-difference are an orthogonal pair over the two
+  // segments, so `flexion` (the sum) and `protraction` (the difference) cannot
+  // contaminate each other whatever combination is commanded — a pure flexion has
+  // no difference, a pure protraction has no sum. The command side splits both
+  // channels across both bones to hold exactly that property; see
+  // `cervicalProtraction` in movementCommand.
+  const cervicalLower = joints['Neck_Lower'];
+  const cervicalUpper = joints['Neck'];
+  const headProtraction =
+    cervicalLower && cervicalUpper
+      ? ((cervicalLower.flexion ?? 0) - (cervicalUpper.flexion ?? 0)) / 2
+      : undefined;
   addRegion('Neck', 'Neck_Lower', 'Neck'); // Cervical
+  if (headProtraction != null && joints['Neck']) joints['Neck']!.protraction = headProtraction;
   delete joints['Spine_Mid'];
   delete joints['Neck_Lower'];
 

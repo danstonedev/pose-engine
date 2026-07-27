@@ -116,6 +116,14 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
       field('flexion', 'Flex', 'Flex', 'Ext', { min: -60, max: 50 }, 'sagittal'),
       field('lateralTilt', 'Lateral', 'Left', 'Right', { min: -45, max: 45 }, 'frontal'),
       field('rotation', 'Rotate', 'Toward L', 'Toward R', { min: -80, max: 80 }, 'transverse'),
+      // HEAD PROTRACTION / RETRACTION — forward-head posture, the sagittal
+      // TRANSLATION of the head rather than a bend of the neck. Measured as the
+      // half-difference of the two cervical segments (lower flexion against
+      // upper extension), which is exactly orthogonal to `flexion` above (their
+      // SUM). Band is deliberately narrower than the flexion ROM: this is a
+      // posture, not an excursion, and beyond ~20° the two segments are being
+      // wrung against each other rather than translating the head.
+      field('protraction', 'Protract', 'Pro', 'Ret', { min: -20, max: 20 }, 'sagittal'),
     ],
   },
   {
