@@ -764,6 +764,36 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   const thoracicFlex: SupportedMotionSpec = { buildDelta: (deg) => eulerXDelta(deg), compose: 'parent', fromReport: (deg) => deg };
   const thoracicLateral: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
   const thoracicRotation: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  // PELVIS (Hips bone). The pelvis was the one rig-reported joint with NO entry
+  // here at all — declared in romRegistry, clamped by poseRomClamp, read back by
+  // computeJointAngles, and commandable by nothing. That is why every shipped
+  // motion measures a hard zero on all three pelvic channels: the walk's
+  // "pelvic rotation" is model-ROOT yaw, which rotateRestReferenceByRoot then
+  // cancels straight back out of the readout.
+  //
+  // Its readout is the WORLD-frame body-euler delta from rest (jointAngles'
+  // pelvis block, decomposeBodyDelta over YXZ), which maps to the clinical
+  // fields with no cross-terms at all:
+  //     anteriorTilt = eX     rotation = eY     lateralTilt = eZ
+  // So a command is just that euler — but expressed in the WORLD frame, while a
+  // bone carries a LOCAL quaternion. `pelvisWorldEuler` conjugates through the
+  // parent's rest world orientation to convert between them. Without that the
+  // pelvis's parent (an unmapped skeleton-root bone carrying a −90° X rotation
+  // on this rig) would silently permute the axes.
+  const pelvisWorldEuler = (x: number, y: number, z: number): SupportedMotionSpec => ({
+    buildDelta: (deg, ctx) => {
+      const e = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(x * deg * RAD, y * deg * RAD, z * deg * RAD, 'YXZ'),
+      );
+      const p = ctx?.parentRestWorldQuat;
+      return p ? p.clone().invert().multiply(e).multiply(p) : e;
+    },
+    compose: 'parent',
+    fromReport: (deg) => deg,
+  });
+  const pelvisTilt = pelvisWorldEuler(1, 0, 0);
+  const pelvisRotation = pelvisWorldEuler(0, 1, 0);
+  const pelvisLateral = pelvisWorldEuler(0, 0, 1);
   // SCAPULAR GIRDLE (L/R_Shoulder = clavicle bone): parent body-euler. upRotation
   // (Z, mirror R), scapularTilt (−X, no mirror), protraction (−Y, mirror R). ~0 smear.
   const scapUpRotL: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(deg), compose: 'parent', fromReport: (deg) => deg };
@@ -883,6 +913,7 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     // rotation), so it is intentionally NOT registered on the Hand.
     L_Hand: { wristFlexion: wristFlexL, wristDeviation: wristDev },
     R_Hand: { wristFlexion: wristFlexR, wristDeviation: wristDev },
+    Hips: { anteriorTilt: pelvisTilt, lateralTilt: pelvisLateral, rotation: pelvisRotation },
     Spine_Lower: { flexion: lumbar, lateralTilt: lumbarLateral, rotation: lumbarRotation },
     Spine_Upper: { flexion: thoracicFlex, lateralTilt: thoracicLateral, rotation: thoracicRotation },
     Neck: { flexion: cervicalFlex, rotation: cervicalRotation, lateralTilt: cervicalLateral },
@@ -1053,6 +1084,11 @@ export function buildCommandPose(
     ctx.restWorldQuat = new THREE.Quaternion(rwArr[0], rwArr[1], rwArr[2], rwArr[3]);
     ctx.restDir = new THREE.Vector3(rdArr[0], rdArr[1], rdArr[2]);
   }
+  // The bone's PARENT world orientation at rest = restWorld · restLocal⁻¹. The
+  // pelvis needs it to convert a WORLD-frame body euler (the frame its readout
+  // decomposes in) into the local delta that realizes it.
+  if (ctx.restWorldQuat)
+    ctx.parentRestWorldQuat = ctx.restWorldQuat.clone().multiply(restQ.clone().invert());
   // The girdle share must be known BEFORE the humeral delta is built — the delta
   // is corrected for it (unparentGirdle), not merely reduced by it.
   const girdleShare = spec.girdle?.(clampedDegrees);
@@ -1291,6 +1327,11 @@ export function buildComposedCommandPose(
     ctx.restWorldQuat = new THREE.Quaternion(rwArr[0], rwArr[1], rwArr[2], rwArr[3]);
     ctx.restDir = new THREE.Vector3(rdArr[0], rdArr[1], rdArr[2]);
   }
+  // The bone's PARENT world orientation at rest = restWorld · restLocal⁻¹. The
+  // pelvis needs it to convert a WORLD-frame body euler (the frame its readout
+  // decomposes in) into the local delta that realizes it.
+  if (ctx.restWorldQuat)
+    ctx.parentRestWorldQuat = ctx.restWorldQuat.clone().multiply(restQ.clone().invert());
 
   let q: THREE.Quaternion;
   if (usable.length === 1) {

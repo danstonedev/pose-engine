@@ -209,6 +209,14 @@ describe('the walking hand hangs relaxed rather than held forward', () => {
         (k) => j[k]?.fingerFlexion,
       );
       if (i == null || m == null || r2 == null || p == null) continue;
+      // ONLY assert the cascade where there IS one. Pose 0 is the motion's
+      // neutral entry: every digit reads ~1e-8, and an ordering assertion over
+      // four float-noise values passes or fails on round-off, not on behaviour.
+      // It passed for a long time by luck; perturbing the hand's world frame by
+      // a few degrees (the pelvis becoming a real segment) reordered the noise
+      // and it failed, having never measured anything. Poses 1+ carry the real
+      // graded cascade — rig-measured 31° / 39° / 47° / 52°.
+      if (m < 1) continue;
       expect(i).toBeLessThan(m);
       expect(m).toBeLessThan(r2);
       expect(r2).toBeLessThan(p);
