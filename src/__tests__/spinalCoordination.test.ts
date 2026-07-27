@@ -51,8 +51,16 @@ const LIMB_NONSAG: Record<string, string> = {
   L_Leg: 'kneeRotation', R_Leg: 'kneeRotation',
   L_Foot: 'ankleInversion', R_Foot: 'ankleInversion',
 };
+/** The PELVIS is a coordination add now. It used to be a root-orientation
+ *  side-effect — the coordinator wrote pelvic rotation to root.orient.yawDeg,
+ *  which is why it never appeared in this target inventory and why the pelvic
+ *  readout measured a hard zero: the measurement frame removes root orientation
+ *  by design, so the rotation cancelled itself out of its own channel. It is a
+ *  segment on the Hips bone now, so it shows up here like every other add. */
+const PELVIS_MOTIONS = new Set(['anteriorTilt', 'lateralTilt', 'rotation']);
 const isCoordinationAdd = (joint: string, motion: string) =>
   ((joint === 'Spine_Upper' || joint === 'Spine_Lower' || joint === 'Neck') && SPINE_MOTIONS.has(motion)) ||
+  (joint === 'Hips' && PELVIS_MOTIONS.has(motion)) ||
   (LIMB_NONSAG[joint]?.split('|').includes(motion) ?? false);
 
 const walkComposed = () =>

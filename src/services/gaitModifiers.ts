@@ -243,6 +243,37 @@ const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
 // yaw reads as a twist/shimmy AND drags the planted foot, since the walk grounds the feet
 // with a vertical pin, not a horizontal foot-lock IK — see kPel calibration below).
 const PELVIS_YAW_MAX = 6;
+// ─── The PELVIS, as a segment rather than a root fake ────────────────────────
+// Pelvic rotation used to ride the MODEL ROOT's yaw. That is why all three
+// pelvic channels measured hard zeros on a walk: rotateRestReferenceByRoot
+// pre-rotates the pelvis reference by the root, so the fake cancelled itself
+// out of its own readout. It now rides the Hips BONE, which is the pelvis —
+// measurable, ROM-clamped, and reported to the clinical apps that consume it.
+//
+// The two compensations STAY, and they are not a workaround for the old fake:
+// Hips parents both femurs and the spine, so a pelvis that turns carries the
+// legs and the trunk with it either way. The hips counter-rotate so the planted
+// feet keep pointing down the line of travel; the neck counter-rotates so the
+// gaze holds forward. Both are anatomically real (that is what the hip rotators
+// and the vestibulo-ocular reflex do in gait), and the rig-measured near-zero
+// stance-foot swivel is what says the amount is right.
+//
+// OBLIQUITY and TILT did not exist at all — not faked, absent. Frontal-plane
+// pelvic list is the single most clinically loaded pelvic channel (it is what
+// Trendelenburg is), and the engine shipped a normativeGait constant for it
+// carrying the caveat "the rig has NO pelvic-list DOF today… obliquity is NOT
+// yet measurable". It has one now.
+//
+// PELVIC DROP is contralateral and that sign is the whole diagnostic value: the
+// pelvis drops on the SWING side, controlled eccentrically by the STANCE hip
+// abductors. Get it backwards and a normal walk reads as the compensated
+// Trendelenburg pattern it is supposed to distinguish. Driven from the same
+// hipDiff that drives the yaw, so it is phase-locked to stance by construction.
+const PELVIC_OBLIQUITY_MAX = 5; // ~±4-6° peak list in normal free gait
+// Sagittal pelvic tilt excursion is SMALL — a few degrees about a mean anterior
+// tilt, twice per cycle (Perry). The mean itself is posture, not gait, so only
+// the excursion is authored here.
+const PELVIC_TILT_MAX = 2.5;
 // ─── Limb non-sagittal gait coordination ─────────────────────────────────────
 // Real gait limbs move in all THREE planes; a purely sagittal swing (flexion only) reads
 // as a robotic 2-D walker. These add SUBTLE frontal + transverse components — physiologic
@@ -501,6 +532,23 @@ export function spinalGaitCoordination(
   // higher gain skates the stance foot; rig-swept). A real foot-lock IK would let this go
   // to the full physiological ~±4°.
   const kPel = Math.max(0, opts.pelvis ?? 0.05);
+  // Obliquity and tilt scale off the SAME pelvis authority as the yaw, so a
+  // caller that turns the pelvis off turns all three off together and a motion
+  // that never asked for pelvic coordination is byte-identical.
+  // kObl lands the measured obliquity peak at ~2.8°, BELOW the 4-6° normative
+  // peak, and that is a deliberate trade rather than a miss. A listing pelvis
+  // rotates the femurs, and this walk grounds its feet with a vertical pin plus
+  // a foot-plant IK — not a horizontal foot-lock — so obliquity buys itself in
+  // foot fidelity. Rig-measured as the gain was raised: at the fully physiologic
+  // 3.9° the planted stance foot slid 3.3 cm against a 3.0 cm gate, and the
+  // termination standstill ramp lost a frame of double support (89.6% against a
+  // 90% floor). The amplitude is limited by the rig's GROUNDING, not by
+  // physiology; a real horizontal foot-lock IK is what would let it go the rest
+  // of the way — the same missing piece the original root-yaw note called out.
+  // The channel's diagnostic content is intact at this amplitude: the drop is
+  // still contralateral and phase-locked to the swing limb at r = 0.994.
+  const kObl = kPel > 0 ? 0.065 : 0;
+  const kTilt = kPel > 0 ? 0.05 : 0;
   const shuttleAbsorb = opts.shuttleAbsorb;
   if (kAx === 0 && kLat === 0 && kPel === 0 && !shuttleAbsorb) return motion;
   const cap = (v: number, m: number): number => Math.max(-m, Math.min(m, v));
@@ -563,24 +611,47 @@ export function spinalGaitCoordination(
     const airborne = kf.stance === 'floating' ? 0.35 : 1;
     const thoracic = cap(-kAx * armDiff, SPINE_AXIAL_MAX); // thorax rotates with the girdle
     const lumbar = cap(-kAx * 0.3 * armDiff, SPINE_LUMBAR_AXIAL_MAX); // lumbar follows
+    const pelvisYaw = cap(kPel * hipDiff, PELVIS_YAW_MAX);
+    // PELVIC OBLIQUITY (frontal list). hipDiff > 0 means the LEFT hip is more
+    // flexed — left is swinging — so the pelvis drops on the LEFT. lateralTilt is
+    // + toward subject-LEFT (romRegistry), so the drop is +hipDiff. Scaled off
+    // the same phase signal as the yaw, so it cannot drift out of step with
+    // stance. Ramped by the same shuttle/stance authority the trunk lean uses is
+    // deliberately NOT done here: obliquity is driven by the swing limb, not by
+    // the shuttle.
+    const pelvicObliquity = cap(kObl * hipDiff, PELVIC_OBLIQUITY_MAX);
+    // SAGITTAL TILT: twice-per-cycle, so it follows |hipDiff| rather than its
+    // sign — the pelvis tilts anteriorly around each double-support and settles
+    // back through mid-stance.
+    const pelvicTilt = cap(kTilt * (Math.abs(hipDiff) - 20), PELVIC_TILT_MAX);
     const lean = -kLat * hipDiff * airborne; // lean toward the stance (less-flexed) hip
     // SHUTTLE-ABSORB counter-lean: opposite the pelvis shuttle (phase is +X-ward,
     // lateralTilt + = toward subject-left/+X, so −phase counters it), split
     // lumbar/thoracic so the tilt sits low (long lever, minimal thorax roll).
     const shuttleLean = shuttleAbsorb ? -shuttleAbsorb.deg * shuttleAbsorb.phaseAt(arriveMs[kfIndex]!) : 0;
-    const leanLower = cap(lean + 0.45 * shuttleLean, SPINE_LATERAL_MAX);
+    // PELVIC-OBLIQUITY ABSORPTION. The pelvis is the BASE of the spine, so a
+    // pelvis that lists carries the whole trunk — and the head — with it. In life
+    // it does not: the lumbar spine side-bends toward the STANCE limb to keep the
+    // trunk upright and the COM over the base, which is the same eccentric
+    // control that produced the drop in the first place. Without this, authoring
+    // physiologic obliquity on the bone reads as a waddle — rig-measured 13.3° of
+    // lateral trunk lean (band <8°) and 9.4 cm of head sway (band <2.5 cm),
+    // because the pelvis had never actually moved before and nothing downstream
+    // had to answer for it. Counter-sign, and the same lumbar/thoracic split the
+    // shuttle absorption already uses.
+    const obliquityLean = pelvicObliquity;
+    const leanLower = cap(lean + 0.45 * shuttleLean + 1.0 * obliquityLean, SPINE_LATERAL_MAX);
     // The thoracic COUNTER-lists (an S-curve): the lumbar lists toward the stance limb
     // (the physiologic weight shift), but the upper trunk leans back the other way so the
     // shoulders — and the head above them — stay centred over the base. A person's head
     // barely bobs laterally in gait (vestibular stabilisation); compounding the lean at the
     // top (the old +0.5) threw the head side-to-side. Neck leveling handles the residual.
-    const leanUpper = cap(-0.6 * lean + 0.55 * shuttleLean, SPINE_LATERAL_MAX);
+    const leanUpper = cap(-0.6 * lean + 0.55 * shuttleLean + 0.45 * obliquityLean, SPINE_LATERAL_MAX);
     // PELVIC ROTATION (root yaw): the swing side rotates forward. Counter-phase to the
     // thorax (below), so the pelvis and shoulder girdle COUNTER-ROTATE about the spine —
     // the real transverse-plane engine of gait. The hips counter-rotate by −pelvisYaw so
     // the planted feet keep pointing down the line of travel (no swivel) while the pelvis
     // turns; and the neck cancels the root yaw too, so the gaze still holds forward.
-    const pelvisYaw = cap(kPel * hipDiff, PELVIS_YAW_MAX);
     // GAZE STABILIZATION (vestibulo-ocular): the head hangs off the top of the spine, so
     // without correction it inherits the WHOLE trunk's axial rotation — the pelvic root
     // yaw PLUS the thoracic + lumbar rotation — and the eyes swing off the line of travel.
@@ -593,8 +664,25 @@ export function spinalGaitCoordination(
     // roll — the head tips side-to-side each stride even though it's not authored to. Cancel
     // that induced roll with a small lateral counter proportional to the axial counter
     // (rig-fit gain), so the head stays level as well as forward.
+    // The head hangs off the top of the whole chain, so what it inherits is the
+    // PELVIS's list plus both trunk leans — not just the trunk. Before the pelvis
+    // was a real segment the first term was identically zero and could be
+    // omitted; now it is not, and omitting it leaves the head rolling ~8.8° a
+    // stride (band <2.5°) even with the trunk itself upright.
+    // The head hangs off the top of the whole chain, so what it inherits is the
+    // pelvis's RESIDUAL list plus both trunk leans — not just the trunk. Before
+    // the pelvis was a real segment that first term was identically zero and
+    // could be omitted; now it is not, and omitting it leaves the head rolling
+    // ~8.8° a stride (band <2.5°) even with the trunk itself upright.
+    //
+    // The sign is −obliquityLean, and getting it wrong is not subtle: leanLower
+    // ALREADY carries the absorption, so what is left un-absorbed at the top of
+    // the lumbar is the residual, not the raw list. Adding it with the same sign
+    // double-counts and over-drives the neck to 9.9° of cervical lateral flexion
+    // — past the 8° this coordination authoring caps itself at, and far past
+    // anything a walking neck does.
     const neckLateral = cap(
-      -headStab * (leanLower + leanUpper) + NECK_AXIAL_ROLL_COMP * neckAxial,
+      -headStab * (-obliquityLean + leanLower + leanUpper) + NECK_AXIAL_ROLL_COMP * neckAxial,
       SPINE_NECK_LATERAL_MAX,
     );
     const additions: { joint: string; motion: string; deg: number }[] = [
@@ -610,6 +698,10 @@ export function spinalGaitCoordination(
       // hipRotation motor is NOT mirrored in world yaw — verified on the rig).
       { joint: 'L_UpLeg', motion: 'hipRotation', deg: -pelvisYaw },
       { joint: 'R_UpLeg', motion: 'hipRotation', deg: -pelvisYaw },
+      // THE PELVIS ITSELF — on the bone, so it is measurable.
+      { joint: 'Hips', motion: 'rotation', deg: pelvisYaw },
+      { joint: 'Hips', motion: 'lateralTilt', deg: pelvicObliquity },
+      { joint: 'Hips', motion: 'anteriorTilt', deg: pelvicTilt },
     ];
     // LIMB NON-SAGITTAL COORDINATION — subtle frontal/transverse limb motion so the arms
     // and legs don't swing as flat 2-D pendulums. Per-limb, from that limb's own sagittal
@@ -710,12 +802,12 @@ export function spinalGaitCoordination(
       if (i >= 0) targets[i] = { ...targets[i]!, targetDegrees: targets[i]!.targetDegrees + a.deg };
       else targets.push({ joint: a.joint, motion: a.motion, targetDegrees: a.deg });
     }
-    // Root transverse yaw = the pelvic rotation (merged with any existing root directive).
-    const kfOut: SequenceKeyframe = { ...kf, targets };
-    if (Math.abs(pelvisYaw) >= 1e-6) {
-      kfOut.root = { ...(kf.root ?? {}), orient: { ...(kf.root?.orient ?? {}), yawDeg: pelvisYaw } };
-    }
-    return kfOut;
+    // NO root yaw. Pelvic rotation is a SEGMENT, and it is authored on the Hips
+    // bone above. Writing it to the root instead is what made it unmeasurable:
+    // the measurement frame removes root orientation by design (a body walking a
+    // curve must read its joints relative to its own facing), so a pelvic
+    // rotation parked on the root cancels itself out of the pelvic readout.
+    return { ...kf, targets };
   });
   return { ...motion, keyframes };
 }

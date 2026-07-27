@@ -87,7 +87,13 @@ const headStabRatio = (m: ComposedMotion): number => {
   for (const kf of m.keyframes) {
     const at = (j: string, mo: string): number =>
       kf.targets?.find((t) => t.joint === j && t.motion === mo)?.targetDegrees ?? 0;
-    const sum = (kf.root?.orient?.yawDeg ?? 0) + at('Spine_Upper', 'rotation') + at('Spine_Lower', 'rotation');
+    // The pelvic term is Hips.rotation, NOT root.orient.yawDeg. Pelvic rotation
+    // used to ride the model root, where the measurement frame cancelled it back
+    // out of its own readout; it is a segment on the Hips bone now. Reading the
+    // old slot here measures the neck against an incomplete trunk yaw and reports
+    // 0.76 for a head that is in fact fully stabilised.
+    const sum =
+      at('Hips', 'rotation') + at('Spine_Upper', 'rotation') + at('Spine_Lower', 'rotation');
     if (Math.abs(sum) > best) {
       best = Math.abs(sum);
       ratio = -at('Neck', 'rotation') / sum;
