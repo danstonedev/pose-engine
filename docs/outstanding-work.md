@@ -186,8 +186,19 @@ never diagnosed.
 
 ## 5. Not code
 
-- **5.1** Orphaned Azure staging environments need a Portal cleanup. Production
-  only — never preview, per the licence constraint.
+- **5.1** ~~Orphaned Azure staging environments need a Portal cleanup.~~
+  **WRONG — corrected by the repo owner, 2026-07-27. There are none.** This
+  entry was inferred from the "This Static Web App already has the maximum
+  number of staging environments" failures, which were caused by the
+  `pull_request` trigger asking Azure for a preview environment the licence does
+  not include — not by leftover environments. The deploy job was gated to
+  push-to-main, and the `pull_request` trigger has since been removed entirely
+  (simmove `.github/workflows/azure-static-web-apps.yml`), so nothing requests a
+  preview any more. Nothing to clean up; there never was.
+
+  Kept struck through rather than deleted, because the ledger's own rule is to
+  correct in place and say so. Diagnosing a cause from a symptom, without access
+  to the system that would confirm it, is worth remembering as a pattern.
 
 ---
 
