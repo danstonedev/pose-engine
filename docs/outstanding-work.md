@@ -15,12 +15,37 @@ Status key: **OPEN** · **BLOCKED** (needs a named capability first) · **ASSET*
 
 ## 1. Next up
 
-### 1.1 Jog and sprint as distinct patterns — OPEN
-`services/normativeRun.ts` already declares all three bands; only `run` is
-built. The jog|run and run|sprint boundaries are **declared conventions**, not
-physical discontinuities — only the walk↔run transition (Froude ≈ 0.45) is
-discrete — and the module says so. Targets, duty factor being the discriminator
-because it needs no leg-length scaling:
+### 1.1 Jog and sprint as distinct patterns — DONE
+Built and gated. `buildRun`/`buildTravelRun` take `pattern: 'jog' | 'run' |
+'sprint'` (default `'run'`, so everything shipping is unchanged). Measured at
+speed 1, and each **classifies as itself** by duty factor alone:
+
+| pattern | cadence | GCT | flight | DF | step | speed | Froude |
+|---------|---------|-----|--------|-----|------|-------|--------|
+| jog     | 133.3   | 338 ms | 112 ms | 0.375 | 1.09 m | 2.42 m/s | 0.57 |
+| run     | 160.0   | 233 ms | 142 ms | 0.311 | 1.48 m | 3.94 m/s | 1.50 |
+| sprint  | 194.6   | 129 ms | 179 ms | 0.209 | 2.60 m | 8.44 m/s | 6.88 |
+
+The sprint reaches its 85-150 ms stance band **only** because its absorb
+keyframe is `ballistic`: two `functional` stance keyframes floor at 90 ms each,
+i.e. 180 ms, above the entire band. Reverting that one class pushes it to
+175 ms and fails the gate — mutation-checked, as is collapsing all three specs
+to the run's (which breaks classification and ordering).
+
+Residual: the sprint's 179 ms flight is longer than the ~130 ms of a real
+sprint. Reducing it further trades against step length at this amplitude.
+
+### 1.1b Jog/sprint follow-ups — OPEN
+- Sprint flight is ~50 ms long (above); wants the arm/trunk authoring a sprint
+  actually uses rather than the run's, scaled.
+- Nothing exposes the patterns to the app or the command vocabulary yet — they
+  are builder options only.
+
+#### Reference: the declared bands
+Live in `services/normativeRun.ts` as engine data. Duty factor is the
+discriminator because it is dimensionless — no leg-length scaling to get wrong.
+Cadence is quoted at the literature 0.90 m leg and must be scaled to the rig's
+1.056 m (`scaleCadenceToLeg`) before comparing.
 
 | pattern | duty factor | cadence (spm @ 0.90 m leg) | GCT (ms) | Froude |
 |---------|-------------|---------------------------|----------|--------|
@@ -28,10 +53,10 @@ because it needs no leg-length scaling:
 | run     | 0.27–0.38   | 150–185                   | 190–290  | 0.8–2.0 |
 | sprint  | 0.16–0.28   | 200–270                   | 85–150   | 3.0–8.0 |
 
-The engine's current run measures DF 0.311 · 160 spm · GCT 233 ms · Fr 1.26 at
-speed 1 — inside the `run` band. Sprint is the hard one: GCT 85–150 ms is at or
-under the `ballistic` keyframe floor (60 ms) × 2, so the timing model needs
-checking before the authoring.
+Only the walk↔run transition (Froude ≈ 0.45) is a physical discontinuity — it is
+where an inverted-pendulum vault stops being completable under gravity. jog|run
+and run|sprint are **declared conventions**; the module labels them as such
+rather than dressing them up as findings.
 
 ### 1.2 Pelvis in the RUN — OPEN
 Only the walk has a pelvis. Same three channels, but the run's flight phase
