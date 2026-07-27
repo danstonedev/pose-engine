@@ -165,25 +165,30 @@ planted↔floating seam closes there and leaves a residual at the speed extremes
 The real fix anchors the arc to the grounding solve at sample time.
 **`buildJump` and `buildSingleLegHop` carry the same latent defect.**
 
-### 3.6b Head/cervical protraction–retraction has no channel — OPEN
-Reported alongside the flat spine and scapular channels, but it is a different
-kind of gap: the others were unauthored, this one **does not exist**. The `Neck`
-registry row carries `flexion` / `lateralTilt` / `rotation` only, and there is no
-`Head` row at all.
+### 3.6b Head/cervical protraction–retraction — DONE (channel), OPEN (gait authoring)
+The channel exists now: `Neck.protraction`, ±20°, commandable and measured.
+Commanded == measured across the band, and **orthogonal to `Neck.flexion` in both
+directions** — a pure flexion leaks <0.5° of protraction and vice versa, and
+commanded together each still reads its own value. Rig-measured, a 20° command
+carries the head **1.32 cm anteriorly with 0.00° of pitch change**: a
+translation, which is what the motion is.
 
-**Correction to an earlier claim in this file's discussion:** it was flagged as
-possibly *unrepresentable* on this rig — an ASSET finding. That was wrong. The
-chain is `Spine02 → NeckTwist01 → NeckTwist02 → Head`: two stacked cervical
-segments, which is exactly what protraction needs, since the motion is a
-translation produced by lower-cervical flexion against upper-cervical extension.
+Built on a new `companion` hook on `SupportedMotionSpec` — a second bone a motion
+also writes. The shoulder's `girdle` hook could not serve: it hands a fixed
+sibling a *different* motion's share, which is an elevating arm, not a
+two-segment curve.
 
-The measurement is already orthogonal to what exists — `Neck.flexion` is the SUM
-of the two segments (`addRegion`), so an equal-and-opposite pair reads zero
-flexion. Protraction is their DIFFERENCE. What blocks it is authoring, not
-anatomy: the `Neck` handle is a *curve* control (`chainParentCount: 1`) that
-bends both segments the same way, and the command spec writes one bone. It needs
-a companion-bone write like the shoulder's `girdle` hook, which is currently
-shoulder-specific.
+**`Neck.flexion` now splits evenly across both cervical segments** where it used
+to hinge entirely at the upper one. That is what makes the pair orthogonal (sum
+vs half-difference), and it is also what the pose rig already claimed the `Neck`
+handle did — "curves both neck bones". The readout is unchanged, gated.
+
+**Still open: gait authors none of it, deliberately.** Real walking has very
+little cervical protraction–retraction excursion — the fore/aft head movement in
+gait comes from the trunk, not from the cervical spine wringing against itself.
+Authoring an oscillation here would be inventing motion to make a number move.
+The channel is for POSTURE (forward-head presentations) and for commanded
+assessment, and that is how it shipped.
 
 ### 3.6 The run saturates its protraction cap — OPEN
 `0.35 × 48° = 16.8°` clipped to the 10° cap, so the girdle flat-tops across two

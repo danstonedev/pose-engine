@@ -300,6 +300,12 @@ describe('resolveCommandTarget', () => {
         'L_UpperArm.shoulderRotation',
         'Neck.flexion',
         'Neck.lateralTilt',
+        // HEAD PROTRACTION / RETRACTION (v1.8) — forward-head posture. Not a bend
+        // of the neck but a TRANSLATION of the head, realized by flexing the lower
+        // cervical segment against the upper. Orthogonal to Neck.flexion by
+        // construction: flexion is the two segments' sum, protraction their
+        // half-difference. See headProtraction.test.ts.
+        'Neck.protraction',
         'Neck.rotation',
         'R_Foot.ankleAbduction',
         'R_Foot.ankleFlexion',
