@@ -970,10 +970,22 @@ function scheduledStance(
  * per-frame by the foot-plant IK. When omitted, the constant-heading path runs
  * verbatim (byte-identical).
  * FLIGHT GAPS (a run): a sample whose {@link FeetZ.bothAirborne} is set has NO
- * planted foot — the derivation holds the last grounded advance through the
- * gap and treats the first grounded sample after it as a touchdown handoff
- * (no advance that frame, then track the landing foot). Samples that never
- * set the flag (every walking gait) take the exact pre-existing path.
+ * planted foot, so there is no grounded reference to measure against — the
+ * swing legs sweeping in body space mid-air would advance/retreat the root.
+ * The body is nonetheless a PROJECTILE through that gap: its horizontal
+ * velocity at toe-off is conserved until touchdown (the vertical is already a
+ * constant-g parabola; do the same for the forward axis at constant speed).
+ * So the derivation CARRIES the last grounded advance rate through the gap
+ * rather than freezing the root — freezing is what made a run travel 0 cm over
+ * its whole airtime, and reverting this line alone drops the measured run from
+ * 3.61 m/s to 1.56 m/s (runSpatiotemporal.test.ts). The rate is a short
+ * trailing mean of the grounded per-sample advances (toe-off is the noisiest
+ * single sample; three of them is still ~12 ms at the default step count).
+ * The first grounded sample after a gap is a touchdown handoff: its prev→cur
+ * delta spans the airborne sweep and cannot be measured, so it takes the
+ * carried rate too and the derivation then tracks the landing foot. Samples
+ * that never set the flag (every walking gait) take the exact pre-existing
+ * path — `carry` is only ever read inside a gap.
  */
 export function deriveFootDrivenTravel(
   sampleFeetAtPhase: (tMs: number) => FeetZ,
@@ -997,19 +1009,35 @@ export function deriveFootDrivenTravel(
   let prev = sampleFeetAtPhase(0);
   let planted: 'R' | 'L' = scheduledStance(stanceWindows, 0, true) ?? (prev.ry <= prev.ly ? 'R' : 'L');
   // Inside a FLIGHT gap (both feet airborne — a run's ballistic interval) the
-  // advance is HELD; the first grounded sample after it is a touchdown handoff.
+  // root COASTS at the last grounded advance rate; the first grounded sample
+  // after it is a touchdown handoff.
   let airborne = prev.bothAirborne === true;
+  // Trailing grounded per-sample advances (meters/sample), most recent last.
+  const recent: number[] = [];
+  const CARRY_SAMPLES = 3;
+  /** The ballistic advance to apply per sample inside a flight gap: the mean of
+   *  the last few grounded advances, floored at 0 (a run never coasts backward). */
+  const carryRate = (): number =>
+    recent.length ? Math.max(0, recent.reduce((a, b) => a + b, 0) / recent.length) : 0;
+  const noteAdvance = (back: number): void => {
+    recent.push(back);
+    if (recent.length > CARRY_SAMPLES) recent.shift();
+  };
+  /** Advance every accumulator by `d` along the heading at this sample's time. */
+  const coast = (i: number, d: number): void => {
+    z[i] = z[i - 1]! + d;
+    if (px && pz) {
+      const hd = headingDegAt ? headingDegAt(i * dt) : headingDeg;
+      px[i] = px[i - 1]! + d * Math.sin(hd * RAD);
+      pz[i] = pz[i - 1]! + d * Math.cos(hd * RAD);
+    }
+  };
   for (let i = 1; i < n; i += 1) {
     const cur = sampleFeetAtPhase(i * dt);
-    // FLIGHT GAP: no foot is planted, so there is no grounded reference to
-    // advance against — the swing legs sweeping in body space mid-air would
-    // otherwise advance/retreat the root. Hold the last grounded advance.
+    // FLIGHT GAP: nothing is planted, so the FK sweep is unmeasurable — but the
+    // body is a projectile, not a statue. Coast at the takeoff rate.
     if (cur.bothAirborne === true) {
-      z[i] = z[i - 1]!;
-      if (px && pz) {
-        px[i] = px[i - 1]!;
-        pz[i] = pz[i - 1]!;
-      }
+      coast(i, carryRate());
       airborne = true;
       prev = cur;
       continue;
@@ -1023,15 +1051,13 @@ export function deriveFootDrivenTravel(
     const scheduled = scheduledStance(stanceWindows, i * dt, true);
     if (airborne) {
       // TOUCHDOWN after a flight gap: the landing foot only just arrived, so
-      // its prev→cur body-space delta spans the airborne sweep — a handoff
-      // frame (no advance), then track the newly grounded foot.
+      // its prev→cur body-space delta spans the airborne sweep and is not a
+      // measurement of anything. This sample is still the tail of the flight,
+      // so it coasts at the carried rate; from the NEXT sample the newly
+      // grounded foot is tracked normally.
       airborne = false;
       planted = scheduled ?? (cur.ry <= cur.ly ? 'R' : 'L');
-      z[i] = z[i - 1]!;
-      if (px && pz) {
-        px[i] = px[i - 1]!;
-        pz[i] = pz[i - 1]!;
-      }
+      coast(i, carryRate());
       prev = cur;
       continue;
     }
@@ -1064,6 +1090,7 @@ export function deriveFootDrivenTravel(
         z[i] = z[i - 1]! + back;
         px![i] = px![i - 1]! + back * chx;
         pz![i] = pz![i - 1]! + back * chz;
+        noteAdvance(back);
         prev = cur;
         continue;
       }
@@ -1077,6 +1104,7 @@ export function deriveFootDrivenTravel(
       }
       if (scheduled != null) back = Math.max(0, back);
       z[i] = z[i - 1]! + back;
+      noteAdvance(back);
     } else {
       // Handoff: the new foot just landed — no advance this frame, then track it.
       z[i] = z[i - 1]!;

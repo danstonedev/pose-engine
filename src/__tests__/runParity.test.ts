@@ -1,17 +1,21 @@
 /**
  * RUN GROUNDING PARITY (roadmap 4.3) — the run gets the walk's polish:
  *
- *   1. TOUCHDOWN ABSORPTION: each landing runs touchdown → absorption → recoil.
- *      The landing knee YIELDS an extra ~10° past its stance-drive value right
- *      after contact (the loading response), then recoils into the drive —
- *      authored keyframes in the run cycle, measured here on the rig.
+ *   1. TOUCHDOWN ABSORPTION: each landing runs touchdown → absorption →
+ *      re-extension into TOE-OFF. The landing knee YIELDS ~20-25° from its
+ *      value AT CONTACT (the loading response), then re-extends before leaving
+ *      the ground — authored keyframes in the run cycle, measured here on the
+ *      rig. The third keyframe is toe-off, not a mid-stance "drive": the run's
+ *      whole propulsive hip sweep has to fall INSIDE the stance window or the
+ *      travel derivation never measures it (see runSpatiotemporal.test.ts).
  *   2. FOOT-PLANT CONTACTS: buildTravelRun pins each stance foot for its
  *      touchdown→toe-off window (the walk's contact machinery, on the run's own
  *      phase timing); FLIGHT phases carry no contact by definition — both feet
  *      are measurably airborne mid-flight, never pinned.
  *   3. buildTravelRun — the running sibling of buildTravelWalk: footDrivenTravel
- *      over the run cycle, with the derivation HOLDING its advance through each
- *      flight gap (no grounded reference) and resuming at touchdown
+ *      over the run cycle, with the derivation COASTING at the last grounded
+ *      advance rate through each flight gap (no grounded reference, but the
+ *      body is a projectile) and resuming at touchdown
  *      (rootMotion deriveFootDrivenTravel + FeetZ.bothAirborne).
  *
  * Ends are CYCLIC fly-throughs (the pre-Wave-3 travel-walk pattern) — the run
@@ -111,7 +115,7 @@ function phaseClock(resolved: ReturnType<typeof resolveComposedMotion>): number[
 describe('buildTravelRun — shape of the plan', () => {
   it('is the run cycle ×2 + a closing touchdown — planted, non-looping, foot-driven, contact-pinned', () => {
     const m = buildTravelRun();
-    expect(m.keyframes.length).toBe(17); // 4 steps × (touchdown, absorb, drive, flight) + closing touchdown
+    expect(m.keyframes.length).toBe(17); // 4 steps × (touchdown, absorb, toe-off, flight) + closing touchdown
     expect(m.loop ?? false).toBe(false);
     expect(m.stance).toBe('planted');
     expect(m.footDrivenTravel).toBe(true);
@@ -205,24 +209,19 @@ describe('buildTravelRun — measured on the rig', () => {
     expect(airborneFrames, 'sustained flight phases').toBeGreaterThanOrEqual(12);
   });
 
-  it('touchdown ABSORPTION: the landing knee yields ~8-12° past the stance-drive knee within ~150 ms of contact, then recoils', () => {
+  it('touchdown ABSORPTION: the landing knee yields ~20° from CONTACT, then re-extends into toe-off', () => {
     const { rec, resolved } = sampleTravelRun();
     const arrive = phaseClock(resolved);
     // Steps 1 (lands L) and 2 (lands R) — mid-motion landings, entry/exit-free.
     for (const [step, side] of [[1, 'L'], [2, 'R']] as const) {
       const contactMs = arrive[4 * step]!; // touchdown arrival
       const absorbMs = arrive[4 * step + 1]!;
-      const driveMs = arrive[4 * step + 2]!;
+      const toeOffMs = arrive[4 * step + 2]!; // the PUSH keyframe closes the stance
       expect(absorbMs - contactMs, 'absorption sub-phase sits at the engine floor (~150 ms) after contact').toBeLessThanOrEqual(160);
-      // The stance-drive knee the yield is measured against: the resolved
-      // (clamped) drive-keyframe target — the value the leg recoils to.
-      const driveKnee = resolved.keyframes[4 * step + 2]!.targets.find(
-        (t) => t.joint === `${side}_Leg` && t.motion === 'kneeFlexion',
-      )!.clampedDegrees;
       const knees = kneeSeries(rec, side);
       const at = (t: number) => knees[rec.frames.indexOf(frameAt(rec, t))]!;
       const kneeAtContact = at(contactMs);
-      const kneeAtToeOff = at(driveMs);
+      const kneeAtToeOff = at(toeOffMs);
       let peak = -Infinity;
       let peakMs = 0;
       for (let i = 0; i < rec.frames.length; i += 1) {
@@ -235,17 +234,25 @@ describe('buildTravelRun — measured on the rig', () => {
       }
       // eslint-disable-next-line no-console
       console.log(
-        `step ${step} (${side}): knee ${kneeAtContact.toFixed(1)}° at contact → peak ${peak.toFixed(1)}° at +${(peakMs - contactMs).toFixed(0)} ms → drive ${driveKnee.toFixed(1)}° (toe-off ${kneeAtToeOff.toFixed(1)}°)`,
+        `step ${step} (${side}): knee ${kneeAtContact.toFixed(1)}° at contact → peak ${peak.toFixed(1)}° at +${(peakMs - contactMs).toFixed(0)} ms → toe-off ${kneeAtToeOff.toFixed(1)}°`,
       );
-      // The knee flexes UNDER LOAD after contact (yield), …
-      expect(peak - kneeAtContact, `${side} knee yields after contact`).toBeGreaterThan(12);
-      // …peaks ~8-12° beyond the stance-drive knee, …
-      expect(peak - driveKnee, `${side} yield exceeds the drive knee`).toBeGreaterThan(6);
-      expect(peak - driveKnee, `${side} yield stays physiologic`).toBeLessThan(16);
+      // THE REFERENCE IS THE KNEE AT CONTACT, and that is not a detail. This gate
+      // used to measure the yield against the third keyframe's knee, back when
+      // that keyframe was a mid-stance "drive" the leg recoiled to. It is now
+      // TOE-OFF — the knot that closes the stance window, without which the run's
+      // propulsive sweep never reaches the travel derivation. Measured against
+      // toe-off the same healthy yield reads ~25° and would trip a band written
+      // for a mid-stance reference; measured from contact it is the loading
+      // response itself: ~20-25° of knee flexion under load in running
+      // [Novacheck; Dugan & Bhat].
+      expect(peak - kneeAtContact, `${side} loading-response yield`).toBeGreaterThan(15);
+      expect(peak - kneeAtContact, `${side} loading-response stays physiologic`).toBeLessThan(32);
       // …within ~150 ms of contact (the engine's keyframe floor)…
       expect(peakMs - contactMs, `${side} yield peaks within ~150 ms`).toBeLessThanOrEqual(160);
-      // …and RECOILS out of the yield before toe-off.
-      expect(kneeAtToeOff, `${side} knee recoils into the drive`).toBeLessThan(peak - 5);
+      // …and RE-EXTENDS out of the yield before leaving the ground: a runner does
+      // not toe off at their deepest stance flexion.
+      expect(kneeAtToeOff, `${side} knee re-extends into toe-off`).toBeLessThan(peak - 10);
+      expect(kneeAtToeOff, `${side} toe-off knee stays physiologic`).toBeGreaterThan(0);
     }
   });
 
@@ -287,30 +294,43 @@ describe('buildTravelRun — measured on the rig', () => {
 });
 
 describe('buildRun — the in-place cycle carries the same absorption authoring', () => {
-  it('each landing authors touchdown → absorb (knee + hip yield past the drive) → drive → flight', () => {
+  it('each landing authors touchdown → absorb → TOE-OFF → flight, with the stance sweep inside the stance', () => {
     const m = buildRun();
     expect(m.keyframes.length).toBe(8); // 2 steps × 4 keyframes
     const deg = (kf: (typeof m.keyframes)[number], joint: string, motion: string) =>
       kf.targets!.find((t) => t.joint === joint && t.motion === motion)!.targetDegrees;
     for (const [base, side] of [[0, 'R'], [4, 'L']] as const) {
-      const [touchdown, absorb, drive, flight] = m.keyframes.slice(base, base + 4);
-      // Touchdown reaches near-extended; the absorption YIELDS past the drive.
-      expect(deg(absorb!, `${side}_Leg`, 'kneeFlexion') - deg(touchdown!, `${side}_Leg`, 'kneeFlexion')).toBeGreaterThan(20);
-      // Authored deeper than the physiologic ~10° so the TRAVEL run's plant-
-      // IK'd measured yield lands in the ~8-12° band (see the builder note).
-      const extraKnee = deg(absorb!, `${side}_Leg`, 'kneeFlexion') - deg(drive!, `${side}_Leg`, 'kneeFlexion');
-      const extraHip = deg(absorb!, `${side}_UpLeg`, 'hipFlexion') - deg(drive!, `${side}_UpLeg`, 'hipFlexion');
-      expect(extraKnee, `${side} absorption knee yield`).toBeGreaterThanOrEqual(14);
-      expect(extraKnee, `${side} absorption knee yield`).toBeLessThanOrEqual(18);
-      expect(extraHip, `${side} absorption hip yield`).toBeGreaterThanOrEqual(6);
-      // Grounding: touchdown/absorb/drive planted, flight floating with rise.
+      const [touchdown, absorb, push, flight] = m.keyframes.slice(base, base + 4);
+      const knee = (kf: (typeof m.keyframes)[number]) => deg(kf, `${side}_Leg`, 'kneeFlexion');
+      const hip = (kf: (typeof m.keyframes)[number]) => deg(kf, `${side}_UpLeg`, 'hipFlexion');
+      // LOADING RESPONSE: the knee flexes UNDER LOAD after contact. Running's is
+      // ~20-25° [Novacheck], measured from the knee AT CONTACT — which is the
+      // only reference that survives, because the pose the knee recoils TO is
+      // now toe-off (see below) rather than a mid-stance "drive" knot.
+      expect(knee(absorb!) - knee(touchdown!), `${side} loading-response knee yield`).toBeGreaterThanOrEqual(18);
+      expect(knee(absorb!) - knee(touchdown!), `${side} loading-response knee yield`).toBeLessThanOrEqual(32);
+      expect(hip(absorb!) - hip(touchdown!), `${side} hip yields under load too`).toBeLessThan(0);
+      // TOE-OFF is a KNOT, and it is the one that closes the stance window. The
+      // run's speed is (stance sweep)/(ground contact time), so the whole sweep
+      // has to live between touchdown and this keyframe: if the hip extension
+      // shows up only in FLIGHT (as it once did), the derivation never measures
+      // it and the run travels at ~1/3 speed. Guard both halves of the sweep.
+      expect(hip(touchdown!), `${side} touchdown reaches AHEAD`).toBeGreaterThan(10);
+      expect(hip(push!), `${side} toe-off trails BEHIND`).toBeLessThan(0);
+      expect(hip(touchdown!) - hip(push!), `${side} stance hip sweep`).toBeGreaterThan(25);
+      // …and the knee RECOILS out of the yield before it (a run does not leave
+      // the ground at its deepest stance flexion).
+      expect(knee(push!), `${side} knee re-extends into toe-off`).toBeLessThan(knee(absorb!) - 8);
+      // Grounding: touchdown/absorb/toe-off planted, flight floating with rise.
       expect(touchdown!.stance).toBe('planted');
       expect(absorb!.stance).toBe('planted');
-      expect(drive!.stance).toBe('planted');
+      expect(push!.stance).toBe('planted');
       expect(flight!.stance).toBe('floating');
-      // Authored as a raw ABSOLUTE flight-apex root height (travel sugar is a
-      // DELTA step per AI-SUGAR-01, so the seeded heights author raw roots).
-      expect(flight!.root?.translateM?.[1]).toBeGreaterThan(0);
+      // The flight apex is the highest authored knot of the step — the arc rises
+      // out of toe-off. (Authored as a raw ABSOLUTE root height: travel sugar is
+      // a DELTA step per AI-SUGAR-01, so the seeded heights author raw roots.)
+      expect(flight!.root!.translateM![1]).toBeGreaterThan(push!.root!.translateM![1]!);
+      expect(flight!.root!.translateM![1]).toBeGreaterThan(touchdown!.root!.translateM![1]!);
     }
   });
 });
