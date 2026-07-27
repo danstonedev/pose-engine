@@ -48,6 +48,7 @@
 import type { ResolvedComposedMotion } from './motionSequence';
 import { computeBalanceTimeline } from './centerOfMass';
 import { getRomFieldDefinition } from './romRegistry';
+import { measureLimbClearance, type Vec3 } from './limbClearance';
 
 // ── Report types ─────────────────────────────────────────────────────────────
 
@@ -157,6 +158,18 @@ export interface ValidityThresholds {
   /** A RESOLVED target may sit this far (deg) outside its ROM band before it
    *  flags (clamp round-off tolerance). */
   romEpsDeg: number;
+  /** Capsule clearance (m) at/above which limbs are cleanly apart. Below it the
+   *  check WARNS rather than fails, because this module cannot know whether
+   *  contact was intended: a sit-to-stand rests its hands ON the thighs, and a
+   *  gate that called that a defect would be wrong. Motions that must never
+   *  touch assert it themselves, where the intent is known (limbClearance.test). */
+  selfIntersectionMinM: number;
+  /** Capsule clearance (m) below which limbs are INTERPENETRATING, not touching,
+   *  and the check hard-FAILS regardless of intent. No pose intends one limb
+   *  buried inside another. Set against the model's own measured conservatism
+   *  (~3.2 cm on this rig), so it sits well past any plausible surface contact:
+   *  the shipped sit-to-stand measured −9.2 cm here, which was real burial. */
+  selfIntersectionFailM: number;
 }
 
 export const DEFAULT_VALIDITY_THRESHOLDS: ValidityThresholds = {
@@ -170,6 +183,8 @@ export const DEFAULT_VALIDITY_THRESHOLDS: ValidityThresholds = {
   penetrationAnkleEpsM: 0.02,
   penetrationToeEpsM: 0.06,
   romEpsDeg: 0.5,
+  selfIntersectionMinM: 0.01,
+  selfIntersectionFailM: -0.05,
 };
 
 // ── Tracked-key groups ───────────────────────────────────────────────────────
@@ -396,6 +411,72 @@ function checkPenetration(
   };
 }
 
+/**
+ * SELF-INTERSECTION — does the body pass through itself?
+ *
+ * The gap this closes is a whole CLASS, not one bug. Every other check in this
+ * module measures angles, timing or the floor; none of them measures VOLUME, so
+ * a pose could sit inside every ROM band, perfectly phased and perfectly
+ * grounded, while the hand occupied the same space as the thigh. That is exactly
+ * what shipped — reported from the deployed build as fingers and hands moving
+ * through the legs during swing, and rig-measured at −2.85 cm of hand↔thigh
+ * interpenetration on the travel walk.
+ *
+ * Capsule-based (services/limbClearance), so it is cheap enough to run on every
+ * AI-composed clip. The capsule model reads systematically CONSERVATIVE against
+ * per-vertex ground truth — about 3.4 cm tighter on this rig — which is the
+ * right direction for a gate: it flags early rather than late.
+ *
+ * An UNMEASURABLE pair fails rather than passing. A volumetric check that
+ * silently reports "fine" because the bones it needed were not tracked is worse
+ * than no check at all, and is the precise mechanism by which this defect
+ * survived every gate that already existed.
+ */
+function checkSelfIntersection(
+  frames: readonly GateFrame[],
+  th: ValidityThresholds,
+): ValidityCheck | null {
+  const tracks = frames.map((f) => (f.worldTracks ?? {}) as Record<string, Vec3>);
+  if (!tracks.some((t) => Object.keys(t).length)) return null;
+  const report = measureLimbClearance(tracks);
+  if (!report.findings.length) {
+    return {
+      id: 'self-intersection',
+      pass: false,
+      severity: 'fail',
+      measured: 0,
+      threshold: th.selfIntersectionMinM,
+      unit: 'm',
+      note: `limb clearance UNMEASURABLE — untracked: ${report.untracked.join(', ') || 'all pairs'}`,
+    };
+  }
+  const worst = report.findings[0]!;
+  // TWO TIERS, because the gate can see geometry but not intent. Limbs touching
+  // may be exactly right (hands on thighs in a sit-to-stand) or exactly wrong
+  // (a hand through a thigh in gait), and nothing in a resolved motion says
+  // which. Burial is unambiguous, so only burial fails here; contact warns, and
+  // the motions that must never touch assert that for themselves.
+  const buried = worst.clearanceM < th.selfIntersectionFailM;
+  const pass = worst.clearanceM >= th.selfIntersectionMinM;
+  const cm = round(worst.clearanceM * 100, 2);
+  const note = pass
+    ? `no limb passes through another — tightest ${worst.pair} ${cm} cm` +
+      (report.untracked.length ? ` (unmeasurable: ${report.untracked.join(', ')})` : '')
+    : buried
+      ? `${worst.pair} INTERPENETRATES by ${round(-worst.clearanceM * 100, 2)} cm`
+      : `${worst.pair} clears by only ${cm} cm — contact, which may be intended`;
+  return {
+    id: 'self-intersection',
+    pass,
+    severity: buried ? 'fail' : 'warn',
+    measured: round(worst.clearanceM, 4),
+    threshold: buried ? th.selfIntersectionFailM : th.selfIntersectionMinM,
+    unit: 'm',
+    note,
+    framePct: worst.framePct,
+  };
+}
+
 /** SEAM-JERK — max velocity discontinuity (m/s), the 2nd position difference
  *  |p₊−2p+p₋|/dt over the root and every key joint. Smooth motion (even fast
  *  ballistics) stays bounded; a keyframe teleport spikes far past the ceiling.
@@ -553,9 +634,13 @@ export function assessValidity(
     const seam = checkSeamJerk(fr, th);
     if (seam) checks.push(seam);
     else skipped.push('seam-jerk — fewer than 3 usable frames');
+
+    const selfInt = checkSelfIntersection(fr, th);
+    if (selfInt) checks.push(selfInt);
+    else skipped.push('self-intersection — no world tracks in frames');
   } else {
     skipped.push(
-      'foot-skate, com-in-base, penetration, seam-jerk — no sampled frames (structural mode)',
+      'foot-skate, com-in-base, penetration, seam-jerk, self-intersection — no sampled frames (structural mode)',
     );
   }
 
