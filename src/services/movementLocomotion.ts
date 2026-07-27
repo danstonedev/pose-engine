@@ -873,6 +873,55 @@ const RUN_BALLISTIC_RISE_M = 0.018;
  *  Shortens as 1/f with pace — the single biggest lever on the run's speed,
  *  which is (stance sweep)/(ground contact time) once flight coasts. */
 const RUN_GCT_MS = 200;
+
+// ─── JOG · RUN · SPRINT — three patterns, not one speed dial ─────────────────
+// `speed` alone cannot produce these. Duty factor is what separates them, and
+// duty factor is a RATIO of ground time to stride time — scaling every duration
+// and amplitude by one factor moves both terms together and leaves it roughly
+// put. So each pattern carries its own ground contact, its own ballistic rise
+// and its own limb amplitude, and `speed` then paces WITHIN a pattern.
+//
+// ONLY THE WALK↔RUN BOUNDARY IS PHYSICS. It sits at a dimensionless speed
+// (Froude ≈ 0.45) because that is where an inverted-pendulum vault stops being
+// completable under gravity. JOG|RUN and RUN|SPRINT are DECLARED CONVENTIONS —
+// gait varies continuously above the transition — and services/normativeRun
+// says so rather than dressing them up as findings. The bands there are the
+// spec; these constants are the authoring that hits them.
+//
+// THE SPRINT'S GROUND CONTACT IS THE HARD CONSTRAINT. Its normative band is
+// 85-150 ms for the WHOLE stance, i.e. ≤75 ms per stance keyframe. The engine's
+// 'functional' floor is 90 ms, so a sprint is unreachable while both stance
+// keyframes are floored as functional — the floor alone would be 180 ms, above
+// the entire band. Toe-off was already reclassified 'ballistic' (a running
+// push-off is athletic power, not everyday speed); a SPRINT's loading response
+// is an impact transient too, at ~50 ms, so it takes the same class. The jog
+// and the run keep the functional absorb, because at 140-175 ms per keyframe
+// they are nowhere near the floor and the honest class is the slower one.
+interface RunPatternSpec {
+  /** Ground contact for the WHOLE stance at speed 1, ms — split evenly across
+   *  the two stance keyframes. The dominant lever on speed, which is
+   *  (stance sweep)/(ground contact). */
+  gctMs: number;
+  /** COM rise above toe-off during flight, m — sets the airborne interval. */
+  riseM: number;
+  /** Limb-amplitude multiplier on the shared run cycle. Sprint drives a much
+   *  bigger hip sweep and a much higher knee; a jog is a compressed run. */
+  amplitude: number;
+  /** Forward trunk lean, deg. A jog is near-upright; a sprint runs into a
+   *  pronounced lean. */
+  trunkLeanDeg: number;
+  /** Velocity class of the ABSORB keyframe — see the block comment. */
+  absorbClass: 'functional' | 'ballistic';
+}
+
+const RUN_PATTERNS: Readonly<Record<RunPattern, RunPatternSpec>> = {
+  jog: { gctMs: 285, riseM: 0.012, amplitude: 0.86, trunkLeanDeg: 5, absorbClass: 'functional' },
+  run: { gctMs: RUN_GCT_MS, riseM: RUN_BALLISTIC_RISE_M, amplitude: 1, trunkLeanDeg: 8, absorbClass: 'functional' },
+  sprint: { gctMs: 125, riseM: 0.020, amplitude: 1.45, trunkLeanDeg: 14, absorbClass: 'ballistic' },
+};
+
+/** Which of the three running patterns a builder should author. */
+export type RunPattern = 'jog' | 'run' | 'sprint';
 /** MIDSTANCE sagittal base (deg, speed-1) — the value the loading-response
  *  yield is authored on top of (see RUN_ABSORB_EXTRA_*). */
 const RUN_STANCE_HIP_DEG = 12;
@@ -915,6 +964,9 @@ interface RunStepTiming {
   /** Flight-apex COM height (m, relative to standing) — the knot the ballistic
    *  half-durations above are the free-fall time for. */
   apexM: number;
+  /** Velocity class the ABSORB keyframe declares — 'ballistic' only for the
+   *  sprint, whose loading response is a genuine impact transient. */
+  absorbClass: 'functional' | 'ballistic';
 }
 
 /** Authored per-keyframe durations for one run step at speed factor f = √speed.
@@ -933,19 +985,24 @@ interface RunStepTiming {
  *  authoring functional phases; the run declared its classes and then ignored
  *  them. Class-aware, the floor is 60+90+90+60 = 300 ms, so the ceiling is 200 spm
  *  and a real running cadence is reachable. */
-function runStepTiming(f: number): RunStepTiming {
+function runStepTiming(f: number, pattern: RunPattern = 'run'): RunStepTiming {
+  const spec = RUN_PATTERNS[pattern];
   // The arc is ASYMMETRIC — toe-off sits above touchdown — so each half gets the
   // free-fall time for ITS OWN drop: ballisticFlightMs(h)/2 = √(2h/g), the
   // one-way time. Spending a symmetric half on each side (what the old timing
   // did) renders the descent at an implied acceleration that is not g.
-  const riseM = RUN_BALLISTIC_RISE_M * f;
+  const riseM = spec.riseM * f;
   const apexM = RUN_TOEOFF_Y_M + riseM;
   const rise = Math.max(minKeyframeMsFor('ballistic'), Math.round(ballisticFlightMs(riseM) * 0.5));
   const fall = Math.max(
     minKeyframeMsFor('ballistic'),
     Math.round(ballisticFlightMs(apexM - RUN_TOUCHDOWN_Y_M) * 0.5),
   );
-  const ground = Math.max(minKeyframeMsFor('functional'), Math.round(RUN_GCT_MS * 0.5 / f));
+  // Each stance keyframe is floored by ITS OWN class — the sprint's absorb is
+  // ballistic (60 ms) where the jog's and run's are functional (90 ms), which is
+  // what makes an 85-150 ms sprint stance reachable at all.
+  const groundRaw = Math.round(spec.gctMs * 0.5 / f);
+  const ground = Math.max(minKeyframeMsFor(spec.absorbClass), groundRaw);
   return {
     touchMs: fall, // the DESCENT into contact
     absorbMs: ground,
@@ -953,6 +1010,7 @@ function runStepTiming(f: number): RunStepTiming {
     flightMs: rise, // toe-off up to the apex
     stepMs: fall + ground + ground + rise,
     apexM,
+    absorbClass: spec.absorbClass,
   };
 }
 
@@ -960,10 +1018,13 @@ function runStepTiming(f: number): RunStepTiming {
  *  after ITS push-off closes the step (so steps chain L/R seamlessly and the
  *  loop wrap flight→touchdown is the landing transition). Fresh objects per
  *  call. `s` is the speed request (stride amplitude and cadence each ∝ √s). */
-function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
+function runStepKeyframes(land: 'L' | 'R', s: number, pattern: RunPattern = 'run'): SequenceKeyframe[] {
   const f = Math.sqrt(s);
-  const t = runStepTiming(f);
-  const A = (deg: number) => Math.round(deg * f); // stride/amplitude scale
+  const spec = RUN_PATTERNS[pattern];
+  const t = runStepTiming(f, pattern);
+  // Amplitude carries BOTH the within-pattern pace (f) and the between-pattern
+  // character (spec.amplitude) — a sprint is not a fast jog, it reaches further.
+  const A = (deg: number) => Math.round(deg * f * spec.amplitude);
   const leg = (side: 'L' | 'R', hip: number, knee: number, ankle: number) => [
     { joint: `${side}_UpLeg`, motion: 'hipFlexion', targetDegrees: A(hip) },
     { joint: `${side}_Leg`, motion: 'kneeFlexion', targetDegrees: A(knee) },
@@ -973,7 +1034,7 @@ function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
     { joint: `${side}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: A(sh) },
     { joint: `${side}_Forearm`, motion: 'elbowFlexion', targetDegrees: 85 },
   ];
-  const trunk = [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: 8 }];
+  const trunk = [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: spec.trunkLeanDeg }];
   const other: 'L' | 'R' = land === 'L' ? 'R' : 'L';
   // TOUCHDOWN — the contact instant. The landing leg is near-extended, reaching
   // down/forward for the floor exactly where the ballistic parabola lands the
@@ -1002,7 +1063,7 @@ function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
   // (+RUN_ABSORB_EXTRA_KNEE_DEG) with a hip yield, the ankle dorsiflexes as
   // the shank rides over the planted foot; the swing leg comes through.
   const absorb: SequenceKeyframe = {
-    durationMs: t.absorbMs, velocityClass: 'functional', stance: 'planted',
+    durationMs: t.absorbMs, velocityClass: t.absorbClass, stance: 'planted',
     root: { translateM: [0, RUN_MIDSTANCE_Y_M, 0] }, // ABSOLUTE midstance trough
     targets: [
       ...leg(land, RUN_STANCE_HIP_DEG + RUN_ABSORB_EXTRA_HIP_DEG, RUN_STANCE_KNEE_DEG + RUN_ABSORB_EXTRA_KNEE_DEG, 12),
@@ -1053,17 +1114,20 @@ function runStepKeyframes(land: 'L' | 'R', s: number): SequenceKeyframe[] {
  * are NOT floor-pinned, so the up-travel genuinely lifts the body — the feet
  * leave the ground (contrast the in-place walk, which keeps one foot planted).
  */
-export function buildRun(opts: { speed?: number; asymmetry?: number | false } = {}): ComposedMotion {
+export function buildRun(
+  opts: { speed?: number; asymmetry?: number | false; pattern?: RunPattern } = {},
+): ComposedMotion {
   const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
+  const pattern = opts.pattern ?? 'run';
   // Healthy-asymmetry signature (roadmap 5.3): 2–4% L/R arm-swing amplitude
   // difference, amplitude-only (see healthySignature.ts); `asymmetry: false`
   // keeps the textbook-symmetric reference run.
   const base: ComposedMotion = {
-    name: 'run',
+    name: pattern,
     startFrom: 'neutral',
     stance: 'planted',
     loop: true,
-    keyframes: [...runStepKeyframes('R', s), ...runStepKeyframes('L', s)],
+    keyframes: [...runStepKeyframes('R', s, pattern), ...runStepKeyframes('L', s, pattern)],
   };
   // Natural trunk coordination — thoracic counter-rotation with the pumping arms +
   // lateral sway toward the stance leg. Bigger arm swing at speed ⇒ bigger trunk
@@ -1112,16 +1176,17 @@ export function buildRun(opts: { speed?: number; asymmetry?: number | false } = 
  * with the constant-g flight parabola.
  */
 export function buildTravelRun(
-  opts: { speed?: number; asymmetry?: number | false } = {},
+  opts: { speed?: number; asymmetry?: number | false; pattern?: RunPattern } = {},
 ): ComposedMotion {
   const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
+  const pattern = opts.pattern ?? 'run';
   const f = Math.sqrt(s);
-  const t = runStepTiming(f);
+  const t = runStepTiming(f, pattern);
   const steps: ('L' | 'R')[] = ['R', 'L', 'R', 'L'];
-  const kfs: SequenceKeyframe[] = steps.flatMap((land) => runStepKeyframes(land, s));
+  const kfs: SequenceKeyframe[] = steps.flatMap((land) => runStepKeyframes(land, s, pattern));
   // Closing touchdown (R): the final flight lands — a complete ballistic arc
   // and a grounded finish.
-  kfs.push(runStepKeyframes('R', s)[0]!);
+  kfs.push(runStepKeyframes('R', s, pattern)[0]!);
   // STANCE WINDOWS (authored ms — identical in trajectory time: every duration
   // above is at/above the engine floor and no timeScale is set, so the resolver
   // passes them through verbatim): each landing foot bears weight from its
@@ -1152,7 +1217,7 @@ export function buildTravelRun(
   // Healthy-asymmetry signature (roadmap 5.3): amplitude-only, so the authored
   // stance windows / contacts above stay byte-exact (see healthySignature.ts).
   const base: ComposedMotion = {
-    name: 'run-forward',
+    name: `${pattern}-forward`,
     startFrom: 'current',
     stance: 'planted',
     // Persistent heading (SEAM-1): rebase onto the live entry facing when the

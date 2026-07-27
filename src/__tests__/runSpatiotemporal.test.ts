@@ -112,8 +112,8 @@ const TOE_CONTACT_M = 0.03;
 /** World-Y of the ground plane (the lowest foot contact's rest height). */
 let floor0 = 0;
 
-function measureRun(speed: number): RunMeasured {
-  const resolved = resolveComposedMotion(buildTravelRun({ speed }), variantCfg);
+function measureRun(speed: number, pattern: 'jog' | 'run' | 'sprint' = 'run'): RunMeasured {
+  const resolved = resolveComposedMotion(buildTravelRun({ speed, pattern }), variantCfg);
   expect(resolved.status).toBe('ok');
   const rec = sampleComposedMotion(resolved, {
     baselinePose,
@@ -222,9 +222,93 @@ function measureRun(speed: number): RunMeasured {
 /** Every speed setting, measured once, in ascending order. */
 let measured: RunMeasured[] = [];
 
+describe('the three patterns are DISTINCT and each lands in its own band', () => {
+  const PATTERNS = ['jog', 'run', 'sprint'] as const;
+  let byPattern: Record<string, RunMeasured> = {};
+
+  beforeAll(() => {
+    byPattern = Object.fromEntries(PATTERNS.map((p) => [p, measureRun(1.0, p)]));
+    for (const p of PATTERNS) {
+      const m = byPattern[p]!;
+      // eslint-disable-next-line no-console
+      console.log(
+        `${p.padEnd(6)} cadence ${m.cadenceSpm.toFixed(1)} · GCT ${m.gctMs.toFixed(0)}ms · ` +
+          `flight ${m.flightMs.toFixed(0)}ms · DF ${m.dutyFactor.toFixed(3)} · step ${m.stepM.toFixed(2)}m · ` +
+          `${m.speedMps.toFixed(2)} m/s · Fr ${m.froude.toFixed(2)} · classifies ${classifyRunPattern(m.dutyFactor)}`,
+      );
+    }
+  }, 300_000);
+
+  it('each pattern CLASSIFIES as itself by duty factor', () => {
+    // The strongest single statement that these are three patterns and not three
+    // speeds: classifyRunPattern knows nothing about how they were built, only
+    // about the duty factor they produce. Duty factor is the discriminator
+    // because it is dimensionless — no leg-length scaling to get wrong.
+    for (const p of PATTERNS)
+      expect(classifyRunPattern(byPattern[p]!.dutyFactor), `${p} classifies as ${p}`).toBe(p);
+  });
+
+  it('each pattern lands inside its declared band — DF, GCT, cadence, Froude', () => {
+    for (const p of PATTERNS) {
+      const m = byPattern[p]!;
+      const band = RUN_PATTERN_BANDS[p];
+      const within = (v: number, [lo, hi]: readonly [number, number], what: string) => {
+        expect(v, `${p} ${what} ≥ ${lo}`).toBeGreaterThanOrEqual(lo);
+        expect(v, `${p} ${what} ≤ ${hi}`).toBeLessThanOrEqual(hi);
+      };
+      within(m.dutyFactor, band.dutyFactor, 'duty factor');
+      within(m.gctMs, band.gctMs, 'ground contact');
+      within(m.froude, band.froude, 'Froude');
+      // Cadence bands are quoted at the literature leg length — scale to the rig.
+      const [lo, hi] = band.cadenceSpm;
+      within(
+        m.cadenceSpm,
+        [scaleCadenceToLeg(lo, m.legM), scaleCadenceToLeg(hi, m.legM)] as const,
+        'cadence (leg-scaled)',
+      );
+    }
+  });
+
+  it('they are ORDERED — faster pattern, shorter contact, lower duty factor, longer step', () => {
+    // A speed dial alone cannot produce this: scaling every duration and
+    // amplitude together moves ground time and stride time in step and leaves
+    // the duty factor roughly put. Ordering on DF is what proves the patterns
+    // differ in KIND rather than in pace.
+    for (const [a, b] of [
+      ['jog', 'run'],
+      ['run', 'sprint'],
+    ] as const) {
+      const x = byPattern[a]!;
+      const y = byPattern[b]!;
+      expect(y.speedMps, `${b} is faster than ${a}`).toBeGreaterThan(x.speedMps);
+      expect(y.gctMs, `${b} has shorter ground contact than ${a}`).toBeLessThan(x.gctMs);
+      expect(y.dutyFactor, `${b} has a lower duty factor than ${a}`).toBeLessThan(x.dutyFactor);
+      expect(y.stepM, `${b} steps longer than ${a}`).toBeGreaterThan(x.stepM);
+    }
+  });
+
+  it('all three are genuinely RUNNING — no double support, above the walk-run transition', () => {
+    for (const p of PATTERNS) {
+      expect(isRunning(byPattern[p]!), `${p} is running`).toBe(true);
+      expect(byPattern[p]!.doubleSupportMs, `${p} has no double support`).toBe(0);
+    }
+  });
+
+  it('the SPRINT reaches its band only because its absorb is ballistic — the floor would forbid it', () => {
+    // 85-150 ms of stance is ≤75 ms per stance keyframe, and the 'functional'
+    // floor is 90 ms: two functional stance keyframes floor the sprint at 180 ms,
+    // above its entire band. This pins the reasoning so a future tidy-up that
+    // "simplifies" the class back to functional fails here rather than silently
+    // turning the sprint into a run.
+    expect(byPattern.sprint!.gctMs, 'sprint stance is under the two-functional-floor').toBeLessThan(180);
+  });
+});
+
 describe('running spatiotemporals, measured on the rig', () => {
   beforeAll(() => {
-    measured = SPEEDS.map(measureRun);
+    // NOT `SPEEDS.map(measureRun)` — map passes the INDEX as the second argument,
+    // which lands in `pattern` and resolves RUN_PATTERNS[0] to undefined.
+    measured = SPEEDS.map((sp) => measureRun(sp));
     for (const [i, m] of measured.entries())
       // eslint-disable-next-line no-console
       console.log(
