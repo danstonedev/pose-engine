@@ -1101,6 +1101,24 @@ function runStepKeyframes(land: 'L' | 'R', s: number, pattern: RunPattern = 'run
   return [touchdown, absorb, push, flight];
 }
 
+/** Slowest speed scalar the run builders honour. The run clamps HARDER than the
+ *  walk's {@link TIME_SCALE_MIN}: below ~0.6 the flight phase collapses and the
+ *  result is a fast walk wearing a run's keyframes, not a run. */
+export const RUN_SPEED_MIN = 0.6;
+
+/** Fastest speed scalar the run builders honour. */
+export const RUN_SPEED_MAX = 1.6;
+
+/** Clamp a requested run speed into `[RUN_SPEED_MIN, RUN_SPEED_MAX]`, resolving a
+ *  missing or non-finite request to 1. EXPORTED because hosts report the value
+ *  the builder actually received — simMOVE's instruction parser used to re-inline
+ *  these bounds, so moving either one silently desynced the on-screen summary
+ *  from the built motion. */
+export function clampRunSpeed(requested: unknown): number {
+  const n = typeof requested === 'number' && Number.isFinite(requested) ? requested : 1;
+  return n < RUN_SPEED_MIN ? RUN_SPEED_MIN : n > RUN_SPEED_MAX ? RUN_SPEED_MAX : n;
+}
+
 /**
  * A real kinematic RUN — a looping, in-place running gait with a genuine FLIGHT
  * phase (both feet off the ground between steps, unlike walk's double-support)
@@ -1117,7 +1135,7 @@ function runStepKeyframes(land: 'L' | 'R', s: number, pattern: RunPattern = 'run
 export function buildRun(
   opts: { speed?: number; asymmetry?: number | false; pattern?: RunPattern } = {},
 ): ComposedMotion {
-  const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
+  const s = clampRunSpeed(opts.speed);
   const pattern = opts.pattern ?? 'run';
   // Healthy-asymmetry signature (roadmap 5.3): 2–4% L/R arm-swing amplitude
   // difference, amplitude-only (see healthySignature.ts); `asymmetry: false`
@@ -1178,7 +1196,7 @@ export function buildRun(
 export function buildTravelRun(
   opts: { speed?: number; asymmetry?: number | false; pattern?: RunPattern } = {},
 ): ComposedMotion {
-  const s = Math.min(1.6, Math.max(0.6, Number.isFinite(opts.speed ?? 1) ? opts.speed ?? 1 : 1));
+  const s = clampRunSpeed(opts.speed);
   const pattern = opts.pattern ?? 'run';
   const f = Math.sqrt(s);
   const t = runStepTiming(f, pattern);

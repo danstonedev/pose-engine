@@ -45,7 +45,7 @@
  * metabolic) claim is made or implied.
  */
 
-import { froudeNumber } from './normativeGait';
+import { froudeNumber, FROUDE_WALK_RUN_TRANSITION_BAND } from './normativeGait';
 
 /** Leg length (m) the literature bands below are quoted for. */
 export const NORMATIVE_RUN_REF_LEG_M = 0.9;
@@ -63,13 +63,19 @@ export function scaleCadenceToLeg(cadenceSpm: number, legM: number): number {
 }
 
 /**
- * THE ONE PHYSICALLY DISCRETE BOUNDARY. Below this dimensionless speed a walk's
- * inverted-pendulum vault is completable and humans walk; above it they run.
- * Preferred-transition Froude clusters ~0.45-0.50 across the literature; the
- * engine takes the lower edge so a motion that CLAIMS to run must clear the
- * whole band, not sit inside its uncertainty.
+ * The dimensionless-speed floor for running: below this a walk's inverted-pendulum
+ * vault is completable and humans walk.
+ *
+ * This is the LOWER edge of {@link FROUDE_WALK_RUN_TRANSITION_BAND}, imported
+ * rather than re-declared — the band is normativeGait's single declaration of the
+ * transition and the literature's ~0.45-0.50 spread lives there. Taking the lower
+ * edge here is deliberate: {@link isRunning} is CONJUNCTIVE (no double support,
+ * duty factor, flight phase, and this floor), so its job is only to exclude what
+ * is unambiguously not running; the conservative upper edge belongs to the
+ * REPORTING path (normativeGait's classifyFroude), which should not call a motion
+ * a run until it has cleared the whole band.
  */
-export const FROUDE_RUN_FLOOR = 0.45;
+export const FROUDE_RUN_FLOOR = FROUDE_WALK_RUN_TRANSITION_BAND[0];
 
 /** Duty factor at or above this is not running — it means both feet are on the
  *  ground at once somewhere in the cycle. Definitional, not stylistic. */

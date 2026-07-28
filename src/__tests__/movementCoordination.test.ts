@@ -23,6 +23,7 @@ import { captureJointAngleRestReference, type JointAngleRestReference } from '..
 import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, exportKinematics } from '../services/motionRecording';
 import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
+import { COORDINATION_SPECS, coordinationSpecFor, speccedTemplateIds } from '../services/coordinationSpecs';
 import {
   checkCoordination,
   type CoordinationSourceExport,
@@ -86,41 +87,15 @@ function mapTargets(m: ComposedMotion, key: string, x: Xform): ComposedMotion {
   };
 }
 
-// ── Specs (values grounded in measured rig kinematics) ───────────────────────
-const SQUAT: CoordinationSpec = {
-  name: 'squat',
-  ratios: [
-    { a: 'L_UpLeg.hipFlexion', b: 'L_Leg.kneeFlexion', ratio: 100 / 120, tolRel: 0.25 },
-    { a: 'R_UpLeg.hipFlexion', b: 'R_Leg.kneeFlexion', ratio: 100 / 120, tolRel: 0.25 },
-  ],
-  // Ratio is amplitude-only; pair with co-timing so hip+knee also flex together.
-  together: [
-    { a: 'L_UpLeg.hipFlexion', b: 'L_Leg.kneeFlexion', label: 'L hip+knee flex together' },
-    { a: 'R_UpLeg.hipFlexion', b: 'R_Leg.kneeFlexion', label: 'R hip+knee flex together' },
-  ],
-};
-const MARCH: CoordinationSpec = {
-  name: 'high-knee-march',
-  together: [
-    { a: 'R_UpLeg.hipFlexion', b: 'L_UpperArm.shoulderFlexion', label: 'R-step with L-arm' },
-    { a: 'L_UpLeg.hipFlexion', b: 'R_UpperArm.shoulderFlexion', label: 'L-step with R-arm' },
-  ],
-  apart: [
-    { a: 'R_UpLeg.hipFlexion', b: 'R_UpperArm.shoulderFlexion', label: 'R-step vs ipsilateral R-arm' },
-  ],
-};
-const STS: CoordinationSpec = {
-  name: 'sit-to-stand',
-  // Trunk FLEXION momentum (the lean) leads the hip EXTENSION to rise. Uses
-  // directional velocity landmarks — the trunk's most-positive (flexion) velocity
-  // before the hip's most-negative (extension) velocity — so it (a) is robust to
-  // out-and-back argmax noise, and (b) has NO landmark when the trunk doesn't
-  // lean, which correctly FAILS a lean-less rise.
-  order: [
-    { earlier: 'Spine_Lower.flexion', earlierAt: 'maxPosVel', later: 'L_UpLeg.hipFlexion', laterAt: 'maxNegVel', minLeadFrac: 0.05 },
-    { earlier: 'Spine_Lower.flexion', earlierAt: 'maxPosVel', later: 'R_UpLeg.hipFlexion', laterAt: 'maxNegVel', minLeadFrac: 0.05 },
-  ],
-};
+// ── Specs ────────────────────────────────────────────────────────────────────
+// These used to be declared HERE, which is why the whole coordination apparatus
+// never ran in production: the engine could measure, but the only things to
+// measure against lived in a test file. They now live in services/coordinationSpecs
+// and are imported, so this suite validates the SHIPPING specs against the real
+// rig rather than a private copy of them.
+const SQUAT = COORDINATION_SPECS['squat']!;
+const MARCH = COORDINATION_SPECS['high-knee-march']!;
+const STS = COORDINATION_SPECS['sit-to-stand']!;
 
 describe('compound templates exhibit natural inter-joint coordination (measured)', () => {
   it('squat: hip and knee flex in the authored ~100:120 ratio', () => {
@@ -188,5 +163,39 @@ describe('the checker REJECTS broken coordination', () => {
   it('a spec with no rules is NOT a vacuous accept', () => {
     expect(checkCoordination(exportOf(templateMotion('squat')), { name: 'empty' }).accepted).toBe(false);
     expect(checkCoordination(exportOf(templateMotion('squat')), { name: 'empty', order: [] }).accepted).toBe(false);
+  });
+});
+
+describe('the SHIPPING spec library (services/coordinationSpecs)', () => {
+  it('every specced id is a real movement template', () => {
+    for (const id of speccedTemplateIds()) {
+      expect(MOVEMENT_TEMPLATES.some((t) => t.id === id), `template "${id}" exists`).toBe(true);
+    }
+  });
+
+  it('every shipping spec passes on the template it describes', () => {
+    // The library-level version of the three cases above: whatever is IN the
+    // library must hold on its own template, so a spec cannot be added without
+    // being true of the movement it claims to describe.
+    for (const id of speccedTemplateIds()) {
+      const res = checkCoordination(exportOf(templateMotion(id)), coordinationSpecFor(id)!);
+      expect(res.accepted, `${id}: ${res.reasons.join('; ')}`).toBe(true);
+    }
+  });
+
+  it('every shipping spec carries at least one rule (no vacuous entry)', () => {
+    for (const id of speccedTemplateIds()) {
+      const s = coordinationSpecFor(id)!;
+      const rules =
+        (s.ratios?.length ?? 0) + (s.order?.length ?? 0) + (s.together?.length ?? 0) + (s.apart?.length ?? 0);
+      expect(rules, `${id} has rules`).toBeGreaterThan(0);
+    }
+  });
+
+  it('an unspecced movement returns undefined — NOT CHECKED, never a silent pass', () => {
+    expect(coordinationSpecFor('cervical-rotation')).toBeUndefined();
+    expect(coordinationSpecFor('walk')).toBeUndefined();
+    expect(coordinationSpecFor(undefined)).toBeUndefined();
+    expect(coordinationSpecFor('not-a-template')).toBeUndefined();
   });
 });

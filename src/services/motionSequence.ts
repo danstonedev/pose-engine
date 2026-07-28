@@ -51,6 +51,7 @@ import {
 } from './movementCommand';
 import type { RomScenarioConstraints } from './romConstraints';
 import { rootOrientQuatTuple, type RootOrient, type RootTransform } from './rootMotion';
+import { clampTimeScale } from './motionConstants';
 import {
   deriveGaitStanceSchedule,
   GAIT_SCHEDULE_NOTE,
@@ -2237,7 +2238,7 @@ export function buildSequencePoses(
       });
     }
     if (residuals.length) {
-      const ts = Math.min(1.5, Math.max(0.4, resolved.modifiers?.timeScale ?? 1));
+      const ts = clampTimeScale(resolved.modifiers?.timeScale);
       const ramps = !resolved.loop && resolved.reps <= 1;
       let arriveMs = 0;
       for (let i = 0; i < poses.length; i += 1) {

@@ -63,7 +63,7 @@ import * as THREE from 'three';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import { POSE_SCHEMA_VERSION, type CustomPose } from '../types';
 import type { JointAngleReport, JointAngleRestReference } from './jointAngles';
-import { getRomFieldDefinition, getRomJointDefinition } from './romRegistry';
+import { getRomFieldDefinition, getRomJointDefinition, effectiveRomRange } from './romRegistry';
 import {
   getRomFieldConstraint,
   isInRomPainfulArc,
@@ -173,12 +173,7 @@ export function resolveCommandTarget(
   // Closed-chain (weight-bearing, planted) targets clamp to the field's larger
   // weightBearingMax on the positive side (ankle DF: ~35° WB vs ~20° open-chain).
   // A scenario constraint still tightens it below, so a reduced-DF fault holds.
-  const baseRange =
-    opts?.weightBearing &&
-    fieldDef.weightBearingMax != null &&
-    fieldDef.weightBearingMax > fieldDef.range.max
-      ? { ...fieldDef.range, max: fieldDef.weightBearingMax }
-      : fieldDef.range;
+  const baseRange = effectiveRomRange(fieldDef, { weightBearing: opts?.weightBearing });
   const effective = resolveAvailableRange(baseRange, constraint);
   const clamped = Math.max(effective.min, Math.min(effective.max, requested));
 

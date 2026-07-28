@@ -202,3 +202,60 @@ export function sampleMotionChain(
   }
   return out;
 }
+
+// ── Seam verdict (the production threshold set) ──────────────────────────────
+//
+// The metrics above measure; these decide. They live HERE, beside the metric
+// they judge, so a host never has to invent its own idea of "how big a seam is
+// too big" — the numbers and the measurement stay in one module.
+//
+// Calibrated from the chain suite's own observations: a correctly threaded seam
+// measures < 3 deg of joint jump and < 0.05 m of root translate, while a
+// deliberately broken root thread measures > 0.2 m. The thresholds sit above the
+// threaded case with headroom and well below the broken one, so ordinary
+// tween/measurement noise can never trip them.
+
+/** Max joint-angle jump (deg) a continuous seam may carry. Above this the body
+ *  visibly POPS between segments. */
+export const SEAM_JOINT_JUMP_MAX_DEG = 5;
+
+/** Max whole-body root translation (m) a continuous seam may carry. Above this
+ *  the body slides across the world between segments without walking there. */
+export const SEAM_ROOT_TRANSLATE_MAX_M = 0.1;
+
+/** Max whole-body root reorientation (deg) a continuous seam may carry. */
+export const SEAM_ROOT_ORIENT_MAX_DEG = 10;
+
+export interface SeamVerdict {
+  /** True when every measure is inside its threshold. */
+  continuous: boolean;
+  jointJumpDeg: number;
+  rootTranslateM: number;
+  rootOrientDeg: number;
+  /** Human-readable reasons, one per breached threshold (empty when continuous). */
+  reasons: string[];
+}
+
+/**
+ * Judge the seam between two consecutively played recordings.
+ *
+ * Both metrics are needed and neither implies the other: joint angles are ~0
+ * across a threaded seam BY CONSTRUCTION, so a dropped root thread snaps the
+ * whole body across the world while every joint reads continuous — which is
+ * exactly the defect a joint-only check cannot see.
+ */
+export function judgeSeam(a: MotionRecording, b: MotionRecording): SeamVerdict {
+  const jointJumpDeg = measureSeamContinuity(a, b);
+  const { translateM, orientDeg } = measureSeamRootDiscontinuity(a, b);
+  const reasons: string[] = [];
+  if (jointJumpDeg > SEAM_JOINT_JUMP_MAX_DEG) {
+    reasons.push(`joints jump ${jointJumpDeg.toFixed(1)}° at the seam (max ${SEAM_JOINT_JUMP_MAX_DEG}°)`);
+  }
+  if (translateM > SEAM_ROOT_TRANSLATE_MAX_M) {
+    reasons.push(`the body slides ${(translateM * 100).toFixed(0)} cm at the seam (max ${SEAM_ROOT_TRANSLATE_MAX_M * 100} cm)`);
+  }
+  if (orientDeg > SEAM_ROOT_ORIENT_MAX_DEG) {
+    reasons.push(`the body turns ${orientDeg.toFixed(0)}° at the seam (max ${SEAM_ROOT_ORIENT_MAX_DEG}°)`);
+  }
+  return { continuous: reasons.length === 0, jointJumpDeg, rootTranslateM: translateM, rootOrientDeg: orientDeg, reasons };
+}

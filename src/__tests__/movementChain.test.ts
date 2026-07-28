@@ -18,7 +18,14 @@ import { resolveComposedMotion, type ComposedMotion } from '../services/motionSe
 import { sampleComposedMotion, exportKinematics } from '../services/motionRecording';
 import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
 import { buildSignatureFromExport, driverKeysOf, scoreAgainstSignature } from '../services/movementSignature';
-import { sampleMotionChain, measureSeamContinuity, measureSeamRootDiscontinuity } from '../services/movementChain';
+import {
+  sampleMotionChain,
+  measureSeamContinuity,
+  measureSeamRootDiscontinuity,
+  judgeSeam,
+  SEAM_JOINT_JUMP_MAX_DEG,
+  SEAM_ROOT_TRANSLATE_MAX_M,
+} from '../services/movementChain';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
@@ -169,5 +176,54 @@ describe('a refused segment does not crash or silently pass the chain', () => {
     // The third segment still ran (continuing from the first OK segment), not crashed.
     expect(segs[2]!.status).toBe('ok');
     expect(segs[2]!.recording.frames.length).toBeGreaterThan(0);
+  });
+});
+
+describe('judgeSeam — the production verdict over the seam metrics', () => {
+  it('a correctly threaded chain seam is continuous', () => {
+    const chained = sampleMotionChain([templateMotion('shoulder-flexion-elevation'), templateMotion('cervical-rotation')], harness());
+    const verdict = judgeSeam(chained[0]!.recording, chained[1]!.recording);
+    expect(verdict.continuous, verdict.reasons.join('; ')).toBe(true);
+    expect(verdict.reasons).toEqual([]);
+  });
+
+  it('thresholds sit above the threaded case and below the broken one', () => {
+    // The gap this verdict lives in: tween/measurement noise must never trip it,
+    // and a genuinely dropped thread must always trip it.
+    expect(SEAM_JOINT_JUMP_MAX_DEG).toBeGreaterThan(3);
+    expect(SEAM_ROOT_TRANSLATE_MAX_M).toBeGreaterThan(0.05);
+    expect(SEAM_ROOT_TRANSLATE_MAX_M).toBeLessThan(0.2);
+  });
+
+  it('catches a ROOT-only break that every joint angle reads as continuous', () => {
+    // The defect a joint-only check cannot see. Start from a properly THREADED
+    // chain (so the joints genuinely continue across the seam) and break only the
+    // root of the second segment's first frame.
+    const chained = sampleMotionChain(
+      [templateMotion('shoulder-flexion-elevation'), templateMotion('cervical-rotation')],
+      harness(),
+    );
+    const a = chained[0]!.recording;
+    const b = chained[1]!.recording;
+    const slid: typeof b = {
+      ...b,
+      frames: b.frames.map((f, i) =>
+        i === 0
+          ? {
+              ...f,
+              root: {
+                ...f.root,
+                translateM: [f.root.translateM[0] + 1.5, f.root.translateM[1], f.root.translateM[2]] as [number, number, number],
+              },
+            }
+          : f,
+      ),
+    };
+    const verdict = judgeSeam(a, slid);
+    expect(verdict.continuous).toBe(false);
+    expect(verdict.rootTranslateM).toBeGreaterThan(SEAM_ROOT_TRANSLATE_MAX_M);
+    expect(verdict.reasons.join(' ')).toMatch(/slides/);
+    // …and the joint metric alone would have called this seam fine.
+    expect(verdict.jointJumpDeg).toBeLessThan(SEAM_JOINT_JUMP_MAX_DEG);
   });
 });

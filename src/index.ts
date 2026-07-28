@@ -46,6 +46,11 @@ export * from './services/limbAxisModel';
 export * from './services/movementClipSampling';
 export * from './services/movementClips';
 
+// Shared motion-playback tuning — the time-scale domain both the engine's
+// resolve/playback path and the hosts' instruction parsers must agree on.
+// Exported so a host clamps with the ENGINE's bounds instead of copying them.
+export * from './services/motionConstants';
+
 // Named basic-motion commands (simLAB A2) — the clip-driven sibling of the
 // exam movement layer: "walk" / "sit" / "stand" motion vocabulary, per-motion
 // metadata (kind / loop / speed), command resolution, and the asset-ingestion
@@ -97,6 +102,11 @@ export * from './services/movementSignature';
 // recording, so natural coordination (squat hip:knee ratio, march reciprocal
 // arm/leg, sit-to-stand flexion-momentum-before-extension) can be gated.
 export * from './services/movementCoordination';
+
+// The authored coordination relations themselves, keyed by movement-template id.
+// movementCoordination ships the measuring apparatus; without these it had
+// nothing in production to measure against and never ran outside the tests.
+export * from './services/coordinationSpecs';
 
 // Foot contact / IK plant (simMOVE Phase 3) — closed-chain ground contact for
 // travel: pin a stance foot to a world target via the leg CCD IK so it stays put

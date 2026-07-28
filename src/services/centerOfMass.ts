@@ -146,6 +146,11 @@ const TOE_AHEAD_M = 0.03; // toe tip ~3 cm ahead of the toe-base bone
  *  tolerating a moderate heel-raise (ankle up, forefoot still planted). */
 const CONTACT_BAND_M = 0.05;
 
+/** Half-width (m) of the forefoot patch a heel-lifted foot contributes. Narrower
+ *  than the full sole on purpose — standing on the ball of one foot IS a smaller
+ *  base, and the margin of stability should say so. */
+const FOREFOOT_HALF_M = 0.045;
+
 /** The foot bones that bound each foot's sole (ankle → forefoot). */
 const FEET: { key: string; foot: string; toe: string }[] = [
   { key: 'L_Foot', foot: 'L_Foot', toe: 'L_Toes' },
@@ -320,23 +325,66 @@ export function marginOfStability(
   return signedDistToConvex(comGround, base.polygon);
 }
 
-/** Build the base of support from the bearing feet (those flagged `contact`).
- *  Feet's soles are unioned and convex-hulled. Airborne when none bear weight. */
-export function baseOfSupport(feet: FootContactXZ[], floorY: number): BaseOfSupport {
-  const bearing = feet.filter((f) => f.contact);
-  if (bearing.length === 0) {
+/** A bearing NON-FOOT contact — a hand or a knee/shin resting on the floor. Feet
+ *  contribute a full sole footprint ({@link FootContactXZ}); everything else
+ *  contributes a small square patch around its bone. */
+export interface GroundContactXZ {
+  key: string;
+  /** World [x, z] of the contact bone. */
+  xz: [number, number];
+  /** Half-width of the square patch this contact contributes, meters. */
+  half: number;
+  contact: boolean;
+}
+
+/** THE ONE polygon assembler: union the bearing patches and convex-hull them.
+ *  Both {@link baseOfSupport} and the live {@link collectBase} go through here so
+ *  the public API and the scored model cannot describe different shapes. */
+function baseFromPatches(
+  patches: { key: string; corners: [number, number][] }[],
+  floorY: number,
+): BaseOfSupport {
+  if (patches.length === 0) {
     return { polygon: [], center: [0, 0], floorY, contacts: [], airborne: true };
   }
   const pts: [number, number][] = [];
-  for (const f of bearing) pts.push(...footprintCorners(f.ankle, f.toe));
+  for (const p of patches) pts.push(...p.corners);
   const polygon = convexHull(pts);
   return {
     polygon,
     center: polygonCentroid(polygon),
     floorY,
-    contacts: bearing.map((f) => f.key),
+    contacts: patches.map((p) => p.key),
     airborne: false,
   };
+}
+
+/**
+ * Build the base of support from the bearing contacts — feet AND any bearing
+ * hands/knees. Soles and patches are unioned and convex-hulled; airborne when
+ * nothing bears weight. Which contacts bear weight is the CALLER's decision (the
+ * `contact` flag on each), because a caller that already knows its floor
+ * reference should not have it re-derived.
+ *
+ * `others` defaults to empty, which is the feet-only base. Passing it is what a
+ * plank / push-up / quadruped / kneel needs: this function used to be feet-only
+ * with no way to express those, so it returned a strictly NARROWER base than the
+ * engine's own live scoring path for exactly the postures where the difference
+ * decides whether the body reads as balanced or toppling.
+ */
+export function baseOfSupport(
+  feet: FootContactXZ[],
+  floorY: number,
+  others: readonly GroundContactXZ[] = [],
+): BaseOfSupport {
+  const patches: { key: string; corners: [number, number][] }[] = [];
+  for (const f of feet) {
+    if (f.contact) patches.push({ key: f.key, corners: footprintCorners(f.ankle, f.toe) });
+  }
+  for (const c of others) {
+    if (c.contact) patches.push({ key: c.key, corners: squareCorners(c.xz, c.half) });
+  }
+  return baseFromPatches(patches, floorY);
 }
 
 /** Non-foot contacts that also bear weight and widen the base of support in
@@ -373,10 +421,15 @@ function squareCorners(xz: [number, number], half: number): [number, number][] {
  *   • foot ankle down  → full sole footprint (heel→toe);
  *   • hand / knee down → its own small square (a hand placed on the floor; and,
  *                        as a fallback, quadruped/kneel when not skipped upstream).
- * A foot up on its toes only (heel-raise, tiptoe, a mid-swing/stepping foot) is
- * NOT a flat-foot base and does not contribute — feet-base balance is scored for
- * flat-footed standing postures; toe-only and floor postures are handled
- * elsewhere (the floor-posture skip in computeBalanceTimeline). Adding hands is
+ * A foot with its HEEL LIFTED but its forefoot down (a lunge's trail leg, a heel
+ * raise, push-off) contributes a FOREFOOT patch at the toe rather than the full
+ * sole — it is a smaller base than a flat foot, which is exactly right, but it is
+ * not NO base. This module used to drop such a foot entirely, because contact was
+ * decided on ankle height alone; the moment the lunge template was corrected to
+ * lift its rear heel, the trail leg vanished from the base and a perfectly stable
+ * split stance reported its CoM 17 cm outside support — a phantom topple in the
+ * clinical readout. A foot fully off the ground (mid-swing) still contributes
+ * nothing: its toe is above the band too. Adding hands is
  * what turns a hand-on-floor stance from a phantom "COM outside the base" into
  * the broad base it really is. The floor is the lowest ANKLE only — its ~6 cm
  * rest height above the sole is the constant every threshold is calibrated to.
@@ -394,6 +447,7 @@ function collectBase(
       ankle: [a[0], a[2]] as [number, number],
       ankleY: a[1],
       toe: (t ? [t[0], t[2]] : [a[0], a[2]]) as [number, number],
+      toeY: t ? t[1] : a[1],
     };
   }).filter((f): f is NonNullable<typeof f> => f != null);
   const others = [...HAND_CONTACTS, ...KNEE_CONTACTS]
@@ -416,17 +470,19 @@ function collectBase(
   }
   const band = floorY + CONTACT_BAND_M;
 
-  const patches: { key: string; corners: [number, number][] }[] = [];
-  for (const f of feet) {
-    if (f.ankleY <= band) patches.push({ key: f.key, corners: footprintCorners(f.ankle, f.toe) });
-  }
-  for (const c of others) if (c.y <= band) patches.push({ key: c.key, corners: squareCorners(c.xz, c.half) });
-
-  if (patches.length === 0) return { polygon: [], center: [0, 0], floorY, contacts: [], airborne: true };
-  const pts: [number, number][] = [];
-  for (const p of patches) pts.push(...p.corners);
-  const polygon = convexHull(pts);
-  return { polygon, center: polygonCentroid(polygon), floorY, contacts: patches.map((p) => p.key), airborne: false };
+  // Contact is derived geometrically here (this overload owns the floor
+  // reference), then handed to the SAME assembler the public baseOfSupport uses.
+  return baseOfSupport(
+    feet.map((f) => ({
+      key: f.key,
+      ankle: f.ankle,
+      toe: f.toe,
+      ankleY: f.ankleY,
+      contact: f.ankleY <= band,
+    })),
+    floorY,
+    others.map((c) => ({ key: c.key, xz: c.xz, half: c.half, contact: c.y <= band })),
+  );
 }
 
 /**
@@ -473,8 +529,11 @@ export interface BalanceTimelineSource {
 }
 
 /** Upright groundingPosture labels that ARE feet-base-scored (everything else —
- *  sitting / plank / quadruped / kneeling / lying — is floor-supported and skipped). */
-const UPRIGHT_POSTURES = new Set(['standing', 'upright', 'squat']);
+ *  sitting / plank / quadruped / kneeling / lying — is floor-supported and skipped).
+ *
+ *  EXPORTED so a host deciding whether to statically score a recording reads the
+ *  SAME membership this module scores against, instead of re-declaring the set. */
+export const UPRIGHT_POSTURES: ReadonlySet<string> = new Set(['standing', 'upright', 'squat']);
 
 /** Is this frame statically supported by a non-feet base (seat/hands/knees)? Such
  *  a frame is not scored against the feet-only base — a margin there would be a

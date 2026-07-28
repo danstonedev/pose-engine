@@ -122,9 +122,17 @@ const checkById = (checks: ValidityCheck[], id: string): ValidityCheck | undefin
 const T = (id: string): ComposedMotion =>
   templateToComposedMotion(MOVEMENT_TEMPLATES.find((t) => t.id === id)!);
 
+// EVERY shipped template, derived from the library rather than hand-listed.
+// This suite has always been titled "every shipped template"; it sampled TWO of
+// them (walk, sit-to-stand) plus the locomotion builders, so twenty-three
+// clinician-authored movements carried no physical-validity gate at all while
+// the name asserted they did. Deriving the list means a template cannot be added
+// without being gated — the enumeration can no longer drift from the library.
 const SWEEP: { label: string; motion: ComposedMotion }[] = [
-  { label: 'walk (in-place template)', motion: T('walk') },
-  { label: 'sit-to-stand (template)', motion: T('sit-to-stand') },
+  ...MOVEMENT_TEMPLATES.map((t) => ({
+    label: `${t.id} (template)`,
+    motion: templateToComposedMotion(t),
+  })),
   { label: 'buildTravelWalk', motion: buildTravelWalk() },
   { label: 'buildTravelWalk(turn90)', motion: buildTravelWalk({ turnDeg: 90 }) },
   { label: 'buildRun', motion: buildRun() },
@@ -136,8 +144,60 @@ const SWEEP: { label: string; motion: ComposedMotion }[] = [
 
 // ── 1. All shipped templates pass ────────────────────────────────────────────
 
+/**
+ * KNOWN, UNFIXED defects in authored content — surfaced by widening this sweep
+ * from two templates to all of them.
+ *
+ * These are NOT exemptions. Each entry names the ONE check that template is
+ * currently allowed to fail; the test still asserts that nothing ELSE fails and
+ * that the measured value has not grown. So the defect cannot spread, cannot
+ * worsen, and cannot be quietly forgotten — and when one is fixed the entry goes
+ * stale and this suite says so, rather than silently passing.
+ *
+ * Every one of these needs a clinical decision about authored content (peak
+ * angles, phase timing, arm carriage), which is why they are recorded here
+ * instead of being patched into whatever makes the gate green.
+ */
+const KNOWN_TEMPLATE_FAILURES: Record<string, { check: string; maxMeasured: number; why: string }> = {
+  'forward-lunge': {
+    check: 'penetration',
+    maxMeasured: 0.13,
+    why:
+      'RESIDUAL split-stance geometry, improved from 16.4 cm by authoring the rear heel-lift (plantarflexed trail ankle + MTP extension, the same shape heel-raise uses). The remaining penetration is NOT an angle: sweeping trail plantarflexion -35..-50 moves it under a centimetre and toe extension not at all. The template creates its split from HIP ANGLE ALONE — the two feet are never separated in space — so the trail leg hangs from the same hips and cannot be both planted and at floor level. Trying to close it from the lead side makes it worse in a different way: dorsiflexing the planted lead ankle tilts the shin, the foot-pin lifts the root, and the whole trail leg leaves the ground (36 cm at the bottom), which trades this penetration for a false "CoM outside base" topple in balanceBaseOfSupport. The real fix is a split-stance root/foot offset so the trail foot is PLACED behind rather than swung there.',
+  },
+  kick: {
+    check: 'seam-jerk',
+    maxMeasured: 14,
+    why:
+      'A GENUINE one-frame root teleport, characterised: the root tracks smoothly at ~5 mm/frame through the recovery, then jumps 19.5 cm in a single 16.7 ms frame at t=1867 ms (frame 112 of 142, ~23 ms before the recover phase ends) and glides back to the origin over the next three frames. x moves -0.168 -> -0.018 while z moves -0.016 -> -0.141, so it is a discontinuity in the DERIVED root path, not a fast movement and not a measurement artifact. The gate is right to fail it; do NOT raise seamJerkMaxMs to make this green.\n' +
+      'TWO HYPOTHESES ELIMINATED. (1) Recovery timing: sweeping the recover phase 520/640/760/900 ms leaves the jerk at 13.1-13.9 and slightly WORSENS it. (2) The grounding crossfade (rootMotion deriveGroundingBlendSpans / GROUNDING_BLEND_MS) does not apply — it blends root-Y around POSTURE switches and the kick has none.\n' +
+      'REMAINING SUSPECT: the planted-foot root derivation. The kick is single-support throughout the strike and returns to double support at the end of recovery, so the most likely cause is the stance pin re-anchoring when the kicking foot lands, with no crossfade on the horizontal axes (the existing blend covers Y only). Next step is to trace which foot the pin anchors to across frames 110-115.',
+  },
+};
+
 describe('validity gate — every shipped template resolves + rig-samples to a non-fail verdict', () => {
   for (const { label, motion } of SWEEP) {
+    const templateId = label.endsWith(' (template)') ? label.slice(0, -' (template)'.length) : null;
+    const known = templateId ? KNOWN_TEMPLATE_FAILURES[templateId] : undefined;
+
+    if (known) {
+      it(`${label} → fails ONLY the known ${known.check} defect, and no worse`, () => {
+        const { resolved, rec } = sample(motion);
+        const report = assessValidity(resolved, rec.frames, { floorY });
+        const failed = report.checks.filter((c) => !c.pass && c.severity === 'fail');
+        expect(
+          failed.map((c) => c.id),
+          `${label} must fail ONLY ${known.check} — ${known.why}`,
+        ).toEqual([known.check]);
+        const measured = failed[0]!.measured;
+        expect(
+          Math.abs(measured),
+          `${label} ${known.check} must not worsen (was ${measured}, ceiling ${known.maxMeasured})`,
+        ).toBeLessThanOrEqual(known.maxMeasured);
+      });
+      continue;
+    }
+
     it(`${label} → overall !== 'fail'`, () => {
       const { resolved, rec } = sample(motion);
       const report = assessValidity(resolved, rec.frames, { floorY });

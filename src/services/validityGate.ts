@@ -47,7 +47,7 @@
  */
 import type { ResolvedComposedMotion } from './motionSequence';
 import { computeBalanceTimeline } from './centerOfMass';
-import { getRomFieldDefinition } from './romRegistry';
+import { getRomFieldDefinition, effectiveRomRange } from './romRegistry';
 import { measureLimbClearance, type Vec3 } from './limbClearance';
 
 // ── Report types ─────────────────────────────────────────────────────────────
@@ -218,8 +218,15 @@ const pct = (i: number, n: number): number => (n <= 1 ? 0 : round((i / (n - 1)) 
  * minus the opt-in flag. A gait / travelling / looping / ballistic / reoriented
  * / grounding-posture motion vaults or reorients its CoM by design, so the
  * static base test does not apply and the check is SKIPPED for it.
+ *
+ * EXPORTED because hosts must make the SAME call before they statically score a
+ * recording. simMOVE previously re-derived this from three of the seven
+ * conditions, so a motion with authored contacts, a floating (ballistic) stance,
+ * a >20° trunk tilt, or >5 cm of authored horizontal travel was skipped by this
+ * gate yet still statically scored host-side — surfacing exactly the false
+ * "the COM leaves the base of support" note the split was meant to prevent.
  */
-function isQuasiStaticMotion(r: ResolvedComposedMotion): boolean {
+export function isQuasiStaticMotion(r: ResolvedComposedMotion): boolean {
   if (r.loop === true || r.footDrivenTravel === true) return false;
   if (r.contacts?.length) return false; // scheduled gait plant — moving base
   for (const kf of r.keyframes) {
@@ -544,10 +551,15 @@ function checkRomViolation(
   let worstKf = 0;
   const nKf = resolved.keyframes.length;
   resolved.keyframes.forEach((kf, ki) => {
+    // A PLANTED keyframe is closed-chain, so its targets were clamped against the
+    // field's weight-bearing band (ankle DF ~35° WB vs ~20° open-chain). Asserting
+    // against the open-chain band alone accused the shipped squat template of a
+    // clamp bug for its perfectly legal 32° ankle. Same helper the clamp uses.
+    const weightBearing = kf.stance === 'planted';
     for (const t of kf.targets) {
       const def = getRomFieldDefinition(t.joint, t.motion);
       if (!def) continue; // no band to assert against — skip
-      const { min, max } = def.range;
+      const { min, max } = effectiveRomRange(def, { weightBearing });
       const over = t.clampedDegrees > max ? t.clampedDegrees - max : min - t.clampedDegrees;
       if (over > worstOver) {
         worstOver = over;

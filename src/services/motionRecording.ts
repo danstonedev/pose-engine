@@ -88,6 +88,7 @@ import {
 import { balanceCoordination } from './balanceCoordination';
 import type { RomScenarioConstraints } from './romConstraints';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
+import { clampTimeScale } from './motionConstants';
 export { stagedBlendWithBaseline };
 import { buildComposedTrajectory, buildLoopTrajectory } from './motionTrajectory';
 export { buildComposedTrajectory, buildLoopTrajectory };
@@ -580,7 +581,7 @@ export function sampleComposedMotion(
     }
   }
 
-  const timeScale = Math.min(1.5, Math.max(0.4, resolved.modifiers?.timeScale ?? 1));
+  const timeScale = clampTimeScale(resolved.modifiers?.timeScale);
   const startNeutral = resolved.startFrom === 'neutral';
   let prevPose: CustomPose =
     startNeutral ? baselinePose : opts.currentPose ?? baselinePose;
