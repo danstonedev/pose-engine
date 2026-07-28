@@ -11,7 +11,7 @@
  */
 
 import type { ComposedMotion } from './motionSequence';
-import { addSustainedTargets, antalgicLean } from './gaitModifiers';
+import { addSustainedTargets, antalgicLean, scaleArmSwing } from './gaitModifiers';
 
 // ─── Compensatory-fault taxonomy ────────────────────────────────────────────
 // A buildable set of movement FAULTS a clinician can request as a deviation to
@@ -32,7 +32,10 @@ export type CompensatoryFault =
   | 'hip-hike'
   | 'steppage'
   | 'vaulting'
-  | 'foot-drop';
+  | 'foot-drop'
+  | 'scissoring'
+  | 'festinating'
+  | 'crouch-gait';
 
 const sidePrefix = (side: 'left' | 'right') => (side === 'left' ? 'L_' : 'R_');
 
@@ -197,6 +200,80 @@ export function vaulting(motion: ComposedMotion, side: 'left' | 'right' = 'right
 }
 
 /**
+ * SCISSORING — the thighs ADDUCT past the midline so the knees cross, the
+ * hallmark of spastic diplegia. Always BILATERAL: it is a tone pattern, not a
+ * one-sided compensation, so unlike the other deviations it takes no `side`.
+ *
+ * Adduction is paired with internal rotation because the two travel together in
+ * the spastic pattern — adduction alone reads as a narrow base rather than a
+ * scissor.
+ */
+export function scissoring(motion: ComposedMotion, deg = 12): ComposedMotion {
+  const d = Math.max(0, Math.min(25, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  return addSustainedTargets(
+    motion,
+    ['L_', 'R_'].flatMap((p) => [
+      { joint: `${p}UpLeg`, motion: 'hipAbduction', deg: -d }, // − = adduction, toward the midline
+      { joint: `${p}UpLeg`, motion: 'hipRotation', deg: Math.round(d * 0.6) }, // + = internal
+    ]),
+  );
+}
+
+/**
+ * FESTINATING / PARKINSONIAN gait — a stooped trunk with damped arm swing.
+ *
+ * Only the POSTURAL half is authored here. The other half of the clinical
+ * picture — short shuffling steps whose cadence accelerates — is a change to
+ * stride length and TIMING, which belongs to the gait modifiers that reshape a
+ * built gait (paceGait / the step-length machinery), not to a sustained-target
+ * fault. Authoring a fake stoop and calling it festination would misrepresent
+ * what the mannequin is actually doing, so the shuffle is left to be composed
+ * on top rather than implied.
+ *
+ * Bilateral by nature, so no `side`.
+ */
+export function festinating(motion: ComposedMotion, deg = 15): ComposedMotion {
+  const d = Math.max(0, Math.min(30, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  // Arm swing damps toward (but not to) zero as the stoop deepens — a rigid
+  // 0 reads as a mannequin, and real Parkinsonian swing is reduced, not absent.
+  const swing = Math.max(0.15, 1 - d / 30);
+  return scaleArmSwing(
+    addSustainedTargets(motion, [
+      { joint: 'Spine_Upper', motion: 'flexion', deg: d },
+      { joint: 'Spine_Lower', motion: 'flexion', deg: Math.round(d * 0.4) },
+      { joint: 'Neck', motion: 'flexion', deg: Math.round(d * 0.5) },
+    ]),
+    swing,
+  );
+}
+
+/**
+ * CROUCH GAIT — sustained hip and knee FLEXION held through stance instead of
+ * extending, with the ankle in compensatory dorsiflexion. The classic CP
+ * presentation, and the mirror of {@link genuRecurvatum}: one knee never
+ * extends, the other extends past neutral.
+ *
+ * Bilateral when `side` is omitted, which is the usual presentation.
+ */
+export function crouchGait(motion: ComposedMotion, side?: 'left' | 'right', deg = 20): ComposedMotion {
+  const d = Math.max(0, Math.min(40, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  const legs = side ? [sidePrefix(side)] : ['L_', 'R_'];
+  return addSustainedTargets(
+    motion,
+    legs.flatMap((p) => [
+      { joint: `${p}UpLeg`, motion: 'hipFlexion', deg: d },
+      { joint: `${p}Leg`, motion: 'kneeFlexion', deg: d },
+      // The shin stays inclined over the foot — excess DF is what keeps a
+      // crouched body from toppling backward.
+      { joint: `${p}Foot`, motion: 'ankleFlexion', deg: Math.round(d * 0.5) },
+    ]),
+  );
+}
+
+/**
  * Apply a named compensatory fault to a motion. `compensated-trendelenburg` reuses
  * {@link antalgicLean} (the trunk lean over the involved stance limb). `side` steers
  * the unilateral faults (circumduction, compensated-trendelenburg); knee-valgus and
@@ -229,6 +306,12 @@ export function applyFault(
       return vaulting(motion, side ?? 'right', deg);
     case 'foot-drop':
       return footDrop(motion, side ?? 'right', deg);
+    case 'scissoring':
+      return scissoring(motion, deg);
+    case 'festinating':
+      return festinating(motion, deg);
+    case 'crouch-gait':
+      return crouchGait(motion, side, deg);
     default:
       return motion;
   }

@@ -168,7 +168,8 @@ const KNOWN_TEMPLATE_FAILURES: Record<string, { check: string; maxMeasured: numb
   kick: {
     check: 'seam-jerk',
     maxMeasured: 14,
-    why: 'root velocity discontinuity 13.1 m/s vs the 12 m/s human ceiling, at the recovery seam. Either the recovery needs more time or the ballistic class needs its own seam ceiling.',
+    why:
+      'root velocity discontinuity 13.1 m/s vs the 12 m/s human ceiling. HYPOTHESIS ELIMINATED: it is not the authored recovery timing — sweeping the recover phase 520/640/760/900 ms leaves the jerk at 13.1-13.9 and slightly WORSENS it, so lengthening the recovery is not the fix and should not be retried. The kick is in-place and ballistic, so a 13 m/s ROOT is implausible on its face; the remaining suspects are the foot-pin root derivation under a fast single-leg swing, or a seam ceiling that should scale with velocityClass rather than being one number for clinical and athletic motion alike.',
   },
 };
 

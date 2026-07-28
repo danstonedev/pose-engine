@@ -65,6 +65,9 @@ export {
   steppage,
   vaulting,
   footDrop,
+  scissoring,
+  festinating,
+  crouchGait,
   applyFault,
 } from './movementFaults';
 

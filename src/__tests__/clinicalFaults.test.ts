@@ -20,6 +20,9 @@ import {
   steppage,
   vaulting,
   footDrop,
+  scissoring,
+  festinating,
+  crouchGait,
   circumduction,
   applyFault,
   antalgicLean,
@@ -45,6 +48,18 @@ function peak(m: ComposedMotion, joint: string, motion: string): number {
   return best;
 }
 
+/** The value authored on a joint.motion in the FIRST keyframe that commands it —
+ *  the handle for measuring what a fault ADDED, as opposed to what the underlying
+ *  template already did. */
+function firstTarget(m: ComposedMotion, joint: string, motion: string): number {
+  for (const kf of m.keyframes) {
+    for (const t of kf.targets ?? []) {
+      if (t.joint === joint && t.motion === motion) return t.targetDegrees;
+    }
+  }
+  return 0;
+}
+
 const has = (m: ComposedMotion, joint: string, motion: string): boolean =>
   m.keyframes.some((kf) => (kf.targets ?? []).some((t) => t.joint === joint && t.motion === motion));
 
@@ -55,6 +70,9 @@ describe('every new fault survives the real resolve path', () => {
     ['steppage', 'high-stepping'],
     ['vaulting', 'stance-side vault'],
     ['foot-drop', 'dropped foot'],
+    ['scissoring', 'adducted crossing legs'],
+    ['festinating', 'stooped, damped swing'],
+    ['crouch-gait', 'flexed-knee crouch'],
   ];
 
   it.each(cases)('%s resolves cleanly on a walk', (fault) => {
@@ -153,5 +171,60 @@ describe('faults compose without erasing each other', () => {
     expect(peak(m, 'R_Foot', 'ankleFlexion')).toBeLessThan(0);
     expect(peak(m, 'Hips', 'lateralTilt')).not.toBe(0);
     expect(resolveComposedMotion(m).status).toBe('ok');
+  });
+});
+
+describe('the bilateral tone / posture patterns', () => {
+  it('scissoring ADDUCTS both hips toward the midline', () => {
+    const m = scissoring(walk(), 12);
+    expect(peak(m, 'L_UpLeg', 'hipAbduction')).toBeLessThan(0);
+    expect(peak(m, 'R_UpLeg', 'hipAbduction')).toBeLessThan(0);
+    expect(resolveComposedMotion(m).status).toBe('ok');
+  });
+
+  it('scissoring takes no side — it is a tone pattern, not a compensation', () => {
+    // applyFault must not let a stray side argument make it unilateral.
+    expect(JSON.stringify(applyFault(walk(), 'scissoring', 'left', 12))).toBe(
+      JSON.stringify(applyFault(walk(), 'scissoring', 'right', 12)),
+    );
+  });
+
+  it('crouch gait is the MIRROR of genu recurvatum at the knee', () => {
+    // One knee never extends; the other extends past neutral. The mirror is in
+    // the DELTA each fault applies, not in the composed peak — the walk already
+    // flexes the knee to 60 degrees, so both composed peaks are positive and
+    // comparing them would compare the template, not the faults.
+    const base = firstTarget(walk(), 'R_Leg', 'kneeFlexion');
+    const crouch = firstTarget(crouchGait(walk(), 'right', 20), 'R_Leg', 'kneeFlexion') - base;
+    const recurv =
+      firstTarget(applyFault(walk(), 'genu-recurvatum', 'right', 10), 'R_Leg', 'kneeFlexion') - base;
+    expect(crouch).toBeGreaterThan(0); // held in flexion
+    expect(recurv).toBeLessThan(0); // driven past neutral into extension
+    expect(Math.sign(crouch)).toBe(-Math.sign(recurv));
+  });
+
+  it('crouch gait holds hip AND knee flexion with compensatory dorsiflexion', () => {
+    const m = crouchGait(walk(), undefined, 20);
+    for (const p of ['L_', 'R_']) {
+      expect(peak(m, `${p}UpLeg`, 'hipFlexion')).toBeGreaterThan(0);
+      expect(peak(m, `${p}Leg`, 'kneeFlexion')).toBeGreaterThan(0);
+      // The shin stays inclined — excess DF is what stops a crouch toppling back.
+      expect(peak(m, `${p}Foot`, 'ankleFlexion')).toBeGreaterThan(0);
+    }
+    expect(resolveComposedMotion(m).status).toBe('ok');
+  });
+
+  it('festinating stoops the trunk and DAMPS arm swing without abolishing it', () => {
+    const m = festinating(walk(), 15);
+    expect(peak(m, 'Spine_Upper', 'flexion')).toBeGreaterThan(peak(walk(), 'Spine_Upper', 'flexion'));
+    const before = Math.abs(peak(walk(), 'R_UpperArm', 'shoulderFlexion'));
+    const after = Math.abs(peak(m, 'R_UpperArm', 'shoulderFlexion'));
+    expect(after).toBeLessThan(before); // reduced…
+    expect(after).toBeGreaterThan(0); // …but not a frozen mannequin
+  });
+
+  it('the deepest festination still leaves some swing', () => {
+    const m = festinating(walk(), 30);
+    expect(Math.abs(peak(m, 'R_UpperArm', 'shoulderFlexion'))).toBeGreaterThan(0);
   });
 });
