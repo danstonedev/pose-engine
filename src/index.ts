@@ -46,6 +46,11 @@ export * from './services/limbAxisModel';
 export * from './services/movementClipSampling';
 export * from './services/movementClips';
 
+// Shared motion-playback tuning — the time-scale domain both the engine's
+// resolve/playback path and the hosts' instruction parsers must agree on.
+// Exported so a host clamps with the ENGINE's bounds instead of copying them.
+export * from './services/motionConstants';
+
 // Named basic-motion commands (simLAB A2) — the clip-driven sibling of the
 // exam movement layer: "walk" / "sit" / "stand" motion vocabulary, per-motion
 // metadata (kind / loop / speed), command resolution, and the asset-ingestion

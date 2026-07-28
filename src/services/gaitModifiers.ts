@@ -30,6 +30,7 @@ import type {
   SequenceTarget,
 } from './motionSequence';
 import { NORMAL_GAIT_VERTICAL_CM } from './gaitConstants';
+import { clampTimeScale } from './motionConstants';
 
 /**
  * CALIBRATE a gait's vertical COM excursion to a centimetre target.
@@ -93,7 +94,7 @@ const GAIT_STRIDE_MOTIONS = new Set(['hipFlexion', 'kneeFlexion', 'ankleFlexion'
  * without a stride (squat, reach) should just use `timeScale`.
  */
 export function paceGait(motion: ComposedMotion, speed: number): ComposedMotion {
-  const s = Math.min(1.5, Math.max(0.4, Number.isFinite(speed) ? speed : 1));
+  const s = clampTimeScale(speed);
   const f = Math.sqrt(s); // even stride/cadence split so stride × cadence = speed
   const keyframes = motion.keyframes.map((kf) => ({
     ...kf,
@@ -645,7 +646,7 @@ export function spinalGaitCoordination(
   // Playback pace: paceGait expresses a faster walk as `timeScale` (durations are
   // divided by it downstream), so the authored keyframe spacing alone understates
   // how fast the arm actually swings. Folded into the wrist-drag velocity below.
-  const paceMul = Math.min(1.5, Math.max(0.4, typeof tsMod === 'number' && Number.isFinite(tsMod) ? tsMod : 1));
+  const paceMul = clampTimeScale(tsMod);
   const headStab =
     Math.max(0, Math.min(1, opts.headStabilize ?? 1)) *
     Math.max(HEADSTAB_ENERGY_FLOOR, 1 - HEADSTAB_ENERGY_RELAX * dE);

@@ -42,6 +42,7 @@ import * as THREE from 'three';
 import type { CustomPose } from '../types';
 import { POSE_SCHEMA_VERSION } from '../types';
 import { trajectoryBoneDelay } from './motionStagger';
+import { clampTimeScale } from './motionConstants';
 
 /** One waypoint of the motion: an absolute pose + root state at an absolute time. */
 export interface TrajectoryKnot {
@@ -801,7 +802,7 @@ export function buildLoopTrajectory(
 ): LoopTrajectory {
   const { timeScale } = opts;
   const n = built.poses.length;
-  const ts = Math.min(1.5, Math.max(0.4, timeScale || 1));
+  const ts = clampTimeScale(timeScale);
   // Per-cycle segment durations (travel INTO each keyframe) and dwells, scaled
   // and floored so the time-warp never divides by zero.
   const dur = built.durationsMs.map((d) => Math.max(1e-3, (d ?? 0) / ts));

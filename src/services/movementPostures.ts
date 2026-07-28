@@ -292,7 +292,7 @@ function squatCompensation(dfCap: number): {
   su: number;
   arm: number;
 } {
-  const df = Math.max(0, Math.min(35, dfCap));
+  const df = clampSquatDorsiflexionCap(dfCap);
   // Forward CoM shift (cm) needed for a safe margin, as a linear function of the DF
   // deficit. CALIBRATED on the real balanceBaseOfSupport harness (fresh GLB per df,
   // reset pos+quat only). Measured minMargin sweep with these constants:
@@ -317,6 +317,23 @@ function squatCompensation(dfCap: number): {
   const sl = 27 + dLum; // ≤ 60 (verified Spine_Lower flexion max 60)
   const su = Math.min(40, 10 + 0.9 * dLum); // thoracic rides at 0.9× (≤ 40, verified)
   return { hip, knee: 120, ankle: df, sl, su, arm: 60 };
+}
+
+/** Floor of {@link buildSquat}'s weight-bearing dorsiflexion domain. ZERO is a
+ *  legitimate clinical ask (a fused or fully blocked ankle) — the compensation
+ *  solver models it, and the resulting backward loss of balance IS the finding. */
+export const SQUAT_DF_CAP_MIN_DEG = 0;
+
+/** Ceiling of {@link buildSquat}'s weight-bearing dorsiflexion domain. */
+export const SQUAT_DF_CAP_MAX_DEG = 35;
+
+/** Clamp a requested weight-bearing DF cap into buildSquat's real domain.
+ *  EXPORTED because hosts report the cap the builder actually received: simMOVE's
+ *  instruction parser used to re-inline these bounds with a 4° floor, so an ask
+ *  below 4° was silently rewritten AND the on-screen readout asserted a domain
+ *  the builder does not have. */
+export function clampSquatDorsiflexionCap(requested: number): number {
+  return Math.max(SQUAT_DF_CAP_MIN_DEG, Math.min(SQUAT_DF_CAP_MAX_DEG, requested));
 }
 
 /**

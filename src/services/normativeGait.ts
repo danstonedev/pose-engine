@@ -334,8 +334,30 @@ export function froudeNumber(speedMps: number, legLengthM: number): number {
 
 /** Comfortable free-speed walk target (~preferred walking speed) [Fr≈0.25]. */
 export const FROUDE_WALK_TARGET = 0.25;
-/** Empirical walk→run transition (dynamic gait change) [Fr≈0.5]. */
-export const FROUDE_WALK_RUN_TRANSITION = 0.5;
+
+/**
+ * THE walk→run transition BAND `[lo, hi]` — the single declaration of where the
+ * inverted-pendulum vault stops being completable. The preferred-transition
+ * Froude clusters ~0.45–0.50 across the literature; that spread is real
+ * measurement uncertainty, not a value anyone has pinned down, so the engine
+ * carries the BAND and names both edges rather than pretending to one number.
+ *
+ * The two consumers deliberately read DIFFERENT edges, and that asymmetry is the
+ * point — it used to be an accident, with each module declaring its own constant
+ * and each docstring claiming to own "the" boundary:
+ *   • {@link classifyFroude} labels `run-regime` at the UPPER edge — a report
+ *     should not call a motion a run until it has cleared the whole band.
+ *   • {@link ./normativeRun.FROUDE_RUN_FLOOR} gates at the LOWER edge — it is one
+ *     of four conjunctive tests (no double support, duty factor, flight phase),
+ *     so it only has to exclude motions that are unambiguously NOT running.
+ * A motion between the edges is therefore "a fast walk that satisfies the
+ * kinematic definition of running", which is an honest description of Fr≈0.47.
+ */
+export const FROUDE_WALK_RUN_TRANSITION_BAND: NormativeBand = [0.45, 0.5];
+
+/** Upper edge of {@link FROUDE_WALK_RUN_TRANSITION_BAND} — the conservative
+ *  point above which a motion is REPORTED as being in the run regime. */
+export const FROUDE_WALK_RUN_TRANSITION = FROUDE_WALK_RUN_TRANSITION_BAND[1];
 /** Theoretical inverted-pendulum walking ceiling [Fr≈1.0]. */
 export const FROUDE_WALK_CEILING = 1.0;
 

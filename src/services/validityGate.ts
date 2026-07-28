@@ -218,8 +218,15 @@ const pct = (i: number, n: number): number => (n <= 1 ? 0 : round((i / (n - 1)) 
  * minus the opt-in flag. A gait / travelling / looping / ballistic / reoriented
  * / grounding-posture motion vaults or reorients its CoM by design, so the
  * static base test does not apply and the check is SKIPPED for it.
+ *
+ * EXPORTED because hosts must make the SAME call before they statically score a
+ * recording. simMOVE previously re-derived this from three of the seven
+ * conditions, so a motion with authored contacts, a floating (ballistic) stance,
+ * a >20° trunk tilt, or >5 cm of authored horizontal travel was skipped by this
+ * gate yet still statically scored host-side — surfacing exactly the false
+ * "the COM leaves the base of support" note the split was meant to prevent.
  */
-function isQuasiStaticMotion(r: ResolvedComposedMotion): boolean {
+export function isQuasiStaticMotion(r: ResolvedComposedMotion): boolean {
   if (r.loop === true || r.footDrivenTravel === true) return false;
   if (r.contacts?.length) return false; // scheduled gait plant — moving base
   for (const kf of r.keyframes) {

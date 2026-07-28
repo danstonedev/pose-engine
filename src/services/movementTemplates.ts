@@ -74,6 +74,9 @@ export {
   buildStandFromSit,
   buildSeatedKneeExtension,
   buildSquat,
+  SQUAT_DF_CAP_MIN_DEG,
+  SQUAT_DF_CAP_MAX_DEG,
+  clampSquatDorsiflexionCap,
   buildGetDownToPlank,
   buildPushUp,
   buildStandFromPlank,
@@ -111,6 +114,9 @@ export {
   buildRun,
   buildTravelRun,
   buildSingleLegHop,
+  RUN_SPEED_MIN,
+  RUN_SPEED_MAX,
+  clampRunSpeed,
 } from './movementLocomotion';
 
 // The template vocabulary and the authored library live in movementTemplates.data.ts;
