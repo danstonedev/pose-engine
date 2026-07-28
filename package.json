@@ -15,7 +15,8 @@
     "check": "svelte-check",
     "test": "vitest run",
     "models:compress": "node scripts/compress-runtime-models.mjs",
-    "models:verify": "node scripts/verify-runtime-models.mjs"
+    "models:verify": "node scripts/verify-runtime-models.mjs",
+    "tune": "vite-node scripts/tune.ts"
   },
   "peerDependencies": {
     "svelte": "^5.0.0",
