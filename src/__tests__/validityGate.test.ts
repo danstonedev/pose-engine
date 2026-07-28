@@ -122,9 +122,17 @@ const checkById = (checks: ValidityCheck[], id: string): ValidityCheck | undefin
 const T = (id: string): ComposedMotion =>
   templateToComposedMotion(MOVEMENT_TEMPLATES.find((t) => t.id === id)!);
 
+// EVERY shipped template, derived from the library rather than hand-listed.
+// This suite has always been titled "every shipped template"; it sampled TWO of
+// them (walk, sit-to-stand) plus the locomotion builders, so twenty-three
+// clinician-authored movements carried no physical-validity gate at all while
+// the name asserted they did. Deriving the list means a template cannot be added
+// without being gated — the enumeration can no longer drift from the library.
 const SWEEP: { label: string; motion: ComposedMotion }[] = [
-  { label: 'walk (in-place template)', motion: T('walk') },
-  { label: 'sit-to-stand (template)', motion: T('sit-to-stand') },
+  ...MOVEMENT_TEMPLATES.map((t) => ({
+    label: `${t.id} (template)`,
+    motion: templateToComposedMotion(t),
+  })),
   { label: 'buildTravelWalk', motion: buildTravelWalk() },
   { label: 'buildTravelWalk(turn90)', motion: buildTravelWalk({ turnDeg: 90 }) },
   { label: 'buildRun', motion: buildRun() },
@@ -136,8 +144,61 @@ const SWEEP: { label: string; motion: ComposedMotion }[] = [
 
 // ── 1. All shipped templates pass ────────────────────────────────────────────
 
+/**
+ * KNOWN, UNFIXED defects in authored content — surfaced by widening this sweep
+ * from two templates to all of them.
+ *
+ * These are NOT exemptions. Each entry names the ONE check that template is
+ * currently allowed to fail; the test still asserts that nothing ELSE fails and
+ * that the measured value has not grown. So the defect cannot spread, cannot
+ * worsen, and cannot be quietly forgotten — and when one is fixed the entry goes
+ * stale and this suite says so, rather than silently passing.
+ *
+ * Every one of these needs a clinical decision about authored content (peak
+ * angles, phase timing, arm carriage), which is why they are recorded here
+ * instead of being patched into whatever makes the gate green.
+ */
+const KNOWN_TEMPLATE_FAILURES: Record<string, { check: string; maxMeasured: number; why: string }> = {
+  'forward-lunge': {
+    check: 'penetration',
+    maxMeasured: 0.18,
+    why: 'the REAR foot is not grounded through the descent — L_Toes sinks ~16 cm through the floor at the bottom. A grounding/contact authoring gap, not a clinical range choice.',
+  },
+  'trunk-side-bend': {
+    check: 'self-intersection',
+    maxMeasured: 0.13,
+    why: 'the hanging arm passes ~12 cm through the ipsilateral thigh at end-range side-bend. Needs a small arm abduction authored into the reach side (real people slide the hand down the leg, they do not pass through it).',
+  },
+  kick: {
+    check: 'seam-jerk',
+    maxMeasured: 14,
+    why: 'root velocity discontinuity 13.1 m/s vs the 12 m/s human ceiling, at the recovery seam. Either the recovery needs more time or the ballistic class needs its own seam ceiling.',
+  },
+};
+
 describe('validity gate — every shipped template resolves + rig-samples to a non-fail verdict', () => {
   for (const { label, motion } of SWEEP) {
+    const templateId = label.endsWith(' (template)') ? label.slice(0, -' (template)'.length) : null;
+    const known = templateId ? KNOWN_TEMPLATE_FAILURES[templateId] : undefined;
+
+    if (known) {
+      it(`${label} → fails ONLY the known ${known.check} defect, and no worse`, () => {
+        const { resolved, rec } = sample(motion);
+        const report = assessValidity(resolved, rec.frames, { floorY });
+        const failed = report.checks.filter((c) => !c.pass && c.severity === 'fail');
+        expect(
+          failed.map((c) => c.id),
+          `${label} must fail ONLY ${known.check} — ${known.why}`,
+        ).toEqual([known.check]);
+        const measured = failed[0]!.measured;
+        expect(
+          Math.abs(measured),
+          `${label} ${known.check} must not worsen (was ${measured}, ceiling ${known.maxMeasured})`,
+        ).toBeLessThanOrEqual(known.maxMeasured);
+      });
+      continue;
+    }
+
     it(`${label} → overall !== 'fail'`, () => {
       const { resolved, rec } = sample(motion);
       const report = assessValidity(resolved, rec.frames, { floorY });

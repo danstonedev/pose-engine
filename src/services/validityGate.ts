@@ -47,7 +47,7 @@
  */
 import type { ResolvedComposedMotion } from './motionSequence';
 import { computeBalanceTimeline } from './centerOfMass';
-import { getRomFieldDefinition } from './romRegistry';
+import { getRomFieldDefinition, effectiveRomRange } from './romRegistry';
 import { measureLimbClearance, type Vec3 } from './limbClearance';
 
 // ── Report types ─────────────────────────────────────────────────────────────
@@ -551,10 +551,15 @@ function checkRomViolation(
   let worstKf = 0;
   const nKf = resolved.keyframes.length;
   resolved.keyframes.forEach((kf, ki) => {
+    // A PLANTED keyframe is closed-chain, so its targets were clamped against the
+    // field's weight-bearing band (ankle DF ~35° WB vs ~20° open-chain). Asserting
+    // against the open-chain band alone accused the shipped squat template of a
+    // clamp bug for its perfectly legal 32° ankle. Same helper the clamp uses.
+    const weightBearing = kf.stance === 'planted';
     for (const t of kf.targets) {
       const def = getRomFieldDefinition(t.joint, t.motion);
       if (!def) continue; // no band to assert against — skip
-      const { min, max } = def.range;
+      const { min, max } = effectiveRomRange(def, { weightBearing });
       const over = t.clampedDegrees > max ? t.clampedDegrees - max : min - t.clampedDegrees;
       if (over > worstOver) {
         worstOver = over;

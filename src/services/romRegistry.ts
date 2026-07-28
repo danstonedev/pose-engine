@@ -340,6 +340,32 @@ export function getRomFieldDefinition(
   return ROM_FIELD_BY_ID.get(`${canonicalKey}.${fieldKey}`);
 }
 
+/**
+ * The ROM band that actually applies to a target, given whether the segment is
+ * WEIGHT-BEARING (closed chain).
+ *
+ * A planted foot reaches materially more dorsiflexion than a seated one — the
+ * shin advancing over the foot in a squat/lunge hits ~35° against the ~20°
+ * open-chain AROM — so a field may publish a larger `weightBearingMax`. Anything
+ * asking "is this angle inside its band?" has to make the same call, or a
+ * perfectly legal weight-bearing squat reads as an out-of-range violation.
+ *
+ * This rule used to live inline inside movementCommand's target resolution,
+ * which meant the CLAMP honoured weight-bearing and the validity GATE did not:
+ * the gate asserted against `range.max` alone and flagged the shipped squat
+ * template's authored 32° ankle as "resolution should have clamped this" — a
+ * false accusation of a bug in the clamp, produced by a second opinion about
+ * the band. One rule, both callers.
+ */
+export function effectiveRomRange(
+  def: Pick<RomFieldDefinition, 'range' | 'weightBearingMax'>,
+  opts: { weightBearing?: boolean } = {},
+): RomRangeDeg {
+  return opts.weightBearing && def.weightBearingMax != null && def.weightBearingMax > def.range.max
+    ? { ...def.range, max: def.weightBearingMax }
+    : def.range;
+}
+
 export function getRomPercent(value: number, range: RomRangeDeg): number {
   const span = range.max - range.min;
   if (!Number.isFinite(span) || Math.abs(span) < 1e-9) return 50;
