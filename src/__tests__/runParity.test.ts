@@ -112,10 +112,20 @@ function phaseClock(resolved: ReturnType<typeof resolveComposedMotion>): number[
   return arrive;
 }
 
+/** buildTravelRun's leading INITIATION keyframe — the entry that brings the body
+ *  into running form before the first contact. Every per-step index below is
+ *  offset by it; without the offset these read one keyframe early and measure the
+ *  entry as if it were a stride (it collapsed the first step's absorption yield
+ *  from ~25° to 0.4°, which is how this was caught). */
+const RUN_ENTRY_KEYFRAMES = 1;
+
 describe('buildTravelRun — shape of the plan', () => {
   it('is the run cycle ×2 + a closing touchdown — planted, non-looping, foot-driven, contact-pinned', () => {
     const m = buildTravelRun();
-    expect(m.keyframes.length).toBe(17); // 4 steps × (touchdown, absorb, toe-off, flight) + closing touchdown
+    // [0] initiation · 4 steps × (touchdown, absorb, toe-off, flight) · closing touchdown.
+    // The entry exists so the arms reach the run's ~85° carry BEFORE the first
+    // contact instead of snapping into it (see runInitiationKeyframe).
+    expect(m.keyframes.length).toBe(18);
     expect(m.loop ?? false).toBe(false);
     expect(m.stance).toBe('planted');
     expect(m.footDrivenTravel).toBe(true);
@@ -193,7 +203,7 @@ describe('buildTravelRun — measured on the rig', () => {
     // Per step i: flight-knot arrival = keyframe index 4i+3. Mid-flight (the
     // knot itself) must have both feet clearly off the floor.
     for (let i = 0; i < 4; i += 1) {
-      const f = frameAt(rec, arrive[4 * i + 3]!);
+      const f = frameAt(rec, arrive[RUN_ENTRY_KEYFRAMES + 4 * i + 3]!);
       const lo = Math.min(f.worldTracks!['L_Foot']![1], f.worldTracks!['R_Foot']![1]) - floor;
       // eslint-disable-next-line no-console
       console.log(`flight ${i}: lower-foot clearance ${(lo * 100).toFixed(1)} cm`);
@@ -214,9 +224,9 @@ describe('buildTravelRun — measured on the rig', () => {
     const arrive = phaseClock(resolved);
     // Steps 1 (lands L) and 2 (lands R) — mid-motion landings, entry/exit-free.
     for (const [step, side] of [[1, 'L'], [2, 'R']] as const) {
-      const contactMs = arrive[4 * step]!; // touchdown arrival
-      const absorbMs = arrive[4 * step + 1]!;
-      const toeOffMs = arrive[4 * step + 2]!; // the PUSH keyframe closes the stance
+      const contactMs = arrive[RUN_ENTRY_KEYFRAMES + 4 * step]!; // touchdown arrival
+      const absorbMs = arrive[RUN_ENTRY_KEYFRAMES + 4 * step + 1]!;
+      const toeOffMs = arrive[RUN_ENTRY_KEYFRAMES + 4 * step + 2]!; // the PUSH keyframe closes the stance
       expect(absorbMs - contactMs, 'absorption sub-phase sits at the engine floor (~150 ms) after contact').toBeLessThanOrEqual(160);
       const knees = kneeSeries(rec, side);
       const at = (t: number) => knees[rec.frames.indexOf(frameAt(rec, t))]!;
@@ -332,5 +342,49 @@ describe('buildRun — the in-place cycle carries the same absorption authoring'
       expect(flight!.root!.translateM![1]).toBeGreaterThan(push!.root!.translateM![1]!);
       expect(flight!.root!.translateM![1]).toBeGreaterThan(touchdown!.root!.translateM![1]!);
     }
+  });
+});
+
+describe('the run ENTERS running form instead of snapping into it', () => {
+  // The complaint this fixes was "the arm swings are awkward", and the arms were
+  // where it showed: the run's first keyframe used to BE a touchdown, so the body
+  // went from standing to full stride in one knot. The elbows carry ~85° through
+  // a run and start straight at the sides, so that whole excursion landed inside
+  // the first keyframe — measured on the rig, -1° to 81° in 117 ms, a peak of
+  // 1041°/s. Nothing refused it (the ballistic cap is 2000°/s); it just read as a
+  // flinch. The steady-state swing was already fine, which is why the fix is an
+  // entry and not a re-authoring of the stride.
+  it('brings the elbows into the carry without a snap', () => {
+    const { rec } = sampleTravelRun();
+    const frames = rec.frames;
+    const elbow = (i: number) => frames[i]!.angles?.R_Forearm?.elbowFlexion;
+
+    const first = elbow(0);
+    expect(typeof first, 'R elbow measured').toBe('number');
+    expect(Math.abs(first!), 'the run starts from straight arms').toBeLessThan(15);
+
+    let peak = 0;
+    for (let i = 1; i < frames.length; i += 1) {
+      const a = elbow(i - 1);
+      const b = elbow(i);
+      const dt = (frames[i]!.tMs - frames[i - 1]!.tMs) / 1000;
+      if (typeof a === 'number' && typeof b === 'number' && dt > 0) {
+        peak = Math.max(peak, Math.abs(b - a) / dt);
+      }
+    }
+    // Was 1041°/s with no entry; 444°/s with it. The bound is set between the two
+    // so this fails if the initiation is dropped, and does not pin the exact
+    // easing — a smoother entry is free to go lower.
+    expect(peak, `peak R elbow angular speed ${peak.toFixed(0)}°/s`).toBeLessThan(700);
+  });
+
+  it('is in the carry BEFORE the first contact, not during it', () => {
+    const { rec, resolved } = sampleTravelRun();
+    const arrive = phaseClock(resolved);
+    const firstContactMs = arrive[RUN_ENTRY_KEYFRAMES]!;
+    const f = frameAt(rec, firstContactMs);
+    const elbow = f.angles?.R_Forearm?.elbowFlexion ?? 0;
+    // The run carries ~85°; arriving at contact still near-straight is the defect.
+    expect(elbow, 'elbow is already carried at first contact').toBeGreaterThan(60);
   });
 });

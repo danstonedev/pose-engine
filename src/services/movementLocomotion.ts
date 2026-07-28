@@ -1038,6 +1038,61 @@ function runStepTiming(f: number, pattern: RunPattern = 'run'): RunStepTiming {
  *  after ITS push-off closes the step (so steps chain L/R seamlessly and the
  *  loop wrap flight→touchdown is the landing transition). Fresh objects per
  *  call. `s` is the speed request (stride amplitude and cadence each ∝ √s). */
+/**
+ * RUN INITIATION — get INTO running form before the first contact.
+ *
+ * Without this the run's first keyframe IS a touchdown, so the body enters at
+ * full stride from wherever it stood. The arms show it worst: they start straight
+ * at the sides and the run carries them at ~85° of elbow flexion, so the whole
+ * transition lands inside one keyframe. Measured on the rig, the elbow went from
+ * -1° to 81° in 117 ms — about 700°/s. That clears the ballistic velocity cap, so
+ * nothing refused it, and it still reads as a flinch rather than a runner setting
+ * off. A real run starts from a set: arms up into the carry, trunk into its lean,
+ * knees soft, lead leg loaded.
+ *
+ * Authored as ONE keyframe on purpose. The cost of an entry is that it delays
+ * first contact, and the run's stance windows and contacts are all offset by it
+ * (see buildTravelRun) — one knot buys a smooth arm rise without pushing the
+ * first stride far enough out to read as a pause.
+ */
+const RUN_INITIATION_MS = 300;
+
+function runInitiationKeyframe(s: number, pattern: RunPattern, lead: 'L' | 'R'): SequenceKeyframe {
+  const f = Math.sqrt(s);
+  const spec = RUN_PATTERNS[pattern];
+  const A = (deg: number) => Math.round(deg * f * spec.amplitude);
+  const trail: 'L' | 'R' = lead === 'L' ? 'R' : 'L';
+  return {
+    durationMs: RUN_INITIATION_MS,
+    // FUNCTIONAL, not ballistic: this is the one keyframe whose job is to be
+    // unhurried. Letting it run at the ballistic cap would permit exactly the
+    // snap it exists to remove.
+    velocityClass: 'functional',
+    stance: 'planted',
+    targets: [
+      // ARMS INTO THE CARRY. The elbows take up the run's 85° base here rather
+      // than during the first touchdown, and the shoulders split into the
+      // reciprocal attitude that touchdown expects — the arm OPPOSITE the
+      // landing leg forward.
+      { joint: `${trail}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: A(20) },
+      { joint: `${trail}_Forearm`, motion: 'elbowFlexion', targetDegrees: 85 },
+      { joint: `${lead}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: A(0) },
+      { joint: `${lead}_Forearm`, motion: 'elbowFlexion', targetDegrees: 85 },
+      // A SET, not a stride: knees soft and the lead leg beginning to load, so
+      // the first touchdown is reached from a runner's crouch rather than from
+      // an upright stand.
+      { joint: `${lead}_UpLeg`, motion: 'hipFlexion', targetDegrees: A(14) },
+      { joint: `${lead}_Leg`, motion: 'kneeFlexion', targetDegrees: A(28) },
+      { joint: `${lead}_Foot`, motion: 'ankleFlexion', targetDegrees: -4 },
+      { joint: `${trail}_UpLeg`, motion: 'hipFlexion', targetDegrees: A(-6) },
+      { joint: `${trail}_Leg`, motion: 'kneeFlexion', targetDegrees: A(24) },
+      { joint: `${trail}_Foot`, motion: 'ankleFlexion', targetDegrees: -2 },
+      // The trunk takes its running lean before the first step, not during it.
+      { joint: 'Spine_Lower', motion: 'flexion', targetDegrees: spec.trunkLeanDeg },
+    ],
+  };
+}
+
 function runStepKeyframes(land: 'L' | 'R', s: number, pattern: RunPattern = 'run'): SequenceKeyframe[] {
   const f = Math.sqrt(s);
   const spec = RUN_PATTERNS[pattern];
@@ -1221,7 +1276,14 @@ export function buildTravelRun(
   const f = Math.sqrt(s);
   const t = runStepTiming(f, pattern);
   const steps: ('L' | 'R')[] = ['R', 'L', 'R', 'L'];
-  const kfs: SequenceKeyframe[] = steps.flatMap((land) => runStepKeyframes(land, s, pattern));
+  // ENTRY (see runInitiationKeyframe): the body reaches running form BEFORE the
+  // first contact. Every ms-authored artifact below is offset by it, so the
+  // stance schedule and the keyframes stay on one clock.
+  const entryMs = RUN_INITIATION_MS;
+  const kfs: SequenceKeyframe[] = [
+    runInitiationKeyframe(s, pattern, steps[0]!),
+    ...steps.flatMap((land) => runStepKeyframes(land, s, pattern)),
+  ];
   // Closing touchdown (R): the final flight lands — a complete ballistic arc
   // and a grounded finish.
   kfs.push(runStepKeyframes('R', s, pattern)[0]!);
@@ -1240,8 +1302,10 @@ export function buildTravelRun(
   // between stances are handled by the derivation's bothAirborne hold.
   const windows = steps.map((land, i) => ({
     foot: `${land}_Foot`,
-    fromMs: i === 0 ? 0 : i * t.stepMs + t.touchMs,
-    toMs: i * t.stepMs + t.touchMs + t.absorbMs + t.pushMs,
+    // Window 0 still opens at 0 so its travel lock spans the initiation too —
+    // the body is planted through the entry and must not drift during it.
+    fromMs: i === 0 ? 0 : entryMs + i * t.stepMs + t.touchMs,
+    toMs: entryMs + i * t.stepMs + t.touchMs + t.absorbMs + t.pushMs,
     ...(i === 0 ? { travelLock: true } : {}),
   }));
   // FOOT-PLANT CONTACTS pin each stance foot from its LANDING (touchdown
@@ -1249,8 +1313,8 @@ export function buildTravelRun(
   // and pin it mid-air) until its toe-off. Flight phases carry no contact.
   const contacts: StanceContact[] = steps.map((land, i) => ({
     foot: `${land}_Foot`,
-    fromMs: i * t.stepMs + t.touchMs,
-    toMs: i * t.stepMs + t.touchMs + t.absorbMs + t.pushMs,
+    fromMs: entryMs + i * t.stepMs + t.touchMs,
+    toMs: entryMs + i * t.stepMs + t.touchMs + t.absorbMs + t.pushMs,
   }));
   // Healthy-asymmetry signature (roadmap 5.3): amplitude-only, so the authored
   // stance windows / contacts above stay byte-exact (see healthySignature.ts).

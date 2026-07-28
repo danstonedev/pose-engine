@@ -129,8 +129,15 @@ function measureRun(speed: number, pattern: 'jog' | 'run' | 'sprint' = 'run'): R
     acc += k.durationMs + (k.holdMs ?? 0);
     ends.push(acc);
   }
-  // Steady window: drop the first and last authored step.
-  const from = ends[Math.min(3, ends.length - 2)]!;
+  // Steady window: drop the ENTRY and the first and last authored step.
+  // buildTravelRun is [0] initiation · [1..] four 4-keyframe steps · closing
+  // touchdown, so the first steady knot is one initiation plus one step in. The
+  // entry is not gait — it is the body reaching running form from standing — and
+  // averaging stride time across it reads a jog's duty factor as a sprint's
+  // (measured: 0.41 -> 0.26, which is how this test caught the change).
+  const RUN_ENTRY_KEYFRAMES = 1;
+  const STEP_KEYFRAMES = 4;
+  const from = ends[Math.min(RUN_ENTRY_KEYFRAMES + STEP_KEYFRAMES - 1, ends.length - 2)]!;
   const to = ends[Math.max(0, ends.length - 4)]!;
   const steady = frames.filter((f) => f.tMs >= from && f.tMs <= to);
   const legM = frames[0]!.worldTracks!.Hips![1]! - floor0;

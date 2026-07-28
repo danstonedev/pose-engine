@@ -555,12 +555,23 @@ export interface ComposedMotion {
 
 // ── Limits (exported so hosts + tool schemas cite the same numbers) ─────────
 
-/** Most keyframes a composed motion may hold. Sized for MULTI-REP and
- *  multi-cycle movements, not just a single one: a jump is 6 keyframes, a gait
- *  cycle 8, so 12 (the old bound) refused "five vertical jumps" (30) and even
- *  two jumps. 48 covers ~8 jumps / 6 gait cycles / a long exercise set while
- *  still bounding an AI plan's size + token cost. */
-export const MAX_KEYFRAMES = 48;
+/** Most keyframes a composed motion may hold.
+ *
+ *  Sized for MULTI-REP and multi-cycle movements, not just a single one: a jump
+ *  is 6 keyframes, a gait cycle 8, a travel run 18. 12 (the original bound)
+ *  refused "five vertical jumps" (30) and even two jumps; 48 covered ~8 jumps or
+ *  6 gait cycles but still bound the thing that actually needs headroom, which is
+ *  DENSITY rather than length — the fix for a motion that reads badly is usually
+ *  more knots through the part that reads badly, and a builder should not have to
+ *  spend its budget deciding which roughness to leave in. 120 covers a ~10 s run
+ *  or a long exercise set at full density.
+ *
+ *  It is still a bound, and the reason is cost, not craft: this is the `maxItems`
+ *  on the compose tool's keyframe array, so it caps how large a single AI plan can
+ *  get in tokens and how long one resolve + rig-sample takes. Raising it does not
+ *  make a plan bigger — nothing generates keyframes to fill the budget — it only
+ *  stops the ceiling from being the reason a motion is coarse. */
+export const MAX_KEYFRAMES = 120;
 /** Most joint targets a single keyframe may hold. 58 covers a FULLY-COORDINATED gait
  *  keyframe: 6 legs + 4 arms (10 sagittal) + the spinal set (thoracic/lumbar rotation,
  *  spine + neck lateral tilt, neck gaze counter, the 3 PELVIS channels, + the 2 hip
