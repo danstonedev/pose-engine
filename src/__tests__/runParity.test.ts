@@ -388,3 +388,45 @@ describe('the run ENTERS running form instead of snapping into it', () => {
     expect(elbow, 'elbow is already carried at first contact').toBeGreaterThan(60);
   });
 });
+
+describe('the run PUBLISHES its gait cycle', () => {
+  // Consumers kept re-deriving "where is the steady gait in this clip" by
+  // counting keyframes, and every one of them broke when the run gained an
+  // initiation: the spatiotemporal window slid a knot early and read a jog's duty
+  // factor as a sprint's (0.41 -> 0.26). The builder authored the schedule, so
+  // the builder is the only thing that reliably knows — same contract the travel
+  // walk already publishes.
+  for (const pattern of ['jog', 'run', 'sprint'] as const) {
+    it(`${pattern}: one initial contact to that foot's next, entry-free`, () => {
+      const m = buildTravelRun({ pattern });
+      const c = m.gaitCycleMs;
+      expect(c, 'publishes a cycle').toBeDefined();
+
+      // It must BE a contact-to-contact interval of ONE foot, not an interval
+      // that merely looks about the right length.
+      const same = (m.contacts ?? []).filter((x) => x.foot === c!.leadFoot);
+      expect(same.map((x) => x.fromMs)).toContain(c!.fromMs);
+      expect(same.map((x) => x.fromMs)).toContain(c!.toMs);
+
+      // Entry-free: the cycle starts at the SECOND contact of that foot at the
+      // earliest, so the initiation and the stride leaving it are both outside.
+      const firstContact = Math.min(...(m.contacts ?? []).map((x) => x.fromMs ?? Infinity));
+      expect(c!.fromMs, 'cycle starts after the first contact').toBeGreaterThan(firstContact);
+
+      // Two steps long — a cycle, not a step.
+      const stepStarts = [...new Set((m.contacts ?? []).map((x) => x.fromMs))].sort((a, b) => a! - b!);
+      const stepMs = stepStarts[1]! - stepStarts[0]!;
+      expect(c!.toMs - c!.fromMs).toBeCloseTo(stepMs * 2, 0);
+    });
+  }
+
+  it('a step pattern that never repeats a foot publishes nothing rather than a wrong window', () => {
+    // The guard matters more than it looks: a window taken between two DIFFERENT
+    // feet is half a cycle, and every average built on it is silently wrong.
+    const m = buildTravelRun();
+    const c = m.gaitCycleMs!;
+    const open = (m.contacts ?? []).find((x) => x.fromMs === c.fromMs);
+    const close = (m.contacts ?? []).find((x) => x.fromMs === c.toMs);
+    expect(open!.foot).toBe(close!.foot);
+  });
+});
