@@ -43,6 +43,12 @@ const WITHIN_BAND_WARN_FRACTION = 0.5;
  *  clip's peak. Low on purpose: the job is to cut a standing hold (speed ~0), not
  *  to judge which parts of a gait are fast enough. */
 const MOVING_FRACTION_OF_PEAK = 0.1;
+/** A frame departing the opening pose by more than this (deg, any joint) has left
+ *  the ready-settle hold — the same onset bound trimRecordingLoopCycle uses. */
+const READY_SETTLE_ONSET_DEG = 6;
+/** Shorter apparent heads than this are ordinary first-frame motion, not a hold.
+ *  Guards the offline sampler, whose frame 0 IS the motion start. */
+const MIN_READY_SETTLE_MS = 100;
 
 /**
  * The distal bone + motion field carrying each sagittal joint's flexion in the
@@ -172,6 +178,57 @@ function jointSamples(
   return out;
 }
 
+/** Largest per-joint difference (deg) between two angle sets. */
+function maxAngleDepartureDeg(
+  a: Record<string, Record<string, number>>,
+  b: Record<string, Record<string, number>>,
+): number {
+  let max = 0;
+  for (const [joint, setA] of Object.entries(a)) {
+    const setB = b[joint];
+    if (!setB) continue;
+    for (const [field, va] of Object.entries(setA)) {
+      const vb = setB[field];
+      if (typeof va === 'number' && typeof vb === 'number') max = Math.max(max, Math.abs(va - vb));
+    }
+  }
+  return max;
+}
+
+/**
+ * How far into the FRAMES the motion actually starts, ms.
+ *
+ * `gaitCycleMs` is authored on the RESOLVED clock, where the motion begins at 0.
+ * A recording need not share that origin: simMOVE's live playback tap captures a
+ * standing ready-settle hold (~950 ms) ahead of the motion, so its frame times run
+ * roughly a second later than the resolved ones. Applying the window to those
+ * frames without correcting for the head selects the standing hold and the
+ * initiation instead of the gait — measured, a 250 ms head alone drops the knee
+ * from 0.67 within-band to 0.19 and Froude from 0.213 to 0.058, which is precisely
+ * the gap between what the offline suite reported and what the UI card showed.
+ *
+ * The head is found the way trimRecordingLoopCycle finds it: the first frame that
+ * departs the opening pose. Below {@link MIN_READY_SETTLE_MS} the answer is 0, so
+ * the offline sampler — whose frame 0 already IS the motion — is untouched.
+ */
+function readySettleHeadMs(frames: readonly GateFrame[]): number {
+  const first = frames[0];
+  if (!first?.angles) return 0;
+  // The motion starts at the END of the hold, not at the frame that has already
+  // moved 6° — returning the departing frame would shift the window late by however
+  // long the motion takes to clear the bound, which is a real fraction of a stride.
+  let lastStill = first.tMs;
+  for (const f of frames) {
+    if (!f.angles) continue;
+    if (maxAngleDepartureDeg(first.angles, f.angles) > READY_SETTLE_ONSET_DEG) {
+      const head = lastStill - first.tMs;
+      return head >= MIN_READY_SETTLE_MS ? head : 0;
+    }
+    lastStill = f.tMs;
+  }
+  return 0;
+}
+
 /**
  * The gait cycle to phase against, from the window the BUILDER published.
  *
@@ -184,10 +241,21 @@ function jointSamples(
  */
 function gaitCycleWindow(
   resolved: ResolvedComposedMotion,
+  frames: readonly GateFrame[],
 ): { fromMs: number; toMs: number; leadSide: 'L' | 'R' } | null {
   const c = resolved.gaitCycleMs;
   if (!c || !Number.isFinite(c.fromMs) || !Number.isFinite(c.toMs) || c.toMs <= c.fromMs) return null;
-  return { fromMs: c.fromMs, toMs: c.toMs, leadSide: c.leadFoot.startsWith('R') ? 'R' : 'L' };
+  const leadSide: 'L' | 'R' = c.leadFoot.startsWith('R') ? 'R' : 'L';
+  const head = readySettleHeadMs(frames);
+  const shifted = { fromMs: c.fromMs + head, toMs: c.toMs + head, leadSide };
+  // A shifted window running past the end means the head estimate is wrong for
+  // this recording; an unshifted window is the safer reading, and the frame-count
+  // guards downstream still skip if it selects too little.
+  const last = frames[frames.length - 1]?.tMs;
+  if (last != null && shifted.toMs > last) {
+    return { fromMs: c.fromMs, toMs: c.toMs, leadSide };
+  }
+  return shifted;
 }
 
 
@@ -231,7 +299,7 @@ export function runGaitBiomechChecks(
   // Prefer the builder-published gait cycle: it is exactly one cycle of steady
   // gait, so displacement ÷ duration over it IS the gait's speed. Without one,
   // fall back to trimming the stationary head and tail.
-  const cycle = gaitCycleWindow(resolved);
+  const cycle = gaitCycleWindow(resolved, frames);
   const moving = cycle
     ? (() => {
         const w = frames.filter((f) => f.tMs >= cycle.fromMs && f.tMs <= cycle.toMs);
@@ -309,7 +377,7 @@ export function runGaitBiomechChecks(
   // measurable is a gait-cycle window published by the builders (they author the
   // keyframes, so they know it) — until that exists, this stays silent rather than
   // wrong.
-  const cycleSpan = gaitCycleWindow(resolved);
+  const cycleSpan = cycle;
   if (!frames.some((f) => f.angles)) {
     skipped.push('normative joint curves — no measured joint angles in the frames');
   } else if (declaredRegime === 'run') {
