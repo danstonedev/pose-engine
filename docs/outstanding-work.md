@@ -239,6 +239,39 @@ never diagnosed.
 | #121 | Head protraction had no channel at all | 20° command → **1.32 cm** anterior, **0.00°** pitch |
 | #122 | The sagittal spine shipped four times too loud | total trunk pitch **11° → 3.5°** p2p |
 | #123 | The body passed through itself, and nothing measured volume | walk hand↔thigh **−2.85 → +2.77 cm**; sit-to-stand **−9.21 → −1.3 cm** (contact, not burial) |
+| #124 | The head slid fore-and-aft while the neck held it level | head carry **5.34 → 4.03 cm** (floor 2.70); trunk pitch **3.5 → 1.8°** |
+
+### Three reports, one missing gate each time
+
+The sagittal spine has now been damped twice, and both times **every
+per-segment band was green while the visible thing was wrong**. That is a
+pattern, not a coincidence: a per-part bound cannot catch a defect that lives in
+the whole.
+
+| reported | the number that was wrong | why segments missed it |
+|---|---|---|
+| "excess movement in the whole spine" | trunk pitch **11°** | lumbar + thoracic flex IN PHASE; the eye sees the SUM |
+| "cervical protraction/retraction" | head carry **5.34 cm** | a flexing trunk swings the head on a ~0.6 m lever; the neck cancels the PITCH but not the CARRY |
+
+The second is worth stating precisely because the channel named in the report was
+innocent: `Neck.protraction` measured **0.013°**. A fore/aft head slide simply
+*looks* like protraction. What produced it was the trunk.
+
+**Damping was the right lever and a cervical counter was not**, which is worth
+recording because the counter is the intuitive fix. Protraction moves the head
+only ~0.066 cm per degree (rig-measured: 20° carries it 1.32 cm), so undoing
+2.6 cm of carry would need ~40° against a ±20° band — and it would do it by
+ADDING the very cervical motion the report asked to quiet.
+
+There is a floor this authoring does not own: with the sagittal spine off
+entirely the walk still carries the head **2.70 cm** and the run **3.97 cm**,
+from pelvic tilt and the run's trunk lean. Both gates are bounded per gait
+against those floors rather than pretending to a single number.
+
+The "unless there is a lot of fatigue" behaviour already existed and needed
+nothing new: `headStab` releases with locomotor intensity
+(`HEADSTAB_ENERGY_RELAX`, floored at 85%), so the neck under-cancels as the gait
+gets harder — gaze stabilisation being the first thing a tiring walker loses.
 
 ### The class of defect nothing was measuring
 
