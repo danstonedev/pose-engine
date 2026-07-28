@@ -153,6 +153,33 @@ describe('runGaitBiomechChecks — normative kinematics on a gait-shaped motion'
     expect(otherSide.measured).toBe(clean.measured);
   });
 
+  it('is unaffected by a standing ready-settle head on the recording', () => {
+    // gaitCycleMs is authored on the RESOLVED clock, where the motion starts at 0.
+    // simMOVE's live playback tap does not share that origin — it records a
+    // standing hold (~950 ms) first — so an uncorrected window selects the hold and
+    // the initiation instead of the gait. That is not hypothetical: it is why the
+    // UI card read knee 0.33 while the offline suite read 0.67 on the same motion.
+    const { resolved, frames } = sample(buildTravelWalk());
+    const measured = (fs: readonly GateFrame[]) => {
+      const { checks } = runGaitBiomechChecks(resolved, fs);
+      return ['normative-kneeFlexion', 'normative-hipFlexion', 'normative-ankleFlexion', 'froude']
+        .map((id) => byId(checks, id)?.measured);
+    };
+    const baseline = measured(frames);
+    expect(baseline.every((v) => typeof v === 'number')).toBe(true);
+
+    const dt = 1000 / 60;
+    for (const headMs of [250, 950, 1500]) {
+      // A held opening pose, then the motion — one wall-clock timeline.
+      const head = Array.from({ length: Math.round(headMs / dt) }, (_, i) => ({
+        ...frames[0]!,
+        tMs: i * dt,
+      }));
+      const withHead = [...head, ...frames.map((f) => ({ ...f, tMs: f.tMs + headMs }))];
+      expect(measured(withHead), `${headMs} ms head changed the verdict`).toEqual(baseline);
+    }
+  });
+
   it('skips the walking normative curves for a motion that declares the run regime', () => {
     // Running kinematics genuinely differ from the bundled Winter/Perry WALKING
     // curves, so grading a run against them measures the walk/run difference and
