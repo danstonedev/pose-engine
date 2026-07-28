@@ -629,7 +629,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Forward lunge / split squat',
     aliases: ['lunge', 'split squat', 'forward lunge', 'stationary lunge'],
     coordination:
-      'Split stance: the LEAD hip and knee flex (~75°/90° at a 90°-knee bottom) while the TRAIL knee flexes ~90° with its hip near-neutral/slightly extended, and the trunk stays close to vertical. Shown with the right leg leading. Planted.',
+      'Split stance: the LEAD hip and knee flex (~75°/90° at a 90°-knee bottom) while the TRAIL knee flexes ~90° with its hip near-neutral/slightly extended, and the trunk stays close to vertical. The TRAIL HEEL LIFTS as the knee drops — the rear foot rolls onto its forefoot (ankle plantarflexes, MTP joints extend) and the toe stays down, the same shape the heel-raise template authors. Shown with the right leg leading. Planted.',
     stance: 'planted',
     phases: [
       {
@@ -641,6 +641,11 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 90 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 90 },
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: -10 },
+          // TRAIL foot: heel up, toe down. Without these the ankle held neutral and
+          // the rigid foot rotated with the flexing knee, driving the toes 16 cm
+          // THROUGH the floor — caught once the validity sweep covered this template.
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: -35 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 40 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 8 },
         ],
       },
@@ -652,6 +657,8 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
           { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
           { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 0 },
           { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
+          { joint: 'L_Toes', motion: 'toeFlexion', peakDeg: 0 },
           { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
         ],
       },
@@ -951,7 +958,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Trunk lateral flexion (side-bend AROM screen)',
     aliases: ['trunk side bend', 'side bend', 'lateral flexion', 'bend to the side', 'lateral trunk flexion', 'side-bend left and right'],
     coordination:
-      'Standing, pelvis level: side-bend the trunk left then right, sliding the hand down the thigh, through the lumbar then thoracic spine. AROM ~25° each way (frontal plane). Planted.',
+      'Standing, pelvis level: side-bend the trunk left then right, sliding the hand down the thigh, through the lumbar then thoracic spine. AROM ~25° each way (frontal plane). The hand on the bending side ABDUCTS slightly (~16°) so it slides down the OUTSIDE of the thigh — a real arm clears the leg it slides past. Planted.',
     stance: 'planted',
     phases: [
       {
@@ -961,6 +968,12 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 22 },
           { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 12 },
+          // Without this the arm hung at anatomic rest and the trunk tilted INTO
+          // it, driving the hand ~12 cm THROUGH the thigh — caught once the
+          // validity sweep covered this template. 16° clears with ~6 cm to spare;
+          // 12° is the floor (~2 cm) and it plateaus by 20°, so this is the small
+          // end of the range that actually reads as sliding past the leg.
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 16 },
         ],
       },
       {
@@ -969,6 +982,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 0 },
           { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 0 },
+          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
         ],
       },
       {
@@ -978,6 +992,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: -22 },
           { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: -12 },
+          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: 16 },
         ],
       },
       {
@@ -986,6 +1001,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
         targets: [
           { joint: 'Spine_Lower', motion: 'lateralTilt', peakDeg: 0 },
           { joint: 'Spine_Upper', motion: 'lateralTilt', peakDeg: 0 },
+          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
         ],
       },
     ],

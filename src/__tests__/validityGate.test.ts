@@ -161,13 +161,9 @@ const SWEEP: { label: string; motion: ComposedMotion }[] = [
 const KNOWN_TEMPLATE_FAILURES: Record<string, { check: string; maxMeasured: number; why: string }> = {
   'forward-lunge': {
     check: 'penetration',
-    maxMeasured: 0.18,
-    why: 'the REAR foot is not grounded through the descent — L_Toes sinks ~16 cm through the floor at the bottom. A grounding/contact authoring gap, not a clinical range choice.',
-  },
-  'trunk-side-bend': {
-    check: 'self-intersection',
     maxMeasured: 0.13,
-    why: 'the hanging arm passes ~12 cm through the ipsilateral thigh at end-range side-bend. Needs a small arm abduction authored into the reach side (real people slide the hand down the leg, they do not pass through it).',
+    why:
+      'RESIDUAL split-stance geometry, improved from 16.4 cm by authoring the rear heel-lift (plantarflexed trail ankle + MTP extension, the same shape heel-raise uses). The remaining penetration is NOT an angle: sweeping trail plantarflexion -35..-50 moves it under a centimetre and toe extension not at all. The template creates its split from HIP ANGLE ALONE — the two feet are never separated in space — so the trail leg hangs from the same hips and cannot be both planted and at floor level. Trying to close it from the lead side makes it worse in a different way: dorsiflexing the planted lead ankle tilts the shin, the foot-pin lifts the root, and the whole trail leg leaves the ground (36 cm at the bottom), which trades this penetration for a false "CoM outside base" topple in balanceBaseOfSupport. The real fix is a split-stance root/foot offset so the trail foot is PLACED behind rather than swung there.',
   },
   kick: {
     check: 'seam-jerk',

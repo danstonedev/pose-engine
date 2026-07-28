@@ -146,6 +146,11 @@ const TOE_AHEAD_M = 0.03; // toe tip ~3 cm ahead of the toe-base bone
  *  tolerating a moderate heel-raise (ankle up, forefoot still planted). */
 const CONTACT_BAND_M = 0.05;
 
+/** Half-width (m) of the forefoot patch a heel-lifted foot contributes. Narrower
+ *  than the full sole on purpose — standing on the ball of one foot IS a smaller
+ *  base, and the margin of stability should say so. */
+const FOREFOOT_HALF_M = 0.045;
+
 /** The foot bones that bound each foot's sole (ankle → forefoot). */
 const FEET: { key: string; foot: string; toe: string }[] = [
   { key: 'L_Foot', foot: 'L_Foot', toe: 'L_Toes' },
@@ -416,10 +421,15 @@ function squareCorners(xz: [number, number], half: number): [number, number][] {
  *   • foot ankle down  → full sole footprint (heel→toe);
  *   • hand / knee down → its own small square (a hand placed on the floor; and,
  *                        as a fallback, quadruped/kneel when not skipped upstream).
- * A foot up on its toes only (heel-raise, tiptoe, a mid-swing/stepping foot) is
- * NOT a flat-foot base and does not contribute — feet-base balance is scored for
- * flat-footed standing postures; toe-only and floor postures are handled
- * elsewhere (the floor-posture skip in computeBalanceTimeline). Adding hands is
+ * A foot with its HEEL LIFTED but its forefoot down (a lunge's trail leg, a heel
+ * raise, push-off) contributes a FOREFOOT patch at the toe rather than the full
+ * sole — it is a smaller base than a flat foot, which is exactly right, but it is
+ * not NO base. This module used to drop such a foot entirely, because contact was
+ * decided on ankle height alone; the moment the lunge template was corrected to
+ * lift its rear heel, the trail leg vanished from the base and a perfectly stable
+ * split stance reported its CoM 17 cm outside support — a phantom topple in the
+ * clinical readout. A foot fully off the ground (mid-swing) still contributes
+ * nothing: its toe is above the band too. Adding hands is
  * what turns a hand-on-floor stance from a phantom "COM outside the base" into
  * the broad base it really is. The floor is the lowest ANKLE only — its ~6 cm
  * rest height above the sole is the constant every threshold is calibrated to.
@@ -437,6 +447,7 @@ function collectBase(
       ankle: [a[0], a[2]] as [number, number],
       ankleY: a[1],
       toe: (t ? [t[0], t[2]] : [a[0], a[2]]) as [number, number],
+      toeY: t ? t[1] : a[1],
     };
   }).filter((f): f is NonNullable<typeof f> => f != null);
   const others = [...HAND_CONTACTS, ...KNEE_CONTACTS]
