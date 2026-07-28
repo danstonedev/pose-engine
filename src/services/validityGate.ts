@@ -100,6 +100,13 @@ export interface GateFrame {
   angles?: Record<string, Record<string, number>>;
 }
 
+/** What a biomech hook may return. The bare array is the original contract and
+ *  still works; the object form additionally reports checks the hook DECLINED to
+ *  run, so a biomech check that cannot validly measure a given motion lands in
+ *  `skipped` with its reason instead of either emitting a verdict it cannot
+ *  support or vanishing without a trace. */
+export type BiomechCheckResult = ValidityCheck[] | { checks: ValidityCheck[]; skipped?: string[] };
+
 /** The extension point the Workstream-A INTEGRATION fills — see the marked block
  *  in {@link assessValidity}. Returns extra checks (normativeGait RMS / Froude /
  *  vertical-CoM …) to fold into the same report. This module never implements it. */
@@ -107,7 +114,7 @@ export type BiomechCheckHook = (
   resolved: ResolvedComposedMotion,
   frames: readonly GateFrame[] | undefined,
   ctx: { floorY?: number },
-) => ValidityCheck[];
+) => BiomechCheckResult;
 
 export interface ValidityGateOptions {
   /** Known ground-plane world-Y (the rig's captured floor reference). Given, the
@@ -664,7 +671,10 @@ export function assessValidity(
   // the biomech curves — it only provides the hook + folds the results into the
   // one report. When no hook is given the gate records the gap in `skipped`.
   if (opts.runBiomechChecks) {
-    for (const c of opts.runBiomechChecks(resolved, frames, { floorY: opts.floorY })) checks.push(c);
+    const biomech = opts.runBiomechChecks(resolved, frames, { floorY: opts.floorY });
+    const got = Array.isArray(biomech) ? { checks: biomech, skipped: [] } : biomech;
+    for (const c of got.checks) checks.push(c);
+    for (const s of got.skipped ?? []) skipped.push(s);
   } else {
     skipped.push(
       'biomech (normativeGait RMS / Froude / vertical-CoM / Perry-timing) — no runBiomechChecks hook (Workstream A integration point)',

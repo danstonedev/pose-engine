@@ -316,6 +316,24 @@ export function buildTravelWalk(
   };
   const kfs: SequenceKeyframe[] = [initiation, ...cycle, terminationStep, terminationSettle];
 
+  // THE GAIT CYCLE inside this clip, authored ms (see ComposedMotion.gaitCycleMs).
+  // The layout is [0] initiation · [1..8] cycle · [9] braking step · [10] settle,
+  // and the window published here starts at the END of the cycle's FIRST keyframe
+  // — the step-off. That step is not steady gait: it leaves standing, reaches
+  // ~0.89 m against the ~0.81 m the walk settles into, and its hip over-flexes
+  // because the R contact window opens at t=0 while the authored pose still has
+  // that foot reaching, so the leg IK reconciles the two. Including it drags the
+  // whole comparison off (measured against the normative curves on the rig: knee
+  // 13.1° RMS including the step-off, 7.3° without). R leads — the initiation
+  // pins the R foot — and the normative curve belongs to the limb whose initial
+  // contact opens the cycle.
+  const cycleFromMs = kfs
+    .slice(0, 2)
+    .reduce((a, k) => a + k.durationMs + (k.holdMs ?? 0), 0);
+  const cycleToMs = kfs
+    .slice(0, 9)
+    .reduce((a, k) => a + k.durationMs + (k.holdMs ?? 0), 0);
+
   // STANCE SCHEDULE (authored ms): R bears through the initiation + the first
   // four cycle phases, L through the second four; the termination adds a final
   // R stance (the braking step) and, once the L lands beside it, a terminal
@@ -459,6 +477,8 @@ export function buildTravelWalk(
     // phase-locked to the SAME planned stance schedule the trunk absorb above
     // was authored against (and the travel derivation follows).
     lateralShuttleCm: GAIT_SHUTTLE_CM,
+    gaitRegime: 'walk',
+    gaitCycleMs: { fromMs: cycleFromMs, toMs: cycleToMs, leadFoot: 'R_Foot' },
     gaitStanceWindowsMs: windows.map((w) => ({
       foot: w.foot,
       fromMs: w.t0,
@@ -1244,6 +1264,7 @@ export function buildTravelRun(
     keyframes: kfs,
     footDrivenTravel: true,
     contacts,
+    gaitRegime: 'run',
     gaitStanceWindowsMs: windows,
   };
   // Distal energy (roadmap 5.4): same run intensity as the in-place buildRun.
