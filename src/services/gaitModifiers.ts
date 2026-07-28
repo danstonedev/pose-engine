@@ -273,9 +273,42 @@ const SPINE_LATERAL_MAX = 8; // trunk lateral-tilt cap (ROM ±25)
 // the lower-limb norms. But a convention should sit at the quiet end of a range
 // it cannot pin down, not the loud end — the failure mode of guessing high is
 // visible and wrong, and guessing low is merely subtle.
-const SPINE_SAGITTAL_LUMBAR_MAX = 1; // ⇒ ~2° p2p (ROM −25..60)
-const SPINE_SAGITTAL_THORACIC_MAX = 0.75; // ⇒ ~1.5° p2p (ROM −25..40)
-const SPINE_SAGITTAL_NECK_MAX = 1.75; // gaze counter, not an independent excursion
+// DAMPENED AGAIN (1.0/0.75 → 0.5/0.4), and for a different reason than the first
+// cut, which is the point worth recording. The first cut fixed the trunk's own
+// PITCH. This one fixes what that pitch does to the HEAD, which nothing was
+// measuring: a trunk that flexes carries the head forward on a ~0.6 m lever, so
+// the head slides fore-and-aft even while the neck's counter keeps it perfectly
+// level. Reported from the deployed build as cervical protraction/retraction —
+// which is exactly what a fore/aft head slide looks like, though the protraction
+// CHANNEL measured 0.013° and was innocent.
+//
+//   head fore/aft carry relative to the pelvis, travel walk, p2p
+//     sagittal spine OFF (the floor from pelvis tilt and trunk lean)   2.70 cm
+//     at 1.0 / 0.75 as shipped                                         5.34 cm
+//     at 0.5 / 0.4                                                     4.03 cm
+//
+// Damping is the right lever here and a cervical counter is not, which is worth
+// stating because the counter is the intuitive fix. Protraction moves the head
+// only ~0.066 cm per degree (rig-measured: 20° carries it 1.32 cm), so undoing
+// 2.6 cm of carry would need ~40° against a ±20° band — and it would do it by
+// ADDING the very cervical motion the report asked to quiet.
+//
+// The caps are HALF-excursions about neutral, so peak-to-peak is roughly double,
+// and what matters visually is LUMBAR + THORACIC: they flex in phase, so the
+// trunk's total pitch is their SUM and the head's carry follows that sum.
+//
+// Still declared conventions, not findings: trunk and cervical sagittal
+// excursions in walking are not standardised to anything like the precision of
+// the lower-limb norms. A convention should sit at the QUIET end of a range it
+// cannot pin down — guessing high is visibly wrong, guessing low is subtle.
+const SPINE_SAGITTAL_LUMBAR_MAX = 0.5; // ⇒ ~1° p2p (ROM −25..60)
+const SPINE_SAGITTAL_THORACIC_MAX = 0.4; // ⇒ ~0.8° p2p (ROM −25..40)
+// Sized to the SUM of the two above, so the neck cancels the trunk's pitch
+// completely at rest energy. It under-cancels as the gait gets harder — not by
+// a separate rule, but because `headStab` releases with locomotor intensity
+// (HEADSTAB_ENERGY_RELAX, floored at 85%), which is the fatigue behaviour a real
+// walker shows: gaze stabilisation is the first thing to go.
+const SPINE_SAGITTAL_NECK_MAX = 0.9; // gaze counter, not an independent excursion
 // Transverse pelvic-rotation cap (root yaw). Real free-gait pelvic rotation is ~±4°; 6°
 // leaves a little headroom for speed while staying in a natural range (a bigger pelvic
 // yaw reads as a twist/shimmy AND drags the planted foot, since the walk grounds the feet

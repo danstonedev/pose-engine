@@ -136,9 +136,9 @@ describe('the seven flat channels now move', () => {
     // where the real risk turned out to be.
     for (const g of ['walk', 'run'] as const) {
       const { rec } = sampled[g]!;
-      expect(p2p(chan(rec, 'Spine_Lower', 'flexion')), `${g} lumbar flexion`).toBeGreaterThan(1);
-      expect(p2p(chan(rec, 'Spine_Upper', 'flexion')), `${g} thoracic flexion`).toBeGreaterThan(0.7);
-      expect(p2p(chan(rec, 'Neck', 'flexion')), `${g} cervical flexion`).toBeGreaterThan(0.7);
+      expect(p2p(chan(rec, 'Spine_Lower', 'flexion')), `${g} lumbar flexion`).toBeGreaterThan(0.5);
+      expect(p2p(chan(rec, 'Spine_Upper', 'flexion')), `${g} thoracic flexion`).toBeGreaterThan(0.4);
+      expect(p2p(chan(rec, 'Neck', 'flexion')), `${g} cervical flexion`).toBeGreaterThan(0.4);
     }
   }, 300_000);
 
@@ -157,8 +157,38 @@ describe('the seven flat channels now move', () => {
       const excursion = p2p(trunk);
       // eslint-disable-next-line no-console
       console.log(`[${g}] TOTAL trunk sagittal excursion ${excursion.toFixed(2)}°`);
-      expect(excursion, `${g} trunk sagittal excursion`).toBeLessThan(5);
-      expect(excursion, `${g} trunk still moves sagittally`).toBeGreaterThan(1);
+      expect(excursion, `${g} trunk sagittal excursion`).toBeLessThan(2.5);
+      expect(excursion, `${g} trunk still moves sagittally`).toBeGreaterThan(0.5);
+    }
+  }, 300_000);
+
+  it('the HEAD does not slide fore-and-aft — the outcome, not the joint angles', () => {
+    // THE GATE THAT SHOULD HAVE EXISTED BEFORE EITHER AMPLITUDE CUT. Both were
+    // driven by reports of visible motion, and both times every per-segment band
+    // was green while the visible thing was wrong — first the trunk's pitch (the
+    // segments stack, so the eye sees their SUM), now the head's CARRY.
+    //
+    // A trunk that flexes swings the head forward on a ~0.6 m lever, so the head
+    // slides fore-and-aft even while the neck's counter holds it perfectly level.
+    // Reported as cervical protraction/retraction, which is what that looks like
+    // — though `Neck.protraction` measured 0.013° and was innocent.
+    //
+    // Measured against the PELVIS so travel is removed, and bounded PER GAIT,
+    // because most of this number is a floor the sagittal spine does not own.
+    // With the authoring disabled entirely the walk still carries the head
+    // 2.70 cm and the run 3.97 cm, from pelvic tilt and the run's own trunk
+    // lean. A single bound would therefore be either meaningless for the walk or
+    // wrong for the run; these sit just above each gait's floor plus this
+    // authoring's measured contribution (~1.3 cm walk, ~1.2 cm run), so they
+    // catch it growing back without pretending to own the floor.
+    const MAX_CARRY_CM: Record<string, number> = { walk: 4.5, run: 5.6 };
+    for (const g of ['walk', 'run'] as const) {
+      const f = steady(sampled[g]!.rec);
+      const relZ = f.map((x) => x.worldTracks!.Head![2] - x.worldTracks!.Hips![2]);
+      const carryCm = p2p(relZ) * 100;
+      // eslint-disable-next-line no-console
+      console.log(`[${g}] head fore/aft carry rel pelvis ${carryCm.toFixed(2)} cm (floor without this authoring: ${g === 'walk' ? '2.70' : '3.97'} cm)`);
+      expect(carryCm, `${g} head does not slide fore/aft`).toBeLessThan(MAX_CARRY_CM[g]!);
     }
   }, 300_000);
 
@@ -283,9 +313,9 @@ describe('lifting the sagittal ban costs nothing the walk already guaranteed', (
     // the mean, and the oscillation rides on top of it.
     for (const g of ['walk', 'run'] as const) {
       const { rec } = sampled[g]!;
-      expect(p2p(chan(rec, 'Spine_Lower', 'flexion')), `${g} lumbar excursion`).toBeLessThan(3);
-      expect(p2p(chan(rec, 'Spine_Upper', 'flexion')), `${g} thoracic excursion`).toBeLessThan(2.5);
-      expect(p2p(chan(rec, 'Neck', 'flexion')), `${g} cervical excursion`).toBeLessThan(5);
+      expect(p2p(chan(rec, 'Spine_Lower', 'flexion')), `${g} lumbar excursion`).toBeLessThan(1.6);
+      expect(p2p(chan(rec, 'Spine_Upper', 'flexion')), `${g} thoracic excursion`).toBeLessThan(1.3);
+      expect(p2p(chan(rec, 'Neck', 'flexion')), `${g} cervical excursion`).toBeLessThan(2.6);
       for (const S of ['L', 'R'] as const) {
         expect(p2p(chan(rec, `${S}_Shoulder`, 'upRotation')), `${g} ${S} upRot excursion`).toBeLessThan(18);
         expect(p2p(chan(rec, `${S}_Shoulder`, 'scapularTilt')), `${g} ${S} tilt excursion`).toBeLessThan(14);
