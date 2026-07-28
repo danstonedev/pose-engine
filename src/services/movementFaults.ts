@@ -27,9 +27,19 @@ export type CompensatoryFault =
   | 'forward-head'
   | 'circumduction'
   | 'compensated-trendelenburg'
-  | 'genu-recurvatum';
+  | 'genu-recurvatum'
+  | 'trendelenburg'
+  | 'hip-hike'
+  | 'steppage'
+  | 'vaulting'
+  | 'foot-drop';
 
 const sidePrefix = (side: 'left' | 'right') => (side === 'left' ? 'L_' : 'R_');
+
+/** Pelvic `Hips.lateralTilt` degrees that raise the NAMED side. The field reads
+ *  positive = "Left up" (romRegistry), so the right side rises on the negative
+ *  half — one place that knows the sign, rather than each fault guessing it. */
+const pelvisRaise = (side: 'left' | 'right', deg: number) => (side === 'left' ? deg : -deg);
 
 /**
  * DYNAMIC KNEE VALGUS via the hip (medial knee collapse). The knee has no large
@@ -100,6 +110,93 @@ export function genuRecurvatum(motion: ComposedMotion, side?: 'left' | 'right', 
 }
 
 /**
+ * TRENDELENBURG (uncompensated) — the pelvis DROPS on the swing side because the
+ * STANCE hip abductors cannot hold it level. `side` is the INVOLVED (weak, stance)
+ * limb, so the CONTRALATERAL pelvis falls.
+ *
+ * The clinical pair to {@link antalgicLean}, which this module already exposes as
+ * `compensated-trendelenburg`: there the patient leans the trunk OVER the weak hip
+ * to move the CoM and keep the pelvis level, so the giveaway is the lurch, not the
+ * drop. Both are Trendelenburg's sign; a student has to tell them apart, so the
+ * engine now authors both rather than only the compensated one.
+ */
+export function trendelenburg(motion: ComposedMotion, side: 'left' | 'right' = 'right', deg = 10): ComposedMotion {
+  const d = Math.max(0, Math.min(20, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  const swing = side === 'left' ? 'right' : 'left';
+  return addSustainedTargets(motion, [
+    // Raising the involved (stance) side IS the contralateral drop — one tilt,
+    // named from the weak hip because that is the side the clinician is testing.
+    { joint: 'Hips', motion: 'lateralTilt', deg: pelvisRaise(side, d) },
+    // The dropped swing hip adducts relative to the tilted pelvis.
+    { joint: `${sidePrefix(swing)}UpLeg`, motion: 'hipAbduction', deg: -Math.round(d * 0.4) },
+  ]);
+}
+
+/**
+ * HIP HIKE (quadratus lumborum hitch) — the pelvis is ELEVATED on the swing side
+ * to clear a limb that cannot shorten (a stiff knee, a foot drop, a long leg).
+ * `side` is the SWINGING limb being hoisted. The mirror image of
+ * {@link trendelenburg}'s drop, and the compensation {@link circumduction} is an
+ * alternative to — a patient uses one or the other, which is the discrimination.
+ */
+export function hipHike(motion: ComposedMotion, side: 'left' | 'right' = 'right', deg = 10): ComposedMotion {
+  const d = Math.max(0, Math.min(20, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  return addSustainedTargets(motion, [
+    { joint: 'Hips', motion: 'lateralTilt', deg: pelvisRaise(side, d) },
+    { joint: `${sidePrefix(side)}UpLeg`, motion: 'hipAbduction', deg: Math.round(d * 0.3) },
+  ]);
+}
+
+/**
+ * FOOT DROP — the ankle hangs in PLANTARFLEXION because the dorsiflexors cannot
+ * hold it. The primary impairment behind steppage, vaulting, circumduction and hip
+ * hike, authored on its own so a scenario can present the deficit and let the
+ * compensation be the finding rather than baking one in.
+ */
+export function footDrop(motion: ComposedMotion, side: 'left' | 'right' = 'right', deg = 15): ComposedMotion {
+  const d = Math.max(0, Math.min(30, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  return addSustainedTargets(motion, [
+    { joint: `${sidePrefix(side)}Foot`, motion: 'ankleFlexion', deg: -d },
+  ]);
+}
+
+/**
+ * STEPPAGE — exaggerated HIP and KNEE flexion to lift a dropped foot over the
+ * floor. `side` is the involved limb. Authored WITH its cause ({@link footDrop}),
+ * because steppage without a dropped foot is just a high-stepping gait: the point
+ * for a student is that the excess flexion is a consequence.
+ */
+export function steppage(motion: ComposedMotion, side: 'left' | 'right' = 'right', deg = 15): ComposedMotion {
+  const d = Math.max(0, Math.min(30, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  const p = sidePrefix(side);
+  return addSustainedTargets(footDrop(motion, side, d), [
+    { joint: `${p}UpLeg`, motion: 'hipFlexion', deg: Math.round(d * 0.8) },
+    { joint: `${p}Leg`, motion: 'kneeFlexion', deg: d },
+  ]);
+}
+
+/**
+ * VAULTING — the STANCE ankle plantarflexes (rises onto the forefoot) to lift the
+ * body over a swing limb that cannot clear the floor. `side` is the INVOLVED
+ * (swinging) limb, so the vault happens on the contralateral stance foot — the
+ * same convention {@link circumduction} uses, since they are alternative
+ * compensations for the same deficit and a scenario may swap between them.
+ */
+export function vaulting(motion: ComposedMotion, side: 'left' | 'right' = 'right', deg = 12): ComposedMotion {
+  const d = Math.max(0, Math.min(25, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
+  const stance = side === 'left' ? 'R_' : 'L_';
+  return addSustainedTargets(motion, [
+    { joint: `${stance}Foot`, motion: 'ankleFlexion', deg: -d },
+    { joint: `${stance}Toes`, motion: 'toeFlexion', deg: Math.round(d * 1.5) },
+  ]);
+}
+
+/**
  * Apply a named compensatory fault to a motion. `compensated-trendelenburg` reuses
  * {@link antalgicLean} (the trunk lean over the involved stance limb). `side` steers
  * the unilateral faults (circumduction, compensated-trendelenburg); knee-valgus and
@@ -122,6 +219,16 @@ export function applyFault(
       return antalgicLean(motion, side ?? 'right', deg ?? 12);
     case 'genu-recurvatum':
       return genuRecurvatum(motion, side, deg);
+    case 'trendelenburg':
+      return trendelenburg(motion, side ?? 'right', deg);
+    case 'hip-hike':
+      return hipHike(motion, side ?? 'right', deg);
+    case 'steppage':
+      return steppage(motion, side ?? 'right', deg);
+    case 'vaulting':
+      return vaulting(motion, side ?? 'right', deg);
+    case 'foot-drop':
+      return footDrop(motion, side ?? 'right', deg);
     default:
       return motion;
   }

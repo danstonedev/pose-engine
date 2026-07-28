@@ -60,6 +60,11 @@ export {
   forwardHead,
   circumduction,
   genuRecurvatum,
+  trendelenburg,
+  hipHike,
+  steppage,
+  vaulting,
+  footDrop,
   applyFault,
 } from './movementFaults';
 
