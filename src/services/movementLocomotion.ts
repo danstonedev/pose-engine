@@ -1316,6 +1316,32 @@ export function buildTravelRun(
     fromMs: entryMs + i * t.stepMs + t.touchMs,
     toMs: entryMs + i * t.stepMs + t.touchMs + t.absorbMs + t.pushMs,
   }));
+  // THE GAIT CYCLE (see ComposedMotion.gaitCycleMs) — one initial contact of a
+  // foot to that foot's NEXT initial contact, which is what a normative curve and
+  // every spatiotemporal average are defined over.
+  //
+  // Taken from the SECOND step, not the first. The first contact follows the
+  // initiation, where the body is still arriving at stride — the same reason the
+  // walk publishes its cycle from after the step-off. Consumers were deriving
+  // this by counting keyframes, and that broke the moment the run gained an entry
+  // (a jog's duty factor read as a sprint's, a step's absorption yield read as
+  // 0.4° instead of 25°); publishing it means the builder that authored the
+  // schedule is the one that says where the cycle is.
+  //
+  // Both bounds come off `contacts`, so the window cannot drift from the plant
+  // schedule, and the same-foot guard means a future step pattern that does not
+  // repeat a foot every two steps publishes nothing rather than a wrong window.
+  const cycleOpen = contacts[1];
+  const cycleClose = contacts[3];
+  const gaitCycleMs =
+    cycleOpen &&
+    cycleClose &&
+    cycleOpen.foot === cycleClose.foot &&
+    typeof cycleOpen.fromMs === 'number' &&
+    typeof cycleClose.fromMs === 'number' &&
+    cycleClose.fromMs > cycleOpen.fromMs
+      ? { fromMs: cycleOpen.fromMs, toMs: cycleClose.fromMs, leadFoot: cycleOpen.foot }
+      : undefined;
   // Healthy-asymmetry signature (roadmap 5.3): amplitude-only, so the authored
   // stance windows / contacts above stay byte-exact (see healthySignature.ts).
   const base: ComposedMotion = {
@@ -1329,6 +1355,7 @@ export function buildTravelRun(
     footDrivenTravel: true,
     contacts,
     gaitRegime: 'run',
+    ...(gaitCycleMs ? { gaitCycleMs } : {}),
     gaitStanceWindowsMs: windows,
   };
   // Distal energy (roadmap 5.4): same run intensity as the in-place buildRun.

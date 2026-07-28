@@ -129,16 +129,17 @@ function measureRun(speed: number, pattern: 'jog' | 'run' | 'sprint' = 'run'): R
     acc += k.durationMs + (k.holdMs ?? 0);
     ends.push(acc);
   }
-  // Steady window: drop the ENTRY and the first and last authored step.
-  // buildTravelRun is [0] initiation · [1..] four 4-keyframe steps · closing
-  // touchdown, so the first steady knot is one initiation plus one step in. The
-  // entry is not gait — it is the body reaching running form from standing — and
-  // averaging stride time across it reads a jog's duty factor as a sprint's
-  // (measured: 0.41 -> 0.26, which is how this test caught the change).
-  const RUN_ENTRY_KEYFRAMES = 1;
-  const STEP_KEYFRAMES = 4;
-  const from = ends[Math.min(RUN_ENTRY_KEYFRAMES + STEP_KEYFRAMES - 1, ends.length - 2)]!;
-  const to = ends[Math.max(0, ends.length - 4)]!;
+  // STEADY WINDOW, from the builder rather than from counting keyframes.
+  // buildTravelRun publishes the gait cycle it authored (initial contact of a
+  // foot to that foot's next), which is exactly what a spatiotemporal average is
+  // defined over and is entry-free by construction. Deriving it here from
+  // keyframe indices is what broke when the run gained an initiation: the window
+  // slid one knot early, swallowed the entry, and read a jog's duty factor as a
+  // sprint's (0.41 -> 0.26). Falling back to indices keeps this measurable for a
+  // motion that publishes no cycle.
+  const cycle = resolved.gaitCycleMs;
+  const from = cycle ? cycle.fromMs : ends[Math.min(3, ends.length - 2)]!;
+  const to = cycle ? cycle.toMs : ends[Math.max(0, ends.length - 4)]!;
   const steady = frames.filter((f) => f.tMs >= from && f.tMs <= to);
   const legM = frames[0]!.worldTracks!.Hips![1]! - floor0;
 
