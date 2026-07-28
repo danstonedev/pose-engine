@@ -123,6 +123,14 @@ export * from './services/centerOfMass';
 // pelvic-obliquity reference. Pure data + math (no rig); the gate consumes it.
 export * from './services/normativeGait';
 
+// MOVEMENT-PATTERN TUNING (direct policy search). A continuous objective over a
+// graded motion, a seeded (1+1)-ES, and the tunable trunk-gain surface. The
+// objective is a SHAPING SIGNAL for search only — assessValidity below stays the
+// authority on what ships, so a search can never argue its way past a gate.
+export * from './services/motionObjective';
+export * from './services/policySearch';
+export * from './services/gaitTuning';
+
 // Unified build-time Validity Gate (Workstream A) — one deterministic, auditable
 // pass/fail over a RESOLVED composed motion across the animation-craft
 // plausibility gates (foot-skate ratio, CoM-in-base, penetration, seam-jerk) +
