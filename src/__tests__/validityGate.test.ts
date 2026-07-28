@@ -169,7 +169,9 @@ const KNOWN_TEMPLATE_FAILURES: Record<string, { check: string; maxMeasured: numb
     check: 'seam-jerk',
     maxMeasured: 14,
     why:
-      'root velocity discontinuity 13.1 m/s vs the 12 m/s human ceiling. HYPOTHESIS ELIMINATED: it is not the authored recovery timing — sweeping the recover phase 520/640/760/900 ms leaves the jerk at 13.1-13.9 and slightly WORSENS it, so lengthening the recovery is not the fix and should not be retried. The kick is in-place and ballistic, so a 13 m/s ROOT is implausible on its face; the remaining suspects are the foot-pin root derivation under a fast single-leg swing, or a seam ceiling that should scale with velocityClass rather than being one number for clinical and athletic motion alike.',
+      'A GENUINE one-frame root teleport, characterised: the root tracks smoothly at ~5 mm/frame through the recovery, then jumps 19.5 cm in a single 16.7 ms frame at t=1867 ms (frame 112 of 142, ~23 ms before the recover phase ends) and glides back to the origin over the next three frames. x moves -0.168 -> -0.018 while z moves -0.016 -> -0.141, so it is a discontinuity in the DERIVED root path, not a fast movement and not a measurement artifact. The gate is right to fail it; do NOT raise seamJerkMaxMs to make this green.\n' +
+      'TWO HYPOTHESES ELIMINATED. (1) Recovery timing: sweeping the recover phase 520/640/760/900 ms leaves the jerk at 13.1-13.9 and slightly WORSENS it. (2) The grounding crossfade (rootMotion deriveGroundingBlendSpans / GROUNDING_BLEND_MS) does not apply — it blends root-Y around POSTURE switches and the kick has none.\n' +
+      'REMAINING SUSPECT: the planted-foot root derivation. The kick is single-support throughout the strike and returns to double support at the end of recovery, so the most likely cause is the stance pin re-anchoring when the kicking foot lands, with no crossfade on the horizontal axes (the existing blend covers Y only). Next step is to trace which foot the pin anchors to across frames 110-115.',
   },
 };
 
