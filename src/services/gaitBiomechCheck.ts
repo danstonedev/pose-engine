@@ -39,14 +39,29 @@ const VERTICAL_COM_WARN_CM: readonly [number, number] = [2, 9];
 /** A joint whose trajectory sits within ±1 SD of the normative curve at fewer
  *  than this fraction of phase points warns (targets #1–#3). */
 const WITHIN_BAND_WARN_FRACTION = 0.5;
+/** A frame is "travelling" when its horizontal speed clears this fraction of the
+ *  clip's peak. Low on purpose: the job is to cut a standing hold (speed ~0), not
+ *  to judge which parts of a gait are fast enough. */
+const MOVING_FRACTION_OF_PEAK = 0.1;
 
-/** The distal bone key + motion field carrying each sagittal joint's flexion in
- *  the sampler's `frame.angles` (see jointAngles.ts). Left side is representative
- *  for a symmetric gait; a future per-side pass can grade both. */
-const JOINT_SOURCE: Record<NormativeSagittalJoint, { boneKey: string; motion: string }> = {
-  hipFlexion: { boneKey: 'L_UpLeg', motion: 'hipFlexion' },
-  kneeFlexion: { boneKey: 'L_Leg', motion: 'kneeFlexion' },
-  ankleFlexion: { boneKey: 'L_Foot', motion: 'ankleFlexion' },
+/**
+ * The distal bone + motion field carrying each sagittal joint's flexion in the
+ * sampler's `frame.angles` (see jointAngles.ts), for a given side.
+ *
+ * THE SIDE IS NOT ARBITRARY, which is what the hardcoded `L_` here used to
+ * assume. A normative curve runs initial contact to initial contact OF THE LIMB
+ * IT DESCRIBES, so phase 0 belongs to whichever limb opens the cycle; the other
+ * limb is half a cycle out of phase and grading it against the same curve reads a
+ * correct gait as a broken one. Measured on the shipped walk over its steady
+ * cycle: the lead limb scores knee RMS 9.5 deg / 0.57 within-band, the contralateral
+ * limb 25.9 deg / 0.14 — same motion, same curve, opposite verdict.
+ */
+const jointSource = (
+  joint: NormativeSagittalJoint,
+  side: 'L' | 'R',
+): { boneKey: string; motion: string } => {
+  const bone = { hipFlexion: 'UpLeg', kneeFlexion: 'Leg', ankleFlexion: 'Foot' }[joint];
+  return { boneKey: `${side}_${bone}`, motion: joint };
 };
 
 function horizontalDist(a: readonly number[], b: readonly number[]): number {
@@ -99,18 +114,56 @@ function verticalComExcursionCm(frames: readonly GateFrame[]): number | null {
   return (max - min) * 100;
 }
 
+/**
+ * The contiguous stretch of frames over which the body is actually translating.
+ *
+ * Leading and trailing frames whose instantaneous horizontal speed is under a
+ * small fraction of the clip's peak are the standing initiation and the settle
+ * hold; they carry time but no travel, so leaving them in deflates any speed
+ * measured as displacement ÷ duration. Only the HEAD and TAIL are trimmed —
+ * within-gait slow frames (double support, a braking step) are part of the gait
+ * and stay. Falls back to the full clip whenever trimming would leave too little
+ * to measure.
+ */
+function travellingWindow(frames: readonly GateFrame[]): readonly GateFrame[] {
+  if (frames.length < 4) return frames;
+  const pos = (f: GateFrame) => f.worldTracks?.CoM ?? f.worldTracks?.Hips ?? f.root?.translateM;
+  const speeds: number[] = [];
+  for (let i = 1; i < frames.length; i += 1) {
+    const a = pos(frames[i - 1]!);
+    const b = pos(frames[i]!);
+    const dt = (frames[i]!.tMs - frames[i - 1]!.tMs) / 1000;
+    speeds.push(a && b && dt > 0 ? horizontalDist(a, b) / dt : 0);
+  }
+  const peak = Math.max(...speeds);
+  if (!(peak > 0)) return frames;
+  const floor = peak * MOVING_FRACTION_OF_PEAK;
+  let lo = 0;
+  while (lo < speeds.length && speeds[lo]! < floor) lo += 1;
+  let hi = speeds.length - 1;
+  while (hi > lo && speeds[hi]! < floor) hi -= 1;
+  const out = frames.slice(lo, hi + 2);
+  return out.length >= 3 ? out : frames;
+}
+
 /** One gait cycle of a joint's flexion as `{phasePct, deg}` from the frames'
- *  measured angles, phase = tMs mapped linearly onto [0,100] over the clip. */
+ *  measured angles, phase = tMs mapped linearly onto [0,100] over `window`
+ *  (the gait cycle), or over the whole clip when no window is given. */
 function jointSamples(
   frames: readonly GateFrame[],
   joint: NormativeSagittalJoint,
+  window?: { fromMs: number; toMs: number; leadSide: 'L' | 'R' },
 ): GaitAngleSample[] {
-  const src = JOINT_SOURCE[joint];
-  const t0 = frames[0]!.tMs;
-  const span = frames[frames.length - 1]!.tMs - t0;
+  const src = jointSource(joint, window?.leadSide ?? 'L');
+  const span0 = window
+    ? frames.filter((f) => f.tMs >= window.fromMs && f.tMs <= window.toMs)
+    : frames;
+  if (span0.length < 2) return [];
+  const t0 = span0[0]!.tMs;
+  const span = span0[span0.length - 1]!.tMs - t0;
   if (span <= 0) return [];
   const out: GaitAngleSample[] = [];
-  for (const f of frames) {
+  for (const f of span0) {
     const deg = f.angles?.[src.boneKey]?.[src.motion];
     if (typeof deg === 'number' && Number.isFinite(deg)) {
       out.push({ phasePct: ((f.tMs - t0) / span) * 100, deg });
@@ -118,6 +171,25 @@ function jointSamples(
   }
   return out;
 }
+
+/**
+ * The gait cycle to phase against, from the window the BUILDER published.
+ *
+ * Not derived here on purpose. A travel clip is initiation → step-off → cycle →
+ * braking step → settle, and nothing in the resolved motion distinguishes the
+ * contaminated step-off stance from a steady one — every rule tried against the
+ * stance schedule picked a window measurably worse than the authored one. The
+ * builder assembles the keyframes, so the builder is the only honest source; a
+ * motion that publishes none is skipped rather than guessed at.
+ */
+function gaitCycleWindow(
+  resolved: ResolvedComposedMotion,
+): { fromMs: number; toMs: number; leadSide: 'L' | 'R' } | null {
+  const c = resolved.gaitCycleMs;
+  if (!c || !Number.isFinite(c.fromMs) || !Number.isFinite(c.toMs) || c.toMs <= c.fromMs) return null;
+  return { fromMs: c.fromMs, toMs: c.toMs, leadSide: c.leadFoot.startsWith('R') ? 'R' : 'L' };
+}
+
 
 /**
  * The biomech half of the Validity Gate — plug into
@@ -128,34 +200,69 @@ export function runGaitBiomechChecks(
   resolved: ResolvedComposedMotion,
   frames: readonly GateFrame[] | undefined,
   ctx?: { floorY?: number },
-): ValidityCheck[] {
+): { checks: ValidityCheck[]; skipped: string[] } {
   // Gait-shape guard: only travelling/reciprocal gait gets normative gait norms.
   const isGait =
     resolved.footDrivenTravel === true ||
     looksLikeGaitPlan(resolved as unknown as ComposedMotion);
-  if (!isGait || !frames || frames.length < 3) return [];
+  if (!isGait || !frames || frames.length < 3) return { checks: [], skipped: [] };
 
   const checks: ValidityCheck[] = [];
+  const skipped: string[] = [];
+  let froudeFr: number | null = null;
+  // DECLARED, not inferred. Classifying by the MEASURED Froude would excuse the
+  // very motion the walk check exists to catch: a walk fast enough to be a run
+  // would be relabelled a run and then pass.
+  const declaredRegime = resolved.gaitRegime ?? 'walk';
 
   // ── Froude number (target #10) — dimensionless comfortable-walk speed ────────
   // Skipped for in-place / treadmill gait (net travel < IN_PLACE_TRAVEL_M):
   // Froude needs real forward speed, and reporting ~0 would be misleading.
-  const travel = netTravelM(frames);
-  const durS = (frames[frames.length - 1]!.tMs - frames[0]!.tMs) / 1000;
+  // MEASURE WHILE TRAVELLING. Froude is v²/(g·L), and v has to be the gait's
+  // speed — but a travel clip opens with a standing initiation and closes with a
+  // settle HOLD, both of which contribute duration and no displacement. Dividing
+  // net travel by the WHOLE clip duration therefore reports a speed the body never
+  // had: on the shipped walk that is 0.56 m/s against an actual 1.48 m/s, so a
+  // comfortable walk (Fr 0.21) was being reported as Fr 0.03 and classified
+  // 'slow'. The check still passed — it only asks "is this secretly a run?" — so
+  // nothing surfaced it. Trimming the stationary head and tail is generic: it
+  // needs no keyframe semantics, and for a clip that travels throughout it is a
+  // no-op.
+  // Prefer the builder-published gait cycle: it is exactly one cycle of steady
+  // gait, so displacement ÷ duration over it IS the gait's speed. Without one,
+  // fall back to trimming the stationary head and tail.
+  const cycle = gaitCycleWindow(resolved);
+  const moving = cycle
+    ? (() => {
+        const w = frames.filter((f) => f.tMs >= cycle.fromMs && f.tMs <= cycle.toMs);
+        return w.length >= 3 ? w : travellingWindow(frames);
+      })()
+    : travellingWindow(frames);
+  const travel = netTravelM(moving);
+  const durS = (moving[moving.length - 1]!.tMs - moving[0]!.tMs) / 1000;
   const leg = legLengthM(frames, ctx?.floorY);
   if (travel != null && travel >= IN_PLACE_TRAVEL_M && durS > 0 && leg != null) {
     const speed = travel / durS;
     const fr = froudeNumber(speed, leg);
+    froudeFr = fr;
     const regime = classifyFroude(fr);
-    const runRegime = regime === 'run-regime';
+    const inRunRegime = regime === 'run-regime';
+    // REGIME-AWARE VERDICT. Asking "is this secretly a run?" is the right question
+    // of a WALK and the wrong question of a run — a declared run scoring Fr 1.4 is
+    // a correct run, and failing it for that is failing a motion for being what it
+    // says it is. A declared run instead has to CLEAR the transition band.
+    const pass = declaredRegime === 'run' ? inRunRegime : !inRunRegime;
     checks.push({
       id: 'froude',
-      pass: !runRegime,
+      pass,
       severity: 'warn',
       measured: Number(fr.toFixed(3)),
       threshold: 0.5,
       unit: 'Fr',
-      note: `Froude ${fr.toFixed(2)} (${regime}); comfortable walk ≈ 0.25, walk→run ≈ 0.5${runRegime ? ' — this "walk" is in the run regime' : ''}`,
+      note:
+        declaredRegime === 'run'
+          ? `Froude ${fr.toFixed(2)} (${regime}); a run should clear the walk→run transition ≈ 0.5${inRunRegime ? '' : ' — this "run" is still in the walking regime'}`
+          : `Froude ${fr.toFixed(2)} (${regime}); comfortable walk ≈ 0.25, walk→run ≈ 0.5${inRunRegime ? ' — this "walk" is in the run regime' : ''}`,
     });
   }
 
@@ -176,9 +283,47 @@ export function runGaitBiomechChecks(
   }
 
   // ── Joint-angle RMS vs normative ±1 SD (targets #1–#3) ───────────────────────
-  if (frames.some((f) => f.angles)) {
+  //
+  // TWO PRECONDITIONS, both of which this check used to ignore, and both of which
+  // made it report a confident number for a comparison that was not valid.
+  //
+  //  1. THE CURVES ARE WALKING CURVES. normativeGait bundles Winter/Perry/CGA
+  //     SAGITTAL WALKING data. Running kinematics genuinely differ — swing-phase
+  //     knee flexion roughly doubles — so grading a run against them measures the
+  //     walk/run difference, not the run's quality. Measured on the rig, the
+  //     shipped run scores RMS 35-52° against these curves at EVERY cycle window
+  //     tried; that is the curves being wrong for the motion, not the motion being
+  //     wrong. Same mistake as grading a run's Froude against walking norms.
+  //  2. PHASE 0-100% MUST BE ONE GAIT CYCLE. `jointSamples` maps the WHOLE CLIP
+  //     onto 0-100%. A travel clip is initiation → step-off → cycle → braking step
+  //     → settle, so on the shipped walk the actual gait cycle occupies only ~36%
+  //     of the phase axis and the rest is entry and exit. The normative curve is
+  //     defined initial-contact to initial-contact of ONE limb, so that comparison
+  //     comes out meaningless: the walk measures 0.19 within-band phased over the
+  //     clip against 0.57 phased over its steady cycle — a false warn either way,
+  //     because nothing in the number reflects the gait.
+  //
+  // Reporting SKIPPED rather than a warn is the honest outcome, and it follows the
+  // rule the geometric checks already use: a check that cannot see what it claims
+  // to measure must say so instead of emitting a verdict. What would make this
+  // measurable is a gait-cycle window published by the builders (they author the
+  // keyframes, so they know it) — until that exists, this stays silent rather than
+  // wrong.
+  const cycleSpan = gaitCycleWindow(resolved);
+  if (!frames.some((f) => f.angles)) {
+    skipped.push('normative joint curves — no measured joint angles in the frames');
+  } else if (declaredRegime === 'run') {
+    skipped.push(
+      'normative joint curves — the bundled curves are WALKING norms and this motion declares the run regime',
+    );
+  } else if (!cycleSpan) {
+    skipped.push(
+      'normative joint curves — the motion publishes no gaitCycleMs window, and phasing a ' +
+        'whole multi-phase clip onto the normative 0-100% axis compares misaligned curves',
+    );
+  } else {
     for (const joint of ['kneeFlexion', 'hipFlexion', 'ankleFlexion'] as NormativeSagittalJoint[]) {
-      const samples = jointSamples(frames, joint);
+      const samples = jointSamples(frames, joint, cycleSpan);
       if (samples.length < 3) continue;
       const r = jointAngleRmsVsNormative(samples, joint);
       checks.push({
@@ -193,5 +338,5 @@ export function runGaitBiomechChecks(
     }
   }
 
-  return checks;
+  return { checks, skipped };
 }

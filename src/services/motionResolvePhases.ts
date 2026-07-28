@@ -570,6 +570,19 @@ export function assembleResolvedMotion(
     motion.lateralShuttleCm > 0
       ? { lateralShuttleCm: Math.min(6, motion.lateralShuttleCm) }
       : {}),
+    // GAIT CYCLE window: pass through when well formed. Consumers that phase
+    // against normative curves need it and skip without it, so a malformed one is
+    // dropped rather than half-trusted.
+    ...(motion.gaitCycleMs != null &&
+    Number.isFinite(motion.gaitCycleMs.fromMs) &&
+    Number.isFinite(motion.gaitCycleMs.toMs) &&
+    motion.gaitCycleMs.toMs > motion.gaitCycleMs.fromMs &&
+    typeof motion.gaitCycleMs.leadFoot === 'string'
+      ? { gaitCycleMs: { ...motion.gaitCycleMs } }
+      : {}),
+    ...(motion.gaitRegime === 'walk' || motion.gaitRegime === 'run'
+      ? { gaitRegime: motion.gaitRegime }
+      : {}),
     ...(Array.isArray(motion.gaitStanceWindowsMs) && motion.gaitStanceWindowsMs.length
       ? {
           gaitStanceWindowsMs: motion.gaitStanceWindowsMs.filter(
@@ -721,5 +734,12 @@ export function remapResolvedArtifactTimes(
       ...p,
       tMs: remapMs(p.tMs)!,
     }));
+  }
+  if (resolved.gaitCycleMs) {
+    resolved.gaitCycleMs = {
+      ...resolved.gaitCycleMs,
+      fromMs: remapMs(resolved.gaitCycleMs.fromMs)!,
+      toMs: remapMs(resolved.gaitCycleMs.toMs)!,
+    };
   }
 }

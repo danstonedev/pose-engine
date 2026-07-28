@@ -21,7 +21,7 @@ import { captureJointAngleRestReference, type JointAngleRestReference } from '..
 import { resolveComposedMotion, type ComposedMotion, type ResolvedComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
 import { captureFloorReference } from '../services/rootMotion';
-import { buildTravelWalk, buildSitDown } from '../services/movementTemplates';
+import { buildTravelWalk, buildTravelRun, buildSitDown } from '../services/movementTemplates';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import { assessValidity, type GateFrame, type ValidityCheck } from '../services/validityGate';
 import { runGaitBiomechChecks } from '../services/gaitBiomechCheck';
@@ -84,7 +84,7 @@ const byId = (checks: readonly ValidityCheck[], id: string): ValidityCheck | und
 describe('runGaitBiomechChecks — normative kinematics on a gait-shaped motion', () => {
   it('a travel walk produces Froude + vertical-CoM + per-joint normative checks, all warn-severity', () => {
     const { resolved, frames } = sample(buildTravelWalk());
-    const checks = runGaitBiomechChecks(resolved, frames);
+    const { checks } = runGaitBiomechChecks(resolved, frames);
     expect(checks.length).toBeGreaterThan(0);
     for (const c of checks) expect(c.severity).toBe('warn'); // realism findings, never hard fails
 
@@ -108,25 +108,72 @@ describe('runGaitBiomechChecks — normative kinematics on a gait-shaped motion'
 
   it('a non-gait motion (sit-down) gets no gait biomech checks', () => {
     const { resolved, frames } = sample(buildSitDown());
-    expect(runGaitBiomechChecks(resolved, frames)).toEqual([]);
+    expect(runGaitBiomechChecks(resolved, frames).checks).toEqual([]);
   });
 
-  it('a hyper-flexed knee trajectory fails the normative-knee band (the RMS check bites)', () => {
-    const { resolved, frames } = sample(buildTravelWalk());
-    const clean = byId(runGaitBiomechChecks(resolved, frames), 'normative-kneeFlexion')!;
-    // Inject +45° onto every knee angle → far outside the ±1 SD corridor.
-    const bent = frames.map((f) => ({
+  /** Add `deg` to one knee across every frame. */
+  const bendKnee = (frames: readonly GateFrame[], boneKey: string, deg: number) =>
+    frames.map((f) => ({
       ...f,
       angles: f.angles
         ? {
             ...f.angles,
-            L_Leg: { ...(f.angles.L_Leg ?? {}), kneeFlexion: (f.angles.L_Leg?.kneeFlexion ?? 0) + 45 },
+            [boneKey]: {
+              ...(f.angles[boneKey] ?? {}),
+              kneeFlexion: (f.angles[boneKey]?.kneeFlexion ?? 0) + deg,
+            },
           }
         : f.angles,
     }));
-    const bad = byId(runGaitBiomechChecks(resolved, bent), 'normative-kneeFlexion')!;
+
+  it('a hyper-flexed knee trajectory fails the normative-knee band (the RMS check bites)', () => {
+    const { resolved, frames } = sample(buildTravelWalk());
+    const clean = byId(runGaitBiomechChecks(resolved, frames).checks, 'normative-kneeFlexion')!;
+    // The walk publishes leadFoot R_Foot, so R_Leg is the limb whose initial
+    // contact opens the cycle and therefore the one graded.
+    const bent = bendKnee(frames, 'R_Leg', 45);
+    const bad = byId(runGaitBiomechChecks(resolved, bent).checks, 'normative-kneeFlexion')!;
     expect(bad.measured, 'within-band fraction collapses vs the clean walk').toBeLessThan(clean.measured);
     expect(bad.pass, 'a +45° knee is not within ±1 SD of normal').toBe(false);
+  });
+
+  it('grades the limb whose initial contact opens the cycle, not a fixed side', () => {
+    // The regression this pins: the check used to hardcode the LEFT limb while the
+    // walk's cycle opens on the RIGHT, so it graded a curve half a cycle out of
+    // phase against the normative one — reading a knee that is 67% within ±1 SD as
+    // 19%, a false warn on a correct gait. Bending the CONTRALATERAL knee must not
+    // move a check that claims to describe the lead limb.
+    const { resolved, frames } = sample(buildTravelWalk());
+    expect(resolved.gaitCycleMs?.leadFoot, 'the walk leads with R').toBe('R_Foot');
+    const clean = byId(runGaitBiomechChecks(resolved, frames).checks, 'normative-kneeFlexion')!;
+    const otherSide = byId(
+      runGaitBiomechChecks(resolved, bendKnee(frames, 'L_Leg', 45)).checks,
+      'normative-kneeFlexion',
+    )!;
+    expect(otherSide.measured).toBe(clean.measured);
+  });
+
+  it('skips the walking normative curves for a motion that declares the run regime', () => {
+    // Running kinematics genuinely differ from the bundled Winter/Perry WALKING
+    // curves, so grading a run against them measures the walk/run difference and
+    // reports a correct run as broken.
+    const { resolved, frames } = sample(buildTravelRun());
+    const { checks, skipped } = runGaitBiomechChecks(resolved, frames);
+    expect(resolved.gaitRegime).toBe('run');
+    for (const j of ['kneeFlexion', 'hipFlexion', 'ankleFlexion']) {
+      expect(byId(checks, `normative-${j}`), `${j} must not be graded on a run`).toBeUndefined();
+    }
+    expect(skipped.some((s) => s.includes('WALKING norms'))).toBe(true);
+  });
+
+  it('a declared run PASSES Froude for being a run; a walk at the same speed does not', () => {
+    const { resolved, frames } = sample(buildTravelRun());
+    const fr = byId(runGaitBiomechChecks(resolved, frames).checks, 'froude')!;
+    expect(fr.measured, 'the shipped run is well past the walk→run transition').toBeGreaterThan(0.5);
+    expect(fr.pass, 'a run clearing the transition is a correct run').toBe(true);
+    // Same measured Froude, declared as a walk, must still be caught.
+    const asWalk = { ...resolved, gaitRegime: 'walk' as const };
+    expect(byId(runGaitBiomechChecks(asWalk, frames).checks, 'froude')!.pass).toBe(false);
   });
 
   it('folds into assessValidity through the runBiomechChecks hook (one report)', () => {

@@ -460,6 +460,28 @@ export interface ComposedMotion {
    *  (buildTravelWalk turnDeg does). Points must be time-ordered; lookups clamp
    *  at the ends. Only meaningful with `footDrivenTravel`; omit for a constant
    *  heading — which stays byte-identical. */
+  /** THE GAIT CYCLE inside this clip, authored ms — one initial contact of
+   *  `leadFoot` to that foot's next initial contact.
+   *
+   *  Published by the gait builders because only they know it. A travel clip is
+   *  initiation → step-off → cycle → braking step → settle, and the normative
+   *  joint curves are defined over ONE cycle of ONE limb, so a consumer that
+   *  phases the whole clip onto 0-100% compares misaligned curves — measured on
+   *  the shipped walk that reads a knee sitting 62% within ±1 SD as 19%. Nothing
+   *  downstream can recover the window from the resolved motion: the stance
+   *  schedule alone cannot tell the contaminated step-off stance from a steady
+   *  one. Absent, biomech consumers SKIP rather than guess.
+   *
+   *  Same authored clock as `contacts` / `gaitStanceWindowsMs`, and remapped with
+   *  them onto the resolved clock. */
+  gaitCycleMs?: { fromMs: number; toMs: number; leadFoot: string };
+  /** What this gait is TRYING to be. Normative bands are regime-specific — a run
+   *  at Fr 1.5 is a correct run, a walk at Fr 1.5 is a walk that has become a run
+   *  — and no measurement separates them, because the difference is intent.
+   *  Inferring it from the MEASURED Froude (as consumers did before this existed)
+   *  is circular: it excuses exactly the motion the check is meant to catch.
+   *  Defaults to 'walk', the stricter reading. */
+  gaitRegime?: 'walk' | 'run';
   headingProfileMs?: { tMs: number; headingDeg: number }[];
   /** MOMENTUM-PRESERVING SEAM (opt-in, roadmap 4.4): a chained motion normally
    *  eases in from rest — the trajectory's first knot is a stop, so every
@@ -723,6 +745,13 @@ export interface ResolvedComposedMotion {
    *  derivations and per-window plant-clamp frames. See
    *  {@link ComposedMotion.headingProfileMs}. */
   headingProfileMs?: { tMs: number; headingDeg: number }[];
+
+  /** Pass-through of {@link ComposedMotion.gaitCycleMs}, remapped onto the
+   *  resolved clock alongside `contacts` / `gaitStanceWindowsMs`. */
+  gaitCycleMs?: { fromMs: number; toMs: number; leadFoot: string };
+
+  /** Pass-through of {@link ComposedMotion.gaitRegime}. */
+  gaitRegime?: 'walk' | 'run';
   /** Momentum-preserving seam (pass-through) — the trajectory's FIRST knot is a
    *  fly-through so a chained motion enters with velocity; the final settle
    *  still stops. See {@link ComposedMotion.flowIn}. */
