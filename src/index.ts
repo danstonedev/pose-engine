@@ -103,6 +103,11 @@ export * from './services/movementSignature';
 // arm/leg, sit-to-stand flexion-momentum-before-extension) can be gated.
 export * from './services/movementCoordination';
 
+// The authored coordination relations themselves, keyed by movement-template id.
+// movementCoordination ships the measuring apparatus; without these it had
+// nothing in production to measure against and never ran outside the tests.
+export * from './services/coordinationSpecs';
+
 // Foot contact / IK plant (simMOVE Phase 3) — closed-chain ground contact for
 // travel: pin a stance foot to a world target via the leg CCD IK so it stays put
 // while the root translates over it (no moonwalk slide), plus the slide metric.
