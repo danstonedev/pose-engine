@@ -1,6 +1,6 @@
 import type { MovementClipId } from '../types';
 
-export type BodyVariantId = 'male' | 'female';
+export type BodyVariantId = 'male' | 'female' | 'neutral';
 export type SkeletonKind = 'cc';
 
 /**
@@ -121,6 +121,8 @@ export interface AnatomicPose {
 export interface BodyVariantConfig {
   id: BodyVariantId;
   label: string;
+  /** Short, non-diagnostic description shown when a person chooses a model. */
+  description: string;
   modelUrl: (base: string) => string;
   skeleton: SkeletonKind;
   boneNameMap: BoneNameMap;
@@ -350,6 +352,17 @@ const CC_ANATOMIC_POSE: AnatomicPose = {
   rootYOffset: -0.18,
 };
 
+/**
+ * The neutral mesh is Reallusion's CC3 Base Plus source body. Scale it to an
+ * older-adolescent reference stature while retaining the same calibrated
+ * anatomic pose and controls as the adult variants.
+ */
+const CC_NEUTRAL_YOUTH_ANATOMIC_POSE: AnatomicPose = {
+  ...CC_ANATOMIC_POSE,
+  rootScale: 0.922,
+  rootYOffset: -0.1537,
+};
+
 // Tile rects calibrated 2026-04-30 from the male variant's skin-material
 // world surface areas after intentionally collapsing accessory materials out of
 // the paint atlas (body 30.40%, leg 36.65%, arm 21.92%, head 10.78%). Layout is
@@ -404,6 +417,7 @@ export const BODY_VARIANTS: Record<BodyVariantId, BodyVariantConfig> = {
   male: {
     id: 'male',
     label: 'Male',
+    description: 'Male reference body',
     modelUrl: (base) => `${base}/models/painmap3D_male.runtime.glb`,
     skeleton: 'cc',
     boneNameMap: CC_BONE_NAME_MAP,
@@ -424,6 +438,7 @@ export const BODY_VARIANTS: Record<BodyVariantId, BodyVariantConfig> = {
   female: {
     id: 'female',
     label: 'Female',
+    description: 'Female reference body',
     modelUrl: (base) => `${base}/models/painmap3D_female.runtime.glb`,
     skeleton: 'cc',
     boneNameMap: CC_BONE_NAME_MAP,
@@ -434,6 +449,23 @@ export const BODY_VARIANTS: Record<BodyVariantId, BodyVariantConfig> = {
     referenceHeightWorld: 1.849547,
     // Mosteller BSA at 1.85 m × 65 kg → √(185 × 65 / 3600) m² ≈ 1.828 m².
     defaultBodySurfaceAreaCm2: 18280,
+    paintAtlas: CC_PAINT_ATLAS,
+    poseRig: SHARED_POSE_RIG,
+  },
+  neutral: {
+    id: 'neutral',
+    label: 'Youth / neutral',
+    description: 'Gender-neutral older-adolescent reference body',
+    modelUrl: (base) => `${base}/models/painmap3D_neutral.runtime.glb`,
+    skeleton: 'cc',
+    boneNameMap: CC_BONE_NAME_MAP,
+    atlasModuleId: 'cc',
+    movementClipIds: ['stand', 'sit', 'walk'],
+    pose: CC_NEUTRAL_YOUTH_ANATOMIC_POSE,
+    referenceHeightWorld: 1.65,
+    // Mosteller BSA at 1.65 m × 55 kg → √(165 × 55 / 3600) m² ≈ 1.588 m².
+    // Patient height/weight or an explicit BSA always supersedes this fallback.
+    defaultBodySurfaceAreaCm2: 15880,
     paintAtlas: CC_PAINT_ATLAS,
     poseRig: SHARED_POSE_RIG,
   },

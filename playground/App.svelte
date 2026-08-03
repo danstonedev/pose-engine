@@ -7,7 +7,7 @@
   const VIEWS: ViewName[] = ['front', 'back', 'left', 'right'];
 
   let mode = $state<'viewer' | 'editor'>('viewer');
-  let variant = $state<'male' | 'female'>('female');
+  let variant = $state<'male' | 'female' | 'neutral'>('female');
   let view = $state<ViewName>('front');
 </script>
 
@@ -27,6 +27,7 @@
       <div class="seg" role="group" aria-label="Body variant">
         <button class:active={variant === 'female'} onclick={() => (variant = 'female')}>Female</button>
         <button class:active={variant === 'male'} onclick={() => (variant = 'male')}>Male</button>
+        <button class:active={variant === 'neutral'} onclick={() => (variant = 'neutral')}>Youth / neutral</button>
       </div>
       <div class="seg" role="group" aria-label="Camera view">
         {#each VIEWS as v (v)}

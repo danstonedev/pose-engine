@@ -13,7 +13,11 @@ const srcDir = join(here, '..', 'models');
 const destDir = join(here, 'public', 'models');
 
 mkdirSync(destDir, { recursive: true });
-for (const file of ['painmap3D_male.runtime.glb', 'painmap3D_female.runtime.glb']) {
+for (const file of [
+  'painmap3D_male.runtime.glb',
+  'painmap3D_female.runtime.glb',
+  'painmap3D_neutral.runtime.glb',
+]) {
   copyFileSync(join(srcDir, file), join(destDir, file));
   console.log('copied', file);
 }

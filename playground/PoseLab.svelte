@@ -87,7 +87,7 @@
   let { base = '' }: { base?: string } = $props();
 
   let container: HTMLDivElement;
-  let variant = $state<'male' | 'female'>('female');
+  let variant = $state<'male' | 'female' | 'neutral'>('female');
   let loading = $state(true);
   let selectedKey = $state<string | null>(null);
   let report = $state<JointAngleReport | null>(null);
@@ -1171,6 +1171,7 @@
       <div class="seg">
         <button class:active={variant === 'female'} onclick={() => (variant = 'female')}>Female</button>
         <button class:active={variant === 'male'} onclick={() => (variant = 'male')}>Male</button>
+        <button class:active={variant === 'neutral'} onclick={() => (variant = 'neutral')}>Youth / neutral</button>
       </div>
     </div>
 
