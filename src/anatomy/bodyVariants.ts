@@ -152,8 +152,12 @@ export interface PoseRigHandle {
    *  IK end-effectors solve a parent chain via CCDIK. */
   type: 'fk' | 'ik-effector';
   /** For ik-effector: number of parent bones included in the solve chain.
-   *  Hand → 2 (Forearm + UpperArm above the hand). Foot → 2 (Leg + UpLeg).
-   *  Total chain length is `chainParentCount + 1`. */
+   *  Hand → 3 (Forearm + UpperArm + Shoulder/clavicle). Foot → 2 (Leg + UpLeg).
+   *  Total chain length is `chainParentCount + 1`.
+   *
+   *  The arm needs one more than the leg because its proximal segment is one
+   *  further out: above the thigh is the pelvis, which is the root and has no
+   *  handle, whereas above the humerus is the scapula, which has both. */
   chainParentCount?: number;
   /** Visual radius of the handle sphere in world units (auto-scales with camera). */
   handleRadius?: number;
@@ -193,12 +197,19 @@ const SHARED_POSE_RIG: PoseRigConfig = {
     { canonicalKey: 'L_Shoulder', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'L_UpperArm', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'L_Forearm', type: 'ik-effector', chainParentCount: 1 },
-    { canonicalKey: 'L_Hand', type: 'ik-effector', chainParentCount: 2 },
+    // 3, not 2: the chain reaches the SCAPULA. Stopping at the humerus made a
+    // hand drag purely glenohumeral, and real overhead elevation is roughly 2:1
+    // glenohumeral to scapulothoracic — so the last third of the range had
+    // nowhere to come from and the shoulder hit its limit in a position no
+    // shoulder can make. Safe to include only because the scapula now has a ROM
+    // clamp strategy (poseRomClamp); without one, CCD would swing the clavicle
+    // anywhere it liked.
+    { canonicalKey: 'L_Hand', type: 'ik-effector', chainParentCount: 3 },
     // Right arm
     { canonicalKey: 'R_Shoulder', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'R_UpperArm', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'R_Forearm', type: 'ik-effector', chainParentCount: 1 },
-    { canonicalKey: 'R_Hand', type: 'ik-effector', chainParentCount: 2 },
+    { canonicalKey: 'R_Hand', type: 'ik-effector', chainParentCount: 3 },
     // Left leg — same pattern: hip stays single-bone (it's the pelvis pivot),
     // thigh / shin / foot solve their parent chains.
     { canonicalKey: 'L_UpLeg', type: 'ik-effector', chainParentCount: 1 },
