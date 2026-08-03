@@ -1,7 +1,8 @@
 /**
  * Meshopt-compress the runtime pain-map mannequin GLBs (in place) — LOSSLESSLY.
  *
- * The `painmap3D_{male,female}.runtime.glb` files are produced by body-chart's
+ * The `painmap3D_{male,female,neutral}.runtime.glb` files are produced by the
+ * body-chart asset pipeline (neutral is derived by models:neutral) and
  * `scripts/prune-runtime-models.mjs` (a lossless orphan-data prune) and ship
  * with plain uncompressed geometry (~1.05 MiB each). This script wraps that
  * pipeline's OUTPUT in EXT_meshopt_compression and nothing else.
@@ -36,7 +37,7 @@ import { createRuntimeModelIO, snapshotRuntimeModel } from './runtime-model-snap
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MODELS_DIR = resolve(ROOT, 'models');
-const VARIANTS = ['male', 'female'];
+const VARIANTS = ['male', 'female', 'neutral'];
 const BASELINE_PATH = resolve(MODELS_DIR, 'runtime-models.baseline.json');
 
 const io = await createRuntimeModelIO();
