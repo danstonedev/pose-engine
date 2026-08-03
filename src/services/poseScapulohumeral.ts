@@ -38,16 +38,34 @@
  * afterwards. What changes is the glenohumeral share, which drops by exactly
  * the girdle's contribution. That is the whole point.
  *
- * ── Deliberately NOT applied to the IK path ─────────────────────────────────
+ * ── The IK path needs it too, and that was got wrong once ───────────────────
  *
- * `solveIKChain` already includes the clavicle in the hand's chain, and CCD
- * distributes rotation across it on its own. Imposing a fixed ratio inside the
- * solver's loop would fight it, so a hand drag is left to the solver. See
- * `poseScapulohumeral.test.ts` for what a hand drag actually produces.
+ * The first version of this reasoned that `solveIKChain` already includes the
+ * clavicle in the hand's chain, so CCD would distribute across it and imposing
+ * a ratio would fight the solver. MEASURED, that is false. CCD walks from the
+ * effector upward and greedily zeroes the error at each joint, so by the time
+ * it reaches the clavicle — the last and most proximal link — there is nothing
+ * left to correct. A hand dragged to head height moved the elbow 110 degrees
+ * and the clavicle 3.7. The chain change made the girdle REACHABLE; it did not
+ * make the solver use it.
+ *
+ * `solveArmChainWithRhythm` alternates the two: solve, split, then re-solve on
+ * a DISTAL-ONLY chain that excludes the clavicle. Measured against the plain
+ * solve, at head height the girdle goes 3.7 to 9.3 degrees and the hand lands
+ * an order of magnitude closer to the target (0.035 to 0.003).
+ *
+ * The distal-only corrective pass is the load-bearing detail. Re-solving the
+ * FULL chain lets CCD drive the clavicle again and undo what the split just
+ * set: at a high reach that leaves the scapula pinned at -10 degrees of
+ * ANTERIOR tilt — backwards for elevation, where posterior tilt belongs —
+ * while the distal-only pass lands it at 0. So the original instinct was half
+ * right: CCD does fight the rhythm. The answer is to keep it out of the pass
+ * that corrects the target, not to skip the rhythm.
  */
 import * as THREE from 'three';
 import { girdleLocalQuat, girdleKeyForJoint, girdleSplit } from './movementCommand';
 import { inspectClinicalAngles } from './poseRomClamp';
+import { solveIKChain, type IKChainContext, type PoseClampOptions } from './poseRig';
 import type { JointAngleRestReference } from './jointAngles';
 
 /** Below this the split contributes nothing worth writing — keeps small poses,
@@ -151,6 +169,57 @@ export function applyScapulohumeralRhythm(
   humerus.updateWorldMatrix(true, false);
 
   return { scapularTilt, upRotation };
+}
+
+/**
+ * Solve an arm IK chain so the girdle carries its share of the elevation.
+ *
+ * `fullCtx` is the chain as configured (effector up to and including the
+ * clavicle); `distalCtx` is the same effector one link shorter, stopping at the
+ * humerus. Both are passed in rather than built here because callers cache them
+ * per handle and building a chain per pointer event would be wasteful.
+ *
+ * Falls back to a plain solve — never a no-op — when the chain does not reach a
+ * clavicle, so non-arm effectors and unexpected rigs behave exactly as before.
+ *
+ * `rest` comes from `clampOpts`, deliberately, rather than as its own argument.
+ * The first version took both and a caller passed `rest` for the rhythm while
+ * leaving `clampOpts` undefined — so the solve ran UNCLAMPED against a
+ * different pose than the split was reading, and the girdle recruited 5.7
+ * degrees instead of 9.3. One source for it makes that desync unrepresentable.
+ */
+export function solveArmChainWithRhythm(
+  fullCtx: IKChainContext,
+  distalCtx: IKChainContext | null,
+  target: THREE.Vector3,
+  clampOpts?: PoseClampOptions,
+  iterations = 3,
+): void {
+  solveIKChain(fullCtx, target, clampOpts);
+  const rest = clampOpts?.rest;
+
+  const humerusIdx = fullCtx.canonicalKeys.findIndex((k) => !!k && !!girdleKeyForJoint(k));
+  const humerus = humerusIdx >= 0 ? fullCtx.bones[humerusIdx] : null;
+  const humerusKey = humerusIdx >= 0 ? fullCtx.canonicalKeys[humerusIdx] : null;
+  const girdleKey = humerusKey ? girdleKeyForJoint(humerusKey) : null;
+  const clavicleIdx = girdleKey ? fullCtx.canonicalKeys.indexOf(girdleKey) : -1;
+  const clavicle = clavicleIdx >= 0 ? fullCtx.bones[clavicleIdx] : null;
+  if (!humerus || !clavicle || !distalCtx || !rest) return;
+
+  for (let i = 0; i < iterations; i += 1) {
+    if (!applyScapulohumeralRhythm(humerus, clavicle, humerusKey, rest)) break;
+    // REFRESH THE SUBTREE before solving. The rhythm's own update walks UP, so
+    // without this the forearm and hand still carry their pre-split world
+    // matrices and CCD solves against stale positions. Measured cost of
+    // omitting it: the girdle recruited 5.7 degrees instead of 9.3 — a quiet
+    // half-fix that still looked like it was working.
+    humerus.updateMatrixWorld(true);
+    // DISTAL-ONLY on purpose. Re-solving the full chain hands the clavicle back
+    // to CCD, which undoes the split — measured, that pins the scapula at the
+    // anterior tilt limit on a high reach. This pass moves only the joints
+    // below the girdle, so it recovers the target without spending the share.
+    solveIKChain(distalCtx, target, clampOpts);
+  }
 }
 
 /** Whether `maybeAncestor` sits above `node` in the scene graph. */

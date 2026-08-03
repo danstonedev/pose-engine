@@ -42,7 +42,7 @@ import {
   type JointAngleRestReference,
 } from '../services/jointAngles';
 import { inspectClinicalAngles } from '../services/poseRomClamp';
-import { applyScapulohumeralRhythm } from '../services/poseScapulohumeral';
+import { applyScapulohumeralRhythm, solveArmChainWithRhythm } from '../services/poseScapulohumeral';
 import { girdleSplit } from '../services/movementCommand';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 
@@ -431,27 +431,134 @@ describe('the split agrees with the authored path it mirrors', () => {
   });
 });
 
-describe('what a HAND drag does is the solver, not this', () => {
-  it('records where IK leaves the glenohumeral share', () => {
-    // Deliberately not covered by the rhythm: `solveIKChain` already includes
-    // the clavicle in the hand chain and CCD distributes across it on its own.
-    // Imposing a ratio inside the solver's loop would fight it. This measures
-    // what the solver actually produces so the gap is visible rather than
-    // assumed closed.
+describe('a HAND drag recruits the girdle too', () => {
+  /** Solve a hand drag the plain way — full chain, one pass — as it shipped. */
+  function plainSolve(target: THREE.Vector3) {
+    const handle = handles.find((h) => h.config.canonicalKey === 'R_Hand')!;
+    const ctx = buildIKChainContext(skinned, handle.bone, 3, variantCfg)!;
+    solveIKChain(ctx, target, { rest });
+    refresh();
+  }
+
+  function rhythmSolve(target: THREE.Vector3) {
+    const handle = handles.find((h) => h.config.canonicalKey === 'R_Hand')!;
+    const full = buildIKChainContext(skinned, handle.bone, 3, variantCfg)!;
+    const distal = buildIKChainContext(skinned, handle.bone, 2, variantCfg)!;
+    solveArmChainWithRhythm(full, distal, target, { rest });
+    refresh();
+  }
+
+  const girdleMotion = () =>
+    THREE.MathUtils.radToDeg(
+      byKey.get('R_Shoulder')!.quaternion.angleTo(restLocals.get('R_Shoulder')!),
+    );
+  const handErrorFrom = (target: THREE.Vector3) => {
+    const p = new THREE.Vector3();
+    byKey.get('R_Hand')!.getWorldPosition(p);
+    return p.distanceTo(target);
+  };
+
+  const HEAD_HEIGHT = new THREE.Vector3(-0.4, 1.75, 0.1);
+
+  it('the plain solve leaves the clavicle almost still — the reported defect', () => {
+    // THE bug, pinned so the fix cannot silently revert. CCD walks from the
+    // effector upward and greedily zeroes the error at each joint, so by the
+    // time it reaches the clavicle — last and most proximal — there is nothing
+    // left to correct. Including the clavicle in the chain made the girdle
+    // REACHABLE; it did not make the solver use it.
     withArmRestored('R', () => {
-      const handle = handles.find((h) => h.config.canonicalKey === 'R_Hand')!;
-      const ctx = buildIKChainContext(skinned, handle.bone, 3, variantCfg)!;
-      solveIKChain(ctx, new THREE.Vector3(-0.35, 2.15, 0.05), { rest });
-      refresh();
-      const gh = glenohumeralElevationDeg('R');
-      const scap = inspectClinicalAngles(byKey.get('R_Shoulder')!, 'R_Shoulder', rest)!;
-      // The solver DOES recruit the girdle now that it is in the chain — which
-      // is the fix that landed with the chain change, and is why the rhythm is
-      // not also imposed here.
-      expect(Math.abs(scap.anatomicFlexion) + Math.abs(scap.raw.abduction)).toBeGreaterThan(1);
-      // Recorded, not asserted as good: if this ever exceeds capacity badly,
-      // the hand path needs its own answer and this is where it shows up.
-      expect(gh).toBeLessThan(180);
+      plainSolve(HEAD_HEIGHT);
+      expect(girdleMotion()).toBeLessThan(5); // measured 3.7
     });
+  });
+
+  it('the rhythm solve recruits it, and lands the hand CLOSER', () => {
+    // Both halves matter. More girdle at the cost of missing the target would
+    // be a worse trade than the defect.
+    withArmRestored('R', () => {
+      plainSolve(HEAD_HEIGHT);
+      const plainGirdle = girdleMotion();
+      const plainError = handErrorFrom(HEAD_HEIGHT);
+
+      byKey.get('R_Shoulder')!.quaternion.copy(restLocals.get('R_Shoulder')!);
+      byKey.get('R_UpperArm')!.quaternion.copy(restLocals.get('R_UpperArm')!);
+      byKey.get('R_Forearm')!.quaternion.copy(restLocals.get('R_Forearm')!);
+      byKey.get('R_Hand')!.quaternion.copy(restLocals.get('R_Hand')!);
+      refresh();
+
+      rhythmSolve(HEAD_HEIGHT);
+      // Measured 3.7 -> 9.3 degrees of girdle…
+      expect(girdleMotion()).toBeGreaterThan(plainGirdle * 2);
+      // …and 0.035 -> 0.003 of hand error. Asserted as "no worse" plus a
+      // decisive margin, rather than pinning a float.
+      expect(handErrorFrom(HEAD_HEIGHT)).toBeLessThan(plainError);
+    });
+  });
+
+  it('drives the scapula the right WAY on a high reach', () => {
+    // The second defect the measurement turned up: re-solving the full chain
+    // after the split hands the clavicle back to CCD, which undoes it and pins
+    // the scapula at -10 degrees of ANTERIOR tilt — backwards for elevation.
+    // The distal-only corrective pass is what fixes it, so this asserts the
+    // sign rather than merely that something moved.
+    withArmRestored('R', () => {
+      rhythmSolve(new THREE.Vector3(-0.32, 1.95, 0.05));
+      const scap = inspectClinicalAngles(byKey.get('R_Shoulder')!, 'R_Shoulder', rest)!;
+      expect(scap.anatomicFlexion).toBeGreaterThan(-1); // not jammed anterior
+      expect(scap.raw.abduction).toBeGreaterThan(5); // genuine upward rotation
+    });
+  });
+
+  it('the ELBOW chain reaches the girdle too', () => {
+    // Reported alongside the hand: an elbow drag moved only the glenohumeral
+    // joint. Structurally it could not do otherwise — the handle solved
+    // chainParentCount 1, so its chain was [Forearm, UpperArm] and the clavicle
+    // was not in it at all. Now 2, which also gives the rhythm a distal chain
+    // ([Forearm, UpperArm]) to correct against.
+    for (const side of ['L', 'R'] as const) {
+      const h = handles.find((x) => x.config.canonicalKey === `${side}_Forearm`)!;
+      expect(h.config.chainParentCount).toBe(2);
+      const ctx = buildIKChainContext(skinned, h.bone, h.config.chainParentCount ?? 2, variantCfg)!;
+      expect(ctx.canonicalKeys).toEqual([
+        `${side}_Forearm`,
+        `${side}_UpperArm`,
+        `${side}_Shoulder`,
+      ]);
+    }
+  });
+
+  it('degrades to EXACTLY a plain solve when there is no girdle above the chain', () => {
+    // A foot drag must behave as it did before this function existed. Asserted
+    // as equivalence with the plain solver rather than against a distance
+    // threshold — a threshold only says the result is plausible, and would pass
+    // just as happily if the wrapper quietly did something different.
+    const foot = handles.find((h) => h.config.canonicalKey === 'R_Foot')!;
+    const legKeys = ['R_Foot', 'R_Leg', 'R_UpLeg'];
+    const saved = legKeys.map((k) => byKey.get(k)!.quaternion.clone());
+    const target = new THREE.Vector3(-0.12, 0.35, 0.25);
+    try {
+      const plain = buildIKChainContext(skinned, foot.bone, 2, variantCfg)!;
+      solveIKChain(plain, target, { rest });
+      refresh();
+      const plainQuats = legKeys.map((k) => byKey.get(k)!.quaternion.clone());
+
+      legKeys.forEach((k, i) => byKey.get(k)!.quaternion.copy(saved[i]));
+      refresh();
+
+      const viaWrapper = buildIKChainContext(skinned, foot.bone, 2, variantCfg)!;
+      expect(() => solveArmChainWithRhythm(viaWrapper, null, target, { rest })).not.toThrow();
+      refresh();
+      legKeys.forEach((k, i) => {
+        // 1e-4 rad (~0.006 degrees), not bitwise: two CCD runs from the same
+        // quaternions still differ in the last few float bits via cached world
+        // matrices — measured 2.5e-6. Four orders of magnitude below anything
+        // behavioural, so this still fails loudly if the wrapper does something
+        // the plain solver does not.
+        expect(byKey.get(k)!.quaternion.angleTo(plainQuats[i]), `${k} diverged`).toBeLessThan(1e-4);
+      });
+    } finally {
+      legKeys.forEach((k, i) => byKey.get(k)!.quaternion.copy(saved[i]));
+      refresh();
+    }
   });
 });
