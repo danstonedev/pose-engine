@@ -36,6 +36,11 @@ export * from './services/romConstraints';
 // and command-pose construction. Pure math; ExamStage3D animates it.
 export * from './services/movementCommand';
 
+// Scapulohumeral rhythm for the interactive pose path — splits a posed
+// humerus's humerothoracic elevation across the glenohumeral joint and the
+// girdle, so a dragged arm cannot spend the whole composite range at one joint.
+export * from './services/poseScapulohumeral';
+
 // Camera view presets + orbit tween math
 export * from './services/cameraTween';
 

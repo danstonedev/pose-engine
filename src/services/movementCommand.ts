@@ -1277,9 +1277,41 @@ function writeGirdle(
 ): void {
   const key = girdleKeyFor(joint);
   const restArr = baselinePose.bones?.[key ?? ''];
-  const specs = key ? SUPPORTED_MOTIONS[key] : undefined;
-  if (!key || !restArr || !specs) return;
+  if (!key || !restArr) return;
   const restQ = new THREE.Quaternion(restArr[0], restArr[1], restArr[2], restArr[3]);
+  const curArr = target.bones[key] ?? restArr;
+  const q = girdleLocalQuat(
+    key,
+    contributions,
+    restQ,
+    new THREE.Quaternion(curArr[0], curArr[1], curArr[2], curArr[3]),
+  );
+  if (!q) return;
+  target.bones[key] = [q.x, q.y, q.z, q.w];
+}
+
+/**
+ * Compose the clavicle's LOCAL quaternion for a set of girdle contributions.
+ *
+ * Extracted from {@link writeGirdle} so the interactive pose path can drive the
+ * scapula through the identical convention rather than a second reading of it.
+ * That matters more here than DRY usually does: the sign and axis mapping of
+ * the scapular channels is the thing most likely to be got subtly wrong, and
+ * having one definition is what lets `scapulaRomClamp.test.ts` calibrate the
+ * ROM clamp against this writer and catch a divergence.
+ *
+ * Absolute from rest on the X (tilt) and Z (upward rotation) axes; whatever
+ * protraction (Y) the current local carries is preserved, because elevation
+ * does not own that axis. Null when the key has no scapular specs.
+ */
+export function girdleLocalQuat(
+  girdleKey: string,
+  contributions: { motion: string; degrees: number }[],
+  restLocal: THREE.Quaternion,
+  currentLocal: THREE.Quaternion,
+): THREE.Quaternion | null {
+  const specs = SUPPORTED_MOTIONS[girdleKey];
+  if (!specs) return null;
   // The girdle's own X/Z contribution, summed in the body-euler frame the
   // scapular specs are built in (same summation the parent-euler branch uses).
   const e = new THREE.Euler();
@@ -1293,15 +1325,16 @@ function writeGirdle(
     gz += e.z;
   }
   // Preserve whatever protraction (Y) the incoming pose already carries.
-  const curArr = target.bones[key] ?? restArr;
-  const existing = new THREE.Quaternion(curArr[0], curArr[1], curArr[2], curArr[3]).multiply(
-    restQ.clone().invert(),
-  );
+  const existing = currentLocal.clone().multiply(restLocal.clone().invert());
   e.setFromQuaternion(existing, 'YXZ');
-  const q = new THREE.Quaternion()
+  return new THREE.Quaternion()
     .setFromEuler(new THREE.Euler(gx, e.y, gz, 'YXZ'))
-    .multiply(restQ);
-  target.bones[key] = [q.x, q.y, q.z, q.w];
+    .multiply(restLocal);
+}
+
+/** The clavicle key an upper-arm key's elevation also drives, or null. */
+export function girdleKeyForJoint(joint: string): string | null {
+  return girdleKeyFor(joint);
 }
 
 /**
