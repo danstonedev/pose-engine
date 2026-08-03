@@ -196,7 +196,7 @@ const SHARED_POSE_RIG: PoseRigConfig = {
     // solve so the yellow dots all respond to the same grab-and-move affordance.
     { canonicalKey: 'L_Shoulder', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'L_UpperArm', type: 'ik-effector', chainParentCount: 1 },
-    { canonicalKey: 'L_Forearm', type: 'ik-effector', chainParentCount: 1 },
+    { canonicalKey: 'L_Forearm', type: 'ik-effector', chainParentCount: 2 },
     // 3, not 2: the chain reaches the SCAPULA. Stopping at the humerus made a
     // hand drag purely glenohumeral, and real overhead elevation is roughly 2:1
     // glenohumeral to scapulothoracic — so the last third of the range had
@@ -208,7 +208,7 @@ const SHARED_POSE_RIG: PoseRigConfig = {
     // Right arm
     { canonicalKey: 'R_Shoulder', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'R_UpperArm', type: 'ik-effector', chainParentCount: 1 },
-    { canonicalKey: 'R_Forearm', type: 'ik-effector', chainParentCount: 1 },
+    { canonicalKey: 'R_Forearm', type: 'ik-effector', chainParentCount: 2 },
     { canonicalKey: 'R_Hand', type: 'ik-effector', chainParentCount: 3 },
     // Left leg — same pattern: hip stays single-bone (it's the pelvis pivot),
     // thigh / shin / foot solve their parent chains.
