@@ -162,6 +162,40 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     flexionSign: -1,
     abductionSign: -1,
   },
+  // SCAPULA (the clavicle bone). Parent-frame body-euler, matching how
+  // `movementCommand` already writes the girdle for authored shoulder
+  // elevation (girdleSplit / writeGirdle):
+  //   scapularTilt -> flexion (X), upRotation -> abduction (Z),
+  //   protraction  -> rotation (Y).
+  //
+  // MIRROR is measured, not assumed. Driving the engine's own writer at every
+  // angle from -30 to 140 gives a clean linear relation: the LEFT clavicle
+  // reads raw.abduction = +cmd, the RIGHT reads -cmd. So the right side needs
+  // the mirror to land the registry's asymmetric -5..60 upward-rotation bound
+  // on the correct pole; without it the right scapula is bounded by the
+  // DOWNWARD limit. The round-trip in scapulaRomClamp.test.ts drives that
+  // writer rather than re-deriving the convention, because re-deriving it is
+  // how you double-apply the handedness the writer already carries.
+  //
+  // PROTRACTION is the one axis this strategy shape cannot sign: `mirror` flips
+  // only the abduction source and there is no rotationSign. Harmless while the
+  // registry range is symmetric (-30..30) — the clamp bounds the same magnitude
+  // either way — but it is why protraction must not be given an asymmetric
+  // range without adding that sign first.
+  L_Shoulder: {
+    kind: 'body-euler',
+    flexionField: 'scapularTilt',
+    abductionField: 'upRotation',
+    rotationField: 'protraction',
+    mirror: false,
+  },
+  R_Shoulder: {
+    kind: 'body-euler',
+    flexionField: 'scapularTilt',
+    abductionField: 'upRotation',
+    rotationField: 'protraction',
+    mirror: true,
+  },
   L_UpperArm: {
     kind: 'ball-joint',
     flexionField: 'shoulderFlexion',

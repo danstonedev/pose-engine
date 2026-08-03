@@ -13,6 +13,7 @@ import {
   type JointAngleRestReference,
 } from './jointAngles';
 import { clampBoneToRom } from './poseRomClamp';
+import type { RomScenarioConstraints } from './romConstraints';
 
 /** Optional ROM-clamp metadata threaded through pose manipulators. When
  *  present, every bone write is clamped to clinical range-of-motion limits
@@ -22,6 +23,12 @@ export interface PoseClampOptions {
   rest: JointAngleRestReference | null | undefined;
   /** For FK swings: canonical key of the bone being moved. */
   canonicalKey?: string | null;
+  /** Per-patient ROM overrides, intersected with the normative registry by the
+   *  clamp. Omitted / null = normative ROM, which is what every caller got
+   *  before this existed. Without it, a host that records a patient's limits
+   *  sees them honoured when a joint is rotated by gizmo but ignored the moment
+   *  the same joint is DRAGGED — the two paths clamping to different ranges. */
+  constraints?: RomScenarioConstraints | null;
 }
 
 /** Maps canonical pose-rig keys (e.g. 'L_Hand') to the actual SkinnedMesh
@@ -423,7 +430,7 @@ export function swingBoneToWorldTarget(
   }
 
   if (clamp?.rest && clamp.canonicalKey) {
-    clampBoneToRom(bone, clamp.canonicalKey, clamp.rest);
+    clampBoneToRom(bone, clamp.canonicalKey, clamp.rest, clamp.constraints);
   }
 
   bone.updateMatrixWorld(true);
@@ -529,6 +536,12 @@ export function solveIKChain(
      *  axis (body-left is no longer world +X). Local axes are rotation
      *  invariant, so the ORIGINAL rest always names the correct one. */
     hingeAxisRest?: JointAngleRestReference | null;
+    /** Per-patient ROM overrides, intersected with the normative registry on
+     *  every chain bone the solve clamps. Omitted / null = normative ROM.
+     *  Without it a hand DRAG clamps to the population range while the same
+     *  joint rotated by gizmo honours the patient's — the same limb bounded two
+     *  different ways depending on which control was used. */
+    constraints?: RomScenarioConstraints | null;
     /** CCD passes for this solve (default {@link _ikIterations} = 4). CCD's
      *  residual scales with how far the effector starts from its target, so a
      *  solve that must track a FAST-moving chain (the gait foot-plant at a
@@ -586,7 +599,7 @@ export function solveIKChain(
         }
       }
       if (clamp?.rest && canonicalKey) {
-        clampBoneToRom(joint, canonicalKey, clamp.rest);
+        clampBoneToRom(joint, canonicalKey, clamp.rest, clamp.constraints);
       }
       joint.updateMatrixWorld(true);
     }
