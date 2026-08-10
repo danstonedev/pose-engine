@@ -10,11 +10,13 @@
  * `hasClampStrategy` said "no strategy" and every call site treated that the
  * same as "nothing to do".
  *
- * The clamp therefore lives in `stagePosingLayer.clampFingerCurl`, written
- * against the readout instead of against a decomposition. This file reproduces
- * that math on the real rig, because a synthetic three-bone stub would prove the
- * arithmetic and not the thing that actually matters: that the composite is
- * linear enough in the control delta for one rescale to land the bound.
+ * The clamp therefore lives in `poseFingerRomClamp.ts`, written against the
+ * readout instead of against a decomposition, and BOTH hosts call it — this
+ * engine's stage posing layer and 3DPainMap's own copy of the same drag layer.
+ * The tests below drive that shipped function, on the real rig, because a
+ * synthetic three-bone stub would prove the arithmetic and not the thing that
+ * actually matters: that the composite is linear enough in the control delta
+ * for one rescale to land the bound.
  *
  * Per the pose-engine convention (see relaxedHands.test.ts) the rig is the male
  * runtime GLB in anatomic pose, with the rest reference captured off it.
@@ -36,6 +38,7 @@ import {
 import { getEffectiveRomRange } from '../services/romConstraints';
 import { getRomFieldDefinition } from '../services/romRegistry';
 import { romEnforcementFor } from '../services/poseRomClamp';
+import { clampFingerCurlToRom } from '../services/poseFingerRomClamp';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 
 const variantCfg = BODY_VARIANTS.male;
@@ -114,29 +117,13 @@ describe('finger curl ROM — on the rig', () => {
     root.updateMatrixWorld(true);
   }
 
-  /**
-   * `stagePosingLayer.clampFingerCurl`, reproduced. Kept in step with the
-   * implementation by the source assertion at the bottom of this file: the two
-   * are a deliberate duplicate because the real one closes over a live stage
-   * context (scene, camera, gizmo, pointer state) that no unit test can build,
-   * and the math is the part worth pinning.
-   */
+  /** The SHIPPED clamp, driven directly — not a reproduction of it. Both hosts
+   *  call this same export; all they add is the bone lookup, the rest
+   *  reference, and the world-matrix refresh. */
   function clampFingerCurl(key: string, target: THREE.Quaternion): void {
-    const fc = chains.get(key)!;
-    const range = getEffectiveRomRange(null, key, 'fingerFlexion');
-    if (!range) return;
-    let delta = fc.rest[0].clone().invert().multiply(target);
-    for (let pass = 0; pass < 2; pass += 1) {
-      const measured = measure(key);
-      if (measured >= range.min && measured <= range.max) return;
-      const bound = measured < range.min ? range.min : range.max;
-      if (Math.abs(measured) < 1e-3) return;
-      const ratio = Math.sign(bound) === Math.sign(measured) ? bound / measured : 0;
-      const t = Math.max(0, Math.min(4, ratio));
-      const share = new THREE.Quaternion().slerp(delta, t);
-      distributeChainCurve(fc.bones, fc.rest, 0, fc.rest[0].clone().multiply(share));
-      delta = share;
-    }
+    clampFingerCurlToRom(key, chains.get(key)!, target, bones, rest, {
+      updateWorldMatrices: () => root.updateMatrixWorld(true),
+    });
   }
 
   /** Drag `deg` of curl onto a digit exactly as the ring does, then clamp. */
@@ -299,9 +286,11 @@ describe('finger curl ROM — on the rig', () => {
       /distributeChainCurve\(fc\.bones, fc\.rest, 0, target\); \/\/ finger curl\s*\n\s*clampFingerCurl\(selected\.key, fc, target\);/,
     );
     expect(layer).toMatch(
-      /getEffectiveRomRange\(stageCtx\.romConstraints \?\? null, key, 'fingerFlexion'\)/,
+      /clampFingerCurlToRom\(key, fc, target, stageCtx\.motionCapBones, stageCtx\.restRef, \{/,
     );
-    expect(layer).toMatch(/measureFingerFlexion\(stageCtx\.motionCapBones, key, stageCtx\.restRef\)/);
+    // …and it must hand over the scenario constraints, or a case-authored limit
+    // binds the gizmo path and not the drag.
+    expect(layer).toMatch(/constraints: stageCtx\.romConstraints \?\? null,/);
   });
 
   it('the pelvis drag clamps before it plants the feet', () => {

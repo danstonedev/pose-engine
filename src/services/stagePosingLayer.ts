@@ -33,7 +33,8 @@ import {
 } from './poseRig';
 import type { IKChainContext } from './poseRig';
 import { clampBoneToRom, hasClampStrategy, setRomClampEnabled } from './poseRomClamp';
-import { computeDrivingRingMap, gizmoSpaceForJoint, measureFingerFlexion } from './jointAngles';
+import { computeDrivingRingMap, gizmoSpaceForJoint } from './jointAngles';
+import { clampFingerCurlToRom } from './poseFingerRomClamp';
 import { configureRingRotateGizmo } from './poseGizmoHelpers';
 import { PoseRotateRingGizmo } from './poseRotateRings';
 import type { PoseRingDrag } from './poseRotateRings';
@@ -47,7 +48,6 @@ import { createSectionCap } from './sectionCap';
 import type { SectionCap } from './sectionCap';
 import type { DrivingRingMap, JointAngleReport } from './jointAngles';
 import { getRomJointDefinition, type RomPlane } from './romRegistry';
-import { getEffectiveRomRange } from './romConstraints';
 import type { RomScenarioConstraints } from './romConstraints';
 import type { getBodyVariant } from '../anatomy/bodyVariants';
 import type { captureJointAngleRestReference } from './jointAngles';
@@ -300,10 +300,6 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
   const _ringPos = new THREE.Vector3();
   const _ringQuat = new THREE.Quaternion();
   const _ringQuat2 = new THREE.Quaternion();
-  const _fcDelta = new THREE.Quaternion();
-  const _fcShare = new THREE.Quaternion();
-  const _fcTarget = new THREE.Quaternion();
-  const _fcScratch = new THREE.Quaternion();
 
   // ── Pose-motion preview (baseline ↔ current, smoothstep triangle) ──
   let posePlayActive = false;
@@ -400,58 +396,22 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     ringGizmo.update(camera, _ringPos, _ringQuat, true);
   }
 
-  /**
-   * ROM-clamp a digit's COMPOSITE curl, after `distributeChainCurve` has spread
-   * the drag along its phalanges.
-   *
-   * The digits are the one group `clampBoneToRom` cannot serve. Its strategies
-   * decompose a SINGLE bone's quaternion, but a digit's one clinical quantity —
-   * `fingerFlexion` — is the signed sum of the MCP and PIP angles in the curl
-   * plane, measured across two bones in world space. So all ten digits had a ROM
-   * row (curl 0–160, thumb 0–85), a live readout and a ring gizmo, and nothing
-   * bounding them: a curl drag ran to any angle at all, through the palm and out
-   * the far side.
-   *
-   * `distributeChainCurve` slerps the control's delta-from-rest by 1/N and writes
-   * `rest_i × share` to every segment, so the composite is linear in the delta's
-   * angle. Rather than restate the constant of proportionality here — it is 2/3,
-   * because two of the three segments are the two the readout sums, but that is a
-   * fact about two OTHER functions and it would go stale in silence — scale the
-   * delta by `bound / measured` and re-distribute. One pass is exact for the
-   * pure-curl-axis drag the ring produces; the second absorbs whatever a compound
-   * delta leaves behind, and reads its truth from the readout either way.
-   */
+  /** ROM-clamp a digit's COMPOSITE curl, after `distributeChainCurve` has
+   *  spread the drag along its phalanges. The math, and the reason it cannot be
+   *  a `clampBoneToRom` strategy, are in `poseFingerRomClamp.ts`; this host
+   *  supplies the bone lookup, the rest reference, and the world-matrix refresh
+   *  the measurement needs. */
   function clampFingerCurl(
     key: string,
     fc: { bones: import('three').Object3D[]; rest: import('three').Quaternion[] },
     target: import('three').Quaternion,
   ): void {
-    if (!poseRomClampOn || !stageCtx.restRef || !stageCtx.motionCapBones || !stageCtx.modelRoot)
-      return;
-    const range = getEffectiveRomRange(stageCtx.romConstraints ?? null, key, 'fingerFlexion');
-    if (!range) return;
-    _fcDelta.copy(_fcScratch.copy(fc.rest[0]).invert()).multiply(target);
-    for (let pass = 0; pass < 2; pass += 1) {
-      stageCtx.modelRoot.updateMatrixWorld(true);
-      const measured = measureFingerFlexion(stageCtx.motionCapBones, key, stageCtx.restRef);
-      if (measured == null) return;
-      if (measured >= range.min && measured <= range.max) return;
-      const bound = measured < range.min ? range.min : range.max;
-      // The delta is scaled along its own axis, so this needs a curl to scale:
-      // at ~zero measured curl there is no direction to scale toward, and the
-      // ratio blows up. Bail rather than fabricate one.
-      if (Math.abs(measured) < 1e-3) return;
-      // Clamped to [0, 4]: the normative case only ever REDUCES (t < 1), and the
-      // ceiling keeps the slerp well-conditioned when a scenario constraint
-      // raises the floor above zero (a flexion contracture) and the pass has to
-      // extrapolate up to it. Sign disagreement means the bound lies the other
-      // way round from where the digit is — go to rest and let pass 2 climb.
-      const ratio = Math.sign(bound) === Math.sign(measured) ? bound / measured : 0;
-      const t = Math.max(0, Math.min(4, ratio));
-      _fcShare.identity().slerp(_fcDelta, t);
-      distributeChainCurve(fc.bones, fc.rest, 0, _fcTarget.copy(fc.rest[0]).multiply(_fcShare));
-      _fcDelta.copy(_fcShare); // the next pass scales the ALREADY-scaled delta
-    }
+    if (!poseRomClampOn || !stageCtx.motionCapBones || !stageCtx.modelRoot) return;
+    const modelRoot = stageCtx.modelRoot;
+    clampFingerCurlToRom(key, fc, target, stageCtx.motionCapBones, stageCtx.restRef, {
+      constraints: stageCtx.romConstraints ?? null,
+      updateWorldMatrices: () => modelRoot.updateMatrixWorld(true),
+    });
   }
 
   /** Capture each finger's MCP→PIP→DIP chain + rest rotations. */
