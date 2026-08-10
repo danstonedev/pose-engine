@@ -195,7 +195,10 @@ const SHARED_POSE_RIG: PoseRigConfig = {
     { canonicalKey: 'Spine_Upper', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'Neck', type: 'ik-effector', chainParentCount: 1 },
     // Left arm — every visible joint handle participates in the drag-to-pose
-    // solve so the yellow dots all respond to the same grab-and-move affordance.
+    // solve, so every joint dot responds to the same grab-and-move affordance.
+    // (Deliberately no colour word: the handle fill is the host's to choose —
+    // 3DPainMap draws these green — and prose naming a colour here went stale
+    // without any way to notice.)
     { canonicalKey: 'L_Shoulder', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'L_UpperArm', type: 'ik-effector', chainParentCount: 1 },
     { canonicalKey: 'L_Forearm', type: 'ik-effector', chainParentCount: 2 },
