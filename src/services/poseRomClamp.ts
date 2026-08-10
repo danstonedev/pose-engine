@@ -26,6 +26,7 @@ import {
   ballJointAngles,
   decomposeBodyDelta,
   deltaFromRest,
+  isFingerJointKey,
   type JointAngleRestReference,
 } from './jointAngles';
 import { getRomFieldDefinition, type RomRangeDeg } from './romRegistry';
@@ -144,6 +145,28 @@ const STRATEGIES: Record<string, ClampStrategy> = {
   // Body-euler shares the readout's parent-local frame, so the signs must match
   // the readout (flexion = -a.flexion, lateralTilt = -a.abduction); the flexion
   // range is asymmetric (thoracic -25/40, cervical -60/50) so the flip matters.
+  // LUMBAR. Same shape as Spine_Upper below and for the same reason: the
+  // readout writes `flexion: -a.flexion` and `lateralTilt: a.abduction * -1`
+  // for Spine_Lower exactly as it does for Spine_Upper (jointAngles.ts, the
+  // spine/neck loop drives both from one table), so the clamp needs the same
+  // two flips to land the registry range on the correct pole.
+  //
+  // Unlike its neighbours this is a SINGLE bone — bodyVariants calls it
+  // "Lumbar (Waist, single bone)" — so there is no region curve to distribute
+  // across and the control's own orientation IS the regional total.
+  //
+  // It had a ROM row (-25/60 flexion, ±25 lateral, ±10 rotation) and a live
+  // readout but no strategy, so `clampBoneToRom` returned false for it and the
+  // lumbar spine could be dragged to any angle at all.
+  Spine_Lower: {
+    kind: 'body-euler',
+    flexionField: 'flexion',
+    abductionField: 'lateralTilt',
+    rotationField: 'rotation',
+    mirror: false,
+    flexionSign: -1,
+    abductionSign: -1,
+  },
   Spine_Upper: {
     kind: 'body-euler',
     flexionField: 'flexion',
@@ -304,6 +327,41 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     flexionSign: -1,
     abductionSign: -1,
   },
+
+  // FOREFOOT / great-toe MTP. BODY-EULER, not hinge — the choice is forced by
+  // the readout, not by anatomy. `computeJointAngles` measures the toes exactly
+  // as it measures the ankle, a parent-local `decomposeBodyDelta` off the bone's
+  // own delta-from-rest, and writes `toeFlexion: -a.flexion` (+ = extension).
+  // The `hinge` kind decomposes something else — a swing-twist in the canonical
+  // WORLD frame — which is right for knees and elbows because their readout is
+  // likewise geometric (the angle between parent and child world directions),
+  // and wrong here: it would bound a quantity the panel never displays.
+  //
+  // So this mirrors L_Foot / R_Foot exactly, `flexionSign: -1` and all, which
+  // lands the registry's -40 (flexion) / +70 (extension) on the correct poles.
+  //
+  // The registry gives the toes ONE field, so `lookupRange` returns the zero
+  // range for the other two axes and the clamp holds them at 0. That is the
+  // right model for an MTP and it matches the ankle's `rotationField: null`.
+  // `mirror` is inert while the frontal axis is locked at zero (it flips only
+  // the abduction source, and ±0 mirrors to ±0) — it is set to match the foot
+  // below it so the pair reads consistently if a frontal field is ever added.
+  L_Toes: {
+    kind: 'body-euler',
+    flexionField: 'toeFlexion',
+    abductionField: 'toeAbduction', // no registry field → locked at 0
+    rotationField: null, // locked at 0
+    mirror: false,
+    flexionSign: -1,
+  },
+  R_Toes: {
+    kind: 'body-euler',
+    flexionField: 'toeFlexion',
+    abductionField: 'toeAbduction',
+    rotationField: null,
+    mirror: true,
+    flexionSign: -1,
+  },
 };
 
 // ── Calibration toggle ────────────────────────────────────────────────
@@ -397,6 +455,31 @@ let _clampConstraints: RomScenarioConstraints | null = null;
  *  can skip the work entirely for unknown bones. */
 export function hasClampStrategy(canonicalKey: string | null | undefined): boolean {
   return !!canonicalKey && canonicalKey in STRATEGIES;
+}
+
+/** How a joint's normative ROM is actually held:
+ *
+ *  - `clamp-strategy`  — a row in {@link STRATEGIES}; `clampBoneToRom` enforces it.
+ *  - `composite-finger-curl` — the digits. Their one clinical quantity,
+ *    `fingerFlexion`, is a signed sum across the MCP and PIP bones, which no
+ *    single-bone strategy can decompose; `stagePosingLayer.clampFingerCurl`
+ *    enforces it against `measureFingerFlexion` instead. `clampBoneToRom`
+ *    returns false for these keys and that is correct, not a gap.
+ *  - `none` — reported by the ROM panel, bounded by nothing.
+ */
+export type RomEnforcement = 'clamp-strategy' | 'composite-finger-curl' | 'none';
+
+/** Which mechanism bounds this joint — see {@link RomEnforcement}.
+ *
+ *  This exists so the invariant "every joint with a ROM row is bounded" can be
+ *  asserted in ONE place. Enforcement is split across two files by necessity,
+ *  and while it was only implicit the split read as coverage: `clampBoneToRom`
+ *  no-ops on an unknown key and `hasClampStrategy` is used as a silent guard, so
+ *  an unbounded joint looked exactly like a bounded one from every call site. */
+export function romEnforcementFor(canonicalKey: string | null | undefined): RomEnforcement {
+  if (hasClampStrategy(canonicalKey)) return 'clamp-strategy';
+  if (isFingerJointKey(canonicalKey)) return 'composite-finger-curl';
+  return 'none';
 }
 
 // ── Strategy implementations ──────────────────────────────────────────
