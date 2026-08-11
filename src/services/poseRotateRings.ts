@@ -107,15 +107,18 @@ function shadeSphereOuter(geo: THREE.SphereGeometry, nodeR: number): void {
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 }
 
-/**
- * Fraction of the GRAB radius inside which a ring drag stops accumulating.
- *
- * 0.35 leaves the outer two thirds of the disc fully live, so nothing about an
- * ordinary drag changes — a circular sweep around the ring and a stroke that
- * misses the middle both behave exactly as before. It only takes effect where
- * the bearing is genuinely meaningless.
- */
-const DEAD_ZONE_FRACTION = 0.35;
+/** Half-width of the per-sample search window around the previous θ, radians.
+ *  Wide enough to follow a fast flick, narrow enough that the front/back
+ *  ambiguity of an edge-on ring stays resolved by continuity. */
+const SEARCH_WINDOW = (Math.PI / 180) * 8;
+/** Coarse samples either side of θ within the window (≈3° apart). */
+const SEARCH_STEPS = 20;
+/** Ternary-search iterations that refine the coarse winner. */
+const REFINE_STEPS = 24;
+/** Minimum near-vs-far contrast, as a fraction of the ring radius, for the
+ *  nearest point to mean anything. Below it the ray is close to the ring's
+ *  axis — the pointer is crossing the middle — and every θ fits equally well. */
+const MIN_CONTRAST_FRACTION = 0.3;
 
 /**
  * A live swept-angle ring rotation. Feed it the current pointer ray each move; it
@@ -127,13 +130,49 @@ export interface PoseRingDrag {
   update(raycaster: THREE.Raycaster): THREE.Quaternion;
 }
 
+/**
+ * CLOSEST POINT ON THE RING TO THE POINTER RAY.
+ *
+ * The obvious way to turn a pointer into a ring rotation is to intersect the
+ * ray with the ring's PLANE and read the bearing of the hit point. That is what
+ * this used to do, and it has a view direction where it cannot work at all:
+ * when the ring is edge-on the ray becomes coplanar with it, `intersectPlane`
+ * returns nothing, and the drag silently does nothing. Rig-measured across
+ * camera azimuths, the horizontal ring rotated 0.0° at EVERY angle with the
+ * camera level with the joint — a whole axis of every joint, permanently dead —
+ * and the other two died at their own edge-on angles while jumping ~11° per
+ * sample near them.
+ *
+ * So the ray is not intersected with anything. Each move finds the angle θ
+ * whose point on the ring passes CLOSEST TO THE RAY:
+ *
+ *     P(θ) = centre + R(cos θ · u + sin θ · v)
+ *     f(θ) = |w|² − (w · D)²        where w = P(θ) − rayOrigin, D = ray dir
+ *
+ * — the squared perpendicular distance from that point to the ray. It is
+ * defined for every view, including the edge-on one, because a line and a
+ * circle always have a nearest approach.
+ *
+ * θ is TRACKED rather than solved globally. Seen edge-on a ring projects to a
+ * line and each screen position matches two points on it, front and back; the
+ * search window around the previous θ is what resolves that, and it starts from
+ * the true 3D point the user grabbed (the picker's raycast hit), not from a
+ * projection. Continuity, not geometry, decides which half you are on — which
+ * is correct, because that is the only thing that knows.
+ *
+ * The ill-conditioned case is now explicit instead of accidental: when the ray
+ * passes near the ring's AXIS every θ is roughly equidistant, f goes flat, and
+ * the nearest point is noise. That is exactly the pointer crossing the middle of
+ * the ring. {@link MIN_CONTRAST_FRACTION} measures the flatness directly and
+ * declines to accumulate — while still tracking θ, because a stale θ makes the
+ * next sample apply a half-turn in one step.
+ */
 class RingDragImpl implements PoseRingDrag {
-  private prevAngle: number;
+  private theta: number;
   private total = 0;
-  private readonly _plane = new THREE.Plane();
-  private readonly _hit = new THREE.Vector3();
   private readonly _qa = new THREE.Quaternion();
   private readonly _result = new THREE.Quaternion();
+  private readonly _c = new THREE.Vector3();
 
   constructor(
     readonly axis: RingAxisName,
@@ -145,46 +184,75 @@ class RingDragImpl implements PoseRingDrag {
     private readonly q0: THREE.Quaternion,
     private readonly parentW: THREE.Quaternion,
     private readonly parentWInv: THREE.Quaternion,
-    /** World-space radius inside which the bearing is treated as unusable.
-     *  Derived from where the user actually grabbed, so it scales with the
-     *  gizmo, the model and the camera distance without any of them being
-     *  plumbed in here. */
-    private readonly deadRadius: number,
+    /** World radius of the ring the user grabbed. */
+    private readonly radius: number,
   ) {
-    this.prevAngle = angle0;
+    this.theta = angle0;
     this._result.copy(q0);
   }
 
+  /** Squared perpendicular distance from the ring point at `t` to the ray,
+   *  from precomputed per-frame dot products. */
+  private dist2(
+    t: number,
+    cc: number, cu: number, cv: number, cd: number, ud: number, vd: number,
+  ): number {
+    const R = this.radius;
+    const co = Math.cos(t) * R;
+    const si = Math.sin(t) * R;
+    const w2 = cc + R * R + 2 * (co * cu + si * cv);
+    const wd = cd + co * ud + si * vd;
+    return w2 - wd * wd;
+  }
+
   update(raycaster: THREE.Raycaster): THREE.Quaternion {
-    this._plane.setFromNormalAndCoplanarPoint(this.axisW, this.center);
-    if (raycaster.ray.intersectPlane(this._plane, this._hit)) {
-      // DEAD ZONE around the ring's centre. The bearing here is `atan2` of a
-      // vector approaching zero length, so it swings freely: a pointer stroke
-      // that passes through the middle of the ring flips it ~180° between two
-      // consecutive samples. Measured on a steady, slow stroke — 0.002 NDC per
-      // sample, far finer than a real pointermove stream — the bone rotated
-      // 90° in ONE sample, at every viewing angle from face-on to edge-on.
-      //
-      // That is the snap: 90° of unrequested rotation lands a joint well past
-      // its limit, and the ROM clamp then bounds the result to whichever end of
-      // the range the wrapped angle fell outside of — a knee near full flexion
-      // arrives at full extension.
-      //
-      // The bearing is still TRACKED inside the zone, deliberately. Skipping
-      // the sample outright leaves `prevAngle` stale, and the next sample on
-      // the far side then measures a full half-turn and applies it in one step
-      // — measured at 180°, twice as bad as doing nothing. What must not happen
-      // is ACCUMULATING it: sweeping the pointer across the middle of a
-      // rotation ring is not a request to rotate.
-      const inDeadZone = this._hit.distanceTo(this.center) < this.deadRadius;
-      this._hit.sub(this.center);
-      const angle = Math.atan2(this._hit.dot(this.v), this._hit.dot(this.u));
-      let step = angle - this.prevAngle;
-      while (step > Math.PI) step -= 2 * Math.PI;
-      while (step < -Math.PI) step += 2 * Math.PI;
-      if (!inDeadZone) this.total += step;
-      this.prevAngle = angle;
+    const O = raycaster.ray.origin;
+    const D = raycaster.ray.direction;
+    this._c.copy(this.center).sub(O);
+    const cc = this._c.lengthSq();
+    const cu = this._c.dot(this.u);
+    const cv = this._c.dot(this.v);
+    const cd = this._c.dot(D);
+    const ud = this.u.dot(D);
+    const vd = this.v.dot(D);
+    const f = (t: number) => this.dist2(t, cc, cu, cv, cd, ud, vd);
+
+    // Coarse scan of a window around the previous θ, then a ternary refine.
+    // The window bounds how far one pointer sample may travel around the ring,
+    // which is also what keeps the front/back ambiguity resolved by continuity.
+    let best = this.theta;
+    let bestF = f(best);
+    for (let i = -SEARCH_STEPS; i <= SEARCH_STEPS; i += 1) {
+      const t = this.theta + (i * SEARCH_WINDOW) / SEARCH_STEPS;
+      const fi = f(t);
+      if (fi < bestF) {
+        bestF = fi;
+        best = t;
+      }
     }
+    let lo = best - SEARCH_WINDOW / SEARCH_STEPS;
+    let hi = best + SEARCH_WINDOW / SEARCH_STEPS;
+    for (let i = 0; i < REFINE_STEPS; i += 1) {
+      const m1 = lo + (hi - lo) / 3;
+      const m2 = hi - (hi - lo) / 3;
+      if (f(m1) < f(m2)) hi = m2;
+      else lo = m1;
+    }
+    const theta = (lo + hi) / 2;
+
+    // CONTRAST: how much better the nearest point is than the far side. Near
+    // zero means the ray is close to the ring's axis and every θ fits equally
+    // well — the pointer is crossing the middle of the ring, where there is no
+    // bearing to read.
+    const contrast = f(theta + Math.PI) - f(theta);
+    const usable = contrast > (MIN_CONTRAST_FRACTION * this.radius) ** 2;
+
+    let step = theta - this.theta;
+    while (step > Math.PI) step -= 2 * Math.PI;
+    while (step < -Math.PI) step += 2 * Math.PI;
+    if (usable) this.total += step;
+    this.theta = theta; // tracked either way — a stale θ costs a half-turn later
+
     // newLocal = parentWInv · axisAngle(axisW, total) · parentW · q0
     this._qa.setFromAxisAngle(this.axisW, this.total);
     this._result.copy(this.parentWInv).multiply(this._qa).multiply(this.parentW).multiply(this.q0);
@@ -375,19 +443,18 @@ export class PoseRotateRingGizmo {
     const vW = axisW.clone().cross(uW).normalize();
     const center = centerWorld.clone();
 
-    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axisW, center);
-    const hitPt = new THREE.Vector3();
-    let angle0 = 0;
-    // Where the user grabbed, in world units, measured in the ring's own plane.
-    // The dead zone is a fraction of THIS rather than of the gizmo's nominal
-    // radius: a grab lands anywhere in the pick band, and the band is wider on
-    // touch, so the grab radius is the honest scale for "how far in is too far".
-    let grabRadius = 0;
-    if (raycaster.ray.intersectPlane(plane, hitPt)) {
-      grabRadius = hitPt.distanceTo(center);
-      hitPt.sub(center);
-      angle0 = Math.atan2(hitPt.dot(vW), hitPt.dot(uW));
-    }
+    // Seed θ from the picker's own 3D hit point, NOT from a plane projection.
+    // The raycast already told us exactly where on the ring the user grabbed,
+    // in world space, and that is the one moment the front/back half is known
+    // for certain — everything after it is continuity from here. A plane
+    // projection would throw that away, and returns nothing at all when the
+    // ring is edge-on, which is precisely the case this has to serve.
+    const hitPt = hit.point.clone().sub(center);
+    const angle0 = Math.atan2(hitPt.dot(vW), hitPt.dot(uW));
+    // The drawn ring's world radius: the group is scaled uniformly and the
+    // torus is built at unit radius. Taken from the gizmo rather than from the
+    // hit, which lands anywhere within the pick band (wider on touch).
+    const radius = this.group.scale.x || 1;
     const parentW = parentWorldQuat.clone();
     return new RingDragImpl(
       picker.name,
@@ -399,7 +466,7 @@ export class PoseRotateRingGizmo {
       boneLocalQuat.clone(),
       parentW,
       parentW.clone().invert(),
-      grabRadius * DEAD_ZONE_FRACTION,
+      radius,
     );
   }
 
