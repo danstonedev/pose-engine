@@ -32,9 +32,10 @@ import {
   solveIKChain,
 } from './poseRig';
 import type { IKChainContext } from './poseRig';
-import { clampBoneToRom, hasClampStrategy, isHingeJoint, setRomClampEnabled } from './poseRomClamp';
+import { clampBoneToRom, hasClampStrategy, setRomClampEnabled } from './poseRomClamp';
 import { computeDrivingRingMap, gizmoSpaceForJoint } from './jointAngles';
 import { clampFingerCurlToRom } from './poseFingerRomClamp';
+import { clampRegionCurveToRom } from './poseRegionCurveRomClamp';
 import { configureRingRotateGizmo, hiddenRingsForJoint } from './poseGizmoHelpers';
 import { PoseRotateRingGizmo } from './poseRotateRings';
 import type { PoseRingDrag } from './poseRotateRings';
@@ -372,7 +373,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       if (ring) colors[ring] = POSE_PLANE_RING_HEX[f.plane];
     }
     ringGizmo.setRingColors(colors);
-    ringGizmo.setHiddenRings(hiddenRingsForJoint(key, dr, isHingeJoint));
+    ringGizmo.setHiddenRings(hiddenRingsForJoint(key, dr));
   }
 
   /** Position the plane rings at the selected joint (or the oblique
@@ -432,8 +433,10 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     }
   }
 
-  /** Region curve handles (spine/neck): spread the bend across a chain,
-   *  ROM-clamping the REGIONAL total on the control bone first. */
+  /** Region curve handles (spine/neck): spread the bend across a chain and
+   *  bound the REGIONAL TOTAL — the number the ROM panel reports — rather than
+   *  the control bone's own orientation, which is a different quantity. See
+   *  `poseRegionCurveRomClamp.ts` for the measurements that separate them. */
   function applyPoseCurveChain(key: string, target: import('three').Quaternion): boolean {
     const chain = POSE_CURVE_CHAINS[key];
     if (!chain || !stageCtx.motionCapBones || !stageCtx.restRef) return false;
@@ -446,14 +449,13 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       segs.push(b);
       rests.push(new THREE.Quaternion(rl[0], rl[1], rl[2], rl[3]));
     }
-    let clamped = target;
-    const ctrl = stageCtx.motionCapBones.get(key);
-    if (ctrl && poseRomClampOn && hasClampStrategy(key)) {
-      ctrl.quaternion.copy(target);
-      poseClamp(ctrl, key);
-      clamped = ctrl.quaternion.clone();
+    if (poseRomClampOn) {
+      clampRegionCurveToRom(key, segs, rests, chain.control, target, stageCtx.restRef, {
+        constraints: stageCtx.romConstraints ?? null,
+      });
+    } else {
+      distributeChainCurve(segs, rests, chain.control, target);
     }
-    distributeChainCurve(segs, rests, chain.control, clamped);
     return true;
   }
 

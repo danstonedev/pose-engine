@@ -1,25 +1,19 @@
 /**
- * A HINGE MUST NOT OFFER A VARUS/VALGUS RING.
+ * A HINGE KEEPS ITS VARUS/VALGUS RING.
  *
- * `clampHinge` allows ±5° of frontal play on a knee (±10 on an elbow) as PLAY —
- * a real elbow has a carrying angle, a hard zero-lock looks robotic — and not
- * as a range to pose within. So the frontal ring can move essentially nothing.
+ * It was briefly hidden. Dragging a knee's frontal ring on a FLEXED knee
+ * collapsed it to full extension — rig-measured, 90°, 120° and 135° of flexion
+ * all ended on the −15° hyperextension floor with single-sample bone jumps of
+ * 43°, 114° and 79° — and removing the control removed the gesture.
  *
- * Dragging it did far worse than nothing. Rig-measured through the REAL gizmo,
- * an ordinary rotate gesture on the frontal ring of a knee at 90°, 120° and
- * 135° of flexion ended at −15.0° every time — the hyperextension floor — with
- * single-sample bone jumps of 43°, 114° and 79°.
+ * The cause was the ring-drag MODEL, not the ring. The old plane-intersection
+ * bearing lost its footing near its degenerate view and fed the clamp an
+ * orientation past the swing-twist decomposition's pole, where flexion is not
+ * recoverable. With closest-approach tracking the same drag is well behaved,
+ * so hiding the ring became pure loss: the knee has a real, if small, frontal
+ * range that the ROM panel reports, and no way to reach it.
  *
- * Driving the frontal axis swings the shin toward the swing-twist
- * decomposition's pole, where flexion stops being recoverable; the clamp then
- * reads a flexion it should not trust and bounds it to the wrong end of the
- * range. Full flexion becomes full extension — the reported snap, knees
- * specifically.
- *
- * This is the reason it is knees specifically: ball joints have wide frontal
- * ranges and no such ring-vs-reality mismatch, and the wrist's odd ring was
- * already hidden. The hinge is the joint whose offered controls and whose
- * actual freedom disagreed.
+ * These are the measurements that justify keeping it.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -32,15 +26,22 @@ import { buildBoneByPoseKey } from '../services/poseRig';
 import {
   captureJointAngleRestReference,
   computeDrivingRingMap,
+  computeJointAngles,
   type JointAngleRestReference,
 } from '../services/jointAngles';
-import { hingeOffAxisTolerance, isHingeJoint } from '../services/poseRomClamp';
+import { clampBoneToRom, hingeOffAxisTolerance, isHingeJoint } from '../services/poseRomClamp';
 import { hiddenRingsForJoint } from '../services/poseGizmoHelpers';
+import { PoseRotateRingGizmo } from '../services/poseRotateRings';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 
 const variantCfg = BODY_VARIANTS.male;
+const DEG = 180 / Math.PI;
+const RAD = Math.PI / 180;
+let root: THREE.Object3D;
 let skinned: THREE.SkinnedMesh;
 let rest: JointAngleRestReference;
+let byKey: Map<string, THREE.Bone>;
+let anatomic: Map<THREE.Bone, THREE.Quaternion>;
 let rings: ReturnType<typeof computeDrivingRingMap>;
 
 beforeAll(async () => {
@@ -53,7 +54,7 @@ beforeAll(async () => {
     l.setMeshoptDecoder(MeshoptDecoder);
     l.parse(ab, '', res as never, rej);
   });
-  const root = gltf.scene;
+  root = gltf.scene;
   root.scale.setScalar(variantCfg.pose.rootScale);
   root.traverse((o) => {
     if ((o as THREE.SkinnedMesh).isSkinnedMesh && !skinned) skinned = o as THREE.SkinnedMesh;
@@ -62,62 +63,116 @@ beforeAll(async () => {
   applyAnatomicPose(root, variantCfg);
   root.updateMatrixWorld(true);
   rest = captureJointAngleRestReference(skinned.skeleton, variantCfg);
-  buildBoneByPoseKey(skinned.skeleton, variantCfg);
+  byKey = buildBoneByPoseKey(skinned.skeleton, variantCfg);
+  anatomic = new Map();
+  for (const b of skinned.skeleton.bones) anatomic.set(b, b.quaternion.clone());
   rings = computeDrivingRingMap(rest);
 });
 
-const HINGES = ['L_Leg', 'R_Leg', 'L_Forearm', 'R_Forearm'] as const;
+const angles = () => computeJointAngles(skinned.skeleton, variantCfg, 'male', rest).joints.L_Leg!;
 
-describe('hinge joints', () => {
-  it('are exactly the knees and elbows', () => {
-    // Pinned so a strategy changing kind shows up here rather than silently
-    // changing which rings the UI offers.
-    for (const k of HINGES) expect(isHingeJoint(k), k).toBe(true);
-    for (const k of ['L_UpLeg', 'L_UpperArm', 'L_Hand', 'Spine_Lower', 'Hips'])
-      expect(isHingeJoint(k), k).toBe(false);
+/** Flex the knee, then drag its FRONTAL ring through the real gizmo, clamping
+ *  every sample exactly as the host does. */
+function dragFrontalRing(flexDeg: number) {
+  for (const [b, q] of anatomic) b.quaternion.copy(q);
+  const knee = byKey.get('L_Leg')!;
+  knee.quaternion
+    .copy(anatomic.get(knee)!)
+    .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -flexDeg * RAD));
+  root.updateMatrixWorld(true);
+
+  const wantAxis = (rings.L_Leg?.frontal?.ring ?? 'z').toUpperCase() as 'X' | 'Y' | 'Z';
+  const centre = knee.getWorldPosition(new THREE.Vector3());
+  const frame = knee.getWorldQuaternion(new THREE.Quaternion());
+  const cam = new THREE.PerspectiveCamera(50, 1.6, 0.1, 100);
+  cam.position.set(centre.x + 0.9, centre.y + 0.25, centre.z + 1.4);
+  cam.lookAt(centre);
+  cam.updateMatrixWorld(true);
+  const gizmo = new PoseRotateRingGizmo();
+  gizmo.update(cam, centre, frame, true);
+  gizmo.group.updateMatrixWorld(true);
+
+  const rc = new THREE.Raycaster();
+  let drag: ReturnType<PoseRotateRingGizmo['beginDrag']> = null;
+  let start = new THREE.Vector2();
+  for (let d = 0; d < 360 && !drag; d += 3) {
+    const t = d / DEG;
+    const p = new THREE.Vector2(Math.cos(t) * 0.16 * 0.62, Math.sin(t) * 0.16);
+    rc.setFromCamera(p, cam);
+    const cand = gizmo.beginDrag(rc, {
+      centerWorld: centre,
+      frameQuat: frame,
+      boneLocalQuat: knee.quaternion,
+      parentWorldQuat: (knee.parent as THREE.Bone).getWorldQuaternion(new THREE.Quaternion()),
+    });
+    if (cand?.axis === wantAxis) {
+      drag = cand;
+      start = p;
+    }
+  }
+  if (!drag) return null;
+
+  const tang = new THREE.Vector2(-start.y, start.x).normalize();
+  let worstStep = 0;
+  let prev = knee.quaternion.clone();
+  for (let i = 1; i <= 120; i += 1) {
+    const f = (0.2 * i) / 120;
+    rc.setFromCamera(new THREE.Vector2(start.x + tang.x * f, start.y + tang.y * f), cam);
+    knee.quaternion.copy(drag.update(rc));
+    clampBoneToRom(knee, 'L_Leg', rest);
+    root.updateMatrixWorld(true);
+    worstStep = Math.max(worstStep, prev.angleTo(knee.quaternion) * DEG);
+    prev = knee.quaternion.clone();
+  }
+  gizmo.dispose();
+  const a = angles();
+  return { worstStep, flexion: a.kneeFlexion!, deviation: a.kneeDeviation! };
+}
+
+describe('the knee’s frontal ring is offered, and is safe to use', () => {
+  it('is not hidden', () => {
+    const frontal = rings.L_Leg?.frontal?.ring;
+    expect(frontal, 'the knee has a frontal ring').toBeTruthy();
+    expect(hiddenRingsForJoint('L_Leg', rings.L_Leg)).toEqual([]);
+    expect(hiddenRingsForJoint('L_Forearm', rings.L_Forearm)).toEqual([]);
   });
 
-  it('allow only a few degrees off-axis — play, not a posing range', () => {
-    // The number that makes the ring a lie: 5° on a knee.
-    const knee = hingeOffAxisTolerance('L_Leg')!;
-    expect(knee.abduction).toEqual({ min: -5, max: 5 });
-    const elbow = hingeOffAxisTolerance('L_Forearm')!;
-    expect(Math.abs(elbow.abduction.max)).toBeLessThanOrEqual(10);
-    expect(hingeOffAxisTolerance('L_UpLeg'), 'ball joints have no such table').toBeNull();
-  });
-
-  it('hide their frontal ring, on every hinge', () => {
-    for (const k of HINGES) {
-      const frontal = rings[k]?.frontal?.ring;
-      expect(frontal, `${k} has a frontal ring to hide`).toBeTruthy();
-      expect(hiddenRingsForJoint(k, rings[k], isHingeJoint), k).toContain(frontal);
+  it('PRESERVES flexion while it is dragged — the collapse is gone', () => {
+    // The regression this file exists for. Each of these ended at −15.0 under
+    // the old drag model; they now hold the flexion the user posed.
+    for (const flex of [90, 120, 135]) {
+      const r = dragFrontalRing(flex)!;
+      expect(r, `${flex}° knee is grabbable on its frontal ring`).not.toBeNull();
+      expect(r.flexion, `${flex}° flexion must survive a frontal drag`).toBeGreaterThan(flex - 5);
+      expect(r.flexion).toBeLessThan(flex + 5);
     }
   });
 
-  it('keep their flexion ring — the one axis a hinge really has', () => {
-    for (const k of HINGES) {
-      const sagittal = rings[k]?.sagittal?.ring;
-      expect(sagittal, `${k} has a sagittal ring`).toBeTruthy();
-      expect(hiddenRingsForJoint(k, rings[k], isHingeJoint), k).not.toContain(sagittal);
-    }
+  it('bounds deviation to the hinge tolerance, and moves smoothly getting there', () => {
+    const tol = hingeOffAxisTolerance('L_Leg')!;
+    const r = dragFrontalRing(120)!;
+    expect(Math.abs(r.deviation), 'deviation stops at the tolerance').toBeLessThanOrEqual(
+      Math.max(Math.abs(tol.abduction.min), Math.abs(tol.abduction.max)) + 1,
+    );
+    expect(r.worstStep, 'and no sample jumps').toBeLessThan(10);
+  });
+
+  it('still classes knees and elbows as hinges', () => {
+    // The predicate stays — the clamp's tolerances are still derived from it,
+    // and `hingeOffAxisTolerance` above is what makes the bound assertable.
+    for (const k of ['L_Leg', 'R_Leg', 'L_Forearm', 'R_Forearm']) expect(isHingeJoint(k), k).toBe(true);
+    for (const k of ['L_UpLeg', 'L_Hand', 'Hips']) expect(isHingeJoint(k), k).toBe(false);
   });
 });
 
-describe('the rule leaves every other joint alone', () => {
-  it('still hides the wrist pro/sup ring, and nothing else there', () => {
-    for (const k of ['L_Hand', 'R_Hand'] as const) {
-      const proSup = rings[k]?.transverse?.ring;
-      expect(hiddenRingsForJoint(k, rings[k], isHingeJoint)).toEqual([proSup]);
-    }
+describe('the one ring that is still hidden', () => {
+  it('is the wrist’s pro/sup, which the forearm already owns', () => {
+    for (const k of ['L_Hand', 'R_Hand'] as const)
+      expect(hiddenRingsForJoint(k, rings[k])).toEqual([rings[k]?.transverse?.ring]);
   });
 
-  it('hides nothing on ball joints, the spine or the pelvis', () => {
-    for (const k of ['L_UpLeg', 'R_UpperArm', 'Spine_Lower', 'Spine_Upper', 'Neck', 'Hips'])
-      expect(hiddenRingsForJoint(k, rings[k], isHingeJoint), k).toEqual([]);
-  });
-
-  it('is safe on an unknown or ringless key', () => {
-    expect(hiddenRingsForJoint(null, undefined, isHingeJoint)).toEqual([]);
-    expect(hiddenRingsForJoint('Nonsense', rings.Nonsense, isHingeJoint)).toEqual([]);
+  it('and nothing else, on any other joint', () => {
+    for (const k of ['L_Leg', 'L_UpLeg', 'R_UpperArm', 'Spine_Lower', 'Neck', 'Hips'])
+      expect(hiddenRingsForJoint(k, rings[k]), k).toEqual([]);
   });
 });
