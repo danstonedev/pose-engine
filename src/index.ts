@@ -27,6 +27,7 @@ export * from './services/romRegistry';
 export * from './services/poseRomClamp';
 export * from './services/poseFingerRomClamp';
 export * from './services/poseRegionCurveRomClamp';
+export * from './services/poseProSupRomClamp';
 
 // Scenario ROM constraints — per-patient available range / painful arc /
 // end-feel overrides a host installs for the active case; the clamp enforces

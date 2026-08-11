@@ -26,16 +26,16 @@ import {
   disposeIKChainContext,
   distributeChainCurve,
   pinBonesToRestWorld,
-  readAxialTwist,
   serializeCustomPose,
-  setAxialTwist,
   solveIKChain,
 } from './poseRig';
 import type { IKChainContext } from './poseRig';
 import { clampBoneToRom, hasClampStrategy, setRomClampEnabled } from './poseRomClamp';
+import { solveArmChainWithRhythm } from './poseScapulohumeral';
 import { computeDrivingRingMap, gizmoSpaceForJoint } from './jointAngles';
 import { clampFingerCurlToRom } from './poseFingerRomClamp';
 import { clampRegionCurveToRom } from './poseRegionCurveRomClamp';
+import { applyCoupledProSup } from './poseProSupRomClamp';
 import { configureRingRotateGizmo, hiddenRingsForJoint } from './poseGizmoHelpers';
 import { PoseRotateRingGizmo } from './poseRotateRings';
 import type { PoseRingDrag } from './poseRotateRings';
@@ -217,9 +217,6 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
   };
   /** Knees stay hinge-locked while the feet are pinned during a pelvis tilt. */
   const POSE_PLANT_HINGES = new Set(['L_Leg', 'R_Leg']);
-  /** Coupled pronation/supination keys (forearm ↔ hand, ±45° per segment). */
-  const PROSUP_KEYS = new Set(['L_Forearm', 'R_Forearm', 'L_Hand', 'R_Hand']);
-  const PROSUP_SEG_LIMIT_RAD = (45 * Math.PI) / 180;
   /** Plane → ring colour: sagittal red, frontal blue, transverse green. */
   const POSE_PLANE_RING_HEX: Record<RomPlane, number> = {
     sagittal: 0xff3653,
@@ -271,6 +268,8 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
   let press: { handle: PoseHandle; startX: number; startY: number; dragging: boolean } | null =
     null;
   let ikCtx: IKChainContext | null = null;
+  /** The girdle-free chain the scapulohumeral rhythm corrects against. */
+  let distalCtx: IKChainContext | null = null;
   let ringDrag: PoseRingDrag | null = null;
   let drivingRings: DrivingRingMap | null = null;
   let twistRig: TwistSegment[] = [];
@@ -456,34 +455,6 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     } else {
       distributeChainCurve(segs, rests, chain.control, target);
     }
-    return true;
-  }
-
-  /** Coupled pronation/supination: a twist (Y-ring) drag on the forearm
-   *  OR hand drives ONE shared rotation split 1:1 across both segments. */
-  function applyProSup(key: string, target: import('three').Quaternion): boolean {
-    if (!PROSUP_KEYS.has(key) || !stageCtx.motionCapBones || !stageCtx.restRef) return false;
-    const side = key.startsWith('L_') ? 'L_' : 'R_';
-    const forearm = stageCtx.motionCapBones.get(`${side}Forearm`);
-    const hand = stageCtx.motionCapBones.get(`${side}Hand`);
-    const rfArr = stageCtx.restRef.localQuats[`${side}Forearm`];
-    const rhArr = stageCtx.restRef.localQuats[`${side}Hand`];
-    if (!forearm || !hand || !rfArr || !rhArr) return false;
-    const restF = new THREE.Quaternion(rfArr[0], rfArr[1], rfArr[2], rfArr[3]);
-    const restH = new THREE.Quaternion(rhArr[0], rhArr[1], rhArr[2], rhArr[3]);
-    const selIsForearm = key.endsWith('Forearm');
-    const sel = selIsForearm ? forearm : hand;
-    const restSel = selIsForearm ? restF : restH;
-    const twist = Math.max(
-      -PROSUP_SEG_LIMIT_RAD,
-      Math.min(PROSUP_SEG_LIMIT_RAD, readAxialTwist(target, restSel)),
-    );
-    sel.quaternion.copy(target);
-    poseClamp(sel, key);
-    setAxialTwist(sel, restSel, twist);
-    const sib = selIsForearm ? hand : forearm;
-    const restSib = selIsForearm ? restH : restF;
-    setAxialTwist(sib, restSib, twist);
     return true;
   }
 
@@ -891,7 +862,12 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       const fc = fingerCurls?.get(selected.key);
       if (applyPoseCurveChain(selected.key, target)) {
         // spine/neck region curve distributed across its chain
-      } else if (ringDrag.axis === 'Y' && applyProSup(selected.key, target)) {
+      } else if (
+        ringDrag.axis === 'Y' &&
+        applyCoupledProSup(selected.key, target, stageCtx.motionCapBones, stageCtx.restRef, {
+          constraints: stageCtx.romConstraints ?? null,
+        })
+      ) {
         // coupled forearm↔hand pronation/supination
       } else if (fc) {
         distributeChainCurve(fc.bones, fc.rest, 0, target); // finger curl
@@ -928,19 +904,59 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     if (!raycaster.ray.intersectPlane(_dragPlane, _dragTarget)) return;
     if (!ikCtx && stageCtx.skinnedRef && stageCtx.variantCfgRef) {
       ikCtx = buildIKChainContext(stageCtx.skinnedRef, press.handle.bone, press.handle.chain, stageCtx.variantCfgRef);
+      // The DISTAL chain the scapulohumeral rhythm corrects against — the same
+      // chain minus the girdle. Null when there is no girdle above this handle
+      // (a foot drag), which makes the rhythm solve degrade to a plain one.
+      distalCtx =
+        press.handle.chain > 1
+          ? buildIKChainContext(
+              stageCtx.skinnedRef,
+              press.handle.bone,
+              press.handle.chain - 1,
+              stageCtx.variantCfgRef,
+            )
+          : null;
     }
     if (!ikCtx) return;
-    solveIKChain(ikCtx, _dragTarget);
-    // ROM-clamp the solved chain (effector up through its parents).
+    // CLAMP INSIDE THE SOLVE, not after it. `solveIKChain` bounds each joint on
+    // every CCD iteration when it is given a rest reference, so the solver
+    // converges on the best REACHABLE in-range pose. Running it free and
+    // clamping the result afterwards is not the same thing: a single CCD
+    // iteration applies a minimal-arc swing of up to 180°, so a joint can be
+    // carried far out of range and then snapped back independently of the
+    // others, with nothing re-solving the chain around the correction.
+    //
+    // Identical inside ROM — the clamp is a no-op there — so this only shows up
+    // on a drag that reaches a limit, which is exactly when it matters.
+    // SPLIT SHOULDER ELEVATION ACROSS THE GIRDLE. Without this, CCD walks from
+    // the effector upward and greedily zeroes the error at each joint, so by the
+    // time it reaches the clavicle — last and most proximal — there is nothing
+    // left to correct: a hand dragged to head height moved the elbow 110° and
+    // the clavicle 3.7°. Including the clavicle in the chain made the girdle
+    // reachable; it did not make the solver use it. `solveArmChainWithRhythm`
+    // hands the scapula the share `girdleSplit` prescribes and re-solves only
+    // the joints BELOW it, so the composite the user posed does not move.
+    //
+    // It degrades to exactly a plain solve when there is no girdle above the
+    // chain, so a leg drag is unaffected.
+    if (stageCtx.restRef && poseRomClampOn) {
+      solveArmChainWithRhythm(ikCtx, distalCtx, _dragTarget, {
+        rest: stageCtx.restRef,
+        constraints: stageCtx.romConstraints ?? null,
+      });
+    } else {
+      solveIKChain(ikCtx, _dragTarget);
+    }
+    // The EFFECTOR still needs its own clamp. `solveIKChain`'s loop starts at
+    // index 1 because CCD never rotates the effector's own local quaternion —
+    // true, and a genuine no-op for the parent-local strategies. It is NOT a
+    // no-op for the four BALL joints (L/R_UpperArm, L/R_UpLeg), whose clamp is
+    // world-anchored: their chains are [limb, girdle], so the drag rotates only
+    // the girdle, which carries the limb's world orientation — and therefore its
+    // shoulder/hip reading — past the range the panel quotes.
     if (stageCtx.restRef && poseRomClampOn && reverseBoneMap) {
-      let b: import('three').Object3D | null = press.handle.bone;
-      for (let i = 0; i <= press.handle.chain && b; i++) {
-        const key = reverseBoneMap.get(b);
-        if (key) poseClamp(b as import('three').Bone, key);
-        const parent: import('three').Object3D | null = b.parent;
-        if (!parent || !(parent as import('three').Bone).isBone) break;
-        b = parent;
-      }
+      const effectorKey = reverseBoneMap.get(press.handle.bone);
+      if (effectorKey) poseClamp(press.handle.bone, effectorKey);
     }
     stageCtx.modelRoot.updateMatrixWorld(true);
     updatePoseHandles();
@@ -965,6 +981,8 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     if (ikCtx) {
       disposeIKChainContext(ikCtx);
       ikCtx = null;
+      if (distalCtx) disposeIKChainContext(distalCtx);
+      distalCtx = null;
     }
     if (press) {
       const dragged = press.dragging;
@@ -1088,6 +1106,8 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     if (ikCtx) {
       disposeIKChainContext(ikCtx);
       ikCtx = null;
+      if (distalCtx) disposeIKChainContext(distalCtx);
+      distalCtx = null;
     }
     releasePelvisPlant();
     stopPosePlay(false); // the incoming motion owns the skeleton
@@ -1149,6 +1169,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     window.removeEventListener('keydown', onPoseKey);
     cancelAnimationFrame(posePlayRaf);
     if (ikCtx) disposeIKChainContext(ikCtx);
+    if (distalCtx) disposeIKChainContext(distalCtx);
     releasePelvisPlant();
     clearPoseHandles();
     clearAxes();
