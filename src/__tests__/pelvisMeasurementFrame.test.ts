@@ -15,11 +15,19 @@
  *   • PARENT-LOCAL readouts (hip, knee, lumbar) are measured from bone.quaternion
  *     against a parent that IS the pelvis, so they are already implicitly
  *     pelvis-relative and exactly invariant. Verified below.
- *   • WORLD-FRAME machinery (the ROM clamp, the shoulder elevation readout) has
- *     no idea the pelvis moved. A pelvis-only rotation makes an UNTOUCHED knee
- *     read 8.31° of abduction against a ±5° band, and clampBoneToRom then
- *     rewrites the shin by 5.43° — and clamping defaults ON in node/SSR, so the
+ *   • WORLD-FRAME machinery (the BALL-JOINT clamps, the shoulder elevation
+ *     readout) has no idea the pelvis moved, so a pelvis-only rotation rewrites
+ *     joints nobody touched — and clamping defaults ON in node/SSR, so the
  *     offline sampler and this very test suite would eat it first.
+ *
+ *     This was originally demonstrated on the KNEE, which read 8.31° of
+ *     abduction against a ±5° band and had its shin rewritten by 5.43°. The
+ *     hinge strategies have since moved to a parent-local delta, so knees and
+ *     elbows are now immune by construction and joined the pelvis-safe family
+ *     above; the gate moved to the hip, whose wider bands need the pelvis at
+ *     its own ROM limits before they break. The ball joints stay world-frame
+ *     deliberately — hip and shoulder ranges are measured against the trunk,
+ *     which is what a goniometer reads — so they are what still needs this.
  *
  * rotateRestReferenceByRoot cannot help: it takes a ROOT quaternion, and the
  * pelvis sits below the root. So the fix is its pelvis sibling, and these are
@@ -178,23 +186,50 @@ describe('a rotating pelvis and the PARENT-LOCAL readouts', () => {
 });
 
 describe('a rotating pelvis and the WORLD-FRAME machinery', () => {
-  it('CORRUPTS the ROM clamp when the rest reference is not pelvis-aware — an untouched knee is rewritten', () => {
+  it('CORRUPTS the ROM clamp when the rest reference is not pelvis-aware — an untouched HIP is rewritten', () => {
     // The counterfactual, kept as a live gate so the fix cannot be quietly
-    // reverted: with the UN-rotated reference the clamp reads a knee nobody
+    // reverted: with the UN-rotated reference the clamp reads a joint nobody
     // touched as out of band and rewrites it.
-    tiltPelvis(25, 20, 0);
-    const knee = lookup.get('L_Leg')!;
-    const beforeQ = knee.quaternion.clone();
-    const rewrote = clampBoneToRom(knee, 'L_Leg', rest);
-    const moved = angleDeg(beforeQ, knee.quaternion);
+    //
+    // This used to be demonstrated on the KNEE, and it no longer can be — the
+    // hinge strategies were moved to a parent-local delta, so a knee is immune
+    // to everything above it by construction and the case below proves it. The
+    // BALL joints are still world-frame, deliberately (hip and shoulder ranges
+    // are measured against the trunk, which is what a goniometer reads), so
+    // they are what still needs `rotateRestReferenceByPelvis` and what this
+    // gate has to watch.
+    // Driven to the pelvis's OWN ROM limits (romRegistry ±30 / ±20 / ±30)
+    // rather than the 25/20/0 this used when the knee was the demonstrator: the
+    // hip's bands are far wider than the hinge's ±5° off-axis one, so it takes
+    // more pelvis to push a ball joint out of band. Still a pose the rig
+    // permits, not a stress value.
+    tiltPelvis(30, 20, 30);
+    const hip = lookup.get('R_UpLeg')!;
+    const beforeQ = hip.quaternion.clone();
+    const rewrote = clampBoneToRom(hip, 'R_UpLeg', rest);
+    const moved = angleDeg(beforeQ, hip.quaternion);
     // eslint-disable-next-line no-console
-    console.log(`stale reference: clamp rewrote the untouched knee? ${rewrote} (${moved.toFixed(2)}°)`);
-    expect(rewrote, 'the stale-reference clamp fires on an untouched knee').toBe(true);
+    console.log(`stale reference: clamp rewrote the untouched hip? ${rewrote} (${moved.toFixed(2)}°)`);
+    expect(rewrote, 'the stale-reference clamp fires on an untouched hip').toBe(true);
     expect(moved, 'and moves it measurably').toBeGreaterThan(1);
   });
 
-  it('does NOT corrupt the clamp once the reference is pelvis-aware', () => {
+  it('but a HINGE is immune to the stale reference, because it measures parent-locally', () => {
+    // Why the case above had to change joints. `clampHinge` reads the bone's
+    // own delta-from-rest, so nothing an ancestor does can reach it — the knee
+    // cannot be corrupted by a pelvis tilt whether the reference is rotated or
+    // not. (Same defect, reported from the interactive side as: park a knee at
+    // full flexion, move something else, watch the leg snap straight.)
     tiltPelvis(25, 20, 0);
+    const knee = lookup.get('L_Leg')!;
+    const beforeQ = knee.quaternion.clone();
+    const rewrote = clampBoneToRom(knee, 'L_Leg', rest); // deliberately STALE
+    expect(rewrote, 'an untouched knee is left alone even with a stale reference').toBe(false);
+    expect(angleDeg(beforeQ, knee.quaternion), 'bit-for-bit untouched').toBeLessThan(0.001);
+  });
+
+  it('does NOT corrupt the clamp once the reference is pelvis-aware', () => {
+    tiltPelvis(30, 20, 30);
     const knee = lookup.get('L_Leg')!;
     const beforeQ = knee.quaternion.clone();
     const rewrote = clampBoneToRom(knee, 'L_Leg', pelvisAwareRest());

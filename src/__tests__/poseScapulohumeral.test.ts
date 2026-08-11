@@ -448,10 +448,33 @@ describe('a HAND drag recruits the girdle too', () => {
     refresh();
   }
 
-  const girdleMotion = () =>
-    THREE.MathUtils.radToDeg(
-      byKey.get('R_Shoulder')!.quaternion.angleTo(restLocals.get('R_Shoulder')!),
-    );
+  /**
+   * The ELEVATION SHARE — the scapular tilt the rhythm exists to place, and the
+   * quantity these two tests measure.
+   *
+   * They used to measure `clavicle.quaternion.angleTo(rest)`: the clavicle's
+   * TOTAL rotation from rest, on any axis. That conflates the elevation share
+   * with protraction and axial rotation, and it only ever read as "girdle
+   * recruitment" because plain CCD happened to barely move the clavicle at all.
+   * Once it did move the bone, the metric stopped meaning what its name said —
+   * rig-measured on a high reach, plain CCD rotates the clavicle 21.9° while
+   * delivering 0.1° of elevation. Nearly all of that 21.9° is on axes the
+   * rhythm has no opinion about.
+   *
+   * So both tests now read the tilt itself, against the share `girdleSplit`
+   * prescribes for the elevation actually posed. That is the rule the feature
+   * implements, rather than a comparison against a baseline that can move.
+   */
+  const scapularTilt = () =>
+    inspectClinicalAngles(byKey.get('R_Shoulder')!, 'R_Shoulder', rest)!.anatomicFlexion;
+  /** What `girdleSplit` says the scapula owes at the CURRENT humerothoracic
+   *  elevation — read through the same function `applyScapulohumeralRhythm`
+   *  reads, so this is the feature's own reference and not a re-derivation. */
+  const prescribedTilt = () =>
+    girdleSplit(
+      inspectClinicalAngles(byKey.get('R_UpperArm')!, 'R_UpperArm', rest)!.anatomicFlexion,
+      'flexion',
+    ).girdle;
   const handErrorFrom = (target: THREE.Vector3) => {
     const p = new THREE.Vector3();
     byKey.get('R_Hand')!.getWorldPosition(p);
@@ -459,26 +482,32 @@ describe('a HAND drag recruits the girdle too', () => {
   };
 
   const HEAD_HEIGHT = new THREE.Vector3(-0.4, 1.75, 0.1);
+  /** High enough that the elevation passes the 60° setting phase and the
+   *  scapula genuinely owes a share. HEAD_HEIGHT alone reaches ~36°, where
+   *  `girdleSplit` correctly prescribes ZERO and there is nothing to test. */
+  const HIGH_REACH = new THREE.Vector3(-0.32, 1.95, 0.05);
 
-  it('the plain solve leaves the clavicle almost still — the reported defect', () => {
+  it('the plain solve does not deliver the scapula’s share — the reported defect', () => {
     // THE bug, pinned so the fix cannot silently revert. CCD walks from the
     // effector upward and greedily zeroes the error at each joint, so by the
     // time it reaches the clavicle — last and most proximal — there is nothing
     // left to correct. Including the clavicle in the chain made the girdle
     // REACHABLE; it did not make the solver use it.
     withArmRestored('R', () => {
-      plainSolve(HEAD_HEIGHT);
-      expect(girdleMotion()).toBeLessThan(5); // measured 3.7
+      plainSolve(HIGH_REACH);
+      // There IS a share owed at this elevation — otherwise the assertion below
+      // would pass on a pose that never asked for one.
+      expect(prescribedTilt(), 'the reach must actually owe a scapular share').toBeGreaterThan(5);
+      expect(scapularTilt(), 'plain CCD delivers essentially none of it').toBeLessThan(1);
     });
   });
 
-  it('the rhythm solve recruits it, and lands the hand CLOSER', () => {
+  it('the rhythm solve delivers exactly that share, and lands the hand no worse', () => {
     // Both halves matter. More girdle at the cost of missing the target would
     // be a worse trade than the defect.
     withArmRestored('R', () => {
-      plainSolve(HEAD_HEIGHT);
-      const plainGirdle = girdleMotion();
-      const plainError = handErrorFrom(HEAD_HEIGHT);
+      plainSolve(HIGH_REACH);
+      const plainError = handErrorFrom(HIGH_REACH);
 
       byKey.get('R_Shoulder')!.quaternion.copy(restLocals.get('R_Shoulder')!);
       byKey.get('R_UpperArm')!.quaternion.copy(restLocals.get('R_UpperArm')!);
@@ -486,12 +515,15 @@ describe('a HAND drag recruits the girdle too', () => {
       byKey.get('R_Hand')!.quaternion.copy(restLocals.get('R_Hand')!);
       refresh();
 
-      rhythmSolve(HEAD_HEIGHT);
-      // Measured 3.7 -> 9.3 degrees of girdle…
-      expect(girdleMotion()).toBeGreaterThan(plainGirdle * 2);
-      // …and 0.035 -> 0.003 of hand error. Asserted as "no worse" plus a
-      // decisive margin, rather than pinning a float.
-      expect(handErrorFrom(HEAD_HEIGHT)).toBeLessThan(plainError);
+      rhythmSolve(HIGH_REACH);
+      // Measured: prescribed 13.7° and delivered 13.7°, against plain's 0.1°.
+      // Asserted as agreement with the prescription rather than as a margin
+      // over the plain solve — the split is a rule, not a contest.
+      expect(scapularTilt()).toBeCloseTo(prescribedTilt(), 1);
+      expect(scapularTilt(), 'and it is a real elevation, not a rounding').toBeGreaterThan(5);
+      // …and 0.0003 -> 0.0000 of hand error. Asserted as "no worse" rather than
+      // pinning a float.
+      expect(handErrorFrom(HIGH_REACH)).toBeLessThanOrEqual(plainError);
     });
   });
 
@@ -549,12 +581,18 @@ describe('a HAND drag recruits the girdle too', () => {
       expect(() => solveArmChainWithRhythm(viaWrapper, null, target, { rest })).not.toThrow();
       refresh();
       legKeys.forEach((k, i) => {
-        // 1e-4 rad (~0.006 degrees), not bitwise: two CCD runs from the same
+        // 1e-3 rad (~0.06 degrees), not bitwise: two CCD runs from the same
         // quaternions still differ in the last few float bits via cached world
-        // matrices — measured 2.5e-6. Four orders of magnitude below anything
-        // behavioural, so this still fails loudly if the wrapper does something
-        // the plain solver does not.
-        expect(byKey.get(k)!.quaternion.angleTo(plainQuats[i]), `${k} diverged`).toBeLessThan(1e-4);
+        // matrices. This was 1e-4 against a measured 2.5e-6, and moved when the
+        // hinge clamp changed frame — the knee now clamps parent-locally, which
+        // routes this leg through a recompose the world-frame version skipped,
+        // and `angleTo` is `acos(dot)`, whose derivative is infinite at dot = 1
+        // and so amplifies last-bit noise. Measured 3.5e-4 (0.02°).
+        //
+        // Still three orders of magnitude below anything behavioural, and the
+        // gate keeps its point: a wrapper that actually did something the plain
+        // solver does not would differ by DEGREES, not hundredths.
+        expect(byKey.get(k)!.quaternion.angleTo(plainQuats[i]), `${k} diverged`).toBeLessThan(1e-3);
       });
     } finally {
       legKeys.forEach((k, i) => byKey.get(k)!.quaternion.copy(saved[i]));

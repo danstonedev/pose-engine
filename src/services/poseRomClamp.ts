@@ -595,11 +595,29 @@ function clampHinge(
   strategy: HingeStrategy,
   rest: JointAngleRestReference,
 ): boolean {
-  const restWorldArr = rest.worldQuats[canonicalKey];
-  if (!restWorldArr) return false;
-  bone.updateWorldMatrix(true, false);
-  bone.getWorldQuaternion(_qBoneWorld);
-  computeCanonicalDelta(_qBoneWorld, restWorldArr, _qDelta);
+  // PARENT-LOCAL, not world. A hinge's clinical angle is the angle between the
+  // two segments it joins — knee flexion is thigh-to-shin, elbow flexion is
+  // humerus-to-forearm — and the readout computes exactly that, geometrically,
+  // from the parent and child world DIRECTIONS.
+  //
+  // This used to read `computeCanonicalDelta(boneWorld, rest.worldQuats)`, a
+  // WORLD-frame delta, which folds in every rotation of every ancestor. Rig-
+  // measured: hold a knee at a fixed local angle so true flexion is constant by
+  // construction, then sweep the hip 0→90°. The readout correctly reports 90.8°
+  // throughout; the clamp's number fell 90 → 0, tracking the hip one-for-one.
+  //
+  // So the clamp and the readout disagreed by the entire hip angle, and the
+  // clamp acted on its own number: flex a knee, then flex the hip under it, and
+  // the clamp decides the knee has passed its −15° hyperextension floor and
+  // rewrites the shin — straightening a knee the user had deliberately bent.
+  // "Full knee flexion, then another movement, and it snaps to full extension."
+  //
+  // The local delta-from-rest IS the parent-relative orientation, so this is
+  // both correct and immune to anything an ancestor does. `flexionSign` is
+  // unchanged: the decomposition's sign convention did not move, only its frame.
+  const restLocalArr = rest.localQuats[canonicalKey];
+  if (!restLocalArr) return false;
+  deltaFromRest(bone.quaternion, restLocalArr, _qDelta);
   // Reuse ball-joint decomposition: flexion = swing toward anterior,
   // abduction + rotation are the constrained off-axis DOFs.
   const angles = ballJointAngles(_qDelta, REST_DOWN_LOCAL, false);
@@ -623,7 +641,12 @@ function clampHinge(
 
   const flexOut = clampedAnatomicFlex * strategy.flexionSign;
   recomposeBallJoint(flexOut, clampedAbd, clampedRot, false, _qDelta);
-  writeCanonicalDeltaToBone(bone, restWorldArr, _qDelta);
+  // Write back in the SAME frame it was read in. `deltaFromRest` /
+  // `applyDeltaToLocal` are the matched parent-local pair (the body-euler
+  // strategies already use them together); pairing either with the world-frame
+  // `writeCanonicalDeltaToBone` would re-introduce the ancestor term this
+  // strategy just removed.
+  applyDeltaToLocal(bone, restLocalArr, _qDelta);
   return true;
 }
 
@@ -884,12 +907,12 @@ export function inspectClinicalAngles(
     abdRange = lookupRange(canonicalKey, strategy.abductionField);
     rotRange = lookupRange(canonicalKey, strategy.rotationField);
   } else {
-    // hinge
-    const restWorldArr = rest.worldQuats[canonicalKey];
-    if (!restWorldArr) return null;
-    bone.updateWorldMatrix(true, false);
-    bone.getWorldQuaternion(_qBoneWorld);
-    computeCanonicalDelta(_qBoneWorld, restWorldArr, _qDelta);
+    // hinge — PARENT-LOCAL, mirroring `clampHinge`. This is the console's
+    // window onto the clamp (`__romDebug`), so reading it in a different frame
+    // than the clamp acts in would make it report numbers the clamp never sees.
+    const restLocalArr = rest.localQuats[canonicalKey];
+    if (!restLocalArr) return null;
+    deltaFromRest(bone.quaternion, restLocalArr, _qDelta);
     const a = ballJointAngles(_qDelta, REST_DOWN_LOCAL, false);
     raw = { flexion: a.flexion, abduction: a.abduction, rotation: a.rotation };
     anatomicFlexion = a.flexion * strategy.flexionSign;
