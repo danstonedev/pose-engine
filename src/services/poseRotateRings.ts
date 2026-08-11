@@ -108,6 +108,16 @@ function shadeSphereOuter(geo: THREE.SphereGeometry, nodeR: number): void {
 }
 
 /**
+ * Fraction of the GRAB radius inside which a ring drag stops accumulating.
+ *
+ * 0.35 leaves the outer two thirds of the disc fully live, so nothing about an
+ * ordinary drag changes — a circular sweep around the ring and a stroke that
+ * misses the middle both behave exactly as before. It only takes effect where
+ * the bearing is genuinely meaningless.
+ */
+const DEAD_ZONE_FRACTION = 0.35;
+
+/**
  * A live swept-angle ring rotation. Feed it the current pointer ray each move; it
  * returns the bone's new LOCAL quaternion. Grab-anywhere, no near/far inversion.
  */
@@ -135,6 +145,11 @@ class RingDragImpl implements PoseRingDrag {
     private readonly q0: THREE.Quaternion,
     private readonly parentW: THREE.Quaternion,
     private readonly parentWInv: THREE.Quaternion,
+    /** World-space radius inside which the bearing is treated as unusable.
+     *  Derived from where the user actually grabbed, so it scales with the
+     *  gizmo, the model and the camera distance without any of them being
+     *  plumbed in here. */
+    private readonly deadRadius: number,
   ) {
     this.prevAngle = angle0;
     this._result.copy(q0);
@@ -143,12 +158,31 @@ class RingDragImpl implements PoseRingDrag {
   update(raycaster: THREE.Raycaster): THREE.Quaternion {
     this._plane.setFromNormalAndCoplanarPoint(this.axisW, this.center);
     if (raycaster.ray.intersectPlane(this._plane, this._hit)) {
+      // DEAD ZONE around the ring's centre. The bearing here is `atan2` of a
+      // vector approaching zero length, so it swings freely: a pointer stroke
+      // that passes through the middle of the ring flips it ~180° between two
+      // consecutive samples. Measured on a steady, slow stroke — 0.002 NDC per
+      // sample, far finer than a real pointermove stream — the bone rotated
+      // 90° in ONE sample, at every viewing angle from face-on to edge-on.
+      //
+      // That is the snap: 90° of unrequested rotation lands a joint well past
+      // its limit, and the ROM clamp then bounds the result to whichever end of
+      // the range the wrapped angle fell outside of — a knee near full flexion
+      // arrives at full extension.
+      //
+      // The bearing is still TRACKED inside the zone, deliberately. Skipping
+      // the sample outright leaves `prevAngle` stale, and the next sample on
+      // the far side then measures a full half-turn and applies it in one step
+      // — measured at 180°, twice as bad as doing nothing. What must not happen
+      // is ACCUMULATING it: sweeping the pointer across the middle of a
+      // rotation ring is not a request to rotate.
+      const inDeadZone = this._hit.distanceTo(this.center) < this.deadRadius;
       this._hit.sub(this.center);
       const angle = Math.atan2(this._hit.dot(this.v), this._hit.dot(this.u));
       let step = angle - this.prevAngle;
       while (step > Math.PI) step -= 2 * Math.PI;
       while (step < -Math.PI) step += 2 * Math.PI;
-      this.total += step;
+      if (!inDeadZone) this.total += step;
       this.prevAngle = angle;
     }
     // newLocal = parentWInv · axisAngle(axisW, total) · parentW · q0
@@ -344,7 +378,13 @@ export class PoseRotateRingGizmo {
     const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(axisW, center);
     const hitPt = new THREE.Vector3();
     let angle0 = 0;
+    // Where the user grabbed, in world units, measured in the ring's own plane.
+    // The dead zone is a fraction of THIS rather than of the gizmo's nominal
+    // radius: a grab lands anywhere in the pick band, and the band is wider on
+    // touch, so the grab radius is the honest scale for "how far in is too far".
+    let grabRadius = 0;
     if (raycaster.ray.intersectPlane(plane, hitPt)) {
+      grabRadius = hitPt.distanceTo(center);
       hitPt.sub(center);
       angle0 = Math.atan2(hitPt.dot(vW), hitPt.dot(uW));
     }
@@ -359,6 +399,7 @@ export class PoseRotateRingGizmo {
       boneLocalQuat.clone(),
       parentW,
       parentW.clone().invert(),
+      grabRadius * DEAD_ZONE_FRACTION,
     );
   }
 
