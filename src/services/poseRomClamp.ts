@@ -457,6 +457,26 @@ export function hasClampStrategy(canonicalKey: string | null | undefined): boole
   return !!canonicalKey && canonicalKey in STRATEGIES;
 }
 
+/** True for the joints this module treats as 1-DOF hinges — knees and elbows.
+ *  Derived from the strategy table rather than re-listed, so a joint that
+ *  changes kind cannot leave a stale copy of that fact behind. */
+export function isHingeJoint(canonicalKey: string | null | undefined): boolean {
+  return !!canonicalKey && STRATEGIES[canonicalKey]?.kind === 'hinge';
+}
+
+/** The off-axis tolerances a hinge allows, in degrees, or null if the key is
+ *  not a hinge. These are PLAY — a real elbow has a carrying angle and a knee a
+ *  little varus/valgus, so a hard zero-lock looks robotic — and emphatically
+ *  not a range the user is meant to pose within. UI that offers a control for
+ *  one is offering a control with nothing behind it. */
+export function hingeOffAxisTolerance(
+  canonicalKey: string | null | undefined,
+): { abduction: RomRangeDeg; rotation: RomRangeDeg } | null {
+  const s = canonicalKey ? STRATEGIES[canonicalKey] : undefined;
+  if (!s || s.kind !== 'hinge') return null;
+  return { abduction: s.abductionRange, rotation: s.rotationRange };
+}
+
 /** How a joint's normative ROM is actually held:
  *
  *  - `clamp-strategy`  — a row in {@link STRATEGIES}; `clampBoneToRom` enforces it.

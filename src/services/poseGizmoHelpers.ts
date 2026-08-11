@@ -54,3 +54,50 @@ export function configurePoseRotateGizmo(helper: Object3D): void {
 export function configureRingRotateGizmo(helper: Object3D): void {
   removeGizmoHandles(helper, ['XYZE', 'X', 'Y', 'Z']);
 }
+
+/**
+ * Which rotate rings a joint must NOT offer, by ring axis ('x' | 'y' | 'z').
+ *
+ * A ring is a promise that the joint turns on that axis. Two joints break that
+ * promise, and both used to be left to the host to remember:
+ *
+ *  - THE WRIST'S pro/sup ring. Forearm rotation belongs to the forearm, and the
+ *    hand shows the same motion a second time. Long-standing rule; it lived
+ *    inline in one host and not the other.
+ *
+ *  - A HINGE'S FRONTAL ring — the knee's and elbow's varus/valgus. This one
+ *    caused real damage. `clampHinge` allows ±5° there on a knee, as PLAY
+ *    rather than as a range to pose within, so the ring can move essentially
+ *    nothing. Dragging it on a FLEXED knee did far worse than nothing:
+ *    rig-measured with the real gizmo, an ordinary rotate gesture on a knee at
+ *    90°, 120° and 135° of flexion ended at −15.0° every time — the
+ *    hyperextension floor — with single-sample bone jumps of 43°, 114° and 79°.
+ *
+ *    Driving the frontal axis swings the shin toward the swing-twist
+ *    decomposition's pole, where flexion stops being recoverable; the clamp
+ *    then reads a flexion it should not trust and bounds it to the wrong end of
+ *    the range. Full flexion becomes full extension. Not offering the ring
+ *    removes the gesture, which is also the honest UI: there is no varus to
+ *    pose.
+ *
+ * Pass the joint's driving-ring map (`computeDrivingRingMap`) so the axis is
+ * resolved per rig binding rather than assumed — on this rig the knee's frontal
+ * ring is 'z', but that is a fact about the bind, not a constant.
+ */
+export function hiddenRingsForJoint(
+  canonicalKey: string | null | undefined,
+  drivingRings: Partial<Record<'sagittal' | 'frontal' | 'transverse', { ring: 'x' | 'y' | 'z' }>> | undefined,
+  isHinge: (key: string | null | undefined) => boolean,
+): ('x' | 'y' | 'z')[] {
+  if (!canonicalKey || !drivingRings) return [];
+  const hidden = new Set<'x' | 'y' | 'z'>();
+  if (canonicalKey === 'L_Hand' || canonicalKey === 'R_Hand') {
+    const proSup = drivingRings.transverse?.ring;
+    if (proSup) hidden.add(proSup);
+  }
+  if (isHinge(canonicalKey)) {
+    const frontal = drivingRings.frontal?.ring;
+    if (frontal) hidden.add(frontal);
+  }
+  return [...hidden];
+}
