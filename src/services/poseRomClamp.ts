@@ -60,8 +60,21 @@ interface BodyEulerStrategy {
   flexionField: string;
   /** ROM field-key for abduction / lateral tilt (Z-axis). */
   abductionField: string;
-  /** ROM field-key for rotation about Y-axis, or null to lock at 0. */
+  /** ROM field-key for rotation about Y-axis, or null to take
+   *  {@link BodyEulerStrategy.rotationRange} — which defaults to locking at 0. */
   rotationField: string | null;
+  /** Bound for the Y-axis rotation when there is no registry FIELD for it.
+   *  Defaults to zero — most body-euler joints have no axial DOF of their own
+   *  and locking it is the point.
+   *
+   *  The HANDS are the exception, and it is not cosmetic. Their axial rotation
+   *  IS pro/sup, which the registry deliberately keys on the forearm because it
+   *  belongs to the forearm; `computeJointAngles` then reports the SUM of both
+   *  segments' twist into all four rows. So a hand legitimately carries half of
+   *  a ±90 motion, and zeroing it here silently deletes that half: drag pro/sup
+   *  to its limit, then touch the wrist's flexion ring, and the clamp on the
+   *  hand takes the reading from 90 back to 45 with nothing to explain it. */
+  rotationRange?: RomRangeDeg;
   /** Mirror right-side joints so they share the left-side sign convention. */
   mirror: boolean;
   /** Sign mapping the raw swing decomposition's flexion into the joint's
@@ -289,6 +302,9 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     flexionField: 'wristFlexion',
     abductionField: 'wristDeviation',
     rotationField: null,
+    // Half of the registry's ±90 pro/sup, because the coupled writer puts the
+    // other half on the forearm and the readout sums the two.
+    rotationRange: { min: -45, max: 45 },
     mirror: false,
     flexionAxis: 'z',
     abductionAxis: 'x',
@@ -300,6 +316,9 @@ const STRATEGIES: Record<string, ClampStrategy> = {
     flexionField: 'wristFlexion',
     abductionField: 'wristDeviation',
     rotationField: null,
+    // Half of the registry's ±90 pro/sup, because the coupled writer puts the
+    // other half on the forearm and the readout sums the two.
+    rotationRange: { min: -45, max: 45 },
     mirror: false,
     flexionAxis: 'z',
     abductionAxis: 'x',
@@ -518,7 +537,7 @@ function clampBodyEuler(
   const abdRange = lookupRange(canonicalKey, strategy.abductionField);
   const rotRange = strategy.rotationField
     ? lookupRange(canonicalKey, strategy.rotationField)
-    : ZERO_RANGE;
+    : (strategy.rotationRange ?? ZERO_RANGE);
 
   // Map the raw decomposition (X = flexion, Z = abduction) into each clinical
   // field, then clamp, then invert exactly back to raw for recomposition. This
