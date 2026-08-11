@@ -32,10 +32,10 @@ import {
   solveIKChain,
 } from './poseRig';
 import type { IKChainContext } from './poseRig';
-import { clampBoneToRom, hasClampStrategy, setRomClampEnabled } from './poseRomClamp';
+import { clampBoneToRom, hasClampStrategy, isHingeJoint, setRomClampEnabled } from './poseRomClamp';
 import { computeDrivingRingMap, gizmoSpaceForJoint } from './jointAngles';
 import { clampFingerCurlToRom } from './poseFingerRomClamp';
-import { configureRingRotateGizmo } from './poseGizmoHelpers';
+import { configureRingRotateGizmo, hiddenRingsForJoint } from './poseGizmoHelpers';
 import { PoseRotateRingGizmo } from './poseRotateRings';
 import type { PoseRingDrag } from './poseRotateRings';
 import { PoseClickDeselect } from './poseClickDeselect';
@@ -355,8 +355,9 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     return poseShowJoints && !obliqueEditing() && !posingSuspended();
   }
 
-  /** Colour each plane ring by the motion it drives (via the driving-
-   *  ring map); hide the wrist's redundant pro/sup ring. */
+  /** Colour each plane ring by the motion it drives (via the driving-ring
+   *  map), and drop the rings this joint must not offer — see
+   *  `hiddenRingsForJoint` for which and why. */
   function applyPoseRingColors(key: string): void {
     const def = getRomJointDefinition(key);
     const dr = drivingRings?.[key];
@@ -371,10 +372,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       if (ring) colors[ring] = POSE_PLANE_RING_HEX[f.plane];
     }
     ringGizmo.setRingColors(colors);
-    const proSupRing = dr.transverse?.ring;
-    ringGizmo.setHiddenRings(
-      (key === 'L_Hand' || key === 'R_Hand') && proSupRing ? [proSupRing] : [],
-    );
+    ringGizmo.setHiddenRings(hiddenRingsForJoint(key, dr, isHingeJoint));
   }
 
   /** Position the plane rings at the selected joint (or the oblique
