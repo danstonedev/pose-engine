@@ -34,6 +34,7 @@ import {
 import type { IKChainContext } from './poseRig';
 import { clampBoneToRom, hasClampStrategy, setRomClampEnabled } from './poseRomClamp';
 import { computeDrivingRingMap, gizmoSpaceForJoint } from './jointAngles';
+import { clampFingerCurlToRom } from './poseFingerRomClamp';
 import { configureRingRotateGizmo } from './poseGizmoHelpers';
 import { PoseRotateRingGizmo } from './poseRotateRings';
 import type { PoseRingDrag } from './poseRotateRings';
@@ -393,6 +394,24 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     if (gizmoSpaceForJoint(selected.key) === 'world') _ringQuat.identity();
     else selected.bone.getWorldQuaternion(_ringQuat);
     ringGizmo.update(camera, _ringPos, _ringQuat, true);
+  }
+
+  /** ROM-clamp a digit's COMPOSITE curl, after `distributeChainCurve` has
+   *  spread the drag along its phalanges. The math, and the reason it cannot be
+   *  a `clampBoneToRom` strategy, are in `poseFingerRomClamp.ts`; this host
+   *  supplies the bone lookup, the rest reference, and the world-matrix refresh
+   *  the measurement needs. */
+  function clampFingerCurl(
+    key: string,
+    fc: { bones: import('three').Object3D[]; rest: import('three').Quaternion[] },
+    target: import('three').Quaternion,
+  ): void {
+    if (!poseRomClampOn || !stageCtx.motionCapBones || !stageCtx.modelRoot) return;
+    const modelRoot = stageCtx.modelRoot;
+    clampFingerCurlToRom(key, fc, target, stageCtx.motionCapBones, stageCtx.restRef, {
+      constraints: stageCtx.romConstraints ?? null,
+      updateWorldMatrices: () => modelRoot.updateMatrixWorld(true),
+    });
   }
 
   /** Capture each finger's MCP→PIP→DIP chain + rest rotations. */
@@ -876,8 +895,16 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
         // coupled forearm↔hand pronation/supination
       } else if (fc) {
         distributeChainCurve(fc.bones, fc.rest, 0, target); // finger curl
+        clampFingerCurl(selected.key, fc, target);
       } else if (selected.key === 'Hips') {
         selected.bone.quaternion.copy(target);
+        // Clamp BEFORE planting, so the legs solve against the pelvis the user
+        // is actually left with. The pelvis is the one clamped joint whose drag
+        // used to skip `poseClamp` outright — it has a `pelvis` strategy and a
+        // ROM row (tilt ±30, lateral ±20, rotation ±30), and `applyCustomPose`
+        // clamps it on the way back in, so the drag was the only place the two
+        // disagreed: you could tilt past the limit and watch it snap on reload.
+        poseClamp(selected.bone, selected.key);
         stageCtx.modelRoot.updateMatrixWorld(true);
         applyPelvisPlant(); // keep feet planted while tilting the pelvis
       } else {

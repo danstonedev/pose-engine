@@ -421,6 +421,45 @@ function rawFingerCurl(
 /** Digit keys, in the order every finger loop walks them. */
 const DIGIT_KEYS = ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const;
 
+/** True for the five MCP canonical keys on either hand. */
+export function isFingerJointKey(key: string | null | undefined): boolean {
+  return !!key && /^[LR]_(Thumb1|Index1|Mid1|Ring1|Pinky1)$/.test(key);
+}
+
+/**
+ * The clinical `fingerFlexion` for ONE digit — the same number
+ * {@link computeJointAngles} reports, from the same code, so a caller that
+ * needs the composite mid-interaction cannot drift from the readout.
+ *
+ * Returns null when the digit isn't in the rig (or `canonicalKey` is not an MCP
+ * key). Requires world matrices to be current: it reads world positions and
+ * quaternions off the bones.
+ *
+ * The quantity is a COMPOSITE — the signed in-plane MCP angle plus the signed
+ * in-plane PIP angle, as a delta from the captured rest — which is exactly why
+ * `poseRomClamp`'s single-bone strategies cannot express it and the ROM clamp
+ * for the digits has to be written against this measurement instead.
+ */
+export function measureFingerFlexion(
+  lookup: Map<string, THREE.Bone>,
+  canonicalKey: string,
+  rest: JointAngleRestReference,
+): number | null {
+  if (!isFingerJointKey(canonicalKey)) return null;
+  const side = canonicalKey.slice(0, 2);
+  const digit = canonicalKey.slice(2);
+  const raw = rawFingerCurl(lookup, side, digit);
+  if (raw == null) return null;
+  return fingerSideSign(side) * (raw - (rest.fingerCurlRest?.[canonicalKey] ?? 0));
+}
+
+/** Flexion is positive on BOTH hands. Each bone's own local +Z is the curl
+ *  axis, and the rig mirrors, so the left hand's signed value comes out negated;
+ *  this restores the anatomical convention. */
+function fingerSideSign(side: string): number {
+  return side === 'R_' ? 1 : -1;
+}
+
 function boneWorldDirection(bone: THREE.Bone): THREE.Vector3 | null {
   const here = bone.getWorldPosition(new THREE.Vector3());
   // Breadth-first to the NEAREST descendant with a meaningful offset. The CC rig
@@ -873,15 +912,11 @@ export function computeJointAngles(
   //    the authored curl exactly and linearly (rig-verified: ratio 1.000 on all
   //    five digits, both hands, both variants, from −30° through +176°).
   for (const side of ['L_', 'R_'] as const) {
-    // Flexion is positive on BOTH hands. Each bone's own local +Z is the curl
-    // axis, and the rig mirrors, so the left hand's signed value comes out
-    // negated; this restores the anatomical convention.
-    const sideSign = side === 'R_' ? 1 : -1;
     for (const d of DIGIT_KEYS) {
-      const raw = rawFingerCurl(lookup, side, d);
-      if (raw == null) continue;
       const key = `${side}${d}`;
-      joints[key] = { fingerFlexion: sideSign * (raw - (rest.fingerCurlRest?.[key] ?? 0)) };
+      const value = measureFingerFlexion(lookup, key, rest);
+      if (value == null) continue;
+      joints[key] = { fingerFlexion: value };
     }
   }
 

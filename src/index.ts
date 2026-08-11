@@ -25,6 +25,7 @@ export * from './services/jointAngles';
 // Range-of-motion definitions + clamping
 export * from './services/romRegistry';
 export * from './services/poseRomClamp';
+export * from './services/poseFingerRomClamp';
 
 // Scenario ROM constraints — per-patient available range / painful arc /
 // end-feel overrides a host installs for the active case; the clamp enforces

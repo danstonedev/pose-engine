@@ -7,8 +7,14 @@ import {
   deltaFromRest,
   type JointAngleRestReference,
 } from '../services/jointAngles';
-import { clampBoneToRom, hasClampStrategy, inspectClinicalAngles } from '../services/poseRomClamp';
+import {
+  clampBoneToRom,
+  hasClampStrategy,
+  inspectClinicalAngles,
+  romEnforcementFor,
+} from '../services/poseRomClamp';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
+import { getRomFieldDefinition, ROM_JOINT_ROWS } from '../services/romRegistry';
 
 /** Mirror of the skeleton builder in jointAngles.test.ts — kept duplicated
  *  so the test files stay independent. Names match CC4 export tokens so
@@ -102,27 +108,64 @@ function reportFor(skeleton: THREE.Skeleton, rest: JointAngleRestReference) {
 
 describe('clampBoneToRom', () => {
   describe('strategy table', () => {
-    it('recognises every joint with a ROM definition', () => {
-      for (const key of [
-        'Hips',
-        'Spine_Upper',
-        'Neck',
-        'L_UpperArm',
-        'R_UpperArm',
-        'L_Forearm',
-        'R_Forearm',
-        'L_Hand',
-        'R_Hand',
-        'L_UpLeg',
-        'R_UpLeg',
-        'L_Leg',
-        'R_Leg',
-        'L_Foot',
-        'R_Foot',
-      ]) {
-        expect(hasClampStrategy(key)).toBe(true);
+    it('bounds every joint with a ROM definition', () => {
+      // DERIVED from the registry, not a hand-typed list.
+      //
+      // This assertion used to enumerate fifteen keys somebody wrote out, and
+      // it passed for as long as `Spine_Lower`, `L_Toes`, `R_Toes` and all ten
+      // digits had ROM rows, live readouts and nothing bounding them — the
+      // lumbar spine could be dragged to any angle while this test reported
+      // full coverage. A list cannot notice a joint nobody added to it, which
+      // is the whole failure.
+      //
+      // Every row in ROM_JOINT_ROWS states a normative range the readout
+      // reports against, so every row must have something enforcing it. If a
+      // future row genuinely should not be bounded, this is the right place to
+      // say so explicitly rather than by omission.
+      for (const row of ROM_JOINT_ROWS) {
+        expect(
+          romEnforcementFor(row.canonicalKey),
+          `${row.canonicalKey} has a ROM row but nothing bounds it`,
+        ).not.toBe('none');
       }
     });
+
+    it('covers every draggable pose handle, on every variant', () => {
+      // The other direction, and the one the user actually feels: a handle is
+      // a green dot you can grab, so an unbounded handle is a joint you can
+      // drag out of range by hand. All three variants share a handle list
+      // today; asserting across them keeps that from silently ceasing to hold.
+      for (const [variantId, variant] of Object.entries(BODY_VARIANTS)) {
+        for (const handle of variant.poseRig.handles) {
+          expect(
+            romEnforcementFor(handle.canonicalKey),
+            `${variantId}: ${handle.canonicalKey} is draggable but unbounded`,
+          ).not.toBe('none');
+        }
+      }
+    });
+
+    it('routes the digits to the composite clamp, and nothing else to it', () => {
+      // The split is the load-bearing part: `clampBoneToRom` genuinely CANNOT
+      // hold a digit (its quantity spans two bones), so the digits are held by
+      // `stagePosingLayer.clampFingerCurl` against the readout. Pin which side
+      // each joint is on, so a future strategy added for a digit — or a digit
+      // quietly dropped from the finger path — shows up here rather than as an
+      // unbounded joint that every call site still reports as covered.
+      const composite = ROM_JOINT_ROWS.map((r) => r.canonicalKey).filter(
+        (k) => romEnforcementFor(k) === 'composite-finger-curl',
+      );
+      expect(composite.sort()).toEqual(
+        [
+          'L_Index1', 'L_Mid1', 'L_Pinky1', 'L_Ring1', 'L_Thumb1',
+          'R_Index1', 'R_Mid1', 'R_Pinky1', 'R_Ring1', 'R_Thumb1',
+        ],
+      );
+      for (const key of composite) {
+        expect(hasClampStrategy(key), `${key} must NOT have a single-bone strategy`).toBe(false);
+      }
+    });
+
     it('returns false for null / unknown keys', () => {
       expect(hasClampStrategy(null)).toBe(false);
       expect(hasClampStrategy(undefined)).toBe(false);
@@ -356,6 +399,122 @@ describe('clampBoneToRom', () => {
       expect(clampBoneToRom(bone, 'Neck', spineRest('Neck'))).toBe(true);
       expect(readoutFlexion(bone)).toBeCloseTo(-60, 0);
     });
+
+    // LUMBAR. Same body-euler shape as its two neighbours above and for the
+    // same reason: the readout drives Spine_Lower, Spine_Upper and Neck from
+    // ONE table (jointAngles.ts) writing `flexion: -a.flexion` and
+    // `lateralTilt: a.abduction * -1` for all three. It had a ROM row
+    // (-25/60 flexion, ±25 lateral, ±10 rotation) and a live readout and no
+    // strategy at all, so `clampBoneToRom` returned false and the lumbar spine
+    // could be dragged to any angle — which is the gap that started this work.
+    // The asymmetric flexion range is what makes the sign flip observable: a
+    // missing flip stops flexion at 25 and extension at -60.
+
+    it('clamps lumbar flexion 90° → 60° (Spine_Lower max flex)', () => {
+      const bone = flexBone(90);
+      expect(clampBoneToRom(bone, 'Spine_Lower', spineRest('Spine_Lower'))).toBe(true);
+      expect(readoutFlexion(bone)).toBeCloseTo(60, 0);
+    });
+
+    it('clamps lumbar extension -50° → -25° (Spine_Lower max ext)', () => {
+      const bone = flexBone(-50);
+      expect(clampBoneToRom(bone, 'Spine_Lower', spineRest('Spine_Lower'))).toBe(true);
+      expect(readoutFlexion(bone)).toBeCloseTo(-25, 0);
+    });
+
+    it('leaves within-ROM lumbar flexion (40°) untouched', () => {
+      const bone = flexBone(40);
+      expect(clampBoneToRom(bone, 'Spine_Lower', spineRest('Spine_Lower'))).toBe(false);
+      expect(readoutFlexion(bone)).toBeCloseTo(40, 0);
+    });
+
+    it('lands the lumbar bounds on the poles the REGISTRY names, not mirrored', () => {
+      // The one assertion that a sign flip cannot pass by accident: the lumbar
+      // range is -25/60, so a clamp missing `flexionSign: -1` would stop
+      // flexion at 25 and extension at -60 — both plausible-looking numbers.
+      const flexed = flexBone(120);
+      clampBoneToRom(flexed, 'Spine_Lower', spineRest('Spine_Lower'));
+      const extended = flexBone(-120);
+      clampBoneToRom(extended, 'Spine_Lower', spineRest('Spine_Lower'));
+      expect(readoutFlexion(flexed)).toBeGreaterThan(readoutFlexion(extended));
+      expect(readoutFlexion(flexed)).toBeCloseTo(
+        getRomFieldDefinition('Spine_Lower', 'flexion')!.range.max,
+        0,
+      );
+      expect(readoutFlexion(extended)).toBeCloseTo(
+        getRomFieldDefinition('Spine_Lower', 'flexion')!.range.min,
+        0,
+      );
+    });
+  });
+
+  describe('forefoot MTP: the toes read like the ankle, not like a knee', () => {
+    // The toes readout is `toeFlexion: -a.flexion` off a parent-local
+    // `decomposeBodyDelta` — the ankle's decomposition, not the knee's
+    // geometric-hinge one. So the strategy is body-euler with flexionSign -1,
+    // and these tests are written in the readout's convention to prove the
+    // clamp bounds the quantity the ROM panel actually displays.
+    //
+    // Registry: toeFlexion {-40, 70}, positive = EXTENSION. Asymmetric, so a
+    // missing flip stops extension at 40 and flexion at -70.
+
+    const REST_IDENTITY: [number, number, number, number] = [0, 0, 0, 1];
+    function toeRest(key: string): JointAngleRestReference {
+      return {
+        pelvisWorldQuat: REST_IDENTITY,
+        localQuats: { [key]: REST_IDENTITY },
+        worldQuats: {},
+      } as unknown as JointAngleRestReference;
+    }
+    /** A pure +X-euler (YXZ) delta of θ° reads as θ° of `toeFlexion`
+     *  (`decomposeBodyDelta` negates euler.x, and the readout negates again). */
+    function toeBone(readoutDeg: number): THREE.Bone {
+      const bone = new THREE.Bone();
+      bone.quaternion.setFromEuler(new THREE.Euler((readoutDeg * Math.PI) / 180, 0, 0, 'YXZ'));
+      return bone;
+    }
+    /** The readout's `toeFlexion`: + = extension. */
+    function readoutToe(bone: THREE.Bone): number {
+      const d = new THREE.Quaternion();
+      deltaFromRest(bone.quaternion, REST_IDENTITY, d);
+      return -decomposeBodyDelta(d).flexion;
+    }
+
+    for (const key of ['L_Toes', 'R_Toes'] as const) {
+      it(`clamps ${key} extension 110° → 70° (MTP max extension)`, () => {
+        const bone = toeBone(110);
+        expect(clampBoneToRom(bone, key, toeRest(key))).toBe(true);
+        expect(readoutToe(bone)).toBeCloseTo(70, 0);
+      });
+
+      it(`clamps ${key} flexion -80° → -40° (MTP max flexion)`, () => {
+        const bone = toeBone(-80);
+        expect(clampBoneToRom(bone, key, toeRest(key))).toBe(true);
+        expect(readoutToe(bone)).toBeCloseTo(-40, 0);
+      });
+
+      it(`leaves a within-ROM ${key} position untouched`, () => {
+        const bone = toeBone(30); // extension, inside 0..70
+        expect(clampBoneToRom(bone, key, toeRest(key))).toBe(false);
+        expect(readoutToe(bone)).toBeCloseTo(30, 0);
+      });
+
+      it(`holds ${key} to its one sagittal DOF`, () => {
+        // The registry gives the toes a single field, so the frontal and
+        // transverse axes lock at zero — an MTP does not abduct or twist, and
+        // no reported number depends on those axes.
+        const bone = new THREE.Bone();
+        bone.quaternion.setFromEuler(
+          new THREE.Euler(0, (25 * Math.PI) / 180, (25 * Math.PI) / 180, 'YXZ'),
+        );
+        expect(clampBoneToRom(bone, key, toeRest(key))).toBe(true);
+        const d = new THREE.Quaternion();
+        deltaFromRest(bone.quaternion, REST_IDENTITY, d);
+        const a = decomposeBodyDelta(d);
+        expect(a.abduction).toBeCloseTo(0, 1);
+        expect(a.rotation).toBeCloseTo(0, 1);
+      });
+    }
   });
 
   describe('wrist: flex/dev read from swapped axes (twisted frame)', () => {
