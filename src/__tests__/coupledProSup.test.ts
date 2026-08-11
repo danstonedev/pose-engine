@@ -25,7 +25,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { applyAnatomicPose } from '../services/anatomicPose';
-import { buildBoneByPoseKey, readAxialTwist } from '../services/poseRig';
+import { buildBoneByPoseKey, readAxialTwist, setAxialTwist } from '../services/poseRig';
 import {
   captureJointAngleRestReference,
   computeJointAngles,
@@ -37,6 +37,7 @@ import {
   applyCoupledProSup,
 } from '../services/poseProSupRomClamp';
 import { getRomFieldDefinition } from '../services/romRegistry';
+import { clampBoneToRom } from '../services/poseRomClamp';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 
 const variantCfg = BODY_VARIANTS.male;
@@ -163,6 +164,41 @@ describe('a pro/sup drag writes BOTH segments', () => {
     const fromHand = reported('R').forearmRotation;
     expect(Math.abs(fromHand)).toBeGreaterThan(80);
     expect(Math.sign(fromHand)).toBe(Math.sign(fromForearm));
+  });
+
+  it('SURVIVES a later clamp of the hand — the half stored there is not a stray DOF', () => {
+    // The hand's body-euler strategy has no registry FIELD for axial rotation,
+    // because pro/sup belongs to the forearm. Read as "lock it at zero", that
+    // silently deleted the half this writer deliberately stores on the hand:
+    // drag pro/sup to its limit, then touch the wrist's flexion ring — which
+    // clamps the hand — and the reading fell from 90 to 45 with nothing to
+    // explain it. The strategy now carries an explicit ±45 rotationRange.
+    for (const side of ['L', 'R'] as const) {
+      reset();
+      applyCoupledProSup(`${side}_Forearm`, twistTarget(`${side}_Forearm`, 200), byKey, rest);
+      const before = reported(side).forearmRotation;
+      expect(Math.abs(before), 'reaches the range first').toBeGreaterThan(80);
+      // Anything that settles the hand — a wrist drag, the IK effector clamp.
+      clampBoneToRom(byKey.get(`${side}_Hand`)!, `${side}_Hand`, rest, null);
+      expect(Math.abs(reported(side).forearmRotation), `${side} pro/sup survives`).toBeCloseTo(
+        Math.abs(before),
+        0,
+      );
+    }
+  });
+
+  it('still holds the hand to its half, so the pair cannot exceed the published range', () => {
+    // The range is not free: ±45 is exactly half of the registry's ±90, so two
+    // segments at their limit sum to the limit and no further.
+    reset();
+    const hand = byKey.get('R_Hand')!;
+    const rh = rest.localQuats.R_Hand!;
+    setAxialTwist(hand, new THREE.Quaternion(rh[0], rh[1], rh[2], rh[3]), (200 * Math.PI) / 180);
+    clampBoneToRom(hand, 'R_Hand', rest, null);
+    const held =
+      Math.abs(readAxialTwist(hand.quaternion, new THREE.Quaternion(rh[0], rh[1], rh[2], rh[3]))) * DEG;
+    expect(held).toBeLessThanOrEqual(46);
+    expect(held).toBeGreaterThan(40);
   });
 
   it('leaves a within-range drive where it was put', () => {
