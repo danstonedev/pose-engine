@@ -25,7 +25,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { applyAnatomicPose } from '../services/anatomicPose';
-import { buildBoneByPoseKey, readAxialTwist, setAxialTwist } from '../services/poseRig';
+import {
+  buildBoneByPoseKey,
+  readAxialTwist,
+  readBodyEulerTwist,
+  setAxialTwist,
+} from '../services/poseRig';
 import {
   captureJointAngleRestReference,
   computeJointAngles,
@@ -116,8 +121,15 @@ describe('a pro/sup drag writes BOTH segments', () => {
       const rh = rest.localQuats[`${side}_Hand`]!;
       const fTwist =
         readAxialTwist(byKey.get(`${side}_Forearm`)!.quaternion, new THREE.Quaternion(rf[0], rf[1], rf[2], rf[3])) * DEG;
+      // Read the HAND in the hand's own frame. The two segments do not store
+      // their halves in the same decomposition, and they must not: the panel
+      // measures `forearmRotation` with a long-axis swing-twist and the wrist
+      // with a body-frame YXZ Euler, so each half is written in whichever frame
+      // its own readout uses. Reading the hand with `readAxialTwist` here
+      // measured it in the FOREARM's frame and reported a 0.8° split imbalance
+      // that does not exist. See proSupWristFrame.test.ts.
       const hTwist =
-        readAxialTwist(byKey.get(`${side}_Hand`)!.quaternion, new THREE.Quaternion(rh[0], rh[1], rh[2], rh[3])) * DEG;
+        readBodyEulerTwist(byKey.get(`${side}_Hand`)!.quaternion, new THREE.Quaternion(rh[0], rh[1], rh[2], rh[3])) * DEG;
       expect(Math.abs(fTwist), `${side} forearm carries half`).toBeGreaterThan(5);
       expect(Math.abs(hTwist), `${side} hand carries half`).toBeGreaterThan(5);
       // 1:1 — the same twist on each, which is what sums to the reported total.
