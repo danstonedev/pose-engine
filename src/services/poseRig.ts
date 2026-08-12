@@ -93,9 +93,14 @@ export function readAxialTwist(local: THREE.Quaternion, restLocal: THREE.Quatern
 }
 
 /** Set a bone's axial twist about +Y to `angleRad`, preserving its current
- *  swing (flexion / deviation) — the inverse of {@link readAxialTwist}. Used to
- *  drive coupled forearm↔hand pro/sup: write the same per-segment twist to both
- *  bones without disturbing elbow flexion or wrist flex/dev. */
+ *  SWING — the inverse of {@link readAxialTwist}. Correct for a bone whose
+ *  readout is itself a long-axis swing-twist (`ballJointAngles`), which on the
+ *  arm means the FOREARM: `computeJointAngles` reads `forearmRotation` off
+ *  exactly this decomposition, so writing through it moves that one number and
+ *  leaves elbow flexion and deviation alone.
+ *
+ *  It is the WRONG writer for a bone measured as a body-frame Euler delta — see
+ *  {@link setBodyEulerTwist}, and read the note there before picking one. */
 export function setAxialTwist(
   bone: THREE.Object3D,
   restLocal: THREE.Quaternion,
@@ -107,6 +112,69 @@ export function setAxialTwist(
   _twNew.setFromAxisAngle(_twAxis, angleRad);
   _twDelta.copy(_twSwing).multiply(_twNew);
   bone.quaternion.copy(restLocal).multiply(_twDelta);
+}
+
+// ── The same twist, in the OTHER decomposition ────────────────────────────
+//
+// "Preserve the swing" and "preserve the reported flexion and deviation" are
+// not the same instruction, and which one is right depends on how the joint is
+// MEASURED, not on what the bone is.
+//
+// A Y-axis swing-twist splits a delta as `swing · twist`, where the swing axis
+// is perpendicular to +Y. A body-frame Euler splits it as `Ry · Rx · Rz`. Those
+// two families do not coincide: a rotation about an axis in the XZ plane is not
+// in general expressible as `Rx · Rz`, so holding the swing fixed while the
+// twist changes DOES move the Euler x and z components.
+//
+// That matters because the arm's two segments are measured differently.
+// `forearmRotation` comes from `ballJointAngles` — a long-axis swing-twist. The
+// wrist comes from `decomposeBodyDelta` — a YXZ Euler, with flexion read off
+// the z component and deviation off the x. So writing a coupled pro/sup half
+// onto the HAND with `setAxialTwist` moved the panel's wrist deviation by up to
+// ~30° on a flexed, deviated wrist, from a drag the user made on the pro/sup
+// ring alone. The two decompositions were each self-consistent and disagreed
+// with each other; the panel reported the disagreement as motion.
+//
+// Below is the Euler-frame pair. Use whichever matches the joint's readout.
+//
+// Note the DELTA CONVENTION, which is the other half of the trap: the readout's
+// `deltaFromRest` is `current · rest⁻¹` (a left delta, in the parent's frame),
+// while `readAxialTwist` above uses `rest⁻¹ · current` (a body delta, in the
+// bone's own frame). Those are conjugate — same angle, axes differing by the
+// rest rotation — so a decomposition about +Y means two different things in
+// them. These helpers use the readout's convention, because their entire job is
+// to move exactly the number the panel prints and nothing else.
+const _btEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+const _btRestInv = new THREE.Quaternion();
+const _btDelta = new THREE.Quaternion();
+
+/** Read a bone-local quaternion's axial rotation as the BODY-EULER (YXZ) y
+ *  component of `deltaFromRest`, radians. This is the quantity
+ *  `decomposeBodyDelta` reports as `rotation` (up to the readout's sign and
+ *  side-mirror), so it is the measure for a hand, foot, or any other joint on
+ *  the body-euler clamp strategy. */
+export function readBodyEulerTwist(local: THREE.Quaternion, restLocal: THREE.Quaternion): number {
+  _btRestInv.copy(restLocal).invert();
+  _btDelta.copy(local).multiply(_btRestInv);
+  _btEuler.setFromQuaternion(_btDelta, 'YXZ');
+  return _btEuler.y;
+}
+
+/** Set a bone's axial rotation to `angleRad` in the body-euler (YXZ) frame,
+ *  preserving the x and z components EXACTLY — which is to say, preserving the
+ *  flexion and deviation the panel reports for it, to the bit. The inverse of
+ *  {@link readBodyEulerTwist}. */
+export function setBodyEulerTwist(
+  bone: THREE.Object3D,
+  restLocal: THREE.Quaternion,
+  angleRad: number,
+): void {
+  _btRestInv.copy(restLocal).invert();
+  _btDelta.copy(bone.quaternion).multiply(_btRestInv);
+  _btEuler.setFromQuaternion(_btDelta, 'YXZ');
+  _btEuler.y = angleRad;
+  _btDelta.setFromEuler(_btEuler);
+  bone.quaternion.copy(_btDelta).multiply(restLocal);
 }
 
 const _pinParent = new THREE.Quaternion();

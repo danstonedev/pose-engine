@@ -35,7 +35,8 @@ import { solveArmChainWithRhythm } from './poseScapulohumeral';
 import { computeDrivingRingMap, gizmoSpaceForJoint } from './jointAngles';
 import { clampFingerCurlToRom } from './poseFingerRomClamp';
 import { clampRegionCurveToRom } from './poseRegionCurveRomClamp';
-import { applyCoupledProSup } from './poseProSupRomClamp';
+import { applyCoupledProSup, beginCoupledProSup } from './poseProSupRomClamp';
+import type { ProSupDragSession } from './poseProSupRomClamp';
 import { configureRingRotateGizmo, hiddenRingsForJoint } from './poseGizmoHelpers';
 import { PoseRotateRingGizmo } from './poseRotateRings';
 import type { PoseRingDrag } from './poseRotateRings';
@@ -271,6 +272,10 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
   /** The girdle-free chain the scapulohumeral rhythm corrects against. */
   let distalCtx: IKChainContext | null = null;
   let ringDrag: PoseRingDrag | null = null;
+  // Captured at pointer-down so a pro/sup drag is a delta on the PAIR's total
+  // rather than an absolute read of the grabbed segment — see
+  // `beginCoupledProSup`. Cleared wherever `ringDrag` is.
+  let proSupDrag: ProSupDragSession | null = null;
   let drivingRings: DrivingRingMap | null = null;
   let twistRig: TwistSegment[] = [];
   let fingerCurls: Map<
@@ -805,6 +810,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       });
       if (drag) {
         ringDrag = drag;
+        proSupDrag = beginCoupledProSup(selected.key, stageCtx.motionCapBones, stageCtx.restRef);
         if (selected.key === 'Hips') capturePelvisPlant();
         controls.enabled = false;
         e.preventDefault();
@@ -866,6 +872,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
         ringDrag.axis === 'Y' &&
         applyCoupledProSup(selected.key, target, stageCtx.motionCapBones, stageCtx.restRef, {
           constraints: stageCtx.romConstraints ?? null,
+          session: proSupDrag,
         })
       ) {
         // coupled forearm↔hand pronation/supination
@@ -972,6 +979,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     }
     if (ringDrag) {
       ringDrag = null;
+      proSupDrag = null;
       releasePelvisPlant();
       controls.enabled = true;
       commitPosedState();
@@ -1100,6 +1108,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
   // ── Lifecycle hooks the stage core calls ──────────────────────────
   const onTakeover = () => {
     ringDrag = null;
+    proSupDrag = null;
     press = null;
     obliqueRingDrag = null;
     obliquePress = null;
