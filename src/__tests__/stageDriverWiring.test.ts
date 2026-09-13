@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 const stageSource = readFileSync(
   fileURLToPath(new URL('../ExamStage3D.svelte', import.meta.url)),
   'utf8',
-);
+).replace(/\r\n/g, '\n'); // Keep wiring assertions independent of checkout line endings.
 
 /** The four driver handles and the setter each one must be written through. */
 const HANDLES: { handle: string; setter: string; mechanism: string }[] = [

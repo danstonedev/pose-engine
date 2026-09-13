@@ -894,15 +894,21 @@ export interface ClinicalAnglesReport {
 /** Decompose a bone's current quaternion into clinical angles using the
  *  same math the clamp would apply, but without writing back. Returns
  *  null when the canonical key has no clamp strategy. Useful for
- *  console-driven verification of every joint's orientation. */
+ *  console-driven verification of every joint's orientation. Optional patient
+ *  constraints affect the reported ranges without changing any bone or state. */
 export function inspectClinicalAngles(
   bone: THREE.Bone,
   canonicalKey: string | null | undefined,
   rest: JointAngleRestReference | null | undefined,
+  constraints?: RomScenarioConstraints | null,
 ): ClinicalAnglesReport | null {
   if (!bone || !canonicalKey || !rest) return null;
   const strategy = STRATEGIES[canonicalKey];
   if (!strategy) return null;
+
+  // Inspection is read-only and must use the same patient bounds as the solve.
+  // Keep this local instead of changing the clamp's temporary constraint state.
+  const rangeFor = (field: string) => getEffectiveRomRange(constraints, canonicalKey, field) ?? ZERO_RANGE;
 
   let raw: { flexion: number; abduction: number; rotation: number };
   let anatomicFlexion: number;
@@ -917,22 +923,26 @@ export function inspectClinicalAngles(
     const a = decomposeBodyDelta(_qDelta);
     raw = { flexion: a.flexion, abduction: a.abduction, rotation: a.rotation };
     anatomicFlexion = a.flexion;
-    flexRange = lookupRange(canonicalKey, strategy.flexionField);
-    abdRange = lookupRange(canonicalKey, strategy.abductionField);
-    rotRange = lookupRange(canonicalKey, strategy.rotationField);
+    flexRange = rangeFor(strategy.flexionField);
+    abdRange = rangeFor(strategy.abductionField);
+    rotRange = rangeFor(strategy.rotationField);
   } else if (strategy.kind === 'body-euler') {
     deltaFromRest(bone.quaternion, rest.localQuats[canonicalKey], _qDelta);
     const a = decomposeBodyDelta(_qDelta);
-    let abd = a.abduction;
+    // Use the same field-axis mapping as the clamp. Wrist flexion comes from
+    // local Z and deviation from local X; keep raw.flexion before its sign.
+    const pick = (axis: 'x' | 'z') => axis === 'x' ? a.flexion : a.abduction;
+    const flex = pick(strategy.flexionAxis ?? 'x');
+    let abd = pick(strategy.abductionAxis ?? 'z');
     if (strategy.mirror) abd = -abd;
     abd *= strategy.abductionSign ?? 1;
-    raw = { flexion: a.flexion, abduction: abd, rotation: a.rotation };
-    anatomicFlexion = (strategy.flexionSign ?? 1) * a.flexion;
-    flexRange = lookupRange(canonicalKey, strategy.flexionField);
-    abdRange = lookupRange(canonicalKey, strategy.abductionField);
+    raw = { flexion: flex, abduction: abd, rotation: a.rotation };
+    anatomicFlexion = (strategy.flexionSign ?? 1) * flex;
+    flexRange = rangeFor(strategy.flexionField);
+    abdRange = rangeFor(strategy.abductionField);
     rotRange = strategy.rotationField
-      ? lookupRange(canonicalKey, strategy.rotationField)
-      : null;
+      ? rangeFor(strategy.rotationField)
+      : (strategy.rotationRange ?? null);
   } else if (strategy.kind === 'ball-joint') {
     const restWorldArr = rest.worldQuats[canonicalKey];
     if (!restWorldArr) return null;
@@ -942,9 +952,9 @@ export function inspectClinicalAngles(
     const a = ballJointAngles(_qDelta, REST_DOWN_LOCAL, strategy.mirror);
     raw = { flexion: a.flexion, abduction: a.abduction, rotation: a.rotation };
     anatomicFlexion = a.flexion * (strategy.flexionSign ?? 1);
-    flexRange = lookupRange(canonicalKey, strategy.flexionField);
-    abdRange = lookupRange(canonicalKey, strategy.abductionField);
-    rotRange = lookupRange(canonicalKey, strategy.rotationField);
+    flexRange = rangeFor(strategy.flexionField);
+    abdRange = rangeFor(strategy.abductionField);
+    rotRange = rangeFor(strategy.rotationField);
   } else {
     // hinge — PARENT-LOCAL, mirroring `clampHinge`. This is the console's
     // window onto the clamp (`__romDebug`), so reading it in a different frame
@@ -955,7 +965,7 @@ export function inspectClinicalAngles(
     const a = ballJointAngles(_qDelta, REST_DOWN_LOCAL, false);
     raw = { flexion: a.flexion, abduction: a.abduction, rotation: a.rotation };
     anatomicFlexion = a.flexion * strategy.flexionSign;
-    flexRange = lookupRange(canonicalKey, strategy.flexionField);
+    flexRange = rangeFor(strategy.flexionField);
     abdRange = strategy.abductionRange;
     rotRange = strategy.rotationRange;
   }
