@@ -251,17 +251,21 @@ function copyAngles(
   return out;
 }
 
+/** Copy the plain recording payload through reactive proxies while retaining
+ * exact numeric values (including signed zero) and optional context fields. */
+function copyRecordingValue<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(item => copyRecordingValue(item)) as T;
+  if (value !== null && typeof value === 'object') return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, copyRecordingValue(item)]),
+  ) as T;
+  return value;
+}
+
 function copyFrame(f: RecordedFrame, tMs: number): RecordedFrame {
-  return {
-    tMs,
-    pose: f.pose,
-    angles: f.angles,
-    root: {
-      orientQuat: [...f.root.orientQuat],
-      translateM: [...f.root.translateM],
-    },
-    ...(f.worldTracks ? { worldTracks: f.worldTracks } : {}),
-  };
+  // Editor recordings may carry visual support and source-media context in
+  // addition to the engine fields. Timeline edits must retain that context,
+  // including groundingPosture, without sharing mutable captured metadata.
+  return { ...copyRecordingValue(f), tMs };
 }
 
 const QUAT_IDENTITY: [number, number, number, number] = [0, 0, 0, 1];
@@ -325,6 +329,7 @@ export interface SampleComposedOptions {
      *  windowed entries — one per stance phase. */
     fromMs?: number;
     toMs?: number;
+    reuseInitialAnchor?: boolean;
   }[];
   /**
    * For a LOOPING motion (`resolved.loop`), sample ONE seamless period of the
@@ -478,6 +483,7 @@ export function sampleComposedMotion(
     /** World target, captured lazily when the foot first enters its window; reset
      *  on leaving so the NEXT stance window re-pins at the new contact point. */
     target: THREE.Vector3 | null;
+    reuseInitialAnchor: boolean;
     /** PER-WINDOW plant-clamp rest frame (CURVED heading only): the rest
      *  reference rotated by the heading at THIS window's start, so each stance
      *  window's leg-IK ROM clamps read against the body orientation the walk
@@ -486,6 +492,7 @@ export function sampleComposedMotion(
     rest?: JointAngleRestReference;
   }
   const footPlants: FootPlant[] = [];
+  const initialPlantTargets = new Map<string, THREE.Vector3>();
   // Honour contacts the MOTION declares (resolved.contacts) when the caller
   // doesn't pass an explicit override — so a travel-gait motion plants its feet
   // the same way in the sampler as on the live stage.
@@ -498,6 +505,7 @@ export function sampleComposedMotion(
         fromMs: typeof c.fromMs === 'number' ? c.fromMs : -Infinity,
         toMs: typeof c.toMs === 'number' ? c.toMs : Infinity,
         target: null,
+        reuseInitialAnchor: c.reuseInitialAnchor === true,
       });
     }
   }
@@ -1131,8 +1139,10 @@ export function sampleComposedMotion(
       // contact and the transient dip is absorbed by the leg IK (the loading
       // knee), instead of burying the foot by the dip for the entire stance.
       if (!fp.target) {
-        fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
-        fp.target.y -= heelStrikeY;
+        const first = fp.reuseInitialAnchor ? initialPlantTargets.get(fp.solver.footKey) : undefined;
+        fp.target = first?.clone() ?? fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+        if (!first) fp.target.y -= heelStrikeY;
+        if (!initialPlantTargets.has(fp.solver.footKey)) initialPlantTargets.set(fp.solver.footKey, fp.target.clone());
       }
       // Per-window rotated clamp frame for a CURVED heading; the shared
       // (constant-heading) plantRest otherwise. The ORIGINAL rest always
@@ -1492,6 +1502,7 @@ export function compactRecording(rec: MotionRecording, precision = 4): MotionRec
   return {
     ...rec,
     frames: rec.frames.map((f) => ({
+      ...copyRecordingValue(f),
       tMs: r(f.tMs),
       pose: {
         variant: f.pose.variant,

@@ -354,6 +354,9 @@ export interface StanceContact {
   foot: string;
   fromMs?: number;
   toMs?: number;
+  /** Return to this foot's first captured plant, rather than establish a new
+   * contact location. Useful for an in-place lift followed by landing. */
+  reuseInitialAnchor?: boolean;
 }
 
 /** A novel movement composed as timed keyframes over the command vocabulary. */

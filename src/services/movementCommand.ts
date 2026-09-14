@@ -1395,19 +1395,44 @@ function isBallJoint(joint: string): boolean {
 }
 
 /** Shoulder (world-frame readout): compose flexion F, abduction A, rotation R
- *  (clinical deg) into ONE rest-frame local delta. Builds the target world arm
- *  direction that reads back exactly F and A under `upperArmWorldAngles`
- *  (in-plane, away from the flexion/abduction singularity), then adds the axial
- *  twist. Needs the rest world orientation (ctx). */
+ *  into one rest-frame delta. A zero elevation channel leaves the other plane's
+ *  single-command construction intact. With both planes active, compatible
+ *  in-plane projections reconstruct exactly, including above horizontal.
+ *
+ *  Two projections cannot independently request opposite signs of vertical.
+ *  In that case elevation takes precedence: the arm stays above horizontal,
+ *  preserving forward/lateral direction, and the other projection saturates
+ *  into its supplementary angle. Such a pair cannot read back both requested
+ *  numbers; callers must use measured angles when assessing compliance.
+ *  At the shared horizontal singularity the projections contain no azimuth,
+ *  so use the bisector of their signed forward/lateral directions. */
 function composeShoulderDelta(ctx: BuildCtx, side: 'L' | 'R', F: number, A: number, R: number): THREE.Quaternion {
   const restDir = ctx.restDir!;
   const restWorldQuat = ctx.restWorldQuat!;
   const s = side === 'R' ? -1 : 1;
-  const tFlex = Math.atan2(restDir.z, -restDir.y) + F * RAD;
-  const tAbd = Math.atan2(s * restDir.x, -restDir.y) + A * RAD;
-  const tf = Math.tan(tFlex), ta = Math.tan(tAbd);
-  const c = 1 / Math.sqrt(1 + tf * tf + ta * ta);
-  const target = new THREE.Vector3(s * c * ta, -c, c * tf).normalize();
+  let target: THREE.Vector3;
+  if (A === 0) {
+    target = restDir.clone().applyAxisAngle(WORLD_X, -F * RAD);
+  } else if (F === 0) {
+    target = restDir.clone().applyAxisAngle(WORLD_Z, s * A * RAD);
+  } else {
+    const tFlex = Math.atan2(restDir.z, -restDir.y) + F * RAD;
+    const tAbd = Math.atan2(s * restDir.x, -restDir.y) + A * RAD;
+    const cf = Math.cos(tFlex), ca = Math.cos(tAbd);
+    const sf = Math.sin(tFlex), sa = Math.sin(tAbd);
+    // tan(a) loses the quadrant; normalizing (tan(A), -1, tan(F)) can
+    // only point DOWN. Keep the signed sine and the vertical hemisphere.
+    // Products avoid division by cos near either horizontal projection.
+    const horizontal = Math.abs(cf) < 1e-12 && Math.abs(ca) < 1e-12;
+    target = horizontal
+      ? new THREE.Vector3(s * sa, 0, sf)
+      : new THREE.Vector3(
+          s * sa * Math.abs(cf),
+          (cf < 0 || ca < 0 ? 1 : -1) * Math.abs(cf * ca),
+          sf * Math.abs(ca),
+        );
+    target.normalize();
+  }
   const worldSwing = new THREE.Quaternion().setFromUnitVectors(restDir, target);
   const delta = restWorldQuat.clone().invert().multiply(worldSwing).multiply(restWorldQuat);
   const twSign = side === 'R' ? 1 : -1;

@@ -1598,6 +1598,7 @@
         fromMs: number;
         toMs: number;
         target: import('three').Vector3 | null;
+        reuseInitialAnchor: boolean;
         /** PER-WINDOW plant-clamp rest frame (CURVED heading only): restRef
          *  rotated by the heading at THIS window's start. Absent ⇒ the shared
          *  composedPlantRest / restRef path (mirrors the sampler's per-plant
@@ -1605,6 +1606,7 @@
         rest?: ReturnType<typeof captureJointAngleRestReference>;
       }
       let composedPlants: StageFootPlant[] = [];
+      const initialComposedPlantTargets = new Map<string, import('three').Vector3>();
 
       /** PLANT-CLAMP REST FRAME for the active composed motion: the leg-IK ROM
        *  clamps decompose bone WORLD quats against the rest reference, so a walk
@@ -1876,11 +1878,12 @@
        *  can't serve an arc — by the last stance the body has yawed the full
        *  turn away from it; mirrors the sampler's per-plant rest). */
       function setComposedContacts(
-        contacts: { foot: string; fromMs?: number; toMs?: number }[] | undefined,
+        contacts: { foot: string; fromMs?: number; toMs?: number; reuseInitialAnchor?: boolean }[] | undefined,
         headingDeg = 0,
         headingProfileMs?: { tMs: number; headingDeg: number }[],
       ): void {
         composedPlants = [];
+        initialComposedPlantTargets.clear();
         composedPlantRest = null;
         if (!contacts?.length || !skinnedRef || !variantCfgRef) return;
         if (headingDeg !== 0 && restRef) {
@@ -1919,6 +1922,7 @@
               fromMs,
               toMs: typeof c.toMs === 'number' ? c.toMs : Infinity,
               target: null,
+              reuseInitialAnchor: c.reuseInitialAnchor === true,
               ...(rest ? { rest } : {}),
             });
           }
@@ -2012,8 +2016,10 @@
             continue;
           }
           if (!fp.target) {
-            fp.target = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
-            fp.target.y -= composedHeelStrikeY; // un-dip → natural contact (see doc)
+            const first = fp.reuseInitialAnchor ? initialComposedPlantTargets.get(fp.solver.footKey) : undefined;
+            fp.target = first?.clone() ?? fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+            if (!first) fp.target.y -= composedHeelStrikeY;
+            if (!initialComposedPlantTargets.has(fp.solver.footKey)) initialComposedPlantTargets.set(fp.solver.footKey, fp.target.clone());
           }
           // Heading-rotated clamp frame when the motion travels a rotated
           // heading — the PER-WINDOW rest for a curved heading, the shared

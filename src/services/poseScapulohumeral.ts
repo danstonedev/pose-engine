@@ -64,13 +64,27 @@
  */
 import * as THREE from 'three';
 import { girdleLocalQuat, girdleKeyForJoint, girdleSplit } from './movementCommand';
-import { inspectClinicalAngles } from './poseRomClamp';
-import { solveIKChain, type IKChainContext, type PoseClampOptions } from './poseRig';
+import { clampBoneToRom, inspectClinicalAngles, isRomClampActive } from './poseRomClamp';
+import { solveIKChain, type IKChainContext } from './poseRig';
 import type { JointAngleRestReference } from './jointAngles';
 
 /** Below this the split contributes nothing worth writing — keeps small poses,
  *  and every pose inside the setting phase, byte-identical to before. */
 const MIN_GIRDLE_DEG = 0.05;
+
+/** Passes per CCD solve for an arm reach. Four passes leave the handoff's
+ *  lower-back target ~20 cm short on the male rig; forty reduce that to ~2 cm
+ *  without widening ROM. This budget is arm-only: gait/leg solvers keep their
+ *  existing defaults. Callers can still set `clampOpts.iterations` explicitly. */
+export const ARM_REACH_IK_ITERATIONS = 40;
+
+/** Same options as the underlying CCD solver, including its iteration budget,
+ *  patient constraints, and optional hinge restrictions. */
+export type ArmReachSolveOptions = NonNullable<Parameters<typeof solveIKChain>[2]> & {
+  /** Experimental retry from at most two nearby arm orientations. Opt-in until
+   *  whole-arm contact/path checks accompany endpoint and joint-limit checks. */
+  recoverStalledReach?: boolean;
+};
 
 const _humerusWorld = new THREE.Quaternion();
 const _parentWorld = new THREE.Quaternion();
@@ -192,10 +206,9 @@ export function solveArmChainWithRhythm(
   fullCtx: IKChainContext,
   distalCtx: IKChainContext | null,
   target: THREE.Vector3,
-  clampOpts?: PoseClampOptions,
+  clampOpts?: ArmReachSolveOptions,
   iterations = 3,
 ): void {
-  solveIKChain(fullCtx, target, clampOpts);
   const rest = clampOpts?.rest;
 
   const humerusIdx = fullCtx.canonicalKeys.findIndex((k) => !!k && !!girdleKeyForJoint(k));
@@ -204,22 +217,87 @@ export function solveArmChainWithRhythm(
   const girdleKey = humerusKey ? girdleKeyForJoint(humerusKey) : null;
   const clavicleIdx = girdleKey ? fullCtx.canonicalKeys.indexOf(girdleKey) : -1;
   const clavicle = clavicleIdx >= 0 ? fullCtx.bones[clavicleIdx] : null;
-  if (!humerus || !clavicle || !distalCtx || !rest) return;
-
-  for (let i = 0; i < iterations; i += 1) {
-    if (!applyScapulohumeralRhythm(humerus, clavicle, humerusKey, rest)) break;
-    // REFRESH THE SUBTREE before solving. The rhythm's own update walks UP, so
-    // without this the forearm and hand still carry their pre-split world
-    // matrices and CCD solves against stale positions. Measured cost of
-    // omitting it: the girdle recruited 5.7 degrees instead of 9.3 — a quiet
-    // half-fix that still looked like it was working.
-    humerus.updateMatrixWorld(true);
-    // DISTAL-ONLY on purpose. Re-solving the full chain hands the clavicle back
-    // to CCD, which undoes the split — measured, that pins the scapula at the
-    // anterior tilt limit on a high reach. This pass moves only the joints
-    // below the girdle, so it recovers the target without spending the share.
-    solveIKChain(distalCtx, target, clampOpts);
+  if (!humerus || !clavicle || !distalCtx || !rest) {
+    solveIKChain(fullCtx, target, clampOpts);
+    return;
   }
+
+  // Raise only the budget for a supported, ROM-clamped arm chain. Keep the
+  // caller's constraints/hinge settings and honor an explicit budget (including
+  // the historic four passes used for comparisons).
+  const reachOpts: ArmReachSolveOptions = {
+    ...clampOpts,
+    rest,
+    iterations: clampOpts?.iterations ?? ARM_REACH_IK_ITERATIONS,
+  };
+  const recover = clampOpts?.recoverStalledReach === true && isRomClampActive();
+  const original = recover ? fullCtx.bones.map(bone => bone.quaternion.clone()) : null;
+  const solve = () => {
+    solveIKChain(fullCtx, target, reachOpts);
+
+    for (let i = 0; i < iterations; i += 1) {
+      if (!applyScapulohumeralRhythm(humerus, clavicle, humerusKey, rest)) break;
+      // Refresh descendants after the rhythm's upward-only world update.
+      humerus.updateMatrixWorld(true);
+      // Keep the corrective solve below the girdle so CCD cannot undo its share.
+      solveIKChain(distalCtx, target, reachOpts);
+    }
+  };
+  solve();
+  if (!recover || !original) return;
+
+  const effector = fullCtx.bones[0];
+  const position = new THREE.Vector3();
+  const error = () => effector.getWorldPosition(position).distanceTo(target);
+  let bestError = error();
+  // Warm starts already close to their target retain the original path. This
+  // also avoids paying for retries on ordinary small pointer movements.
+  if (!Number.isFinite(bestError) || bestError < 0.02) return;
+  const best = fullCtx.bones.map(bone => bone.quaternion.clone());
+  const restore = (quats: THREE.Quaternion[]) => {
+    fullCtx.bones.forEach((bone, i) => bone.quaternion.copy(quats[i]));
+    clavicle.updateMatrixWorld(true);
+  };
+
+  // CCD can settle on the wrong side of a constrained configuration. Starting
+  // from arms-down, the female cross-body probe stalls ~50 cm short forever;
+  // a modest upper-arm bend lets the SAME solver settle within 1 mm. Local-X
+  // perturbations follow the rig when the body turns. These are search seeds,
+  // never directly accepted poses: clamp and re-solve each one first.
+  for (const degrees of [30, 60]) {
+    restore(original);
+    humerus.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(1, 0, 0), degrees * Math.PI / 180,
+    ));
+    clampBoneToRom(humerus, humerusKey, rest, reachOpts.constraints);
+    humerus.updateMatrixWorld(true);
+    solve();
+    // Settle the coupled girdle/arm solution before comparing candidates.
+    // A small endpoint residual alone can hide a large next-call rotation.
+    for (let settle = 0; settle < 3; settle += 1) solve();
+    const candidateError = error();
+    // Require a meaningful improvement so numerical noise cannot switch the
+    // selected branch. Reject a closer wrist if any moved joint exceeds ROM.
+    if (candidateError < bestError - 0.001 && armChainInRange(fullCtx, reachOpts)) {
+      bestError = candidateError;
+      fullCtx.bones.forEach((bone, i) => best[i].copy(bone.quaternion));
+      if (bestError < 0.001) break;
+    }
+  }
+  restore(best);
+}
+
+function armChainInRange(ctx: IKChainContext, options: ArmReachSolveOptions): boolean {
+  for (let i = 1; i < ctx.bones.length; i += 1) {
+    const report = inspectClinicalAngles(ctx.bones[i], ctx.canonicalKeys[i], options.rest, options.constraints);
+    if (!report) return false;
+    for (const axis of ['flexion', 'abduction', 'rotation'] as const) {
+      const value = axis === 'flexion' ? report.anatomicFlexion : report.raw[axis];
+      const range = report.ranges[axis];
+      if (!Number.isFinite(value) || (range && (value < range.min - 0.5 || value > range.max + 0.5))) return false;
+    }
+  }
+  return true;
 }
 
 /** Whether `maybeAncestor` sits above `node` in the scene graph. */

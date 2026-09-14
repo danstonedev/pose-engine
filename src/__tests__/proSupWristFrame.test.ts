@@ -384,7 +384,7 @@ describe('the engine drag path captures the session', () => {
   const LAYER = readFileSync(
     fileURLToPath(new URL('../services/stagePosingLayer.ts', import.meta.url)),
     'utf-8',
-  );
+  ).replace(/\r\n/g, '\n'); // Git may check out CRLF on Windows.
 
   it('captures at pointer-down, in the same branch that begins the ring drag', () => {
     expect(LAYER).toMatch(
