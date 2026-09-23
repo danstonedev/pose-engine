@@ -51,6 +51,7 @@
   import type { AnatomicalPlanes } from './services/anatomicalPlanes';
   import type { SectionCap } from './services/sectionCap';
   import type { IKChainContext } from './services/poseRig';
+  import type { ContactPlant } from './services/footContact';
   import type { PoseTrajectory } from './services/motionTrajectory';
   // romRegistry is three-free (pure definitions) — static import stays SSR-safe.
   import { getRomJointDefinition, type RomPlane } from './services/romRegistry';
@@ -585,7 +586,7 @@
         handReachWeightAt,
         FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
-      const { buildFootPlant, solveFootPlant, solveFootPlantWeighted, PLANT_RELEASE_BLEND_MS, buildHandPlant, solveHandReach } =
+      const { buildFootPlant, stepContactPlants, buildHandPlant, solveHandReach } =
         await import('./services/footContact');
       // Rig-facing composed derivations (the four trajectory pre-passes). Dynamic
       // like every other three-using service, so this component stays SSR-safe.
@@ -1589,23 +1590,15 @@
       }
 
       /** CLOSED-CHAIN FOOT CONTACT (Finding 4): the IK plants for the ACTIVE
-       *  composed motion's `contacts`, mirroring the offline sampler. Each foot
+       *  composed motion's `contacts` — the SAME ContactPlant state the offline
+       *  sampler builds, stepped by the same shared stepContactPlants. Each foot
        *  is pinned to the world position it holds as it ENTERS its stance window,
        *  so it stays put while the body travels over it (no moonwalk) — and an
-       *  alternating gait re-pins per stance phase. Rebuilt per playback. */
-      interface StageFootPlant {
-        solver: ReturnType<typeof buildFootPlant>;
-        fromMs: number;
-        toMs: number;
-        target: import('three').Vector3 | null;
-        reuseInitialAnchor: boolean;
-        /** PER-WINDOW plant-clamp rest frame (CURVED heading only): restRef
-         *  rotated by the heading at THIS window's start. Absent ⇒ the shared
-         *  composedPlantRest / restRef path (mirrors the sampler's per-plant
-         *  rest). */
-        rest?: ReturnType<typeof captureJointAngleRestReference>;
-      }
-      let composedPlants: StageFootPlant[] = [];
+       *  alternating gait re-pins per stance phase. A CURVED heading gives each
+       *  plant its PER-WINDOW clamp rest frame (restRef rotated by the heading at
+       *  THIS window's start); absent ⇒ the shared composedPlantRest / restRef
+       *  path. Rebuilt per playback. */
+      let composedPlants: ContactPlant[] = [];
       const initialComposedPlantTargets = new Map<string, import('three').Vector3>();
 
       /** PLANT-CLAMP REST FRAME for the active composed motion: the leg-IK ROM
@@ -1976,58 +1969,24 @@
       }
 
       /** Apply the active foot plants at composed-motion time `tMs` — called
-       *  AFTER the FK pose + root transform each frame (mirrors the sampler).
-       *  A target captured while a heel-strike accent is dipping the root is
-       *  compensated by the applied offset (`composedHeelStrikeY`), so the
-       *  landing foot pins at its NATURAL floor contact and the transient dip
-       *  is absorbed by the leg IK instead of burying the foot for the stance. */
+       *  AFTER the FK pose + root transform each frame, through the ONE shared
+       *  step the offline sampler runs (stepContactPlants — lockstep): holds in
+       *  window, an eased release after it (SEAM-3). A target captured while
+       *  a heel-strike accent is dipping the root is compensated by the applied
+       *  offset (`composedHeelStrikeY`), so the landing foot pins at its NATURAL
+       *  floor contact and the transient dip is absorbed by the leg IK instead of
+       *  burying the foot for the stance. The clamp frame is the plant's own
+       *  PER-WINDOW rest (curved heading), else the heading-rotated
+       *  composedPlantRest, else restRef; the ORIGINAL restRef always names the
+       *  knee hinge axis. */
       function applyFootPlants(tMs: number): void {
         if (!composedPlants.length || !restRef || !modelRoot) return;
-        let solved = false;
-        for (const fp of composedPlants) {
-          if (!fp.solver) continue;
-          const inWindow = tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
-          if (!inWindow) {
-            // PLANT RELEASE BLEND (SEAM-3): when a stance window ends, ramp the
-            // leg-IK correction 1→0 over PLANT_RELEASE_BLEND_MS instead of
-            // dropping it in one frame (the toe-off pop: ~20 cm + ~17°/frame at
-            // release). The captured target survives ONLY through the ramp; the
-            // hold is NOT extended — the FK swing takes over continuously.
-            // Skipped when a later window has already re-pinned the same foot
-            // (its full solve owns the leg). Mirrors the offline sampler.
-            const w = fp.target ? 1 - (tMs - fp.toMs) / PLANT_RELEASE_BLEND_MS : 0;
-            const footRepinned =
-              w > 0 &&
-              w < 1 &&
-              composedPlants.some(
-                (o) =>
-                  o !== fp &&
-                  o.solver != null &&
-                  o.solver.footKey === fp.solver!.footKey &&
-                  tMs >= o.fromMs - 1e-6 &&
-                  tMs <= o.toMs + 1e-6,
-              );
-            if (!fp.target || w <= 0 || w >= 1 || footRepinned) {
-              fp.target = null; // released (or superseded) — next stance re-captures
-              continue;
-            }
-            solveFootPlantWeighted(fp.solver, fp.target, fp.rest ?? composedPlantRest ?? restRef, restRef, w);
-            solved = true;
-            continue;
-          }
-          if (!fp.target) {
-            const first = fp.reuseInitialAnchor ? initialComposedPlantTargets.get(fp.solver.footKey) : undefined;
-            fp.target = first?.clone() ?? fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
-            if (!first) fp.target.y -= composedHeelStrikeY;
-            if (!initialComposedPlantTargets.has(fp.solver.footKey)) initialComposedPlantTargets.set(fp.solver.footKey, fp.target.clone());
-          }
-          // Heading-rotated clamp frame when the motion travels a rotated
-          // heading — the PER-WINDOW rest for a curved heading, the shared
-          // composedPlantRest for a constant one; the ORIGINAL restRef always
-          // names the knee hinge axis.
-          solveFootPlant(fp.solver, fp.target, fp.rest ?? composedPlantRest ?? restRef, restRef);
-          solved = true;
-        }
+        const solved = stepContactPlants(composedPlants, tMs, {
+          rest: composedPlantRest ?? restRef,
+          hingeAxisRest: restRef,
+          heelStrikeY: composedHeelStrikeY,
+          initialTargets: initialComposedPlantTargets,
+        });
         if (solved) modelRoot.updateMatrixWorld(true);
       }
 

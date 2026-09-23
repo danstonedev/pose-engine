@@ -40,11 +40,10 @@ import {
 } from './poseRig';
 import {
   buildFootPlant,
-  solveFootPlant,
-  solveFootPlantWeighted,
-  PLANT_RELEASE_BLEND_MS,
+  stepContactPlants,
   buildHandPlant,
   solveHandReach,
+  type ContactPlant,
   type FootPlantSolver,
 } from './footContact';
 import { computeBodyCoMFromBones } from './centerOfMass';
@@ -475,23 +474,16 @@ export function sampleComposedMotion(
   // pose + root-at-rest — is what makes a plant correct for BOTH a neutral start
   // AND the default startFrom:'current' continuity path (the foot pins where it
   // actually IS at t=0, not where it would be at anatomic rest). Red-team Finding 1.
-  interface FootPlant {
-    solver: FootPlantSolver;
-    /** Stance window [fromMs, toMs]; ±Infinity = pin for the whole motion. */
-    fromMs: number;
-    toMs: number;
-    /** World target, captured lazily when the foot first enters its window; reset
-     *  on leaving so the NEXT stance window re-pins at the new contact point. */
-    target: THREE.Vector3 | null;
-    reuseInitialAnchor: boolean;
-    /** PER-WINDOW plant-clamp rest frame (CURVED heading only): the rest
-     *  reference rotated by the heading at THIS window's start, so each stance
-     *  window's leg-IK ROM clamps read against the body orientation the walk
-     *  actually holds through that stance. Absent (constant heading / heading
-     *  0) ⇒ the shared `plantRest` below — the byte-identical legacy path. */
-    rest?: JointAngleRestReference;
-  }
-  const footPlants: FootPlant[] = [];
+  // Each plant is the shared ContactPlant (footContact) the live stage steps
+  // too: a stance window [fromMs, toMs] (±Infinity = the whole motion), a
+  // target captured lazily as the foot enters it and reset on leaving (so the
+  // NEXT window re-pins at its new contact point), and — CURVED heading only —
+  // a PER-WINDOW plant-clamp rest frame: the rest reference rotated by the
+  // heading at THIS window's start, so each stance window's leg-IK ROM clamps
+  // read against the body orientation the walk actually holds through that
+  // stance. Absent (constant heading / heading 0) ⇒ the shared `plantRest`
+  // below — the byte-identical legacy path.
+  const footPlants: ContactPlant[] = [];
   const initialPlantTargets = new Map<string, THREE.Vector3>();
   // Honour contacts the MOTION declares (resolved.contacts) when the caller
   // doesn't pass an explicit override — so a travel-gait motion plants its feet
@@ -1096,60 +1088,25 @@ export function sampleComposedMotion(
 
     // CONTACT PLANTS: pin each declared foot back to its captured world target,
     // so it does not slide as the root travels (the leg hip/knee flex to carry
-    // the pelvis over the fixed foot). Applied after the floor-pin; the measured
-    // angles + tracks below then reflect the IK'd leg, and `effPose` re-serializes
-    // it so the recorded pose stays consistent with the measurement.
+    // the pelvis over the fixed foot), and let each released plant go smoothly
+    // (SEAM-3) — the ONE shared step the live stage runs too (lockstep).
+    // Applied after the floor-pin; the measured angles + tracks below then
+    // reflect the IK'd leg, and `effPose` re-serializes it so the recorded pose
+    // stays consistent with the measurement. Per-window rotated clamp frame for
+    // a CURVED heading, the shared (constant-heading) plantRest otherwise; the
+    // ORIGINAL rest always names the knee hinge axis. A heel-strike accent
+    // active at capture time has dipped the WHOLE root, so the step removes its
+    // offset from a captured Y (the foot pins at its natural floor contact; the
+    // dip is absorbed by the loading knee).
     let effPose = pose;
-    let anyPlant = false;
-    for (const fp of footPlants) {
-      const inWindow = tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
-      if (!inWindow) {
-        // PLANT RELEASE BLEND (SEAM-3): when a stance window ends, ramp the
-        // leg-IK correction 1→0 over PLANT_RELEASE_BLEND_MS instead of dropping
-        // it in one frame — the toe-off pop snapped the released foot ~20 cm
-        // (and the leg joints ~17°/frame) back to their FK pose. The captured
-        // target survives ONLY through the ramp; the hold is NOT extended (the
-        // FK swing takes over continuously — the foot may move, just never
-        // discontinuously). Skipped when a later window has already re-pinned
-        // the same foot: its full solve owns the leg.
-        const w = fp.target ? 1 - (tMs - fp.toMs) / PLANT_RELEASE_BLEND_MS : 0;
-        const footRepinned =
-          w > 0 &&
-          w < 1 &&
-          footPlants.some(
-            (o) =>
-              o !== fp &&
-              o.solver.footKey === fp.solver.footKey &&
-              tMs >= o.fromMs - 1e-6 &&
-              tMs <= o.toMs + 1e-6,
-          );
-        if (!fp.target || w <= 0 || w >= 1 || footRepinned) {
-          fp.target = null; // released (or superseded) — the next stance re-captures
-          continue;
-        }
-        solveFootPlantWeighted(fp.solver, fp.target, fp.rest ?? plantRest, rest, w);
-        anyPlant = true;
-        continue;
-      }
-      // Lazily pin the target to where the foot IS as it ENTERS its window
-      // (post-FK, post-root): frame 0 for a whole-motion pin, or heel-strike for
-      // a windowed stance phase, so each alternating step plants at its own point.
-      // A heel-strike accent active at capture time has dipped the WHOLE root, so
-      // remove its offset from the captured Y: the foot pins at its natural floor
-      // contact and the transient dip is absorbed by the leg IK (the loading
-      // knee), instead of burying the foot by the dip for the entire stance.
-      if (!fp.target) {
-        const first = fp.reuseInitialAnchor ? initialPlantTargets.get(fp.solver.footKey) : undefined;
-        fp.target = first?.clone() ?? fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
-        if (!first) fp.target.y -= heelStrikeY;
-        if (!initialPlantTargets.has(fp.solver.footKey)) initialPlantTargets.set(fp.solver.footKey, fp.target.clone());
-      }
-      // Per-window rotated clamp frame for a CURVED heading; the shared
-      // (constant-heading) plantRest otherwise. The ORIGINAL rest always
-      // names the knee hinge axis (solveFootPlant's hingeAxisRest).
-      solveFootPlant(fp.solver, fp.target, fp.rest ?? plantRest, rest);
-      anyPlant = true;
-    }
+    const anyPlant =
+      footPlants.length > 0 &&
+      stepContactPlants(footPlants, tMs, {
+        rest: plantRest,
+        hingeAxisRest: rest,
+        heelStrikeY,
+        initialTargets: initialPlantTargets,
+      });
     if (anyPlant || groundReachSolved) {
       // A foot plant OR a grounding-posture hand reach re-solved a limb — re-read
       // the pose so the recorded angles/tracks reflect the IK'd limb.

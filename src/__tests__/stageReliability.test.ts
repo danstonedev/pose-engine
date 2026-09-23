@@ -120,7 +120,11 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
   // wiring so a refactor can't silently drop it.
   it('imports the foot-plant IK helpers the sampler uses', () => {
     expect(stageSource).toContain("await import('./services/footContact')");
-    expect(stageSource).toMatch(/buildFootPlant\s*,\s*solveFootPlant/);
+    // Since the toe-contact / eased-release work the per-frame plant step is
+    // ONE shared function (stepContactPlants) instead of a loop mirrored in
+    // both files — the stage and the sampler import the same builder + step.
+    expect(stageSource).toMatch(/buildFootPlant\s*,\s*stepContactPlants/);
+    expect(samplerSource).toMatch(/buildFootPlant,\s*stepContactPlants,[\s\S]{0,200}\} from '\.\/footContact'/);
   });
 
   it('rebuilds the plants from the starting motion’s contacts', () => {
@@ -139,24 +143,25 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
   });
 
   it('solves the plants per frame, only within each foot’s stance window', () => {
-    // applyFootPlants honours the [fromMs,toMs] window and re-captures on entry.
-    // (Window widened 600→700→900→2100: the wave-4.6 heel-strike capture
-    // compensation AND the wave-4.1 heading-rotated clamp frame both live in
-    // this block, and the SEAM-3 release-blend branch (the ramped
-    // solveFootPlantWeighted out-of-window path) now sits between the window
-    // check and the target capture — deliberately widened to span it.)
-    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,900}tMs >= fp\.fromMs/);
-    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,2100}fp\.target\.y -= composedHeelStrikeY/);
-    // Since the travel-heading work the solve clamps against the (possibly
-    // heading-rotated) rest frame, falling back to restRef — with the ORIGINAL
-    // restRef always naming the knee hinge axis. The curved-walk work (6.2)
-    // prefers a PER-WINDOW rest (fp.rest — rotated by the heading at the
-    // window's start) over the shared composedPlantRest. Heading 0 keeps the
-    // legacy behaviour exactly (both stay unset/null).
-    // (Window widened 1100→2500 for the SEAM-3 release branch, as above.)
+    // The window check, the capture-on-entry, the heel-strike capture
+    // compensation (wave 4.6) and the per-plant clamp frame (fp.rest ?? the
+    // caller's frame — curved walk 6.2) now live in the ONE shared step
+    // (footContact.stepContactPlants, exercised through the sampler by
+    // footContact/heelStrike/gaitCurvedWalk/gaitContactSync). What the stage
+    // must still get right is what it FEEDS that step, so pin the exact
+    // arguments: the (possibly heading-rotated) composedPlantRest falling back
+    // to restRef as the clamp frame, the ORIGINAL restRef naming the knee
+    // hinge axis, the live heel-strike offset and the per-motion anchor map.
     expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,2500}solveFootPlant\(fp\.solver, fp\.target, fp\.rest \?\? composedPlantRest \?\? restRef, restRef\)/,
+      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*initialTargets: initialComposedPlantTargets,\s*\}\)/,
     );
+    // …the sampler feeds it the same four things from its own state…
+    expect(samplerSource).toMatch(
+      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*initialTargets: initialPlantTargets,\s*\}\)/,
+    );
+    // …and neither keeps a private copy of the window/capture logic.
+    expect(stageSource).not.toMatch(/fp\.target\.y -= /);
+    expect(samplerSource).not.toMatch(/fp\.target\.y -= /);
     // …and it is called from the live frame step AND the parked path.
     expect(stageSource).toContain('applyFootPlants(elapsed)');
     expect(stageSource).toContain('applyFootPlants(trajectory.totalMs)');
@@ -178,14 +183,16 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     );
   });
 
-  it('SEAM-3 — a released plant ramps out through the shared weighted solve', () => {
-    // The out-of-window branch must blend the leg IK 1→0 (solveFootPlantWeighted,
-    // PLANT_RELEASE_BLEND_MS — both shared with the offline sampler) instead of
-    // dropping the pin in one frame (the toe-off release pop).
-    expect(stageSource).toMatch(/solveFootPlant\s*,\s*solveFootPlantWeighted\s*,\s*PLANT_RELEASE_BLEND_MS/);
-    expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,2100}solveFootPlantWeighted\(fp\.solver, fp\.target, fp\.rest \?\? composedPlantRest \?\? restRef, restRef, w\)/,
-    );
+  it('SEAM-3 — a released plant lets go through the shared step', () => {
+    // A released plant must let go over PLANT_RELEASE_BLEND_MS (the eased
+    // plantReleaseWeight) instead of dropping the pin in one frame (the toe-off
+    // release pop). That release is part of stepContactPlants, so both paths
+    // get it by delegating every frame — and neither may carry its own ramp (a
+    // private copy is how the two drift).
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,300}stepContactPlants\(/);
+    for (const source of [stageSource, samplerSource]) {
+      expect(source).not.toMatch(/PLANT_RELEASE_BLEND_MS|plantReleaseWeight|solveFootPlantWeighted/);
+    }
   });
 
   it('drops the plants when the motion ends (no stale IK on the next motion)', () => {
