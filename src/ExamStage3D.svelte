@@ -537,9 +537,8 @@
       const { clampBoneToRom, hasClampStrategy, setRomClampEnabled } = await import(
         './services/poseRomClamp'
       );
-      const { captureJointAngleRestReference, computeJointAngles } = await import(
-        './services/jointAngles'
-      );
+      const { captureJointAngleRestReference, computeJointAngles, measureHingeFlexion } =
+        await import('./services/jointAngles');
       const { buildCommandPose, finalizeOutcome, measureCommandMotion, resolveCommandTarget } =
         await import('./services/movementCommand');
       const { buildSequencePoses } = await import('./services/motionSequence');
@@ -885,10 +884,7 @@
       }[] = [];
       const _capFootTarget = new THREE.Vector3();
       const _capH = new THREE.Vector3();
-      const _capK = new THREE.Vector3();
       const _capF = new THREE.Vector3();
-      const _capThighDir = new THREE.Vector3();
-      const _capCalfDir = new THREE.Vector3();
       const _capToFoot = new THREE.Vector3();
       const _capToTarget = new THREE.Vector3();
       const _capRestQ = new THREE.Quaternion();
@@ -3095,18 +3091,13 @@
             // compensate. This keeps the cap honest in the readout's units,
             // sidestepping the bone clamp's un-calibrated hinge measure.
             for (const leg of motionCapLegs) {
-              leg.hipBone.getWorldPosition(_capH);
-              leg.kneeBone.getWorldPosition(_capK);
               leg.footBone.getWorldPosition(_capF);
               _capFootTarget.copy(_capF); // the clip's intended foot placement
-              _capThighDir.copy(_capK).sub(_capH);
-              _capCalfDir.copy(_capF).sub(_capK);
-              if (_capThighDir.lengthSq() < 1e-8 || _capCalfDir.lengthSq() < 1e-8) continue;
-              _capThighDir.normalize();
-              _capCalfDir.normalize();
-              const F0 =
-                (Math.acos(Math.max(-1, Math.min(1, _capThighDir.dot(_capCalfDir)))) * 180) /
-                Math.PI;
+              // The chart's reading, from the chart's code: in the hinge plane
+              // and signed, so neither a varus/valgus tilt nor a hyperextended
+              // knee counts toward a flexion cap.
+              const F0 = measureHingeFlexion(leg.hipBone, leg.kneeBone, leg.kneeKey, restRef);
+              if (F0 === null) continue;
               const cap = getEffectiveRomRange(romConstraints ?? null, leg.kneeKey, 'kneeFlexion')?.max ?? Infinity;
               if (!(F0 > cap + 0.5)) continue;
               const restArr = restRef.localQuats[leg.kneeKey];
