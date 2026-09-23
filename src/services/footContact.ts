@@ -13,9 +13,10 @@
  * every joint ROM-clamped — so an unreachable target settles on a clinically
  * honest best-effort pose instead of dislocating.
  *
- * Pure THREE on a live skeleton — no Svelte/DOM. The sampler
- * ({@link sampleComposedMotion}) applies plants per frame when a motion declares
- * `contacts`; {@link measureContactSlide} scores how well a foot stayed put.
+ * Pure THREE on a live skeleton — no Svelte/DOM. The offline sampler
+ * ({@link sampleComposedMotion}) and the live stage step every declared contact
+ * through the ONE per-frame function {@link stepContactPlants} (lockstep);
+ * {@link measureContactSlide} scores how well a foot stayed put.
  */
 import * as THREE from 'three';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
@@ -140,53 +141,161 @@ export function solveFootPlant(
   });
 }
 
-// ── Plant release blend (SEAM-3) ─────────────────────────────────────────────
+// ── Plant release (SEAM-3) ───────────────────────────────────────────────────
 
-/** How long (ms, trajectory time) the leg-IK correction ramps out AFTER a plant
- *  window ends. Dropping the pin between two frames snapped the released foot
- *  to its FK position (~20 cm + ~17°/frame at every toe-off, worse when paced);
- *  ramping the solved correction 1→0 over this window releases it continuously.
- *  The ramp does NOT extend the stance hold — the target stays where it was
- *  captured while the FK swing progressively takes over, so the foot may move
- *  throughout the ramp, just never discontinuously. Shared by the offline
- *  sampler and the live stage (one constant, lockstep). */
+/** How long (ms, trajectory time) a plant's IK correction takes to fade out
+ *  AFTER its window ends. Dropping the pin between two frames snapped the
+ *  released foot to its FK position (~20 cm + ~17°/frame at every toe-off,
+ *  worse when paced); fading the correction releases it continuously. The fade
+ *  does NOT extend the hold — the FK swing takes over from the first released
+ *  frame, so the foot may move throughout, just never discontinuously.
+ *
+ *  Still 100 ms now the fade is eased (its peak rate is 1.5× a linear ramp's):
+ *  the length it must have is boxed in from both sides (measured at 30 Hz on
+ *  the DDx walk and the engine walk). Shorter tears the leg into swing — at
+ *  60 ms DDx's right knee turns 15.1° in a frame (452°/s; normal gait peaks at
+ *  450) and the engine walk's left knee changes speed 9.2°/frame against its
+ *  FK's 1.8. Longer holds the released forefoot down into swing — the stop's
+ *  push-off toe clears the floor by 6.2 cm at 100 ms, 4.0 at 150 and 2.4 at
+ *  200, where the toes skim 2.8 cm along the floor. At 100 ms, against the old
+ *  linear ramp on the DDx walk, the ankles' change of speed drops (left 10.7 →
+ *  6.7, right 8.9 → 3.5°/frame), the hips' is unchanged and the knees' rises
+ *  a little (left 6.2 → 7.7, right 5.2 → 5.8; the normal knee curve itself
+ *  reaches 5.6 at that cadence). Shared by the offline sampler and the live
+ *  stage (lockstep). */
 export const PLANT_RELEASE_BLEND_MS = 100;
 
-const _blendPre: THREE.Quaternion[] = [];
-const _blendPost = new THREE.Quaternion();
+/**
+ * The release weight `msSinceRelease` ms after a plant window ends: 1 → 0 over
+ * {@link PLANT_RELEASE_BLEND_MS} along a smoothstep, 1 − (3u² − 2u³). Its rate is
+ * ZERO at both ends, so the fade leaves the hold and joins the FK swing without a
+ * velocity kink. The old linear ramp had a kink at both: as it ended, the DDx
+ * walk's left ankle moved 10.6° in one frame (−10.6° → 0.1°) and then not at all.
+ * 1 at or before the window's end (and for a non-finite input — a caller treats
+ * that as "not releasing"), 0 once the ramp is over.
+ */
+export function plantReleaseWeight(msSinceRelease: number): number {
+  const u = msSinceRelease / PLANT_RELEASE_BLEND_MS;
+  if (!(u > 0)) return 1;
+  if (u >= 1) return 0;
+  return 1 - u * u * (3 - 2 * u);
+}
+
+/** One declared contact's plant, as the offline sampler and the live stage both
+ *  hold it for the motion being played — the state {@link stepContactPlants}
+ *  steps. Build one per declared contact; the step owns every field after. */
+export interface ContactPlant {
+  solver: FootPlantSolver;
+  /** Contact window, trajectory ms; ±Infinity = the whole motion. */
+  fromMs: number;
+  toMs: number;
+  /** World target, captured lazily as the effector ENTERS its window (post-FK,
+   *  post-root); reset on release so the NEXT window re-pins at its own point. */
+  target: THREE.Vector3 | null;
+  /** Return to this effector's FIRST captured point instead of where it lands. */
+  reuseInitialAnchor: boolean;
+  /** Per-window ROM-clamp rest frame (CURVED heading only); absent ⇒ the
+   *  caller's shared frame ({@link ContactPlantFrame.rest}). */
+  rest?: JointAngleRestReference;
+  /** The correction the latest HELD frame applied: per chain bone, its pre-solve
+   *  local rotation⁻¹ · its solved local rotation. The release fades exactly this. */
+  correction?: THREE.Quaternion[];
+}
+
+/** The per-frame inputs {@link stepContactPlants} needs beyond the plants. */
+export interface ContactPlantFrame {
+  /** ROM-clamp rest frame for a plant without its own `rest` (heading-rotated
+   *  for a rotated walk — see {@link solveFootPlant}). */
+  rest: JointAngleRestReference | null | undefined;
+  /** The ORIGINAL (un-rotated) rest reference — names the knee hinge axis. */
+  hingeAxisRest: JointAngleRestReference | null | undefined;
+  /** Root-Y offset of the heel-strike accent this frame (0 outside every
+   *  accent): a target captured mid-accent pins at the NATURAL contact point and
+   *  the transient dip is absorbed by the leg IK instead of burying the foot. */
+  heelStrikeY: number;
+  /** First captured target per effector, for `reuseInitialAnchor` (per motion). */
+  initialTargets: Map<string, THREE.Vector3>;
+}
+
+const inPlantWindow = (fp: ContactPlant, tMs: number): boolean =>
+  tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
+
+const _fade = new THREE.Quaternion();
 
 /**
- * {@link solveFootPlant} at a fractional IK weight — the release ramp's engine.
- * `weight` ≥ 1 delegates to the full solve (byte-identical to the legacy path);
- * ≤ 0 leaves the FK pose untouched; in between, the chain is solved fully and
- * then each chain joint's LOCAL rotation is slerped FK→solved by `weight`, so
- * the position AND rotation corrections fade together (the foot's world
- * placement is a pure function of these joint rotations — there is no separate
- * positional channel to blend). Refreshes the chain's world matrices so a
- * subsequent same-frame read sees the blended pose.
+ * Pin every declared contact at time `tMs` — call AFTER the frame's FK pose and
+ * root transform. The ONE per-frame plant step the offline sampler and the live
+ * stage both run, so a recording is frame-for-frame what the stage shows.
+ *
+ * In its window a contact's chain is solved fully to the target captured as the
+ * effector entered it, and the correction that solve applied is kept. After the
+ * window, that SAME correction is faded out over {@link PLANT_RELEASE_BLEND_MS}
+ * ({@link plantReleaseWeight}) on top of the FK pose, so it only ever shrinks.
+ * The old release re-solved toward the released target every frame and slerped
+ * the result with FK: as the swing carried the leg away the solve reached ever
+ * further back to the stale point, so the correction being faded GREW and threw
+ * the joints past both the held and the FK pose (DDx walk: the left ankle to
+ * −13.2° between a held −1.5° and an FK 0°; the engine walk with toe pivots:
+ * the right ankle to −33° between −11.5° and −3°).
+ *
+ * Fading the kept correction carries FK's own joint motion from the first
+ * released frame. Where a route's swing flexes the knee fast under a forefoot
+ * held well ahead of where its pose puts it, that motion still draws the toes
+ * back as they lift: DDx's right leg (knee +8–8.6°/frame, forefoot held 12 cm
+ * ahead of the pose's) loses 1.5–1.6 cm on that frame (1.9–2.7 with the old
+ * release) — the route's FK, not the fade.
+ *
+ * Releases run before holds, so a contact in its window always has the last word
+ * on its limb — a forefoot hold is not undone by the same leg's ankle contact
+ * still fading out, whatever order the two were declared in. A release is
+ * skipped once a later window re-pins the same effector (its hold owns the limb).
+ * Returns true when any plant moved the skeleton this frame.
  */
-export function solveFootPlantWeighted(
-  solver: FootPlantSolver,
-  targetWorldPos: THREE.Vector3,
-  rest: JointAngleRestReference | null | undefined,
-  hingeAxisRest: JointAngleRestReference | null | undefined,
-  weight: number,
-): void {
-  if (weight >= 1) {
-    solveFootPlant(solver, targetWorldPos, rest, hingeAxisRest);
-    return;
+export function stepContactPlants(
+  plants: readonly ContactPlant[],
+  tMs: number,
+  frame: ContactPlantFrame,
+): boolean {
+  let moved = false;
+  for (const fp of plants) {
+    if (inPlantWindow(fp, tMs)) continue;
+    const w = fp.target ? plantReleaseWeight(tMs - fp.toMs) : 0;
+    const repinned =
+      w > 0 &&
+      w < 1 &&
+      plants.some((o) => o !== fp && o.solver.footKey === fp.solver.footKey && inPlantWindow(o, tMs));
+    if (!fp.target || !fp.correction || w <= 0 || w >= 1 || repinned) {
+      fp.target = null; // released (or superseded) — the next window re-captures
+      continue;
+    }
+    const bones = fp.solver.ctx.bones;
+    for (let i = 0; i < bones.length; i += 1) {
+      bones[i]!.quaternion.multiply(_fade.identity().slerp(fp.correction[i]!, w));
+    }
+    // The root-most chain link's world refresh cascades to the whole limb.
+    bones[bones.length - 1]!.updateMatrixWorld(true);
+    moved = true;
   }
-  if (weight <= 0) return;
-  const bones = solver.ctx.bones;
-  while (_blendPre.length < bones.length) _blendPre.push(new THREE.Quaternion());
-  for (let i = 0; i < bones.length; i += 1) _blendPre[i]!.copy(bones[i]!.quaternion);
-  solveFootPlant(solver, targetWorldPos, rest, hingeAxisRest);
-  for (let i = 0; i < bones.length; i += 1) {
-    _blendPost.copy(bones[i]!.quaternion);
-    bones[i]!.quaternion.copy(_blendPre[i]!).slerp(_blendPost, weight);
+  for (const fp of plants) {
+    if (!inPlantWindow(fp, tMs)) continue;
+    if (!fp.target) {
+      const first = fp.reuseInitialAnchor ? frame.initialTargets.get(fp.solver.footKey) : undefined;
+      fp.target = first?.clone() ?? fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+      if (!first) fp.target.y -= frame.heelStrikeY;
+      if (!frame.initialTargets.has(fp.solver.footKey)) {
+        frame.initialTargets.set(fp.solver.footKey, fp.target.clone());
+      }
+    }
+    const bones = fp.solver.ctx.bones;
+    const correction = (fp.correction ??= bones.map(() => new THREE.Quaternion()));
+    for (let i = 0; i < bones.length; i += 1) correction[i]!.copy(bones[i]!.quaternion);
+    solveFootPlant(fp.solver, fp.target, fp.rest ?? frame.rest, frame.hingeAxisRest);
+    for (let i = 0; i < bones.length; i += 1) {
+      correction[i]!.invert().multiply(bones[i]!.quaternion);
+    }
+    moved = true;
   }
-  // The root-most chain link's world refresh cascades to the whole leg.
-  bones[bones.length - 1]!.updateMatrixWorld(true);
+  return moved;
 }
 
 // ── Hand plant (Phase 3 Tier B) — the arm analog of the foot plant ───────────
