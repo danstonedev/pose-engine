@@ -204,18 +204,45 @@ describe('runGaitBiomechChecks — normative kinematics on a gait-shaped motion'
     expect(flippedPhase.pass, flippedPhase.note).toBe(false);
   });
 
-  it('phases the bob on the frames’ own clock, and does not phase a run against a walk', () => {
-    // A paced trajectory plays the resolved keyframes slower or faster; the same
-    // recording played 8.5% slower (the stock walk at 0.85 speed) must phase the same.
+  it('phases the bob at the motion’s own pace, and does not phase a run against a walk', () => {
+    // A paced trajectory plays the resolved keyframes at 1/timeScale; the same
+    // recording played 8.5% slower (the stock walk at 0.85 speed) must phase the
+    // same. The pace is the one the motion declares: this used to stretch the
+    // frames alone and read the pace off their span, which misreads any frames
+    // that do not run from the motion's start to its end (next test).
     const { resolved, frames } = sample(buildTravelWalk());
-    const at = (fs: readonly GateFrame[]) =>
-      byId(runGaitBiomechChecks(resolved, fs).checks, 'vertical-com-phase')!.measured;
-    expect(at(frames.map((f) => ({ ...f, tMs: f.tMs * 1.085 })))).toBeCloseTo(at(frames), 2);
+    const at = (r: ResolvedComposedMotion, fs: readonly GateFrame[]) =>
+      byId(runGaitBiomechChecks(r, fs).checks, 'vertical-com-phase')!.measured;
+    const paced: ResolvedComposedMotion = {
+      ...resolved,
+      modifiers: { ...resolved.modifiers, timeScale: 1 / 1.085 },
+    };
+    expect(at(paced, frames.map((f) => ({ ...f, tMs: f.tMs * 1.085 })))).toBeCloseTo(at(resolved, frames), 2);
     // A run is lowest at mid-stance and highest in flight — the reverse of a walk.
     const run = sample(buildTravelRun());
     const r = runGaitBiomechChecks(run.resolved, run.frames);
     expect(byId(r.checks, 'vertical-com-phase')).toBeUndefined();
     expect(r.skipped.some((s) => s.startsWith('vertical CoM phase'))).toBe(true);
+  });
+
+  it('phases frames that start mid-motion on the motion’s clock, and skips frames that stop inside the cycle', () => {
+    // A caller judging only the shown part of a walk hands over frames that
+    // start mid-motion. Reading the clock off the first and last frame put a
+    // two-cycle walk shown from 1667 ms onto [2695, 3281] instead of its
+    // published [1775, 2786] — a 0.18 cm stretch it skipped as too flat.
+    const { resolved, frames } = sample(buildTravelWalk());
+    const c = resolved.gaitCycleMs!;
+    const whole = byId(runGaitBiomechChecks(resolved, frames).checks, 'vertical-com-phase')!;
+    for (const fromMs of [c.fromMs / 2, c.fromMs - 50]) {
+      const shown = frames.filter((f) => f.tMs >= fromMs);
+      const r = runGaitBiomechChecks(resolved, shown);
+      expect(byId(r.checks, 'vertical-com-phase')?.measured, `shown from ${fromMs} ms`).toBe(whole.measured);
+    }
+    // Frames that stop inside the cycle cannot phase it: skipped, not read off a
+    // resample that holds their last frame still.
+    const cut = runGaitBiomechChecks(resolved, frames.filter((f) => f.tMs <= (c.fromMs + c.toMs) / 2));
+    expect(byId(cut.checks, 'vertical-com-phase')).toBeUndefined();
+    expect(cut.skipped).toContain('vertical CoM phase — the frames do not cover the published gait cycle');
   });
 
   it('skips the walking normative curves for a motion that declares the run regime', () => {

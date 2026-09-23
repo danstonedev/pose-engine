@@ -18,6 +18,7 @@
 
 import type { ComposedMotion, ResolvedComposedMotion } from './motionSequence';
 import { looksLikeGaitPlan } from './gaitEnrichment';
+import { clampTimeScale } from './motionConstants';
 import type { ValidityCheck, GateFrame } from './validityGate';
 import {
   jointAngleRmsVsNormative,
@@ -134,10 +135,15 @@ function verticalComExcursionCm(frames: readonly GateFrame[]): number | null {
  * Where the centre of mass's twice-per-cycle bob peaks over the published gait
  * cycle: the phase of the second harmonic of its height, as a fraction of the
  * cycle in [0, 0.5) (it peaks there and half a cycle on), with that harmonic's
- * amplitude (cm). The window is re-timed onto the frames' own clock — a paced
- * trajectory plays the resolved keyframes faster or slower, and a window left on
- * the resolved clock lands on the wrong part of the gait (the stock walk at 0.85
- * speed: 137 ms early by the cycle's end). A string says why it cannot be read.
+ * amplitude (cm). The frames run on the trajectory clock, the motion starting
+ * at 0 (after any ready-settle head a live tap records ahead of it), whatever
+ * frame they begin at: a caller judging only the shown part of a walk hands
+ * over frames that start mid-motion, and reading the clock off the first and
+ * last frame put a two-cycle walk shown from 1667 ms 920 ms late, onto a flat
+ * stretch it then skipped. The published window is on the resolved clock,
+ * which a paced trajectory plays at 1/timeScale (the stock walk at 0.85 speed:
+ * 137 ms early by the cycle's end if left unscaled). A string says why it
+ * cannot be read.
  */
 function verticalComPhase(
   resolved: ResolvedComposedMotion,
@@ -145,19 +151,19 @@ function verticalComPhase(
 ): { phase: number; ampCm: number } | string {
   const c = resolved.gaitCycleMs;
   if (!c || !(c.toMs > c.fromMs)) return 'the motion publishes no gaitCycleMs window to phase against';
-  const resolvedMs = resolved.keyframes.reduce(
-    (sum, k) => sum + (k.durationMs ?? 0) + (k.holdMs ?? 0),
-    0,
-  );
-  const t0 = frames[0]!.tMs + readySettleHeadMs(frames);
-  const scale = (frames[frames.length - 1]!.tMs - t0) / resolvedMs;
-  if (!(scale > 0.5 && scale < 2)) return 'the frames do not span the resolved motion';
-  const fromMs = t0 + c.fromMs * scale;
+  const scale = 1 / clampTimeScale(resolved.modifiers?.timeScale);
+  const fromMs = readySettleHeadMs(frames) + c.fromMs * scale;
   const span = (c.toMs - c.fromMs) * scale;
   const w = frames.filter(
     (f) => f.tMs >= fromMs && f.tMs <= fromMs + span && f.worldTracks?.CoM != null,
   );
   if (w.length < 8) return 'too few centre-of-mass frames in the gait cycle';
+  // Frames that start or stop inside the cycle would be resampled as if their
+  // end frame held still for the rest of it.
+  const reach = (1.5 * (w[w.length - 1]!.tMs - w[0]!.tMs)) / (w.length - 1);
+  if (w[0]!.tMs - fromMs > reach || fromMs + span - w[w.length - 1]!.tMs > reach) {
+    return 'the frames do not cover the published gait cycle';
+  }
   // Resample uniformly over the cycle (phase 0 = its opening initial contact),
   // then project onto the second harmonic.
   const N = 64;
