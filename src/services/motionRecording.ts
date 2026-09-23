@@ -1088,16 +1088,16 @@ export function sampleComposedMotion(
 
     // CONTACT PLANTS: pin each declared foot back to its captured world target,
     // so it does not slide as the root travels (the leg hip/knee flex to carry
-    // the pelvis over the fixed foot), and fade each released plant's
-    // correction out (SEAM-3) — the ONE shared step the live stage runs too
-    // (lockstep). Applied after the floor-pin; the measured angles + tracks
-    // below then reflect the IK'd leg, and `effPose` re-serializes it so the
-    // recorded pose stays consistent with the measurement. Per-window rotated
-    // clamp frame for a CURVED heading, the shared (constant-heading) plantRest
-    // otherwise; the ORIGINAL rest always names the knee hinge axis. A
-    // heel-strike accent active at capture time has dipped the WHOLE root, so
-    // the step removes its offset from a captured Y (the foot pins at its
-    // natural floor contact; the dip is absorbed by the loading knee).
+    // the pelvis over the fixed foot), and let each released plant go smoothly
+    // (SEAM-3) — the ONE shared step the live stage runs too (lockstep).
+    // Applied after the floor-pin; the measured angles + tracks below then
+    // reflect the IK'd leg, and `effPose` re-serializes it so the recorded pose
+    // stays consistent with the measurement. Per-window rotated clamp frame for
+    // a CURVED heading, the shared (constant-heading) plantRest otherwise; the
+    // ORIGINAL rest always names the knee hinge axis. A heel-strike accent
+    // active at capture time has dipped the WHOLE root, so the step removes its
+    // offset from a captured Y (the foot pins at its natural floor contact; the
+    // dip is absorbed by the loading knee).
     let effPose = pose;
     const anyPlant =
       footPlants.length > 0 &&

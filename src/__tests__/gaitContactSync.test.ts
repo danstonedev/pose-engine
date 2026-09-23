@@ -16,8 +16,9 @@
  * SEAM-3 — releasing a plant must be continuous, even at speed 1. Dropping the
  * IK pin the frame a stance window ends snapped the released foot ~20 cm (and
  * the leg joints ~17°/frame) back to its FK pose at every toe-off. The release
- * now ramps the IK correction 1→0 over PLANT_RELEASE_BLEND_MS
- * (solveFootPlantWeighted), so the 150 ms after each window end must show no
+ * now lets go over PLANT_RELEASE_BLEND_MS (the shared stepContactPlants: the leg
+ * solved as held toward a target that eases to where FK puts the foot, blended
+ * out on a smoothstep), so the 150 ms after each window end must show no
  * per-frame position/rotation jump anywhere near the old pop class.
  */
 import { beforeAll, describe, expect, it } from 'vitest';

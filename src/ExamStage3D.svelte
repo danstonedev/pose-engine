@@ -1971,7 +1971,7 @@
       /** Apply the active foot plants at composed-motion time `tMs` — called
        *  AFTER the FK pose + root transform each frame, through the ONE shared
        *  step the offline sampler runs (stepContactPlants — lockstep): holds in
-       *  window, eased release fades after it (SEAM-3). A target captured while
+       *  window, an eased release after it (SEAM-3). A target captured while
        *  a heel-strike accent is dipping the root is compensated by the applied
        *  offset (`composedHeelStrikeY`), so the landing foot pins at its NATURAL
        *  floor contact and the transient dip is absorbed by the leg IK instead of

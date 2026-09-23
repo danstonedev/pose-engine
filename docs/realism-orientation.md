@@ -198,18 +198,20 @@ lockstep.
 
 ### 1.6 Per-frame apply order (sampler; the stage mirrors it)
 
-Verified in `motionRecording.ts:875-1130`:
+Verified in `motionRecording.ts:918-1146`:
 
 ```
 FK pose from the trajectory
-  → grounding pin        pinRootToFloor :879   /  plantStanceFoot :877, :962
-  → vertical calibration applyVerticalCalibration :977
-  → weighted descent     applyWeightedDescent :990
-  → heel-strike accent   heelStrikeOffsetAt :1004  (root.position.y += :1006)
+  → grounding pin        pinRootToFloor :920   /  plantStanceFoot :918, :1003
+  → vertical calibration applyVerticalCalibration :1018
+  → weighted descent     applyWeightedDescent :1031
+  → heel-strike accent   heelStrikeOffsetAt :1045  (root.position.y += :1047)
   → foot-driven travel + lateral shuttle
-  → foot plant IK        solveFootPlantWeighted :1081 / solveFootPlant :1099
-                         (plant target de-dipped by the accent, :1094)
-  → MEASURE              computeJointAngles :1130
+  → foot plant IK        stepContactPlants :1104 — footContact.ts:305, the one
+                         step the live stage runs too: holds in window, the
+                         eased release after it (releaseContactPlant :258);
+                         plant target de-dipped by the accent there
+  → MEASURE              computeJointAngles :1146
 ```
 
 Everything above the measure line is **root-only or IK-only**, which is why every clinical joint
@@ -341,8 +343,8 @@ byte-identity gates; **medium** = moves one subsystem plus its gates; **low** = 
 | `HAND_REACH_RAMP_MS` | `rootMotion.ts:634` | 150 ms | Hand-reach IK engagement | 0 → the arm snaps to the floor on frame 1 | medium |
 | **`FOOT_PLANT_IK_ITERATIONS`** | `footContact.ts:75` | **8** (shared default is 4) | CCD passes per plant | Raised in `f3fdf82` because the faster cadence pushed in-window slide 2.9 → 4.5 cm. Now ~2.5–3.5 cm across the pace range | medium |
 | `LEG_CHAIN_PARENTS` / `TOE_CHAIN_PARENTS` | `footContact.ts:43, 55` | 2 (Foot–Leg–UpLeg) / 3 (Toes–Foot–Leg–UpLeg) | How many joints a plant may recruit; the knee is the hinge in both | Foot: 3 would let the pelvis help — closer to real accommodation, at the cost of a wobbling trunk. Toes: 2 stopped at the knee and hinged nothing — 4.6–5.0° of knee varus/valgus through every toe pivot | high |
-| `PLANT_RELEASE_BLEND_MS` | `footContact.ts:166` | 100 ms | Plant correction fade-out at toe-off (smoothstep weight, `plantReleaseWeight`) | Without it the released foot snapped ~20 cm and ~17°/frame. 60 ms → knee 452°/s at toe-off; 150–200 ms → the released forefoot stays down into swing (toe clearance 6.2 → 4.0 → 2.4 cm) | high |
-| `HAND_LATCH_M` / `HAND_REACH_PASSES` / `HAND_RELATCH_M` | `footContact.ts:347, 352, 359` | 0.03 / 4 / 0.08 | Hand floor grab and self-heal | Too few passes → the hand punches through the floor at the bottom of a push-up | medium |
+| `PLANT_RELEASE_BLEND_MS` | `footContact.ts:165` | 120 ms | Plant release at toe-off: the limb solved as held toward a target that lifts to FK's height, then reaches FK's position, blended out on a smoothstep (`plantReleaseWeight`) — C1 where it leaves the hold and where it joins FK | Without it the released foot snapped ~20 cm and ~17°/frame. 80 ms → the DDx walk's CoM drops at 1.05 g and its knee turns 469°/s; 100 → the run's knee 30.8°/frame against FK's 22.3; 150–200 → the released foot stays down into swing (DDx toe clearance 4.9–6.1 → 4.2–5.2 → 3.6–3.9 cm) | high |
+| `HAND_LATCH_M` / `HAND_REACH_PASSES` / `HAND_RELATCH_M` | `footContact.ts:387, 392, 399` | 0.03 / 4 / 0.08 | Hand floor grab and self-heal | Too few passes → the hand punches through the floor at the bottom of a push-up | medium |
 | `HEEL_STRIKE_SPAN_MS` | `rootMotion.ts:1560` | 110 ms | Footfall dip duration | Longer → a soft sag rather than an impact | medium |
 | `HEEL_STRIKE_MIN/MAX_DIP_M` | `rootMotion.ts:1562, 1564` | 0.005 / 0.01 | Accent amplitude band | Capped at 1 cm — a heavy and a gentle step look identical. Gap R9 | medium |
 | `HEEL_STRIKE_REF_DESCENT_M_S` | `rootMotion.ts:1569` | 0.25 m/s | Arrival rate at which the accent saturates | Lower → every footfall lands at max firmness | low |

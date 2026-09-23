@@ -183,12 +183,12 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     );
   });
 
-  it('SEAM-3 — a released plant fades out through the shared step', () => {
-    // A released plant must fade its correction out (the eased
-    // plantReleaseWeight over PLANT_RELEASE_BLEND_MS) instead of dropping the
-    // pin in one frame (the toe-off release pop). That fade is part of
-    // stepContactPlants, so both paths get it by delegating every frame — and
-    // neither may carry its own ramp (a private copy is how the two drift).
+  it('SEAM-3 — a released plant lets go through the shared step', () => {
+    // A released plant must let go over PLANT_RELEASE_BLEND_MS (the eased
+    // plantReleaseWeight) instead of dropping the pin in one frame (the toe-off
+    // release pop). That release is part of stepContactPlants, so both paths
+    // get it by delegating every frame — and neither may carry its own ramp (a
+    // private copy is how the two drift).
     expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,300}stepContactPlants\(/);
     for (const source of [stageSource, samplerSource]) {
       expect(source).not.toMatch(/PLANT_RELEASE_BLEND_MS|plantReleaseWeight|solveFootPlantWeighted/);
