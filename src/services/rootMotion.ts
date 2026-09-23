@@ -820,9 +820,10 @@ export const VCAL_HANDOFF_BLEND_MS = 200;
  * stance — and so flat that at the first landing the rise limit (pin + 3.5 cm)
  * cut through it: the body dropped 3.0 cm in one 33 ms frame and climbed back
  * over the next two (−2.8 g, then +4.3 g). Past that point the clip is sampled
- * and smoothed per period instead (steps/periodFraction samples, so the same
- * ±steps/12 window is ±1/12 of a period), and the same walk peaks at 39% and
- * bottoms at 62%, just after the other foot's initial contact, within ±0.8 g.
+ * and smoothed per period instead (steps/2 samples a period, smoothed over
+ * ±1/12 of a period), and the same walk peaks at 39% and 85% of its cycle and
+ * bottoms at 12% and 62%, 40-50 ms after each foot comes down, within −0.6 and
+ * +0.8 g (at 30 Hz).
  * Short of it (a single-cycle clip: the stock travel walk's window is 0.92 of
  * its step) the window attenuates the bob without inverting it, and is left as
  * it was: that walk's double-support and pelvis-excursion gates are measured
@@ -838,11 +839,17 @@ export function deriveVerticalCalibration(
 ): VerticalCalibration {
   // The window spans (2·win+1)/steps of the sampled span; the pelvis bobs once
   // per STEP, half a period. Once the window spans a step, sample and smooth
-  // per period instead (see above).
-  const win = Math.max(1, Math.round(steps / 12));
+  // per period instead (see above), at half the loop's density: ±2 of 24 samples
+  // is still ±1/12 of a period, and the live stage runs this pre-pass
+  // synchronously when a motion starts (a 3.96 s two-cycle walk: 95 poses and
+  // ~76 ms on the rig, against ~160 ms for 189 at full density and ~40 ms for
+  // the clip-sized 48; the root differs by at most 2.5 mm from the 189 table).
+  const clipWin = Math.max(1, Math.round(steps / 12));
   const perPeriod =
-    periodFraction > 0 && periodFraction < 1 && (2 * win + 1) / steps >= periodFraction / 2;
-  const n = perPeriod ? Math.ceil(steps / periodFraction) : steps;
+    periodFraction > 0 && periodFraction < 1 && (2 * clipWin + 1) / steps >= periodFraction / 2;
+  const periodSteps = Math.max(12, Math.round(steps / 2));
+  const win = perPeriod ? Math.max(1, Math.round(periodSteps / 12)) : clipWin;
+  const n = perPeriod ? Math.ceil(periodSteps / periodFraction) : steps;
   const raw: number[] = [];
   let sum = 0;
   let lo = Infinity;
