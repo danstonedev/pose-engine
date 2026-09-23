@@ -25,7 +25,11 @@ import { applyAnatomicPose } from '../services/anatomicPose';
 import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference } from '../services/jointAngles';
 import { captureFloorReference, NO_VERTICAL_CALIBRATION } from '../services/rootMotion';
-import { GAIT_VERTICAL_MAX_RISE_M } from '../services/motionRecording';
+import {
+  authoredToTrajectoryTimeScale,
+  GAIT_VERTICAL_MAX_RISE_M,
+  sampleComposedMotion,
+} from '../services/motionRecording';
 import { resolveComposedMotion } from '../services/motionSequence';
 import { buildComposedTrajectory } from '../services/motionTrajectory';
 import { buildSequencePoses } from '../services/motionSequence';
@@ -209,6 +213,66 @@ describe('composed rig derivations — on the real rig', () => {
     expect(Math.abs(zEnd - zStart)).toBeGreaterThan(0.1);
     // Straight-ahead gait rides the default +Z heading (the legacy path).
     expect(travel!.heading[1]).toBeCloseTo(1, 6);
+  });
+
+  it('a touchdown-planted walk: the stage’s travel starts each plant where the sampler captures it', () => {
+    // The stage hands the travel its plants' windows and starts each plant
+    // where the travel says the foot comes down; the sampler does the same
+    // through the same shared step. The plan opens the L hold at the end of
+    // keyframe [4] with that foot still swinging in, several cm up.
+    const resolved = resolveComposedMotion({ ...buildTravelWalk({}), plantOnTouchdown: true }, variantCfg);
+    expect(resolved.status).toBe('ok');
+    const rest = captureJointAngleRestReference(skinned.skeleton, variantCfg);
+    const built = buildSequencePoses(baselinePose, resolved, variantCfg, rest);
+    const { trajectory: traj } = buildComposedTrajectory(built, {
+      startPose: baselinePose,
+      startQuat: [0, 0, 0, 1],
+      startTranslate: [0, 0, 0],
+      timeScale: 1,
+      cyclicEnds: true, // a foot-driven walk without settleEnds, as the stage and sampler build it
+    });
+    const scale = authoredToTrajectoryTimeScale(resolved, traj.totalMs);
+    const holds = resolved.contacts!.map((c) => ({
+      foot: c.foot,
+      fromMs: (c.fromMs ?? -Infinity) * scale,
+      toMs: (c.toMs ?? Infinity) * scale,
+    }));
+    const stance = scaledStanceWindows(traj, resolved);
+    const d = createComposedDerivations(makeCtx());
+    resetRig();
+    const travel = d.footDrivenTravel(traj, true, true, stance, 0, undefined, holds, true)!;
+    resetRig();
+    expect(d.footDrivenTravel(traj, true, true, stance, 0, undefined, holds, false)!.holdFromMs).toBeUndefined();
+    expect(holds[1]!.foot).toBe('L_Foot');
+    const planned = holds[1]!.fromMs;
+    const lands = travel.holdFromMs![1]!;
+    // The R hold opens at 0 with that foot on the floor and keeps its start.
+    expect(travel.holdFromMs![0]).toBe(holds[0]!.fromMs);
+    expect(lands).toBeGreaterThan(planned + 30);
+
+    resetRig();
+    const rec = sampleComposedMotion(resolved, {
+      baselinePose,
+      variantCfg,
+      rest,
+      skeletonHarness: { root, skinned },
+      sampleHz: 60,
+    });
+    const z = (tMs: number): number =>
+      rec.frames.find((f) => f.tMs >= tMs - 1e-6)!.worldTracks!.L_Foot![2]!;
+    const inHold = rec.frames.filter((f) => f.tMs >= lands && f.tMs <= holds[1]!.toMs);
+    const heldZ = inHold.map((f) => f.worldTracks!.L_Foot![2]!);
+    // eslint-disable-next-line no-console
+    console.log(
+      `L hold planned from ${planned.toFixed(0)} ms, starts at ${lands.toFixed(0)}: the sampler's ankle moves ` +
+        `${((z(lands) - z(planned)) * 100).toFixed(1)} cm between them, ` +
+        `${((Math.max(...heldZ) - Math.min(...heldZ)) * 100).toFixed(2)} cm over the hold`,
+    );
+    // Still swinging in between the planned start and the landing (26.6 cm);
+    // held from the landing, within the plant IK's in-window budget
+    // (gaitContactSync: < 4 cm; 1.8 cm here, 2.0 cm for the planned-start plant).
+    expect(z(lands) - z(planned)).toBeGreaterThan(0.1);
+    expect(Math.max(...heldZ) - Math.min(...heldZ)).toBeLessThan(0.04);
   });
 
   it('the vertical calibration fits the requested excursion and is gated by plants (DET-LOCK-01)', () => {

@@ -27,6 +27,7 @@ import { applyCustomPose, buildBoneByPoseKey } from './poseRig';
 import {
   GAIT_VERTICAL_MAX_RISE_M,
   authoredToTrajectoryTimeScale,
+  gaitPeriodMs,
   scaleStanceWindowsMs,
 } from './motionRecording';
 import {
@@ -38,7 +39,9 @@ import {
   deriveHeelStrikeAccents,
   deriveVerticalCalibration,
   headingProfileLookup,
+  measureFootGround,
   pinRootToFloor,
+  type GaitContactHold,
 } from './rootMotion';
 import type { PoseTrajectory } from './motionTrajectory';
 import type { getBodyVariant } from '../anatomy/bodyVariants';
@@ -99,15 +102,20 @@ export interface ComposedDerivations {
   previewTrajectoryAt(traj: PoseTrajectory, tMs: number): ReturnType<PoseTrajectory['sampleAt']>;
   /** Measure the emergent grounded pelvis arc and fit it to `targetCm` of
    *  excursion. Identity (`NO_VERTICAL_CALIBRATION`, cycle 0) when uncalibrated,
-   *  unplanted, or the rig is unavailable. */
+   *  unplanted, or the rig is unavailable. `periodMs` is the gait period of a
+   *  ONE-SHOT clip ({@link scaledGaitPeriodMs}); omit it for a loop-form
+   *  trajectory, which already spans exactly one period. */
   verticalCalibration(
     traj: PoseTrajectory,
     targetCm: number | undefined,
     hasPlanted: boolean,
     plantsActive: boolean,
+    periodMs?: number,
   ): VerticalCalibrationResult;
   /** Derive the +Z travel that keeps the planted foot world-fixed, along the
-   *  motion's heading. Null when disabled/unplanted/rig-unavailable. */
+   *  motion's heading. `holds` are the foot plants' windows in trajectory ms;
+   *  `plantOnTouchdown` derives a touchdown-planted gait (its result then says
+   *  where each hold really starts). Null when disabled/unplanted/rig-unavailable. */
   footDrivenTravel(
     traj: PoseTrajectory,
     enabled: boolean,
@@ -115,6 +123,8 @@ export interface ComposedDerivations {
     stanceWindows?: StanceWindow[],
     headingDeg?: number,
     headingAt?: (tMs: number) => number,
+    holds?: readonly GaitContactHold[],
+    plantOnTouchdown?: boolean,
   ): ReturnType<typeof deriveFootDrivenTravel> | null;
   /** Derive the stance-locked ±X pelvis ride toward the planted foot,
    *  perpendicular to the heading. Null unless the motion requests it. */
@@ -151,6 +161,22 @@ export function scaledStanceWindows(
     resolvedMotion.gaitStanceWindowsMs,
     authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs),
   );
+}
+
+/**
+ * The gait period of a ONE-SHOT motion in trajectory ms, by the SAME shared
+ * helper and time-base factor the offline sampler uses — what the calibrated
+ * vertical measures its smoothing window against. Undefined when the motion
+ * publishes no cycle window or stance schedule (the whole-span derivation).
+ */
+export function scaledGaitPeriodMs(
+  traj: PoseTrajectory,
+  resolvedMotion: AuthoredTiming & {
+    gaitCycleMs?: { fromMs: number; toMs: number };
+    gaitStanceWindowsMs?: StanceWindow[];
+  },
+): number | undefined {
+  return gaitPeriodMs(resolvedMotion, authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs));
 }
 
 /**
@@ -201,12 +227,13 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
     return s;
   }
 
-  /** Resolve both foot bones for a gait derivation (null when either is absent). */
-  function footBones(): { rBone: THREE.Bone; lBone: THREE.Bone } | null {
+  /** Resolve both foot bones for a gait derivation (null when either is absent),
+   *  with the whole pose-key map the ground-contact read needs. */
+  function footBones(): { rBone: THREE.Bone; lBone: THREE.Bone; bones: Map<string, THREE.Bone> } | null {
     const bones = buildBoneByPoseKey(ctx.skinned!.skeleton, ctx.variantCfg!);
     const rBone = bones.get('R_Foot');
     const lBone = bones.get('L_Foot');
-    return rBone && lBone ? { rBone, lBone } : null;
+    return rBone && lBone ? { rBone, lBone, bones } : null;
   }
 
   function verticalCalibration(
@@ -214,10 +241,16 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
     targetCm: number | undefined,
     hasPlanted: boolean,
     plantsActive: boolean,
+    periodMs?: number,
   ): VerticalCalibrationResult {
     if (targetCm == null || !hasPlanted || !rigReady()) {
       return { table: NO_VERTICAL_CALIBRATION, cycleMs: 0 };
     }
+    // A one-shot clip is sampled whole; its gait period sizes the smoothing
+    // where a clip-sized window would invert the bob (mirrors the sampler's
+    // vcalPeriodFraction exactly).
+    const periodFraction =
+      periodMs != null && periodMs < traj.totalMs ? periodMs / traj.totalMs : 1;
     const table = deriveVerticalCalibration(
       (u01) => {
         previewTrajectoryAt(traj, u01 * traj.totalMs);
@@ -233,6 +266,7 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
       // foot to over-reach, so no clamp.
       true,
       plantsActive ? GAIT_VERTICAL_MAX_RISE_M : undefined,
+      periodFraction,
     );
     return { table, cycleMs: traj.totalMs };
   }
@@ -244,26 +278,35 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
     stanceWindows?: StanceWindow[],
     headingDeg = 0,
     headingAt?: (tMs: number) => number,
+    holds?: readonly GaitContactHold[],
+    plantOnTouchdown = false,
   ): ReturnType<typeof deriveFootDrivenTravel> | null {
     if (!enabled || !hasPlanted || !rigReady()) return null;
     const feet = footBones();
     if (!feet) return null;
-    const { rBone, lBone } = feet;
+    const { rBone, lBone, bones } = feet;
     return deriveFootDrivenTravel(
       (tMs) => {
         const s = previewTrajectoryAt(traj, tMs);
         const rp = rBone.getWorldPosition(new THREE.Vector3());
         const lp = lBone.getWorldPosition(new THREE.Vector3());
         // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
-        // airborne): the travel derivation holds its advance through it
+        // airborne): the travel derivation holds its advance through it; the
+        // ground contacts let it keep the point actually on the floor fixed
         // (mirrors the offline sampler's closure exactly).
-        return { rz: rp.z, ry: rp.y, rx: rp.x, lz: lp.z, ly: lp.y, lx: lp.x, bothAirborne: !s.planted };
+        return {
+          rz: rp.z, ry: rp.y, rx: rp.x, lz: lp.z, ly: lp.y, lx: lp.x,
+          bothAirborne: !s.planted,
+          ground: measureFootGround(bones, ctx.floor!),
+        };
       },
       traj.totalMs,
       stanceWindows,
       120,
       headingDeg,
       headingAt,
+      holds,
+      plantOnTouchdown,
     );
   }
 

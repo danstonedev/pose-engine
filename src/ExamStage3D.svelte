@@ -584,15 +584,15 @@
         groundingBlendAt,
         applyBlendedGroundingY,
         handReachWeightAt,
+        startPlantsWhereFeetLand,
         FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
       const { buildFootPlant, stepContactPlants, buildHandPlant, solveHandReach } =
         await import('./services/footContact');
       // Rig-facing composed derivations (the four trajectory pre-passes). Dynamic
       // like every other three-using service, so this component stays SSR-safe.
-      const { createComposedDerivations, scaledStanceWindows, scaledHeadingAt } = await import(
-        './services/stageComposedDerivations'
-      );
+      const { createComposedDerivations, scaledStanceWindows, scaledHeadingAt, scaledGaitPeriodMs } =
+        await import('./services/stageComposedDerivations');
       const { balanceCoordination } = await import('./services/balanceCoordination');
       const { computeBodyCoMFromBones } = await import('./services/centerOfMass');
       const { resolveMotionCommand } = await import('./services/motionCommand');
@@ -1122,6 +1122,8 @@
         composedLateralShuttle = null; // drop any medio-lateral shuttle
         composedHeelStrike = null; // drop any footfall accents
         composedHeelStrikeY = 0;
+        composedPlantsAtTouchdown = false;
+        composedVcalRaiseY = 0;
         breath.setWorkIntensity(0); // exertion feed stops; the accumulator decays
         composedCurrentGrounding = null; // drop the frame grounding so a clip/idle recording can't inherit it
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
@@ -1668,6 +1670,7 @@
         traj: PoseTrajectory,
         targetCm: number | undefined,
         hasPlanted: boolean,
+        periodMs?: number,
       ): void {
         composedVcalPhaseOffsetMs = 0;
         composedVcalRampMs = 0;
@@ -1677,6 +1680,7 @@
           targetCm,
           hasPlanted,
           composedPlants.length > 0,
+          periodMs,
         );
         composedVcal = table;
         composedVcalCycleMs = cycleMs;
@@ -1696,7 +1700,13 @@
         stanceWindows?: StanceWindow[],
         headingDeg = 0,
         headingAt?: (tMs: number) => number,
+        plantOnTouchdown = false,
       ): void {
+        // The travel reads the plants' windows — the SAME ones (already re-timed
+        // to trajectory ms) the plants are solved against — and a touchdown-planted
+        // gait then starts each plant where its foot comes down, the schedule the
+        // travel just followed. Mirrors the offline sampler's `holds`.
+        const held = composedPlants.filter((fp) => fp.solver);
         composedFootDriven = derivations.footDrivenTravel(
           traj,
           enabled,
@@ -1704,7 +1714,10 @@
           stanceWindows,
           headingDeg,
           headingAt,
+          held.map((fp) => ({ foot: fp.solver!.footKey, fromMs: fp.fromMs, toMs: fp.toMs })),
+          plantOnTouchdown,
         );
+        composedPlantsAtTouchdown = startPlantsWhereFeetLand(held, composedFootDriven);
       }
 
       /** MEDIO-LATERAL SHUTTLE for the ACTIVE composed motion — the derived ±X
@@ -1743,6 +1756,14 @@
        *  by the foot-plant capture so a target captured mid-accent pins at the
        *  natural (un-dipped) contact point and the dip is absorbed by the leg IK. */
       let composedHeelStrikeY = 0;
+      /** The travel derivation started the active motion's plants where each
+       *  foot comes down (a touchdown-planted gait, ComposedMotion
+       *  .plantOnTouchdown): they capture on the floor. Mirrors the sampler. */
+      let composedPlantsAtTouchdown = false;
+      /** How far the calibrated gait vertical lifted the root off the live pin on
+       *  the CURRENT frame (m) — a touchdown-planted gait removes it from a plant
+       *  target captured now, like the heel-strike dip (mirrors the sampler). */
+      let composedVcalRaiseY = 0;
 
       /** Derive the footfall accents on the CALIBRATED root-Y arc. Must run AFTER
        *  setComposedVerticalCalibration for the motion (it rides on that arc).
@@ -1985,6 +2006,7 @@
           rest: composedPlantRest ?? restRef,
           hingeAxisRest: restRef,
           heelStrikeY: composedHeelStrikeY,
+          captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,
           initialTargets: initialComposedPlantTargets,
         });
         if (solved) modelRoot.updateMatrixWorld(true);
@@ -2010,6 +2032,7 @@
         );
         pelvisShiftBakedM = 0; // absolute write — the shift re-bakes at the end
         modelRoot.scale.copy(rootRestScale); // clear any prior-frame plant scale drift
+        composedVcalRaiseY = 0; // re-measured by this frame's calibrated vertical
         modelRoot.updateMatrixWorld(true);
         // REACH CONTACTS of the active posture: bring each planted hand to the
         // floor and LATCH it there, so it stays put as the body lowers over it —
@@ -2108,6 +2131,7 @@
               if (k <= 0) composedVcalHandoff = null;
               else y += composedVcalHandoff.deltaYM * k;
             }
+            composedVcalRaiseY = y - modelRoot.position.y;
             modelRoot.position.y = y;
             modelRoot.updateMatrixWorld(true);
           }
@@ -2612,10 +2636,13 @@
         // object, so table and playback can never come from diverging builds.
         const composedHasPlanted = built.roots.some((r) => r.stance === 'planted');
         const loopForm = resolved.loop ? buildLoopTrajectory(built, { timeScale }) : null;
+        // A ONE-SHOT clip is calibrated whole, so it passes its gait period (the loop
+        // form already spans exactly one) — mirrors the sampler.
         setComposedVerticalCalibration(
           loopForm ? loopForm.trajectory : trajectory,
           resolved.verticalCalibrationCm,
           composedHasPlanted,
+          loopForm ? undefined : scaledGaitPeriodMs(trajectory, effectiveResolved),
         );
         // PHASE ALIGNMENT + ENTRY RAMP (DET-LOCK-02): during the one-shot first
         // pass the loop-derived table is indexed at (t − first keyframe arrival)
@@ -2644,7 +2671,15 @@
         // CURVED heading (roadmap 6.2): the per-time heading lookup of a motion
         // with a heading profile — undefined for every constant-heading motion.
         const travelHeadingAt = scaledHeadingAt(trajectory, effectiveResolved);
-        setComposedFootDriven(trajectory, resolved.footDrivenTravel === true, composedHasPlanted, stanceWindows, travelHeadingDeg, travelHeadingAt);
+        setComposedFootDriven(
+          trajectory,
+          resolved.footDrivenTravel === true,
+          composedHasPlanted,
+          stanceWindows,
+          travelHeadingDeg,
+          travelHeadingAt,
+          resolved.plantOnTouchdown === true,
+        );
         // PERSISTENT ROOT COMMIT (PR 2): advance the continuity/root state to the
         // ACTUAL end-of-motion world root for the NEXT segment — the authored last
         // keyframe PLUS the DERIVED foot-driven travel just computed. This is the

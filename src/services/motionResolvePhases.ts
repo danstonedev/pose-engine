@@ -599,6 +599,7 @@ export function assembleResolvedMotion(
     // Heel-strike accent: only the explicit opt-OUT survives resolution (the
     // default-on behaviour is the absence of the flag).
     ...(motion.heelStrikeAccent === false ? { heelStrikeAccent: false } : {}),
+    ...(motion.plantOnTouchdown === true ? { plantOnTouchdown: true } : {}),
     // TRAVEL HEADING: pass through only a finite, non-zero heading (0 IS the
     // default straight-ahead — omitting it keeps heading-0 plans byte-identical).
     ...(typeof motion.headingDeg === 'number' &&

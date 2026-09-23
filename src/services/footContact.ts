@@ -210,6 +210,12 @@ export interface ContactPlantFrame {
    *  accent): a target captured mid-accent pins at the NATURAL contact point and
    *  the transient dip is absorbed by the leg IK instead of burying the foot. */
   heelStrikeY: number;
+  /** Extra height removed from a freshly captured target (0 when absent): a
+   *  touchdown-planted gait (ComposedMotion.plantOnTouchdown) captures its
+   *  foot in double support, where the calibrated vertical rounds the valley
+   *  up by as much as GAIT_VERTICAL_MAX_RISE_M — this frame's lift — so the
+   *  target would otherwise pin that far above the floor. */
+  captureLiftY?: number;
   /** First captured target per effector, for `reuseInitialAnchor` (per motion). */
   initialTargets: Map<string, THREE.Vector3>;
 }
@@ -327,7 +333,7 @@ export function stepContactPlants(
     if (!fp.target) {
       const first = fp.reuseInitialAnchor ? frame.initialTargets.get(fp.solver.footKey) : undefined;
       fp.target = first?.clone() ?? fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
-      if (!first) fp.target.y -= frame.heelStrikeY;
+      if (!first) fp.target.y -= frame.heelStrikeY + (frame.captureLiftY ?? 0);
       if (!frame.initialTargets.has(fp.solver.footKey)) {
         frame.initialTargets.set(fp.solver.footKey, fp.target.clone());
       }

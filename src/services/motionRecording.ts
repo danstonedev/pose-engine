@@ -68,7 +68,9 @@ import {
   handReachWeightAt,
   headingProfileLookup,
   heelStrikeOffsetAt,
+  measureFootGround,
   NO_VERTICAL_CALIBRATION,
+  startPlantsWhereFeetLand,
   pinRootToFloor,
   pinContactsToFloor,
   groundingContactsFor,
@@ -150,6 +152,37 @@ export function scaleStanceWindowsMs<T extends { fromMs: number; toMs: number }>
 ): T[] | undefined {
   if (!windows?.length) return undefined;
   return windows.map((w) => ({ ...w, fromMs: w.fromMs * scale, toMs: w.toMs * scale }));
+}
+
+/**
+ * The GAIT PERIOD of a one-shot gait, in trajectory ms (authored ms × `scale`,
+ * the {@link authoredToTrajectoryTimeScale} factor) — what the calibrated
+ * vertical measures its smoothing window against when it samples a whole
+ * one-shot clip ({@link deriveVerticalCalibration}'s `periodFraction`). The
+ * builder-published cycle window when there is one (the stock builder's opens
+ * a keyframe into the cycle, so it reads ~0.9 of a period: near enough to size
+ * a ±1/12-period window); else twice the median planned stance window (each
+ * window is one step); undefined when the motion publishes neither, which
+ * keeps the whole-span derivation. Shared by the offline sampler and the live
+ * stage so the two tables cannot diverge.
+ */
+export function gaitPeriodMs(
+  motion: {
+    gaitCycleMs?: { fromMs: number; toMs: number };
+    gaitStanceWindowsMs?: readonly { fromMs: number; toMs: number }[];
+  },
+  scale: number,
+): number | undefined {
+  const c = motion.gaitCycleMs;
+  if (c && Number.isFinite(c.fromMs) && Number.isFinite(c.toMs) && c.toMs > c.fromMs) {
+    return (c.toMs - c.fromMs) * scale;
+  }
+  const steps = (motion.gaitStanceWindowsMs ?? [])
+    .map((w) => w.toMs - w.fromMs)
+    .filter((d) => Number.isFinite(d) && d > 0)
+    .sort((a, b) => a - b);
+  if (!steps.length) return undefined;
+  return 2 * steps[Math.floor(steps.length / 2)]! * scale;
 }
 
 // ── Recording types ──────────────────────────────────────────────────────────
@@ -485,6 +518,10 @@ export function sampleComposedMotion(
   // below — the byte-identical legacy path.
   const footPlants: ContactPlant[] = [];
   const initialPlantTargets = new Map<string, THREE.Vector3>();
+  // Set once the travel derivation has started each plant where its foot comes
+  // down (a touchdown-planted gait, ComposedMotion.plantOnTouchdown): the plants
+  // then capture their targets on the floor (see below).
+  let plantsAtTouchdown = false;
   // Honour contacts the MOTION declares (resolved.contacts) when the caller
   // doesn't pass an explicit override — so a travel-gait motion plants its feet
   // the same way in the sampler as on the live stage.
@@ -702,6 +739,14 @@ export function sampleComposedMotion(
       vcalPhaseOffsetMs = (built.durationsMs[0] ?? 0) / timeScale;
       vcalRampMs = Math.max(1, Math.min(VCAL_HANDOFF_BLEND_MS, vcalPhaseOffsetMs));
     }
+    // A ONE-SHOT clip (a travel walk) is sampled whole; its gait period lets the
+    // smoothing be sized per period wherever a clip-sized window would invert the
+    // bob (see deriveVerticalCalibration). A loop-form table, or a loopCycle
+    // recording, already spans exactly one period.
+    const vcalPeriodMs =
+      vcalLoopForm || useLoopCycle ? undefined : gaitPeriodMs(resolved, authoredToTraj);
+    const vcalPeriodFraction =
+      vcalPeriodMs != null && vcalPeriodMs < vcalCycleMs ? vcalPeriodMs / vcalCycleMs : 1;
     vcal = deriveVerticalCalibration((u01) => {
       const s = vcalTraj.sampleAt(u01 * vcalCycleMs);
       applyCustomPose(skinned.skeleton, variantCfg, s.pose);
@@ -719,7 +764,7 @@ export function sampleComposedMotion(
       // (the travelling walk), clamp how far the smoothed pelvis may rise above the pin
       // so a planted stance leg doesn't over-reach and slide the foot; the contact-free
       // in-place walk (treadmill) has no such foot to over-reach, so no clamp.
-    }, vcalTargetM, 48, true, footPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined);
+    }, vcalTargetM, 48, true, footPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined, vcalPeriodFraction);
   }
 
   // FOOT-DRIVEN FORWARD TRAVEL (root motion from foot placement). A PRE-PASS poses
@@ -757,10 +802,14 @@ export function sampleComposedMotion(
         rBone.getWorldPosition(_sv);
         lBone.getWorldPosition(_svB);
         // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
-        // airborne): the travel derivation holds its advance through it.
+        // airborne): the travel derivation holds its advance through it. The
+        // ground contacts (ankle + forefoot against the floor reference) let it
+        // keep the point actually on the floor fixed — shared helper, lockstep
+        // with the live stage.
         return {
           rz: _sv.z, ry: _sv.y, rx: _sv.x, lz: _svB.z, ly: _svB.y, lx: _svB.x,
           bothAirborne: !s.planted,
+          ground: measureFootGround(boneByKey, floorRef),
         };
       };
       // The planned stance schedule is authored ms; the trajectory runs at
@@ -780,8 +829,18 @@ export function sampleComposedMotion(
         headingAtAuthoredMs && scale > 0
           ? (tMs: number): number => headingAtAuthoredMs(tMs / scale)
           : undefined;
-      if (wantsTravel)
-        footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj);
+      // The travel reads the plants' windows — the same ones, already in
+      // trajectory time, the plants below are solved against. A touchdown-planted
+      // gait then starts each plant where its foot comes down: the schedule the
+      // travel just followed, so the target is captured where the foot lands.
+      const holds = footPlants.map((fp) => ({ foot: fp.solver.footKey, fromMs: fp.fromMs, toMs: fp.toMs }));
+      if (wantsTravel) {
+        footDriven = deriveFootDrivenTravel(
+          sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj, holds,
+          resolved.plantOnTouchdown === true,
+        );
+        plantsAtTouchdown = startPlantsWhereFeetLand(footPlants, footDriven);
+      }
       if (shuttleM > 0)
         lateralShuttle = deriveGaitLateralShuttle(
           sampleFeet, totalMs, shuttleM, windows, 120, headingDeg, headingAtTraj,
@@ -942,6 +1001,9 @@ export function sampleComposedMotion(
     root.updateMatrixWorld(true);
     let footRooted = false;
     let groundReachSolved = false;
+    // How far the calibrated gait vertical lifted the root off the live pin this
+    // frame (a touchdown-planted gait removes it from a target captured now).
+    let vcalRaiseY = 0;
     // REACH CONTACTS of the active posture: bring each declared reach bone (a
     // planted hand) to the floor and LATCH it there, so it stays put as the body
     // lowers over it (the arm folds — the push-up). Latch-on-contact avoids
@@ -1019,6 +1081,7 @@ export function sampleComposedMotion(
         if (vcalRampMs > 0 && tMs < vcalRampMs) {
           y = root.position.y + (y - root.position.y) * (tMs / vcalRampMs);
         }
+        vcalRaiseY = y - root.position.y;
         root.position.y = y;
         root.updateMatrixWorld(true);
       }
@@ -1105,6 +1168,7 @@ export function sampleComposedMotion(
         rest: plantRest,
         hingeAxisRest: rest,
         heelStrikeY,
+        captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,
         initialTargets: initialPlantTargets,
       });
     if (anyPlant || groundReachSolved) {

@@ -337,6 +337,7 @@ export function hasAuthoredGaitPlumbing(motion: ComposedMotion): boolean {
     motion.footDrivenTravel != null ||
     motion.settleEnds != null ||
     motion.heelStrikeAccent != null ||
+    motion.plantOnTouchdown != null ||
     motion.headingDeg != null ||
     motion.headingProfileMs != null ||
     motion.inheritHeading != null

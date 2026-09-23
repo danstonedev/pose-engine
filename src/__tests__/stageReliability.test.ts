@@ -451,3 +451,77 @@ describe('SEAM-10 — the ready-reset tweens to the grounded standing Y (source 
     );
   });
 });
+
+describe('ROOT MOTION — the sampler and the stage hand the travel and vertical the same inputs (source pins)', () => {
+  // The derivations are the SAME pure functions in both (rootMotion.ts); what can
+  // drift is what each side hands them. gaitHandOver.test.ts and
+  // gaitVerticalPhase.test.ts gate the behaviour; these pin the live wiring.
+  it('both read the feet’s ground contacts through the one shared helper', () => {
+    expect(samplerSource).toContain('ground: measureFootGround(boneByKey, floorRef),');
+    expect(derivationsSource).toContain('ground: measureFootGround(bones, ctx.floor!),');
+  });
+
+  it('both hand the travel the foot plants’ windows, in trajectory ms, as the points it keeps fixed', () => {
+    expect(samplerSource).toContain(
+      'const holds = footPlants.map((fp) => ({ foot: fp.solver.footKey, fromMs: fp.fromMs, toMs: fp.toMs }));',
+    );
+    expect(samplerSource).toMatch(
+      /deriveFootDrivenTravel\(\s*sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj, holds,\s*resolved\.plantOnTouchdown === true,\s*\)/,
+    );
+    expect(stageSource).toContain('const held = composedPlants.filter((fp) => fp.solver);');
+    expect(stageSource).toMatch(
+      /held\.map\(\(fp\) => \(\{ foot: fp\.solver!\.footKey, fromMs: fp\.fromMs, toMs: fp\.toMs \}\)\),\s*plantOnTouchdown,\s*\)/,
+    );
+    expect(derivationsSource).toMatch(/headingAt,\s*holds,\s*plantOnTouchdown,\s*\);/);
+    // The stage re-times its plant windows before it derives the travel, and
+    // reads the motion's touchdown flag exactly as the sampler does.
+    expect(stageSource).toMatch(
+      /scaleComposedPlantsToTrajectory\(trajectory, effectiveResolved\);[\s\S]{0,800}setComposedFootDriven\(/,
+    );
+    expect(stageSource).toMatch(
+      /setComposedFootDriven\([\s\S]{0,300}travelHeadingAt,\s*resolved\.plantOnTouchdown === true,\s*\)/,
+    );
+  });
+
+  it('both start a touchdown-planted gait’s plants where its feet land and capture them on the floor', () => {
+    // The one shared step moves each plant's start to the travel's measured
+    // touchdown; its result says whether it did, and gates the capture fix-up.
+    expect(samplerSource).toContain('plantsAtTouchdown = startPlantsWhereFeetLand(footPlants, footDriven);');
+    expect(stageSource).toContain('composedPlantsAtTouchdown = startPlantsWhereFeetLand(held, composedFootDriven);');
+    // A target captured under the calibrated vertical's lift drops by that lift,
+    // measured after the loop ramp / handoff, on the same frame.
+    expect(samplerSource).toContain('vcalRaiseY = y - root.position.y;');
+    expect(stageSource).toContain('composedVcalRaiseY = y - modelRoot.position.y;');
+    expect(samplerSource).toContain(
+      'if (!first) fp.target.y -= heelStrikeY + (plantsAtTouchdown ? vcalRaiseY : 0);',
+    );
+    expect(stageSource).toContain(
+      'fp.target.y -= composedHeelStrikeY + (composedPlantsAtTouchdown ? composedVcalRaiseY : 0);',
+    );
+    // Each frame starts with no lift, and a new motion with no touchdown plants.
+    expect(samplerSource).toContain('let vcalRaiseY = 0;');
+    expect(stageSource).toContain('composedVcalRaiseY = 0; // re-measured by this frame');
+    expect(stageSource).toMatch(/composedPlantsAtTouchdown = false;\s*composedVcalRaiseY = 0;/);
+  });
+
+  it('both measure the vertical smoothing against the same gait period', () => {
+    // The sampler: the shared helper on its authored→trajectory factor, none for a
+    // table that already spans one period.
+    expect(samplerSource).toMatch(
+      /vcalLoopForm \|\| useLoopCycle \? undefined : gaitPeriodMs\(resolved, authoredToTraj\)/,
+    );
+    expect(samplerSource).toMatch(
+      /vcalPeriodMs != null && vcalPeriodMs < vcalCycleMs \? vcalPeriodMs \/ vcalCycleMs : 1/,
+    );
+    expect(samplerSource).toContain('GAIT_VERTICAL_MAX_RISE_M : undefined, vcalPeriodFraction)');
+    // The stage: the same helper and factor, the same fraction, the same slot.
+    expect(derivationsSource).toContain(
+      'return gaitPeriodMs(resolvedMotion, authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs));',
+    );
+    expect(derivationsSource).toMatch(
+      /periodMs != null && periodMs < traj\.totalMs \? periodMs \/ traj\.totalMs : 1/,
+    );
+    expect(derivationsSource).toMatch(/plantsActive \? GAIT_VERTICAL_MAX_RISE_M : undefined,\s*periodFraction,/);
+    expect(stageSource).toContain('loopForm ? undefined : scaledGaitPeriodMs(trajectory, effectiveResolved),');
+  });
+});
