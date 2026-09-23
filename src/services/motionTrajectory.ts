@@ -26,14 +26,17 @@
  * speed BETWEEN keyframes change. The live stage and the offline sampler both
  * build the trajectory here, so a recording stays frame-for-frame with the stage.
  *
- * FOLLOW-THROUGH (roadmap 2.2): on top of the shared time-warp, each BONE's
- * segment-local spline parameter is warped by the proximal→distal delay scheme
- * from ./motionStagger ({@link trajectoryBoneDelay}): local′ = clamp((local −
- * d)/(1 − d)). Distal arm segments start each inter-knot arc later and chase,
- * so the hand drags behind the shoulder through every reversal — TEMPORAL
- * overlap, not just pose-space. Both endpoints of the warp are fixed points
- * (0→0, 1→1), so every bone still reaches every knot exactly at its knot time
- * and the settle/measurement contract holds bit-for-bit. Root motion rides the
+ * FOLLOW-THROUGH (roadmap 2.2): each delayed BONE (./motionStagger,
+ * {@link trajectoryBoneDelay}) runs its own copy of the time-warp. Leaving a
+ * stop it dwells for `d` of the segment's time, then eases out of rest; through
+ * a fly-through knot it keeps one C¹ slope, reduced where its own path reverses.
+ * So distal arm segments start later and trail the chain out of every turn —
+ * TEMPORAL overlap, not just pose-space — with no velocity step at onset and no
+ * stall at a waypoint (the earlier warp, clamp((local − d)/(1 − d)) on every
+ * segment's eased parameter, had both). Every bone still reaches every knot
+ * exactly at its knot time, so the settle/measurement contract holds
+ * bit-for-bit — except where a contact solver latches on the path between
+ * knots (the hand-reach plant; see ./motionStagger). Root motion rides the
  * un-warped parameter, and legs are exempt (see trajectoryBoneDelay) so the
  * foot-plant IK and slide budgets are never fought.
  */
@@ -41,7 +44,7 @@
 import * as THREE from 'three';
 import type { CustomPose } from '../types';
 import { POSE_SCHEMA_VERSION } from '../types';
-import { trajectoryBoneDelay } from './motionStagger';
+import { delayedOnset, followThroughKnotSlope, trajectoryBoneDelay } from './motionStagger';
 import { clampTimeScale } from './motionConstants';
 
 /** One waypoint of the motion: an absolute pose + root state at an absolute time. */
@@ -226,6 +229,25 @@ const SETTLE_BRAKE_LATENESS: Readonly<Record<string, number>> = {
   ballistic: 1.5,
 };
 
+/** The shared time-warp plus the pieces a per-bone copy of it needs. */
+interface TimeWarp {
+  /** u(t): absolute time → knot index; monotone, C¹, u(t_k) == k exactly. */
+  at: (t: number) => number;
+  /** du/dt at each knot (knot-index units per ms) — 0 at every stop. */
+  slopes: number[];
+  /** Segment durations, ms (segment i runs knot i → i+1), floored at 1e-6. */
+  spans: number[];
+}
+
+/** Normalized cubic Hermite from 0 to 1 over s ∈ [0,1] with end slopes `mu0`,
+ *  `mu1` (in s units) — the time-warp's segment shape. Exactly 0 at s = 0 and 1
+ *  at s = 1 for any slopes. */
+function hermite01(s: number, mu0: number, mu1: number): number {
+  const s2 = s * s;
+  const s3 = s2 * s;
+  return (s3 - 2 * s2 + s) * mu0 + (-2 * s3 + 3 * s2) + (s3 - s2) * mu1;
+}
+
 /** Piecewise-cubic-Hermite map from knot times to knot index. Slope is forced
  *  to 0 at `stop` knots and set to the (monotone) PCHIP secant blend elsewhere,
  *  so u(t) passes through (t_k, k) exactly, is C¹, and never overshoots.
@@ -237,7 +259,7 @@ function buildTimeWarp(
   times: number[],
   stops: boolean[],
   brakes?: number[],
-): (t: number) => number {
+): TimeWarp {
   const n = times.length;
   const m = new Array<number>(n).fill(0); // du/dt at each knot
   const h = new Array<number>(n - 1);
@@ -260,7 +282,7 @@ function buildTimeWarp(
       m[i] = (w1 + w2) / (w1 / d[i - 1]! + w2 / d[i]!);
     }
   }
-  return (t: number): number => {
+  const at = (t: number): number => {
     if (t <= times[0]!) return 0;
     if (t >= times[n - 1]!) return n - 1;
     let i = 0;
@@ -284,6 +306,26 @@ function buildTimeWarp(
     const h11 = s3 - s2;
     return h00 * i + h10 * (h[i]! * m[i]!) + h01 * (i + 1) + h11 * (h[i]! * m[i + 1]!);
   };
+  return { at, slopes: m, spans: h };
+}
+
+/** How much a bone's own path turns back at each knot, in [0,1]: 0 where it
+ *  passes straight on (or has only one neighbour), 1 where it reverses exactly
+ *  (the top of an out-and-back). |c_in + c_out| / (|c_in| + |c_out|) compares
+ *  the Catmull–Rom tangent SQUAD uses with the chords either side; a bone that
+ *  holds still on both sides reads 0 (it has nothing to trail). */
+function knotReversals(q: Q[]): number[] {
+  const out = new Array<number>(q.length).fill(0);
+  for (let i = 1; i < q.length - 1; i += 1) {
+    const inv = qConj(q[i]!);
+    const back = qLog(qMul(inv, q[i - 1]!)); // = −(incoming chord)
+    const ahead = qLog(qMul(inv, q[i + 1]!)); // outgoing chord
+    const total = Math.hypot(back[0], back[1], back[2]) + Math.hypot(ahead[0], ahead[1], ahead[2]);
+    if (total < 1e-9) continue;
+    const through = Math.hypot(ahead[0] - back[0], ahead[1] - back[1], ahead[2] - back[2]);
+    out[i] = Math.min(1, Math.max(0, 1 - through / total));
+  }
+  return out;
 }
 
 // ── trajectory assembly ──────────────────────────────────────────────────────
@@ -330,6 +372,9 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     s: Q[]; // SQUAD control per knot
     /** Proximal→distal follow-through onset delay (fraction of a segment). */
     delay: number;
+    /** A delayed bone's OWN time-warp slope at each knot (per ms): the shared
+     *  slope scaled by {@link followThroughKnotSlope}. Null when delay == 0. */
+    slopes: number[] | null;
   }
   const series = new Map<string, BoneSeries>();
   for (const key of boneKeys) {
@@ -364,7 +409,13 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
       const next = q[Math.min(n - 1, i + 1)]!;
       s.push(squadControl(prev, q[i]!, next));
     }
-    series.set(key, { q, s, delay: trajectoryBoneDelay(key) });
+    const delay = trajectoryBoneDelay(key);
+    let slopes: number[] | null = null;
+    if (delay > 0) {
+      const reversal = knotReversals(q);
+      slopes = warp.slopes.map((m, i) => m * followThroughKnotSlope(delay, reversal[i]!));
+    }
+    series.set(key, { q, s, delay, slopes });
   }
 
   // Root orientation series (single quaternion) + controls; translate lerps.
@@ -462,19 +513,47 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     ...(groundingSwitches.length ? { groundingSwitches } : {}),
     sampleAt(tMs: number): TrajectorySample {
       const tClamped = Math.min(totalMs, Math.max(0, tMs));
-      const u = warp(tClamped);
+      const u = warp.at(tClamped);
       const k = Math.min(n - 2, Math.max(0, Math.floor(u)));
       const local = Math.min(1, Math.max(0, u - k));
+      // Raw (time-linear) progress through segment k — what a delayed bone's
+      // follow-through warp works on, BEFORE its ease.
+      const span = warp.spans[k]!;
+      const sigma = Math.min(1, Math.max(0, (tClamped - times[k]!) / span));
+      const brake = stops[k + 1] ? brakes[k + 1]! : 0;
 
       const bones: Record<string, [number, number, number, number]> = {};
       for (const [key, bs] of series) {
-        // FOLLOW-THROUGH warp: the delayed-and-renormalized per-bone parameter
-        // (same scheme as motionStagger.stagedBlendWithBaseline, applied to the
-        // SEGMENT-LOCAL spline parameter). local′(0)=0 and local′(1)=1, so knot
-        // arrival — and thus every settle measurement — is exact; the lag lives
-        // strictly mid-segment. delay==0 (root-adjacent, legs) is the identity.
-        const d = bs.delay;
-        const lb = d > 0 ? (local <= d ? 0 : (local - d) / (1 - d)) : local;
+        // FOLLOW-THROUGH (roadmap 2.2): a delayed bone runs its OWN copy of the
+        // segment's time-warp — the shared Hermite, with its own knot slopes
+        // (bs.slopes: the shared slope, reduced where its path reverses) and,
+        // leaving a STOP, a dwell of `delay` of the segment's TIME before it
+        // eases out (motionStagger.delayedOnset — the tween path's own scheme).
+        // Its knot slope is the same on both sides of every knot and zero at a
+        // stop, so the motion is C¹: it leaves rest with zero velocity and never
+        // stops at a fly-through keyframe. delay == 0 (root-adjacent, legs) is
+        // `local`.
+        // ON a knot (local 0 or 1) every bone IS the knot: the copy runs only
+        // strictly inside a segment, so every knot is reached exactly when the
+        // shared parameter reaches it. σ cannot stand in for that — a zero-length
+        // segment's σ never leaves 0 (its span is floored at 1e-6 ms), which left
+        // the arms of rest → 60° → 20°-in-0-ms at 60° while the Hips sat at 20°.
+        let lb = local;
+        if (bs.slopes && local > 0 && local < 1) {
+          const dwell = stops[k] ? bs.delay : 0;
+          const x = delayedOnset(sigma, dwell);
+          const active = (1 - dwell) * span;
+          lb =
+            x <= 0
+              ? 0
+              : x >= 1
+                ? 1
+                : hermite01(
+                    brake > 0 ? x * (1 - brake * x * (1 - x)) : x,
+                    bs.slopes[k]! * active,
+                    bs.slopes[k + 1]! * active,
+                  );
+        }
         bones[key] = squad(bs.q[k]!, bs.q[k + 1]!, bs.s[k]!, bs.s[k + 1]!, lb);
       }
 

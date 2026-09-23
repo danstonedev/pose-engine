@@ -10,21 +10,29 @@
  * follows).
  *
  * This module warps the per-bone interpolation parameter so a bone deeper in
- * the chain starts its arc slightly later. Two invariants are preserved exactly:
+ * the chain starts its arc slightly later. Three invariants are preserved
+ * exactly:
  *
  *   1. At `local == 1` EVERY bone's parameter is 1, so the pose still arrives
  *      precisely on target. Keyframe boundaries, holds, and every settled
  *      goniometric measurement are byte-identical to the un-staggered path —
- *      only the trajectory BETWEEN keyframes changes.
- *   2. The delay scheme is defined ONCE, here. The simple exam-command pose
+ *      only the trajectory BETWEEN keyframes changes. The one exception reads
+ *      the path itself: the hand-reach plant (footContact.solveHandReachFull)
+ *      latches the floor point where the hand first touches, so a hand-planted
+ *      settle (quadruped, plank, push-up, bird-dog) moves with ANY re-timing of
+ *      the arm. The sample rate alone moves it up to 1.8° / 10 mm (male rig,
+ *      30 vs 120 Hz); making this warp C¹ moved it up to 2.9° / 10 mm.
+ *   2. A delayed bone's motion stays C¹: the delay is a DWELL in raw TIME that
+ *      precedes the ease ({@link delayedOnset}), so the bone leaves rest with
+ *      zero velocity, and it only ever dwells where it is already at rest.
+ *   3. The delay scheme is defined ONCE, here. The simple exam-command pose
  *      tween (ExamStage3D.stepTween) consumes it via
  *      {@link stagedBlendWithBaseline}; COMPOSED trajectory playback (the SQUAD
  *      spline both the live stage and the offline sampler evaluate through
- *      motionTrajectory.sampleAt) consumes it via {@link trajectoryBoneDelay} —
- *      the same delayed-and-renormalized per-bone parameter warp, applied to
- *      each bone's segment-local spline parameter. Stage and sampler share one
- *      trajectory builder, so a headless recording remains frame-for-frame what
- *      the stage shows.
+ *      motionTrajectory.sampleAt) consumes {@link trajectoryBoneDelay},
+ *      {@link delayedOnset} and {@link followThroughKnotSlope}. Stage and
+ *      sampler share one trajectory builder, so a headless recording remains
+ *      frame-for-frame what the stage shows.
  *
  * The root transform (pelvis / whole-body carriage) is the most proximal thing
  * of all and deliberately leads — callers keep driving it on the plain
@@ -101,14 +109,16 @@ export function chainOnsetDelay(poseKey: string): number {
 const AXIAL_TRAJECTORY_FRACTION = 0.25;
 
 /**
- * Segment-local onset delay (fraction of one trajectory SEGMENT, in [0,1)) a
- * bone receives in COMPOSED TRAJECTORY playback — the proximal→distal
- * follow-through warp (roadmap 2.2). motionTrajectory warps each bone's
- * segment-local SQUAD parameter `local` to `clamp((local − d)/(1 − d))` with
- * `d = trajectoryBoneDelay(key)`: both endpoints are preserved (0→0, 1→1), so
- * every bone still reaches every knot EXACTLY at its knot time (the
- * settle/measurement contract is untouched) and the lag lives mid-segment,
- * where the eye reads overlap.
+ * Onset delay (fraction of one trajectory SEGMENT, in [0,1)) a bone receives in
+ * COMPOSED TRAJECTORY playback — the proximal→distal follow-through warp
+ * (roadmap 2.2). motionTrajectory gives each delayed bone its own copy of the
+ * shared time-warp: leaving a STOP it dwells for `d` of the segment's TIME and
+ * then eases out ({@link delayedOnset} — the tween path's own scheme), and
+ * through a fly-through knot it keeps a C¹ share of the shared slope that shrinks
+ * where its own path reverses ({@link followThroughKnotSlope}). Every knot is
+ * still reached EXACTLY at its knot time (the settle/measurement contract is
+ * untouched, bar the reach-plant latch noted above) and the lag lives
+ * mid-segment, where the eye reads overlap.
  *
  * Scope (deliberately narrower than the tween-path {@link chainOnsetDelay}):
  *   - ARM chains (clavicle → fingers) get the full chain-ranked delay — the
@@ -150,11 +160,60 @@ export function trajectoryBoneDelay(poseKey: string): number {
 }
 
 /**
+ * THE onset warp both playback paths share: raw, time-linear progress `sigma` ∈
+ * [0,1] of a stroke that leaves REST → the delayed bone's own raw progress, held
+ * at 0 for the first `delay` of the window and renormalized over the rest (so
+ * sigma = 1 still maps to exactly 1).
+ *
+ * It must be applied to TIME, BEFORE the ease. Every ease the engine starts from
+ * rest with has zero slope at 0 (ease-in-out cubic, the time-warp's Hermite from
+ * a stop), so the bone leaves its dwell with zero velocity. Applied AFTER the
+ * ease — to the already-moving eased parameter, as the trajectory once did — the
+ * dwell ends mid-acceleration and the bone jumps from still to 1/(1 − d) × the
+ * chain's speed in one frame (measured on the DDx chair stand's folded forearms
+ * at 120 Hz: still until 133 ms, then 43 → 235°/s from one frame to the next).
+ */
+export function delayedOnset(sigma: number, delay: number): number {
+  if (delay <= 0) return clamp01(sigma);
+  const span = 1 - delay;
+  // At sigma == 1 the numerator equals the denominator → exactly 1 for every
+  // delay, guaranteeing on-target arrival.
+  return span <= 0 ? (sigma >= 1 ? 1 : 0) : clamp01((sigma - delay) / span);
+}
+
+/**
+ * Share of the shared time-warp slope a delayed bone keeps THROUGH a fly-through
+ * knot, where `reversal` ∈ [0,1] says how much its own path turns back there (0 =
+ * it passes straight on, 1 = it reverses, e.g. the top of an out-and-back).
+ *
+ * A bone moving through a knot cannot dwell there without stopping dead — the
+ * old per-segment warp did exactly that at every keyframe of a gait cycle — so
+ * its C¹ follow-through is a slowdown instead: the same slope on both sides of
+ * the knot, reduced where it reverses. It lingers at its extreme and trails the
+ * chain out of the turn (the "wrist reverses after the shoulder" cue); a bone
+ * passing straight through keeps the chain's own speed (1).
+ *
+ * The floor 3 − 2/(1 − d) caps the cost: a stroke between two full reversals
+ * then peaks at exactly 1/(1 − d) × the lockstep speed — the same bound the onset
+ * dwell has (≈1.22× for the fingers, d = 0.18). Only a first stroke out of rest
+ * INTO a full reversal pays both (fingers 1.31×, hand 1.26×; the old per-segment
+ * dwell 1.27× / 1.23×). A gentler slowdown buys little: at 3/4 of this one or
+ * less, the rig's fast arm wave shows the wrist leaving its turn one 120 Hz frame
+ * after the shoulder — what plain lockstep shows — against two frames here.
+ */
+export function followThroughKnotSlope(delay: number, reversal: number): number {
+  if (delay <= 0) return 1;
+  const floor = Math.max(0, 3 - 2 / (1 - delay));
+  return 1 - clamp01(reversal) * (1 - floor);
+}
+
+/**
  * Blend `from`→`to` (treating `null` as `baseline`, exactly like
  * {@link blendCustomPoseWithBaseline}) at raw progress `local` ∈ [0,1], applying
  * a proximal→distal onset stagger. The base easing (ease-in-out cubic) is
- * applied to each bone's own delayed-and-renormalized parameter, so distal
- * bones start later yet all bones still reach the target at `local == 1`.
+ * applied to each bone's own {@link delayedOnset} progress, so distal bones
+ * start later — from rest, with zero velocity — yet all bones still reach the
+ * target at `local == 1`.
  *
  * Pass `stagger = 0` to recover the exact original lockstep blend.
  */
@@ -172,12 +231,7 @@ export function stagedBlendWithBaseline(
     const eased = composedTweenEase(l);
     return blendCustomPosePerBone(effectiveFrom, effectiveTo, () => eased);
   }
-  return blendCustomPosePerBone(effectiveFrom, effectiveTo, (poseKey) => {
-    const delay = chainOnsetDelay(poseKey) * stagger;
-    const span = 1 - delay;
-    // At l == 1 the numerator equals the denominator → jl == 1 for every bone,
-    // guaranteeing exact on-target arrival regardless of delay.
-    const jl = span <= 0 ? (l >= 1 ? 1 : 0) : clamp01((l - delay) / span);
-    return composedTweenEase(jl);
-  });
+  return blendCustomPosePerBone(effectiveFrom, effectiveTo, (poseKey) =>
+    composedTweenEase(delayedOnset(l, chainOnsetDelay(poseKey) * stagger)),
+  );
 }
