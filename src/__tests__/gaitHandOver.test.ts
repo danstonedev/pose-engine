@@ -27,9 +27,10 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { applyAnatomicPose } from '../services/anatomicPose';
 import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
-import { resolveComposedMotion } from '../services/motionSequence';
+import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
-import { buildTravelWalk } from '../services/movementTemplates';
+import { buildFigureEightWalk, buildTravelWalk } from '../services/movementTemplates';
+import { measureContactSlide } from '../services/footContact';
 import {
   deriveFootDrivenTravel,
   startPlantsWhereFeetLand,
@@ -274,10 +275,14 @@ beforeAll(async () => {
 
 /** Sample the stock walk (optionally touchdown-planted) on the rig. */
 function walk(speed: number, plantOnTouchdown: boolean, sampleHz: number) {
+  return sampled({ ...buildTravelWalk({ speed }), ...(plantOnTouchdown ? { plantOnTouchdown: true } : {}) }, sampleHz);
+}
+
+/** Sample a motion on the rig, with its keyframe ends on the frames' clock. */
+function sampled(motion: ComposedMotion, sampleHz: number) {
   root.position.copy(rootRest0);
   root.quaternion.copy(rootQuat0);
   root.updateMatrixWorld(true);
-  const motion = { ...buildTravelWalk({ speed }), ...(plantOnTouchdown ? { plantOnTouchdown: true } : {}) };
   const resolved = resolveComposedMotion(motion, variantCfg);
   expect(resolved.status).toBe('ok');
   const rec = sampleComposedMotion(resolved, {
@@ -292,7 +297,7 @@ function walk(speed: number, plantOnTouchdown: boolean, sampleHz: number) {
     acc += k.durationMs + (k.holdMs ?? 0);
     ends.push(acc * scale);
   }
-  return { rec, ends };
+  return { rec, ends, resolved, scale };
 }
 
 /** Height (m) of a foot's lower contact above where it stood at frame 0. */
@@ -368,6 +373,35 @@ describe('the stock walk on the rig, planned-start plants against touchdown plan
     );
     expect(touchdown).toBeLessThan(0.005);
   });
+
+  it.each([
+    ['walk 0.8', 0.8, 0.81, 41.7],
+    ['walk 1', 1, 1.07, 48.0],
+    ['walk 1.2', 1.2, 1.35, 53.6],
+    ['figure-eight lobe b', 0, 2.99, 49.5],
+  ] as const)(
+    '%s by default: the landing foot holds and the stance knee bends as on the base walk',
+    (label, speed, baseDriftCm, baseKneeDeg) => {
+      // Moving the root through the hand-over while the plants still capture at
+      // their planned start drags the landing foot back against the IK: that
+      // doubled its in-window drift (1.07 → 2.44 cm at 1×) and bent the stance
+      // knee 3-6° further. By default the travel is the base derivation, so
+      // both stay at the base walk's values (measured on 5c1c9ac, 120 Hz).
+      const motion = speed > 0 ? buildTravelWalk(speed === 1 ? {} : { speed }) : buildFigureEightWalk()[1]!;
+      const { rec, resolved, scale } = sampled(motion, 120);
+      const c = resolved.contacts!.find((w) => w.foot === 'L_Foot')!;
+      const fromMs = c.fromMs! * scale;
+      const toMs = c.toMs! * scale;
+      const driftCm = measureContactSlide(rec, 'L_Foot', fromMs, toMs).horizontalM * 100;
+      const kneeDeg = Math.max(
+        ...rec.frames.filter((f) => f.tMs >= fromMs && f.tMs <= toMs).map((f) => f.angles.L_Leg!.kneeFlexion!),
+      );
+      // eslint-disable-next-line no-console
+      console.log(`${label} by default: L in-window drift ${driftCm.toFixed(2)} cm, stance knee peak ${kneeDeg.toFixed(1)}°`);
+      expect(driftCm).toBeLessThan(baseDriftCm + 0.3);
+      expect(kneeDeg).toBeLessThan(baseKneeDeg + 1.5);
+    },
+  );
 
   it.each([0.7, 0.85, 1, 1.3])(
     'speed %s touchdown-planted: the pelvis keeps half its steady pace or more through the cycle’s hand-over',
