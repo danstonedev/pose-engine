@@ -8,9 +8,10 @@
  * the ground as the root translates (the moonwalk). Real stance is the opposite:
  * the foot is pinned in the world and the hip/knee flex/extend to carry the
  * pelvis over and past it. This module solves that with the engine's own CCD IK
- * ({@link solveIKChain}) on the leg chain (foot → knee → hip), the knee kept a
- * hinge and every joint ROM-clamped — so an unreachable target settles on a
- * clinically honest best-effort pose instead of dislocating.
+ * ({@link solveIKChain}) on the leg chain (foot → knee → hip; a forefoot/toe
+ * contact adds the ankle: toes → ankle → knee → hip), the knee kept a hinge and
+ * every joint ROM-clamped — so an unreachable target settles on a clinically
+ * honest best-effort pose instead of dislocating.
  *
  * Pure THREE on a live skeleton — no Svelte/DOM. The sampler
  * ({@link sampleComposedMotion}) applies plants per frame when a motion declares
@@ -26,18 +27,34 @@ import {
   type IKChainContext,
 } from './poseRig';
 
-/** A prepared leg IK chain that pins one foot to a world target. */
+/** A prepared limb IK chain that pins one contact effector to a world target. */
 export interface FootPlantSolver {
-  /** The IK chain foot(effector) → knee → hip. */
+  /** The IK chain effector → … → limb root (e.g. foot → knee → hip). */
   ctx: IKChainContext;
-  /** Canonical foot key (effector), e.g. 'L_Foot'. */
+  /** Canonical effector key, e.g. 'L_Foot' or 'L_Toes'. */
   footKey: string;
-  /** Canonical knee key kept as a hinge during the solve, e.g. 'L_Leg'. */
+  /** Canonical key of the chain's HINGE joint (the knee — the elbow for a hand
+   *  contact), e.g. 'L_Leg'. Always a joint the solve actually rotates. */
   kneeKey: string;
 }
 
 /** Parents of the foot up to the hip: Foot → Leg(knee) → UpLeg(hip). */
 const LEG_CHAIN_PARENTS = 2;
+
+/** Parents of the toes up to the hip: Toes → Foot(ankle) → Leg(knee) → UpLeg(hip).
+ *  A toe contact (the forefoot pivot of a heel rise / push-off) is a LEG contact
+ *  like any other. It used to reuse the foot's two parents, which stopped the
+ *  chain at the knee: the hip never helped, and the hinge lookup (a 'Foot'
+ *  suffix rewrite) named the toe itself — a bone CCD never rotates — so the knee
+ *  was solved as a free ball joint. Every weight shift over the held forefoot
+ *  then came out of the knee's frontal plane: 4.6° (left) / 5.0° (right — its
+ *  ±5° ROM limit) of varus/valgus through each toe pivot of the DDx walk, 4.8°
+ *  on the engine walk with toe pivots, against 0.0° with the foot flat — and
+ *  where the ±5° ran out the forefoot let go (1.1 cm of slide). */
+const TOE_CHAIN_PARENTS = 3;
+
+/** Parents of the hand up to the shoulder: Hand → Forearm(elbow) → UpperArm. */
+const ARM_CHAIN_PARENTS = 2;
 
 /**
  * CCD passes for a stance-foot plant solve (the shared default is 4).
@@ -56,14 +73,29 @@ const LEG_CHAIN_PARENTS = 2;
  */
 export const FOOT_PLANT_IK_ITERATIONS = 8;
 
-/** The knee key for a foot key ('L_Foot' → 'L_Leg', 'R_Foot' → 'R_Leg'). */
+/** The knee key for a leg contact key ('L_Foot' / 'L_Toes' → 'L_Leg'). */
 export function kneeKeyForFoot(footKey: string): string {
-  return footKey.replace(/Foot$/, 'Leg');
+  return footKey.replace(/(Foot|Toes)$/, 'Leg');
+}
+
+/** How a contact effector's chain climbs to its limb root, and which joint in
+ *  it is the hinge — the knee for the foot and the toes, the elbow for a hand.
+ *  Any other key keeps the historic foot-shaped chain. */
+function contactChainFor(effectorKey: string): { parents: number; hingeKey: string } {
+  if (/Toes$/.test(effectorKey)) {
+    return { parents: TOE_CHAIN_PARENTS, hingeKey: kneeKeyForFoot(effectorKey) };
+  }
+  if (/Hand$/.test(effectorKey)) {
+    return { parents: ARM_CHAIN_PARENTS, hingeKey: elbowKeyForHand(effectorKey) };
+  }
+  return { parents: LEG_CHAIN_PARENTS, hingeKey: kneeKeyForFoot(effectorKey) };
 }
 
 /**
- * Build a leg IK chain that will pin `footKey` to a world target. Returns null
- * when the foot bone isn't present in the variant, or the chain can't be built.
+ * Build the limb IK chain that will pin a contact effector (`footKey`: 'L_Foot',
+ * 'L_Toes', or 'L_Hand' for a declared hand contact) to a world target. Returns
+ * null when the effector bone isn't present in the variant, or the chain can't
+ * be built.
  */
 export function buildFootPlant(
   skinnedMesh: THREE.SkinnedMesh,
@@ -72,16 +104,17 @@ export function buildFootPlant(
 ): FootPlantSolver | null {
   const foot = buildBoneByPoseKey(skinnedMesh.skeleton, variantCfg).get(footKey);
   if (!foot) return null;
-  const ctx = buildIKChainContext(skinnedMesh, foot, LEG_CHAIN_PARENTS, variantCfg);
+  const { parents, hingeKey } = contactChainFor(footKey);
+  const ctx = buildIKChainContext(skinnedMesh, foot, parents, variantCfg);
   if (!ctx) return null;
-  return { ctx, footKey, kneeKey: kneeKeyForFoot(footKey) };
+  return { ctx, footKey, kneeKey: hingeKey };
 }
 
 /**
- * Solve the leg so its foot returns to `targetWorldPos` — the knee constrained
- * to a hinge and every joint ROM-clamped (best-effort when unreachable). Mutates
- * the leg's local quaternions and refreshes their world matrices. Call AFTER the
- * frame's FK pose + root transform are applied.
+ * Solve the limb so its effector returns to `targetWorldPos` — the knee (elbow)
+ * constrained to a hinge and every joint ROM-clamped (best-effort when
+ * unreachable). Mutates the chain's local quaternions and refreshes their world
+ * matrices. Call AFTER the frame's FK pose + root transform are applied.
  *
  * `rest` frames the ROM clamps: the hip/knee clamp strategies decompose bone
  * WORLD quaternions against it, so for a body walking a ROTATED heading the
@@ -162,9 +195,6 @@ export function solveFootPlantWeighted(
 // the pelvis travels — so the same CCD IK, on the arm chain hand → elbow → shoulder,
 // the elbow kept a hinge and every joint ROM-clamped. The hand is already declared
 // an ik-effector (chainParentCount 2), so this is a direct mirror of the foot plant.
-
-/** Parents of the hand up to the shoulder: Hand → Forearm(elbow) → UpperArm. */
-const ARM_CHAIN_PARENTS = 2;
 
 /** The elbow key for a hand key ('L_Hand' → 'L_Forearm'). */
 export function elbowKeyForHand(handKey: string): string {

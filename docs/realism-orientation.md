@@ -79,7 +79,7 @@ does not consult.
 
 **Where the sweep and the docs disagree with the code, this brief sides with the code.** Other
 stale items found and corrected below: `GAIT_STEP_OFF_MS` is 285 not 400
-(`movementLocomotion.ts:95`); foot plants run 8 CCD passes not 4 (`footContact.ts:57`); wrist drag
+(`movementLocomotion.ts:95`); foot plants run 8 CCD passes not 4 (`footContact.ts:74`); wrist drag
 is velocity-driven not angle-driven (`gaitModifiers.ts:283`); `MIN_KEYFRAME_MS` is no longer a flat
 150 (`motionSequence.ts:584`). And `docs/animation-realism-audit.md`'s line citations into
 `movementTemplates.ts` (up to line 2150) are all dead — that file is now 168 lines after the
@@ -339,10 +339,10 @@ byte-identity gates; **medium** = moves one subsystem plus its gates; **low** = 
 | `SEAT_HEIGHT_M` | `rootMotion.ts:185` | 0.59 | Hips pin height when sitting | Up → perching on a bar stool, feet lift. Down → pelvis sinks through the seat | high |
 | `GROUNDING_BLEND_MS` | `rootMotion.ts:493` | 200 ms | Crossfade at a grounding-pin swap | Shorter → the measured 53 cm one-frame free-fall returns | high |
 | `HAND_REACH_RAMP_MS` | `rootMotion.ts:634` | 150 ms | Hand-reach IK engagement | 0 → the arm snaps to the floor on frame 1 | medium |
-| **`FOOT_PLANT_IK_ITERATIONS`** | `footContact.ts:57` | **8** (shared default is 4) | CCD passes per plant | Raised in `f3fdf82` because the faster cadence pushed in-window slide 2.9 → 4.5 cm. Now ~2.5–3.5 cm across the pace range | medium |
-| `LEG_CHAIN_PARENTS` | `footContact.ts:40` | 2 (Foot–Leg–UpLeg) | How many joints a plant may recruit | 3 would let the pelvis help — closer to real accommodation, at the cost of a wobbling trunk | high |
-| `PLANT_RELEASE_BLEND_MS` | `footContact.ts:120` | 100 ms | Plant correction ramp-out at toe-off | Without it the released foot snapped ~20 cm and ~17°/frame | high |
-| `HAND_LATCH_M` / `HAND_REACH_PASSES` / `HAND_RELATCH_M` | `footContact.ts:208, 213, 220` | 0.03 / 4 / 0.08 | Hand floor grab and self-heal | Too few passes → the hand punches through the floor at the bottom of a push-up | medium |
+| **`FOOT_PLANT_IK_ITERATIONS`** | `footContact.ts:74` | **8** (shared default is 4) | CCD passes per plant | Raised in `f3fdf82` because the faster cadence pushed in-window slide 2.9 → 4.5 cm. Now ~2.5–3.5 cm across the pace range | medium |
+| `LEG_CHAIN_PARENTS` / `TOE_CHAIN_PARENTS` | `footContact.ts:42, 54` | 2 (Foot–Leg–UpLeg) / 3 (Toes–Foot–Leg–UpLeg) | How many joints a plant may recruit; the knee is the hinge in both | Foot: 3 would let the pelvis help — closer to real accommodation, at the cost of a wobbling trunk. Toes: 2 stopped at the knee and hinged nothing — 4.6–5.0° of knee varus/valgus through every toe pivot | high |
+| `PLANT_RELEASE_BLEND_MS` | `footContact.ts:153` | 100 ms | Plant correction ramp-out at toe-off | Without it the released foot snapped ~20 cm and ~17°/frame | high |
+| `HAND_LATCH_M` / `HAND_REACH_PASSES` / `HAND_RELATCH_M` | `footContact.ts:238, 243, 250` | 0.03 / 4 / 0.08 | Hand floor grab and self-heal | Too few passes → the hand punches through the floor at the bottom of a push-up | medium |
 | `HEEL_STRIKE_SPAN_MS` | `rootMotion.ts:1560` | 110 ms | Footfall dip duration | Longer → a soft sag rather than an impact | medium |
 | `HEEL_STRIKE_MIN/MAX_DIP_M` | `rootMotion.ts:1562, 1564` | 0.005 / 0.01 | Accent amplitude band | Capped at 1 cm — a heavy and a gentle step look identical. Gap R9 | medium |
 | `HEEL_STRIKE_REF_DESCENT_M_S` | `rootMotion.ts:1569` | 0.25 m/s | Arrival rate at which the accent saturates | Lower → every footfall lands at max firmness | low |
@@ -568,7 +568,7 @@ forward-back oscillation over the stride, no trunk response to loading or push-o
 - **Toe/ankle floor penetration (~4 cm toe, ~6 cm ankle headroom).** The tolerances are real
   (`validityGate.ts:170-171`) and the toe-vs-ankle floor-reference mismatch argument is sound, but
   the measured penetration figures predate the retime.
-- **`_ikIterations = 4` as a global plant weakness.** Now **stale for plants**: `footContact.ts:57`
+- **`_ikIterations = 4` as a global plant weakness.** Now **stale for plants**: `footContact.ts:74`
   raises plant solves to 8. The shared default is still 4 for pose editing and exam-command IK
   (`poseRig.ts:~474`) — the split is deliberate and scoped.
 - **The squat hard-failing the ROM invariant.** The completeness critic reports that
@@ -673,7 +673,7 @@ walk phase durations (movementTemplates.data.ts:339…)
    │                  │        └─► stride, speed, walk ratio  ← R1
    │                  │
    │                  └─► plant residual ──► FOOT_PLANT_IK_ITERATIONS
-   │                           (footContact.ts:57 — raised 4→8 *because of* the retime)
+   │                           (footContact.ts:74 — raised 4→8 *because of* the retime)
    │
    └─► deriveVerticalCalibration (rootMotion.ts:718) ──► clamped by
             GAIT_VERTICAL_MAX_RISE_M (motionRecording.ts:352)  ← R2
