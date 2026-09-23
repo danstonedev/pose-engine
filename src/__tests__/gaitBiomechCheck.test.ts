@@ -37,6 +37,8 @@ let baselinePose: CustomPose;
 let rootRest0: THREE.Vector3;
 let rootQuat0: THREE.Quaternion;
 let floorY = 0;
+/** Each foot contact's world height with the rig standing (m). */
+let restY: Record<string, number> = {};
 
 beforeAll(async () => {
   const buf = readFileSync(fileURLToPath(GLB_URL));
@@ -58,7 +60,7 @@ beforeAll(async () => {
   baselinePose = serializeCustomPose(skinned.skeleton, variantCfg, 'male');
   rootRest0 = root.position.clone();
   rootQuat0 = root.quaternion.clone();
-  floorY = captureFloorReference(skinned.skeleton, variantCfg).floorY;
+  ({ floorY, restY } = captureFloorReference(skinned.skeleton, variantCfg));
 });
 
 function sample(m: ComposedMotion): { resolved: ResolvedComposedMotion; frames: GateFrame[] } {
@@ -244,6 +246,71 @@ describe('runGaitBiomechChecks — normative kinematics on a gait-shaped motion'
     expect(byId(cut.checks, 'vertical-com-phase')).toBeUndefined();
     expect(cut.skipped).toContain('vertical CoM phase — the frames do not cover the published gait cycle');
   });
+
+  /**
+   * When the lead foot really lands, read against the rig standing (its rest
+   * contact heights): the first frame at which its lower contact (ankle or
+   * forefoot) comes back within 5 mm of standing after rising 2 cm in swing,
+   * searched from the published cycle's start.
+   */
+  const recordedLandingMs = (resolved: ResolvedComposedMotion, frames: readonly GateFrame[]): number => {
+    const c = resolved.gaitCycleMs!;
+    const side = c.leadFoot.startsWith('R') ? 'R' : 'L';
+    const fromMs = c.fromMs / (resolved.modifiers?.timeScale ?? 1);
+    const lower = (f: GateFrame) =>
+      Math.min(
+        f.worldTracks![`${side}_Foot`]![1] - restY[`${side}_Foot`]!,
+        f.worldTracks![`${side}_Toes`]![1] - restY[`${side}_Toes`]!,
+      );
+    let swung = false;
+    for (const f of frames) {
+      if (f.tMs < fromMs - 100) continue;
+      if (lower(f) > 0.02) swung = true;
+      else if (swung && lower(f) <= 0.005) return f.tMs;
+    }
+    throw new Error('the lead foot never lands');
+  };
+
+  it.each([0.6, 0.7, 1.5])(
+    'phases the bob from the lead foot’s touchdown: the stock walk at %s speed passes, a bob peaking in double support warns',
+    (speed) => {
+      // The published cycle opens at the keyframe that poses initial contact, and
+      // the foot is still in the air there: the stock walk lands 11-13% of a
+      // cycle later at every pace. Phased from the published start, the slow
+      // walks read 0.45-0.49 and warned (their bob peaks 34-37% after the
+      // landing, at mid-stance), while a bob peaking 5% after the landing — in
+      // double support — passed at 0.18.
+      const { resolved, frames } = sample(buildTravelWalk({ speed }));
+      const recorded = byId(runGaitBiomechChecks(resolved, frames).checks, 'vertical-com-phase');
+      expect(recorded, `phase reported at ${speed}`).toBeDefined();
+      expect(recorded!.pass, recorded!.note).toBe(true);
+      // The same frames carrying a 2 cm bob of known phase, keyed to where the
+      // lead foot was recorded landing.
+      const c = resolved.gaitCycleMs!;
+      const cycleMs = (c.toMs - c.fromMs) / (resolved.modifiers?.timeScale ?? 1);
+      const landing = recordedLandingMs(resolved, frames);
+      const ys = frames.map((f) => f.worldTracks!.CoM![1]!);
+      const mean = ys.reduce((sum, y) => sum + y, 0) / ys.length;
+      const bobPeakingAt = (share: number) =>
+        byId(
+          runGaitBiomechChecks(
+            resolved,
+            frames.map((f): GateFrame => {
+              const [x, , z] = f.worldTracks!.CoM!;
+              const y = mean + 0.02 * Math.cos((4 * Math.PI * (f.tMs - landing - share * cycleMs)) / cycleMs);
+              return { ...f, worldTracks: { ...f.worldTracks!, CoM: [x, y, z] } };
+            }),
+          ).checks,
+          'vertical-com-phase',
+        )!;
+      const doubleSupport = bobPeakingAt(0.05);
+      expect(doubleSupport.pass, doubleSupport.note).toBe(false);
+      expect(doubleSupport.measured).toBeCloseTo(0.05, 1);
+      const midStance = bobPeakingAt(0.3);
+      expect(midStance.pass, midStance.note).toBe(true);
+      expect(midStance.measured).toBeCloseTo(0.3, 1);
+    },
+  );
 
   it('skips the walking normative curves for a motion that declares the run regime', () => {
     // Running kinematics genuinely differ from the bundled Winter/Perry WALKING
