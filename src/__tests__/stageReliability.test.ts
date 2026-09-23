@@ -152,20 +152,26 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     // arguments: the (possibly heading-rotated) composedPlantRest falling back
     // to restRef as the clamp frame, the ORIGINAL restRef naming the knee
     // hinge axis, the live heel-strike offset, a touchdown-planted gait's
-    // capture lift and the per-motion anchor map.
+    // capture lift, the per-motion anchor map and the trajectory the frame was
+    // posed from (every release reads its length off it).
     expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*captureLiftY: composedPlantsAtTouchdown \? composedVcalRaiseY : 0,\s*initialTargets: initialComposedPlantTargets,\s*\}\)/,
+      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*captureLiftY: composedPlantsAtTouchdown \? composedVcalRaiseY : 0,\s*initialTargets: initialComposedPlantTargets,\s*trajectory,\s*\}\)/,
     );
-    // …the sampler feeds it the same five things from its own state…
+    // …the sampler feeds it the same six things from its own state…
     expect(samplerSource).toMatch(
-      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*captureLiftY: plantsAtTouchdown \? vcalRaiseY : 0,\s*initialTargets: initialPlantTargets,\s*\}\)/,
+      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*captureLiftY: plantsAtTouchdown \? vcalRaiseY : 0,\s*initialTargets: initialPlantTargets,\s*trajectory,\s*\}\)/,
     );
     // …and neither keeps a private copy of the window/capture logic.
     expect(stageSource).not.toMatch(/fp\.target\.y -= /);
     expect(samplerSource).not.toMatch(/fp\.target\.y -= /);
-    // …and it is called from the live frame step AND the parked path.
-    expect(stageSource).toContain('applyFootPlants(elapsed)');
-    expect(stageSource).toContain('applyFootPlants(trajectory.totalMs)');
+    // …and it is called from the live frame step AND the parked path, each
+    // with the trajectory its time is a time of (the sampler's: the one it
+    // samples the frame from).
+    expect(stageSource).toContain('applyFootPlants(elapsed, at.traj)');
+    expect(stageSource).toContain('applyFootPlants(at.settleAtMs[at.nextSettle]!, at.traj)');
+    expect(stageSource).toContain('applyFootPlants(settleAtMs[i]!, trajectory)');
+    expect(stageSource).toContain('applyFootPlants(trajectory.totalMs, trajectory)');
+    expect(samplerSource).toMatch(/const sampleAt = \(tMs: number\): RecordedFrame => \{\s*const sample = trajectory\.sampleAt\(tMs\);/);
   });
 
   it('SEAM-2 — contacts are re-timed into trajectory ms by the shared stance-window factor', () => {
@@ -185,14 +191,17 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
   });
 
   it('SEAM-3 — a released plant lets go through the shared step', () => {
-    // A released plant must let go over PLANT_RELEASE_BLEND_MS (the eased
-    // plantReleaseWeight) instead of dropping the pin in one frame (the toe-off
-    // release pop). That release is part of stepContactPlants, so both paths
-    // get it by delegating every frame — and neither may carry its own ramp (a
-    // private copy is how the two drift).
+    // A released plant must let go over its release length (the eased
+    // plantReleaseWeight over plantReleaseLengthMs) instead of dropping the pin
+    // in one frame (the toe-off release pop). That release is part of
+    // stepContactPlants, so both paths get it by delegating every frame — and
+    // neither may carry its own ramp or read its own length (a private copy is
+    // how the two drift).
     expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,300}stepContactPlants\(/);
     for (const source of [stageSource, samplerSource]) {
-      expect(source).not.toMatch(/PLANT_RELEASE_BLEND_MS|plantReleaseWeight|solveFootPlantWeighted/);
+      expect(source).not.toMatch(
+        /PLANT_RELEASE_BLEND_MS|plantReleaseWeight|plantReleaseLengthMs|planPlantRelease|solveFootPlantWeighted/,
+      );
     }
   });
 

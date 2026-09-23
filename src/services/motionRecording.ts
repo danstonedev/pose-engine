@@ -1170,6 +1170,7 @@ export function sampleComposedMotion(
         heelStrikeY,
         captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,
         initialTargets: initialPlantTargets,
+        trajectory,
       });
     if (anyPlant || groundReachSolved) {
       // A foot plant OR a grounding-posture hand reach re-solved a limb — re-read

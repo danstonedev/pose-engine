@@ -25,6 +25,13 @@
  *    forefoot (7.2 / 10.1 / 4.8 mm at speed 1 / 0.85 / 1.2) and the faded
  *    correction skidded them forward with FK's swing (24.6 / 39.7 / 30.1 mm),
  *    both while they were still within 1 cm of the floor.
+ * 4. …AND AT DDX'S 30 Hz, WHERE FK HAS THEM WELL BEHIND AND ABOVE: the per-
+ *    joint blend with FK dragged the drawn toes off the lift-first target
+ *    toward FK's, 12.4 mm back along the floor on the first released frame
+ *    (DDx's walk: 3.3–11.3 mm).
+ * 5. A RELEASE THE ROUTE HAS LEFT FAR BEHIND STAYS BOUNDED: the braking step's
+ *    toes, 38 cm behind FK's when their hold ends, peaked at 152 mm/frame and
+ *    dipped 5.2 cm below the held point (107 and 4.4 before the eased release).
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -236,6 +243,72 @@ const firstFrameAfter = (rec: MotionRecording, ms: number) => rec.frames.findInd
 const firstFrameFrom = (rec: MotionRecording, ms: number) => rec.frames.findIndex((f) => f.tMs >= ms - 1e-6);
 const withoutContacts = (motion: () => ComposedMotion) => () => ({ ...motion(), contacts: [] });
 
+/** No release lasts longer (ms) — footContact's cap on plantReleaseLengthMs. */
+const RELEASE_MAX_MS = 800;
+
+/**
+ * The first frame after contact `c`'s window from which FK owns the released
+ * leg — its hip, knee and ankle flexion equal to the no-contact recording's —
+ * through to the leg's next contact. A release's length is read off FK's own
+ * motion (footContact.plantReleaseLengthMs), so where one ends is measured,
+ * not assumed. −1 when FK never takes the leg back.
+ */
+function releaseEndFrame(
+  rec: MotionRecording,
+  fk: MotionRecording,
+  contacts: Sampled['contacts'],
+  c: Sampled['contacts'][number],
+): number {
+  const side = c.foot.slice(0, 2);
+  const next = Math.min(
+    Infinity,
+    ...contacts.filter((o) => o.foot.startsWith(side) && o.fromMs > c.toMs).map((o) => o.fromMs),
+  );
+  const owned = (i: number) =>
+    LEG_FLEXION.every(
+      ([bone, m]) => Math.abs(angle(rec, i, `${side}${bone}`, m) - angle(fk, i, `${side}${bone}`, m)) < 1e-6,
+    );
+  const before = (i: number) => i < rec.frames.length && rec.frames[i]!.tMs < next - 1e-6;
+  for (let i = firstFrameAfter(rec, c.toMs); before(i); i += 1) {
+    if (!owned(i)) continue;
+    let j = i;
+    while (before(j) && owned(j)) j += 1;
+    if (!before(j)) return i;
+  }
+  return -1;
+}
+
+/**
+ * DDx's walk at its own 30 Hz, on the engine: the left toes held on the floor
+ * while the leg flexes up and back (hip 20°, knee 50°, ankle 30° dorsiflexed
+ * over 200 ms) and the body backs off 10 cm over the planted right foot, the
+ * toes let go 111 ms in. On the first released 30 Hz frame (133 ms, 22 ms into
+ * the release — DDx's first right-toe frame is 22 ms in too) FK has the toes
+ * 13 cm behind and 5 cm above the held point and still moving back — the
+ * geometry in which the per-joint blend dragged DDx's released toes 3.3–11.3 mm
+ * back along the floor (FK 7–12 cm behind, 2.5–7 cm up).
+ */
+function toeOffBehind(): ComposedMotion {
+  return {
+    name: 'toe off behind',
+    stance: 'planted',
+    startFrom: 'neutral',
+    keyframes: [
+      {
+        durationMs: 200,
+        holdMs: 1000,
+        root: { translateM: [0, 0, -0.1] },
+        targets: [
+          { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 20 },
+          { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 50 },
+          { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: 30 },
+        ],
+      },
+    ],
+    contacts: [{ foot: 'R_Foot' }, { foot: 'L_Toes', fromMs: 0, toMs: 111 }],
+  };
+}
+
 describe('the plant release is C1 where it leaves the hold and where it joins FK', () => {
   const T = footContact.PLANT_RELEASE_BLEND_MS;
 
@@ -289,11 +362,12 @@ describe('the plant release is C1 where it leaves the hold and where it joins FK
     for (let i = start; i < end; i += 1) expect(knee[i + 1]! - knee[i]!).toBeGreaterThanOrEqual(-1e-6);
   });
 
-  for (const [key, motion] of [
-    ['toe', () => toePivotWalk()],
-    ['toe0.85', () => toePivotWalk(0.85)],
-    ['toe1.2', () => toePivotWalk(1.2)],
-    ['walk', () => buildTravelWalk()],
+  for (const [key, motion, swings] of [
+    ['toe', () => toePivotWalk(), 2],
+    ['toe0.85', () => toePivotWalk(0.85), 2],
+    ['toe1.2', () => toePivotWalk(1.2), 2],
+    ['walk', () => buildTravelWalk(), 2],
+    ['toeOff', () => toeOffBehind(), 1],
   ] as const) {
     it(`${key}: the first released frame moves at the hold's joint speeds, the last at FK's, and FK owns the leg after`, () => {
       const { rec, contacts } = sample(motion, key, 120);
@@ -302,7 +376,7 @@ describe('the plant release is C1 where it leaves the hold and where it joins FK
       const fk = sample(withoutContacts(motion), `${key}-fk`, 120).rec;
       expect(fk.frames.length).toBe(rec.frames.length);
       const releases = swingReleases(contacts, rec.frames[rec.frames.length - 1]!.tMs);
-      expect(releases.length, `${key} releases into swing covered`).toBeGreaterThanOrEqual(2);
+      expect(releases.length, `${key} releases into swing covered`).toBeGreaterThanOrEqual(swings);
       for (const c of releases) {
         // …and with this contact held on past its window: what the leg does if
         // it is not let go.
@@ -320,7 +394,13 @@ describe('the plant release is C1 where it leaves the hold and where it joins FK
         ).rec;
         const side = c.foot.slice(0, 2);
         const i0 = firstFrameAfter(rec, c.toMs); // the first released frame
-        const ie = firstFrameFrom(rec, c.toMs + T); // the first frame FK owns again
+        const ie = releaseEndFrame(rec, fk, contacts, c); // the first frame FK owns again
+        // The release lasts at least the base span and at most the cap: its
+        // length is read off FK's motion (the braking step's toes take 243 ms).
+        expect(ie, `${key} ${c.foot}: FK takes the leg back`).toBeGreaterThan(i0);
+        const lasted = rec.frames[ie]!.tMs - c.toMs;
+        expect(lasted, `${key} ${c.foot}: release length`).toBeGreaterThanOrEqual(T - 1e-6);
+        expect(lasted, `${key} ${c.foot}: release length`).toBeLessThan(RELEASE_MAX_MS + 1000 / 120);
         for (const [bone, m] of LEG_FLEXION) {
           const a = (r: MotionRecording, i: number) => angle(r, i, `${side}${bone}`, m);
           const v = (r: MotionRecording, i: number) => a(r, i) - a(r, i - 1); // °/frame into frame i
@@ -337,14 +417,14 @@ describe('the plant release is C1 where it leaves the hold and where it joins FK
           const join = Math.abs(v(rec, ie) - v(fk, ie));
           // eslint-disable-next-line no-console
           console.log(
-            `${key} ${c.foot} release @${c.toMs.toFixed(0)} ms ${m}: first released frame ${v(rec, i0).toFixed(2)}°/frame (held on ${v(held, i0).toFixed(2)}, FK ${v(fk, i0).toFixed(2)}); joining FK ${join.toFixed(3)}°/frame off its speed`,
+            `${key} ${c.foot} release @${c.toMs.toFixed(0)} ms (${lasted.toFixed(0)} ms) ${m}: first released frame ${v(rec, i0).toFixed(2)}°/frame (held on ${v(held, i0).toFixed(2)}, FK ${v(fk, i0).toFixed(2)}); joining FK ${join.toFixed(3)}°/frame off its speed`,
           );
           expect(leave, `${key} ${c.foot} ${m}: speed off the hold's, leaving it`).toBeLessThan(0.5);
           expect(join, `${key} ${c.foot} ${m}: speed off FK's joining it`).toBeLessThan(0.05);
           expect(Math.abs(a(rec, ie) - a(fk, ie)), `${key} ${c.foot} ${m}: FK owns it after`).toBeLessThan(1e-6);
         }
       }
-    });
+    }, 60_000); // three 120 Hz rig recordings per motion
   }
 
   it('the forefoot hold owns the leg while the ankle contact lets go — whatever order they are declared in', () => {
@@ -406,7 +486,6 @@ describe('the released toes leave the floor from rest, without sliding either wa
   // dragged the toes back (7.2 / 10.1 / 4.8 mm at these paces) and the faded
   // correction skidded them forward (24.6 / 39.7 / 30.1 mm) before they had
   // lifted 1 cm.
-  const T = footContact.PLANT_RELEASE_BLEND_MS;
   for (const speed of [1, 0.85, 1.2] as const) {
     it(`speed ${speed}: the released toes start from rest, and move under 5 mm either way until they lift 1 cm`, () => {
       const motion = () => toePivotWalk(speed === 1 ? undefined : speed);
@@ -417,7 +496,8 @@ describe('the released toes leave the floor from rest, without sliding either wa
       for (const c of contacts) {
         if (!c.foot.endsWith('Toes')) continue;
         const i0 = firstFrameAfter(rec, c.toMs);
-        const ie = firstFrameFrom(rec, c.toMs + T);
+        const ie = releaseEndFrame(rec, fk, contacts, c);
+        expect(ie, `${c.foot}: FK takes the leg back`).toBeGreaterThan(i0);
         const held = rec.frames[i0 - 1]!.worldTracks![c.foot]!;
         const toes = (r: MotionRecording, i: number) => r.frames[i]!.worldTracks![c.foot]!;
         // Only the route can lift released toes off the floor. The left toe
@@ -459,4 +539,135 @@ describe('the released toes leave the floor from rest, without sliding either wa
       expect(judged, 'the right toe release judged').toEqual(['R_Toes']);
     });
   }
+});
+
+describe('at DDx’s 30 Hz, toes the route has well behind and above stay on the release’s lift-first path', () => {
+  // The per-joint blend with FK drags the drawn toes off the release target
+  // toward FK's toes — and with FK's toes 13 cm behind and 5 cm up (toeOffBehind)
+  // that dragged them 12.4 mm back along the floor on the first released 30 Hz
+  // frame, while the target itself had moved under 1 mm (DDx's walk: 3.3–11.3
+  // mm). Near the floor the solve now takes the frame, handing back to the
+  // blend as the target lifts. (At 120 Hz the frames 4–10 mm up come in the
+  // hand-back, where the lift-first path itself has moved 1–4 mm with FK this
+  // far behind: 5.8 mm there, against 12.4 before; the toe walks' 120 Hz
+  // releases are held to 5 mm above.)
+  for (const hz of [30, 60]) {
+    it(`${hz} Hz: until they lift 1 cm the released toes stay within 2 mm of the held point (12.4 mm before)`, () => {
+      const { rec, contacts } = sample(toeOffBehind, 'toeOff', hz);
+      const fk = sample(withoutContacts(toeOffBehind), 'toeOff-fk', hz).rec;
+      expect(fk.frames.length).toBe(rec.frames.length);
+      const c = contacts.find((k) => k.foot === 'L_Toes')!;
+      const i0 = firstFrameAfter(rec, c.toMs);
+      const ie = releaseEndFrame(rec, fk, contacts, c);
+      expect(ie, 'FK takes the leg back').toBeGreaterThan(i0);
+      const held = rec.frames[i0 - 1]!.worldTracks!.L_Toes!;
+      const toes = (r: MotionRecording, i: number) => r.frames[i]!.worldTracks!.L_Toes!;
+      if (hz === 30) {
+        // THE PREMISE — DDx's geometry on the first released frame, 22 ms in:
+        // FK has the toes 10–14 cm behind (+Z is forward) and 5–9 cm above
+        // the held point, and is still carrying them back.
+        expect(rec.frames[i0]!.tMs - c.toMs).toBeGreaterThan(15);
+        expect(rec.frames[i0]!.tMs - c.toMs).toBeLessThan(30);
+        const behind = held[2]! - toes(fk, i0)[2]!;
+        const above = toes(fk, i0)[1]! - held[1]!;
+        // eslint-disable-next-line no-console
+        console.log(`toeOff @30 Hz: FK toes ${(behind * 100).toFixed(1)} cm behind, ${(above * 100).toFixed(1)} cm above the held point on the first released frame`);
+        expect(behind).toBeGreaterThan(0.1);
+        expect(behind).toBeLessThan(0.14);
+        expect(above).toBeGreaterThan(0.05);
+        expect(above).toBeLessThan(0.09);
+        expect(toes(fk, i0)[2]!, 'FK still carrying them back').toBeLessThan(toes(fk, i0 - 1)[2]!);
+      }
+      // ON THE PATH: while they are within 1 cm of the held height, the toes
+      // are where the lift-first target puts them — at the held point, give or
+      // take its horizontal share (the square of a release barely begun).
+      let onFloor = 0;
+      let slide = 0;
+      for (let i = i0; i < ie; i += 1) {
+        const p = toes(rec, i);
+        if (p[1]! - held[1]! >= 0.01) break;
+        onFloor += 1;
+        slide = Math.max(slide, Math.hypot(p[0]! - held[0]!, p[2]! - held[2]!));
+      }
+      // eslint-disable-next-line no-console
+      console.log(`toeOff @${hz} Hz: ${onFloor} released frames under 1 cm, slide ${(slide * 1000).toFixed(2)} mm; release ${(rec.frames[ie]!.tMs - c.toMs).toFixed(0)} ms`);
+      expect(onFloor, 'frames judged').toBeGreaterThan(0);
+      expect(slide, 'slide along the floor (m)').toBeLessThan(0.002);
+    }, 60_000);
+  }
+});
+
+describe('a toe release the route has left far behind (the braking step) stays bounded', () => {
+  // The left toe hold runs 46% into the builder's braking step, whose FK has
+  // swung the leg through with the knee at 30°: FK's toes are 38 cm ahead of
+  // the held point when it ends and 68 cm when the release does — a lag the
+  // route made, which a joint-space release has to cover. Measured at 60 Hz:
+  //                        base (5c1c9ac)   eased (2504a7e)   now    FK
+  //   toes, mm/frame           107.3            152.4         87.5   46.1
+  //   joint / its bound         1.37             1.53          1.23    —
+  //   dip below held, cm        4.42             5.19          4.52   2.45
+  // ("its bound": FK's own local peak or the hold's last speed, the larger.)
+  // NOT met, and not tuned away: the dip stays 2 cm below FK's — a blend of
+  // the held leg (toes back on the floor) with FK's (leg through, knee 30°)
+  // passes the vertical with less knee than FK — and the knee still turns
+  // 1.23× FK's peak. Holding the drawn toes on the target's path instead keeps
+  // them above FK's dip but turns the ankle 21–37°/frame. Bounded here so it
+  // cannot regress; the route's contact timing is what would remove it.
+  it('toes under 100 mm/frame and within 2× FK’s, every leg joint within 1.3× its bound, the dip under 5 cm', () => {
+    const motion = () => toePivotWalk();
+    const { rec, contacts } = sample(motion, 'toe', 60);
+    const fk = sample(withoutContacts(motion), 'toe-fk', 60).rec;
+    const c = contacts.find((k) => k.foot === 'L_Toes')!;
+    const i0 = firstFrameAfter(rec, c.toMs);
+    const ie = releaseEndFrame(rec, fk, contacts, c);
+    expect(ie, 'FK takes the leg back').toBeGreaterThan(i0);
+    const held = rec.frames[i0 - 1]!.worldTracks!.L_Toes!;
+    const toes = (r: MotionRecording, i: number) => r.frames[i]!.worldTracks!.L_Toes!;
+    const step = (r: MotionRecording, i: number) => {
+      const a = toes(r, i - 1);
+      const b = toes(r, i);
+      return Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!);
+    };
+    let peak = 0;
+    let peakFk = 0;
+    let low = Infinity;
+    let lowFk = Infinity;
+    for (let i = i0; i <= ie; i += 1) {
+      peak = Math.max(peak, step(rec, i));
+      peakFk = Math.max(peakFk, step(fk, i));
+      low = Math.min(low, toes(rec, i)[1]!);
+      lowFk = Math.min(lowFk, toes(fk, i)[1]!);
+    }
+    const qa = new THREE.Quaternion();
+    const qb = new THREE.Quaternion();
+    const turn = (r: MotionRecording, i: number, key: string) => {
+      const a = r.frames[i - 1]!.pose.bones[key]!;
+      const b = r.frames[i]!.pose.bones[key]!;
+      return (qa.set(a[0], a[1], a[2], a[3]).angleTo(qb.set(b[0], b[1], b[2], b[3])) * 180) / Math.PI;
+    };
+    const T = footContact.PLANT_RELEASE_BLEND_MS;
+    const lo = firstFrameFrom(fk, c.toMs - T);
+    const hiMs = rec.frames[ie]!.tMs + T;
+    let worst = 0;
+    for (const key of ['L_UpLeg', 'L_Leg', 'L_Foot']) {
+      let release = 0;
+      for (let i = i0; i <= ie; i += 1) release = Math.max(release, turn(rec, i, key));
+      let fkPeak = 0;
+      for (let i = lo; i < fk.frames.length && fk.frames[i]!.tMs <= hiMs + 1e-6; i += 1) fkPeak = Math.max(fkPeak, turn(fk, i, key));
+      const bound = Math.max(fkPeak, turn(rec, i0 - 1, key));
+      worst = Math.max(worst, release / bound);
+      // eslint-disable-next-line no-console
+      console.log(`braking-step ${key}: ${release.toFixed(2)}°/frame (FK ${fkPeak.toFixed(2)}, hold ${turn(rec, i0 - 1, key).toFixed(2)})`);
+    }
+    const dip = held[1]! - low;
+    const dipFk = held[1]! - lowFk;
+    // eslint-disable-next-line no-console
+    console.log(
+      `braking-step toes: ${(rec.frames[ie]!.tMs - c.toMs).toFixed(0)} ms, peak ${(peak * 1000).toFixed(1)} mm/frame (FK ${(peakFk * 1000).toFixed(1)}), joints ${worst.toFixed(2)}× their bound, dip ${(dip * 100).toFixed(2)} cm (FK ${(dipFk * 100).toFixed(2)})`,
+    );
+    expect(peak, 'toes, m/frame').toBeLessThan(0.1);
+    expect(peak / peakFk, 'toes against FK’s').toBeLessThan(2);
+    expect(worst, 'leg joints against FK’s local peak / the hold').toBeLessThan(1.3);
+    expect(dip, 'dip below the held point (m)').toBeLessThan(0.05);
+  }, 60_000);
 });

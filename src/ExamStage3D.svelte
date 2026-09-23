@@ -1999,8 +1999,9 @@
        *  burying the foot for the stance. The clamp frame is the plant's own
        *  PER-WINDOW rest (curved heading), else the heading-rotated
        *  composedPlantRest, else restRef; the ORIGINAL restRef always names the
-       *  knee hinge axis. */
-      function applyFootPlants(tMs: number): void {
+       *  knee hinge axis. `trajectory` is the one `tMs` is a time of — every
+       *  release reads its length off it, exactly as the sampler's does. */
+      function applyFootPlants(tMs: number, trajectory: PoseTrajectory): void {
         if (!composedPlants.length || !restRef || !modelRoot) return;
         const solved = stepContactPlants(composedPlants, tMs, {
           rest: composedPlantRest ?? restRef,
@@ -2008,6 +2009,7 @@
           heelStrikeY: composedHeelStrikeY,
           captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,
           initialTargets: initialComposedPlantTargets,
+          trajectory,
         });
         if (solved) modelRoot.updateMatrixWorld(true);
       }
@@ -2219,7 +2221,7 @@
           if (skinnedRef && variantCfgRef)
             applyPoseComplete(skinnedRef.skeleton, variantCfgRef, st.pose);
           applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, at.settleAtMs[at.nextSettle]!, st.groundingPosture);
-          applyFootPlants(at.settleAtMs[at.nextSettle]!);
+          applyFootPlants(at.settleAtMs[at.nextSettle]!, at.traj);
           at.onSettle(at.nextSettle);
           at.nextSettle += 1;
         }
@@ -2250,7 +2252,7 @@
         currentPose = s.pose;
         applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed, s.groundingPosture);
         // Closed-chain foot contact for this frame (pins declared stance feet).
-        applyFootPlants(elapsed);
+        applyFootPlants(elapsed, at.traj);
         requestRender();
         if (done && !at.finished) {
           at.finished = true;
@@ -2798,7 +2800,7 @@
               if (skinnedRef && variantCfgRef)
                 applyPoseComplete(skinnedRef.skeleton, variantCfgRef, st.pose);
               applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, settleAtMs[i]!, st.groundingPosture);
-              applyFootPlants(settleAtMs[i]!);
+              applyFootPlants(settleAtMs[i]!, trajectory);
               measureSettle(i);
             }
             const end = trajectory.sampleAt(trajectory.totalMs);
@@ -2806,7 +2808,7 @@
               applyPoseComplete(skinnedRef.skeleton, variantCfgRef, end.pose);
             currentPose = end.pose;
             applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs, end.groundingPosture);
-            applyFootPlants(trajectory.totalMs);
+            applyFootPlants(trajectory.totalMs, trajectory);
             resolve();
             return;
           }
