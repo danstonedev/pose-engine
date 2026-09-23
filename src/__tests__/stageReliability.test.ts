@@ -444,3 +444,29 @@ describe('SEAM-10 — the ready-reset tweens to the grounded standing Y (source 
     );
   });
 });
+
+describe('ROOT MOTION — the sampler and the stage hand the vertical the same inputs (source pins)', () => {
+  // The derivation is the SAME pure function in both (rootMotion.ts); what can
+  // drift is what each side hands it. gaitVerticalPhase.test.ts gates the
+  // behaviour; this pins the live wiring.
+  it('both measure the vertical smoothing against the same gait period', () => {
+    // The sampler: the shared helper on its authored→trajectory factor, none for a
+    // table that already spans one period.
+    expect(samplerSource).toMatch(
+      /vcalLoopForm \|\| useLoopCycle \? undefined : gaitPeriodMs\(resolved, authoredToTraj\)/,
+    );
+    expect(samplerSource).toMatch(
+      /vcalPeriodMs != null && vcalPeriodMs < vcalCycleMs \? vcalPeriodMs \/ vcalCycleMs : 1/,
+    );
+    expect(samplerSource).toContain('GAIT_VERTICAL_MAX_RISE_M : undefined, vcalPeriodFraction)');
+    // The stage: the same helper and factor, the same fraction, the same slot.
+    expect(derivationsSource).toContain(
+      'return gaitPeriodMs(resolvedMotion, authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs));',
+    );
+    expect(derivationsSource).toMatch(
+      /periodMs != null && periodMs < traj\.totalMs \? periodMs \/ traj\.totalMs : 1/,
+    );
+    expect(derivationsSource).toMatch(/plantsActive \? GAIT_VERTICAL_MAX_RISE_M : undefined,\s*periodFraction,/);
+    expect(stageSource).toContain('loopForm ? undefined : scaledGaitPeriodMs(trajectory, effectiveResolved),');
+  });
+});

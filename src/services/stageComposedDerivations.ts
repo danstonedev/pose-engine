@@ -27,6 +27,7 @@ import { applyCustomPose, buildBoneByPoseKey } from './poseRig';
 import {
   GAIT_VERTICAL_MAX_RISE_M,
   authoredToTrajectoryTimeScale,
+  gaitPeriodMs,
   scaleStanceWindowsMs,
 } from './motionRecording';
 import {
@@ -99,12 +100,15 @@ export interface ComposedDerivations {
   previewTrajectoryAt(traj: PoseTrajectory, tMs: number): ReturnType<PoseTrajectory['sampleAt']>;
   /** Measure the emergent grounded pelvis arc and fit it to `targetCm` of
    *  excursion. Identity (`NO_VERTICAL_CALIBRATION`, cycle 0) when uncalibrated,
-   *  unplanted, or the rig is unavailable. */
+   *  unplanted, or the rig is unavailable. `periodMs` is the gait period of a
+   *  ONE-SHOT clip ({@link scaledGaitPeriodMs}); omit it for a loop-form
+   *  trajectory, which already spans exactly one period. */
   verticalCalibration(
     traj: PoseTrajectory,
     targetCm: number | undefined,
     hasPlanted: boolean,
     plantsActive: boolean,
+    periodMs?: number,
   ): VerticalCalibrationResult;
   /** Derive the +Z travel that keeps the planted foot world-fixed, along the
    *  motion's heading. Null when disabled/unplanted/rig-unavailable. */
@@ -151,6 +155,22 @@ export function scaledStanceWindows(
     resolvedMotion.gaitStanceWindowsMs,
     authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs),
   );
+}
+
+/**
+ * The gait period of a ONE-SHOT motion in trajectory ms, by the SAME shared
+ * helper and time-base factor the offline sampler uses — what the calibrated
+ * vertical measures its smoothing window against. Undefined when the motion
+ * publishes no cycle window or stance schedule (the whole-span derivation).
+ */
+export function scaledGaitPeriodMs(
+  traj: PoseTrajectory,
+  resolvedMotion: AuthoredTiming & {
+    gaitCycleMs?: { fromMs: number; toMs: number };
+    gaitStanceWindowsMs?: StanceWindow[];
+  },
+): number | undefined {
+  return gaitPeriodMs(resolvedMotion, authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs));
 }
 
 /**
@@ -214,10 +234,16 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
     targetCm: number | undefined,
     hasPlanted: boolean,
     plantsActive: boolean,
+    periodMs?: number,
   ): VerticalCalibrationResult {
     if (targetCm == null || !hasPlanted || !rigReady()) {
       return { table: NO_VERTICAL_CALIBRATION, cycleMs: 0 };
     }
+    // A one-shot clip is sampled whole; its gait period sizes the smoothing
+    // where a clip-sized window would invert the bob (mirrors the sampler's
+    // vcalPeriodFraction exactly).
+    const periodFraction =
+      periodMs != null && periodMs < traj.totalMs ? periodMs / traj.totalMs : 1;
     const table = deriveVerticalCalibration(
       (u01) => {
         previewTrajectoryAt(traj, u01 * traj.totalMs);
@@ -233,6 +259,7 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
       // foot to over-reach, so no clamp.
       true,
       plantsActive ? GAIT_VERTICAL_MAX_RISE_M : undefined,
+      periodFraction,
     );
     return { table, cycleMs: traj.totalMs };
   }

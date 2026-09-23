@@ -153,6 +153,37 @@ export function scaleStanceWindowsMs<T extends { fromMs: number; toMs: number }>
   return windows.map((w) => ({ ...w, fromMs: w.fromMs * scale, toMs: w.toMs * scale }));
 }
 
+/**
+ * The GAIT PERIOD of a one-shot gait, in trajectory ms (authored ms × `scale`,
+ * the {@link authoredToTrajectoryTimeScale} factor) — what the calibrated
+ * vertical measures its smoothing window against when it samples a whole
+ * one-shot clip ({@link deriveVerticalCalibration}'s `periodFraction`). The
+ * builder-published cycle window when there is one (the stock builder's opens
+ * a keyframe into the cycle, so it reads ~0.9 of a period: near enough to size
+ * a ±1/12-period window); else twice the median planned stance window (each
+ * window is one step); undefined when the motion publishes neither, which
+ * keeps the whole-span derivation. Shared by the offline sampler and the live
+ * stage so the two tables cannot diverge.
+ */
+export function gaitPeriodMs(
+  motion: {
+    gaitCycleMs?: { fromMs: number; toMs: number };
+    gaitStanceWindowsMs?: readonly { fromMs: number; toMs: number }[];
+  },
+  scale: number,
+): number | undefined {
+  const c = motion.gaitCycleMs;
+  if (c && Number.isFinite(c.fromMs) && Number.isFinite(c.toMs) && c.toMs > c.fromMs) {
+    return (c.toMs - c.fromMs) * scale;
+  }
+  const steps = (motion.gaitStanceWindowsMs ?? [])
+    .map((w) => w.toMs - w.fromMs)
+    .filter((d) => Number.isFinite(d) && d > 0)
+    .sort((a, b) => a - b);
+  if (!steps.length) return undefined;
+  return 2 * steps[Math.floor(steps.length / 2)]! * scale;
+}
+
 // ── Recording types ──────────────────────────────────────────────────────────
 
 /** One sampled frame: the pose on the skeleton, the MEASURED clinical angles,
@@ -710,6 +741,14 @@ export function sampleComposedMotion(
       vcalPhaseOffsetMs = (built.durationsMs[0] ?? 0) / timeScale;
       vcalRampMs = Math.max(1, Math.min(VCAL_HANDOFF_BLEND_MS, vcalPhaseOffsetMs));
     }
+    // A ONE-SHOT clip (a travel walk) is sampled whole; its gait period lets the
+    // smoothing be sized per period wherever a clip-sized window would invert the
+    // bob (see deriveVerticalCalibration). A loop-form table, or a loopCycle
+    // recording, already spans exactly one period.
+    const vcalPeriodMs =
+      vcalLoopForm || useLoopCycle ? undefined : gaitPeriodMs(resolved, authoredToTraj);
+    const vcalPeriodFraction =
+      vcalPeriodMs != null && vcalPeriodMs < vcalCycleMs ? vcalPeriodMs / vcalCycleMs : 1;
     vcal = deriveVerticalCalibration((u01) => {
       const s = vcalTraj.sampleAt(u01 * vcalCycleMs);
       applyCustomPose(skinned.skeleton, variantCfg, s.pose);
@@ -727,7 +766,7 @@ export function sampleComposedMotion(
       // (the travelling walk), clamp how far the smoothed pelvis may rise above the pin
       // so a planted stance leg doesn't over-reach and slide the foot; the contact-free
       // in-place walk (treadmill) has no such foot to over-reach, so no clamp.
-    }, vcalTargetM, 48, true, footPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined);
+    }, vcalTargetM, 48, true, footPlants.length > 0 ? GAIT_VERTICAL_MAX_RISE_M : undefined, vcalPeriodFraction);
   }
 
   // FOOT-DRIVEN FORWARD TRAVEL (root motion from foot placement). A PRE-PASS poses

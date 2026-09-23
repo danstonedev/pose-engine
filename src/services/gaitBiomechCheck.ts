@@ -36,6 +36,16 @@ const IN_PLACE_TRAVEL_M = 0.3;
  *  wider than the 4–5 cm normal target — it catches a FLOATY (≈0) or ballooned
  *  arc, not a deliberate glide/bounce. */
 const VERTICAL_COM_WARN_CM: readonly [number, number] = [2, 9];
+/** Where a walk's centre-of-mass bob may peak, as a fraction of the gait cycle
+ *  (mod 0.5 — it peaks twice). Lowest in double support (~5% and ~55% of a
+ *  cycle opened by initial contact) and highest at mid-stance (~30%, ~80%)
+ *  [Perry; Winter], so its second harmonic peaks near 0.30; within a quarter of
+ *  that harmonic's period (0.125) the peaks sit nearer mid-stance than double
+ *  support, outside they sit nearer double support — the bob upside down. */
+const VERTICAL_COM_PEAK_PHASE: readonly [number, number] = [0.175, 0.425];
+/** A bob whose second harmonic is smaller than this (cm) is too flat to phase;
+ *  the excursion check above is the one that speaks for a floaty arc. */
+const VERTICAL_COM_PHASE_MIN_AMP_CM = 0.25;
 /** A joint whose trajectory sits within ±1 SD of the normative curve at fewer
  *  than this fraction of phase points warns (targets #1–#3). */
 const WITHIN_BAND_WARN_FRACTION = 0.5;
@@ -118,6 +128,58 @@ function verticalComExcursionCm(frames: readonly GateFrame[]): number | null {
   }
   if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
   return (max - min) * 100;
+}
+
+/**
+ * Where the centre of mass's twice-per-cycle bob peaks over the published gait
+ * cycle: the phase of the second harmonic of its height, as a fraction of the
+ * cycle in [0, 0.5) (it peaks there and half a cycle on), with that harmonic's
+ * amplitude (cm). The window is re-timed onto the frames' own clock — a paced
+ * trajectory plays the resolved keyframes faster or slower, and a window left on
+ * the resolved clock lands on the wrong part of the gait (the stock walk at 0.85
+ * speed: 137 ms early by the cycle's end). A string says why it cannot be read.
+ */
+function verticalComPhase(
+  resolved: ResolvedComposedMotion,
+  frames: readonly GateFrame[],
+): { phase: number; ampCm: number } | string {
+  const c = resolved.gaitCycleMs;
+  if (!c || !(c.toMs > c.fromMs)) return 'the motion publishes no gaitCycleMs window to phase against';
+  const resolvedMs = resolved.keyframes.reduce(
+    (sum, k) => sum + (k.durationMs ?? 0) + (k.holdMs ?? 0),
+    0,
+  );
+  const t0 = frames[0]!.tMs + readySettleHeadMs(frames);
+  const scale = (frames[frames.length - 1]!.tMs - t0) / resolvedMs;
+  if (!(scale > 0.5 && scale < 2)) return 'the frames do not span the resolved motion';
+  const fromMs = t0 + c.fromMs * scale;
+  const span = (c.toMs - c.fromMs) * scale;
+  const w = frames.filter(
+    (f) => f.tMs >= fromMs && f.tMs <= fromMs + span && f.worldTracks?.CoM != null,
+  );
+  if (w.length < 8) return 'too few centre-of-mass frames in the gait cycle';
+  // Resample uniformly over the cycle (phase 0 = its opening initial contact),
+  // then project onto the second harmonic.
+  const N = 64;
+  let j = 0;
+  const ys: number[] = [];
+  for (let k = 0; k < N; k += 1) {
+    const t = fromMs + (span * k) / N;
+    while (j < w.length - 2 && w[j + 1]!.tMs < t) j += 1;
+    const a = w[j]!;
+    const b = w[Math.min(w.length - 1, j + 1)]!;
+    const u = b.tMs > a.tMs ? Math.min(1, Math.max(0, (t - a.tMs) / (b.tMs - a.tMs))) : 0;
+    ys.push(a.worldTracks!.CoM![1]! * (1 - u) + b.worldTracks!.CoM![1]! * u);
+  }
+  const mean = ys.reduce((sum, y) => sum + y, 0) / N;
+  let cs = 0;
+  let sn = 0;
+  for (let k = 0; k < N; k += 1) {
+    cs += (ys[k]! - mean) * Math.cos((4 * Math.PI * k) / N);
+    sn += (ys[k]! - mean) * Math.sin((4 * Math.PI * k) / N);
+  }
+  const phase = (((Math.atan2(sn, cs) / (4 * Math.PI)) % 0.5) + 0.5) % 0.5;
+  return { phase, ampCm: ((2 * Math.hypot(cs, sn)) / N) * 100 };
 }
 
 /**
@@ -348,6 +410,37 @@ export function runGaitBiomechChecks(
       unit: 'cm',
       note: `CoM vertical excursion ${comCm.toFixed(1)} cm (normal ${VERTICAL_COM_CM[0]}–${VERTICAL_COM_CM[1]} cm; glide/bounce widen the accepted band to ${lo}–${hi})`,
     });
+  }
+
+  // ── Vertical CoM PHASE — the bob the right way up ────────────────────────────
+  // The excursion says how far the body bobs, not when: a two-cycle walk whose
+  // vertical smoothing outgrew its step bobbed highest 10% into the cycle, just
+  // after initial contact, and lowest in single stance.
+  if (declaredRegime === 'run') {
+    skipped.push(
+      'vertical CoM phase — a run is lowest at mid-stance and highest in flight, the reverse of a walk',
+    );
+  } else {
+    const ph = verticalComPhase(resolved, frames);
+    if (typeof ph === 'string') {
+      skipped.push(`vertical CoM phase — ${ph}`);
+    } else if (ph.ampCm < VERTICAL_COM_PHASE_MIN_AMP_CM) {
+      skipped.push(
+        `vertical CoM phase — the bob's twice-per-cycle component is ${ph.ampCm.toFixed(2)} cm, too flat to phase`,
+      );
+    } else {
+      const [lo, hi] = VERTICAL_COM_PEAK_PHASE;
+      const pct = (u: number): string => `${(u * 100).toFixed(0)}%`;
+      checks.push({
+        id: 'vertical-com-phase',
+        pass: ph.phase >= lo && ph.phase <= hi,
+        severity: 'warn',
+        measured: Number(ph.phase.toFixed(3)),
+        threshold: hi,
+        unit: 'cycle',
+        note: `CoM highest at ${pct(ph.phase)} and ${pct(ph.phase + 0.5)} of the gait cycle (a walk's peaks are at mid-stance, ~30% and ~80%, its lows in double support; accepted ${pct(lo)}–${pct(hi)})`,
+      });
+    }
   }
 
   // ── Joint-angle RMS vs normative ±1 SD (targets #1–#3) ───────────────────────

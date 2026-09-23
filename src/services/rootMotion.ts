@@ -806,6 +806,26 @@ export const VCAL_HANDOFF_BLEND_MS = 200;
  * as a phase table. The raw floor-pin drops abruptly into double support (a sharp
  * V-valley) and climbs out slowly — a sawtooth that reads as a "sudden drop"; the
  * smoothing rounds it into a symmetric glide while preserving the mean grounding.
+ *
+ * `periodFraction` is the gait PERIOD as a fraction of the sampled span. The
+ * default 1 is the design case: the span IS one cycle (a loop), so `steps`
+ * samples and the ±steps/12 window are 1/48 and ±1/12 of the gait cycle. A
+ * one-shot travel walk samples its WHOLE clip instead, and a window sized as a
+ * fraction of that span grows with the clip: on a two-cycle 0.85-speed walk
+ * (3.96 s) it is a 743 ms boxcar against 520-620 ms steps. Once the window
+ * spans a step, the step frequency sits in the boxcar's NEGATIVE lobe and the
+ * bob comes out upside down — measured there, the centre of mass highest 10%
+ * into the cycle, just after initial contact, and lowest at 42%, in single
+ * stance — and so flat that at the first landing the rise limit (pin + 3.5 cm)
+ * cut through it: the body dropped 3.0 cm in one 33 ms frame and climbed back
+ * over the next two (−2.8 g, then +4.3 g). Past that point the clip is sampled
+ * and smoothed per period instead (steps/periodFraction samples, so the same
+ * ±steps/12 window is ±1/12 of a period), and the same walk peaks at 39% and
+ * bottoms at 62%, just after the other foot's initial contact, within ±0.8 g.
+ * Short of it (a single-cycle clip: the stock travel walk's window is 0.92 of
+ * its step) the window attenuates the bob without inverting it, and is left as
+ * it was: that walk's double-support and pelvis-excursion gates are measured
+ * on the arc it gives.
  */
 export function deriveVerticalCalibration(
   groundedRootYAtPhase: (u01: number) => number,
@@ -813,41 +833,48 @@ export function deriveVerticalCalibration(
   steps = 48,
   smooth = false,
   maxRiseM?: number,
+  periodFraction = 1,
 ): VerticalCalibration {
+  // The window spans (2·win+1)/steps of the sampled span; the pelvis bobs once
+  // per STEP, half a period. Once the window spans a step, sample and smooth
+  // per period instead (see above).
+  const win = Math.max(1, Math.round(steps / 12));
+  const perPeriod =
+    periodFraction > 0 && periodFraction < 1 && (2 * win + 1) / steps >= periodFraction / 2;
+  const n = perPeriod ? Math.ceil(steps / periodFraction) : steps;
   const raw: number[] = [];
   let sum = 0;
   let lo = Infinity;
   let hi = -Infinity;
-  for (let i = 0; i < steps; i += 1) {
-    const y = groundedRootYAtPhase(i / steps);
+  for (let i = 0; i < n; i += 1) {
+    const y = groundedRootYAtPhase(i / n);
     raw.push(y);
     sum += y;
     if (y < lo) lo = y;
     if (y > hi) hi = y;
   }
-  const meanY = sum / Math.max(1, steps);
+  const meanY = sum / Math.max(1, n);
   const p2p = hi - lo;
   // Clamp so a request can only calm the vault or amplify it within a believable
   // band — never invert or explode it; a degenerate flat arc stays identity.
   const gain = p2p > 1e-4 ? Math.max(0.1, Math.min(1.6, targetM / p2p)) : 1;
   if (!smooth || steps < 4) return { meanY, gain };
-  // Circular moving-average over ±~1/12 of the cycle (the arc is periodic, so wrap
-  // the window), then amplitude-scale the SMOOTHED arc about its mean to the target.
-  const win = Math.max(1, Math.round(steps / 12));
-  const sm: number[] = new Array(steps);
+  // Circular moving-average over ±win samples (the arc is periodic, so wrap the
+  // window), then amplitude-scale the SMOOTHED arc about its mean to the target.
+  const sm: number[] = new Array(n);
   let smSum = 0;
   let smLo = Infinity;
   let smHi = -Infinity;
-  for (let i = 0; i < steps; i += 1) {
+  for (let i = 0; i < n; i += 1) {
     let acc = 0;
-    for (let k = -win; k <= win; k += 1) acc += raw[(((i + k) % steps) + steps) % steps]!;
+    for (let k = -win; k <= win; k += 1) acc += raw[(((i + k) % n) + n) % n]!;
     const v = acc / (2 * win + 1);
     sm[i] = v;
     smSum += v;
     if (v < smLo) smLo = v;
     if (v > smHi) smHi = v;
   }
-  const smMean = smSum / steps;
+  const smMean = smSum / n;
   const smP2p = smHi - smLo;
   const smGain = smP2p > 1e-4 ? Math.max(0.1, Math.min(1.6, targetM / smP2p)) : 1;
   const smoothed = sm.map((v) => smMean + smGain * (v - smMean));

@@ -2,9 +2,10 @@
  * Biomech half of the Validity Gate (Workstream A integration).
  *
  * Verifies runGaitBiomechChecks folds the normativeGait ground truth (Froude,
- * vertical-CoM, joint-angle RMS vs ±1 SD) into the gate for a gait-shaped
- * motion, returns [] for non-gait, catches a hyper-flexed knee counterfactual,
- * and composes into assessValidity's report through the runBiomechChecks hook.
+ * vertical-CoM excursion and phase, joint-angle RMS vs ±1 SD) into the gate for
+ * a gait-shaped motion, returns [] for non-gait, catches a hyper-flexed knee and
+ * an upside-down bob counterfactual, and composes into assessValidity's report
+ * through the runBiomechChecks hook.
  *
  * Harness mirrors validityGate.test.ts: load GLB → resolve → sampleComposedMotion
  * → world-space + measured-angle frames.
@@ -178,6 +179,43 @@ describe('runGaitBiomechChecks — normative kinematics on a gait-shaped motion'
       const withHead = [...head, ...frames.map((f) => ({ ...f, tMs: f.tMs + headMs }))];
       expect(measured(withHead), `${headMs} ms head changed the verdict`).toEqual(baseline);
     }
+  });
+
+  it('phases the CoM bob against the gait cycle: the walk peaks at mid-stance, the same bob upside down warns', () => {
+    // The excursion says how far the body bobs, not when. A two-cycle walk whose
+    // vertical smoothing outgrew its step bobbed highest just after initial
+    // contact, where a walk is lowest — and nothing here could see it.
+    const { resolved, frames } = sample(buildTravelWalk());
+    const upright = runGaitBiomechChecks(resolved, frames).checks;
+    const phase = byId(upright, 'vertical-com-phase');
+    expect(phase, 'CoM phase reported').toBeDefined();
+    expect(phase!.pass, phase!.note).toBe(true);
+    // Flip the bob about its middle: the same excursion, highs where the lows were.
+    const ys = frames.map((f) => f.worldTracks!.CoM![1]!);
+    const mid = (Math.max(...ys) + Math.min(...ys)) / 2;
+    const flipped = frames.map((f): GateFrame => {
+      const [x, y, z] = f.worldTracks!.CoM!;
+      return { ...f, worldTracks: { ...f.worldTracks!, CoM: [x, 2 * mid - y, z] } };
+    });
+    const upside = runGaitBiomechChecks(resolved, flipped).checks;
+    expect(byId(upside, 'vertical-com')!.measured).toBeCloseTo(byId(upright, 'vertical-com')!.measured, 6);
+    expect(byId(upside, 'vertical-com')!.pass).toBe(true);
+    const flippedPhase = byId(upside, 'vertical-com-phase')!;
+    expect(flippedPhase.pass, flippedPhase.note).toBe(false);
+  });
+
+  it('phases the bob on the frames’ own clock, and does not phase a run against a walk', () => {
+    // A paced trajectory plays the resolved keyframes slower or faster; the same
+    // recording played 8.5% slower (the stock walk at 0.85 speed) must phase the same.
+    const { resolved, frames } = sample(buildTravelWalk());
+    const at = (fs: readonly GateFrame[]) =>
+      byId(runGaitBiomechChecks(resolved, fs).checks, 'vertical-com-phase')!.measured;
+    expect(at(frames.map((f) => ({ ...f, tMs: f.tMs * 1.085 })))).toBeCloseTo(at(frames), 2);
+    // A run is lowest at mid-stance and highest in flight — the reverse of a walk.
+    const run = sample(buildTravelRun());
+    const r = runGaitBiomechChecks(run.resolved, run.frames);
+    expect(byId(r.checks, 'vertical-com-phase')).toBeUndefined();
+    expect(r.skipped.some((s) => s.startsWith('vertical CoM phase'))).toBe(true);
   });
 
   it('skips the walking normative curves for a motion that declares the run regime', () => {

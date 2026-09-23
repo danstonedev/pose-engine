@@ -589,9 +589,8 @@
         await import('./services/footContact');
       // Rig-facing composed derivations (the four trajectory pre-passes). Dynamic
       // like every other three-using service, so this component stays SSR-safe.
-      const { createComposedDerivations, scaledStanceWindows, scaledHeadingAt } = await import(
-        './services/stageComposedDerivations'
-      );
+      const { createComposedDerivations, scaledStanceWindows, scaledHeadingAt, scaledGaitPeriodMs } =
+        await import('./services/stageComposedDerivations');
       const { balanceCoordination } = await import('./services/balanceCoordination');
       const { computeBodyCoMFromBones } = await import('./services/centerOfMass');
       const { resolveMotionCommand } = await import('./services/motionCommand');
@@ -1675,6 +1674,7 @@
         traj: PoseTrajectory,
         targetCm: number | undefined,
         hasPlanted: boolean,
+        periodMs?: number,
       ): void {
         composedVcalPhaseOffsetMs = 0;
         composedVcalRampMs = 0;
@@ -1684,6 +1684,7 @@
           targetCm,
           hasPlanted,
           composedPlants.length > 0,
+          periodMs,
         );
         composedVcal = table;
         composedVcalCycleMs = cycleMs;
@@ -2653,10 +2654,13 @@
         // object, so table and playback can never come from diverging builds.
         const composedHasPlanted = built.roots.some((r) => r.stance === 'planted');
         const loopForm = resolved.loop ? buildLoopTrajectory(built, { timeScale }) : null;
+        // A ONE-SHOT clip is calibrated whole, so it passes its gait period (the loop
+        // form already spans exactly one) — mirrors the sampler.
         setComposedVerticalCalibration(
           loopForm ? loopForm.trajectory : trajectory,
           resolved.verticalCalibrationCm,
           composedHasPlanted,
+          loopForm ? undefined : scaledGaitPeriodMs(trajectory, effectiveResolved),
         );
         // PHASE ALIGNMENT + ENTRY RAMP (DET-LOCK-02): during the one-shot first
         // pass the loop-derived table is indexed at (t − first keyframe arrival)
