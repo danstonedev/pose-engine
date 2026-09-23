@@ -207,9 +207,10 @@ FK pose from the trajectory
   → weighted descent     applyWeightedDescent :1031
   → heel-strike accent   heelStrikeOffsetAt :1045  (root.position.y += :1047)
   → foot-driven travel + lateral shuttle
-  → foot plant IK        stepContactPlants :1104 — footContact.ts:305, the one
+  → foot plant IK        stepContactPlants :1177 — footContact.ts:568, the one
                          step the live stage runs too: holds in window, the
-                         eased release after it (releaseContactPlant :258);
+                         eased release after it (releaseContactPlant :514),
+                         its length read off the trajectory (planPlantRelease);
                          plant target de-dipped by the accent there
   → MEASURE              computeJointAngles :1146
 ```
@@ -343,8 +344,10 @@ byte-identity gates; **medium** = moves one subsystem plus its gates; **low** = 
 | `HAND_REACH_RAMP_MS` | `rootMotion.ts:634` | 150 ms | Hand-reach IK engagement | 0 → the arm snaps to the floor on frame 1 | medium |
 | **`FOOT_PLANT_IK_ITERATIONS`** | `footContact.ts:75` | **8** (shared default is 4) | CCD passes per plant | Raised in `f3fdf82` because the faster cadence pushed in-window slide 2.9 → 4.5 cm. Now ~2.5–3.5 cm across the pace range | medium |
 | `LEG_CHAIN_PARENTS` / `TOE_CHAIN_PARENTS` | `footContact.ts:43, 55` | 2 (Foot–Leg–UpLeg) / 3 (Toes–Foot–Leg–UpLeg) | How many joints a plant may recruit; the knee is the hinge in both | Foot: 3 would let the pelvis help — closer to real accommodation, at the cost of a wobbling trunk. Toes: 2 stopped at the knee and hinged nothing — 4.6–5.0° of knee varus/valgus through every toe pivot | high |
-| `PLANT_RELEASE_BLEND_MS` | `footContact.ts:165` | 120 ms | Plant release at toe-off: the limb solved as held toward a target that lifts to FK's height, then reaches FK's position, blended out on a smoothstep (`plantReleaseWeight`) — C1 where it leaves the hold and where it joins FK | Without it the released foot snapped ~20 cm and ~17°/frame. 80 ms → the DDx walk's CoM drops at 1.05 g and its knee turns 469°/s; 100 → the run's knee 30.8°/frame against FK's 22.3; 150–200 → the released foot stays down into swing (DDx toe clearance 4.9–6.1 → 4.2–5.2 → 3.6–3.9 cm) | high |
-| `HAND_LATCH_M` / `HAND_REACH_PASSES` / `HAND_RELATCH_M` | `footContact.ts:387, 392, 399` | 0.03 / 4 / 0.08 | Hand floor grab and self-heal | Too few passes → the hand punches through the floor at the bottom of a push-up | medium |
+| `PLANT_RELEASE_BLEND_MS` | `footContact.ts:167` | 120 ms | The BASE plant release at toe-off: the limb solved as held toward a target that lifts to FK's height, then reaches FK's position, blended out on a smoothstep (`plantReleaseWeight`) — C1 where it leaves the hold and where it joins FK | Without it the released foot snapped ~20 cm and ~17°/frame. 80 ms → the DDx walk's CoM drops at 1.05 g and its knee turns 469°/s; 100 → the run's knee 30.8°/frame against FK's 22.3; 150–200 on every release → the released foot stays down into swing (DDx toe clearance 4.9–6.1 → 4.2–5.2 → 3.6–3.9 cm) | high |
+| Release length from FK (`planPlantRelease` / `plantReleaseLengthMs`) | `footContact.ts:223-261` | burst halved ≤ 90 ms → 2.7× its half-life; gap rule 1.98·G/v (G ≤ 15 cm) where FK moves the limb under ~1.2 m/s; ≤ 800 ms | How much longer than the base a release lasts, read off the trajectory | Without it the run's knee catches up at 25.4°/frame against FK's 22.3 (CoM bob 9.08 cm, validity warn) and the single-leg stance's foot crosses 9 cm in 120 ms (25 mm/frame). Walks are untouched — their swing is still speeding up past the window, so a longer release only catches up faster | high |
+| `PLANT_RELEASE_FLOOR_BAND_M` | `footContact.ts:460` | 0.01 m | Height the release target must reach before the drawn effector may leave its lift-first path (only where FK lifts the effector) | 0 → the per-joint blend drags the released toes back along the floor toward FK (DDx at 30 Hz: 3.3–11.3 mm on the first frame; now 0.2–4.0). Wider → a later, faster hand-back to the blend | medium |
+| `HAND_LATCH_M` / `HAND_REACH_PASSES` / `HAND_RELATCH_M` | `footContact.ts:673, 684, 691` | 0.03 / 4 / 0.08 | Hand floor grab and self-heal; the latch plants at the interpolated moment the pulled hand crossed the band (`HAND_APPROACH_MAX_GAP_MS` 100 ms back at most), so the sample rate does not move it | Too few passes → the hand punches through the floor at the bottom of a push-up. Latching on the frame instead moved hand-planted settles 3.8–10.4 mm / 0.6–2.0° between 30, 60 and 120 Hz | medium |
 | `HEEL_STRIKE_SPAN_MS` | `rootMotion.ts:1560` | 110 ms | Footfall dip duration | Longer → a soft sag rather than an impact | medium |
 | `HEEL_STRIKE_MIN/MAX_DIP_M` | `rootMotion.ts:1562, 1564` | 0.005 / 0.01 | Accent amplitude band | Capped at 1 cm — a heavy and a gentle step look identical. Gap R9 | medium |
 | `HEEL_STRIKE_REF_DESCENT_M_S` | `rootMotion.ts:1569` | 0.25 m/s | Arrival rate at which the accent saturates | Lower → every footfall lands at max firmness | low |
