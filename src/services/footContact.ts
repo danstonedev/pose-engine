@@ -651,6 +651,19 @@ export function solveHandPlant(
  *  planted (frozen) point. Reset `target` to null when the reach contact releases. */
 export interface HandReachState {
   target: THREE.Vector3 | null;
+  /** The last two evaluations that did not latch (latest last) — each one's
+   *  time, where the hand ended pulled toward the floor and how high above it —
+   *  from which the latch finds the moment of contact ({@link solveHandReach}).
+   *  Kept by the solve; reset with `target` when the contact releases. */
+  approach?: HandReachSample[] | null;
+}
+
+/** One evaluation of a descending reach: when, where the pulled hand ended, and
+ *  how high above the floor. */
+export interface HandReachSample {
+  tMs: number;
+  point: THREE.Vector3;
+  height: number;
 }
 
 /** How close (m) the hand must get to the floor plane before it LATCHES to a fixed
@@ -658,6 +671,12 @@ export interface HandReachState {
  *  hand; capturing only ON CONTACT avoids freezing a bad point mid-transition (when
  *  the grounding posture is already active but the body hasn't reached the plank). */
 const HAND_LATCH_M = 0.03;
+
+/** The latch interpolates the moment of contact only from an evaluation at most
+ *  this long (ms) before the one that reached the floor — any frame of a playing
+ *  motion; not a parked stage's settle-to-settle jumps, nor a stale approach from
+ *  before the contact last let go. */
+const HAND_APPROACH_MAX_GAP_MS = 100;
 
 /** CCD passes per frame for a planted hand — a stance hand must hold firm against a
  *  body that moves fast (the chest lowers ~0.3 m in a rep), so it needs more than the
@@ -674,6 +693,42 @@ const HAND_RELATCH_M = 0.08;
 const _reachLive = new THREE.Vector3();
 const _reachTarget = new THREE.Vector3();
 const _reachSolved = new THREE.Quaternion();
+const _reachPrePull: THREE.Quaternion[] = [];
+
+/**
+ * Where a descending hand crossed the latch band: the time the pulled hand's
+ * height reached {@link HAND_LATCH_M} between the last two `samples` (the last
+ * one inside the band), and its point then — a Lagrange polynomial in time
+ * through all the samples (a line through two, a quadratic through three).
+ * Null when no crossing lies between them.
+ */
+function crossingOf(samples: readonly HandReachSample[]): THREE.Vector3 | null {
+  const n = samples.length;
+  const lagrange = (t: number, value: (s: HandReachSample) => number): number => {
+    let sum = 0;
+    for (let i = 0; i < n; i += 1) {
+      let basis = 1;
+      for (let j = 0; j < n; j += 1) {
+        if (j !== i) basis *= (t - samples[j]!.tMs) / (samples[i]!.tMs - samples[j]!.tMs);
+      }
+      sum += basis * value(samples[i]!);
+    }
+    return sum;
+  };
+  const a = samples[n - 2]!;
+  const b = samples[n - 1]!;
+  // Bisect the height in time over [a, b]: above the band at a, inside it at b.
+  let lo = a.tMs;
+  let hi = b.tMs;
+  if (!(a.height > HAND_LATCH_M && b.height <= HAND_LATCH_M)) return null;
+  for (let k = 0; k < 40; k += 1) {
+    const mid = (lo + hi) / 2;
+    if (lagrange(mid, (s) => s.height) > HAND_LATCH_M) lo = mid;
+    else hi = mid;
+  }
+  const t = (lo + hi) / 2;
+  return new THREE.Vector3(lagrange(t, (s) => s.point.x), 0, lagrange(t, (s) => s.point.z));
+}
 
 /** The full (weight-1) reach solve — see {@link solveHandReach}. */
 function solveHandReachFull(
@@ -681,8 +736,10 @@ function solveHandReachFull(
   state: HandReachState,
   floorY: number,
   rest: JointAngleRestReference | null | undefined,
+  tMs: number | undefined,
 ): void {
-  const eff = solver.ctx.bones[0]!;
+  const bones = solver.ctx.bones;
+  const eff = bones[0]!;
   if (state.target) {
     // A few CCD passes so the pinned hand holds against the (fast-moving) body as
     // the chest lowers — one pass under-converges and lets the hand punch through
@@ -695,30 +752,71 @@ function solveHandReachFull(
     if (_reachLive.distanceTo(state.target) <= HAND_RELATCH_M) return;
     state.target = null;
   }
+  while (_reachPrePull.length < bones.length) _reachPrePull.push(new THREE.Quaternion());
+  for (let i = 0; i < bones.length; i += 1) _reachPrePull[i]!.copy(bones[i]!.quaternion);
   eff.getWorldPosition(_reachLive);
   _reachTarget.set(_reachLive.x, floorY, _reachLive.z);
   for (let i = 0; i < HAND_REACH_PASSES; i += 1) solveHandPlant(solver, _reachTarget, rest);
   eff.getWorldPosition(_reachLive); // where it ended (best-effort)
-  if (_reachLive.y <= floorY + HAND_LATCH_M) {
-    state.target = new THREE.Vector3(_reachLive.x, floorY, _reachLive.z);
+  const height = _reachLive.y - floorY;
+  // The descent so far: evaluations above the band, each within the gap of the next.
+  const approach: HandReachSample[] = [];
+  if (tMs !== undefined) {
+    const kept = (state.approach ?? []).filter((a) => a.height > HAND_LATCH_M && a.tMs < tMs);
+    let later = tMs;
+    for (let i = kept.length - 1; i >= 0 && later - kept[i]!.tMs <= HAND_APPROACH_MAX_GAP_MS; i -= 1) {
+      approach.unshift(kept[i]!);
+      later = kept[i]!.tMs;
+    }
   }
+  if (height > HAND_LATCH_M) {
+    state.approach =
+      tMs === undefined ? null : [...approach.slice(-1), { tMs, point: _reachLive.clone(), height }];
+    return;
+  }
+  // Latch where the hand REACHED the floor band, not where this frame finds it:
+  // between the last evaluation above the band and this one the pulled hand
+  // crossed it, and the point is interpolated at that crossing — through the
+  // last two evaluations and this one (a quadratic in time), or the last one (a
+  // line). Latching on the frame itself froze wherever the first frame inside
+  // the band happened to fall, so the planted hands — and every settled pose
+  // after — moved with the sample rate: the plank from quadruped settled
+  // 10.4 mm / 2.0° apart at 30 and 60 Hz.
+  state.target = new THREE.Vector3(_reachLive.x, floorY, _reachLive.z);
+  if (tMs !== undefined && approach.length) {
+    const here: HandReachSample = { tMs, point: _reachLive, height };
+    const at = crossingOf([...approach.slice(-2), here]);
+    if (at) state.target.set(at.x, floorY, at.z);
+  }
+  state.approach = null;
+  // …and hold it from this frame on, exactly as every later frame will: the
+  // arm as it was before the pull, solved toward the latched point.
+  for (let i = 0; i < bones.length; i += 1) bones[i]!.quaternion.copy(_reachPrePull[i]!);
+  bones[bones.length - 1]!.updateMatrixWorld(true);
+  for (let i = 0; i < HAND_REACH_PASSES; i += 1) solveHandPlant(solver, state.target, rest);
 }
 
 /**
  * FLOOR REACH with latch-on-contact — the hand analog of a stance plant for a
  * secondary (non-height-setting) contact. While the hand is still above the floor
  * (the body descending into a plank), it is pulled straight DOWN toward the floor
- * plane below its live position; the instant it reaches the floor it FREEZES that
- * point, so from then on it stays planted while the body lowers over it and the arm
- * folds — which is exactly the push-up. Mutates `state.target`; call each frame the
- * hand is a reach contact, and reset `state.target = null` when it releases.
+ * plane below its live position; once it reaches the floor it FREEZES the point
+ * where it did, so from then on it stays planted while the body lowers over it and
+ * the arm folds — which is exactly the push-up. Mutates `state`; call each frame the
+ * hand is a reach contact, and reset `state.target` and `state.approach` to null when
+ * it releases.
+ *
+ * `tMs` (the motion time of this evaluation) lets the latch find the MOMENT the hand
+ * reached the floor between this evaluation and the last one, so where it plants does
+ * not depend on which frames were evaluated; without it the latch takes the frame's own
+ * point (the legacy behaviour).
  *
  * `weight` (0..1, default 1) is the SEAM-4 engagement ramp: at 1 the solve is the
- * legacy full-correction path, byte-identical; below 1 the solved chain is blended
- * back toward the pre-solve FK arm (per-bone local slerp), so a newly-engaged
- * reach folds in over the caller's ramp instead of snapping the arm to the floor
- * on its first frame. Latch/self-heal decisions read the FULL solve (where the
- * hand CAN reach), so the latched point is weight-independent.
+ * full-correction path; below 1 the solved chain is blended back toward the
+ * pre-solve FK arm (per-bone local slerp), so a newly-engaged reach folds in over
+ * the caller's ramp instead of snapping the arm to the floor on its first frame.
+ * Latch/self-heal decisions read the FULL solve (where the hand CAN reach), so the
+ * latched point is weight-independent.
  */
 export function solveHandReach(
   solver: FootPlantSolver,
@@ -726,16 +824,17 @@ export function solveHandReach(
   floorY: number,
   rest: JointAngleRestReference | null | undefined,
   weight = 1,
+  tMs?: number,
 ): void {
   const w = Math.min(1, Math.max(0, weight));
   if (w >= 1) {
-    solveHandReachFull(solver, state, floorY, rest);
+    solveHandReachFull(solver, state, floorY, rest, tMs);
     return;
   }
   if (w <= 0) return; // not engaged yet — pure FK arm this frame
   const bones = solver.ctx.bones;
   const pre = bones.map((b) => b.quaternion.clone());
-  solveHandReachFull(solver, state, floorY, rest);
+  solveHandReachFull(solver, state, floorY, rest, tMs);
   for (let i = 0; i < bones.length; i += 1) {
     const b = bones[i]!;
     _reachSolved.copy(b.quaternion);

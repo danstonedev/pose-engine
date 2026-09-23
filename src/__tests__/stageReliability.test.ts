@@ -428,6 +428,20 @@ describe('SEAM-4/SEAM-5 — the live stage runs the grounding-switch crossfade i
     );
   });
 
+  it('the hand-reach latch reads the motion time on both paths, and both drop its approach on release (lockstep)', () => {
+    // The latch interpolates the moment the hand reached the floor between
+    // evaluations, from the time each was made — so where a hand plants no
+    // longer depends on which frames ran, provided both paths hand it the time.
+    expect(stageSource).toMatch(
+      /solveHandReach\(\s*hp\.solver,\s*hp,\s*floorRef\.floorY,\s*restRef,\s*handReachWeightAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\),\s*tMs,\s*\)/,
+    );
+    expect(samplerSource).toMatch(
+      /solveHandReach\(\s*hp\.solver,\s*hp,\s*floorRef\.floorY,\s*rest,\s*handReachWeightAt\(groundingSwitches, hp\.bone, tMs, floorRef\),\s*tMs,\s*\)/,
+    );
+    expect(stageSource).toMatch(/hp\.target = null;\s*hp\.approach = null;/);
+    expect(samplerSource).toMatch(/hp\.target = null;[^\n]*\n\s*hp\.approach = null;/);
+  });
+
   it('the weighted-descent pre-pass grounds through the SAME blend as playback (lockstep arc)', () => {
     expect(stageSource).toMatch(
       /function setComposedWeightedDescent[\s\S]{0,2500}groundingBlendAt\(composedGroundingBlendSpans, tMs\)/,

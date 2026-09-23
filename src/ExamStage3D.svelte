@@ -51,7 +51,7 @@
   import type { AnatomicalPlanes } from './services/anatomicalPlanes';
   import type { SectionCap } from './services/sectionCap';
   import type { IKChainContext } from './services/poseRig';
-  import type { ContactPlant } from './services/footContact';
+  import type { ContactPlant, HandReachState } from './services/footContact';
   import type { PoseTrajectory } from './services/motionTrajectory';
   // romRegistry is three-free (pure definitions) — static import stays SSR-safe.
   import { getRomJointDefinition, type RomPlane } from './services/romRegistry';
@@ -1617,10 +1617,9 @@
        *  as a 'reach' contact (plank/push-up), an arm IK chain that pins the hand to
        *  a FIXED floor point so it stays planted as the chest lowers (the arm folds).
        *  Mirror of {@link composedPlants} on the arm chain. Rebuilt per playback. */
-      interface StageHandPlant {
+      interface StageHandPlant extends HandReachState {
         solver: ReturnType<typeof buildFootPlant>;
         bone: string;
-        target: import('three').Vector3 | null;
       }
       let composedHandPlants: StageHandPlant[] = [];
 
@@ -2052,6 +2051,7 @@
           for (const hp of composedHandPlants) {
             if (!hp.solver || !reach.has(hp.bone)) {
               hp.target = null;
+              hp.approach = null;
               continue;
             }
             solveHandReach(
@@ -2060,6 +2060,7 @@
               floorRef.floorY,
               restRef,
               handReachWeightAt(composedGroundingSwitches, hp.bone, tMs, floorRef),
+              tMs,
             );
             solved = true;
           }
