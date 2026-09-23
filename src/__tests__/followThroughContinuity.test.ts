@@ -20,6 +20,14 @@
  * fly-through keyframe keeps one C¹ slope that shrinks where the bone's path
  * reverses (motionStagger.followThroughKnotSlope).
  *
+ * Those two alone left no NET lag between keyframes: straight on through one a
+ * bone kept the chain's speed, and a turn's slowdown made it reach the turn as
+ * early as it left it late, so the travel walk's distal arm bones crossed
+ * mid-swing −8 to +3.3 ms from a lockstep build. A stroke that flies through a
+ * keyframe at both ends now also trails inside it
+ * (motionStagger.followThroughStrokeLag), still C¹, exact at every knot and
+ * never backwards — gated here too.
+ *
  * Gated PURE (single-axis chains, signed angle, 0.1 ms finite differences) and
  * ON THE RIG (the travel walk every gait task is built on; a sit-down with the
  * arms folded, the DDx chair stand's shape). Exact knot arrival — the
@@ -269,6 +277,70 @@ describe('follow-through through fly-through keyframes — no stall, no velocity
   });
 });
 
+describe('follow-through LAG — a flowing stroke keeps the chain sequenced, not just its turns', () => {
+  // Time (ms) past the middle of [t0, t1] at which `key` reaches the angle the
+  // undelayed origin has there — bisection on a stroke both sweep monotonically.
+  function midStrokeLagMs(traj: PoseTrajectory, key: string, t0: number, t1: number): number {
+    const at = (k: string, t: number) => xDeg(traj.sampleAt(t).pose.bones[k] as Q);
+    const tm = (t0 + t1) / 2;
+    const target = at(ORIGIN, tm);
+    const dir = Math.sign(at(ORIGIN, t1) - at(ORIGIN, t0));
+    let lo = t0;
+    let hi = t1;
+    for (let i = 0; i < 60; i += 1) {
+      const m = (lo + hi) / 2;
+      if ((at(key, m) - target) * dir < 0) lo = m;
+      else hi = m;
+    }
+    return (lo + hi) / 2 - tm;
+  }
+
+  it('an 8-keyframe swing loop: every delayed arm bone crosses the middle of every stroke late, deeper bones later', () => {
+    // The stage's looping form of a gait-like swing (130 ms strokes; turns at
+    // ±30°, straight on through ±20° and 0°). On the knot slopes alone the
+    // fingers crossed the straight-on strokes in lockstep and the strokes into
+    // a turn 6.4 ms EARLY (2504a7e): no net lag over the cycle. The per-segment
+    // dwell of 5c1c9ac trailed 11.7 ms everywhere, by stopping at every knot.
+    const degs = [20, 30, 20, 0, -20, -30, -20, 0];
+    const T = 130;
+    const { trajectory } = buildLoopTrajectory(built(degs, degs.map(() => T)), { timeScale: 1 });
+    const fingerLags: number[] = [];
+    for (let i = 0; i < degs.length; i += 1) {
+      const [t0, t1] = [i * T, (i + 1) * T];
+      let prevLag = 0;
+      for (const key of ARM) {
+        const lag = midStrokeLagMs(trajectory, key, t0, t1);
+        expect(lag, `${key}, stroke ${degs[i]}° → ${degs[(i + 1) % degs.length]}°`).toBeGreaterThan(prevLag + 0.1);
+        prevLag = lag;
+      }
+      fingerLags.push(prevLag);
+    }
+    // The budget is the onset dwell's own mid-stroke trail, d/2 of the stroke
+    // (11.7 ms here), cut where it would run the bone faster than 1/(1 − d) ×
+    // the chain (measured 4.3–9.4 ms, 7.9 on average); gate half the budget.
+    const mean = fingerLags.reduce((a, b) => a + b, 0) / fingerLags.length;
+    const budget = (trajectoryBoneDelay('L_Index1') / 2) * T;
+    expect(mean, `fingers' mean mid-stroke lag, ms (budget ${budget.toFixed(1)})`).toBeGreaterThan(budget / 2);
+    expect(Math.max(...fingerLags), 'never more than the budget').toBeLessThanOrEqual(budget + 1e-6);
+  });
+
+  it('…and the trail never runs a bone backwards or stops it: each stroke is swept monotonically', () => {
+    const degs = [20, 30, 20, 0, -20, -30, -20, 0];
+    const { trajectory } = buildLoopTrajectory(built(degs, degs.map(() => 130)), { timeScale: 1 });
+    for (let i = 0; i < degs.length; i += 1) {
+      const dir = Math.sign(degs[(i + 1) % degs.length]! - degs[i]!);
+      for (const key of ARM) {
+        let prev = xDeg(trajectory.sampleAt(i * 130).pose.bones[key] as Q);
+        for (let t = i * 130 + 0.5; t <= (i + 1) * 130 - 0.5; t += 0.5) {
+          const cur = xDeg(trajectory.sampleAt(t).pose.bones[key] as Q);
+          expect((cur - prev) * dir, `${key} at ${t} ms`).toBeGreaterThan(0);
+          prev = cur;
+        }
+      }
+    }
+  });
+});
+
 describe('follow-through keeps exact arrival — every knot, every bone (the measurement contract)', () => {
   it('holds, fly-throughs, a braked functional stop and its overshoot knot all land exactly', () => {
     const motion = built([60, 20, -30, 90], [450, 300, 350, 400], {
@@ -301,6 +373,10 @@ describe('follow-through keeps exact arrival — every knot, every bone (the mea
       ['sub-floor final keyframe (1e-7 ms)', built([60, 20], [500, 1e-7]), 20],
       ['zero-length interior keyframe', built([60, 20, -30], [400, 0, 400]), -30],
       ['zero-length first keyframe', built([60, 20], [0, 500]), 20],
+      // Interior segments SHORTER than the 1e-6 ms floor: σ stops short of 1 in
+      // them, so the arms' own copy of the warp left the fingers 6.5° off the
+      // Hips at the second keyframe's settle (2504a7e; 15.5° on 5c1c9ac).
+      ['sub-floor interior keyframes (5e-7 ms)', built([60, -30, 50, 0], [400, 5e-7, 5e-7, 400]), 0],
     ];
     for (const [label, motion, last] of cases) {
       const { trajectory, settleAtMs } = buildComposedTrajectory(motion, FROM_REST);
@@ -407,6 +483,109 @@ describe('follow-through on the rig', () => {
       }
     }
     expect(judged, 'arm bones moving through gait keyframes').toBeGreaterThanOrEqual(20);
+  });
+
+  it('the travel walk: distal arm bones cross mid-swing at least 8 ms after a lockstep build', () => {
+    // The same authored series under a key the stagger does not know (delay 0)
+    // is the lockstep build, sampled from the very same trajectory.
+    const TWIN = 'lockstep:';
+    const DISTAL = ['L_Forearm', 'L_Hand', 'L_Index1', 'R_Forearm', 'R_Hand', 'R_Index1'];
+    expect(trajectoryBoneDelay(`${TWIN}L_Hand`)).toBe(0);
+    const motion = buildTravelWalk();
+    const resolved = resolveComposedMotion(motion, variantCfg);
+    const seq = buildSequencePoses(baselinePose, resolved, variantCfg, rest, { currentPose: null, currentRoot: null });
+    const twin = (p: CustomPose): CustomPose => ({
+      ...p,
+      bones: { ...p.bones, ...Object.fromEntries(DISTAL.map((k) => [`${TWIN}${k}`, p.bones[k]!])) },
+    });
+    const { trajectory: traj, settleAtMs } = buildComposedTrajectory(
+      { ...seq, poses: seq.poses.map(twin) },
+      {
+        startPose: twin(baselinePose),
+        startQuat: [...IDENT],
+        startTranslate: [0, 0, 0],
+        timeScale: resolved.modifiers?.timeScale ?? 1,
+        reps: resolved.reps,
+        cyclicEnds: resolved.footDrivenTravel === true && resolved.settleEnds !== true,
+        flowIn: resolved.flowIn === true,
+      },
+    );
+    // Knot 0 is the start and the last knot the settle (both stops); a stroke
+    // FLOWS when it flies through a keyframe at both ends.
+    const knots = [0, ...settleAtMs];
+    const logRel = (ref: Q, q: Q): number[] => {
+      const r: Q = [-ref[0], -ref[1], -ref[2], ref[3]];
+      let [x, y, z, w] = [
+        r[3] * q[0] + r[0] * q[3] + r[1] * q[2] - r[2] * q[1],
+        r[3] * q[1] - r[0] * q[2] + r[1] * q[3] + r[2] * q[0],
+        r[3] * q[2] + r[0] * q[1] - r[1] * q[0] + r[2] * q[3],
+        r[3] * q[3] - r[0] * q[0] - r[1] * q[1] - r[2] * q[2],
+      ];
+      if (w < 0) [x, y, z, w] = [-x, -y, -z, -w];
+      const s = Math.hypot(x, y, z);
+      const k = s > 1e-12 ? (2 * Math.atan2(s, w)) / s : 2;
+      return [x * k, y * k, z * k];
+    };
+    const ts: number[] = [];
+    const frames: Record<string, Q>[] = [];
+    for (let t = 0; t <= traj.totalMs; t += 1) {
+      ts.push(t);
+      frames.push(traj.sampleAt(t).pose.bones as Record<string, Q>);
+    }
+    const lags: number[] = [];
+    for (const key of DISTAL) {
+      // The bone's swing on the principal axis of its lockstep path (1 ms grid).
+      const ref = frames[0]![`${TWIN}${key}`]!;
+      const lock = frames.map((b) => logRel(ref, b[`${TWIN}${key}`]!));
+      const own = frames.map((b) => logRel(ref, b[key]!));
+      const mean = [0, 1, 2].map((i) => lock.reduce((s, v) => s + v[i]!, 0) / lock.length);
+      const cov = [0, 1, 2].map((i) => [0, 1, 2].map((j) => lock.reduce((s, v) => s + (v[i]! - mean[i]!) * (v[j]! - mean[j]!), 0)));
+      let axis = [1, 0.3, 0.2];
+      for (let it = 0; it < 200; it += 1) {
+        const next = [0, 1, 2].map((i) => cov[i]![0]! * axis[0]! + cov[i]![1]! * axis[1]! + cov[i]![2]! * axis[2]!);
+        const n = Math.hypot(next[0]!, next[1]!, next[2]!);
+        axis = next.map((x) => x / n);
+      }
+      const onAxis = (v: number[]) => v[0]! * axis[0]! + v[1]! * axis[1]! + v[2]! * axis[2]!;
+      const sLock = lock.map(onAxis);
+      const sOwn = own.map(onAxis);
+      const mid = (Math.max(...sLock) + Math.min(...sLock)) / 2;
+      const crossings = (s: number[]): [number, number][] => {
+        const out: [number, number][] = [];
+        for (let i = 1; i < s.length; i += 1) {
+          if ((s[i - 1]! - mid) * (s[i]! - mid) >= 0) continue;
+          out.push([ts[i - 1]! + (mid - s[i - 1]!) / (s[i]! - s[i - 1]!), Math.sign(s[i]! - s[i - 1]!)]);
+        }
+        return out;
+      };
+      const ownCross = crossings(sOwn);
+      for (const [t, dir] of crossings(sLock)) {
+        const k = knots.findIndex((kt, i) => i < knots.length - 1 && t >= kt && t < knots[i + 1]!);
+        if (k <= 0 || k + 1 >= knots.length - 1) continue; // leaves or reaches a stop
+        const s = (t - knots[k]!) / (knots[k + 1]! - knots[k]!);
+        // ON a keyframe every bone is exactly its knot pose (the measurement
+        // contract), so a crossing there has no lag to show; judge the ones at
+        // least a fifth of the stroke inside it.
+        if (s < 0.2 || s > 0.8) continue;
+        const match = ownCross.filter(([t2, d2]) => d2 === dir && Math.abs(t2 - t) < 60);
+        expect(match.length, `${key} crosses mid-swing near ${t.toFixed(0)} ms`).toBeGreaterThan(0);
+        const lag = match.map(([t2]) => t2 - t).reduce((a, b) => (Math.abs(b) < Math.abs(a) ? b : a));
+        // Every one of them late — round 2's warp read −8.0 to +7.3 ms here.
+        expect(lag, `${key} at ${t.toFixed(0)} ms (stroke ${k}, s = ${s.toFixed(2)})`).toBeGreaterThan(1);
+        lags.push(lag);
+      }
+    }
+    // 8 ms: one 120 Hz frame (8.3 ms), the rate the engine's rig gates sample
+    // motion at (the fast-wave gate asks the same), and under the design's own
+    // budget, d/2 of a stroke at mid-stroke — 7.7–11.4 ms for the forearm,
+    // 10.3–15.2 ms for the fingers over the walk's 114–169 ms strokes. Measured
+    // 10.9 ms over 12 crossings (4.3–22.8); a lockstep build reads 0, round 2's
+    // warp −1.5 on average, 5c1c9ac's per-segment dwell 16.1.
+    expect(lags.length, 'mid-swing crossings judged').toBeGreaterThanOrEqual(8);
+    const mean = lags.reduce((a, b) => a + b, 0) / lags.length;
+    // eslint-disable-next-line no-console
+    console.log(`travel walk: distal arm bones cross mid-swing ${mean.toFixed(1)} ms after lockstep (${lags.length} crossings, ${Math.min(...lags).toFixed(1)}–${Math.max(...lags).toFixed(1)} ms)`);
+    expect(mean, 'mean mid-swing lag behind the lockstep build, ms').toBeGreaterThanOrEqual(8);
   });
 
   it('arms folded over a sit-down from rest: the elbow leaves rest with zero velocity', () => {

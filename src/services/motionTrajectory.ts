@@ -44,7 +44,12 @@
 import * as THREE from 'three';
 import type { CustomPose } from '../types';
 import { POSE_SCHEMA_VERSION } from '../types';
-import { delayedOnset, followThroughKnotSlope, trajectoryBoneDelay } from './motionStagger';
+import {
+  delayedOnset,
+  followThroughKnotSlope,
+  followThroughStrokeLag,
+  trajectoryBoneDelay,
+} from './motionStagger';
 import { clampTimeScale } from './motionConstants';
 
 /** One waypoint of the motion: an absolute pose + root state at an absolute time. */
@@ -229,13 +234,16 @@ const SETTLE_BRAKE_LATENESS: Readonly<Record<string, number>> = {
   ballistic: 1.5,
 };
 
+/** Shortest segment the time-warp times (ms); shorter ones are floored to it. */
+const SPAN_FLOOR_MS = 1e-6;
+
 /** The shared time-warp plus the pieces a per-bone copy of it needs. */
 interface TimeWarp {
   /** u(t): absolute time → knot index; monotone, C¹, u(t_k) == k exactly. */
   at: (t: number) => number;
   /** du/dt at each knot (knot-index units per ms) — 0 at every stop. */
   slopes: number[];
-  /** Segment durations, ms (segment i runs knot i → i+1), floored at 1e-6. */
+  /** Segment durations, ms (segment i runs knot i → i+1), floored at SPAN_FLOOR_MS. */
   spans: number[];
 }
 
@@ -246,6 +254,71 @@ function hermite01(s: number, mu0: number, mu1: number): number {
   const s2 = s * s;
   const s3 = s2 * s;
   return (s3 - 2 * s2 + s) * mu0 + (-2 * s3 + 3 * s2) + (s3 - s2) * mu1;
+}
+
+/** Least and greatest rate d/ds over s ∈ [0,1] of hermite01(s, μ0, μ1) − c·s²(1 − s)²
+ *  — a cubic, so its extremes are its ends (μ0, μ1: the lag term leaves both
+ *  slopes alone) and its interior stationary points. */
+function lagRateRange(mu0: number, mu1: number, c: number): [number, number] {
+  const a3 = -4 * c;
+  const a2 = 3 * mu0 + 3 * mu1 - 6 + 6 * c;
+  const a1 = 6 - 4 * mu0 - 2 * mu1 - 2 * c;
+  const rate = (s: number) => ((a3 * s + a2) * s + a1) * s + mu0;
+  let lo = Math.min(mu0, mu1);
+  let hi = Math.max(mu0, mu1);
+  // Stationary points: 3·a3·s² + 2·a2·s + a1 = 0.
+  const qa = 3 * a3;
+  const qb = 2 * a2;
+  const roots: number[] = [];
+  if (Math.abs(qa) < 1e-12) {
+    if (Math.abs(qb) > 1e-12) roots.push(-a1 / qb);
+  } else {
+    const disc = qb * qb - 4 * qa * a1;
+    if (disc >= 0) {
+      const sq = Math.sqrt(disc);
+      roots.push((-qb + sq) / (2 * qa), (-qb - sq) / (2 * qa));
+    }
+  }
+  for (const s of roots) {
+    if (s <= 0 || s >= 1) continue;
+    const r = rate(s);
+    if (r < lo) lo = r;
+    if (r > hi) hi = r;
+  }
+  return [lo, hi];
+}
+
+/** The lag coefficient c for one delayed bone through one flowing stroke
+ *  (motionStagger.followThroughStrokeLag): its own Hermite runs with slopes
+ *  μ0, μ1; the shared one's fastest rate is `sharedPeak`. c/16 is the progress
+ *  it gives up at mid-stroke, so c = 16 · midLag · rate(½) trails by midLag of
+ *  the stroke's time there; it is cut back until the rate stays within
+ *  rateCeiling × sharedPeak and never goes negative. The rate is linear in c
+ *  at every s, so its greatest value is convex and its least concave in c: the
+ *  c that fit form one interval, here holding 0, and bisection finds its end. */
+function strokeLagCoefficient(
+  mu0: number,
+  mu1: number,
+  sharedPeak: number,
+  budget: { midLag: number; rateCeiling: number },
+): number {
+  const target = 16 * budget.midLag * (1.5 - (mu0 + mu1) / 4);
+  if (!(target > 0)) return 0;
+  const ceiling = budget.rateCeiling * sharedPeak;
+  const fits = (c: number): boolean => {
+    const [lo, hi] = lagRateRange(mu0, mu1, c);
+    return lo >= 0 && hi <= ceiling;
+  };
+  if (!fits(0)) return 0; // its turns already spend the stroke's budget
+  if (fits(target)) return target;
+  let ok = 0;
+  let bad = target;
+  for (let i = 0; i < 40; i += 1) {
+    const mid = (ok + bad) / 2;
+    if (fits(mid)) ok = mid;
+    else bad = mid;
+  }
+  return ok;
 }
 
 /** Piecewise-cubic-Hermite map from knot times to knot index. Slope is forced
@@ -265,7 +338,7 @@ function buildTimeWarp(
   const h = new Array<number>(n - 1);
   const d = new Array<number>(n - 1); // secant slope of index-vs-time = 1/h
   for (let i = 0; i < n - 1; i += 1) {
-    h[i] = Math.max(1e-6, times[i + 1]! - times[i]!);
+    h[i] = Math.max(SPAN_FLOOR_MS, times[i + 1]! - times[i]!);
     d[i] = 1 / h[i]!;
   }
   for (let i = 0; i < n; i += 1) {
@@ -375,6 +448,10 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     /** A delayed bone's OWN time-warp slope at each knot (per ms): the shared
      *  slope scaled by {@link followThroughKnotSlope}. Null when delay == 0. */
     slopes: number[] | null;
+    /** Per segment, the c of the c·s²(1 − s)² it trails the chain by through a
+     *  flowing stroke (motionStagger.followThroughStrokeLag); 0 for a segment
+     *  that leaves or reaches a stop. Null when delay == 0. */
+    lag: number[] | null;
   }
   const series = new Map<string, BoneSeries>();
   for (const key of boneKeys) {
@@ -411,11 +488,23 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     }
     const delay = trajectoryBoneDelay(key);
     let slopes: number[] | null = null;
+    let lag: number[] | null = null;
     if (delay > 0) {
       const reversal = knotReversals(q);
-      slopes = warp.slopes.map((m, i) => m * followThroughKnotSlope(delay, reversal[i]!));
+      const own = warp.slopes.map((m, i) => m * followThroughKnotSlope(delay, reversal[i]!));
+      const budget = followThroughStrokeLag(delay);
+      lag = new Array<number>(n - 1).fill(0);
+      for (let i = 0; i < n - 1; i += 1) {
+        // Leaving a stop the dwell already trails; reaching one, the arrival
+        // (and any late brake) stays the chain's.
+        if (stops[i] || stops[i + 1]) continue;
+        const h = warp.spans[i]!;
+        const [, sharedPeak] = lagRateRange(warp.slopes[i]! * h, warp.slopes[i + 1]! * h, 0);
+        lag[i] = strokeLagCoefficient(own[i]! * h, own[i + 1]! * h, sharedPeak, budget);
+      }
+      slopes = own;
     }
-    series.set(key, { q, s, delay, slopes });
+    series.set(key, { q, s, delay, slopes, lag });
   }
 
   // Root orientation series (single quaternion) + controls; translate lerps.
@@ -519,6 +608,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
       // Raw (time-linear) progress through segment k — what a delayed bone's
       // follow-through warp works on, BEFORE its ease.
       const span = warp.spans[k]!;
+      const timed = times[k + 1]! - times[k]! >= SPAN_FLOOR_MS;
       const sigma = Math.min(1, Math.max(0, (tClamped - times[k]!) / span));
       const brake = stops[k + 1] ? brakes[k + 1]! : 0;
 
@@ -533,16 +623,22 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
         // stop, so the motion is C¹: it leaves rest with zero velocity and never
         // stops at a fly-through keyframe. delay == 0 (root-adjacent, legs) is
         // `local`.
+        // Between two fly-through keyframes it also trails inside the stroke:
+        // bs.lag[k]·x²(1 − x)² off its progress, zero with zero slope at both
+        // knots (motionStagger.followThroughStrokeLag).
         // ON a knot (local 0 or 1) every bone IS the knot: the copy runs only
         // strictly inside a segment, so every knot is reached exactly when the
         // shared parameter reaches it. σ cannot stand in for that — a zero-length
         // segment's σ never leaves 0 (its span is floored at 1e-6 ms), which left
         // the arms of rest → 60° → 20°-in-0-ms at 60° while the Hips sat at 20°.
+        // Nor can it inside a segment SHORTER than that floor: σ stops short of
+        // 1 there, so the copy runs only where the segment's time is its span.
         let lb = local;
-        if (bs.slopes && local > 0 && local < 1) {
+        if (bs.slopes && timed && local > 0 && local < 1) {
           const dwell = stops[k] ? bs.delay : 0;
           const x = delayedOnset(sigma, dwell);
           const active = (1 - dwell) * span;
+          const c = bs.lag![k]!;
           lb =
             x <= 0
               ? 0
@@ -552,7 +648,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
                     brake > 0 ? x * (1 - brake * x * (1 - x)) : x,
                     bs.slopes[k]! * active,
                     bs.slopes[k + 1]! * active,
-                  );
+                  ) - (c > 0 ? c * x * x * (1 - x) * (1 - x) : 0);
         }
         bones[key] = squad(bs.q[k]!, bs.q[k + 1]!, bs.s[k]!, bs.s[k + 1]!, lb);
       }
