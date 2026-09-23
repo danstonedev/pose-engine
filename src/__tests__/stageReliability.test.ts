@@ -151,13 +151,14 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     // must still get right is what it FEEDS that step, so pin the exact
     // arguments: the (possibly heading-rotated) composedPlantRest falling back
     // to restRef as the clamp frame, the ORIGINAL restRef naming the knee
-    // hinge axis, the live heel-strike offset and the per-motion anchor map.
+    // hinge axis, the live heel-strike offset, a touchdown-planted gait's
+    // capture lift and the per-motion anchor map.
     expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*initialTargets: initialComposedPlantTargets,\s*\}\)/,
+      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*captureLiftY: composedPlantsAtTouchdown \? composedVcalRaiseY : 0,\s*initialTargets: initialComposedPlantTargets,\s*\}\)/,
     );
-    // …the sampler feeds it the same four things from its own state…
+    // …the sampler feeds it the same five things from its own state…
     expect(samplerSource).toMatch(
-      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*initialTargets: initialPlantTargets,\s*\}\)/,
+      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*captureLiftY: plantsAtTouchdown \? vcalRaiseY : 0,\s*initialTargets: initialPlantTargets,\s*\}\)/,
     );
     // …and neither keeps a private copy of the window/capture logic.
     expect(stageSource).not.toMatch(/fp\.target\.y -= /);
@@ -489,15 +490,13 @@ describe('ROOT MOTION — the sampler and the stage hand the travel and vertical
     expect(samplerSource).toContain('plantsAtTouchdown = startPlantsWhereFeetLand(footPlants, footDriven);');
     expect(stageSource).toContain('composedPlantsAtTouchdown = startPlantsWhereFeetLand(held, composedFootDriven);');
     // A target captured under the calibrated vertical's lift drops by that lift,
-    // measured after the loop ramp / handoff, on the same frame.
+    // measured after the loop ramp / handoff, on the same frame: both hand it to
+    // the shared plant step (footContact.stepContactPlants), which removes it at
+    // capture together with the heel-strike offset.
     expect(samplerSource).toContain('vcalRaiseY = y - root.position.y;');
     expect(stageSource).toContain('composedVcalRaiseY = y - modelRoot.position.y;');
-    expect(samplerSource).toContain(
-      'if (!first) fp.target.y -= heelStrikeY + (plantsAtTouchdown ? vcalRaiseY : 0);',
-    );
-    expect(stageSource).toContain(
-      'fp.target.y -= composedHeelStrikeY + (composedPlantsAtTouchdown ? composedVcalRaiseY : 0);',
-    );
+    expect(samplerSource).toContain('captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,');
+    expect(stageSource).toContain('captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,');
     // Each frame starts with no lift, and a new motion with no touchdown plants.
     expect(samplerSource).toContain('let vcalRaiseY = 0;');
     expect(stageSource).toContain('composedVcalRaiseY = 0; // re-measured by this frame');
