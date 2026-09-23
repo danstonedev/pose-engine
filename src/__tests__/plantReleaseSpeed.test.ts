@@ -140,6 +140,11 @@ interface ReleaseSpeeds {
   /** Fastest effector step during the release, and FK's over the same frames (m/frame). */
   effector: number;
   effectorFk: number;
+  /** How far the effector drops below the point it was held at during the
+   *  release, and how far FK's does over the same frames (m; negative = it
+   *  stays above). */
+  dip: number;
+  dipFk: number;
 }
 
 /**
@@ -209,11 +214,25 @@ function releaseSpeeds(s: Sampled, fk: MotionRecording): ReleaseSpeeds[] {
     };
     let effector = 0;
     let effectorFk = 0;
+    let low = Infinity;
+    let lowFk = Infinity;
     for (let i = i0; i <= ie; i += 1) {
       effector = Math.max(effector, step(rec, i));
       effectorFk = Math.max(effectorFk, step(fk, i));
+      low = Math.min(low, rec.frames[i]!.worldTracks![c.foot]![1]);
+      lowFk = Math.min(lowFk, fk.frames[i]!.worldTracks![c.foot]![1]);
     }
-    out.push({ foot: c.foot, toMs: c.toMs, lastedMs: rec.frames[ie]!.tMs - c.toMs, joints, effector, effectorFk });
+    const heldY = rec.frames[i0 - 1]!.worldTracks![c.foot]![1];
+    out.push({
+      foot: c.foot,
+      toMs: c.toMs,
+      lastedMs: rec.frames[ie]!.tMs - c.toMs,
+      joints,
+      effector,
+      effectorFk,
+      dip: heldY - low,
+      dipFk: heldY - lowFk,
+    });
   }
   return out;
 }
@@ -223,7 +242,8 @@ const describeRelease = (r: ReleaseSpeeds) =>
   r.joints
     .map((j) => `${j.key} ${j.release.toFixed(2)}°/frame (FK ${j.fk.toFixed(2)}, hold ${j.hold.toFixed(2)})`)
     .join(', ') +
-  `; effector ${(r.effector * 1000).toFixed(1)} mm/frame (FK ${(r.effectorFk * 1000).toFixed(1)})`;
+  `; effector ${(r.effector * 1000).toFixed(1)} mm/frame (FK ${(r.effectorFk * 1000).toFixed(1)})` +
+  `, dip ${(r.dip * 100).toFixed(2)} cm (FK ${(r.dipFk * 100).toFixed(2)})`;
 
 describe('the travel run: a release never turns a joint faster than FK’s own local peak', () => {
   for (const [pattern, hz] of [
@@ -233,7 +253,7 @@ describe('the travel run: a release never turns a joint faster than FK’s own l
     ['jog', 60],
     ['sprint', 60],
   ] as [RunPattern, number][]) {
-    it(`${pattern} at ${hz} Hz: every released joint within FK’s local peak (or the hold’s own speed), the foot within FK’s (the knee was 1.14–1.36× FK at the base release)`, () => {
+    it(`${pattern} at ${hz} Hz: every released joint within FK’s local peak (or the hold’s own speed), the foot within FK’s and never below it (the knee was 1.02–1.36× FK at the base release)`, () => {
       const motion = () => buildTravelRun({ pattern });
       const s = sample(motion, pattern, hz);
       const fk = sample(withoutContacts(motion), `${pattern}-fk`, hz).rec;
@@ -251,6 +271,8 @@ describe('the travel run: a release never turns a joint faster than FK’s own l
           );
         }
         expect(r.effector, `${pattern} ${r.foot}: released foot vs FK’s`).toBeLessThanOrEqual(r.effectorFk);
+        // …and it never drops below both the held point and FK's own lowest.
+        expect(r.dip, `${pattern} ${r.foot}: dip below the held point (m)`).toBeLessThanOrEqual(Math.max(0, r.dipFk) + 1e-4);
       }
     }, 120_000);
   }
@@ -311,6 +333,7 @@ describe('a foot released after a slow weight shift crosses its gap no faster th
     // eslint-disable-next-line no-console
     console.log(`single-leg stance ${describeRelease(r)}`);
     expect(r.effector, 'released foot, m/frame').toBeLessThan(0.01);
+    expect(r.dip, 'dip below the held point (m)').toBeLessThanOrEqual(Math.max(0, r.dipFk) + 1e-4);
     for (const j of r.joints) {
       expect(j.release, `${j.key}: release vs FK’s local peak / the hold`).toBeLessThanOrEqual(Math.max(j.fk, j.hold));
     }
