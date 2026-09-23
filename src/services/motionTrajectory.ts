@@ -35,9 +35,10 @@
  * stall at a waypoint (the earlier warp, clamp((local − d)/(1 − d)) on every
  * segment's eased parameter, had both). Every bone still reaches every knot
  * exactly at its knot time, so the settle/measurement contract holds
- * bit-for-bit. Root motion rides the un-warped parameter, and legs are exempt
- * (see trajectoryBoneDelay) so the foot-plant IK and slide budgets are never
- * fought.
+ * bit-for-bit — except where a contact solver latches on the path between
+ * knots (the hand-reach plant; see ./motionStagger). Root motion rides the
+ * un-warped parameter, and legs are exempt (see trajectoryBoneDelay) so the
+ * foot-plant IK and slide budgets are never fought.
  */
 
 import * as THREE from 'three';
@@ -529,12 +530,16 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
         // leaving a STOP, a dwell of `delay` of the segment's TIME before it
         // eases out (motionStagger.delayedOnset — the tween path's own scheme).
         // Its knot slope is the same on both sides of every knot and zero at a
-        // stop, so the motion is C¹: it leaves rest with zero velocity, never
-        // stops at a fly-through keyframe, and the value is exactly 0 / 1 at
-        // σ = 0 / 1 — every knot, and so every settle measurement, is still
-        // reached exactly on time. delay == 0 (root-adjacent, legs) is `local`.
+        // stop, so the motion is C¹: it leaves rest with zero velocity and never
+        // stops at a fly-through keyframe. delay == 0 (root-adjacent, legs) is
+        // `local`.
+        // ON a knot (local 0 or 1) every bone IS the knot: the copy runs only
+        // strictly inside a segment, so every knot is reached exactly when the
+        // shared parameter reaches it. σ cannot stand in for that — a zero-length
+        // segment's σ never leaves 0 (its span is floored at 1e-6 ms), which left
+        // the arms of rest → 60° → 20°-in-0-ms at 60° while the Hips sat at 20°.
         let lb = local;
-        if (bs.slopes) {
+        if (bs.slopes && local > 0 && local < 1) {
           const dwell = stops[k] ? bs.delay : 0;
           const x = delayedOnset(sigma, dwell);
           const active = (1 - dwell) * span;

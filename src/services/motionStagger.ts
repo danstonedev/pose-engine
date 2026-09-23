@@ -16,7 +16,12 @@
  *   1. At `local == 1` EVERY bone's parameter is 1, so the pose still arrives
  *      precisely on target. Keyframe boundaries, holds, and every settled
  *      goniometric measurement are byte-identical to the un-staggered path —
- *      only the trajectory BETWEEN keyframes changes.
+ *      only the trajectory BETWEEN keyframes changes. The one exception reads
+ *      the path itself: the hand-reach plant (footContact.solveHandReachFull)
+ *      latches the floor point where the hand first touches, so a hand-planted
+ *      settle (quadruped, plank, push-up, bird-dog) moves with ANY re-timing of
+ *      the arm. The sample rate alone moves it up to 1.8° / 10 mm (male rig,
+ *      30 vs 120 Hz); making this warp C¹ moved it up to 2.9° / 10 mm.
  *   2. A delayed bone's motion stays C¹: the delay is a DWELL in raw TIME that
  *      precedes the ease ({@link delayedOnset}), so the bone leaves rest with
  *      zero velocity, and it only ever dwells where it is already at rest.
@@ -112,7 +117,8 @@ const AXIAL_TRAJECTORY_FRACTION = 0.25;
  * through a fly-through knot it keeps a C¹ share of the shared slope that shrinks
  * where its own path reverses ({@link followThroughKnotSlope}). Every knot is
  * still reached EXACTLY at its knot time (the settle/measurement contract is
- * untouched) and the lag lives mid-segment, where the eye reads overlap.
+ * untouched, bar the reach-plant latch noted above) and the lag lives
+ * mid-segment, where the eye reads overlap.
  *
  * Scope (deliberately narrower than the tween-path {@link chainOnsetDelay}):
  *   - ARM chains (clavicle → fingers) get the full chain-ranked delay — the
@@ -164,8 +170,8 @@ export function trajectoryBoneDelay(poseKey: string): number {
  * a stop), so the bone leaves its dwell with zero velocity. Applied AFTER the
  * ease — to the already-moving eased parameter, as the trajectory once did — the
  * dwell ends mid-acceleration and the bone jumps from still to 1/(1 − d) × the
- * chain's speed in one frame (measured on the DDx chair stand's folded elbows:
- * 0 → 256°/s in 8.3 ms).
+ * chain's speed in one frame (measured on the DDx chair stand's folded forearms
+ * at 120 Hz: still until 133 ms, then 43 → 235°/s from one frame to the next).
  */
 export function delayedOnset(sigma: number, delay: number): number {
   if (delay <= 0) return clamp01(sigma);

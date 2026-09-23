@@ -7,8 +7,11 @@
  * for the first d of each segment and then started it at 1/(1 − d) × the
  * chain's current speed, so:
  *   • ONSET — a bone leaving rest jumped from still to full speed in one frame:
- *     measured on the DDx chair stand's folded elbows at 120 Hz, still until
- *     133 ms, then 0 → 256°/s in 8.3 ms;
+ *     measured on the DDx chair stand's folded forearms at 120 Hz, still until
+ *     133 ms, then 43 → 235°/s from one frame to the next (the signed
+ *     elbowFlexion readout shows a separate one-frame spike at onset: the hinge
+ *     readout flips sign as the elbow leaves its rest pose, so read bone speed
+ *     or |elbowFlexion| to see the motion);
  *   • KNOTS — every delayed bone stopped dead at every fly-through keyframe and
  *     restarted: on the engine's own travel walk, every one of the 35 left-arm
  *     bone/keyframe pairs moving through a keyframe dropped to 0°/s.
@@ -282,6 +285,32 @@ describe('follow-through keeps exact arrival — every knot, every bone (the mea
     for (let t = settleAtMs[1]!; t <= settleAtMs[1]! + 200; t += 10) {
       const at = trajectory.sampleAt(t).pose.bones;
       for (const key of KEYS) expect(xDeg(at[key] as Q), `${key} holding @${t}`).toBeCloseTo(20, 9);
+    }
+  });
+
+  it('a zero-length segment still lands every bone on the knot the shared parameter reaches', () => {
+    // A delayed bone's copy of the time-warp runs on raw time progress, and a
+    // zero-length segment's never leaves 0 (its span is floored at 1e-6 ms). The
+    // first C¹ version of the warp read it on a knot anyway, so the arms of
+    // rest → 60° → 20°-in-0-ms ended at 60° while the Hips ended at 20°. The
+    // resolver floors durations, but buildComposedTrajectory is exported and
+    // takes any timing.
+    const cases: [string, SequenceBuildLike, number][] = [
+      ['zero-length final keyframe', built([60, 20], [500, 0]), 20],
+      ['…with a functional (braked) final stop', built([60, 20], [500, 0], { velocityClasses: [undefined, 'functional'] }), 20],
+      ['sub-floor final keyframe (1e-7 ms)', built([60, 20], [500, 1e-7]), 20],
+      ['zero-length interior keyframe', built([60, 20, -30], [400, 0, 400]), -30],
+      ['zero-length first keyframe', built([60, 20], [0, 500]), 20],
+    ];
+    for (const [label, motion, last] of cases) {
+      const { trajectory, settleAtMs } = buildComposedTrajectory(motion, FROM_REST);
+      for (const t of [...settleAtMs, trajectory.totalMs]) {
+        const at = trajectory.sampleAt(t).pose.bones;
+        const origin = xDeg(at[ORIGIN] as Q);
+        for (const key of ARM) expect(xDeg(at[key] as Q), `${label}: ${key} @${t} ms vs ${ORIGIN}`).toBeCloseTo(origin, 9);
+      }
+      const end = trajectory.sampleAt(trajectory.totalMs).pose.bones;
+      for (const key of KEYS) expect(xDeg(end[key] as Q), `${label}: ${key} at the end`).toBeCloseTo(last, 9);
     }
   });
 });
