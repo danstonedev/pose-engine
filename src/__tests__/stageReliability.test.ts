@@ -458,17 +458,43 @@ describe('ROOT MOTION — the sampler and the stage hand the travel and vertical
     expect(samplerSource).toContain(
       'const holds = footPlants.map((fp) => ({ foot: fp.solver.footKey, fromMs: fp.fromMs, toMs: fp.toMs }));',
     );
-    expect(samplerSource).toContain(
-      'deriveFootDrivenTravel(sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj, holds)',
+    expect(samplerSource).toMatch(
+      /deriveFootDrivenTravel\(\s*sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj, holds,\s*resolved\.plantOnTouchdown === true,\s*\)/,
     );
+    expect(stageSource).toContain('const held = composedPlants.filter((fp) => fp.solver);');
     expect(stageSource).toMatch(
-      /composedPlants\.flatMap\(\(fp\) =>\s*fp\.solver \? \[\{ foot: fp\.solver\.footKey, fromMs: fp\.fromMs, toMs: fp\.toMs \}\] : \[\],?\s*\)/,
+      /held\.map\(\(fp\) => \(\{ foot: fp\.solver!\.footKey, fromMs: fp\.fromMs, toMs: fp\.toMs \}\)\),\s*plantOnTouchdown,\s*\)/,
     );
-    expect(derivationsSource).toMatch(/headingAt,\s*holds,\s*\);/);
-    // The stage re-times its plant windows before it derives the travel.
+    expect(derivationsSource).toMatch(/headingAt,\s*holds,\s*plantOnTouchdown,\s*\);/);
+    // The stage re-times its plant windows before it derives the travel, and
+    // reads the motion's touchdown flag exactly as the sampler does.
     expect(stageSource).toMatch(
       /scaleComposedPlantsToTrajectory\(trajectory, effectiveResolved\);[\s\S]{0,800}setComposedFootDriven\(/,
     );
+    expect(stageSource).toMatch(
+      /setComposedFootDriven\([\s\S]{0,300}travelHeadingAt,\s*resolved\.plantOnTouchdown === true,\s*\)/,
+    );
+  });
+
+  it('both start a touchdown-planted gait’s plants where its feet land and capture them on the floor', () => {
+    // The one shared step moves each plant's start to the travel's measured
+    // touchdown; its result says whether it did, and gates the capture fix-up.
+    expect(samplerSource).toContain('plantsAtTouchdown = startPlantsWhereFeetLand(footPlants, footDriven);');
+    expect(stageSource).toContain('composedPlantsAtTouchdown = startPlantsWhereFeetLand(held, composedFootDriven);');
+    // A target captured under the calibrated vertical's lift drops by that lift,
+    // measured after the loop ramp / handoff, on the same frame.
+    expect(samplerSource).toContain('vcalRaiseY = y - root.position.y;');
+    expect(stageSource).toContain('composedVcalRaiseY = y - modelRoot.position.y;');
+    expect(samplerSource).toContain(
+      'if (!first) fp.target.y -= heelStrikeY + (plantsAtTouchdown ? vcalRaiseY : 0);',
+    );
+    expect(stageSource).toContain(
+      'fp.target.y -= composedHeelStrikeY + (composedPlantsAtTouchdown ? composedVcalRaiseY : 0);',
+    );
+    // Each frame starts with no lift, and a new motion with no touchdown plants.
+    expect(samplerSource).toContain('let vcalRaiseY = 0;');
+    expect(stageSource).toContain('composedVcalRaiseY = 0; // re-measured by this frame');
+    expect(stageSource).toMatch(/composedPlantsAtTouchdown = false;\s*composedVcalRaiseY = 0;/);
   });
 
   it('both measure the vertical smoothing against the same gait period', () => {

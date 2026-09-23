@@ -71,6 +71,7 @@ import {
   heelStrikeOffsetAt,
   measureFootGround,
   NO_VERTICAL_CALIBRATION,
+  startPlantsWhereFeetLand,
   pinRootToFloor,
   pinContactsToFloor,
   groundingContactsFor,
@@ -525,6 +526,10 @@ export function sampleComposedMotion(
   }
   const footPlants: FootPlant[] = [];
   const initialPlantTargets = new Map<string, THREE.Vector3>();
+  // Set once the travel derivation has started each plant where its foot comes
+  // down (a touchdown-planted gait, ComposedMotion.plantOnTouchdown): the plants
+  // then capture their targets on the floor (see below).
+  let plantsAtTouchdown = false;
   // Honour contacts the MOTION declares (resolved.contacts) when the caller
   // doesn't pass an explicit override — so a travel-gait motion plants its feet
   // the same way in the sampler as on the live stage.
@@ -832,12 +837,18 @@ export function sampleComposedMotion(
         headingAtAuthoredMs && scale > 0
           ? (tMs: number): number => headingAtAuthoredMs(tMs / scale)
           : undefined;
-      // The travel keeps world-fixed the point each plant holds (the forefoot
-      // inside a Toes contact, else the ankle) — the same windows, already in
-      // trajectory time, the plants below are solved against.
+      // The travel reads the plants' windows — the same ones, already in
+      // trajectory time, the plants below are solved against. A touchdown-planted
+      // gait then starts each plant where its foot comes down: the schedule the
+      // travel just followed, so the target is captured where the foot lands.
       const holds = footPlants.map((fp) => ({ foot: fp.solver.footKey, fromMs: fp.fromMs, toMs: fp.toMs }));
-      if (wantsTravel)
-        footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj, holds);
+      if (wantsTravel) {
+        footDriven = deriveFootDrivenTravel(
+          sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj, holds,
+          resolved.plantOnTouchdown === true,
+        );
+        plantsAtTouchdown = startPlantsWhereFeetLand(footPlants, footDriven);
+      }
       if (shuttleM > 0)
         lateralShuttle = deriveGaitLateralShuttle(
           sampleFeet, totalMs, shuttleM, windows, 120, headingDeg, headingAtTraj,
@@ -998,6 +1009,9 @@ export function sampleComposedMotion(
     root.updateMatrixWorld(true);
     let footRooted = false;
     let groundReachSolved = false;
+    // How far the calibrated gait vertical lifted the root off the live pin this
+    // frame (a touchdown-planted gait removes it from a target captured now).
+    let vcalRaiseY = 0;
     // REACH CONTACTS of the active posture: bring each declared reach bone (a
     // planted hand) to the floor and LATCH it there, so it stays put as the body
     // lowers over it (the arm folds — the push-up). Latch-on-contact avoids
@@ -1075,6 +1089,7 @@ export function sampleComposedMotion(
         if (vcalRampMs > 0 && tMs < vcalRampMs) {
           y = root.position.y + (y - root.position.y) * (tMs / vcalRampMs);
         }
+        vcalRaiseY = y - root.position.y;
         root.position.y = y;
         root.updateMatrixWorld(true);
       }
@@ -1185,11 +1200,15 @@ export function sampleComposedMotion(
       // A heel-strike accent active at capture time has dipped the WHOLE root, so
       // remove its offset from the captured Y: the foot pins at its natural floor
       // contact and the transient dip is absorbed by the leg IK (the loading
-      // knee), instead of burying the foot by the dip for the entire stance.
+      // knee), instead of burying the foot by the dip for the entire stance. A
+      // touchdown-planted gait removes the calibrated vertical's lift the same
+      // way: its foot comes down in double support, where the smoothing rounds
+      // the valley up by as much as GAIT_VERTICAL_MAX_RISE_M, and was pinned
+      // that far above the floor.
       if (!fp.target) {
         const first = fp.reuseInitialAnchor ? initialPlantTargets.get(fp.solver.footKey) : undefined;
         fp.target = first?.clone() ?? fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
-        if (!first) fp.target.y -= heelStrikeY;
+        if (!first) fp.target.y -= heelStrikeY + (plantsAtTouchdown ? vcalRaiseY : 0);
         if (!initialPlantTargets.has(fp.solver.footKey)) initialPlantTargets.set(fp.solver.footKey, fp.target.clone());
       }
       // Per-window rotated clamp frame for a CURVED heading; the shared

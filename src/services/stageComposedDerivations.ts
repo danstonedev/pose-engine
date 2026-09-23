@@ -113,9 +113,9 @@ export interface ComposedDerivations {
     periodMs?: number,
   ): VerticalCalibrationResult;
   /** Derive the +Z travel that keeps the planted foot world-fixed, along the
-   *  motion's heading. `holds` are the foot plants' windows in trajectory ms
-   *  (what the travel keeps fixed follows them). Null when
-   *  disabled/unplanted/rig-unavailable. */
+   *  motion's heading. `holds` are the foot plants' windows in trajectory ms;
+   *  `plantOnTouchdown` derives a touchdown-planted gait (its result then says
+   *  where each hold really starts). Null when disabled/unplanted/rig-unavailable. */
   footDrivenTravel(
     traj: PoseTrajectory,
     enabled: boolean,
@@ -124,6 +124,7 @@ export interface ComposedDerivations {
     headingDeg?: number,
     headingAt?: (tMs: number) => number,
     holds?: readonly GaitContactHold[],
+    plantOnTouchdown?: boolean,
   ): ReturnType<typeof deriveFootDrivenTravel> | null;
   /** Derive the stance-locked ±X pelvis ride toward the planted foot,
    *  perpendicular to the heading. Null unless the motion requests it. */
@@ -278,6 +279,7 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
     headingDeg = 0,
     headingAt?: (tMs: number) => number,
     holds?: readonly GaitContactHold[],
+    plantOnTouchdown = false,
   ): ReturnType<typeof deriveFootDrivenTravel> | null {
     if (!enabled || !hasPlanted || !rigReady()) return null;
     const feet = footBones();
@@ -304,6 +306,7 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
       headingDeg,
       headingAt,
       holds,
+      plantOnTouchdown,
     );
   }
 
