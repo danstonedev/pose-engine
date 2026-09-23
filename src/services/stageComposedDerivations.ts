@@ -39,7 +39,9 @@ import {
   deriveHeelStrikeAccents,
   deriveVerticalCalibration,
   headingProfileLookup,
+  measureFootGround,
   pinRootToFloor,
+  type GaitContactHold,
 } from './rootMotion';
 import type { PoseTrajectory } from './motionTrajectory';
 import type { getBodyVariant } from '../anatomy/bodyVariants';
@@ -111,7 +113,9 @@ export interface ComposedDerivations {
     periodMs?: number,
   ): VerticalCalibrationResult;
   /** Derive the +Z travel that keeps the planted foot world-fixed, along the
-   *  motion's heading. Null when disabled/unplanted/rig-unavailable. */
+   *  motion's heading. `holds` are the foot plants' windows in trajectory ms
+   *  (what the travel keeps fixed follows them). Null when
+   *  disabled/unplanted/rig-unavailable. */
   footDrivenTravel(
     traj: PoseTrajectory,
     enabled: boolean,
@@ -119,6 +123,7 @@ export interface ComposedDerivations {
     stanceWindows?: StanceWindow[],
     headingDeg?: number,
     headingAt?: (tMs: number) => number,
+    holds?: readonly GaitContactHold[],
   ): ReturnType<typeof deriveFootDrivenTravel> | null;
   /** Derive the stance-locked ±X pelvis ride toward the planted foot,
    *  perpendicular to the heading. Null unless the motion requests it. */
@@ -221,12 +226,13 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
     return s;
   }
 
-  /** Resolve both foot bones for a gait derivation (null when either is absent). */
-  function footBones(): { rBone: THREE.Bone; lBone: THREE.Bone } | null {
+  /** Resolve both foot bones for a gait derivation (null when either is absent),
+   *  with the whole pose-key map the ground-contact read needs. */
+  function footBones(): { rBone: THREE.Bone; lBone: THREE.Bone; bones: Map<string, THREE.Bone> } | null {
     const bones = buildBoneByPoseKey(ctx.skinned!.skeleton, ctx.variantCfg!);
     const rBone = bones.get('R_Foot');
     const lBone = bones.get('L_Foot');
-    return rBone && lBone ? { rBone, lBone } : null;
+    return rBone && lBone ? { rBone, lBone, bones } : null;
   }
 
   function verticalCalibration(
@@ -271,26 +277,33 @@ export function createComposedDerivations(ctx: StageRigContext): ComposedDerivat
     stanceWindows?: StanceWindow[],
     headingDeg = 0,
     headingAt?: (tMs: number) => number,
+    holds?: readonly GaitContactHold[],
   ): ReturnType<typeof deriveFootDrivenTravel> | null {
     if (!enabled || !hasPlanted || !rigReady()) return null;
     const feet = footBones();
     if (!feet) return null;
-    const { rBone, lBone } = feet;
+    const { rBone, lBone, bones } = feet;
     return deriveFootDrivenTravel(
       (tMs) => {
         const s = previewTrajectoryAt(traj, tMs);
         const rp = rBone.getWorldPosition(new THREE.Vector3());
         const lp = lBone.getWorldPosition(new THREE.Vector3());
         // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
-        // airborne): the travel derivation holds its advance through it
+        // airborne): the travel derivation holds its advance through it; the
+        // ground contacts let it keep the point actually on the floor fixed
         // (mirrors the offline sampler's closure exactly).
-        return { rz: rp.z, ry: rp.y, rx: rp.x, lz: lp.z, ly: lp.y, lx: lp.x, bothAirborne: !s.planted };
+        return {
+          rz: rp.z, ry: rp.y, rx: rp.x, lz: lp.z, ly: lp.y, lx: lp.x,
+          bothAirborne: !s.planted,
+          ground: measureFootGround(bones, ctx.floor!),
+        };
       },
       traj.totalMs,
       stanceWindows,
       120,
       headingDeg,
       headingAt,
+      holds,
     );
   }
 

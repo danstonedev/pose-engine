@@ -69,6 +69,7 @@ import {
   handReachWeightAt,
   headingProfileLookup,
   heelStrikeOffsetAt,
+  measureFootGround,
   NO_VERTICAL_CALIBRATION,
   pinRootToFloor,
   pinContactsToFloor,
@@ -804,10 +805,14 @@ export function sampleComposedMotion(
         rBone.getWorldPosition(_sv);
         lBone.getWorldPosition(_svB);
         // An un-pinned sample is a run's ballistic FLIGHT gap (both feet
-        // airborne): the travel derivation holds its advance through it.
+        // airborne): the travel derivation holds its advance through it. The
+        // ground contacts (ankle + forefoot against the floor reference) let it
+        // keep the point actually on the floor fixed — shared helper, lockstep
+        // with the live stage.
         return {
           rz: _sv.z, ry: _sv.y, rx: _sv.x, lz: _svB.z, ly: _svB.y, lx: _svB.x,
           bothAirborne: !s.planted,
+          ground: measureFootGround(boneByKey, floorRef),
         };
       };
       // The planned stance schedule is authored ms; the trajectory runs at
@@ -827,8 +832,12 @@ export function sampleComposedMotion(
         headingAtAuthoredMs && scale > 0
           ? (tMs: number): number => headingAtAuthoredMs(tMs / scale)
           : undefined;
+      // The travel keeps world-fixed the point each plant holds (the forefoot
+      // inside a Toes contact, else the ankle) — the same windows, already in
+      // trajectory time, the plants below are solved against.
+      const holds = footPlants.map((fp) => ({ foot: fp.solver.footKey, fromMs: fp.fromMs, toMs: fp.toMs }));
       if (wantsTravel)
-        footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj);
+        footDriven = deriveFootDrivenTravel(sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj, holds);
       if (shuttleM > 0)
         lateralShuttle = deriveGaitLateralShuttle(
           sampleFeet, totalMs, shuttleM, windows, 120, headingDeg, headingAtTraj,

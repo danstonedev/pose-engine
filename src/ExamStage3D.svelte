@@ -1705,6 +1705,9 @@
         headingDeg = 0,
         headingAt?: (tMs: number) => number,
       ): void {
+        // The travel keeps world-fixed the point each plant holds — the SAME
+        // windows (already re-timed to trajectory ms) the plants are solved
+        // against, mirroring the offline sampler's `holds`.
         composedFootDriven = derivations.footDrivenTravel(
           traj,
           enabled,
@@ -1712,6 +1715,9 @@
           stanceWindows,
           headingDeg,
           headingAt,
+          composedPlants.flatMap((fp) =>
+            fp.solver ? [{ foot: fp.solver.footKey, fromMs: fp.fromMs, toMs: fp.toMs }] : [],
+          ),
         );
       }
 

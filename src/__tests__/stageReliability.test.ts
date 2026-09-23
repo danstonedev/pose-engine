@@ -445,10 +445,32 @@ describe('SEAM-10 — the ready-reset tweens to the grounded standing Y (source 
   });
 });
 
-describe('ROOT MOTION — the sampler and the stage hand the vertical the same inputs (source pins)', () => {
-  // The derivation is the SAME pure function in both (rootMotion.ts); what can
-  // drift is what each side hands it. gaitVerticalPhase.test.ts gates the
-  // behaviour; this pins the live wiring.
+describe('ROOT MOTION — the sampler and the stage hand the travel and vertical the same inputs (source pins)', () => {
+  // The derivations are the SAME pure functions in both (rootMotion.ts); what can
+  // drift is what each side hands them. gaitHandOver.test.ts and
+  // gaitVerticalPhase.test.ts gate the behaviour; these pin the live wiring.
+  it('both read the feet’s ground contacts through the one shared helper', () => {
+    expect(samplerSource).toContain('ground: measureFootGround(boneByKey, floorRef),');
+    expect(derivationsSource).toContain('ground: measureFootGround(bones, ctx.floor!),');
+  });
+
+  it('both hand the travel the foot plants’ windows, in trajectory ms, as the points it keeps fixed', () => {
+    expect(samplerSource).toContain(
+      'const holds = footPlants.map((fp) => ({ foot: fp.solver.footKey, fromMs: fp.fromMs, toMs: fp.toMs }));',
+    );
+    expect(samplerSource).toContain(
+      'deriveFootDrivenTravel(sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj, holds)',
+    );
+    expect(stageSource).toMatch(
+      /composedPlants\.flatMap\(\(fp\) =>\s*fp\.solver \? \[\{ foot: fp\.solver\.footKey, fromMs: fp\.fromMs, toMs: fp\.toMs \}\] : \[\],?\s*\)/,
+    );
+    expect(derivationsSource).toMatch(/headingAt,\s*holds,\s*\);/);
+    // The stage re-times its plant windows before it derives the travel.
+    expect(stageSource).toMatch(
+      /scaleComposedPlantsToTrajectory\(trajectory, effectiveResolved\);[\s\S]{0,800}setComposedFootDriven\(/,
+    );
+  });
+
   it('both measure the vertical smoothing against the same gait period', () => {
     // The sampler: the shared helper on its authored→trajectory factor, none for a
     // table that already spans one period.

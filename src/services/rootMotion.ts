@@ -27,6 +27,7 @@ import * as THREE from 'three';
 import { normalizeBoneNameForVariant, type BodyVariantConfig } from '../anatomy/bodyVariants';
 import type { JointAngleRestReference } from './jointAngles';
 import type { TrajectoryGroundingSwitch } from './motionTrajectory';
+import { PLANT_RELEASE_BLEND_MS } from './footContact';
 
 const RAD = Math.PI / 180;
 
@@ -980,6 +981,57 @@ export interface FeetZ {
    *  must not advance — or retreat — the root). Omit/false for grounded gait:
    *  back-compat, the derivation is then byte-identical to before. */
   bothAirborne?: boolean;
+  /** Each foot's GROUND CONTACT ({@link measureFootGround}): the ankle and the
+   *  forefoot, the two contacts per foot the floor pin grounds on. With it the
+   *  derivation keeps the point that is actually on the floor world-fixed — the
+   *  forefoot once the heel rises, not the ankle rolling forward over it — and
+   *  hands the support over when the landing foot really reaches the floor.
+   *  Without it the ankles stand in for both (the legacy measurement). */
+  ground?: { R: FootGround; L: FootGround };
+}
+
+/** One foot's two floor contacts, world x/z plus each one's height (m) above
+ *  its own rest (floor) level: `a*` the ankle (Foot bone), `t*` the forefoot
+ *  (Toes bone). */
+export interface FootGround {
+  ax: number;
+  az: number;
+  ah: number;
+  tx: number;
+  tz: number;
+  th: number;
+}
+
+const _fg = new THREE.Vector3();
+
+/**
+ * Read both feet's {@link FootGround} off a posed rig (world matrices current),
+ * against the rest heights {@link captureFloorReference} recorded — the ONE
+ * measurement the offline sampler and the live stage hand the travel
+ * derivation, so the two cannot disagree on where a foot meets the floor.
+ * Undefined when a foot or forefoot bone (or its floor reference) is missing,
+ * which keeps the derivation on its ankle-only path.
+ */
+export function measureFootGround(
+  bones: ReadonlyMap<string, THREE.Object3D>,
+  floor: FloorReference,
+): { R: FootGround; L: FootGround } | undefined {
+  const one = (side: 'R' | 'L'): FootGround | null => {
+    const ankle = bones.get(`${side}_Foot`);
+    const toes = bones.get(`${side}_Toes`);
+    const ankleRestY = floor.restY[`${side}_Foot`];
+    const toesRestY = floor.restY[`${side}_Toes`];
+    if (!ankle || !toes || ankleRestY == null || toesRestY == null) return null;
+    ankle.getWorldPosition(_fg);
+    const ax = _fg.x;
+    const az = _fg.z;
+    const ah = _fg.y - ankleRestY;
+    toes.getWorldPosition(_fg);
+    return { ax, az, ah, tx: _fg.x, tz: _fg.z, th: _fg.y - toesRestY };
+  };
+  const R = one('R');
+  const L = one('L');
+  return R && L ? { R, L } : undefined;
 }
 
 /** The world X (medio-lateral) + Y of each foot at a phase — what the lateral
@@ -1038,6 +1090,27 @@ function scheduledStance(
   return null;
 }
 
+/** Height (m) above the floor at which a LANDING foot starts to take the
+ *  support over (linearly, to all of it on touching). At the ~1-2 cm per 10 ms
+ *  a heel closes the last few centimetres, the transfer spans ~20-30 ms. */
+const FOOT_TOUCHDOWN_BAND_M = 0.02;
+/** Widest spacing (ms) between travel samples, so the time resolution of the
+ *  derived travel does not dilute with a motion's length: a fixed 120 samples
+ *  fell one per 33 ms frame on a 4 s two-cycle walk, and one per 84 ms on a
+ *  10 s one. */
+export const FOOT_TRAVEL_SAMPLE_MS = 20;
+
+/** A foot-plant hold in trajectory time: the leg IK pins `foot` — an ankle
+ *  (`X_Foot`) or a forefoot (`X_Toes`) — over [fromMs, toMs]. What the travel
+ *  keeps world-fixed follows the hold (see {@link deriveFootDrivenTravel}). */
+export interface GaitContactHold {
+  foot: string;
+  fromMs: number;
+  toMs: number;
+}
+
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+
 /**
  * Derive a forward-travel curve that keeps the PLANTED foot world-fixed — the
  * industry "root motion from foot placement" done right, and the fix for the
@@ -1049,16 +1122,43 @@ function scheduledStance(
  * we MEASURE the FK foot sweep and advance the root to cancel it: each frame, the
  * lower (weight-bearing) foot is the planted one, and the root steps forward by
  * exactly that foot's backward body-space motion since the previous frame — so it
- * does not move in the world. At a handoff (the lower foot changes, i.e. the new
- * foot has landed) the root makes no advance that frame, then tracks the new foot.
- * No foot-lock IK, no capture timing to get wrong: the stance foot is fixed by
- * construction, the swing foot rides the body forward, and the stride EMERGES from
- * the authored hip/knee ROM (so a paced walk's bigger swing travels farther too).
+ * does not move in the world. No foot-lock IK, no capture timing to get wrong: the
+ * stance foot is fixed by construction, the swing foot rides the body forward, and
+ * the stride EMERGES from the authored hip/knee ROM (so a paced walk's bigger swing
+ * travels farther too).
+ *
+ * WHAT IS KEPT FIXED is the point the foot-plant schedule holds (`holds`, the
+ * motion's contact windows): the forefoot inside an `X_Toes` hold, the ankle
+ * otherwise — and through a hold's release ramp, the point that hold kept, as
+ * the ramp is still keeping it. A walk that pivots on the forefoot
+ * from heel rise holds the toes while the ankle rolls up and forward over
+ * them, so following the ankle there under-measured the support's sweep —
+ * measured on a two-cycle 0.85-speed walk, the body 10-13 cm behind the held
+ * forefoot by the end of each 240 ms toe hold, a slow-down into every
+ * hand-over — and set the root against the plant it had to agree with. (A walk
+ * that holds the ankle through heel rise keeps its heel down under the IK, so
+ * its ankle is the right point; following the forefoot there made its planted
+ * ankle slide.) Needs {@link FeetZ.ground}; without it, or without holds, the
+ * ankle.
+ *
+ * THE HAND-OVER is a transfer, not a switch. The planted-foot DECISION is the
+ * measured one below (the other ankle clearly lower), but it is taken while the
+ * landing foot is still descending — 6 to 9 cm up on the walks measured — so
+ * switching there made the root track a foot in the air, and the switching
+ * sample itself advanced ZERO (at 120 samples over a 4 s walk that is a whole
+ * frame: 0.37 cm against ~6, then a 5.8 cm lurch). Now the switching interval
+ * is measured on the foot that bore it, and with ground contacts the support
+ * passes to the landing foot as its lowest contact closes the last
+ * {@link FOOT_TOUCHDOWN_BAND_M} to the floor — a weight transfer over the
+ * double support: that walk's hand-overs now pass at 5.0-6.5 cm a frame where
+ * they stalled at 0.4-0.5. Without ground contacts (a caller passing ankles
+ * only) the switch stays immediate, minus the zero-advance sample.
  *
  * `sampleFeetAtPhase(tMs)` poses the rig at tMs (FK + floor-pin, NO travel) and
- * returns the feet world Z/Y. Sampled in time order over `steps`; returns a
- * piecewise-linear lookup. Vertical grounding stays with the floor-pin — this only
- * owns the forward axis.
+ * returns the feet world Z/Y. Sampled in time order over `steps` — or more, at
+ * most {@link FOOT_TRAVEL_SAMPLE_MS} apart — and returned as a piecewise-linear
+ * lookup. Vertical grounding stays with the floor-pin — this only owns the
+ * forward axis.
  *
  * `stanceWindows` (optional) supplies the builder's PLANNED stance schedule:
  * inside a window that foot is the planted one regardless of the measured
@@ -1076,7 +1176,7 @@ function scheduledStance(
  * and the returned `heading` tells the applier which (x, z) ride the offset
  * takes. The caller authors the SAME heading as the body's root yaw, so the FK
  * sweep and the derived cancellation stay collinear. Heading 0 keeps the
- * legacy z-only measurement verbatim (byte-identical).
+ * legacy z-only measurement verbatim.
  * `headingDegAt` (optional, roadmap 6.2 — CURVED walking) generalises the
  * constant heading to a per-time heading CURVE (the caller's piecewise lookup
  * mirroring the authored yaw progression, see {@link headingProfileLookup}):
@@ -1086,8 +1186,7 @@ function scheduledStance(
  * instead of `zAt`·`heading`. The residual the projection can't cancel (the
  * planted foot's PERPENDICULAR arc about the yawing root, rate ≈ foot-fore-aft
  * × turn-rate) integrates to ~0 over a symmetric stance window and is absorbed
- * per-frame by the foot-plant IK. When omitted, the constant-heading path runs
- * verbatim (byte-identical).
+ * per-frame by the foot-plant IK.
  * FLIGHT GAPS (a run): a sample whose {@link FeetZ.bothAirborne} is set has NO
  * planted foot, so there is no grounded reference to measure against — the
  * swing legs sweeping in body space mid-air would advance/retreat the root.
@@ -1099,12 +1198,10 @@ function scheduledStance(
  * its whole airtime, and reverting this line alone drops the measured run from
  * 3.61 m/s to 1.56 m/s (runSpatiotemporal.test.ts). The rate is a short
  * trailing mean of the grounded per-sample advances (toe-off is the noisiest
- * single sample; three of them is still ~12 ms at the default step count).
- * The first grounded sample after a gap is a touchdown handoff: its prev→cur
- * delta spans the airborne sweep and cannot be measured, so it takes the
- * carried rate too and the derivation then tracks the landing foot. Samples
- * that never set the flag (every walking gait) take the exact pre-existing
- * path — `carry` is only ever read inside a gap.
+ * single sample). The first grounded sample after a gap is a touchdown
+ * handoff: its prev→cur delta spans the airborne sweep and cannot be measured,
+ * so it takes the carried rate too and the derivation then tracks the landing
+ * foot. Samples that never set the flag (every walking gait) never read `carry`.
  */
 export function deriveFootDrivenTravel(
   sampleFeetAtPhase: (tMs: number) => FeetZ,
@@ -1113,12 +1210,14 @@ export function deriveFootDrivenTravel(
   steps = 120,
   headingDeg = 0,
   headingDegAt?: (tMs: number) => number,
+  holds?: readonly GaitContactHold[],
 ): FootDrivenTravel {
-  const n = Math.max(2, steps);
+  const byTime = totalMs > 0 && Number.isFinite(totalMs) ? Math.ceil(totalMs / FOOT_TRAVEL_SAMPLE_MS) + 1 : 0;
+  const n = Math.max(2, steps, byTime);
   const dt = totalMs / (n - 1);
   const z = new Array<number>(n).fill(0);
   // Heading unit vector (x, z): (0, 1) = straight ahead. Math.sin(0)/cos(0) are
-  // exactly 0/1, so the heading-0 path stays byte-identical to the old +Z ride.
+  // exactly 0/1, so the heading-0 path keeps the old +Z ride.
   const hx = Math.sin(headingDeg * RAD);
   const hz = Math.cos(headingDeg * RAD);
   // CURVED heading: accumulate the (x, z) PATH alongside the arc length, each
@@ -1127,6 +1226,8 @@ export function deriveFootDrivenTravel(
   const pz = headingDegAt ? new Array<number>(n).fill(0) : null;
   let prev = sampleFeetAtPhase(0);
   let planted: 'R' | 'L' = scheduledStance(stanceWindows, 0, true) ?? (prev.ry <= prev.ly ? 'R' : 'L');
+  // The foot the support is passing TO while a measured hand-over completes.
+  let incoming: 'R' | 'L' | null = null;
   // Inside a FLIGHT gap (both feet airborne — a run's ballistic interval) the
   // root COASTS at the last grounded advance rate; the first grounded sample
   // after it is a touchdown handoff.
@@ -1151,6 +1252,65 @@ export function deriveFootDrivenTravel(
       pz[i] = pz[i - 1]! + d * Math.cos(hd * RAD);
     }
   };
+  /** 1 when the plant schedule keeps `foot`'s FOREFOOT at tMs, 0 its ankle: the
+   *  hold covering tMs (the latest-opened, where two meet), else a hold whose
+   *  release ramp is still running, else the ankle. */
+  const toesHeldAt = (foot: 'R' | 'L', tMs: number): number => {
+    if (!holds?.length) return 0;
+    let covering: GaitContactHold | null = null;
+    let releasing: GaitContactHold | null = null;
+    for (const h of holds) {
+      if (!h.foot.startsWith(`${foot}_`)) continue;
+      if (tMs >= h.fromMs - 1e-6 && tMs <= h.toMs + 1e-6) {
+        if (!covering || h.fromMs > covering.fromMs) covering = h;
+      } else if (
+        h.toMs < tMs &&
+        tMs <= h.toMs + PLANT_RELEASE_BLEND_MS &&
+        (!releasing || h.toMs > releasing.toMs)
+      ) {
+        releasing = h;
+      }
+    }
+    const h = covering ?? releasing;
+    return h?.foot.endsWith('Toes') ? 1 : 0;
+  };
+  /**
+   * The backward body-space sweep of `foot` over samples a → b (times ta, tb)
+   * along the heading (chx, chz): of the point its plant holds (the interval's
+   * mean toe weight, so the measured point never jumps between ankle and
+   * forefoot), else of the ankle. `zOnly` is the heading-0 legacy expression.
+   */
+  const sweepOf = (
+    foot: 'R' | 'L',
+    a: FeetZ,
+    b: FeetZ,
+    ta: number,
+    tb: number,
+    chx: number,
+    chz: number,
+    zOnly: boolean,
+  ): number => {
+    const g0 = a.ground?.[foot];
+    const g1 = b.ground?.[foot];
+    const w = g0 && g1 ? (toesHeldAt(foot, ta) + toesHeldAt(foot, tb)) / 2 : 0;
+    if (g0 && g1 && w > 0) {
+      const dz = (1 - w) * (g0.az - g1.az) + w * (g0.tz - g1.tz);
+      if (zOnly) return dz;
+      return dz * chz + ((1 - w) * (g0.ax - g1.ax) + w * (g0.tx - g1.tx)) * chx;
+    }
+    if (zOnly) return foot === 'R' ? a.rz - b.rz : a.lz - b.lz;
+    return foot === 'R'
+      ? (a.rz - b.rz) * chz + ((a.rx ?? 0) - (b.rx ?? 0)) * chx
+      : (a.lz - b.lz) * chz + ((a.lx ?? 0) - (b.lx ?? 0)) * chx;
+  };
+  /** How much of the support a LANDING foot has taken at one sample: 0 while it
+   *  is more than FOOT_TOUCHDOWN_BAND_M up, 1 on the floor. Null without ground
+   *  contacts (no floor-relative height to judge by). */
+  const landed = (foot: 'R' | 'L', f: FeetZ): number | null => {
+    const g = f.ground?.[foot];
+    if (!g) return null;
+    return clamp01(1 - Math.max(0, Math.min(g.ah, g.th)) / FOOT_TOUCHDOWN_BAND_M);
+  };
   for (let i = 1; i < n; i += 1) {
     const cur = sampleFeetAtPhase(i * dt);
     // FLIGHT GAP: nothing is planted, so the FK sweep is unmeasurable — but the
@@ -1158,15 +1318,10 @@ export function deriveFootDrivenTravel(
     if (cur.bothAirborne === true) {
       coast(i, carryRate());
       airborne = true;
+      incoming = null;
       prev = cur;
       continue;
     }
-    // Travel-locked schedule first; else HYSTERESIS on the measured decision:
-    // hand off only when the other foot is clearly lower. In the cycle the
-    // swing foot crosses decisively (tens of cm), but near-tie spans — a
-    // standing entry, a feet-together termination, terminal double support —
-    // used to flip-flop the choice per sample, and every flip is a "handoff:
-    // no advance" frame that froze the derived travel mid-step.
     const scheduled = scheduledStance(stanceWindows, i * dt, true);
     if (airborne) {
       // TOUCHDOWN after a flight gap: the landing foot only just arrived, so
@@ -1180,59 +1335,74 @@ export function deriveFootDrivenTravel(
       prev = cur;
       continue;
     }
-    let lower: 'R' | 'L' | null = scheduled;
-    if (lower == null) {
-      lower = planted;
-      if (planted === 'R' && cur.ry > cur.ly + FOOT_HANDOFF_HYSTERESIS_M) lower = 'L';
-      else if (planted === 'L' && cur.ly > cur.ry + FOOT_HANDOFF_HYSTERESIS_M) lower = 'R';
+    // The heading this interval rides: the curve's value at this sample for a
+    // CURVED walk, else the constant (heading 0 keeps the z-only expression).
+    let chx = hx;
+    let chz = hz;
+    if (headingDegAt) {
+      const hd = headingDegAt(i * dt);
+      chx = Math.sin(hd * RAD);
+      chz = Math.cos(hd * RAD);
     }
-    if (lower === planted) {
-      // Advance the root by the planted foot's backward body-space step, so its
-      // world position does not change. Under a PLANNED schedule a still-landing
-      // stance foot can briefly move forward (the physical handoff hasn't
-      // completed) — that is a handoff frame, not a retreat, so the advance is
-      // floored at 0 (the walking root never backs up mid-window).
-      // For a rotated heading the backward step is the sweep's projection onto
-      // the heading unit vector; heading 0 keeps the legacy z-only expression.
-      // A CURVED heading projects — and accumulates — along the heading at THIS
-      // sample's time, so the path bends with the authored yaw progression.
-      let back: number;
-      if (headingDegAt) {
-        const hd = headingDegAt(i * dt);
-        const chx = Math.sin(hd * RAD);
-        const chz = Math.cos(hd * RAD);
-        back =
-          planted === 'R'
-            ? (prev.rz - cur.rz) * chz + ((prev.rx ?? 0) - (cur.rx ?? 0)) * chx
-            : (prev.lz - cur.lz) * chz + ((prev.lx ?? 0) - (cur.lx ?? 0)) * chx;
-        if (scheduled != null) back = Math.max(0, back);
-        z[i] = z[i - 1]! + back;
-        px![i] = px![i - 1]! + back * chx;
-        pz![i] = pz![i - 1]! + back * chz;
-        noteAdvance(back);
-        prev = cur;
-        continue;
-      }
-      if (headingDeg === 0) {
-        back = planted === 'R' ? prev.rz - cur.rz : prev.lz - cur.lz;
-      } else {
-        back =
-          planted === 'R'
-            ? (prev.rz - cur.rz) * hz + ((prev.rx ?? 0) - (cur.rx ?? 0)) * hx
-            : (prev.lz - cur.lz) * hz + ((prev.lx ?? 0) - (cur.lx ?? 0)) * hx;
-      }
-      if (scheduled != null) back = Math.max(0, back);
-      z[i] = z[i - 1]! + back;
-      noteAdvance(back);
+    const zOnly = !headingDegAt && headingDeg === 0;
+    let back: number;
+    if (scheduled != null) {
+      // TRAVEL-LOCKED: the schedule names the support. Advance by its step so
+      // it does not move in the world — floored at 0, because a still-landing
+      // scheduled foot can briefly move forward (the physical handoff hasn't
+      // completed; the walking root never backs up mid-window). The interval
+      // that switches onto the schedule was borne by the outgoing foot, so it
+      // is measured on that foot, not skipped.
+      back = Math.max(0, sweepOf(planted, prev, cur, (i - 1) * dt, i * dt, chx, chz, zOnly));
+      planted = scheduled;
+      incoming = null;
     } else {
-      // Handoff: the new foot just landed — no advance this frame, then track it.
-      z[i] = z[i - 1]!;
-      if (px && pz) {
-        px[i] = px[i - 1]!;
-        pz[i] = pz[i - 1]!;
+      // HYSTERESIS on the measured decision: hand off only when the other ankle
+      // is clearly lower. In the cycle the swing foot crosses decisively (tens
+      // of cm), but near-tie spans — a standing entry, a feet-together
+      // termination, terminal double support — would flip-flop the choice per
+      // sample. Once a transfer is under way it is judged from the incoming
+      // foot's side, the same hysteresis a completed switch would apply.
+      if (incoming == null) {
+        if (planted === 'R' && cur.ry > cur.ly + FOOT_HANDOFF_HYSTERESIS_M) incoming = 'L';
+        else if (planted === 'L' && cur.ly > cur.ry + FOOT_HANDOFF_HYSTERESIS_M) incoming = 'R';
+      } else if (
+        incoming === 'L'
+          ? cur.ly > cur.ry + FOOT_HANDOFF_HYSTERESIS_M
+          : cur.ry > cur.ly + FOOT_HANDOFF_HYSTERESIS_M
+      ) {
+        incoming = null; // the outgoing foot is clearly lower again: no hand-over
       }
-      planted = lower;
+      if (incoming != null) {
+        const wEnd = landed(incoming, cur);
+        if (wEnd == null) {
+          // Ankles only: the switch is immediate, but the interval it closes was
+          // borne by the outgoing foot — measure it there instead of skipping it.
+          back = sweepOf(planted, prev, cur, (i - 1) * dt, i * dt, chx, chz, zOnly);
+          planted = incoming;
+          incoming = null;
+        } else {
+          // WEIGHT TRANSFER: the support passes to the landing foot as it closes
+          // on the floor — the interval's share is its mean landing weight.
+          const w = (wEnd + (landed(incoming, prev) ?? wEnd)) / 2;
+          back =
+            (1 - w) * sweepOf(planted, prev, cur, (i - 1) * dt, i * dt, chx, chz, zOnly) +
+            w * sweepOf(incoming, prev, cur, (i - 1) * dt, i * dt, chx, chz, zOnly);
+          if (wEnd >= 1) {
+            planted = incoming;
+            incoming = null;
+          }
+        }
+      } else {
+        back = sweepOf(planted, prev, cur, (i - 1) * dt, i * dt, chx, chz, zOnly);
+      }
     }
+    z[i] = z[i - 1]! + back;
+    if (px && pz) {
+      px[i] = px[i - 1]! + back * chx;
+      pz[i] = pz[i - 1]! + back * chz;
+    }
+    noteAdvance(back);
     prev = cur;
   }
   const lerp = (arr: number[], tMs: number): number => {
