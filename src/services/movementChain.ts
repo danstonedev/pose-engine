@@ -13,54 +13,11 @@
  *
  * Nothing new in the trajectory/measurement path — this is composition over the
  * existing sampler, so a chained segment is frame-for-frame identical to running
- * that segment standalone from the same start pose, with its authored root plan
- * carried to where that pose stands ({@link anchorResolvedAt}).
+ * that segment standalone from the same start pose.
  */
 import { sampleComposedMotion, type MotionRecording, type SampleComposedOptions } from './motionRecording';
-import { resolveComposedMotion, type ComposedMotion, type ResolvedComposedMotion } from './motionSequence';
+import { resolveComposedMotion, type ComposedMotion } from './motionSequence';
 import type { CustomPose } from '../types';
-
-/**
- * Re-anchor a RESOLVED continuation's authored root translates at the body's
- * entry position (world XZ, meters) — the chain rebase's translate half.
- *
- * An authored `root.translateM` is a position in the motion's own frame, whose
- * origin is where the motion starts: the walk's APA shift and heading pivot,
- * the step turn's weight shifts, a jump's zero drift are all written about
- * [0, 0, 0]. A chained segment starts wherever the previous one left the body,
- * so read in the rest frame those positions pull the root back to the rest
- * origin across the segment's first keyframe. Measured on the rig (60 Hz): a 90°
- * step turn chained after the travel walk slid the whole body about 1.4 m back
- * to where the walk began in 500 ms, both feet with it; the figure-eight's
- * second half, entering 1.52 m from the origin, dragged its planted foot 0.64 m
- * off the line its gait travels, then flung it back at release (R_Leg 770°/s on
- * 5c1c9ac, 1144°/s on 2d8f5e6, against 450°/s for the same half alone).
- *
- * Applied AFTER resolution, so the persistent-heading rebase (which rotates the
- * authored plan about the motion's own origin — resolveComposedMotion) sees the
- * plan as authored and the rotated plan is then carried to the entry. Y is
- * never touched (it is height above the floor: a jump's apex, a run's flight).
- * Keyframes that author no translate inherit the carried entry root already.
- * Identity (the same object) at (0, 0) or for a refused resolution.
- */
-export function anchorResolvedAt(
-  resolved: ResolvedComposedMotion,
-  xM: number,
-  zM: number,
-): ResolvedComposedMotion {
-  if (resolved.status !== 'ok' || !Number.isFinite(xM) || !Number.isFinite(zM) || (xM === 0 && zM === 0)) {
-    return resolved;
-  }
-  if (!resolved.keyframes.some((kf) => kf.root?.translateM)) return resolved;
-  return {
-    ...resolved,
-    keyframes: resolved.keyframes.map((kf) => {
-      const t = kf.root?.translateM;
-      if (!t) return kf;
-      return { ...kf, root: { ...kf.root, translateM: [t[0] + xM, t[1], t[2] + zM] } };
-    }),
-  };
-}
 
 /** Force a segment to CONTINUE from the current on-stage pose (fold, don't
  *  reset). Templates default to `startFrom:'neutral'`, which would teleport the
@@ -207,22 +164,15 @@ export function sampleMotionChain(
     // (`inheritHeading` — the persistent-heading rebase, SEAM-1) rotate its
     // authored yaw plan onto the facing the previous segment actually left the
     // body at. Ignored (byte-identical) for every unflagged motion.
-    // …then carry its authored root plan to where the previous segment left the
-    // body (anchorResolvedAt): its translates are written about its own start.
-    const entry = currentRoot?.translateM;
-    const resolved = anchorResolvedAt(
-      resolveComposedMotion(
-        motion,
-        baseOpts.variantCfg,
-        currentAngles || currentRoot
-          ? {
-              ...(currentAngles ? { currentAngles } : {}),
-              ...(currentRoot ? { currentRoot } : {}),
-            }
-          : undefined,
-      ),
-      entry?.[0] ?? 0,
-      entry?.[2] ?? 0,
+    const resolved = resolveComposedMotion(
+      motion,
+      baseOpts.variantCfg,
+      currentAngles || currentRoot
+        ? {
+            ...(currentAngles ? { currentAngles } : {}),
+            ...(currentRoot ? { currentRoot } : {}),
+          }
+        : undefined,
     );
     const recording = sampleComposedMotion(resolved, {
       ...baseOpts,
