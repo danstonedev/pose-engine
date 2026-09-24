@@ -250,3 +250,12 @@ export { default as ObservationViewer } from './ObservationViewer.svelte';
 // patient and resolves with the MEASURED outcome. Same lazy-three contract,
 // so the barrel stays SSR/prerender-safe.
 export { default as ExamStage3D } from './ExamStage3D.svelte';
+// The stage's opt-in host scene layer (the `sceneLayer` prop): the types a host
+// implements, and the guarded mount the stage drives it through.
+export {
+  mountSceneLayer,
+  type MountedSceneLayer,
+  type StageSceneContext,
+  type StageSceneLayer,
+  type StageSceneLayerFactory,
+} from './services/stageSceneLayer';
