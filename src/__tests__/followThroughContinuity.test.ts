@@ -513,55 +513,79 @@ describe('follow-through stroke cache — each distinct stroke solved once, and 
     // the knots (500 → 8,000) took 85–122× the time when the bone holds still
     // on unevenly timed knots (strokes that differ only in their slopes, cheap
     // to solve, so the scan is all there is) and 31–48× when every knot is a
-    // new pose (solving each stroke still dominates there, so under load the
-    // scan's share can read as little as 31×: that regime runs second). Keyed,
-    // 12–19× in both under a loaded parallel run. The gate is twice linear,
-    // 32×; followThroughStroke.test.ts gates the lookups' own count, which no
-    // load moves. Every build here is cold: strokes solved in an earlier build
-    // would otherwise be looked up, not solved.
-    const knotAt = (t: number, q: Q, stop: boolean): TrajectoryKnot => ({
+    // new pose. followThroughStroke.test.ts gates the lookups' own count, which
+    // no load moves; this gates the time they take.
+    //
+    // Timed against the same knots on a bone with no delay (a leg: it rides the
+    // chain's warp and solves no stroke), built interleaved with it: a build
+    // that is linear in its knots is not linear in wall-clock time — memory and
+    // the JIT make even that lockstep build read 15–25× for 16× the knots, and
+    // load moves it further (an absolute 32× gate read 31.4× on a loaded
+    // runner with the keyed lookups in place) — but both builds pay that alike,
+    // so the delayed bone's share of the time holds still with the knots when
+    // its strokes cost O(1) each and grows with them when they cost O(n). The
+    // gate is twice linear: its share may at most double for 16× the strokes.
+    // Every build here is cold: strokes solved in an earlier build would
+    // otherwise be looked up, not solved.
+    const knotAt = (t: number, q: Q, stop: boolean, bone: string): TrajectoryKnot => ({
       timeMs: t,
-      pose: { variant: 'male', bones: { L_Forearm: q }, schemaVersion: POSE_SCHEMA_VERSION },
+      pose: { variant: 'male', bones: { [bone]: q }, schemaVersion: POSE_SCHEMA_VERSION },
       rootQuat: [...IDENT],
       rootTranslate: [0, 0, 0],
       stop,
       planted: true,
     });
+    const onBone = (knots: TrajectoryKnot[], bone: string): TrajectoryKnot[] =>
+      knots.map((k) => knotAt(k.timeMs, Object.values(k.pose.bones!)[0] as Q, k.stop, bone));
     const moving = (n: number): TrajectoryKnot[] =>
-      Array.from({ length: n }, (_, i) => knotAt(i * 120, randQ(35), i === 0 || i === n - 1));
+      Array.from({ length: n }, (_, i) => knotAt(i * 120, randQ(35), i === 0 || i === n - 1, 'L_Forearm'));
     const held = (n: number): TrajectoryKnot[] => {
       const q = rot(17, [1, 2, 3]);
       let t = 0;
-      return Array.from({ length: n }, (_, i) => knotAt(i === 0 ? 0 : (t += 80 + 80 * rnd()), q, i === 0 || i === n - 1));
+      return Array.from({ length: n }, (_, i) =>
+        knotAt(i === 0 ? 0 : (t += 80 + 80 * rnd()), q, i === 0 || i === n - 1, 'L_Forearm'),
+      );
     };
-    // Least of five: preemption only ever adds time. The 500-knot build is
-    // timed as sixteen of them in a row — the 8,000-knot build's strokes, over
-    // as long a stretch — so load and collection weigh on both sides alike: a
-    // lone 3 ms build against a lone 100 ms one read 34× under a loaded
-    // parallel run and 7× on a quiet one.
-    const buildMs = (sets: TrajectoryKnot[][]): number => {
-      let best = Infinity;
-      for (let r = 0; r < 5; r += 1) {
-        let ms = 0;
-        for (const knots of sets) {
-          clearFollowThroughStrokeMemo();
-          const t0 = performance.now();
-          buildPoseTrajectory(knots);
-          ms += performance.now() - t0;
-        }
-        best = Math.min(best, ms / sets.length);
+    // The 500-knot build is timed as sixteen of them in a row — the 8,000-knot
+    // build's strokes, over as long a stretch. Least of five rounds, each round
+    // timing all four builds back to back: preemption only ever adds time.
+    const timeOf = (sets: TrajectoryKnot[][]): number => {
+      let ms = 0;
+      for (const knots of sets) {
+        clearFollowThroughStrokeMemo();
+        const t0 = performance.now();
+        buildPoseTrajectory(knots);
+        ms += performance.now() - t0;
       }
-      return best;
+      return ms / sets.length;
     };
+    expect(trajectoryBoneDelay('L_Forearm')).toBeGreaterThan(0);
+    expect(trajectoryBoneDelay('L_UpLeg')).toBe(0);
     for (const [label, knotsOf] of [
       ['held still on unevenly timed knots', held],
       ['every knot a new pose', moving],
     ] as const) {
-      buildPoseTrajectory(knotsOf(2000)); // warm the JIT on this shape
-      const [small, big] = [buildMs(Array.from({ length: 16 }, () => knotsOf(500))), buildMs([knotsOf(8000)])];
+      const small = Array.from({ length: 16 }, () => knotsOf(500));
+      const big = [knotsOf(8000)];
+      const smallLock = small.map((k) => onBone(k, 'L_UpLeg'));
+      const bigLock = big.map((k) => onBone(k, 'L_UpLeg'));
+      buildPoseTrajectory(knotsOf(2000)); // warm the JIT on both shapes
+      buildPoseTrajectory(onBone(knotsOf(2000), 'L_UpLeg'));
+      const best = [Infinity, Infinity, Infinity, Infinity];
+      for (let r = 0; r < 5; r += 1) {
+        [small, smallLock, big, bigLock].forEach((sets, i) => {
+          best[i] = Math.min(best[i]!, timeOf(sets));
+        });
+      }
+      const [smallMs, smallLockMs, bigMs, bigLockMs] = best as [number, number, number, number];
+      const growth = bigMs / bigLockMs / (smallMs / smallLockMs);
       // eslint-disable-next-line no-console
-      console.log(`stroke cache, ${label}: 500 knots ${small.toFixed(1)} ms, 8,000 knots ${big.toFixed(1)} ms (${(big / small).toFixed(1)}×)`);
-      expect(big / small, `${label}: build time for 16× the strokes`).toBeLessThan(32);
+      console.log(
+        `stroke cache, ${label}: 500 knots ${smallMs.toFixed(1)} ms (lockstep ${smallLockMs.toFixed(1)}), ` +
+          `8,000 knots ${bigMs.toFixed(1)} ms (lockstep ${bigLockMs.toFixed(1)}): ` +
+          `${(bigMs / smallMs).toFixed(1)}× against the lockstep's ${(bigLockMs / smallLockMs).toFixed(1)}× — share grows ${growth.toFixed(2)}×`,
+      );
+      expect(growth, `${label}: the delayed bone's share of the build time for 16× the strokes`).toBeLessThan(2);
     }
   });
 });

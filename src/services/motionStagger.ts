@@ -37,8 +37,8 @@
  *      {@link stagedBlendWithBaseline}; COMPOSED trajectory playback (the SQUAD
  *      spline both the live stage and the offline sampler evaluate through
  *      motionTrajectory.sampleAt) consumes {@link trajectoryBoneDelay},
- *      {@link delayedOnset}, {@link followThroughKnotSlope} and
- *      {@link followThroughStrokeLag}. Stage and sampler share one trajectory
+ *      {@link delayedOnset}, {@link followThroughKnotSlope},
+ *      {@link followThroughStrokeLag} and {@link followThroughRamp}. Stage and sampler share one trajectory
  *      builder, so a headless recording remains frame-for-frame what the stage
  *      shows.
  *
@@ -263,6 +263,65 @@ export interface FollowThroughStrokeLag {
 export function followThroughStrokeLag(delay: number): FollowThroughStrokeLag {
   if (delay <= 0) return { midLag: 0, rateCeiling: 1 };
   return { midLag: delay / 2, rateCeiling: 1 / (1 - delay) };
+}
+
+/** A delayed bone's own clock through a stroke that meets a PINNED knot (see
+ *  {@link followThroughRamp}): its rate ramps linearly from `r0` to `peak` over
+ *  the first `a` of the stroke's time, holds `peak`, and ramps to `r1` over the
+ *  last `b`. */
+export interface FollowThroughRamp {
+  r0: number;
+  r1: number;
+  peak: number;
+  a: number;
+  b: number;
+}
+
+/**
+ * The clock a delayed bone keeps through a stroke with a PINNED end — a
+ * fly-through knot whose path tangent is not continuous (motionTrajectory: the
+ * SQUAD control is the knot itself, next to a segment wider than 120° and at a
+ * terminal overshoot), so the bone's path turns a corner there, or reverses.
+ *
+ * Velocity is continuous through such a knot only if the bone is still at it:
+ * the old per-segment warp stopped it dead there (and at every other knot),
+ * the C¹ warp flew straight through and flipped its velocity (a stand from all
+ * fours: the upper arm 162 → −162°/s in one instant), and slowing its own
+ * time-warp to zero across the whole stroke cost a peak 12–25% over 5c1c9ac's.
+ * So the bone runs the lockstep chain's own progress on a clock of its own,
+ * ρ(σ) with ρ(0) = 0 and ρ(1) = 1: its rate eases from `r0` to `peak` =
+ * 1/(1 − d) — the most the onset dwell ever costs, what 5c1c9ac's delayed bone
+ * ran at after every knot — holds it, and eases to `r1`. At a pinned end the
+ * rate is 0, so the bone arrives at the knot at rest and leaves it from rest,
+ * trailing the chain out of it; at a flowing end it is the bone's own slope
+ * there as a share of the chain's ({@link followThroughKnotSlope}), so it meets
+ * the stroke on that side C¹. The two ramps take the same acceleration, the
+ * least that fits the stroke's time: between two pinned ends each is `d` long.
+ * Returns null when the bone is not delayed.
+ */
+export function followThroughRamp(delay: number, r0: number, r1: number): FollowThroughRamp | null {
+  if (!(delay > 0 && delay < 1)) return null;
+  const peak = 1 / (1 - delay);
+  const lo0 = Math.min(peak, Math.max(0, r0));
+  const lo1 = Math.min(peak, Math.max(0, r1));
+  const d0 = peak - lo0;
+  const d1 = peak - lo1;
+  const accel = (d0 * d0 + d1 * d1) / (2 * (peak - 1));
+  if (!(accel > 0)) return null;
+  return { r0: lo0, r1: lo1, peak, a: d0 / accel, b: d1 / accel };
+}
+
+/** Progress ρ(σ) ∈ [0,1] on a {@link followThroughRamp} clock at the stroke's
+ *  raw time-linear progress σ ∈ [0,1] — the integral of its rate. */
+export function followThroughRampProgress(ramp: FollowThroughRamp, sigma: number): number {
+  const s = clamp01(sigma);
+  const { r0, r1, peak, a, b } = ramp;
+  const cruiseFrom = a * (r0 + peak) / 2;
+  if (s < a) return r0 * s + ((peak - r0) * s * s) / (2 * a);
+  const tail = 1 - b;
+  if (s <= tail) return cruiseFrom + peak * (s - a);
+  const t = s - tail;
+  return clamp01(cruiseFrom + peak * (tail - a) + peak * t + ((r1 - peak) * t * t) / (2 * b));
 }
 
 /**
