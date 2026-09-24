@@ -27,6 +27,7 @@ import {
   solveIKChain,
   type IKChainContext,
 } from './poseRig';
+import { clampBoneToRom } from './poseRomClamp';
 
 /** A prepared limb IK chain that pins one contact effector to a world target. */
 export interface FootPlantSolver {
@@ -167,20 +168,63 @@ export function solveFootPlant(
 export const PLANT_RELEASE_BLEND_MS = 120;
 
 /**
- * The release weight `msSinceRelease` ms after a plant window ends: 1 → 0 over
- * `lengthMs` (default {@link PLANT_RELEASE_BLEND_MS}) along a smoothstep,
- * 1 − (3u² − 2u³). Its rate is ZERO at both ends, so the release leaves the
- * hold and joins the FK swing without a velocity kink. The old linear ramp had
- * a kink at both: as it ended, the DDx walk's left ankle moved 10.6° in one
- * frame (−10.6° → 0.1°) and then not at all. 1 at or before the window's end
- * (and for a non-finite input — a caller treats that as "not releasing"), 0
- * once the release is over.
+ * How a release's weight runs from 1 to 0 over its length:
+ *  - `smoothstep`: 1 − (3u² − 2u³), its rate peaking at 1.5/length mid-way;
+ *  - `cruise`: the same C1 start and finish, but it reaches its full rate by a
+ *    fifth of the way ({@link RELEASE_CRUISE_RAMP}) and holds it to the last
+ *    fifth — a rate of 1.25/length at most, a sixth under the smoothstep's.
+ *    An ankle release that turns the leg onto FK's swing turns it no faster
+ *    than it must: on the smoothstep, 26 of the curved walks' and the
+ *    figure-eight's 72 foot releases (both rigs, 30/60/120 Hz) turned the hip
+ *    faster than both 5c1c9ac's release and FK's own peak, by up to 21% (with
+ *    the forefoot-only pin, {@link RELEASE_PIN_M}; 31, by up to 24%, with it
+ *    on every release); cruising, 8, at 30 Hz only and by 10% at most
+ *    (plantReleaseMain.test). A long release (a slow weight shift) has no
+ *    fast swing to meet, and the cruise's sharper corners lift its foot
+ *    harder than the smoothstep does (the 3 cm single-leg stance at 120 Hz,
+ *    780 ms: 1.15× FK's acceleration against 1.13 allowed), so from
+ *    {@link RELEASE_CRUISE_FROM_MS} to {@link RELEASE_CRUISE_TO_MS} it turns
+ *    into the smoothstep (a smoothstep blend of the two, still C1).
+ * Both have ZERO rate at both ends, so the release leaves the hold and joins
+ * the FK swing without a velocity kink. The old linear ramp had a kink at
+ * both: as it ended, the DDx walk's left ankle moved 10.6° in one frame
+ * (−10.6° → 0.1°) and then not at all.
  */
-export function plantReleaseWeight(msSinceRelease: number, lengthMs = PLANT_RELEASE_BLEND_MS): number {
+export type PlantReleaseShape = 'smoothstep' | 'cruise';
+
+/** The share of a `cruise` release spent reaching its full rate (and again
+ *  leaving it). */
+const RELEASE_CRUISE_RAMP = 0.2;
+/** Release lengths (ms) over which the `cruise` shape turns into the
+ *  smoothstep. */
+const RELEASE_CRUISE_FROM_MS = 300;
+const RELEASE_CRUISE_TO_MS = 500;
+
+/**
+ * The release weight `msSinceRelease` ms after a plant window ends: 1 → 0 over
+ * `lengthMs` (default {@link PLANT_RELEASE_BLEND_MS}) along `shape`
+ * ({@link PlantReleaseShape}; the smoothstep by default). 1 at or before the
+ * window's end (and for a non-finite input — a caller treats that as "not
+ * releasing"), 0 once the release is over.
+ */
+export function plantReleaseWeight(
+  msSinceRelease: number,
+  lengthMs = PLANT_RELEASE_BLEND_MS,
+  shape: PlantReleaseShape = 'smoothstep',
+): number {
   const u = msSinceRelease / lengthMs;
   if (!(u > 0)) return 1;
   if (u >= 1) return 0;
-  return 1 - u * u * (3 - 2 * u);
+  const smooth = 1 - u * u * (3 - 2 * u);
+  if (shape !== 'cruise') return smooth;
+  const toSmooth = smooth01((lengthMs - RELEASE_CRUISE_FROM_MS) / (RELEASE_CRUISE_TO_MS - RELEASE_CRUISE_FROM_MS));
+  if (toSmooth >= 1) return smooth;
+  // Distance covered (0 → 1) at a rate rising linearly over the first ramp,
+  // flat, then falling linearly over the last: C1, its rate 1 / (1 − ramp).
+  const r = RELEASE_CRUISE_RAMP;
+  const rate = 1 / (1 - r);
+  const done = u < r ? (rate * u * u) / (2 * r) : u <= 1 - r ? rate * (u - r / 2) : 1 - (rate * (1 - u) * (1 - u)) / (2 * r);
+  return (1 - toSmooth) * (1 - done) + toSmooth * smooth;
 }
 
 // ── Forefoot settle ──────────────────────────────────────────────────────────
@@ -560,8 +604,10 @@ export interface PlantRelease {
    *  lift); null when FK does not lift it that far within the release. */
   liftAt: number | null;
   /** How strongly the release keeps the drawn effector off the floor-drag
-   *  (0..1, {@link RELEASE_PIN_M}). */
+   *  (0..1, {@link RELEASE_PIN_M}; a forefoot's alone). */
   pin: number;
+  /** How its weight runs from 1 to 0 ({@link plantReleaseWeight}). */
+  shape: PlantReleaseShape;
 }
 
 /** The per-frame inputs {@link stepContactPlants} needs beyond the plants. */
@@ -652,7 +698,7 @@ function releasePlanOf(fp: ContactPlant, trajectory: ContactPlantTrajectory, hor
  *  release stops keeping it off the floor-drag ({@link PlantRelease.liftAt}). */
 export const PLANT_RELEASE_FLOOR_BAND_M = 0.01;
 
-/** How far (m, smoothly saturating) the release holds the drawn effector back
+/** How far (m, smoothly saturating) the release holds a released forefoot back
  *  from the floor-drag of its blend with FK (see {@link releaseContactPlant}):
  *  enough for DDx's toe-offs, dragged 3–11 mm back on their first released
  *  30 Hz frame, and the DDx-like toe-off (12 mm at 60 Hz). */
@@ -662,9 +708,10 @@ const RELEASE_PIN_M = 0.025;
 const RELEASE_PIN_FADE = 0.25;
 /** The hold stands down where FK lifts the effector only late in the release
  *  (from 0.4 of it, gone by 0.6): held that long it builds a lag the rest of
- *  the release has to catch up. The single-leg stance's foot, lifted by FK at
- *  0.5–0.6 of its 780 ms, turned the hip 1.09× FK's peak held, 0.96× free; the
- *  held lift at 100 ms of a 600 ms raise 1.19× against 0.94. */
+ *  the release has to catch up. Measured when ankle releases were held too:
+ *  the single-leg stance's foot, lifted by FK at 0.5–0.6 of its 780 ms,
+ *  turned the hip 1.09× FK's peak held, 0.96× free; the held lift at 100 ms
+ *  of a 600 ms raise 1.19× against 0.94. */
 const RELEASE_PIN_LATE_FROM = 0.4;
 const RELEASE_PIN_LATE_TO = 0.6;
 
@@ -684,6 +731,15 @@ const _relOffset = new THREE.Vector3();
  * another contact of the same leg, holding when it starts, lets go — no two
  * releases act on one leg (the 0.6× toe walk's foot release, stretched to 256
  * ms, outlived the toes' window by 8 ms and ran beside their release).
+ *
+ * Its shape ({@link PlantReleaseShape}): an ankle release cruises; a forefoot's
+ * keeps the smoothstep — the cruise, reaching its full rate sooner, turned the
+ * toe-pivot walk's braking-step knee 1.40× FK's local peak at 60 Hz against
+ * 1.23 (1.3 allowed) — and so does a release another contact of the same leg
+ * holds over (a heel rise into a forefoot hold): that hold has the last word
+ * on the leg, so the release draws nothing and only seeds the hold's solve,
+ * and cruising it moved the braking step's first released ankle frame, the
+ * hold carried on, 24.35 → 24.44°/frame at 30 Hz.
  */
 function readPlantRelease(
   fp: ContactPlant,
@@ -692,7 +748,14 @@ function readPlantRelease(
   frame: ContactPlantFrame,
 ): PlantRelease {
   const base = PLANT_RELEASE_BLEND_MS;
-  const out: PlantRelease = { toMs: fp.toMs, lengthMs: base, liftAt: null, pin: 0 };
+  // A forefoot lets go on the smoothstep, and so does a release another
+  // contact of the same leg holds over (see below).
+  const forefoot = /Toes$/.test(fp.solver.footKey);
+  const covered = plants.some(
+    (o) => o !== fp && o.solver.kneeKey === fp.solver.kneeKey && o.fromMs <= fp.toMs + 1e-6 && o.toMs > fp.toMs + 1e-6,
+  );
+  const shape: PlantReleaseShape = forefoot || covered ? 'smoothstep' : 'cruise';
+  const out: PlantRelease = { toMs: fp.toMs, lengthMs: base, liftAt: null, pin: 0, shape };
   const chain = fp.solver.ctx.bones;
   const parent = chain[chain.length - 1]!.parent;
   const trajectory = frame.trajectory;
@@ -721,17 +784,17 @@ function readPlantRelease(
     let lengthMs = Math.min(RELEASE_MAX_MS, plantReleaseLengthMs(plan, gapAt));
     lengthMs = Math.max(base, Math.min(lengthMs, trajectory.totalMs - fp.toMs));
     // When the drawn effector is a band up: the release target rises on the
-    // smoothstep s, and the blend with FK lifts it as far again (first order),
-    // so s(2 − s) of FK's height above the held point.
+    // release's own s = 1 − w, and the blend with FK lifts it as far again
+    // (first order), so s(2 − s) of FK's height above the held point.
     for (let u = 0; u <= 1 + 1e-9; u += 0.005) {
-      const s = smooth01(u);
+      const s = 1 - plantReleaseWeight(u * lengthMs, lengthMs, shape);
       if (s * (2 - s) * offsetAt(plan, u * lengthMs).y >= PLANT_RELEASE_FLOOR_BAND_M) {
         out.liftAt = u;
         break;
       }
     }
     out.lengthMs = lengthMs;
-    if (out.liftAt !== null) {
+    if (forefoot && out.liftAt !== null) {
       out.pin = 1 - smooth01((out.liftAt - RELEASE_PIN_LATE_FROM) / (RELEASE_PIN_LATE_TO - RELEASE_PIN_LATE_FROM));
     }
   }
@@ -780,7 +843,7 @@ const _pinIdentity = new THREE.Quaternion();
  * release frame moves within 0.03°/frame of FK's speed).
  *
  * LIFT, THEN LET GO: the target's height eases to FK's on the release's own
- * smoothstep (1 − w), its horizontal position only on the square of it, so the
+ * progress (1 − w), its horizontal position only on the square of it, so the
  * toes rise with the swing before they travel. The horizontal must still reach
  * FK's: left at the held point, the solve keeps reaching back to it and the DDx
  * walk's last release frame drops the left ankle 7.8° into FK.
@@ -789,11 +852,11 @@ const _pinIdentity = new THREE.Quaternion();
  * effector off the solve's point toward FK's — and where FK has the toes well
  * behind and above the held point (DDx's walk at 30 Hz: 7–12 cm behind, 2.5–7
  * cm up) that dragged them 3.3–11.3 mm back along the floor on the first
- * released frame, while the target itself had moved under 1 mm. The limb is
- * therefore swung about its root joint (the hip) — one small rotation, which
- * no joint limit can snap — to carry the effector back toward where the solve
- * put it, horizontally, by at most {@link RELEASE_PIN_M} (a smooth
- * saturation). It holds until the drawn effector has lifted a band
+ * released frame, while the target itself had moved under 1 mm. A released
+ * FOREFOOT is therefore swung about its root joint (the hip) — one small
+ * rotation, which no joint limit can snap — to carry it back toward where the
+ * solve put it, horizontally, by at most {@link RELEASE_PIN_M} (a smooth
+ * saturation). It holds until the drawn toes have lifted a band
  * ({@link PlantRelease.liftAt}, read with the release) and lets go over the
  * next {@link RELEASE_PIN_FADE} of it — on the release's own clock, so how
  * fast the effector happens to rise cannot time it: timed by the target
@@ -801,7 +864,13 @@ const _pinIdentity = new THREE.Quaternion();
  * turned the curved walks' hips 5.2–7.5°/frame at 120 Hz against FK's 1.3.
  * It starts from nothing (the blend has not dragged yet) and ends with the
  * blend's own, so it is C1 at both ends. DDx's released toes now move
- * 0.2–1.9 mm on that frame.
+ * 0.2–1.9 mm on that frame. An ankle release is not held so: it leaves the
+ * floor heel first, and handing its hold back, even on the release's clock,
+ * turned the 45° walk's right hip 1.11–1.13°/frame at 120 Hz on both rigs
+ * against 5c1c9ac's 0.71–0.73 (0.76 now).
+ *
+ * OFF THE FLOOR: a released forefoot is never drawn below the lower of its
+ * held point and FK's toes ({@link liftReleasedForefoot}).
  */
 function releaseContactPlant(
   solver: FootPlantSolver,
@@ -834,6 +903,7 @@ function releaseContactPlant(
   // The root-most chain link's world refresh cascades to the whole limb.
   const root = bones[bones.length - 1]!;
   root.updateMatrixWorld(true);
+  if (/Toes$/.test(solver.footKey)) liftReleasedForefoot(solver, Math.min(held.y, _releaseFk.y), rest);
   const f = release.liftAt === null ? 0 : release.pin * (1 - smooth01((u - release.liftAt) / RELEASE_PIN_FADE));
   if (!(f > 0)) return;
   bones[0]!.getWorldPosition(_releaseDrawn);
@@ -850,6 +920,85 @@ function releaseContactPlant(
   if (root.parent) root.quaternion.copy(root.parent.getWorldQuaternion(_pinSwing).invert().multiply(_pinWorld));
   else root.quaternion.copy(_pinWorld);
   root.updateMatrixWorld(true);
+}
+
+/** How far (m) under its floor level a released forefoot is drawn before
+ *  {@link liftReleasedForefoot} lifts it all the way back: a smoothstep over
+ *  this depth, so the lift starts from nothing. */
+const RELEASE_FLOOR_EASE_M = 0.005;
+/** The chain joints (indices into the toe chain toes → ankle → knee → hip)
+ *  that lift a released forefoot, and how many passes they take. */
+const RELEASE_FLOOR_JOINTS = [1, 3] as const;
+const RELEASE_FLOOR_PASSES = 4;
+
+const _floorPre: THREE.Quaternion[] = [];
+const _floorTarget = new THREE.Vector3();
+const _floorJoint = new THREE.Vector3();
+const _floorFrom = new THREE.Vector3();
+const _floorTo = new THREE.Vector3();
+const _floorSwing = new THREE.Quaternion();
+const _floorWorld = new THREE.Quaternion();
+const _floorParent = new THREE.Quaternion();
+
+/**
+ * Keep a released forefoot from being drawn under `levelY` — the lower of its
+ * held point and FK's own toes this frame, so never higher than the route puts
+ * them. The blend of the held leg with FK's is per joint, and where the route
+ * has left the held toes far behind (the toe-pivot walk's braking step: FK's
+ * toes 38–68 cm ahead, the knee at 30°) the blended leg passes under the body
+ * with less knee than FK's, so at 60 Hz the toes went 2.8 cm under the floor
+ * at speed 1 and 3.6 at 1.5 (5c1c9ac 2.5 and 2.4), and at 60–120 Hz stayed
+ * more than 3 mm under it for 6–12 frames at speed 1 (5c1c9ac 5–8); now 0.7
+ * and 1.2 cm, 2–4 frames (plantReleaseMain.test).
+ *
+ * It turns the ANKLE, then the hip, toward the drawn toes put back at that
+ * level (CCD, ROM-clamped), eased in over {@link RELEASE_FLOOR_EASE_M} of
+ * depth. Not the knee: the knee is what the blend is short of, but turning it
+ * faster is exactly the joint speed the release keeps down (the whole chain's
+ * lift turned the braking step's knee 1.50× and 1.58× FK's local peak at 30
+ * and 60 Hz, against 1.22× and 1.23× without, 1.3 allowed at 60 Hz).
+ * Mid-swing the hip alone cannot lift the toes — a turn about it moves them
+ * along the floor — but it lets the ankle's dorsiflexion (what a real swing
+ * clears the floor with) reach. The ankle pays for it: at speeds 1.2 and 1.5
+ * it turns up to 1.56× as fast as 5c1c9ac's (female, 1.5, 120 Hz: 8.44
+ * against 5.42°/frame). A function of the frame alone, like the rest of the
+ * release.
+ */
+function liftReleasedForefoot(
+  solver: FootPlantSolver,
+  levelY: number,
+  rest: JointAngleRestReference | null | undefined,
+): void {
+  const bones = solver.ctx.bones;
+  const toes = bones[0]!;
+  toes.getWorldPosition(_releaseDrawn);
+  const depth = levelY - _releaseDrawn.y;
+  if (!(depth > 0)) return;
+  while (_floorPre.length < bones.length) _floorPre.push(new THREE.Quaternion());
+  for (let i = 0; i < bones.length; i += 1) _floorPre[i]!.copy(bones[i]!.quaternion);
+  _floorTarget.set(_releaseDrawn.x, levelY, _releaseDrawn.z);
+  for (let pass = 0; pass < RELEASE_FLOOR_PASSES; pass += 1) {
+    for (const j of RELEASE_FLOOR_JOINTS) {
+      const joint = bones[j];
+      if (!joint?.parent) continue;
+      joint.getWorldPosition(_floorJoint);
+      _floorFrom.copy(toes.getWorldPosition(_floorFrom)).sub(_floorJoint);
+      _floorTo.copy(_floorTarget).sub(_floorJoint);
+      if (_floorFrom.lengthSq() < 1e-10 || _floorTo.lengthSq() < 1e-10) continue;
+      _floorSwing.setFromUnitVectors(_floorFrom.normalize(), _floorTo.normalize());
+      joint.getWorldQuaternion(_floorWorld).premultiply(_floorSwing);
+      joint.quaternion.copy(joint.parent.getWorldQuaternion(_floorParent).invert().multiply(_floorWorld));
+      const key = solver.ctx.canonicalKeys[j];
+      if (rest && key) clampBoneToRom(joint, key, rest);
+      joint.updateMatrixWorld(true);
+    }
+  }
+  const g = smooth01(depth / RELEASE_FLOOR_EASE_M);
+  for (let i = 0; i < bones.length; i += 1) {
+    _releaseSolved.copy(bones[i]!.quaternion);
+    bones[i]!.quaternion.copy(_floorPre[i]!).slerp(_releaseSolved, g);
+  }
+  bones[bones.length - 1]!.updateMatrixWorld(true);
 }
 
 /**
@@ -889,7 +1038,7 @@ export function stepContactPlants(
     let w = 0;
     if (fp.target && since > 0) {
       if (!fp.release || fp.release.toMs !== fp.toMs) fp.release = readPlantRelease(fp, plants, tMs, frame);
-      w = plantReleaseWeight(since, fp.release.lengthMs);
+      w = plantReleaseWeight(since, fp.release.lengthMs, fp.release.shape);
     }
     const repinned =
       w > 0 &&

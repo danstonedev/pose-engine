@@ -18,14 +18,12 @@ import {
   sampleComposedMotion,
   type MotionRecording,
 } from '../services/motionRecording';
-import * as footContact from '../services/footContact';
 import { buildTravelWalk } from '../services/movementLocomotion';
 import { captureFloorReference } from '../services/rootMotion';
-import { BODY_VARIANTS } from '../anatomy/bodyVariants';
+import { BODY_VARIANTS, type BodyVariantConfig } from '../anatomy/bodyVariants';
 import type { CustomPose } from '../types';
 
 export const variantCfg = BODY_VARIANTS.male;
-const GLB_URL = new URL('../../models/painmap3D_male.runtime.glb', import.meta.url);
 export let root: THREE.Object3D;
 export let skinned: THREE.SkinnedMesh;
 export let rest: JointAngleRestReference;
@@ -34,28 +32,69 @@ export let floorY: number;
 export let rootRest0: THREE.Vector3;
 export let rootQuat0: THREE.Quaternion;
 
+export type RigVariant = 'male' | 'female';
+
+/** One loaded rig: the variant's GLB posed anatomically, with what sampling
+ *  and measuring it needs. */
+export interface Rig {
+  variant: RigVariant;
+  variantCfg: BodyVariantConfig;
+  root: THREE.Object3D;
+  skinned: THREE.SkinnedMesh;
+  rest: JointAngleRestReference;
+  baselinePose: CustomPose;
+  floorY: number;
+  rootRest0: THREE.Vector3;
+  rootQuat0: THREE.Quaternion;
+}
+
+const rigs = new Map<RigVariant, Promise<Rig>>();
+
+/** Load (once per file) the `variant` rig. */
+export function loadRigOf(variant: RigVariant): Promise<Rig> {
+  let hit = rigs.get(variant);
+  if (!hit) {
+    hit = (async () => {
+      const cfg = BODY_VARIANTS[variant];
+      const url = new URL(`../../models/painmap3D_${variant}.runtime.glb`, import.meta.url);
+      const buf = readFileSync(fileURLToPath(url));
+      const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+      const gltf = await new Promise<{ scene: THREE.Group }>((res, rej) => {
+        const l = new GLTFLoader();
+        l.setMeshoptDecoder(MeshoptDecoder);
+        l.parse(ab, '', res as never, rej);
+      });
+      const scene = gltf.scene;
+      scene.scale.setScalar(cfg.pose.rootScale);
+      let mesh: THREE.SkinnedMesh | null = null;
+      scene.traverse((o) => {
+        if ((o as THREE.SkinnedMesh).isSkinnedMesh && !mesh) mesh = o as THREE.SkinnedMesh;
+      });
+      scene.updateMatrixWorld(true);
+      applyAnatomicPose(scene, cfg);
+      scene.updateMatrixWorld(true);
+      const m = mesh as unknown as THREE.SkinnedMesh;
+      return {
+        variant,
+        variantCfg: cfg,
+        root: scene,
+        skinned: m,
+        rest: captureJointAngleRestReference(m.skeleton, cfg),
+        baselinePose: serializeCustomPose(m.skeleton, cfg, variant),
+        floorY: captureFloorReference(m.skeleton, cfg).floorY,
+        rootRest0: scene.position.clone(),
+        rootQuat0: scene.quaternion.clone(),
+      };
+    })();
+    rigs.set(variant, hit);
+  }
+  return hit;
+}
+
 /** Load the male rig into the bindings above — call it in each file's beforeAll. */
 export async function loadRig(): Promise<void> {
-  const buf = readFileSync(fileURLToPath(GLB_URL));
-  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  const gltf = await new Promise<{ scene: THREE.Group }>((res, rej) => {
-    const l = new GLTFLoader();
-    l.setMeshoptDecoder(MeshoptDecoder);
-    l.parse(ab, '', res as never, rej);
-  });
-  root = gltf.scene;
-  root.scale.setScalar(variantCfg.pose.rootScale);
-  root.traverse((o) => {
-    if ((o as THREE.SkinnedMesh).isSkinnedMesh && !skinned) skinned = o as THREE.SkinnedMesh;
-  });
-  root.updateMatrixWorld(true);
-  applyAnatomicPose(root, variantCfg);
-  root.updateMatrixWorld(true);
-  rest = captureJointAngleRestReference(skinned.skeleton, variantCfg);
-  baselinePose = serializeCustomPose(skinned.skeleton, variantCfg, 'male');
-  floorY = captureFloorReference(skinned.skeleton, variantCfg).floorY;
-  rootRest0 = root.position.clone();
-  rootQuat0 = root.quaternion.clone();
+  const r = await loadRigOf('male');
+  ({ root, skinned, rest, baselinePose, floorY, rootRest0, rootQuat0 } = r);
 }
 
 export interface Sampled {
@@ -67,8 +106,15 @@ export interface Sampled {
 
 const cache = new Map<string, Sampled>();
 export function sample(motion: () => ComposedMotion, key: string, sampleHz: number): Sampled {
-  const hit = cache.get(`${key}@${sampleHz}`);
+  return sampleOn({ variant: 'male', variantCfg, root, skinned, rest, baselinePose, floorY, rootRest0, rootQuat0 }, motion, key, sampleHz);
+}
+
+/** Sample `motion` on `rig` at `sampleHz` (cached by rig, key and rate). */
+export function sampleOn(rig: Rig, motion: () => ComposedMotion, key: string, sampleHz: number): Sampled {
+  const id = `${rig.variant}:${key}@${sampleHz}`;
+  const hit = cache.get(id);
   if (hit) return hit;
+  const { root, skinned, variantCfg, rest, baselinePose, rootRest0, rootQuat0 } = rig;
   root.position.copy(rootRest0);
   root.quaternion.copy(rootQuat0);
   root.updateMatrixWorld(true);
@@ -84,7 +130,7 @@ export function sample(motion: () => ComposedMotion, key: string, sampleHz: numb
     toMs: (c.toMs ?? Infinity) * scale,
   }));
   const out = { resolved, rec, contacts };
-  cache.set(`${key}@${sampleHz}`, out);
+  cache.set(id, out);
   return out;
 }
 
@@ -118,7 +164,29 @@ export interface ReleaseSpeeds {
    *  stays above). */
   dip: number;
   dipFk: number;
+  /** The effector's fastest change of step (m/frame²): the largest second
+   *  difference of its position from the first released frame to the one
+   *  after FK takes the leg back. */
+  accel: number;
+  /** Its clearance over {@link FLOOR_SPAN_MS} after the window's end (or to
+   *  the leg's next contact): how far it drops below the held point (m), its
+   *  lowest height over the floor (m) and the frames it spends more than
+   *  3 mm under it. Absent without a floor height. */
+  floor?: { dip: number; low: number; under: number };
 }
+
+/** The base release the measurements read around (ms): FK's local peak is
+ *  taken from this long before the window's end to this long after the
+ *  release's, and a contact of the same leg starting within it (+50 ms) of
+ *  the window's end is a hand-over, not a release into swing. Fixed rather
+ *  than read off footContact, so an engine with another base (5c1c9ac: 100)
+ *  is measured alike. */
+const READ_MS = 120;
+
+/** How long after a window's end (ms) the effector's floor clearance is read:
+ *  past the longest braking-step release (276 ms), so two engines whose
+ *  releases end apart are read over the same span. */
+export const FLOOR_SPAN_MS = 300;
 
 /**
  * Measure every release of `contacts` that lets a leg go into swing (not a
@@ -126,9 +194,9 @@ export interface ReleaseSpeeds {
  * the same motion with no contacts. The release ends at the first frame from
  * which the leg's joints are FK's own through to its next contact.
  */
-export function releaseSpeeds(s: Sampled, fk: MotionRecording): ReleaseSpeeds[] {
+export function releaseSpeeds(s: Sampled, fk: MotionRecording, floorY?: number): ReleaseSpeeds[] {
   const { rec, contacts } = s;
-  const T = footContact.PLANT_RELEASE_BLEND_MS;
+  const T = READ_MS;
   const totalMs = rec.frames[rec.frames.length - 1]!.tMs;
   const out: ReleaseSpeeds[] = [];
   for (const c of contacts) {
@@ -196,6 +264,25 @@ export function releaseSpeeds(s: Sampled, fk: MotionRecording): ReleaseSpeeds[] 
       lowFk = Math.min(lowFk, fk.frames[i]!.worldTracks![c.foot]![1]);
     }
     const heldY = rec.frames[i0 - 1]!.worldTracks![c.foot]![1];
+    const at = (i: number) => rec.frames[i]!.worldTracks![c.foot]!;
+    let accel = 0;
+    for (let i = Math.max(2, i0); i <= Math.min(rec.frames.length - 1, ie + 1); i += 1) {
+      const [a, b, d] = [at(i - 2), at(i - 1), at(i)];
+      accel = Math.max(accel, Math.hypot(d[0] - 2 * b[0] + a[0], d[1] - 2 * b[1] + a[1], d[2] - 2 * b[2] + a[2]));
+    }
+    let floor: ReleaseSpeeds['floor'];
+    if (floorY !== undefined) {
+      let lowest = Infinity;
+      let under = 0;
+      for (let i = i0; i < rec.frames.length; i += 1) {
+        const t = rec.frames[i]!.tMs;
+        if (t > c.toMs + FLOOR_SPAN_MS + 1e-6 || t >= next - 1e-6) break;
+        const y = at(i)[1];
+        lowest = Math.min(lowest, y);
+        if (y < floorY - 0.003) under += 1;
+      }
+      floor = { dip: heldY - lowest, low: lowest - floorY, under };
+    }
     out.push({
       foot: c.foot,
       toMs: c.toMs,
@@ -205,6 +292,8 @@ export function releaseSpeeds(s: Sampled, fk: MotionRecording): ReleaseSpeeds[] 
       effectorFk,
       dip: heldY - low,
       dipFk: heldY - lowFk,
+      accel,
+      ...(floor ? { floor } : {}),
     });
   }
   return out;

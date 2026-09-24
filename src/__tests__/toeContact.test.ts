@@ -342,6 +342,32 @@ describe('the plant release is C1 where it leaves the hold and where it joins FK
     }
   });
 
+  it('the cruise (an ankle release) is C1 at both ends too, turns at 1.25/length at most, and is the smoothstep from 500 ms', () => {
+    // It reaches its full rate by a fifth of the way and holds it to the last
+    // fifth: 1.25/length at most, where the smoothstep peaks at 1.5/length.
+    for (const L of [120, 250, 400, 500, 700]) {
+      const w = (ms: number) => footContact.plantReleaseWeight(ms, L, 'cruise');
+      const smooth = (ms: number) => footContact.plantReleaseWeight(ms, L);
+      expect(w(0)).toBe(1);
+      expect(w(L)).toBe(0);
+      const h = L / 1000;
+      expect(Math.abs((w(h) - w(0)) / h) * L, `${L} ms: rate leaving`).toBeLessThan(0.01);
+      expect(Math.abs((w(L) - w(L - h)) / h) * L, `${L} ms: rate arriving`).toBeLessThan(0.01);
+      let prevRate = 0;
+      let peak = 0;
+      for (let ms = 0; ms <= L; ms += h) {
+        const rate = (w(ms + h) - w(ms)) / h;
+        expect(rate, `${L} ms: monotone`).toBeLessThanOrEqual(1e-12);
+        expect(Math.abs(rate - prevRate) * L, `${L} ms: rate continuous`).toBeLessThan(0.01);
+        peak = Math.max(peak, -rate * L);
+        prevRate = rate;
+        if (L >= 500) expect(w(ms), `${L} ms: the smoothstep`).toBe(smooth(ms));
+      }
+      if (L <= 300) expect(peak, `${L} ms: peak rate × length`).toBeLessThan(1.25 + 1e-6);
+      else expect(peak, `${L} ms: peak rate × length`).toBeLessThan(1.5 + 1e-6);
+    }
+  });
+
   it('released joint angles leave the hold and come to rest with zero speed — no kink, no dead stop', () => {
     // The hold ends mid-way through the still pose, so FK stands still across
     // the whole release and the knee's path is the release's own. Sampled at
@@ -623,29 +649,31 @@ describe('a toe release the route has left far behind (the braking step) stays b
   // those toes 1–3 cm under the held point.
   //
   // KNOWINGLY NOT MET: no release of this hold can keep every joint within
-  // FK's own local peak, nor its dip at FK's. A release is C1 with the hold
-  // it leaves — its first frames ARE the hold — and on its last frame this
-  // hold already turns the ankle 4.0–16°/frame, 7.4–14× FK's peak (FK's ankle
-  // barely moves through the braking step), and dips the toes 2 cm under
-  // FK's: the blend of the held leg (toes back on the floor) with FK's (leg
-  // through, knee 30°) passes the vertical with less knee than FK. Holding
-  // the drawn toes on the target's path instead keeps them above FK's dip but
-  // turns the ankle 21–37°/frame, and flooring the knee's flexion at FK's
-  // turns the joints 9–20× FK's peak. The route's contact timing is what would
-  // remove it. Bounded against FK alone at every rate, and on the 0.6× walk's
-  // braking step too, so none can get worse unnoticed: toes under 2× FK's, the
-  // dip within 2.1 cm of FK's, each leg joint's peak / FK's local peak no
-  // worse than the base release (2504a7e) or the one before it (5c1c9ac) did,
-  // to 2%. Measured — toes mm/frame (FK) · dip cm (FK) · hip / knee / ankle
-  // over FK's peak:
+  // FK's own local peak. A release is C1 with the hold it leaves — its first
+  // frames ARE the hold — and on its last frame this hold already turns the
+  // ankle 4.0–16°/frame, 7.4–14× FK's peak (FK's ankle barely moves through
+  // the braking step). The blend of the held leg (toes back on the floor) with
+  // FK's (leg through, knee 30°) passes the vertical with less knee than FK,
+  // which dipped the toes 2 cm under FK's; the released forefoot is now kept
+  // off the floor at FK's own level by the ankle and hip
+  // (footContact.liftReleasedForefoot), so its dip is FK's. Flooring the
+  // knee's flexion at FK's turns the joints 9–20× FK's peak, and lifting with
+  // the knee 1.5–1.6×. The route's contact timing is what would remove it.
+  // Bounded against FK alone at every rate, and on the 0.6× walk's braking
+  // step too, so none can get worse unnoticed: toes under 2× FK's, the dip
+  // within 2.1 cm of FK's, each leg joint's peak / FK's local peak no worse
+  // than the base release (2504a7e) or the one before it (5c1c9ac) did, to 2%
+  // (plantReleaseMain.test compares it with 5c1c9ac alone, at speeds 1, 1.2
+  // and 1.5, on both rigs). Measured — toes mm/frame (FK) · dip cm (FK) · hip
+  // / knee / ankle over FK's peak:
   //               toes mm/frame (FK)  dip cm (FK)            hip / knee / ankle over FK's peak
   //               now 2504a7e 5c1c9ac now  2504a7e 5c1c9ac   now             2504a7e         5c1c9ac
-  //   1× @30 Hz   157 266 195 (91)    3.99 3.81 4.28 (1.9)   0.84 1.22 13.1  1.09 1.33 12.9  1.00 1.28 10.1
-  //   1× @60 Hz    88 152 107 (46)    4.52 5.19 4.42 (2.5)   1.09 1.23  9.0  1.53 1.43 12.3  0.98 1.86 12.6
-  //   1× @120 Hz   45  82  56 (23)    5.31 5.87 4.87 (3.2)   1.17 1.26  9.8  1.79 1.48 15.6  0.99 2.05 17.1
-  //   0.6× @30 Hz  75 182 131 (52)    3.16 2.92 2.72 (1.1)   1.25 1.80 14.2  1.25 1.98 18.1  1.00 1.43 10.0
-  //   0.6× @60 Hz  41 107  77 (26)    3.14 3.59 3.94 (1.1)   0.85 1.31 14.4  0.96 1.96 24.4  0.98 1.34 15.2
-  //   0.6× @120 Hz 21  59  40 (13)    3.21 3.92 4.37 (1.2)   0.66 1.32 13.7  1.25 2.07 26.2  0.97 1.72 16.2
+  //   1× @30 Hz   159 266 195 (91)    1.87 3.81 4.28 (1.9)   0.85 1.22 13.1  1.09 1.33 12.9  1.00 1.28 10.1
+  //   1× @60 Hz    88 152 107 (46)    2.41 5.19 4.42 (2.5)   1.06 1.23 12.6  1.53 1.43 12.3  0.98 1.86 12.6
+  //   1× @120 Hz   46  82  56 (23)    3.18 5.87 4.87 (3.2)   1.13 1.26 13.0  1.79 1.48 15.6  0.99 2.05 17.1
+  //   0.6× @30 Hz  76 182 131 (52)    1.29 2.92 2.72 (1.1)   1.25 1.80 14.2  1.25 1.98 18.1  1.00 1.43 10.0
+  //   0.6× @60 Hz  41 107  77 (26)    1.10 3.59 3.94 (1.1)   0.85 1.31 14.4  0.96 1.96 24.4  0.98 1.34 15.2
+  //   0.6× @120 Hz 21  59  40 (13)    1.10 3.92 4.37 (1.2)   0.66 1.32 13.7  1.25 2.07 26.2  0.97 1.72 16.2
   // (The 1× ankle at 30 Hz, 13.1 against 12.9, is the hold's own acceleration
   // carried on: it turned the ankle 10.2 then 16.0°/frame, and the first
   // released frame 24.35, 2504a7e's 23.9. The dips are sampled, so a coarse
