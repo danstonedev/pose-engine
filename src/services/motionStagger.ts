@@ -215,8 +215,9 @@ export function followThroughKnotSlope(delay: number, reversal: number): number 
 export interface FollowThroughStrokeLag {
   /** Share of the stroke's time the bone may run behind at mid-stroke. */
   midLag: number;
-  /** Cap on the bone's own progress rate, as a multiple of the fastest the
-   *  shared progress runs anywhere in the stroke. */
+  /** Cap on the bone through the stroke, as a multiple of the fastest the
+   *  lockstep chain runs there: on its progress rate AND on its angular speed
+   *  along the stroke's path (motionTrajectory checks both). */
   rateCeiling: number;
 }
 
@@ -237,11 +238,19 @@ export interface FollowThroughStrokeLag {
  * So motionTrajectory takes c·s²(1 − s)² off the bone's own progress through
  * such a stroke — zero, with zero slope, at both keyframes, so the knot and its
  * slope are untouched — with c budgeted like the onset dwell: at most d/2 of the
- * stroke behind at mid-stroke (what the dwell leaves there), never running
- * faster than 1/(1 − d) × the stroke's fastest shared progress (what the dwell
- * costs), and never backwards. A stroke between two full turns has already spent
- * that rate on lingering at them and gets no more; a stroke that leaves rest has
- * the dwell instead, and one that arrives at a stop keeps its arrival.
+ * stroke behind at mid-stroke (what the dwell leaves there), never moving faster
+ * than 1/(1 − d) × the fastest the lockstep chain moves it through the stroke
+ * (what the dwell costs), and never backwards. The cap holds on the bone's
+ * angular speed, not only on its progress rate: a SQUAD path is not uniform in
+ * its parameter, and capping the rate alone let the trail hurry a bone along a
+ * stroke's fast end — a run's hand to 1.29×, a sprint's fingers to 1.50× their
+ * lockstep peak inside a stroke. Capped on both, the trail lifts none of 5,915
+ * flowing arm bone-strokes over 49 motions more than 1% (the 0.25 ms sampling)
+ * above 1/(1 − d) × its lockstep twin, and the worst whole-motion peak stays
+ * 2504a7e's 1.25× (the knot slopes' own cost). A stroke between two full turns
+ * has already spent that rate on lingering at them and gets no more; a stroke
+ * that leaves rest has the dwell instead, and one that arrives at a stop keeps
+ * its arrival.
  */
 export function followThroughStrokeLag(delay: number): FollowThroughStrokeLag {
   if (delay <= 0) return { midLag: 0, rateCeiling: 1 };
