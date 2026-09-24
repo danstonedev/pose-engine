@@ -79,7 +79,7 @@ does not consult.
 
 **Where the sweep and the docs disagree with the code, this brief sides with the code.** Other
 stale items found and corrected below: `GAIT_STEP_OFF_MS` is 285 not 400
-(`movementLocomotion.ts:95`); foot plants run 8 CCD passes not 4 (`footContact.ts:57`); wrist drag
+(`movementLocomotion.ts:95`); foot plants run 8 CCD passes not 4 (`footContact.ts:75`); wrist drag
 is velocity-driven not angle-driven (`gaitModifiers.ts:283`); `MIN_KEYFRAME_MS` is no longer a flat
 150 (`motionSequence.ts:584`). And `docs/animation-realism-audit.md`'s line citations into
 `movementTemplates.ts` (up to line 2150) are all dead — that file is now 168 lines after the
@@ -198,18 +198,29 @@ lockstep.
 
 ### 1.6 Per-frame apply order (sampler; the stage mirrors it)
 
-Verified in `motionRecording.ts:875-1130`:
+Verified in `motionRecording.ts:918-1146`:
 
 ```
 FK pose from the trajectory
-  → grounding pin        pinRootToFloor :879   /  plantStanceFoot :877, :962
-  → vertical calibration applyVerticalCalibration :977
-  → weighted descent     applyWeightedDescent :990
-  → heel-strike accent   heelStrikeOffsetAt :1004  (root.position.y += :1006)
+  → grounding pin        pinRootToFloor :920   /  plantStanceFoot :918, :1003
+    + hand reach (posture) settleHandReachLatches — footContact.ts, where each
+                         hand latched read off a per-reach timeline on the
+                         motion's own clock (probing the trajectory, never the
+                         frames that ran), then solveHandReach — each change
+                         of state's jump faded out, and a hand the grounding
+                         lets go of blended back to FK on every frame, grounded
+                         or not; the stage runs the same pair
+  → vertical calibration applyVerticalCalibration :1018
+  → weighted descent     applyWeightedDescent :1031
+  → heel-strike accent   heelStrikeOffsetAt :1045  (root.position.y += :1047)
   → foot-driven travel + lateral shuttle
-  → foot plant IK        solveFootPlantWeighted :1081 / solveFootPlant :1099
-                         (plant target de-dipped by the accent, :1094)
-  → MEASURE              computeJointAngles :1130
+  → foot plant IK        stepContactPlants :1217 — footContact.ts:784, the one
+                         step the live stage runs too: holds in window, the
+                         eased release after it (releaseContactPlant :712),
+                         read once off the trajectory as the window ends
+                         (readPlantRelease :594); plant target de-dipped by
+                         the accent there
+  → MEASURE              computeJointAngles :1146
 ```
 
 Everything above the measure line is **root-only or IK-only**, which is why every clinical joint
@@ -338,11 +349,16 @@ byte-identity gates; **medium** = moves one subsystem plus its gates; **low** = 
 | `useFootRoot` gate set | `motionRecording.ts:~825-833` | 8 clauses | Which motion classes get closed-chain planting | Each excluded class is excluded for a visible reason (a jump snaps at the pin toggle; a lying body rotates toward standing) | high |
 | `SEAT_HEIGHT_M` | `rootMotion.ts:185` | 0.59 | Hips pin height when sitting | Up → perching on a bar stool, feet lift. Down → pelvis sinks through the seat | high |
 | `GROUNDING_BLEND_MS` | `rootMotion.ts:493` | 200 ms | Crossfade at a grounding-pin swap | Shorter → the measured 53 cm one-frame free-fall returns | high |
-| `HAND_REACH_RAMP_MS` | `rootMotion.ts:634` | 150 ms | Hand-reach IK engagement | 0 → the arm snaps to the floor on frame 1 | medium |
-| **`FOOT_PLANT_IK_ITERATIONS`** | `footContact.ts:57` | **8** (shared default is 4) | CCD passes per plant | Raised in `f3fdf82` because the faster cadence pushed in-window slide 2.9 → 4.5 cm. Now ~2.5–3.5 cm across the pace range | medium |
-| `LEG_CHAIN_PARENTS` | `footContact.ts:40` | 2 (Foot–Leg–UpLeg) | How many joints a plant may recruit | 3 would let the pelvis help — closer to real accommodation, at the cost of a wobbling trunk | high |
-| `PLANT_RELEASE_BLEND_MS` | `footContact.ts:120` | 100 ms | Plant correction ramp-out at toe-off | Without it the released foot snapped ~20 cm and ~17°/frame | high |
-| `HAND_LATCH_M` / `HAND_REACH_PASSES` / `HAND_RELATCH_M` | `footContact.ts:208, 213, 220` | 0.03 / 4 / 0.08 | Hand floor grab and self-heal | Too few passes → the hand punches through the floor at the bottom of a push-up | medium |
+| `HAND_REACH_RAMP_MS` | `rootMotion.ts:730` | 150 ms | Hand-reach IK engagement | 0 → the arm snaps to the floor on frame 1 | medium |
+| `HAND_REACH_RELEASE_MS` | `rootMotion.ts:741` | 100 ms | A hand the grounding lets go of (`handReachReleasedAt`): its arm is FK's, still turned by the fading share of how the reach had it turned off FK's the moment it let go (`solveHandReach`), so it moves with FK's arm throughout | 0 → the arm snaps to FK in one frame: the bird-dog's lifted forearm 5.5–6.0° in one frame on 5c1c9ac and 8.1–11.2° once the latch was read at the touch (1341 °/s at 120 Hz), the upper arm 16–20° (5c1c9ac); now under 1.3° at 60/120 Hz. Longer → the released hand travels further along the floor near its lowest point (the bird-dog released just after landing from standing: 100–115 mm over 100 ms, 110–140 over 150; 5c1c9ac 92–122); it goes no deeper than FK's own (7.3–7.4 cm, female; 5c1c9ac 9.1) | medium |
+| `HAND_REACH_BLEND_MS` | `footContact.ts:1315` | 150 ms | A reach's change of state (a self-heal, a re-latch) jumps where its state puts the hand; the jump is added back to where the hand is drawn and faded out over this span from the change's own moment | 0 → the arm snaps to the new state in one frame: the prone press-up's healing hands 12.8 cm in one 120 Hz frame, a 17.1 m/s seam-jerk (gate: 12; 5c1c9ac 9.9, 15.3 female; now under 0.9) | medium |
+| **`FOOT_PLANT_IK_ITERATIONS`** | `footContact.ts:75` | **8** (shared default is 4) | CCD passes per plant | Raised in `f3fdf82` because the faster cadence pushed in-window slide 2.9 → 4.5 cm. Now ~2.5–3.5 cm across the pace range | medium |
+| `LEG_CHAIN_PARENTS` / `TOE_CHAIN_PARENTS` | `footContact.ts:43, 55` | 2 (Foot–Leg–UpLeg) / 3 (Toes–Foot–Leg–UpLeg) | How many joints a plant may recruit; the knee is the hinge in both | Foot: 3 would let the pelvis help — closer to real accommodation, at the cost of a wobbling trunk. Toes: 2 stopped at the knee and hinged nothing — 4.6–5.0° of knee varus/valgus through every toe pivot | high |
+| `PLANT_RELEASE_BLEND_MS` | `footContact.ts:168` | 120 ms | The BASE plant release at toe-off: the limb solved as held toward a target that lifts to FK's height, then reaches FK's position, blended out on a smoothstep — or, for an ankle release, a cruise that turns at 1.25/length at most and becomes the smoothstep from 300–500 ms (`plantReleaseWeight`, `PlantReleaseShape`, `footContact.ts:197-201`) — C1 where it leaves the hold and where it joins FK | Without it the released foot snapped ~20 cm and ~17°/frame. 80 ms → the DDx walk's CoM drops at 1.05 g and its knee turns 469°/s; 100 → the run's knee 30.8°/frame against FK's 22.3; 150–200 on every release → the released foot stays down into swing (DDx toe clearance 4.9–6.1 → 4.2–5.2 → 3.6–3.9 cm) | high |
+| Release length from FK (`planPlantRelease` / `plantReleaseLengthMs`) | `footContact.ts:238-281, 312, 444` | burst halved ≤ 90 ms → 2.7× its half-life; gap rule 1.98·G/v (G ≤ 15 cm, read at 0.68 of the release) where FK moves the limb under ~1.2 m/s, only where FK's joints leave 18% slack; ≤ 800 ms; read ONCE as the window ends | How much longer than the base a release lasts, read off the trajectory | Without it the run's knee catches up at 25.4°/frame against FK's 22.3 (CoM bob 9.08 cm, validity warn; 8.80 now) and the single-leg stance's foot crosses 9 cm in 120 ms (25 mm/frame; 6.3 now). Re-read on every frame it ran backwards and lurched (4 cm stance: 474 → 800 ms mid-release). Walks keep the base length — their swing is still speeding up past the window — and their joint peaks over FK's match the base release to 0.001, bar the curved walks' first release (+0.04) | high |
+| `PLANT_RELEASE_FLOOR_BAND_M` / `RELEASE_PIN_M` | `footContact.ts:699, 705-716` | 0.01 m / 0.025 m | How far a released FOREFOOT must be predicted to lift off the held point before the release stops swinging the limb (about its hip) back toward the solve's point, by at most 2.5 cm; it lets go over the next quarter of the release, on the release's clock, and stands down where FK lifts it only late (0.4–0.6 of the release). An ankle release is not held so | 0 → the per-joint blend drags the released toes back along the floor toward FK (DDx at 30 Hz: 3.3–11.3 mm on the first frame; now 0.2–1.9). Timed by the target crossing the band instead, the hand-back came in one or two frames and turned the curved walks' hips 5.2–7.5°/frame at 120 Hz (FK 1.3); held on ankle releases too, it turned the 45° walk's hip 1.11–1.13°/frame at 120 Hz against 5c1c9ac's 0.71–0.73 | medium |
+| `RELEASE_FLOOR_EASE_M` | `footContact.ts:928` | 0.005 m | A released forefoot is never drawn below the lower of its held point and FK's toes: the ankle, then the hip, lift it back (CCD, ROM-clamped; `liftReleasedForefoot`), eased in over 5 mm of depth | 0 → the toe-pivot walk's braking-step toes 2.8 cm under the floor at 60 Hz (5c1c9ac 2.5), 6–12 frames more than 3 mm under at 60–120 Hz (5c1c9ac 5–8); now 0.7 cm, 2–4 frames. Lifting with the knee too ran it 1.5–1.6× FK's peak; the ankle pays instead, up to 1.56× 5c1c9ac's at speeds 1.2–1.5 | medium |
+| `HAND_LATCH_M` / `HAND_TOUCH_M` / `HAND_REACH_PASSES` / `HAND_RELATCH_M` | `footContact.ts:1047, 1059, 1071, 1078` | 0.03 / 0.002 / 4 / 0.08 | Hand floor grab and self-heal, settled on the motion's own clock (`settleHandReachLatches`): the latch at the moment the pulled hand touches the floor (solved between frames; a hand that only comes within the band latches where it stops descending), a self-heal on a 5 ms grid; the reads are spaced by the reach's distance from its next change of state (≤ 200 ms descending, ≤ 600 ms planted; hands touching together share one touch solve), so they are the motion's, not the frames' — 30/60/120 Hz, a jittered, a 40–95 ms clock and a parked stage's jumps settle identically on both rigs, chains included | Too few passes → the hand punches through the floor at the bottom of a push-up. Latching on the frame instead moved hand-planted settles up to 18 mm / 2.3° between 30 and 120 Hz (59 mm / 6.0° in a chain); latching at the band's edge planted 3 cm short (the push-up 2.4 cm behind the route's own resting hand, its entry 7.3 cm under the floor; 0.2 cm and 3.9 at the touch) | medium |
 | `HEEL_STRIKE_SPAN_MS` | `rootMotion.ts:1560` | 110 ms | Footfall dip duration | Longer → a soft sag rather than an impact | medium |
 | `HEEL_STRIKE_MIN/MAX_DIP_M` | `rootMotion.ts:1562, 1564` | 0.005 / 0.01 | Accent amplitude band | Capped at 1 cm — a heavy and a gentle step look identical. Gap R9 | medium |
 | `HEEL_STRIKE_REF_DESCENT_M_S` | `rootMotion.ts:1569` | 0.25 m/s | Arrival rate at which the accent saturates | Lower → every footfall lands at max firmness | low |
@@ -568,7 +584,7 @@ forward-back oscillation over the stride, no trunk response to loading or push-o
 - **Toe/ankle floor penetration (~4 cm toe, ~6 cm ankle headroom).** The tolerances are real
   (`validityGate.ts:170-171`) and the toe-vs-ankle floor-reference mismatch argument is sound, but
   the measured penetration figures predate the retime.
-- **`_ikIterations = 4` as a global plant weakness.** Now **stale for plants**: `footContact.ts:57`
+- **`_ikIterations = 4` as a global plant weakness.** Now **stale for plants**: `footContact.ts:75`
   raises plant solves to 8. The shared default is still 4 for pose editing and exam-command IK
   (`poseRig.ts:~474`) — the split is deliberate and scoped.
 - **The squat hard-failing the ROM invariant.** The completeness critic reports that
@@ -673,7 +689,7 @@ walk phase durations (movementTemplates.data.ts:339…)
    │                  │        └─► stride, speed, walk ratio  ← R1
    │                  │
    │                  └─► plant residual ──► FOOT_PLANT_IK_ITERATIONS
-   │                           (footContact.ts:57 — raised 4→8 *because of* the retime)
+   │                           (footContact.ts:75 — raised 4→8 *because of* the retime)
    │
    └─► deriveVerticalCalibration (rootMotion.ts:718) ──► clamped by
             GAIT_VERTICAL_MAX_RISE_M (motionRecording.ts:352)  ← R2

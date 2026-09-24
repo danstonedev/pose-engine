@@ -442,6 +442,18 @@ export interface ComposedMotion {
    *  (a control sample, a deliberately glidey demo). Motions without a stance
    *  schedule never accent, so this flag is meaningless (and harmless) there. */
   heelStrikeAccent?: boolean;
+  /** TOUCHDOWN PLANTS (opt-in, with `footDrivenTravel` + `contacts`): start each
+   *  foot plant where its foot really comes down — measured on the pinned pose
+   *  in the travel pre-pass — instead of at its planned window start, capture
+   *  it on the floor, keep the point actually on the floor world-fixed (the
+   *  forefoot through a Toes hold), and pass the support to a landing foot as
+   *  it reaches the floor (services/rootMotion `deriveFootDrivenTravel`). For a
+   *  plan that opens a landing hold while the foot is still in the air, which
+   *  otherwise pins it there: the stance heel never comes down, the knee bends
+   *  to reach, and the footprint moves with the sample rate. Off by default: the
+   *  stock walk's stride stays inside its normative band only with its landing
+   *  foot pinned at the planned start (see gaitSpatiotemporal.test.ts). */
+  plantOnTouchdown?: boolean;
   /** TRAVEL HEADING, degrees about the vertical axis (0 = straight ahead +Z;
    *  + toward the subject's left, matching root `yawDeg`). The gait builder
    *  authors the SAME angle as per-keyframe root yaw (the body orients before
@@ -750,6 +762,9 @@ export interface ResolvedComposedMotion {
    *  default footfall accent of a stance-scheduled gait; absent = accent on.
    *  See {@link ComposedMotion.heelStrikeAccent}. */
   heelStrikeAccent?: boolean;
+  /** Touchdown plants (pass-through; absent = plants start at their planned
+   *  window). See {@link ComposedMotion.plantOnTouchdown}. */
+  plantOnTouchdown?: boolean;
   /** Travel heading, degrees (pass-through; absent = 0 = straight ahead) — the
    *  sampler/stage hand it to the travel/shuttle derivations. See
    *  {@link ComposedMotion.headingDeg}. */

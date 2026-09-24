@@ -2,13 +2,16 @@
  * PROXIMAL-TO-DISTAL ONSET STAGGER — invariants.
  *
  * The stagger changes the trajectory BETWEEN keyframes but must never change
- * where a bone arrives. These tests pin the two guarantees the whole design
- * rests on:
+ * where a bone arrives. These tests pin the guarantees the whole design rests
+ * on:
  *   1. Exact arrival: at local == 1 every bone is on target (== the lockstep
  *      blend), so keyframe boundaries, holds, and settled measurements are
  *      unchanged.
  *   2. Sequencing: mid-travel, a proximal bone (hips) is further along its arc
  *      than a distal bone (a finger) — the kinetic-chain lead.
+ *   3. Continuity: the delay is a dwell in raw time BEFORE the ease, so a bone
+ *      leaves rest with zero velocity (the composed trajectory's version is
+ *      gated in followThroughContinuity.test.ts).
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -17,6 +20,9 @@ import { blendCustomPose } from '../services/poseRig';
 import {
   chainOnsetDelay,
   composedTweenEase,
+  delayedOnset,
+  followThroughKnotSlope,
+  followThroughStrokeLag,
   PROXIMAL_TO_DISTAL_STAGGER,
   stagedBlendWithBaseline,
 } from '../services/motionStagger';
@@ -118,5 +124,49 @@ describe('motionStagger — proximal leads distal mid-travel', () => {
     // The lead is real but bounded — the most distal joint is not stalled.
     expect(f('L_Index1')).toBeGreaterThan(0);
     expect(PROXIMAL_TO_DISTAL_STAGGER).toBeGreaterThan(0);
+  });
+});
+
+describe('motionStagger — the shared onset warp and the follow-through slope', () => {
+  it('delayedOnset holds 0 through the dwell, reaches exactly 1, and is the identity without delay', () => {
+    for (const d of [0.05, 0.135, 0.18]) {
+      expect(delayedOnset(0, d)).toBe(0);
+      expect(delayedOnset(d, d)).toBe(0);
+      expect(delayedOnset(1, d)).toBe(1);
+      expect(delayedOnset((1 + d) / 2, d)).toBeCloseTo(0.5, 12);
+    }
+    for (const s of [0, 0.3, 1]) expect(delayedOnset(s, 0)).toBe(s);
+  });
+
+  it('the stage tween dwells exactly `delay` of its raw time, then eases out of rest', () => {
+    const from = restPose(KEYS);
+    const to = targetPose(KEYS);
+    const d = chainOnsetDelay('L_Index1') * PROXIMAL_TO_DISTAL_STAGGER;
+    expect(realizedFraction(stagedBlendWithBaseline(from, to, from, d)!, 'L_Index1')).toBe(0);
+    // Zero slope out of the dwell: 1 ms into a 600 ms tween it has barely moved.
+    expect(realizedFraction(stagedBlendWithBaseline(from, to, from, d + 1 / 600)!, 'L_Index1')).toBeLessThan(1e-6);
+  });
+
+  it('followThroughStrokeLag: the onset dwell’s own budget — d/2 of a flowing stroke, at its cost of 1/(1 − d)', () => {
+    expect(followThroughStrokeLag(0)).toEqual({ midLag: 0, rateCeiling: 1 }); // undelayed: lockstep
+    for (const d of [0.0112, 0.09, 0.135, 0.18]) {
+      const b = followThroughStrokeLag(d);
+      // The dwell leaves a bone d/2 of its stroke behind at mid-stroke…
+      expect(b.midLag, `midLag @ d=${d}`).toBeCloseTo(d / 2, 12);
+      // …and runs it at 1/(1 − d) × the chain to catch up.
+      expect(b.rateCeiling, `rateCeiling @ d=${d}`).toBeCloseTo(1 / (1 - d), 12);
+    }
+  });
+
+  it('followThroughKnotSlope: full speed through a waypoint, a floored slowdown through a turn', () => {
+    expect(followThroughKnotSlope(0, 1)).toBe(1); // an undelayed bone never slows
+    expect(followThroughKnotSlope(0.18, 0)).toBe(1); // passing straight on
+    // A full turn: 3 − 2/(1 − d), the slope at which a turn-to-turn stroke
+    // peaks at exactly 1/(1 − d) × lockstep (the onset dwell's own bound).
+    expect(followThroughKnotSlope(0.18, 1)).toBeCloseTo(3 - 2 / 0.82, 12);
+    // Monotone: deeper bones and sharper turns slow more, never below zero.
+    expect(followThroughKnotSlope(0.18, 1)).toBeLessThan(followThroughKnotSlope(0.09, 1));
+    expect(followThroughKnotSlope(0.18, 1)).toBeLessThan(followThroughKnotSlope(0.18, 0.5));
+    expect(followThroughKnotSlope(0.4, 1)).toBe(0);
   });
 });

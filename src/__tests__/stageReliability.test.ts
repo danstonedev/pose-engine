@@ -120,7 +120,11 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
   // wiring so a refactor can't silently drop it.
   it('imports the foot-plant IK helpers the sampler uses', () => {
     expect(stageSource).toContain("await import('./services/footContact')");
-    expect(stageSource).toMatch(/buildFootPlant\s*,\s*solveFootPlant/);
+    // Since the toe-contact / eased-release work the per-frame plant step is
+    // ONE shared function (stepContactPlants) instead of a loop mirrored in
+    // both files — the stage and the sampler import the same builder + step.
+    expect(stageSource).toMatch(/buildFootPlant\s*,\s*stepContactPlants/);
+    expect(samplerSource).toMatch(/buildFootPlant,\s*stepContactPlants,[\s\S]{0,200}\} from '\.\/footContact'/);
   });
 
   it('rebuilds the plants from the starting motion’s contacts', () => {
@@ -139,27 +143,45 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
   });
 
   it('solves the plants per frame, only within each foot’s stance window', () => {
-    // applyFootPlants honours the [fromMs,toMs] window and re-captures on entry.
-    // (Window widened 600→700→900→2100: the wave-4.6 heel-strike capture
-    // compensation AND the wave-4.1 heading-rotated clamp frame both live in
-    // this block, and the SEAM-3 release-blend branch (the ramped
-    // solveFootPlantWeighted out-of-window path) now sits between the window
-    // check and the target capture — deliberately widened to span it.)
-    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,900}tMs >= fp\.fromMs/);
-    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,2100}fp\.target\.y -= composedHeelStrikeY/);
-    // Since the travel-heading work the solve clamps against the (possibly
-    // heading-rotated) rest frame, falling back to restRef — with the ORIGINAL
-    // restRef always naming the knee hinge axis. The curved-walk work (6.2)
-    // prefers a PER-WINDOW rest (fp.rest — rotated by the heading at the
-    // window's start) over the shared composedPlantRest. Heading 0 keeps the
-    // legacy behaviour exactly (both stay unset/null).
-    // (Window widened 1100→2500 for the SEAM-3 release branch, as above.)
+    // The window check, the capture-on-entry, the heel-strike capture
+    // compensation (wave 4.6) and the per-plant clamp frame (fp.rest ?? the
+    // caller's frame — curved walk 6.2) now live in the ONE shared step
+    // (footContact.stepContactPlants, exercised through the sampler by
+    // footContact/heelStrike/gaitCurvedWalk/gaitContactSync). What the stage
+    // must still get right is what it FEEDS that step, so pin the exact
+    // arguments: the (possibly heading-rotated) composedPlantRest falling back
+    // to restRef as the clamp frame, the ORIGINAL restRef naming the knee
+    // hinge axis, the live heel-strike offset, a touchdown-planted gait's
+    // capture lift, the per-motion anchor map, the rig's standing contact
+    // heights (where a forefoot hold puts its point: on the floor) and the
+    // trajectory the frame was posed from (every release reads its length off
+    // it) — none for a touchdown-planted gait, whose travel (rootMotion) was
+    // derived for plants that let go over the base release, on the plant's own
+    // weight.
     expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,2500}solveFootPlant\(fp\.solver, fp\.target, fp\.rest \?\? composedPlantRest \?\? restRef, restRef\)/,
+      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*captureLiftY: composedPlantsAtTouchdown \? composedVcalRaiseY : 0,\s*initialTargets: initialComposedPlantTargets,\s*restY: floorRef\?\.restY,\s*trajectory: composedPlantsAtTouchdown \? null : trajectory,\s*\}\)/,
     );
-    // …and it is called from the live frame step AND the parked path.
-    expect(stageSource).toContain('applyFootPlants(elapsed)');
-    expect(stageSource).toContain('applyFootPlants(trajectory.totalMs)');
+    // …the sampler feeds it the same seven things from its own state…
+    expect(samplerSource).toMatch(
+      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*captureLiftY: plantsAtTouchdown \? vcalRaiseY : 0,\s*initialTargets: initialPlantTargets,\s*restY: floorRef\.restY,\s*trajectory: plantsAtTouchdown \? null : trajectory,\s*\}\)/,
+    );
+    // …both from the floor reference their floor pin grounds on, captured at
+    // anatomic rest (the sampler after the baseline pose, the stage at boot).
+    expect(samplerSource).toMatch(
+      /applyCustomPose\(skinned\.skeleton, variantCfg, baselinePose\);\s*root\.updateMatrixWorld\(true\);\s*const floorRef = captureFloorReference\(skinned\.skeleton, variantCfg\);/,
+    );
+    expect(stageSource).toMatch(/floorRef = skinned \? captureFloorReference\(skinned\.skeleton, variantCfg\) : null;/);
+    // …and neither keeps a private copy of the window/capture logic.
+    expect(stageSource).not.toMatch(/fp\.target\.y -= /);
+    expect(samplerSource).not.toMatch(/fp\.target\.y -= /);
+    // …and it is called from the live frame step AND the parked path, each
+    // with the trajectory its time is a time of (the sampler's: the one it
+    // samples the frame from).
+    expect(stageSource).toContain('applyFootPlants(elapsed, at.traj)');
+    expect(stageSource).toContain('applyFootPlants(at.settleAtMs[at.nextSettle]!, at.traj)');
+    expect(stageSource).toContain('applyFootPlants(settleAtMs[i]!, trajectory)');
+    expect(stageSource).toContain('applyFootPlants(trajectory.totalMs, trajectory)');
+    expect(samplerSource).toMatch(/const sampleAt = \(tMs: number\): RecordedFrame => \{\s*const sample = trajectory\.sampleAt\(tMs\);/);
   });
 
   it('SEAM-2 — contacts are re-timed into trajectory ms by the shared stance-window factor', () => {
@@ -178,14 +200,19 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     );
   });
 
-  it('SEAM-3 — a released plant ramps out through the shared weighted solve', () => {
-    // The out-of-window branch must blend the leg IK 1→0 (solveFootPlantWeighted,
-    // PLANT_RELEASE_BLEND_MS — both shared with the offline sampler) instead of
-    // dropping the pin in one frame (the toe-off release pop).
-    expect(stageSource).toMatch(/solveFootPlant\s*,\s*solveFootPlantWeighted\s*,\s*PLANT_RELEASE_BLEND_MS/);
-    expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,2100}solveFootPlantWeighted\(fp\.solver, fp\.target, fp\.rest \?\? composedPlantRest \?\? restRef, restRef, w\)/,
-    );
+  it('SEAM-3 — a released plant lets go through the shared step', () => {
+    // A released plant must let go over its release length (the eased
+    // plantReleaseWeight over plantReleaseLengthMs) instead of dropping the pin
+    // in one frame (the toe-off release pop). That release is part of
+    // stepContactPlants, so both paths get it by delegating every frame — and
+    // neither may carry its own ramp or read its own length (a private copy is
+    // how the two drift).
+    expect(stageSource).toMatch(/function applyFootPlants[\s\S]{0,300}stepContactPlants\(/);
+    for (const source of [stageSource, samplerSource]) {
+      expect(source).not.toMatch(
+        /PLANT_RELEASE_BLEND_MS|plantReleaseWeight|plantReleaseLengthMs|planPlantRelease|solveFootPlantWeighted/,
+      );
+    }
   });
 
   it('drops the plants when the motion ends (no stale IK on the next motion)', () => {
@@ -411,6 +438,82 @@ describe('SEAM-4/SEAM-5 — the live stage runs the grounding-switch crossfade i
     );
   });
 
+  it('the hand-reach latch is settled on the motion’s own clock on both paths, then solved (lockstep)', () => {
+    // Where and when a hand latches (and self-heals) is found on the trajectory
+    // between frames (footContact.settleHandReachLatches, probing it), so it no
+    // longer depends on which frames ran — provided both paths settle it from
+    // the same engagement time, probe the same pipeline, and then only solve.
+    expect(stageSource).toMatch(
+      /const engagedAt = handReachEngagedAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\);\s*engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: Number\.isFinite\(engagedAt\) \? engagedAt : 0, bone: hp\.bone \}\);/,
+    );
+    expect(samplerSource).toMatch(
+      /const engagedAt = handReachEngagedAt\(groundingSwitches, hp\.bone, tMs, floorRef\);\s*engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: Number\.isFinite\(engagedAt\) \? engagedAt : 0, bone: hp\.bone \}\);/,
+    );
+    // …keyed by the trajectory the probe samples, so a reach's timeline is
+    // read afresh for another motion (the stage's loop trajectory included).
+    expect(stageSource).toContain(
+      'settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t), traj);',
+    );
+    expect(samplerSource).toContain('settleHandReachLatches(engaged, tMs, floorRef.floorY, rest, poseReachFrameAt, trajectory);');
+    expect(stageSource).toMatch(
+      /solveHandReach\(\s*hp\.solver,\s*hp\.state,\s*floorRef\.floorY,\s*restRef,\s*handReachWeightAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\),\s*true,\s*\)/,
+    );
+    expect(samplerSource).toMatch(
+      /solveHandReach\(\s*hp\.solver,\s*hp\.state,\s*floorRef\.floorY,\s*rest,\s*handReachWeightAt\(groundingSwitches, hp\.bone, tMs, floorRef\),\s*true,\s*\)/,
+    );
+    // Both drop the latch — and when it was last settled — on release.
+    expect(stageSource).toMatch(/hp\.target = null;\s*hp\.lastTMs = null;/);
+    expect(samplerSource).toMatch(/hp\.target = null;[^\n]*\n\s*hp\.lastTMs = null;/);
+    // The probes pose what the frame poses before its reach solve: the
+    // trajectory's pose and root, then the crossfade or the posture pin.
+    const probeSteps = [
+      /traj(ectory)?\.sampleAt\(tMs\)/,
+      /apply(CustomPose|PoseComplete)\([^)]*s\.pose\)/,
+      /\.quaternion\.copy\(rootRestQuat\)\.multiply\(/,
+      /rootRestPos\.y \+ s\.rootTranslate\[1\]/,
+      /\.scale\.copy\(rootRestScale\)/,
+      /groundingBlendAt\((composedG|g)roundingBlendSpans, tMs\)/,
+      /applyBlendedGroundingY\((modelRoot|root), gBlend, apply(Composed)?GroundingPin\)/,
+      /else if \(s\.planted && s\.groundingPosture\)/,
+      /groundingContactsFor\(s\.groundingPosture, floorRef\)/,
+    ];
+    const stageProbe = stageSource.slice(stageSource.indexOf('function poseComposedReachFrameAt('));
+    const samplerProbe = samplerSource.slice(samplerSource.indexOf('const poseReachFrameAt = (tMs: number): void => {'));
+    for (const step of probeSteps) {
+      expect(stageProbe.slice(0, 1600), `stage probe: ${step}`).toMatch(step);
+      expect(samplerProbe.slice(0, 1200), `sampler probe: ${step}`).toMatch(step);
+    }
+    // …and the stage hands applyTrajectoryRoot the trajectory it probes, on
+    // every path (playing, settle, parked, loop entry).
+    for (const call of [
+      'st.groundingPosture, at.traj);',
+      's.groundingPosture, at.traj);',
+      'st.groundingPosture, trajectory);',
+      'end.groundingPosture, trajectory);',
+      's0.groundingPosture, loopTraj);',
+    ]) {
+      expect(stageSource).toContain(call);
+    }
+  });
+
+  it('a hand the grounding lets go of is blended back to FK on both paths, grounded frames or not (lockstep)', () => {
+    // A hand out of the frame's reach set that a switch released under
+    // rootMotion.HAND_REACH_RELEASE_MS ago is settled up to its release and
+    // solved by the same weight (falling 1 → 0) on both paths, instead of
+    // being dropped — so its arm does not snap to FK in one frame (the
+    // bird-dog's lifted forearm: 11.2° in one frame, 1341 °/s at 120 Hz).
+    expect(stageSource).toMatch(
+      /const released = hp\.solver \? handReachReleasedAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\) : null;\s*if \(hp\.solver && released\) \{[\s\S]{0,120}engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: released\.engagedAtMs, untilMs: released\.releasedAtMs, untilWeight: released\.weight, bone: hp\.bone \}\);/,
+    );
+    expect(samplerSource).toMatch(
+      /const released = handReachReleasedAt\(groundingSwitches, hp\.bone, tMs, floorRef\);\s*if \(released\) \{[\s\S]{0,120}engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: released\.engagedAtMs, untilMs: released\.releasedAtMs, untilWeight: released\.weight, bone: hp\.bone \}\);/,
+    );
+    // …stepped on every frame: a frame whose grounding plants no hand (the
+    // stand from quadruped) still lets go of one it released.
+    expect(stageSource).toContain('if (!reachStepped) solveComposedReachContacts(null, tMs, traj);');
+    expect(samplerSource).toContain('if (!reachStepped) solveReachContacts(null);');
+  });
+
   it('the weighted-descent pre-pass grounds through the SAME blend as playback (lockstep arc)', () => {
     expect(stageSource).toMatch(
       /function setComposedWeightedDescent[\s\S]{0,2500}groundingBlendAt\(composedGroundingBlendSpans, tMs\)/,
@@ -442,5 +545,77 @@ describe('SEAM-10 — the ready-reset tweens to the grounded standing Y (source 
     expect(stageSource).toMatch(
       /function playReadySettle[\s\S]{0,1200}await tweenTo\(baselinePoseRef, READY_SETTLE_MS, \{[\s\S]{0,300}toTranslate: toTranslateM/,
     );
+  });
+});
+
+describe('ROOT MOTION — the sampler and the stage hand the travel and vertical the same inputs (source pins)', () => {
+  // The derivations are the SAME pure functions in both (rootMotion.ts); what can
+  // drift is what each side hands them. gaitHandOver.test.ts and
+  // gaitVerticalPhase.test.ts gate the behaviour; these pin the live wiring.
+  it('both read the feet’s ground contacts through the one shared helper', () => {
+    expect(samplerSource).toContain('ground: measureFootGround(boneByKey, floorRef),');
+    expect(derivationsSource).toContain('ground: measureFootGround(bones, ctx.floor!),');
+  });
+
+  it('both hand the travel the foot plants’ windows, in trajectory ms, as the points it keeps fixed', () => {
+    expect(samplerSource).toContain(
+      'const holds = footPlants.map((fp) => ({ foot: fp.solver.footKey, fromMs: fp.fromMs, toMs: fp.toMs }));',
+    );
+    expect(samplerSource).toMatch(
+      /deriveFootDrivenTravel\(\s*sampleFeet, totalMs, windows, 120, headingDeg, headingAtTraj, holds,\s*resolved\.plantOnTouchdown === true,\s*\)/,
+    );
+    expect(stageSource).toContain('const held = composedPlants.filter((fp) => fp.solver);');
+    expect(stageSource).toMatch(
+      /held\.map\(\(fp\) => \(\{ foot: fp\.solver!\.footKey, fromMs: fp\.fromMs, toMs: fp\.toMs \}\)\),\s*plantOnTouchdown,\s*\)/,
+    );
+    expect(derivationsSource).toMatch(/headingAt,\s*holds,\s*plantOnTouchdown,\s*\);/);
+    // The stage re-times its plant windows before it derives the travel, and
+    // reads the motion's touchdown flag exactly as the sampler does.
+    expect(stageSource).toMatch(
+      /scaleComposedPlantsToTrajectory\(trajectory, effectiveResolved\);[\s\S]{0,800}setComposedFootDriven\(/,
+    );
+    expect(stageSource).toMatch(
+      /setComposedFootDriven\([\s\S]{0,300}travelHeadingAt,\s*resolved\.plantOnTouchdown === true,\s*\)/,
+    );
+  });
+
+  it('both start a touchdown-planted gait’s plants where its feet land and capture them on the floor', () => {
+    // The one shared step moves each plant's start to the travel's measured
+    // touchdown; its result says whether it did, and gates the capture fix-up.
+    expect(samplerSource).toContain('plantsAtTouchdown = startPlantsWhereFeetLand(footPlants, footDriven);');
+    expect(stageSource).toContain('composedPlantsAtTouchdown = startPlantsWhereFeetLand(held, composedFootDriven);');
+    // A target captured under the calibrated vertical's lift drops by that lift,
+    // measured after the loop ramp / handoff, on the same frame: both hand it to
+    // the shared plant step (footContact.stepContactPlants), which removes it at
+    // capture together with the heel-strike offset.
+    expect(samplerSource).toContain('vcalRaiseY = y - root.position.y;');
+    expect(stageSource).toContain('composedVcalRaiseY = y - modelRoot.position.y;');
+    expect(samplerSource).toContain('captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,');
+    expect(stageSource).toContain('captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,');
+    // Each frame starts with no lift, and a new motion with no touchdown plants.
+    expect(samplerSource).toContain('let vcalRaiseY = 0;');
+    expect(stageSource).toContain('composedVcalRaiseY = 0; // re-measured by this frame');
+    expect(stageSource).toMatch(/composedPlantsAtTouchdown = false;\s*composedVcalRaiseY = 0;/);
+  });
+
+  it('both measure the vertical smoothing against the same gait period', () => {
+    // The sampler: the shared helper on its authored→trajectory factor, none for a
+    // table that already spans one period.
+    expect(samplerSource).toMatch(
+      /vcalLoopForm \|\| useLoopCycle \? undefined : gaitPeriodMs\(resolved, authoredToTraj\)/,
+    );
+    expect(samplerSource).toMatch(
+      /vcalPeriodMs != null && vcalPeriodMs < vcalCycleMs \? vcalPeriodMs \/ vcalCycleMs : 1/,
+    );
+    expect(samplerSource).toContain('GAIT_VERTICAL_MAX_RISE_M : undefined, vcalPeriodFraction)');
+    // The stage: the same helper and factor, the same fraction, the same slot.
+    expect(derivationsSource).toContain(
+      'return gaitPeriodMs(resolvedMotion, authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs));',
+    );
+    expect(derivationsSource).toMatch(
+      /periodMs != null && periodMs < traj\.totalMs \? periodMs \/ traj\.totalMs : 1/,
+    );
+    expect(derivationsSource).toMatch(/plantsActive \? GAIT_VERTICAL_MAX_RISE_M : undefined,\s*periodFraction,/);
+    expect(stageSource).toContain('loopForm ? undefined : scaledGaitPeriodMs(trajectory, effectiveResolved),');
   });
 });

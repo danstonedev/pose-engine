@@ -496,11 +496,27 @@ export interface NormalizedBoneName {
   finger: FingerToken | null;
 }
 
+/** Each map's normalized names, by raw name: a rig's bone names are fixed, and
+ *  normalizing one runs the map's patterns and scans its whole core table —
+ *  posing the 101-bone rig once (applyCustomPose's lookup) spent 0.4 ms doing
+ *  it, and the floor pin as much again, on every frame and every probe. */
+const _normalizedByMap = new WeakMap<BoneNameMap, Map<string, NormalizedBoneName>>();
+
 export function normalizeBoneNameForVariant(
   raw: string | undefined,
   map: BoneNameMap,
 ): NormalizedBoneName {
-  const stripped = (raw ?? '').replace(map.prefix, '');
+  let byName = _normalizedByMap.get(map);
+  if (!byName) _normalizedByMap.set(map, (byName = new Map()));
+  const name = raw ?? '';
+  let hit = byName.get(name);
+  if (!hit) byName.set(name, (hit = normalizeUncached(name, map)));
+  // A copy: callers own what they are handed.
+  return { ...hit };
+}
+
+function normalizeUncached(raw: string, map: BoneNameMap): NormalizedBoneName {
+  const stripped = raw.replace(map.prefix, '');
   let side: 'Left' | 'Right' | null = null;
   let core = stripped;
   if (map.sidePrefix.left.test(stripped)) {

@@ -100,6 +100,13 @@ export interface JointAngleRestReference {
    *  it. Optional for backward compatibility; absent means no subtraction, which
    *  reproduces the rig's own rest offset in the reading. */
   fingerCurlRest?: Record<string, number>;
+  /** Each hinge's (elbow, knee) flexion axis in its PARENT bone's local frame,
+   *  taken at capture, where the rest is un-rotated and body-left is world +X
+   *  (see hingeFlexionDeg). Being parent-local it holds for a root- or
+   *  pelvis-rotated copy of this reference too, whose world quats no longer
+   *  name body-left. Optional for backward compatibility; absent, the axis is
+   *  picked from `worldQuats` at measure time. */
+  hingeAxes?: Record<string, [number, number, number]>;
 }
 
 // ── Constants + scratch state ──────────────────────────────────────────────
@@ -114,8 +121,6 @@ const BODY_LEFT = new THREE.Vector3(1, 0, 0); // subject's left
 /** Module-level scratch — recycled across calls to avoid GC. */
 const _v1 = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
-const _v3 = new THREE.Vector3();
-const _v4 = new THREE.Vector3();
 const _q1 = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _q3 = new THREE.Quaternion();
@@ -160,13 +165,6 @@ export function signedAngleAboutAxis(q: THREE.Quaternion, axis: THREE.Vector3): 
   if (angle > Math.PI) angle -= 2 * Math.PI; // shortest path
   const sign = Math.sign(q.x * axis.x + q.y * axis.y + q.z * axis.z) || 1;
   return angle * sign;
-}
-
-/** Angle (radians, 0..π) between two unit-ish vectors via clamped acos. */
-function angleBetween(a: THREE.Vector3, b: THREE.Vector3): number {
-  const an = _v3.copy(a).normalize();
-  const bn = _v4.copy(b).normalize();
-  return Math.acos(Math.max(-1, Math.min(1, an.dot(bn))));
 }
 
 // ── Skeleton plumbing ──────────────────────────────────────────────────────
@@ -221,7 +219,30 @@ export function captureJointAngleRestReference(
     const wq = hips.getWorldQuaternion(_q1);
     pelvisWorldQuat = [wq.x, wq.y, wq.z, wq.w];
   }
-  return { pelvisWorldQuat, localQuats, worldQuats, worldDirs, fingerCurlRest };
+  const hingeAxes: Record<string, [number, number, number]> = {};
+  for (const key of Object.keys(HINGE_FLEX_SIGN)) {
+    if (!worldQuats[key]) continue;
+    const axis = hingeAxisInParent(localQuats[key], worldQuats[key]);
+    hingeAxes[key] = [axis.x, axis.y, axis.z];
+  }
+  return { pelvisWorldQuat, localQuats, worldQuats, worldDirs, fingerCurlRest, hingeAxes };
+}
+
+/** The hinge bones (the elbow's forearm, the knee's leg), each with its flexion
+ *  sense about body-left: the knee flexes posteriorly (+), the elbow
+ *  anteriorly (−). */
+const HINGE_FLEX_SIGN: Readonly<Record<string, number>> = { L_Forearm: -1, R_Forearm: -1, L_Leg: 1, R_Leg: 1 };
+
+/** A hinge's flexion axis in its parent's frame: the child's local axis nearest
+ *  body-left in `restWorld` ({@link localAxisTowardBodyLeft}), through the
+ *  child's rest local rotation. Returns a new vector. */
+function hingeAxisInParent(
+  restLocal: [number, number, number, number] | undefined,
+  restWorld: [number, number, number, number] | undefined,
+): THREE.Vector3 {
+  const axis = localAxisTowardBodyLeft(restWorld);
+  if (restLocal) axis.applyQuaternion(new THREE.Quaternion(restLocal[0], restLocal[1], restLocal[2], restLocal[3]));
+  return axis;
 }
 
 // ── Gizmo ring ↔ clinical motion mapping ─────────────────────────────────────
@@ -334,8 +355,8 @@ function emptyRestReference(): JointAngleRestReference {
 }
 
 /** The bone-LOCAL axis (unit) whose rest-world direction is nearest the body's
- *  medio-lateral axis (subject-left +X), oriented to point toward +left. Used to
- *  sign the otherwise-unsigned geometric hinge magnitude (flexion vs extension). */
+ *  medio-lateral axis (subject-left +X), oriented to point toward +left: a
+ *  hinge's flexion axis (the readout's plane normal, the IK hinge constraint). */
 export function localAxisTowardBodyLeft(
   worldArr: [number, number, number, number] | undefined,
 ): THREE.Vector3 {
@@ -480,19 +501,67 @@ function boneWorldDirection(bone: THREE.Bone): THREE.Vector3 | null {
 
 // ── Per-joint computations ─────────────────────────────────────────────────
 
-/** HINGE angle (elbow / knee). 0° at full extension, positive = flexion,
- *  ~180° at full bend. Returns degrees.
+/** HINGE flexion (elbow / knee), degrees: the SIGNED angle from the parent
+ *  segment's direction (shoulder→elbow, hip→knee) to the child's (elbow→wrist,
+ *  knee→ankle), in the plane of the hinge — about its flexion axis as the
+ *  PARENT carries it — times `flexSign`, which turns the angle about body-left
+ *  into clinical flexion (the knee flexes posteriorly, +; the elbow anteriorly,
+ *  −). 0° is straight, + flexion, − (hyper)extension, continuous through
+ *  straight.
  *
- *  parentVec  = from upstream joint to this joint (e.g. shoulder→elbow)
- *  childVec   = from this joint to next joint   (e.g. elbow→wrist)
+ *  The axis is the child's local axis nearest body-left at rest
+ *  ({@link localAxisTowardBodyLeft}: the axis the hinge commands rotate about
+ *  and the IK hinge constraint keeps), taken into the parent's frame through
+ *  the child's rest rotation (`rest.hingeAxes`, captured un-rotated), so it
+ *  follows the upper arm / thigh but not the forearm's own pronation. (The
+ *  finger readout takes the same in-plane angle, about each digit's curl axis.)
  *
- *  At anatomic position both vectors point in the same direction (down for
- *  the arm), so the angle between them is 0° (extension). Bending the joint
- *  rotates childVec until it's anti-parallel to parentVec (180°, the
- *  geometric maximum even though the body can't reach it). Flexion is
- *  therefore the unsigned angle between the two vectors directly. */
-function hingeFlexionDeg(parentVec: THREE.Vector3, childVec: THREE.Vector3): number {
-  return angleBetween(parentVec, childVec) * DEG;
+ *  It used to be the unsigned 3D angle between the two directions, signed by
+ *  the child's rotation AWAY FROM REST. Rest is not straight on these rigs —
+ *  the elbows rest 0.88° flexed (male) and 1.41° (female), the knees 0.82° and
+ *  0.23° — so the size was measured from straight but the sign from rest: the
+ *  male elbow read −0.89° at rest, outside its own 0..150° range, and jumped
+ *  1.77° at its first flexion; DDx's chair stand read −0.888 → +0.958 in one
+ *  frame for 0.07° of forearm motion, its walk's right knee +0.826 → −0.821 for
+ *  0.005°. A varus/valgus tilt also read as flexion, and a turned body's sign
+ *  came from a turned rest; the plane and `rest.hingeAxes` leave both out. */
+function hingeFlexionDeg(
+  parent: THREE.Bone,
+  parentDir: THREE.Vector3,
+  childDir: THREE.Vector3,
+  jointKey: string,
+  rest: JointAngleRestReference,
+  flexSign: number,
+): number {
+  const stored = rest.hingeAxes?.[jointKey];
+  if (stored) _hingeAxis.set(stored[0], stored[1], stored[2]);
+  else _hingeAxis.copy(hingeAxisInParent(rest.localQuats[jointKey], rest.worldQuats[jointKey]));
+  _hingeAxis.applyQuaternion(parent.getWorldQuaternion(_hingeQ)).normalize();
+  return signedAngleInPlane(parentDir, childDir, _hingeAxis) * flexSign;
+}
+const _hingeAxis = new THREE.Vector3();
+const _hingeQ = new THREE.Quaternion();
+
+/**
+ * The clinical flexion of ONE hinge — `L/R_Forearm` (elbow) or `L/R_Leg`
+ * (knee), with `parent` its upper arm / thigh — the number
+ * {@link computeJointAngles} reports, from the same code, so a caller that caps
+ * a hinge in the chart's units (the stage's knee cap) cannot drift from the
+ * chart. Null for a non-hinge key or a zero-length segment. Requires current
+ * world matrices.
+ */
+export function measureHingeFlexion(
+  parent: THREE.Bone,
+  bone: THREE.Bone,
+  jointKey: string,
+  rest: JointAngleRestReference,
+): number | null {
+  const flexSign = HINGE_FLEX_SIGN[jointKey];
+  if (flexSign === undefined) return null;
+  const parentDir = boneWorldDirection(parent);
+  const childDir = boneWorldDirection(bone);
+  if (!parentDir || !childDir) return null;
+  return hingeFlexionDeg(parent, parentDir, childDir, jointKey, rest, flexSign);
 }
 
 /** Common shape: the three clinical motion axes for a joint. */
@@ -811,35 +880,26 @@ export function computeJointAngles(
   }
 
   // ── Hinges: Forearm (elbow), Leg (knee) ──────────────────────────────
-  // Hinge angle is geometric (parent-vs-child world direction), not a
-  // delta-from-rest decomposition — so the rest-reference doesn't apply.
-  // At anatomic the parent and child point co-linearly so the angle is
-  // ~0° regardless of bind quaternions.
-  // Flexion is geometric; the secondary axes (axial twist = forearm pro/sup or
-  // tibial rotation, and frontal deviation = elbow/knee varus-valgus) come from a
-  // swing-twist of the bone's local delta-from-rest. SIGNS PROVISIONAL — verify.
-  // flexSign signs the unsigned geometric magnitude per the joint's flexion sense
-  // (knee flexes posteriorly, elbow anteriorly — opposite about the medio-lateral
-  // axis), so red one way reads +Flex and the other −Ext. PROVISIONAL — verify.
-  for (const [parentKey, jointKey, flexLabel, twistLabel, devLabel, mirror, flexSign, twistSign] of [
-    ['L_UpperArm', 'L_Forearm', 'elbowFlexion', 'forearmRotation', 'elbowDeviation', false, -1, 1],
-    ['R_UpperArm', 'R_Forearm', 'elbowFlexion', 'forearmRotation', 'elbowDeviation', true, -1, 1],
-    ['L_UpLeg', 'L_Leg', 'kneeFlexion', 'kneeRotation', 'kneeDeviation', false, 1, -1],
-    ['R_UpLeg', 'R_Leg', 'kneeFlexion', 'kneeRotation', 'kneeDeviation', true, 1, -1],
+  // Flexion is geometric — the in-plane angle between the parent and child
+  // world directions (hingeFlexionDeg), so it reads 0° straight whatever the
+  // bind quaternions, and the rest pose reads its own small bend. The secondary
+  // axes (axial twist = forearm pro/sup or tibial rotation, and frontal
+  // deviation = elbow/knee varus-valgus) come from a swing-twist of the bone's
+  // local delta-from-rest. SIGNS PROVISIONAL — verify.
+  for (const [parentKey, jointKey, flexLabel, twistLabel, devLabel, mirror, twistSign] of [
+    ['L_UpperArm', 'L_Forearm', 'elbowFlexion', 'forearmRotation', 'elbowDeviation', false, 1],
+    ['R_UpperArm', 'R_Forearm', 'elbowFlexion', 'forearmRotation', 'elbowDeviation', true, 1],
+    ['L_UpLeg', 'L_Leg', 'kneeFlexion', 'kneeRotation', 'kneeDeviation', false, -1],
+    ['R_UpLeg', 'R_Leg', 'kneeFlexion', 'kneeRotation', 'kneeDeviation', true, -1],
   ] as const) {
     const parent = lookup.get(parentKey);
     const bone = lookup.get(jointKey); // the forearm / leg bone (also the hinge child)
     if (!parent || !bone) continue;
-    const parentDir = boneWorldDirection(parent);
-    const childDir = boneWorldDirection(bone);
-    const mag = parentDir && childDir ? hingeFlexionDeg(parentDir, childDir) : 0;
+    const flexion = measureHingeFlexion(parent, bone, jointKey, rest) ?? 0;
     deltaFromRest(bone.quaternion, rest.localQuats[jointKey], delta);
-    // Sign the magnitude by the rotation sense about the medio-lateral axis.
-    const hingeAxis = localAxisTowardBodyLeft(rest.worldQuats[jointKey]);
-    const dir = signedAngleAboutAxis(delta, hingeAxis) >= 0 ? 1 : -1;
     const a = ballJointAngles(delta, REST_DOWN_LOCAL, mirror);
     joints[jointKey] = {
-      [flexLabel]: mag * dir * flexSign, // signed: + flexion, − (hyper)extension
+      [flexLabel]: flexion, // signed: + flexion, − (hyper)extension
       [twistLabel]: a.rotation * twistSign, // axial twist (knee tibial-rot flipped; forearm stays)
       [devLabel]: a.abduction, // frontal-plane deviation (var/valg)
     };

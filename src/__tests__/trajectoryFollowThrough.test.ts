@@ -3,13 +3,14 @@
  *
  * 2.2 — Composed playback is no longer lockstep: inside the shared trajectory
  * (motionTrajectory.sampleAt — the ONE evaluator both the live stage and the
- * offline sampler consume), each arm-chain bone's segment-local SQUAD parameter
- * is warped by the delayed-and-renormalized proximal→distal scheme from
- * motionStagger (local′ = clamp((local − d)/(1 − d))). Distal segments trail
- * proximal ones mid-segment — TEMPORAL overlap — while both warp endpoints are
- * fixed points, so every bone still reaches every knot exactly at its knot time
- * (the settle/measurement contract). Root motion and the legs are exempt (never
- * fight the foot-plant IK / slide budgets).
+ * offline sampler consume), each arm-chain bone runs its own C¹ copy of the
+ * time-warp from motionStagger's proximal→distal scheme: a dwell out of rest,
+ * a slower turn where its path reverses. Distal segments trail proximal ones
+ * mid-segment — TEMPORAL overlap — while every bone still reaches every knot
+ * exactly at its knot time (the settle/measurement contract). Root motion and
+ * the legs are exempt (never fight the foot-plant IK / slide budgets). Its
+ * continuity (no jump out of rest, no stall at a waypoint) is gated in
+ * followThroughContinuity.test.ts.
  *
  * 2.3 — A motion whose FINAL keyframe arrives at speed (functional/ballistic)
  * gets ONE auto-inserted fly-through knot at target + ~3% of inbound travel,
@@ -310,8 +311,11 @@ describe('follow-through on the rig — wrist reversal lags shoulder reversal', 
     const wr = series(rec, 'R_Hand', 'wristFlexion');
 
     // TEMPORAL overlap: the distal joint leaves its peak later than the proximal
-    // one (the drag lives mid-segment; predicted lag here ≈ (0.1575 − 0.1125) ×
-    // 600 ms ≈ 27 ms).
+    // one — it takes the fly-through turn slower (motionStagger.
+    // followThroughKnotSlope) and trails inside the return stroke
+    // (followThroughStrokeLag). Measured 25.0 ms at 120 Hz (16.7 on the turn's
+    // slowdown alone); the old per-segment dwell also read 25 ms, bought with a
+    // stop-and-jump at every keyframe.
     const lagMs = reversalMs(rec, wr) - reversalMs(rec, sh);
     // eslint-disable-next-line no-console
     console.log(`fast wave: wrist reversal lags shoulder by ${lagMs.toFixed(1)} ms`);

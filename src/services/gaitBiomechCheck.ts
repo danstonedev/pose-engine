@@ -18,6 +18,7 @@
 
 import type { ComposedMotion, ResolvedComposedMotion } from './motionSequence';
 import { looksLikeGaitPlan } from './gaitEnrichment';
+import { clampTimeScale } from './motionConstants';
 import type { ValidityCheck, GateFrame } from './validityGate';
 import {
   jointAngleRmsVsNormative,
@@ -36,6 +37,28 @@ const IN_PLACE_TRAVEL_M = 0.3;
  *  wider than the 4–5 cm normal target — it catches a FLOATY (≈0) or ballooned
  *  arc, not a deliberate glide/bounce. */
 const VERTICAL_COM_WARN_CM: readonly [number, number] = [2, 9];
+/** Where a walk's centre-of-mass bob may peak, as a fraction of the gait cycle
+ *  (mod 0.5 — it peaks twice). Lowest in double support (~5% and ~55% of a
+ *  cycle opened by initial contact) and highest at mid-stance (~30%, ~80%)
+ *  [Perry; Winter], so its second harmonic peaks near 0.30; within a quarter of
+ *  that harmonic's period (0.125) the peaks sit nearer mid-stance than double
+ *  support, outside they sit nearer double support — the bob upside down. */
+const VERTICAL_COM_PEAK_PHASE: readonly [number, number] = [0.175, 0.425];
+/** A bob whose second harmonic is smaller than this (cm) is too flat to phase;
+ *  the excursion check above is the one that speaks for a floaty arc. */
+const VERTICAL_COM_PHASE_MIN_AMP_CM = 0.25;
+/** A foot is down once its lower contact (the ankle or the forefoot) comes
+ *  within this (m) of where it sits with the body standing — the 5 mm the
+ *  travel's touchdown schedule uses (rootMotion FOOT_DOWN_M). */
+const TOUCHDOWN_M = 0.005;
+/** A landing comes down from swing: the lower contact must first have been
+ *  this far up (m), so a planted foot rocking a few millimetres is not one. */
+const TOUCHDOWN_SWING_M = 0.02;
+/** A frame shows the body standing when each contact (ankle, forefoot) of one
+ *  foot is level with the other foot's within this (m) and the body is not
+ *  travelling ({@link MOVING_FRACTION_OF_PEAK}). Both are needed: the stock
+ *  walk's feet pass within 0.3-0.7 cm of level mid-stride (both heels up). */
+const STANDING_LEVEL_M = 0.02;
 /** A joint whose trajectory sits within ±1 SD of the normative curve at fewer
  *  than this fraction of phase points warns (targets #1–#3). */
 const WITHIN_BAND_WARN_FRACTION = 0.5;
@@ -49,6 +72,11 @@ const READY_SETTLE_ONSET_DEG = 6;
 /** Shorter apparent heads than this are ordinary first-frame motion, not a hold.
  *  Guards the offline sampler, whose frame 0 IS the motion start. */
 const MIN_READY_SETTLE_MS = 100;
+/** A frame within this (deg, every joint) of the opening pose is still AT it. A
+ *  ready-settle hold records the same pose frame after frame — the stage lifts
+ *  its breathing and sway overlays before the recording tap samples — so a
+ *  hold departs 0°; this only absorbs rounding. */
+const READY_SETTLE_STILL_DEG = 0.05;
 
 /**
  * The distal bone + motion field carrying each sagittal joint's flexion in the
@@ -121,6 +149,165 @@ function verticalComExcursionCm(frames: readonly GateFrame[]): number | null {
 }
 
 /**
+ * The world heights (m) of the `side` foot's contacts where the body stands
+ * still on both feet: the last frame when it does (a travel walk settles to
+ * standing), else the first (it starts from standing). The end is preferred so
+ * that frames cropped to start mid-motion — a caller judging only the shown
+ * part of a walk — read the same heights as the whole recording. Null when
+ * neither end stands.
+ */
+function standingContactHeights(
+  frames: readonly GateFrame[],
+  side: 'L' | 'R',
+): { ankle: number; toes: number | null } | null {
+  const speeds = horizontalSpeeds(frames);
+  const still = Math.max(...speeds) * MOVING_FRACTION_OF_PEAK;
+  const standsAt = (i: number): boolean => {
+    const t = frames[i]?.worldTracks;
+    if (!t?.L_Foot || !t.R_Foot) return false;
+    if (Math.abs(t.L_Foot[1] - t.R_Foot[1]) > STANDING_LEVEL_M) return false;
+    if (t.L_Toes && t.R_Toes && Math.abs(t.L_Toes[1] - t.R_Toes[1]) > STANDING_LEVEL_M) return false;
+    return speeds[Math.min(i, speeds.length - 1)]! < still;
+  };
+  const i = standsAt(frames.length - 1) ? frames.length - 1 : standsAt(0) ? 0 : -1;
+  const t = frames[i]?.worldTracks;
+  if (!t) return null;
+  return { ankle: t[`${side}_Foot`]![1], toes: t[`${side}_Toes`]?.[1] ?? null };
+}
+
+/**
+ * When the `side` foot comes down nearest `nearMs` (within half a cycle, so
+ * that foot's only landing there): the moment its lower contact, having risen
+ * {@link TOUCHDOWN_SWING_M} in swing, comes within {@link TOUCHDOWN_M} of where
+ * it sits with the body standing ({@link standingContactHeights}), interpolated
+ * between frames. A string says why it cannot be read — as on the neutral
+ * body's stock walk, whose right foot its plant keeps within 2 cm of the floor
+ * through the step-off (its lower contact peaks 1.0-1.7 cm above where it
+ * stands): there is no initial contact there to phase from.
+ */
+function touchdownMs(
+  frames: readonly GateFrame[],
+  side: 'L' | 'R',
+  nearMs: number,
+  spanMs: number,
+): number | string {
+  if (!frames.some((f) => f.worldTracks?.[`${side}_Foot`])) return 'the frames do not track the lead foot';
+  const rest = standingContactHeights(frames, side);
+  if (!rest) return 'no frame shows the body standing to measure the lead foot against';
+  const height = (f: GateFrame): number | null => {
+    const ankle = f.worldTracks?.[`${side}_Foot`]?.[1];
+    if (ankle == null) return null;
+    const toes = f.worldTracks?.[`${side}_Toes`]?.[1];
+    return toes != null && rest.toes != null
+      ? Math.min(ankle - rest.ankle, toes - rest.toes)
+      : ankle - rest.ankle;
+  };
+  let best: number | null = null;
+  let swung = false;
+  let prev: { tMs: number; h: number } | null = null;
+  for (const f of frames) {
+    const h = height(f);
+    if (h == null) continue;
+    if (prev && swung && prev.h > TOUCHDOWN_M && h <= TOUCHDOWN_M) {
+      const t = prev.tMs + ((f.tMs - prev.tMs) * (prev.h - TOUCHDOWN_M)) / (prev.h - h);
+      if (Math.abs(t - nearMs) <= spanMs / 2 && (best == null || Math.abs(t - nearMs) < Math.abs(best - nearMs))) {
+        best = t;
+      }
+      swung = false;
+    }
+    if (h > TOUCHDOWN_SWING_M) swung = true;
+    prev = { tMs: f.tMs, h };
+  }
+  return best ?? 'the lead foot does not lift 2 cm and come back down within half a cycle of the published start';
+}
+
+/**
+ * Where the centre of mass's twice-per-cycle bob peaks over one gait cycle
+ * opened by the lead foot's MEASURED touchdown ({@link touchdownMs}): the
+ * phase of the second harmonic of its height, as a fraction of the cycle in
+ * [0, 0.5) (it peaks there and half a cycle on), with that harmonic's amplitude
+ * (cm) and the touchdown (ms).
+ *
+ * Measured, not the published window's start: a builder publishes its cycle
+ * from the keyframe that poses initial contact, and the foot is still in the
+ * air there — the stock walk lands 11-13% of a cycle later at every pace from
+ * 0.6 to 1.5 (at 1x its right ankle is 4.3 cm and forefoot 10.7 cm up at the
+ * published start), DDx's two-cycle walk 14% later. Anchored there, correct
+ * slow walks read 0.44-0.49 and warned, while a bob peaking 5% after the
+ * landing — in double support — passed at 0.18. From the touchdown the stock
+ * walk reads 0.37 (0.6 speed) to 0.27 (1.5), and DDx's walk 0.20.
+ *
+ * The frames run on the trajectory clock, the motion starting at 0 (after any
+ * ready-settle head a live tap records ahead of it), whatever frame they begin
+ * at: the published window, on the resolved clock, is re-timed by the pace the
+ * motion declares (1/timeScale; the stock walk at 0.85 speed: 137 ms early by
+ * the cycle's end if left unscaled), and it only says where to look for the
+ * touchdown and how long a cycle is. A string says why it cannot be read.
+ */
+function verticalComPhase(
+  resolved: ResolvedComposedMotion,
+  frames: readonly GateFrame[],
+): { phase: number; ampCm: number; touchdownMs: number } | string {
+  const c = resolved.gaitCycleMs;
+  if (!c || !(c.toMs > c.fromMs)) return 'the motion publishes no gaitCycleMs window to phase against';
+  const scale = 1 / clampTimeScale(resolved.modifiers?.timeScale);
+  const span = (c.toMs - c.fromMs) * scale;
+  const fromMs = touchdownMs(
+    frames,
+    c.leadFoot.startsWith('R') ? 'R' : 'L',
+    readySettleHeadMs(frames) + c.fromMs * scale,
+    span,
+  );
+  if (typeof fromMs === 'string') return fromMs;
+  const w = frames.filter(
+    (f) => f.tMs >= fromMs && f.tMs <= fromMs + span && f.worldTracks?.CoM != null,
+  );
+  if (w.length < 8) return 'too few centre-of-mass frames in the gait cycle';
+  // Frames that start or stop inside the cycle would be resampled as if their
+  // end frame held still for the rest of it.
+  const reach = (1.5 * (w[w.length - 1]!.tMs - w[0]!.tMs)) / (w.length - 1);
+  if (w[0]!.tMs - fromMs > reach || fromMs + span - w[w.length - 1]!.tMs > reach) {
+    return 'the frames do not cover the published gait cycle';
+  }
+  // Resample uniformly over the cycle (phase 0 = its opening touchdown), then
+  // project onto the second harmonic.
+  const N = 64;
+  let j = 0;
+  const ys: number[] = [];
+  for (let k = 0; k < N; k += 1) {
+    const t = fromMs + (span * k) / N;
+    while (j < w.length - 2 && w[j + 1]!.tMs < t) j += 1;
+    const a = w[j]!;
+    const b = w[Math.min(w.length - 1, j + 1)]!;
+    const u = b.tMs > a.tMs ? Math.min(1, Math.max(0, (t - a.tMs) / (b.tMs - a.tMs))) : 0;
+    ys.push(a.worldTracks!.CoM![1]! * (1 - u) + b.worldTracks!.CoM![1]! * u);
+  }
+  const mean = ys.reduce((sum, y) => sum + y, 0) / N;
+  let cs = 0;
+  let sn = 0;
+  for (let k = 0; k < N; k += 1) {
+    cs += (ys[k]! - mean) * Math.cos((4 * Math.PI * k) / N);
+    sn += (ys[k]! - mean) * Math.sin((4 * Math.PI * k) / N);
+  }
+  const phase = (((Math.atan2(sn, cs) / (4 * Math.PI)) % 0.5) + 0.5) % 0.5;
+  return { phase, ampCm: ((2 * Math.hypot(cs, sn)) / N) * 100, touchdownMs: fromMs };
+}
+
+/** The body's horizontal speed (m/s) between each pair of consecutive frames:
+ *  the centre of mass, else the pelvis, else the root. */
+function horizontalSpeeds(frames: readonly GateFrame[]): number[] {
+  const pos = (f: GateFrame) => f.worldTracks?.CoM ?? f.worldTracks?.Hips ?? f.root?.translateM;
+  const speeds: number[] = [];
+  for (let i = 1; i < frames.length; i += 1) {
+    const a = pos(frames[i - 1]!);
+    const b = pos(frames[i]!);
+    const dt = (frames[i]!.tMs - frames[i - 1]!.tMs) / 1000;
+    speeds.push(a && b && dt > 0 ? horizontalDist(a, b) / dt : 0);
+  }
+  return speeds;
+}
+
+/**
  * The contiguous stretch of frames over which the body is actually translating.
  *
  * Leading and trailing frames whose instantaneous horizontal speed is under a
@@ -133,14 +320,7 @@ function verticalComExcursionCm(frames: readonly GateFrame[]): number | null {
  */
 function travellingWindow(frames: readonly GateFrame[]): readonly GateFrame[] {
   if (frames.length < 4) return frames;
-  const pos = (f: GateFrame) => f.worldTracks?.CoM ?? f.worldTracks?.Hips ?? f.root?.translateM;
-  const speeds: number[] = [];
-  for (let i = 1; i < frames.length; i += 1) {
-    const a = pos(frames[i - 1]!);
-    const b = pos(frames[i]!);
-    const dt = (frames[i]!.tMs - frames[i - 1]!.tMs) / 1000;
-    speeds.push(a && b && dt > 0 ? horizontalDist(a, b) / dt : 0);
-  }
+  const speeds = horizontalSpeeds(frames);
   const peak = Math.max(...speeds);
   if (!(peak > 0)) return frames;
   const floor = peak * MOVING_FRACTION_OF_PEAK;
@@ -207,26 +387,42 @@ function maxAngleDepartureDeg(
  * from 0.67 within-band to 0.19 and Froude from 0.213 to 0.058, which is precisely
  * the gap between what the offline suite reported and what the UI card showed.
  *
- * The head is found the way trimRecordingLoopCycle finds it: the first frame that
- * departs the opening pose. Below {@link MIN_READY_SETTLE_MS} the answer is 0, so
- * the offline sampler — whose frame 0 already IS the motion — is untouched.
+ * A frame that departs the opening pose by more than {@link READY_SETTLE_ONSET_DEG}
+ * shows the motion has begun — the bound trimRecordingLoopCycle uses. It began
+ * where the body last sat still at that pose, which a hold does to the degree
+ * ({@link READY_SETTLE_STILL_DEG}), not on the frame before the bound: a motion
+ * that eases out of its first pose takes a while to clear 6°. A walk chained
+ * after a turn in place moves from its first frame, yet its knee clears 6° only
+ * at 367 ms — read as a 350 ms hold, it phased the gait cycle 350 ms late and
+ * graded the hip 0.05 within-band against the 0.57 it has. (On 5c1c9ac the hinge
+ * readout's sign flip near straight made the elbow "depart" 17.8° at 100 ms,
+ * which hid this for that walk; a walk chained after another walk, or after a
+ * 180° turn, read a 283–300 ms head there too.) Below {@link MIN_READY_SETTLE_MS}
+ * the answer is 0, so the offline sampler — whose frame 0 already IS the motion —
+ * is untouched. Exported for the suite.
  */
-function readySettleHeadMs(frames: readonly GateFrame[]): number {
+export function readySettleHeadMs(frames: readonly GateFrame[]): number {
   const first = frames[0];
   if (!first?.angles) return 0;
-  // The motion starts at the END of the hold, not at the frame that has already
-  // moved 6° — returning the departing frame would shift the window late by however
-  // long the motion takes to clear the bound, which is a real fraction of a stride.
-  let lastStill = first.tMs;
-  for (const f of frames) {
-    if (!f.angles) continue;
-    if (maxAngleDepartureDeg(first.angles, f.angles) > READY_SETTLE_ONSET_DEG) {
-      const head = lastStill - first.tMs;
-      return head >= MIN_READY_SETTLE_MS ? head : 0;
+  let departed = -1;
+  for (let i = 0; i < frames.length; i += 1) {
+    const f = frames[i]!;
+    if (f.angles && maxAngleDepartureDeg(first.angles, f.angles) > READY_SETTLE_ONSET_DEG) {
+      departed = i;
+      break;
     }
-    lastStill = f.tMs;
   }
-  return 0;
+  if (departed < 0) return 0;
+  let start = first.tMs;
+  for (let i = departed - 1; i > 0; i -= 1) {
+    const f = frames[i]!;
+    if (f.angles && maxAngleDepartureDeg(first.angles, f.angles) <= READY_SETTLE_STILL_DEG) {
+      start = f.tMs;
+      break;
+    }
+  }
+  const head = start - first.tMs;
+  return head >= MIN_READY_SETTLE_MS ? head : 0;
 }
 
 /**
@@ -348,6 +544,37 @@ export function runGaitBiomechChecks(
       unit: 'cm',
       note: `CoM vertical excursion ${comCm.toFixed(1)} cm (normal ${VERTICAL_COM_CM[0]}–${VERTICAL_COM_CM[1]} cm; glide/bounce widen the accepted band to ${lo}–${hi})`,
     });
+  }
+
+  // ── Vertical CoM PHASE — the bob the right way up ────────────────────────────
+  // The excursion says how far the body bobs, not when: a two-cycle walk whose
+  // vertical smoothing outgrew its step bobbed highest 10% into the cycle, just
+  // after initial contact, and lowest in single stance.
+  if (declaredRegime === 'run') {
+    skipped.push(
+      'vertical CoM phase — a run is lowest at mid-stance and highest in flight, the reverse of a walk',
+    );
+  } else {
+    const ph = verticalComPhase(resolved, frames);
+    if (typeof ph === 'string') {
+      skipped.push(`vertical CoM phase — ${ph}`);
+    } else if (ph.ampCm < VERTICAL_COM_PHASE_MIN_AMP_CM) {
+      skipped.push(
+        `vertical CoM phase — the bob's twice-per-cycle component is ${ph.ampCm.toFixed(2)} cm, too flat to phase`,
+      );
+    } else {
+      const [lo, hi] = VERTICAL_COM_PEAK_PHASE;
+      const pct = (u: number): string => `${(u * 100).toFixed(0)}%`;
+      checks.push({
+        id: 'vertical-com-phase',
+        pass: ph.phase >= lo && ph.phase <= hi,
+        severity: 'warn',
+        measured: Number(ph.phase.toFixed(3)),
+        threshold: hi,
+        unit: 'cycle',
+        note: `CoM highest at ${pct(ph.phase)} and ${pct(ph.phase + 0.5)} of the gait cycle from the lead foot's touchdown at ${ph.touchdownMs.toFixed(0)} ms (a walk's peaks are at mid-stance, ~30% and ~80%, its lows in double support; accepted ${pct(lo)}–${pct(hi)})`,
+      });
+    }
   }
 
   // ── Joint-angle RMS vs normative ±1 SD (targets #1–#3) ───────────────────────
