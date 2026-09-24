@@ -30,9 +30,10 @@
  *      {@link stagedBlendWithBaseline}; COMPOSED trajectory playback (the SQUAD
  *      spline both the live stage and the offline sampler evaluate through
  *      motionTrajectory.sampleAt) consumes {@link trajectoryBoneDelay},
- *      {@link delayedOnset} and {@link followThroughKnotSlope}. Stage and
- *      sampler share one trajectory builder, so a headless recording remains
- *      frame-for-frame what the stage shows.
+ *      {@link delayedOnset}, {@link followThroughKnotSlope} and
+ *      {@link followThroughStrokeLag}. Stage and sampler share one trajectory
+ *      builder, so a headless recording remains frame-for-frame what the stage
+ *      shows.
  *
  * The root transform (pelvis / whole-body carriage) is the most proximal thing
  * of all and deliberately leads — callers keep driving it on the plain
@@ -199,12 +200,61 @@ export function delayedOnset(sigma: number, delay: number): number {
  * INTO a full reversal pays both (fingers 1.31×, hand 1.26×; the old per-segment
  * dwell 1.27× / 1.23×). A gentler slowdown buys little: at 3/4 of this one or
  * less, the rig's fast arm wave shows the wrist leaving its turn one 120 Hz frame
- * after the shoulder — what plain lockstep shows — against two frames here.
+ * after the shoulder — what plain lockstep shows — against two frames with this
+ * slowdown alone (three once its return stroke also trails inside:
+ * {@link followThroughStrokeLag}).
  */
 export function followThroughKnotSlope(delay: number, reversal: number): number {
   if (delay <= 0) return 1;
   const floor = Math.max(0, 3 - 2 / (1 - delay));
   return 1 - clamp01(reversal) * (1 - floor);
+}
+
+/** How far, and at what cost, a delayed bone may trail the chain through a
+ *  FLOWING stroke (see {@link followThroughStrokeLag}). */
+export interface FollowThroughStrokeLag {
+  /** Share of the stroke's time the bone may run behind at mid-stroke. */
+  midLag: number;
+  /** Cap on the bone through the stroke, as a multiple of the fastest the
+   *  lockstep chain runs there: on its progress rate AND on its angular speed
+   *  along the stroke's path (motionTrajectory checks both). */
+  rateCeiling: number;
+}
+
+/**
+ * The trail a delayed bone keeps through a FLOWING stroke — one that flies
+ * through a keyframe at both ends, as every stroke of a gait cycle does.
+ *
+ * Exact arrival pins every bone to every knot, so between two fly-through
+ * keyframes the only follow-through left is inside the stroke, and the knot
+ * slopes alone ({@link followThroughKnotSlope}) do not supply one: straight on
+ * through a keyframe the bone keeps the chain's speed, and through a turn its
+ * slowdown is symmetric — it reaches the turn as early as it leaves it late. On
+ * that warp alone the travel walk's distal arm bones crossed mid-swing −8 to
+ * +3.3 ms from a lockstep build and an 8-knot swing loop's fingers were in phase
+ * with the trunk (0.0 ms), against +9 to +24 ms and 11.7 ms for the per-segment
+ * dwell that also stopped them dead at every keyframe.
+ *
+ * So motionTrajectory takes c·s²(1 − s)² off the bone's own progress through
+ * such a stroke — zero, with zero slope, at both keyframes, so the knot and its
+ * slope are untouched — with c budgeted like the onset dwell: at most d/2 of the
+ * stroke behind at mid-stroke (what the dwell leaves there), never moving faster
+ * than 1/(1 − d) × the fastest the lockstep chain moves it through the stroke
+ * (what the dwell costs), and never backwards. The cap holds on the bone's
+ * angular speed, not only on its progress rate: a SQUAD path is not uniform in
+ * its parameter, and capping the rate alone let the trail hurry a bone along a
+ * stroke's fast end — a run's hand to 1.29×, a sprint's fingers to 1.50× their
+ * lockstep peak inside a stroke. Capped on both, the trail lifts none of 5,915
+ * flowing arm bone-strokes over 49 motions more than 1% (the 0.25 ms sampling)
+ * above 1/(1 − d) × its lockstep twin, and the worst whole-motion peak stays
+ * 2504a7e's 1.25× (the knot slopes' own cost). A stroke between two full turns
+ * has already spent that rate on lingering at them and gets no more; a stroke
+ * that leaves rest has the dwell instead, and one that arrives at a stop keeps
+ * its arrival.
+ */
+export function followThroughStrokeLag(delay: number): FollowThroughStrokeLag {
+  if (delay <= 0) return { midLag: 0, rateCeiling: 1 };
+  return { midLag: delay / 2, rateCeiling: 1 / (1 - delay) };
 }
 
 /**

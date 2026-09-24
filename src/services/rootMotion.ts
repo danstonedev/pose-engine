@@ -120,6 +120,8 @@ export function rotateRestReferenceByRoot(
     localQuats: rest.localQuats,
     worldQuats,
     ...(worldDirs ? { worldDirs } : {}),
+    // Parent-local, so a root rotation leaves them as they are.
+    ...(rest.hingeAxes ? { hingeAxes: rest.hingeAxes } : {}),
   };
 }
 
@@ -194,6 +196,7 @@ export function rotateRestReferenceByPelvis(
     localQuats: rest.localQuats,
     worldQuats,
     ...(worldDirs ? { worldDirs } : {}),
+    ...(rest.hingeAxes ? { hingeAxes: rest.hingeAxes } : {}), // parent-local (see ByRoot)
   };
 }
 

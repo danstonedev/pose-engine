@@ -703,9 +703,13 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      // Hinge magnitude is 10° (geometric angle between parent+child world
-      // dirs after the clamp); signed hinge (elbow flexSign=-1) reports -10°.
-      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(-10, 0);
+      // The clamp holds the swing at the elbow's 10° off-axis tolerance, and the
+      // readout reads it where it is: 10° of deviation. Its flexion reads 0 —
+      // the forearm is tilted out of the hinge plane, not bent in it. (The old
+      // hinge reading, the unsigned 3D angle signed by a tie-break, read this
+      // tilt as flexion: −10 → 0.)
+      expect(report.joints.L_Forearm.elbowDeviation).toBeCloseTo(10, 0);
+      expect(report.joints.L_Forearm.elbowFlexion).toBeCloseTo(0, 0);
     });
 
     it('clamps excessive knee off-axis swing (40° → 5°) — tighter than elbow', () => {
@@ -721,7 +725,10 @@ describe('clampBoneToRom', () => {
 
       bones.Hips.updateMatrixWorld(true);
       const report = reportFor(skeleton, rest);
-      expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(5, 0);
+      // Clamped to the knee's 5° off-axis tolerance: 5° of deviation, no
+      // flexion (the old 3D hinge reading counted the tilt as flexion: 5 → 0).
+      expect(report.joints.L_Leg.kneeDeviation).toBeCloseTo(5, 0);
+      expect(report.joints.L_Leg.kneeFlexion).toBeCloseTo(0, 0);
     });
 
     it('leaves a small forearm twist (20°) untouched — within elbow tolerance', () => {

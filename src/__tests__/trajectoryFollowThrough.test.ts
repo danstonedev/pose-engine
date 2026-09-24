@@ -312,8 +312,10 @@ describe('follow-through on the rig — wrist reversal lags shoulder reversal', 
 
     // TEMPORAL overlap: the distal joint leaves its peak later than the proximal
     // one — it takes the fly-through turn slower (motionStagger.
-    // followThroughKnotSlope). Measured 16.7 ms at 120 Hz; the old per-segment
-    // dwell read 25 ms, bought with a stop-and-jump at every keyframe.
+    // followThroughKnotSlope) and trails inside the return stroke
+    // (followThroughStrokeLag). Measured 25.0 ms at 120 Hz (16.7 on the turn's
+    // slowdown alone); the old per-segment dwell also read 25 ms, bought with a
+    // stop-and-jump at every keyframe.
     const lagMs = reversalMs(rec, wr) - reversalMs(rec, sh);
     // eslint-disable-next-line no-console
     console.log(`fast wave: wrist reversal lags shoulder by ${lagMs.toFixed(1)} ms`);

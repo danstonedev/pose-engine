@@ -22,6 +22,7 @@ import {
   composedTweenEase,
   delayedOnset,
   followThroughKnotSlope,
+  followThroughStrokeLag,
   PROXIMAL_TO_DISTAL_STAGGER,
   stagedBlendWithBaseline,
 } from '../services/motionStagger';
@@ -144,6 +145,17 @@ describe('motionStagger — the shared onset warp and the follow-through slope',
     expect(realizedFraction(stagedBlendWithBaseline(from, to, from, d)!, 'L_Index1')).toBe(0);
     // Zero slope out of the dwell: 1 ms into a 600 ms tween it has barely moved.
     expect(realizedFraction(stagedBlendWithBaseline(from, to, from, d + 1 / 600)!, 'L_Index1')).toBeLessThan(1e-6);
+  });
+
+  it('followThroughStrokeLag: the onset dwell’s own budget — d/2 of a flowing stroke, at its cost of 1/(1 − d)', () => {
+    expect(followThroughStrokeLag(0)).toEqual({ midLag: 0, rateCeiling: 1 }); // undelayed: lockstep
+    for (const d of [0.0112, 0.09, 0.135, 0.18]) {
+      const b = followThroughStrokeLag(d);
+      // The dwell leaves a bone d/2 of its stroke behind at mid-stroke…
+      expect(b.midLag, `midLag @ d=${d}`).toBeCloseTo(d / 2, 12);
+      // …and runs it at 1/(1 − d) × the chain to catch up.
+      expect(b.rateCeiling, `rateCeiling @ d=${d}`).toBeCloseTo(1 / (1 - d), 12);
+    }
   });
 
   it('followThroughKnotSlope: full speed through a waypoint, a floored slowdown through a turn', () => {
