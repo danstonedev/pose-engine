@@ -405,7 +405,9 @@ describe('the stock walk on the rig, planned-start plants against touchdown plan
         `${(touchdown * 100).toFixed(2)} cm touchdown-planted`,
     );
     expect(touchdown).toBeLessThan(0.005);
-  });
+    // Six rig recordings of a walk (two plans × 30/60/120 Hz): ~4.3 s on an
+    // idle machine, over the 5 s default under load (6.9–9.9 s measured).
+  }, 60_000);
 
   it.each([
     ['walk 0.8', 0.8, 0.81, 41.7],

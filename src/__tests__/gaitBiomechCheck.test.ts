@@ -22,10 +22,11 @@ import { captureJointAngleRestReference, type JointAngleRestReference } from '..
 import { resolveComposedMotion, type ComposedMotion, type ResolvedComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
 import { captureFloorReference } from '../services/rootMotion';
-import { buildTravelWalk, buildTravelRun, buildSitDown } from '../services/movementTemplates';
+import { buildTravelWalk, buildTravelRun, buildSitDown, buildTurnInPlace } from '../services/movementTemplates';
+import { sampleMotionChain } from '../services/movementChain';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import { assessValidity, type GateFrame, type ValidityCheck } from '../services/validityGate';
-import { runGaitBiomechChecks } from '../services/gaitBiomechCheck';
+import { readySettleHeadMs, runGaitBiomechChecks } from '../services/gaitBiomechCheck';
 import type { CustomPose } from '../types';
 
 const variantCfg = BODY_VARIANTS.male;
@@ -181,6 +182,47 @@ describe('runGaitBiomechChecks — normative kinematics on a gait-shaped motion'
       const withHead = [...head, ...frames.map((f) => ({ ...f, tMs: f.tMs + headMs }))];
       expect(measured(withHead), `${headMs} ms head changed the verdict`).toEqual(baseline);
     }
+  });
+
+  it('phases a chained walk from its own first frame, not from where it clears the onset bound', () => {
+    // A walk chained after a turn in place eases out of the pose the turn left:
+    // it moves from its first frame, yet its knee clears the 6° onset bound only
+    // at 367 ms. Read as a 350 ms ready-settle hold, that phased its gait cycle
+    // 350 ms late and graded the hip 0.05 within-band and the ankle 0.38. The
+    // head ends where the body last sat still, and this walk never sat.
+    // (5c1c9ac read 0.57 and 0.52 here only because its hinge readout flipped
+    // the elbow's sign near straight — a 17.8° "departure" at 100 ms.)
+    root.position.copy(rootRest0);
+    root.quaternion.copy(rootQuat0);
+    root.updateMatrixWorld(true);
+    const segs = sampleMotionChain([buildTravelWalk(), buildTurnInPlace({ degrees: 90 }), buildTravelWalk({ speed: 0.8 })], {
+      baselinePose,
+      variantCfg,
+      rest,
+      skeletonHarness: { root, skinned },
+      sampleHz: 60,
+    });
+    const seg = segs[2]!;
+    expect(seg.status).toBe('ok');
+    const resolved = resolveComposedMotion(seg.motion, variantCfg);
+    const frames = seg.recording.frames as unknown as GateFrame[];
+    expect(readySettleHeadMs(frames), 'a chained walk has no ready-settle head').toBe(0);
+    const { checks } = runGaitBiomechChecks(resolved, frames);
+    // No worse than 5c1c9ac on either joint it passed.
+    expect(byId(checks, 'normative-hipFlexion')!.measured).toBeGreaterThanOrEqual(0.57);
+    expect(byId(checks, 'normative-ankleFlexion')!.measured).toBeGreaterThanOrEqual(0.52);
+
+    // A genuine hold ahead of the same walk is still found — to within the
+    // frame or two the walk takes to move 0.05° — and changes no verdict.
+    const dt = 1000 / 60;
+    const head = Array.from({ length: Math.round(950 / dt) }, (_, i) => ({ ...frames[0]!, tMs: i * dt }));
+    const withHead = [...head, ...frames.map((f) => ({ ...f, tMs: f.tMs + 950 }))];
+    const found = readySettleHeadMs(withHead);
+    expect(found).toBeGreaterThanOrEqual(950);
+    expect(found).toBeLessThanOrEqual(950 + 2 * dt);
+    const verdicts = (fs: readonly GateFrame[]) =>
+      runGaitBiomechChecks(resolved, fs).checks.filter((c) => c.id.startsWith('normative-')).map((c) => [c.id, c.pass]);
+    expect(verdicts(withHead)).toEqual(verdicts(frames));
   });
 
   it('phases the CoM bob against the gait cycle: the walk peaks at mid-stance, the same bob upside down warns', () => {

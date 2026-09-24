@@ -30,10 +30,10 @@
  * gated here too.
  *
  * Gated PURE (single-axis chains, signed angle, 0.1 ms finite differences; one
- * curved loop) and ON THE RIG (the travel walk every gait task is built on, at
- * two paces; the run and sprint loops; a sit-down with the arms folded, the DDx
- * chair stand's shape). Exact knot arrival — the measurement contract — is
- * pinned alongside.
+ * curved loop) and ON THE RIG (the travel walk every gait task is built on,
+ * across its 0.6–1.5 pace range; the run and sprint loops; a sit-down with the
+ * arms folded, the DDx chair stand's shape). Exact knot arrival — the
+ * measurement contract — is pinned alongside.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -49,15 +49,20 @@ import { buildSequencePoses, resolveComposedMotion, type ComposedMotion } from '
 import {
   buildComposedTrajectory,
   buildLoopTrajectory,
+  buildPoseTrajectory,
   type PoseTrajectory,
   type SequenceBuildLike,
+  type TrajectoryKnot,
 } from '../services/motionTrajectory';
 import {
   chainOnsetDelay,
+  followThroughKnotSlope,
+  followThroughStrokeLag,
   PROXIMAL_TO_DISTAL_STAGGER,
   stagedBlendWithBaseline,
   trajectoryBoneDelay,
 } from '../services/motionStagger';
+import { clearFollowThroughStrokeMemo, strokeSquadTable } from '../services/followThroughStroke';
 import { buildRun, buildSitDown, buildTravelWalk } from '../services/movementTemplates';
 import { clampTimeScale } from '../services/motionConstants';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
@@ -455,6 +460,112 @@ describe('follow-through keeps exact arrival — every knot, every bone (the mea
   });
 });
 
+describe('follow-through stroke cache — each distinct stroke solved once, and found in O(1)', () => {
+  let seed = 20260924;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const randQ = (deg: number): Q => rot((rnd() - 0.5) * 2 * deg, [rnd() - 0.5, rnd() - 0.5, rnd() - 0.5]);
+  const turn = (q: Q, deg: number): Q => {
+    const r = new THREE.Quaternion(...q).multiply(new THREE.Quaternion(...rot(deg, [rnd() - 0.5, rnd() - 0.5, 1])));
+    return [r.x, r.y, r.z, r.w];
+  };
+  const neg = (q: Q): Q => [-q[0], -q[1], -q[2], -q[3]];
+
+  it('the path-speed table samples each stroke’s SQUAD exactly as three’s slerp does, to the bit', () => {
+    // The table unrolls three's Quaternion.slerp so that a stroke's nine
+    // samples share the work of the two slerps whose ends stay fixed — their
+    // acos, and the sines, which at t = k/8 and 1 − t = (8 − k)/8 are the same
+    // nine — and takes the outer slerp at its two t = 0 ends as the a·1 + b·0
+    // three's arithmetic reduces to there. The c each bone trails by — and so
+    // every sampled pose — is unchanged only while every sample is the very one
+    // `squad` gives: a three upgrade that changes its slerp fails here first.
+    const ts = [0, 1 / 8, 2 / 8, 3 / 8, 4 / 8, 5 / 8, 6 / 8, 7 / 8, 1];
+    const misses: string[] = [];
+    let compared = 0;
+    for (let trial = 0; trial < 400; trial += 1) {
+      const q0 = randQ(170);
+      const kind = trial % 4;
+      // Far apart; within three's small-angle (lerp) branch; across the
+      // hemisphere; the same quaternion.
+      const q1 = kind === 0 ? randQ(170) : kind === 1 ? turn(q0, 1.5) : kind === 2 ? neg(turn(q0, 20)) : q0;
+      const s0 = kind === 3 ? q0 : turn(q0, 10 * rnd());
+      const s1 = rnd() < 0.3 ? neg(turn(q1, 3)) : turn(q1, 10 * rnd());
+      const got = strokeSquadTable(q0, q1, s0, s1);
+      ts.forEach((t, j) => {
+        const along = new THREE.Quaternion(...q0).slerp(new THREE.Quaternion(...q1), t);
+        const controls = new THREE.Quaternion(...s0).slerp(new THREE.Quaternion(...s1), t);
+        along.slerp(controls, 2 * t * (1 - t));
+        const want = [along.x, along.y, along.z, along.w];
+        want.forEach((w, d) => {
+          if (!Object.is(got[j]![d], w)) misses.push(`trial ${trial}, t ${t}, [${d}]: ${got[j]![d]} vs ${w}`);
+        });
+        compared += 1;
+      });
+    }
+    expect(compared).toBe(400 * ts.length);
+    expect(misses.slice(0, 5), `${misses.length} components differ from three`).toEqual([]);
+  });
+
+  it('build time grows linearly with the number of distinct flowing strokes', () => {
+    // A repeated cycle strokes through the same poses on the same slopes every
+    // rep, so each distinct stroke's c is solved once and a repeat looked up by
+    // its inputs. ec3d0eb looked it up by scanning every stroke solved so far,
+    // so a motion of n DISTINCT strokes cost O(n²): with one delayed bone, 16×
+    // the knots (500 → 8,000) took 85–122× the time when the bone holds still
+    // on unevenly timed knots (strokes that differ only in their slopes, cheap
+    // to solve, so the scan is all there is) and 31–48× when every knot is a
+    // new pose (solving each stroke still dominates there, so under load the
+    // scan's share can read as little as 31×: that regime runs second). Keyed,
+    // 12–19× in both under a loaded parallel run. The gate is twice linear,
+    // 32×; followThroughStroke.test.ts gates the lookups' own count, which no
+    // load moves. Every build here is cold: strokes solved in an earlier build
+    // would otherwise be looked up, not solved.
+    const knotAt = (t: number, q: Q, stop: boolean): TrajectoryKnot => ({
+      timeMs: t,
+      pose: { variant: 'male', bones: { L_Forearm: q }, schemaVersion: POSE_SCHEMA_VERSION },
+      rootQuat: [...IDENT],
+      rootTranslate: [0, 0, 0],
+      stop,
+      planted: true,
+    });
+    const moving = (n: number): TrajectoryKnot[] =>
+      Array.from({ length: n }, (_, i) => knotAt(i * 120, randQ(35), i === 0 || i === n - 1));
+    const held = (n: number): TrajectoryKnot[] => {
+      const q = rot(17, [1, 2, 3]);
+      let t = 0;
+      return Array.from({ length: n }, (_, i) => knotAt(i === 0 ? 0 : (t += 80 + 80 * rnd()), q, i === 0 || i === n - 1));
+    };
+    // Least of five: preemption only ever adds time. The 500-knot build is
+    // timed as sixteen of them in a row — the 8,000-knot build's strokes, over
+    // as long a stretch — so load and collection weigh on both sides alike: a
+    // lone 3 ms build against a lone 100 ms one read 34× under a loaded
+    // parallel run and 7× on a quiet one.
+    const buildMs = (sets: TrajectoryKnot[][]): number => {
+      let best = Infinity;
+      for (let r = 0; r < 5; r += 1) {
+        let ms = 0;
+        for (const knots of sets) {
+          clearFollowThroughStrokeMemo();
+          const t0 = performance.now();
+          buildPoseTrajectory(knots);
+          ms += performance.now() - t0;
+        }
+        best = Math.min(best, ms / sets.length);
+      }
+      return best;
+    };
+    for (const [label, knotsOf] of [
+      ['held still on unevenly timed knots', held],
+      ['every knot a new pose', moving],
+    ] as const) {
+      buildPoseTrajectory(knotsOf(2000)); // warm the JIT on this shape
+      const [small, big] = [buildMs(Array.from({ length: 16 }, () => knotsOf(500))), buildMs([knotsOf(8000)])];
+      // eslint-disable-next-line no-console
+      console.log(`stroke cache, ${label}: 500 knots ${small.toFixed(1)} ms, 8,000 knots ${big.toFixed(1)} ms (${(big / small).toFixed(1)}×)`);
+      expect(big / small, `${label}: build time for 16× the strokes`).toBeLessThan(32);
+    }
+  });
+});
+
 describe('stage and sampler read the follow-through from ONE evaluator (source pins)', () => {
   // The continuity above lives entirely inside motionTrajectory.sampleAt and
   // motionStagger.delayedOnset. The stage cannot be mounted here, so these pin
@@ -672,18 +783,96 @@ describe('follow-through on the rig', () => {
     // turn); 191256f, capping the progress rate only, 10.9 (4.3–22.8); a
     // lockstep build 0; round 2's warp −1.4 (−8.0 to +7.3); 5c1c9ac's
     // per-segment dwell 16.1.
+    // This flat floor holds at the pace it was set at (and 1.5×, below), not at
+    // every pace: where a crossing falls in its stroke moves with the pace, and
+    // late in a stroke into a turn the slowed arrival takes the trail back by
+    // design (0.6×: the left forearm at s = 0.80, 1.35 ms). The pace sweep below
+    // judges each crossing against the trail the design leaves at its point.
     gateMidSwingLags('travel walk', undefined, 8, 4);
   });
 
-  it('…and at 1.5× pace the same share of each shorter stroke: 6.5 ms on average, each at least 3.3 ms', () => {
+  it('…and at 1.5× pace, scaled to its shorter strokes: 6.5 ms on average, each at least 3.3 ms', () => {
     // The trail is budgeted as a SHARE of the stroke (d/2 at mid-stroke), and
     // paceGait splits speed evenly into stride and cadence, so at 1.5× every
     // stroke lasts 1/√1.5 = 0.816 as long (93–367 ms against 114–450) and both
     // thresholds scale with it: 8 → 6.5 ms, 4 → 3.3 ms. Measured 7.2 ms over 13
     // crossings (3.8–11.0); 191256f 7.6 (3.8–11.0); a lockstep build 0; round
-    // 2's warp −1.8 (−10.4 to +0.5).
+    // 2's warp −1.8 (−10.4 to +0.5). The mean scales so at every pace; the flat
+    // per-crossing floor only where the crossings fall where they do at 1× and
+    // 1.5× — see the pace sweep below.
     gateMidSwingLags('travel walk at 1.5×', 1.5, 8 / Math.sqrt(1.5), 4 / Math.sqrt(1.5));
   });
+
+  /** The design's delay d for each distal arm bone the walk gates judge: chain
+   *  rank × 0.18 / 8 (forearm 6, hand 7, finger 8). Fixed here, not read off
+   *  the engine, so the floor below does not move with the code it checks. */
+  const DESIGN_DELAY: Record<string, number> = { Forearm: 0.135, Hand: 0.1575, Index1: 0.18 };
+
+  it('the walk gates’ design delays are the engine’s', () => {
+    for (const [bone, d] of Object.entries(DESIGN_DELAY)) {
+      for (const side of ['L_', 'R_']) expect(trajectoryBoneDelay(`${side}${bone}`)).toBeCloseTo(d, 12);
+      // The budget the floor below is written from: d/2 at mid-stroke, and a
+      // full turn's knot slope cut to 3 − 2/(1 − d).
+      expect(followThroughStrokeLag(d).midLag).toBeCloseTo(d / 2, 12);
+      expect(followThroughKnotSlope(d, 1)).toBeCloseTo(3 - 2 / (1 - d), 12);
+    }
+  });
+
+  /** The trail (ms) the design leaves a bone at point s of a flowing stroke of
+   *  `strokeMs` — even one that arrives at a full turn of its path, at an even
+   *  pace. The lag term puts it c·s²(1 − s)² of the stroke behind, c = 16 × d/2
+   *  (the budget of motionStagger.followThroughStrokeLag). Arriving at a turn,
+   *  its own knot slope is cut by 2d/(1 − d) of the chain's at a full turn
+   *  (motionStagger.followThroughKnotSlope's floor 3 − 2/(1 − d)), and an
+   *  arrival that slows must come in ahead: s²(1 − s) × that cut. So
+   *  2d·s²(1 − s)·(4(1 − s) − 1/(1 − d)) of the stroke — positive until about
+   *  0.7 of the way through it, and past that a bone arriving at a full turn
+   *  may reach mid-swing with the chain. Written from the fixed constants of
+   *  {@link DESIGN_DELAY}, pinned to the engine's by the test above. */
+  function designTrailMs(key: string, s: number, strokeMs: number): number {
+    const d = DESIGN_DELAY[key.replace(/^[LR]_/, '')]!;
+    const trail = 16 * (d / 2) * s * s * (1 - s) * (1 - s);
+    const lead = s * s * (1 - s) * ((2 * d) / (1 - d));
+    return (trail - lead) * strokeMs;
+  }
+
+  it.each([0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5])(
+    'the travel walk at %s× pace: each mid-swing crossing trails by half the design’s trail at its point of the stroke, 8 ms / √pace on average',
+    (pace) => {
+      // Across the walk's speed range. The flat per-crossing floor above holds
+      // only at the paces it was set at: where the middle of a bone's swing
+      // falls in its stroke moves with the pace (the left forearm's from s =
+      // 0.53 at 1.2× to 0.80 at 0.6×), and the trail fades toward the keyframe
+      // while a slowed arrival into a turn takes it back. So each crossing is
+      // held to half of what the design keeps at ITS point even into a full turn
+      // (designTrailMs — the other half for the rate and speed caps and an
+      // uneven pace through the stroke); within ~0.3 of the stroke of a
+      // keyframe it arrives at, where that is nothing, it must still trail —
+      // never cross ahead of the chain — and the mean holds it (those trail by
+      // 1.35 ms, the left forearm at s = 0.80 at 0.6×, to 8.9 ms; 5c1c9ac 5.6
+      // ms at that crossing). The mean scales with the strokes, 8 ms at 1×.
+      // Every floor here is written from the design's constants, not read off
+      // the helpers it checks (DESIGN_DELAY). Measured (male, female
+      // and neutral rigs alike): least crossing 1.26–1.83 × the design's trail
+      // (0.8×: the left forearm at s = 0.20 of a stroke out of a turn, 4.3 ms
+      // against 3.4), mean 1.11–1.51 × 8 ms / √pace (1.5×: 7.2 ms against 6.5).
+      // 5c1c9ac, which trailed by stopping every bone at every keyframe, 2.06–
+      // 2.69 × and 1.73–2.11 ×. A lockstep build crosses with the chain, 0 at
+      // every pace; round 2's warp (2504a7e) fails at every pace too.
+      const crossings = walkMidSwingLags(pace);
+      let judged = 0;
+      for (const { key, lag, s, strokeMs } of crossings) {
+        expect(lag, `${pace}×: ${key}, ${strokeMs.toFixed(0)} ms stroke at s = ${s.toFixed(2)} trails the chain`).toBeGreaterThan(0);
+        const floor = designTrailMs(key, s, strokeMs) / 2;
+        if (!(floor > 0)) continue;
+        judged += 1;
+        expect(lag, `${pace}×: ${key}, ${strokeMs.toFixed(0)} ms stroke at s = ${s.toFixed(2)} (half the design's trail ${floor.toFixed(2)} ms)`).toBeGreaterThanOrEqual(floor);
+      }
+      expect(judged, `${pace}×: crossings the design keeps a trail at`).toBeGreaterThanOrEqual(8);
+      const mean = crossings.reduce((a, c) => a + c.lag, 0) / crossings.length;
+      expect(mean, `${pace}×: mean mid-swing lag behind the lockstep build, ms`).toBeGreaterThanOrEqual(8 / Math.sqrt(pace));
+    },
+  );
 
   it('run and sprint loops: no delayed arm bone moves faster than 1/(1 − d) × its lockstep twin through any stroke', () => {
     // The trail hurries a bone through the back half of a stroke, and a SQUAD

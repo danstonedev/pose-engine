@@ -72,6 +72,11 @@ const READY_SETTLE_ONSET_DEG = 6;
 /** Shorter apparent heads than this are ordinary first-frame motion, not a hold.
  *  Guards the offline sampler, whose frame 0 IS the motion start. */
 const MIN_READY_SETTLE_MS = 100;
+/** A frame within this (deg, every joint) of the opening pose is still AT it. A
+ *  ready-settle hold records the same pose frame after frame — the stage lifts
+ *  its breathing and sway overlays before the recording tap samples — so a
+ *  hold departs 0°; this only absorbs rounding. */
+const READY_SETTLE_STILL_DEG = 0.05;
 
 /**
  * The distal bone + motion field carrying each sagittal joint's flexion in the
@@ -382,26 +387,42 @@ function maxAngleDepartureDeg(
  * from 0.67 within-band to 0.19 and Froude from 0.213 to 0.058, which is precisely
  * the gap between what the offline suite reported and what the UI card showed.
  *
- * The head is found the way trimRecordingLoopCycle finds it: the first frame that
- * departs the opening pose. Below {@link MIN_READY_SETTLE_MS} the answer is 0, so
- * the offline sampler — whose frame 0 already IS the motion — is untouched.
+ * A frame that departs the opening pose by more than {@link READY_SETTLE_ONSET_DEG}
+ * shows the motion has begun — the bound trimRecordingLoopCycle uses. It began
+ * where the body last sat still at that pose, which a hold does to the degree
+ * ({@link READY_SETTLE_STILL_DEG}), not on the frame before the bound: a motion
+ * that eases out of its first pose takes a while to clear 6°. A walk chained
+ * after a turn in place moves from its first frame, yet its knee clears 6° only
+ * at 367 ms — read as a 350 ms hold, it phased the gait cycle 350 ms late and
+ * graded the hip 0.05 within-band against the 0.57 it has. (On 5c1c9ac the hinge
+ * readout's sign flip near straight made the elbow "depart" 17.8° at 100 ms,
+ * which hid this for that walk; a walk chained after another walk, or after a
+ * 180° turn, read a 283–300 ms head there too.) Below {@link MIN_READY_SETTLE_MS}
+ * the answer is 0, so the offline sampler — whose frame 0 already IS the motion —
+ * is untouched. Exported for the suite.
  */
-function readySettleHeadMs(frames: readonly GateFrame[]): number {
+export function readySettleHeadMs(frames: readonly GateFrame[]): number {
   const first = frames[0];
   if (!first?.angles) return 0;
-  // The motion starts at the END of the hold, not at the frame that has already
-  // moved 6° — returning the departing frame would shift the window late by however
-  // long the motion takes to clear the bound, which is a real fraction of a stride.
-  let lastStill = first.tMs;
-  for (const f of frames) {
-    if (!f.angles) continue;
-    if (maxAngleDepartureDeg(first.angles, f.angles) > READY_SETTLE_ONSET_DEG) {
-      const head = lastStill - first.tMs;
-      return head >= MIN_READY_SETTLE_MS ? head : 0;
+  let departed = -1;
+  for (let i = 0; i < frames.length; i += 1) {
+    const f = frames[i]!;
+    if (f.angles && maxAngleDepartureDeg(first.angles, f.angles) > READY_SETTLE_ONSET_DEG) {
+      departed = i;
+      break;
     }
-    lastStill = f.tMs;
   }
-  return 0;
+  if (departed < 0) return 0;
+  let start = first.tMs;
+  for (let i = departed - 1; i > 0; i -= 1) {
+    const f = frames[i]!;
+    if (f.angles && maxAngleDepartureDeg(first.angles, f.angles) <= READY_SETTLE_STILL_DEG) {
+      start = f.tMs;
+      break;
+    }
+  }
+  const head = start - first.tMs;
+  return head >= MIN_READY_SETTLE_MS ? head : 0;
 }
 
 /**
