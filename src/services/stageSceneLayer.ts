@@ -39,6 +39,8 @@ export interface StageSceneContext {
   readonly floorY: number | null;
   /** Current commanded/recorded support; retained when a recorded frame is paused. */
   readonly groundingPosture?: string | null;
+  /** Current rib excursion in metres, driven by the stage's continuous breath clock. */
+  readonly breathExpansionM?: number;
   /**
    * Glide the camera to a view of the layer's choosing: the orbit target and
    * the camera position, reached round the target on a damped spring

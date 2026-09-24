@@ -3558,6 +3558,10 @@
           get groundingPosture() {
             return composedCurrentGrounding;
           },
+          get breathExpansionM() {
+            const amount = driver.idle ? idleLiveliness : motionLiveliness;
+            return Math.max(0, Math.min(1, amount)) * 0.008 * (1 + breath.exertion * 0.5) * (0.5 + 0.5 * Math.sin(breath.phase));
+          },
           glideView: (target, position, smoothTimeS) => cam.glideTo(target, position, smoothTimeS),
           onUserView: (listener) => cam.onUserInput(listener),
         });
