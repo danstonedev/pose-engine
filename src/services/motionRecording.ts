@@ -1170,7 +1170,10 @@ export function sampleComposedMotion(
     // ORIGINAL rest always names the knee hinge axis. A heel-strike accent
     // active at capture time has dipped the WHOLE root, so the step removes its
     // offset from a captured Y (the foot pins at its natural floor contact; the
-    // dip is absorbed by the loading knee).
+    // dip is absorbed by the loading knee). Every release is read off the
+    // trajectory the frame was sampled from — except a touchdown-planted
+    // gait's: its travel was derived for plants that let go over the base
+    // release (rootMotion: holdWeightAt), so its plants read none off FK.
     let effPose = pose;
     const anyPlant =
       footPlants.length > 0 &&
@@ -1180,7 +1183,7 @@ export function sampleComposedMotion(
         heelStrikeY,
         captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,
         initialTargets: initialPlantTargets,
-        trajectory,
+        trajectory: plantsAtTouchdown ? null : trajectory,
       });
     if (anyPlant || groundReachSolved) {
       // A foot plant OR a grounding-posture hand reach re-solved a limb — re-read

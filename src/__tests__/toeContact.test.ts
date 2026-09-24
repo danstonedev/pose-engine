@@ -5,7 +5,7 @@
  * A walk may hold each stance foot flat (an ankle contact) and then, from heel
  * rise to toe lift, by its forefoot (a toe contact) — DDx's walk declares
  * exactly that. `toePivotWalk` reproduces the pattern on the engine's own
- * travelling walk, and this gate holds three things the old plant got wrong:
+ * travelling walk, and this gate holds five things the old plant got wrong:
  *
  * 1. A TOE CONTACT IS A LEG CHAIN WITH A HINGED KNEE. It reused the foot's two
  *    parents (toes → ankle → knee — the hip never helped) and its hinge key was
@@ -29,11 +29,14 @@
  *    joint blend with FK dragged the drawn toes off the lift-first target
  *    toward FK's, 12.4 mm back along the floor on the first released frame
  *    (DDx's walk: 3.3–11.3 mm).
- * 5. A RELEASE THE ROUTE HAS LEFT FAR BEHIND STAYS BOUNDED: the braking step's
- *    toes, 38 cm behind FK's when their hold ends, peaked at 152 mm/frame and
- *    dipped 5.2 cm below the held point (107 and 4.4 before the eased release).
+ * 5. A RELEASE THE ROUTE HAS LEFT FAR BEHIND STAYS BOUNDED — knowingly short
+ *    of FK's own: the braking step's toes, 38 cm behind FK's when their hold
+ *    ends, peaked at 152 mm/frame and dipped 5.2 cm below the held point at 60
+ *    Hz (107 and 4.4 before the eased release; 88 and 4.5 now, FK 46 and 2.5),
+ *    and its ankle still turns 9–14× FK's own peak — the hold it leaves
+ *    already turns it 7–14×.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
@@ -85,6 +88,11 @@ beforeAll(async () => {
   rootRest0 = root.position.clone();
   rootQuat0 = root.quaternion.clone();
 });
+// Each test here samples the rig synchronously for seconds. Yield to the
+// event loop before each one: a file whose tests run over 60 s in all without
+// a turn of it trips vitest's worker RPC timeout ("Timeout calling
+// onTaskUpdate"), which fails the run although every test passed.
+beforeEach(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
 
 /** The heel rises this far before the end of terminal stance's keyframe, and
  *  the toes lift this far into the keyframe after toe-off (DDx's walk values). */
@@ -485,12 +493,22 @@ describe('the released toes leave the floor from rest, without sliding either wa
   // Sampled at 120 Hz: the first released frames are where the linear ramp
   // dragged the toes back (7.2 / 10.1 / 4.8 mm at these paces) and the faded
   // correction skidded them forward (24.6 / 39.7 / 30.1 mm) before they had
-  // lifted 1 cm.
-  for (const speed of [1, 0.85, 1.2] as const) {
-    it(`speed ${speed}: the released toes start from rest, and move under 5 mm either way until they lift 1 cm`, () => {
+  // lifted 1 cm. The 0.6× walk at every rate too: the hold off the floor-drag
+  // handed back as the target crossed a height band slid its toes 8.5 mm at
+  // 30 Hz (0.5 at 2504a7e); on the release's own clock, 0–1.6 mm.
+  for (const [speed, hz] of [
+    [1, 120],
+    [0.85, 120],
+    [1.2, 120],
+    [0.6, 120],
+    [0.6, 60],
+    [0.6, 30],
+  ] as const) {
+    it(`speed ${speed} at ${hz} Hz: the released toes start from rest, and move under 5 mm either way until they lift 1 cm`, () => {
       const motion = () => toePivotWalk(speed === 1 ? undefined : speed);
-      const { rec, contacts } = sample(motion, `toe${speed}`, 120);
-      const fk = sample(withoutContacts(motion), `toe${speed}-fk`, 120).rec;
+      const key = speed === 1 ? 'toe' : `toe${speed}`;
+      const { rec, contacts } = sample(motion, key, hz);
+      const fk = sample(withoutContacts(motion), `${key}-fk`, hz).rec;
       const horizontal = (p: number[], q: number[]) => Math.hypot(p[0]! - q[0]!, p[2]! - q[2]!);
       const judged: string[] = [];
       for (const c of contacts) {
@@ -509,7 +527,7 @@ describe('the released toes leave the floor from rest, without sliding either wa
         for (let i = i0; i <= ie; i += 1) fkLift = Math.max(fkLift, toes(fk, i)[1]! - held[1]!);
         if (fkLift < 0.01) {
           // eslint-disable-next-line no-console
-          console.log(`speed ${speed} ${c.foot} release @${c.toMs.toFixed(0)} ms: the route keeps them on the floor (FK lifts them ${(fkLift * 1000).toFixed(1)} mm) — not judged`);
+          console.log(`speed ${speed} @${hz} Hz ${c.foot} release @${c.toMs.toFixed(0)} ms: the route keeps them on the floor (FK lifts them ${(fkLift * 1000).toFixed(1)} mm) — not judged`);
           expect(c.foot, 'only the braking step drags its toes').toBe('L_Toes');
           continue;
         }
@@ -530,14 +548,14 @@ describe('the released toes leave the floor from rest, without sliding either wa
         }
         // eslint-disable-next-line no-console
         console.log(
-          `speed ${speed} ${c.foot} release @${c.toMs.toFixed(0)} ms: first frame ${(first * 1000).toFixed(1)} mm (route ${(routeFirst * 1000).toFixed(1)}), ${onFloor} frames under 1 cm, slide ${(slide * 1000).toFixed(1)} mm`,
+          `speed ${speed} @${hz} Hz ${c.foot} release @${c.toMs.toFixed(0)} ms: first frame ${(first * 1000).toFixed(1)} mm (route ${(routeFirst * 1000).toFixed(1)}), ${onFloor} frames under 1 cm, slide ${(slide * 1000).toFixed(1)} mm`,
         );
         expect(first / routeFirst, `${c.foot} leaves from rest`).toBeLessThan(0.2);
         expect(onFloor, `${c.foot} frames judged`).toBeGreaterThan(0);
         expect(slide, `${c.foot} slides along the floor`).toBeLessThan(0.005);
       }
       expect(judged, 'the right toe release judged').toEqual(['R_Toes']);
-    });
+    }, 60_000);
   }
 });
 
@@ -546,12 +564,12 @@ describe('at DDx’s 30 Hz, toes the route has well behind and above stay on the
   // toward FK's toes — and with FK's toes 13 cm behind and 5 cm up (toeOffBehind)
   // that dragged them 12.4 mm back along the floor on the first released 30 Hz
   // frame, while the target itself had moved under 1 mm (DDx's walk: 3.3–11.3
-  // mm). Near the floor the solve now takes the frame, handing back to the
-  // blend as the target lifts. (At 120 Hz the frames 4–10 mm up come in the
-  // hand-back, where the lift-first path itself has moved 1–4 mm with FK this
-  // far behind: 5.8 mm there, against 12.4 before; the toe walks' 120 Hz
-  // releases are held to 5 mm above.)
-  for (const hz of [30, 60]) {
+  // mm). The limb is now swung back toward the solve's own point until the
+  // toes are predicted to have lifted a centimetre, and let go on the release's
+  // own clock after that — the same at every rate. (Handed back as the target
+  // crossed a height band instead, the 120 Hz frames 4–10 mm up came in the
+  // hand-back and slid 5.8 mm.)
+  for (const hz of [30, 60, 120]) {
     it(`${hz} Hz: until they lift 1 cm the released toes stay within 2 mm of the held point (12.4 mm before)`, () => {
       const { rec, contacts } = sample(toeOffBehind, 'toeOff', hz);
       const fk = sample(withoutContacts(toeOffBehind), 'toeOff-fk', hz).rec;
@@ -601,73 +619,120 @@ describe('a toe release the route has left far behind (the braking step) stays b
   // The left toe hold runs 46% into the builder's braking step, whose FK has
   // swung the leg through with the knee at 30°: FK's toes are 38 cm ahead of
   // the held point when it ends and 68 cm when the release does — a lag the
-  // route made, which a joint-space release has to cover. Measured at 60 Hz:
-  //                        base (5c1c9ac)   eased (2504a7e)   now    FK
-  //   toes, mm/frame           107.3            152.4         87.5   46.1
-  //   joint / its bound         1.37             1.53          1.23    —
-  //   dip below held, cm        4.42             5.19          4.52   2.45
-  // ("its bound": FK's own local peak or the hold's last speed, the larger.)
-  // NOT met, and not tuned away: the dip stays 2 cm below FK's — a blend of
-  // the held leg (toes back on the floor) with FK's (leg through, knee 30°)
-  // passes the vertical with less knee than FK — and the knee still turns
-  // 1.23× FK's peak. Holding the drawn toes on the target's path instead keeps
-  // them above FK's dip but turns the ankle 21–37°/frame. Bounded here so it
-  // cannot regress; the route's contact timing is what would remove it.
-  it('toes under 100 mm/frame and within 2× FK’s, every leg joint within 1.3× its bound, the dip under 5 cm', () => {
-    const motion = () => toePivotWalk();
-    const { rec, contacts } = sample(motion, 'toe', 60);
-    const fk = sample(withoutContacts(motion), 'toe-fk', 60).rec;
-    const c = contacts.find((k) => k.foot === 'L_Toes')!;
-    const i0 = firstFrameAfter(rec, c.toMs);
-    const ie = releaseEndFrame(rec, fk, contacts, c);
-    expect(ie, 'FK takes the leg back').toBeGreaterThan(i0);
-    const held = rec.frames[i0 - 1]!.worldTracks!.L_Toes!;
-    const toes = (r: MotionRecording, i: number) => r.frames[i]!.worldTracks!.L_Toes!;
-    const step = (r: MotionRecording, i: number) => {
-      const a = toes(r, i - 1);
-      const b = toes(r, i);
-      return Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!);
-    };
-    let peak = 0;
-    let peakFk = 0;
-    let low = Infinity;
-    let lowFk = Infinity;
-    for (let i = i0; i <= ie; i += 1) {
-      peak = Math.max(peak, step(rec, i));
-      peakFk = Math.max(peakFk, step(fk, i));
-      low = Math.min(low, toes(rec, i)[1]!);
-      lowFk = Math.min(lowFk, toes(fk, i)[1]!);
+  // route made, which a joint-space release has to cover. FK itself drags
+  // those toes 1–3 cm under the held point.
+  //
+  // KNOWINGLY NOT MET: no release of this hold can keep every joint within
+  // FK's own local peak, nor its dip at FK's. A release is C1 with the hold
+  // it leaves — its first frames ARE the hold — and on its last frame this
+  // hold already turns the ankle 4.0–16°/frame, 7.4–14× FK's peak (FK's ankle
+  // barely moves through the braking step), and dips the toes 2 cm under
+  // FK's: the blend of the held leg (toes back on the floor) with FK's (leg
+  // through, knee 30°) passes the vertical with less knee than FK. Holding
+  // the drawn toes on the target's path instead keeps them above FK's dip but
+  // turns the ankle 21–37°/frame, and flooring the knee's flexion at FK's
+  // turns the joints 9–20× FK's peak. The route's contact timing is what would
+  // remove it. Bounded against FK alone at every rate, and on the 0.6× walk's
+  // braking step too, so none can get worse unnoticed: toes under 2× FK's, the
+  // dip within 2.1 cm of FK's, each leg joint's peak / FK's local peak no
+  // worse than the base release (2504a7e) or the one before it (5c1c9ac) did,
+  // to 2%. Measured — toes mm/frame (FK) · dip cm (FK) · hip / knee / ankle
+  // over FK's peak:
+  //               toes mm/frame (FK)  dip cm (FK)            hip / knee / ankle over FK's peak
+  //               now 2504a7e 5c1c9ac now  2504a7e 5c1c9ac   now             2504a7e         5c1c9ac
+  //   1× @30 Hz   157 266 195 (91)    3.99 3.81 4.28 (1.9)   0.84 1.22 13.1  1.09 1.33 12.9  1.00 1.28 10.1
+  //   1× @60 Hz    88 152 107 (46)    4.52 5.19 4.42 (2.5)   1.09 1.23  9.0  1.53 1.43 12.3  0.98 1.86 12.6
+  //   1× @120 Hz   45  82  56 (23)    5.31 5.87 4.87 (3.2)   1.17 1.26  9.8  1.79 1.48 15.6  0.99 2.05 17.1
+  //   0.6× @30 Hz  75 182 131 (52)    3.16 2.92 2.72 (1.1)   1.25 1.80 14.2  1.25 1.98 18.1  1.00 1.43 10.0
+  //   0.6× @60 Hz  41 107  77 (26)    3.14 3.59 3.94 (1.1)   0.85 1.31 14.4  0.96 1.96 24.4  0.98 1.34 15.2
+  //   0.6× @120 Hz 21  59  40 (13)    3.21 3.92 4.37 (1.2)   0.66 1.32 13.7  1.25 2.07 26.2  0.97 1.72 16.2
+  // (The 1× ankle at 30 Hz, 13.1 against 12.9, is the hold's own acceleration
+  // carried on: it turned the ankle 10.2 then 16.0°/frame, and the first
+  // released frame 24.35, 2504a7e's 23.9. The dips are sampled, so a coarse
+  // clock can miss the bottom: 2504a7e's 2.92 cm at 30 Hz is 3.92 at 120.)
+  const BEFORE: Record<string, [number, number, number]> = {
+    '1@30': [1.09, 1.328, 12.867],
+    '1@60': [1.531, 1.859, 12.597],
+    '1@120': [1.792, 2.048, 17.119],
+    '0.6@30': [1.25, 1.978, 18.066],
+    '0.6@60': [0.979, 1.961, 24.393],
+    '0.6@120': [1.247, 2.066, 26.227],
+  };
+  for (const speed of [1, 0.6] as const) {
+    for (const hz of [30, 60, 120]) {
+      it(`speed ${speed} at ${hz} Hz: toes under 2× FK’s, the dip within 2.1 cm of FK’s, each joint over FK’s peak no worse than before`, () => {
+        const key = speed === 1 ? 'toe' : `toe${speed}`;
+        const motion = () => toePivotWalk(speed === 1 ? undefined : speed);
+        const { rec, contacts } = sample(motion, key, hz);
+        const fk = sample(withoutContacts(motion), `${key}-fk`, hz).rec;
+        const c = contacts.find((k) => k.foot === 'L_Toes')!;
+        const i0 = firstFrameAfter(rec, c.toMs);
+        const ie = releaseEndFrame(rec, fk, contacts, c);
+        expect(ie, 'FK takes the leg back').toBeGreaterThan(i0);
+        const held = rec.frames[i0 - 1]!.worldTracks!.L_Toes!;
+        const toes = (r: MotionRecording, i: number) => r.frames[i]!.worldTracks!.L_Toes!;
+        const step = (r: MotionRecording, i: number) => {
+          const a = toes(r, i - 1);
+          const b = toes(r, i);
+          return Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!);
+        };
+        let peak = 0;
+        let peakFk = 0;
+        let low = Infinity;
+        let lowFk = Infinity;
+        for (let i = i0; i <= ie; i += 1) {
+          peak = Math.max(peak, step(rec, i));
+          peakFk = Math.max(peakFk, step(fk, i));
+          low = Math.min(low, toes(rec, i)[1]!);
+          lowFk = Math.min(lowFk, toes(fk, i)[1]!);
+        }
+        const qa = new THREE.Quaternion();
+        const qb = new THREE.Quaternion();
+        const turn = (r: MotionRecording, i: number, bone: string) => {
+          const a = r.frames[i - 1]!.pose.bones[bone]!;
+          const b = r.frames[i]!.pose.bones[bone]!;
+          return (qa.set(a[0], a[1], a[2], a[3]).angleTo(qb.set(b[0], b[1], b[2], b[3])) * 180) / Math.PI;
+        };
+        const T = footContact.PLANT_RELEASE_BLEND_MS;
+        const lo = firstFrameFrom(fk, c.toMs - T);
+        const hiMs = rec.frames[ie]!.tMs + T;
+        const overFk: number[] = [];
+        let worstBound = 0;
+        const joints: string[] = [];
+        for (const bone of ['L_UpLeg', 'L_Leg', 'L_Foot']) {
+          let release = 0;
+          for (let i = i0; i <= ie; i += 1) release = Math.max(release, turn(rec, i, bone));
+          let fkPeak = 0;
+          for (let i = lo; i < fk.frames.length && fk.frames[i]!.tMs <= hiMs + 1e-6; i += 1) {
+            fkPeak = Math.max(fkPeak, turn(fk, i, bone));
+          }
+          const hold = turn(rec, i0 - 1, bone);
+          overFk.push(release / fkPeak);
+          worstBound = Math.max(worstBound, release / Math.max(fkPeak, hold));
+          joints.push(`${bone} ${release.toFixed(2)}°/frame (FK ${fkPeak.toFixed(2)}, hold ${hold.toFixed(2)})`);
+        }
+        const dip = held[1]! - low;
+        const dipFk = held[1]! - lowFk;
+        // eslint-disable-next-line no-console
+        console.log(
+          `braking step, speed ${speed} @${hz} Hz: ${(rec.frames[ie]!.tMs - c.toMs).toFixed(0)} ms, toes peak ${(peak * 1000).toFixed(1)} mm/frame (FK ${(peakFk * 1000).toFixed(1)}), ` +
+            `dip ${(dip * 100).toFixed(2)} cm (FK ${(dipFk * 100).toFixed(2)}), over FK's peak ${overFk.map((x) => x.toFixed(3)).join(' / ')} | ${joints.join(', ')}`,
+        );
+        expect(peak / peakFk, 'toes against FK’s').toBeLessThan(2);
+        expect(dip - dipFk, 'dip below FK’s own (m)').toBeLessThan(0.021);
+        const before = BEFORE[`${speed}@${hz}`];
+        expect(before, 'measured before').toBeDefined();
+        overFk.forEach((x, j) => {
+          expect(x, `${['hip', 'knee', 'ankle'][j]} over FK’s local peak, vs the worse of 2504a7e and 5c1c9ac`).toBeLessThanOrEqual(before![j]! * 1.02);
+        });
+        if (speed === 1 && hz === 60) {
+          // The bounds this test first held the 60 Hz braking step to (the
+          // bound there FK's own local peak or the hold's last speed).
+          expect(peak, 'toes, m/frame').toBeLessThan(0.1);
+          expect(worstBound, 'leg joints against FK’s local peak / the hold').toBeLessThan(1.3);
+          expect(dip, 'dip below the held point (m)').toBeLessThan(0.05);
+        }
+      }, 60_000);
     }
-    const qa = new THREE.Quaternion();
-    const qb = new THREE.Quaternion();
-    const turn = (r: MotionRecording, i: number, key: string) => {
-      const a = r.frames[i - 1]!.pose.bones[key]!;
-      const b = r.frames[i]!.pose.bones[key]!;
-      return (qa.set(a[0], a[1], a[2], a[3]).angleTo(qb.set(b[0], b[1], b[2], b[3])) * 180) / Math.PI;
-    };
-    const T = footContact.PLANT_RELEASE_BLEND_MS;
-    const lo = firstFrameFrom(fk, c.toMs - T);
-    const hiMs = rec.frames[ie]!.tMs + T;
-    let worst = 0;
-    for (const key of ['L_UpLeg', 'L_Leg', 'L_Foot']) {
-      let release = 0;
-      for (let i = i0; i <= ie; i += 1) release = Math.max(release, turn(rec, i, key));
-      let fkPeak = 0;
-      for (let i = lo; i < fk.frames.length && fk.frames[i]!.tMs <= hiMs + 1e-6; i += 1) fkPeak = Math.max(fkPeak, turn(fk, i, key));
-      const bound = Math.max(fkPeak, turn(rec, i0 - 1, key));
-      worst = Math.max(worst, release / bound);
-      // eslint-disable-next-line no-console
-      console.log(`braking-step ${key}: ${release.toFixed(2)}°/frame (FK ${fkPeak.toFixed(2)}, hold ${turn(rec, i0 - 1, key).toFixed(2)})`);
-    }
-    const dip = held[1]! - low;
-    const dipFk = held[1]! - lowFk;
-    // eslint-disable-next-line no-console
-    console.log(
-      `braking-step toes: ${(rec.frames[ie]!.tMs - c.toMs).toFixed(0)} ms, peak ${(peak * 1000).toFixed(1)} mm/frame (FK ${(peakFk * 1000).toFixed(1)}), joints ${worst.toFixed(2)}× their bound, dip ${(dip * 100).toFixed(2)} cm (FK ${(dipFk * 100).toFixed(2)})`,
-    );
-    expect(peak, 'toes, m/frame').toBeLessThan(0.1);
-    expect(peak / peakFk, 'toes against FK’s').toBeLessThan(2);
-    expect(worst, 'leg joints against FK’s local peak / the hold').toBeLessThan(1.3);
-    expect(dip, 'dip below the held point (m)').toBeLessThan(0.05);
-  }, 60_000);
+  }
 });

@@ -153,13 +153,15 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     // to restRef as the clamp frame, the ORIGINAL restRef naming the knee
     // hinge axis, the live heel-strike offset, a touchdown-planted gait's
     // capture lift, the per-motion anchor map and the trajectory the frame was
-    // posed from (every release reads its length off it).
+    // posed from (every release reads its length off it) — none for a
+    // touchdown-planted gait, whose travel (rootMotion) was derived for plants
+    // that let go over the base release, on the plant's own weight.
     expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*captureLiftY: composedPlantsAtTouchdown \? composedVcalRaiseY : 0,\s*initialTargets: initialComposedPlantTargets,\s*trajectory,\s*\}\)/,
+      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*captureLiftY: composedPlantsAtTouchdown \? composedVcalRaiseY : 0,\s*initialTargets: initialComposedPlantTargets,\s*trajectory: composedPlantsAtTouchdown \? null : trajectory,\s*\}\)/,
     );
     // …the sampler feeds it the same six things from its own state…
     expect(samplerSource).toMatch(
-      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*captureLiftY: plantsAtTouchdown \? vcalRaiseY : 0,\s*initialTargets: initialPlantTargets,\s*trajectory,\s*\}\)/,
+      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*captureLiftY: plantsAtTouchdown \? vcalRaiseY : 0,\s*initialTargets: initialPlantTargets,\s*trajectory: plantsAtTouchdown \? null : trajectory,\s*\}\)/,
     );
     // …and neither keeps a private copy of the window/capture logic.
     expect(stageSource).not.toMatch(/fp\.target\.y -= /);

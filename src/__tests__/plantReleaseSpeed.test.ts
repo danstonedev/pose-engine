@@ -16,31 +16,22 @@
  *    simMOVE plays): FK lifts it at ~5 mm/frame, but the hold kept it 9 cm from
  *    FK's foot, and the base release crossed that gap at 25 mm/frame (16.3
  *    before the eased release). The release now lasts as long as the gap needs
- *    for the target to travel no faster than FK moves the foot.
+ *    for the target to travel no faster than FK moves the foot — read ONCE,
+ *    as the window ends, so it runs one way at one pace.
  *
  * What does NOT hold, and why (measured, not tuned away): a walk's swing leg
  * is still being sped up past the window's end, so no release length brings
  * its catch-up under FK's peak — the default walk's toe-off knee runs 1.16× it
- * (1.35 before the eased release; a 400 ms release still 1.06–1.26×). That lag
- * is the contact window outlasting the route's own lift-off: a route matter,
- * not something a release can undo. Those releases are pinned by the toe
- * tests' C1 checks, not here.
+ * (1.35 before the eased release; a 400 ms release still 1.06–1.26×), the
+ * 120° walk's hip 2.2–2.4×. That lag is the contact window outlasting the
+ * route's own lift-off: a route matter, not something a release can undo.
+ * Those releases are held to what the base release did (plantReleaseWalks),
+ * and the braking step's by the toe tests (toeContact). The single-leg stance
+ * with a 3–5 cm shift is plantReleaseStance; the rig and the measurements are
+ * shared (plantReleaseRig).
  */
 import { beforeAll, describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { applyAnatomicPose } from '../services/anatomicPose';
-import { serializeCustomPose } from '../services/poseRig';
-import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
-import { resolveComposedMotion, type ComposedMotion, type ResolvedComposedMotion } from '../services/motionSequence';
-import {
-  authoredToTrajectoryTimeScale,
-  sampleComposedMotion,
-  type MotionRecording,
-} from '../services/motionRecording';
 // Namespace import: the release-length helpers are read off the module so the
 // rig checks below still run (and report their numbers) against an engine
 // without them.
@@ -48,202 +39,24 @@ import * as footContact from '../services/footContact';
 import { buildTravelRun, type RunPattern } from '../services/movementLocomotion';
 import { assessValidity } from '../services/validityGate';
 import { runGaitBiomechChecks } from '../services/gaitBiomechCheck';
-import { captureFloorReference } from '../services/rootMotion';
-import { BODY_VARIANTS } from '../anatomy/bodyVariants';
-import type { CustomPose } from '../types';
+import {
+  baselinePose,
+  describeRelease,
+  floorY,
+  loadRig,
+  releaseSpeeds,
+  rest,
+  root,
+  rootQuat0,
+  rootRest0,
+  sample,
+  singleLegStance,
+  skinned,
+  variantCfg,
+  withoutContacts,
+} from './plantReleaseRig';
 
-const variantCfg = BODY_VARIANTS.male;
-const GLB_URL = new URL('../../models/painmap3D_male.runtime.glb', import.meta.url);
-let root: THREE.Object3D;
-let skinned: THREE.SkinnedMesh;
-let rest: JointAngleRestReference;
-let baselinePose: CustomPose;
-let floorY: number;
-let rootRest0: THREE.Vector3;
-let rootQuat0: THREE.Quaternion;
-
-beforeAll(async () => {
-  const buf = readFileSync(fileURLToPath(GLB_URL));
-  const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  const gltf = await new Promise<{ scene: THREE.Group }>((res, rej) => {
-    const l = new GLTFLoader();
-    l.setMeshoptDecoder(MeshoptDecoder);
-    l.parse(ab, '', res as never, rej);
-  });
-  root = gltf.scene;
-  root.scale.setScalar(variantCfg.pose.rootScale);
-  root.traverse((o) => {
-    if ((o as THREE.SkinnedMesh).isSkinnedMesh && !skinned) skinned = o as THREE.SkinnedMesh;
-  });
-  root.updateMatrixWorld(true);
-  applyAnatomicPose(root, variantCfg);
-  root.updateMatrixWorld(true);
-  rest = captureJointAngleRestReference(skinned.skeleton, variantCfg);
-  baselinePose = serializeCustomPose(skinned.skeleton, variantCfg, 'male');
-  floorY = captureFloorReference(skinned.skeleton, variantCfg).floorY;
-  rootRest0 = root.position.clone();
-  rootQuat0 = root.quaternion.clone();
-});
-
-interface Sampled {
-  resolved: ResolvedComposedMotion;
-  rec: MotionRecording;
-  /** The contacts on the trajectory clock the frames run on. */
-  contacts: { foot: string; fromMs: number; toMs: number }[];
-}
-
-const cache = new Map<string, Sampled>();
-function sample(motion: () => ComposedMotion, key: string, sampleHz: number): Sampled {
-  const hit = cache.get(`${key}@${sampleHz}`);
-  if (hit) return hit;
-  root.position.copy(rootRest0);
-  root.quaternion.copy(rootQuat0);
-  root.updateMatrixWorld(true);
-  const resolved = resolveComposedMotion(motion(), variantCfg);
-  expect(resolved.status).toBe('ok');
-  const rec = sampleComposedMotion(resolved, {
-    baselinePose, variantCfg, rest, skeletonHarness: { root, skinned }, sampleHz,
-  });
-  const scale = authoredToTrajectoryTimeScale(resolved, rec.frames[rec.frames.length - 1]!.tMs);
-  const contacts = (resolved.contacts ?? []).map((c) => ({
-    foot: c.foot,
-    fromMs: (c.fromMs ?? -Infinity) * scale,
-    toMs: (c.toMs ?? Infinity) * scale,
-  }));
-  const out = { resolved, rec, contacts };
-  cache.set(`${key}@${sampleHz}`, out);
-  return out;
-}
-
-const withoutContacts = (motion: () => ComposedMotion) => () => ({ ...motion(), contacts: [] });
-const firstFrameAfter = (rec: MotionRecording, ms: number) => rec.frames.findIndex((f) => f.tMs > ms + 1e-6);
-const firstFrameFrom = (rec: MotionRecording, ms: number) => rec.frames.findIndex((f) => f.tMs >= ms - 1e-6);
-
-const _qa = new THREE.Quaternion();
-const _qb = new THREE.Quaternion();
-/** How far (°) joint `key` turns from frame i − 1 to frame i. */
-function jointTurn(rec: MotionRecording, i: number, key: string): number {
-  const a = rec.frames[i - 1]!.pose.bones[key]!;
-  const b = rec.frames[i]!.pose.bones[key]!;
-  return (_qa.set(a[0], a[1], a[2], a[3]).angleTo(_qb.set(b[0], b[1], b[2], b[3])) * 180) / Math.PI;
-}
-
-interface ReleaseSpeeds {
-  foot: string;
-  toMs: number;
-  /** How long the release lasted (ms): to the first frame FK owns the leg. */
-  lastedMs: number;
-  /** Per chain joint: the release's fastest turn, FK's local peak (from one
-   *  base release before the window's end to one after the release's end) and
-   *  the hold's own speed on its last frame, all °/frame. */
-  joints: { key: string; release: number; fk: number; hold: number }[];
-  /** Fastest effector step during the release, and FK's over the same frames (m/frame). */
-  effector: number;
-  effectorFk: number;
-  /** How far the effector drops below the point it was held at during the
-   *  release, and how far FK's does over the same frames (m; negative = it
-   *  stays above). */
-  dip: number;
-  dipFk: number;
-}
-
-/**
- * Measure every release of `contacts` that lets a leg go into swing (not a
- * terminal window, not a hand-over to the same leg's next contact) against
- * the same motion with no contacts. The release ends at the first frame from
- * which the leg's joints are FK's own through to its next contact.
- */
-function releaseSpeeds(s: Sampled, fk: MotionRecording): ReleaseSpeeds[] {
-  const { rec, contacts } = s;
-  const T = footContact.PLANT_RELEASE_BLEND_MS;
-  const totalMs = rec.frames[rec.frames.length - 1]!.tMs;
-  const out: ReleaseSpeeds[] = [];
-  for (const c of contacts) {
-    if (!(c.toMs < totalMs - T)) continue;
-    const side = c.foot.slice(0, 2);
-    if (contacts.some((o) => o !== c && o.foot.startsWith(side) && o.fromMs <= c.toMs + T + 50 && o.toMs > c.toMs)) {
-      continue;
-    }
-    const chain = [`${side}UpLeg`, `${side}Leg`, `${side}Foot`];
-    const next = Math.min(
-      totalMs + 1,
-      ...contacts.filter((o) => o.foot.startsWith(side) && o.fromMs > c.toMs).map((o) => o.fromMs),
-    );
-    // FK owns the leg where its measured flexions are FK's (the recorded pose
-    // of a frame a plant touched is re-read off the skeleton; FK's is the
-    // trajectory's own, so compare what both measure).
-    const owned = (i: number) =>
-      (
-        [
-          ['UpLeg', 'hipFlexion'],
-          ['Leg', 'kneeFlexion'],
-          ['Foot', 'ankleFlexion'],
-        ] as const
-      ).every(([bone, m]) => {
-        const a = rec.frames[i]!.angles[`${side}${bone}`]?.[m] ?? 0;
-        const b = fk.frames[i]!.angles[`${side}${bone}`]?.[m] ?? 0;
-        return Math.abs(a - b) < 1e-6;
-      });
-    const i0 = firstFrameAfter(rec, c.toMs);
-    let ie = -1;
-    for (let i = i0; i < rec.frames.length && rec.frames[i]!.tMs < next - 1e-6; i += 1) {
-      if (!owned(i)) continue;
-      let j = i;
-      while (j < rec.frames.length && rec.frames[j]!.tMs < next - 1e-6 && owned(j)) j += 1;
-      if (j >= rec.frames.length || rec.frames[j]!.tMs >= next - 1e-6) {
-        ie = i;
-        break;
-      }
-    }
-    expect(ie, `${c.foot} @${c.toMs.toFixed(0)}: FK takes the leg back`).toBeGreaterThan(i0);
-    const lo = Math.max(1, firstFrameFrom(fk, c.toMs - T));
-    const hiT = rec.frames[ie]!.tMs + T;
-    const joints = chain.map((key) => {
-      let release = 0;
-      for (let i = i0; i <= ie; i += 1) release = Math.max(release, jointTurn(rec, i, key));
-      let peak = 0;
-      for (let i = lo; i < fk.frames.length && fk.frames[i]!.tMs <= hiT + 1e-6; i += 1) {
-        peak = Math.max(peak, jointTurn(fk, i, key));
-      }
-      return { key, release, fk: peak, hold: jointTurn(rec, i0 - 1, key) };
-    });
-    const step = (r: MotionRecording, i: number) => {
-      const a = r.frames[i - 1]!.worldTracks![c.foot]!;
-      const b = r.frames[i]!.worldTracks![c.foot]!;
-      return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-    };
-    let effector = 0;
-    let effectorFk = 0;
-    let low = Infinity;
-    let lowFk = Infinity;
-    for (let i = i0; i <= ie; i += 1) {
-      effector = Math.max(effector, step(rec, i));
-      effectorFk = Math.max(effectorFk, step(fk, i));
-      low = Math.min(low, rec.frames[i]!.worldTracks![c.foot]![1]);
-      lowFk = Math.min(lowFk, fk.frames[i]!.worldTracks![c.foot]![1]);
-    }
-    const heldY = rec.frames[i0 - 1]!.worldTracks![c.foot]![1];
-    out.push({
-      foot: c.foot,
-      toMs: c.toMs,
-      lastedMs: rec.frames[ie]!.tMs - c.toMs,
-      joints,
-      effector,
-      effectorFk,
-      dip: heldY - low,
-      dipFk: heldY - lowFk,
-    });
-  }
-  return out;
-}
-
-const describeRelease = (r: ReleaseSpeeds) =>
-  `${r.foot} @${r.toMs.toFixed(0)} ms (${r.lastedMs.toFixed(0)} ms): ` +
-  r.joints
-    .map((j) => `${j.key} ${j.release.toFixed(2)}°/frame (FK ${j.fk.toFixed(2)}, hold ${j.hold.toFixed(2)})`)
-    .join(', ') +
-  `; effector ${(r.effector * 1000).toFixed(1)} mm/frame (FK ${(r.effectorFk * 1000).toFixed(1)})` +
-  `, dip ${(r.dip * 100).toFixed(2)} cm (FK ${(r.dipFk * 100).toFixed(2)})`;
+beforeAll(loadRig);
 
 describe('the travel run: a release never turns a joint faster than FK’s own local peak', () => {
   for (const [pattern, hz] of [
@@ -253,7 +66,7 @@ describe('the travel run: a release never turns a joint faster than FK’s own l
     ['jog', 60],
     ['sprint', 60],
   ] as [RunPattern, number][]) {
-    it(`${pattern} at ${hz} Hz: every released joint within FK’s local peak (or the hold’s own speed), the foot within FK’s and never below it (the knee was 1.02–1.36× FK at the base release)`, () => {
+    it(`${pattern} at ${hz} Hz: every released joint within FK’s local peak, the foot within FK’s and never below it (the knee was 1.02–1.36× FK at the base release)`, () => {
       const motion = () => buildTravelRun({ pattern });
       const s = sample(motion, pattern, hz);
       const fk = sample(withoutContacts(motion), `${pattern}-fk`, hz).rec;
@@ -265,10 +78,10 @@ describe('the travel run: a release never turns a joint faster than FK’s own l
         console.log(`${pattern} @${hz} Hz ${describeRelease(r)}`);
         // Stretched past the heel kick's burst (half-life 55–60 ms): 150–180 ms.
         expect(r.lastedMs, `${r.foot} release outlasts the base span`).toBeGreaterThan(footContact.PLANT_RELEASE_BLEND_MS);
+        // FK's own local peak alone (it was FK's or the hold's last speed,
+        // whichever was larger): every run release here is 0.66–0.97× FK's.
         for (const j of r.joints) {
-          expect(j.release, `${pattern} ${r.foot} ${j.key}: release vs FK’s local peak / the hold`).toBeLessThanOrEqual(
-            Math.max(j.fk, j.hold),
-          );
+          expect(j.release, `${pattern} ${r.foot} ${j.key}: release vs FK’s local peak`).toBeLessThanOrEqual(j.fk);
         }
         expect(r.effector, `${pattern} ${r.foot}: released foot vs FK’s`).toBeLessThanOrEqual(r.effectorFk);
         // …and it never drops below both the held point and FK's own lowest.
@@ -292,37 +105,6 @@ describe('the travel run: a release never turns a joint faster than FK’s own l
   }, 120_000);
 });
 
-type Target = { joint: string; motion: string; targetDegrees: number };
-const target = (joint: string, motion: string, targetDegrees: number): Target => ({ joint, motion, targetDegrees });
-const leg = (side: string, hip: number, knee: number): Target[] => [
-  target(`${side}_UpLeg`, 'hipFlexion', hip),
-  target(`${side}_Leg`, 'kneeFlexion', knee),
-  target(`${side}_Foot`, 'ankleFlexion', 0),
-];
-
-/**
- * The single-leg stance as simMOVE's verifier replicates it: shift the weight
- * 9 cm onto the left foot over 3 s, then lift the right leg to hip 90° / knee
- * 90° over 3 s and hold. The right foot is held where it stood until the lift
- * starts (3800 ms) — by then FK, riding the shifted pelvis, has it 9 cm away.
- */
-function singleLegStance(): ComposedMotion {
-  const standing = [...leg('R', 0, 0), ...leg('L', 0, 0)];
-  const lifted = [...leg('R', 90, 90), ...leg('L', 0, 0), target('R_UpLeg', 'hipAbduction', -5)];
-  const shifted = { translateM: [0.09, 0, -0.04] as [number, number, number] };
-  return {
-    name: 'single-leg stance (replica)',
-    startFrom: 'neutral',
-    stance: 'planted',
-    keyframes: [
-      { durationMs: 800, stance: 'planted', targets: standing, root: { translateM: [0, 0, 0] } },
-      { durationMs: 3000, stance: 'planted', targets: standing, root: shifted },
-      { durationMs: 3000, stance: 'planted', targets: lifted, root: shifted, holdMs: 2000 },
-    ],
-    contacts: [{ foot: 'L_Foot' }, { foot: 'R_Foot', toMs: 3800 }],
-  } as ComposedMotion;
-}
-
 describe('a foot released after a slow weight shift crosses its gap no faster than FK moves it', () => {
   it('the single-leg-stance replica: the foot peaks under 10 mm/frame at 60 Hz (25 at the base release, 16.3 before it eased), every joint within FK’s local peak (or the hold’s)', () => {
     const s = sample(singleLegStance, 'sls', 60);
@@ -338,6 +120,118 @@ describe('a foot released after a slow weight shift crosses its gap no faster th
       expect(j.release, `${j.key}: release vs FK’s local peak / the hold`).toBeLessThanOrEqual(Math.max(j.fk, j.hold));
     }
   }, 120_000);
+});
+
+describe('a release is read once, as its window ends', () => {
+  it('its length stays what it was read as, and its weight only falls, while FK moves on from the held point', () => {
+    // Re-read on every frame, the release's length followed the gap to FK as
+    // FK moved away, so the weight ran backwards and lurched where the length
+    // met its cap (the single-leg stance with a 3 cm shift: the weight rose by
+    // up to 0.016 a frame at 60 Hz). Here the gap keeps growing through the
+    // release: the pelvis drifts sideways at 10 cm/s while FK's hip speeds up
+    // from rest, so a length read again on each frame would keep growing.
+    const foot = footContact.buildFootPlant(skinned, 'L_Foot', variantCfg)!;
+    const keys = foot.ctx.canonicalKeys;
+    const chain = foot.ctx.bones;
+    const toMs = 300;
+    // FK's hip speeds up from rest as the window ends; the pelvis has drifted
+    // 2 cm when it does, and drifts on 1.7 mm a frame.
+    const flexRad = (t: number) => 5e-7 * Math.max(0, t - toMs) ** 2;
+    const drift = (t: number) => 1e-4 * Math.max(0, t - 100);
+    const axis = new THREE.Vector3(1, 0, 0);
+    const bones = (t: number): Record<string, number[]> => {
+      const out: Record<string, number[]> = {};
+      for (let i = 1; i < chain.length; i += 1) {
+        const q = baselinePose.bones[keys[i]!]!;
+        const quat = new THREE.Quaternion(q[0], q[1], q[2], q[3]);
+        if (i === chain.length - 1) quat.multiply(new THREE.Quaternion().setFromAxisAngle(axis, flexRad(t)));
+        out[keys[i]!] = [quat.x, quat.y, quat.z, quat.w];
+      }
+      return out;
+    };
+    const trajectory: footContact.ContactPlantTrajectory = { totalMs: 3000, sampleAt: (t) => ({ pose: { bones: bones(t) } }) };
+    const poseFk = (t: number) => {
+      const b = bones(t);
+      for (let i = 1; i < chain.length; i += 1) {
+        const q = b[keys[i]!]!;
+        chain[i]!.quaternion.set(q[0]!, q[1]!, q[2]!, q[3]!);
+      }
+      const q0 = baselinePose.bones[keys[0]!]!;
+      chain[0]!.quaternion.set(q0[0]!, q0[1]!, q0[2]!, q0[3]!);
+      root.position.set(rootRest0.x + drift(t), rootRest0.y, rootRest0.z);
+      root.quaternion.copy(rootQuat0);
+      root.updateMatrixWorld(true);
+    };
+    const plants: footContact.ContactPlant[] = [{ solver: foot, fromMs: 0, toMs, target: null, reuseInitialAnchor: false }];
+    const frame: footContact.ContactPlantFrame = { rest, hingeAxisRest: rest, heelStrikeY: 0, initialTargets: new Map(), trajectory };
+    const lengths: number[] = [];
+    const weights: number[] = [];
+    for (let t = 0; t <= 2000; t += 1000 / 60) {
+      poseFk(t);
+      footContact.stepContactPlants(plants, t, frame);
+      const release = plants[0]!.release;
+      if (t > toMs && plants[0]!.target && release) {
+        lengths.push(release.lengthMs);
+        weights.push(footContact.plantReleaseWeight(t - toMs, release.lengthMs));
+      }
+    }
+    root.position.copy(rootRest0);
+    root.quaternion.copy(rootQuat0);
+    root.updateMatrixWorld(true);
+    let rise = 0;
+    for (let k = 1; k < weights.length; k += 1) rise = Math.max(rise, weights[k]! - weights[k - 1]!);
+    // eslint-disable-next-line no-console
+    console.log(`read-once release: ${lengths.length} released frames, length ${lengths[0]?.toFixed(1)} ms (${Math.min(...lengths).toFixed(1)}–${Math.max(...lengths).toFixed(1)}), weight rises by ${rise.toExponential(2)} at most`);
+    expect(lengths.length, 'released frames').toBeGreaterThan(5);
+    expect(lengths[0]!, 'the gap stretches it past the base').toBeGreaterThan(footContact.PLANT_RELEASE_BLEND_MS);
+    expect(Math.max(...lengths) - Math.min(...lengths), 'the length, frame to frame (ms)').toBe(0);
+    expect(rise, 'the weight never rises').toBeLessThanOrEqual(0);
+  });
+});
+
+describe('two contacts of one leg never release at once', () => {
+  it('a foot release is cut to end as the same leg’s toes window does, so the toes release reads FK alone', () => {
+    // The 0.6× toe walk's foot release, stretched to 256 ms, outlived the toes'
+    // window by 8 ms and ran beside their release (1–3 frames), so the toes
+    // release read a destination the foot release had already moved. Here a
+    // base (120 ms) foot release meets a toes window ending 100 ms after it.
+    const foot = footContact.buildFootPlant(skinned, 'L_Foot', variantCfg)!;
+    const toes = footContact.buildFootPlant(skinned, 'L_Toes', variantCfg)!;
+    const run = (withToes: boolean) => {
+      root.position.copy(rootRest0);
+      root.quaternion.copy(rootQuat0);
+      const chain = toes.ctx.bones;
+      const poseFk = () => {
+        for (let i = 0; i < chain.length; i += 1) {
+          const q = baselinePose.bones[toes.ctx.canonicalKeys[i]!]!;
+          chain[i]!.quaternion.set(q[0]!, q[1]!, q[2]!, q[3]!);
+        }
+        root.updateMatrixWorld(true);
+      };
+      const plants: footContact.ContactPlant[] = [
+        { solver: foot, fromMs: 0, toMs: 300, target: null, reuseInitialAnchor: false },
+        ...(withToes ? [{ solver: toes, fromMs: 250, toMs: 400, target: null, reuseInitialAnchor: false }] : []),
+      ];
+      const frame: footContact.ContactPlantFrame = { rest, hingeAxisRest: rest, heelStrikeY: 0, initialTargets: new Map() };
+      const footHeldAfter: number[] = [];
+      let length = NaN;
+      for (let t = 0; t <= 600; t += 1000 / 60) {
+        poseFk();
+        footContact.stepContactPlants(plants, t, frame);
+        if (t > 300 && Number.isNaN(length)) length = plants[0]!.release?.lengthMs ?? NaN;
+        if (t > 400 + 1e-6 && plants[0]!.target) footHeldAfter.push(t);
+      }
+      poseFk();
+      return { length, footHeldAfter };
+    };
+    const alone = run(false);
+    const both = run(true);
+    // eslint-disable-next-line no-console
+    console.log(`foot release ${alone.length} ms alone, ${both.length} ms with the toes window ending 100 ms after it; foot still releasing after the toes let go at ${both.footHeldAfter.map((t) => t.toFixed(1)).join(', ') || 'no frame'}`);
+    expect(alone.length).toBe(footContact.PLANT_RELEASE_BLEND_MS);
+    expect(both.length).toBeCloseTo(100, 9);
+    expect(both.footHeldAfter, 'frames after the toes window on which the foot release still runs').toEqual([]);
+  });
 });
 
 describe('the release length is read off FK’s motion (pure)', () => {
@@ -385,24 +279,26 @@ describe('the release length is read off FK’s motion (pure)', () => {
     expect(plan(() => 0).effectorSpeed).toBe(0);
   });
 
-  it('a gap stretches the release only where FK moves the limb slowly, and the length is continuous in the gap with a continuous slope', () => {
-    const L = footContact.plantReleaseLengthMs;
-    const base = footContact.PLANT_RELEASE_BLEND_MS;
-    // FK still: the base release (no FK speed to keep within).
-    expect(L({ burstMs: base, effectorSpeed: 0 }, 0.1)).toBe(base);
-    // FK swinging the foot at 3 m/s: a 10 cm gap is FK's own business.
-    expect(L({ burstMs: base, effectorSpeed: 0.003 }, 0.1)).toBe(base);
-    expect(L({ burstMs: 162, effectorSpeed: 0.003 }, 0.1)).toBe(162);
+  it('the gap asks for the length that keeps the target within FK’s effector speed, read where the catch-up runs, continuous with a continuous slope', () => {
+    const G = footContact.plantReleaseGapMs;
+    // FK still: no FK speed to keep within — the gap asks for nothing.
+    expect(G({ effectorSpeed: 0 }, 0.1)).toBe(0);
     // FK lifting the foot at 0.3 m/s: a 10 cm gap takes 1.98 × 0.1 / 0.0003 ms…
-    expect(L({ burstMs: base, effectorSpeed: 0.0003 }, 0.1)).toBeCloseTo((1.98 * 0.1) / 0.0003, 6);
-    // …a gap past the 15 cm cap no longer, and nothing lasts over 800 ms.
-    expect(L({ burstMs: base, effectorSpeed: 0.0003 }, 0.4)).toBe(800);
-    expect(L({ burstMs: base, effectorSpeed: 0.001 }, 0.4)).toBeCloseTo((1.98 * 0.15) / 0.001, 6);
+    expect(G({ effectorSpeed: 0.0003 }, 0.1)).toBeCloseTo((1.98 * 0.1) / 0.0003, 6);
+    // …a gap past the 15 cm cap no longer, and nothing asks for over 800 ms.
+    expect(G({ effectorSpeed: 0.0003 }, 0.4)).toBe(800);
+    expect(G({ effectorSpeed: 0.001 }, 0.4)).toBeCloseTo((1.98 * 0.15) / 0.001, 6);
+    // The gap is FK's offset where the catch-up runs fastest, 0.68 of the way
+    // through the release it asks for — FK moves on meanwhile. With FK moving
+    // away at 0.1 m/s from 5 cm at the window's end, that is the fixed point
+    // L = 1.98 · (0.05 + 0.0001 · 0.68 L) / 0.001.
+    const fixedPoint = (1.98 * 0.05) / 0.001 / (1 - (1.98 * 0.68 * 0.0001) / 0.001);
+    expect(G({ effectorSpeed: 0.001 }, (ms) => 0.05 + 0.0001 * ms)).toBeCloseTo(fixedPoint, 2);
     // Continuous, with a continuous slope, across every joint of the rule: on
     // a grid far finer than any of its roundings, the slope never jumps by
     // more than a twentieth of its largest value (a kink jumps by all of it).
     for (const effectorSpeed of [0.00007, 0.0003, 0.0009, 0.0014, 0.002]) {
-      const at = (g: number) => L({ burstMs: base, effectorSpeed }, g);
+      const at = (g: number) => G({ effectorSpeed }, g);
       const h = 1e-8;
       const slopes: number[] = [];
       for (let g = 0; g <= 0.3; g += 1e-5) slopes.push((at(g + h) - at(g)) / h);
@@ -411,13 +307,55 @@ describe('the release length is read off FK’s motion (pure)', () => {
       for (let k = 1; k < slopes.length; k += 1) jump = Math.max(jump, Math.abs(slopes[k]! - slopes[k - 1]!));
       expect(jump, `v ${effectorSpeed}: largest slope ${largest.toFixed(0)} ms/m`).toBeLessThan(0.05 * Math.max(largest, 1));
     }
-    // …and continuous in FK's speed, through the gates that fade the gap rule
+    // …and continuous in FK's speed, through the gate that fades the gap rule
     // in: never more than 30 ms apart for FK 1 mm/s apart (the steepest, 24
     // ms, is where a near-still FK's 800 ms fades in over 0.05–0.1 m/s).
     for (let v = 0.00001; v < 0.004; v += 0.000001) {
-      const a = L({ burstMs: base, effectorSpeed: v }, 0.1);
-      const b = L({ burstMs: base, effectorSpeed: v + 0.000001 }, 0.1);
+      const a = G({ effectorSpeed: v }, 0.1);
+      const b = G({ effectorSpeed: v + 0.000001 }, 0.1);
       expect(Math.abs(a - b), `v ${v}`).toBeLessThan(30);
     }
+  });
+
+  it('a gap stretches the release only where FK leaves room to catch up in: FK slowing or speeding up from rest, not FK at its plateau', () => {
+    const L = footContact.plantReleaseLengthMs;
+    const base = footContact.PLANT_RELEASE_BLEND_MS;
+    const step = 5;
+    const horizonMs = 800;
+    /** A plan whose one moving joint turns at `speed(t)` °/ms (t from the
+     *  window's end), FK's effector at `effectorSpeed`, read as far as the
+     *  release's longest read reaches. */
+    const plan = (speed: (t: number) => number, effectorSpeed: number, burstMs = base): footContact.PlantReleasePlan => {
+      const row: number[] = [];
+      for (let t = -base; t < horizonMs + base; t += step) row.push(speed(t));
+      return { burstMs, effectorSpeed, jointSpeeds: [row, row.map(() => 0)], path: [], horizonMs };
+    };
+    // A 10 cm gap, FK lifting at 0.3 m/s: 1.98 × 0.1 / 0.0003 = 660 ms asked.
+    const asked = (1.98 * 0.1) / 0.0003;
+    // FK slowing after the window: its catch-up falls where FK has slack — the
+    // whole stretch, joined to the burst by the smooth maximum (20 ms wide).
+    const slowing = plan((t) => (t < 0 ? 0.3 : 0.3 * Math.exp(-t / 150)), 0.0003);
+    expect(L(slowing, 0.1)).toBeCloseTo(asked, 6);
+    // FK speeding up slowly from rest (the single-leg stance's lift): the
+    // stretch's middle half runs well below FK's peak over the release, so it
+    // stands too.
+    const fromRest = plan((t) => Math.max(0, 0.0005 * t), 0.0003);
+    expect(L(fromRest, 0.1)).toBeCloseTo(asked, 6);
+    // FK at its plateau from the window on (the 0.6× walk's braking step): no
+    // stretch leaves it room — the release keeps the burst's length, with no
+    // smooth-maximum offset…
+    const plateau = plan(() => 0.3, 0.0003);
+    expect(L(plateau, 0.1)).toBe(base);
+    expect(L(plan(() => 0.3, 0.0003, 162), 0.1)).toBe(162);
+    // …and a still joint takes no part in that: only the moving one is read.
+    expect(L(plan((t) => (t < 0 ? 0.3 : 0.3 * Math.exp(-t / 150)), 0.0003), 0.1)).toBe(L(slowing, 0.1));
+    // Nothing is stretched past the plan's read, nor past 800 ms.
+    expect(L({ ...slowing, horizonMs: 300 }, 0.1)).toBeLessThanOrEqual(300 + 1e-9);
+    expect(L(slowing, 0.4)).toBeLessThanOrEqual(800);
+    // In the gap, where FK leaves room, the length is continuous (no step
+    // larger than a grid step's worth of slope) from the burst up.
+    let worst = 0;
+    for (let g = 0; g <= 0.2; g += 0.0005) worst = Math.max(worst, Math.abs(L(slowing, g + 0.0005) - L(slowing, g)));
+    expect(worst, 'largest step of the length over a 0.5 mm step of the gap (ms)').toBeLessThan(5);
   });
 });

@@ -183,17 +183,23 @@ export function plantReleaseWeight(msSinceRelease: number, lengthMs = PLANT_RELE
   return 1 - u * u * (3 - 2 * u);
 }
 
-// ── Release length, read from FK's own motion ────────────────────────────────
+// ── The release, read from FK's own motion ───────────────────────────────────
 // A release starts from the hold's joint speeds, so it lags FK and must move
 // faster than FK somewhere to catch up — unless FK slows down while it does.
 // The base 120 ms release caught up while FK was still at speed: the default
 // run's knee turned 25.4°/frame against its FK's own peak of 22.3 (+14%; +30%
 // at 30 Hz), and a foot released after a slow weight shift (the single-leg-
 // stance replica) crossed its 9 cm gap to FK in 120 ms, 25 mm/frame against
-// FK's ~6. The length therefore comes from FK itself, read off the motion's
-// trajectory (deterministic, so the sampler and the stage agree): long enough
-// for FK's burst to have passed, and for the gap to close no faster than FK
-// moves the limb.
+// FK's ~6. How long a release lasts is therefore read off FK itself, from the
+// motion's trajectory — long enough for FK's burst to have passed, and for the
+// gap to close no faster than FK moves the limb.
+//
+// It is read ONCE, on the first frame after the window (readPlantRelease), and
+// kept for that window: re-read on every frame, the gap to FK grew as FK moved
+// away and the length with it, so the release stalled, ran backwards and then
+// lurched (the single-leg stance with a 4 cm shift: 474 → 800 ms mid-release,
+// the weight rising again by 0.03, the foot's step jumping 1.4 → 3.7 mm/frame
+// in four 120 Hz frames).
 
 /** The FK a release reads its length from: the pose trajectory the frame was
  *  posed from — each joint's LOCAL quaternion by canonical key, at any time
@@ -210,12 +216,21 @@ export interface PlantReleasePlan {
   /** FK's peak effector speed relative to the limb root's parent, world
    *  metres per ms, from one base release before the window's end to two after. */
   effectorSpeed: number;
+  /** Each chain joint's FK speed (°/ms, joint i + 1 of the chain) over each
+   *  {@link RELEASE_PLAN_STEP_MS} step from one base release before the
+   *  window's end to `horizonMs` + one base release after it. */
+  jointSpeeds: number[][];
+  /** FK's effector in the chain root's PARENT frame (parent-local units) every
+   *  step from the window's end to `horizonMs` after it. */
+  path: THREE.Vector3[];
+  /** How far past the window's end (ms) the read reaches. */
+  horizonMs: number;
 }
 
 /** Step (ms) of the FK read. */
 const RELEASE_PLAN_STEP_MS = 5;
 /** A chain joint FK moves slower than this (°/ms) across the read takes no
- *  part in the burst: a still joint's own peak is noise. */
+ *  part in the burst or the slack: a still joint's own peak is noise. */
 const RELEASE_STILL_JOINT_DEG_PER_MS = 0.02;
 /** A burst counts only if it has halved within this long (ms) of the window's
  *  end; a leg still swinging hard past it (a walk's swing) gains nothing from
@@ -224,41 +239,51 @@ const RELEASE_BURST_HALF_MAX_MS = 90;
 /** The release is stretched to this many times the burst's half-life, so its
  *  catch-up — the smoothstep's fastest stretch, a half to three quarters in —
  *  falls after the burst, where FK has slack: the run's heel kick halves 55–60
- *  ms after toe-off, and over 156–164 ms its knee peaks at 17.2–17.4°/frame
- *  against FK's 21.7–22.3 (25.4 at 120 ms). */
+ *  ms after toe-off, and over 156–181 ms its knee peaks at 0.79–0.92 of FK's
+ *  own (1.14–1.18 at 120 ms). */
 const RELEASE_BURST_STRETCH = 2.7;
 /** Peak rate of the release target's horizontal law, s² over a smoothstep s
  *  (at 68% of the way): a gap G closed over L ms moves the target at up to
  *  1.98·G/L. */
 const RELEASE_GAP_RATE = 1.98;
+/** Where (share of the release) that peak falls: the gap the catch-up closes
+ *  is FK's offset from the held point there, not at the window's end — FK
+ *  moves on while the release runs. Read at the window's end alone, the single-
+ *  leg stance with a 4 cm shift (a 5.7 cm gap then, twice that by the catch-
+ *  up) was released over 583 ms and turned its knee 1.10× FK's peak; read at
+ *  the catch-up, 780 ms and 0.97×. */
+const RELEASE_GAP_AT = 0.68;
 /** The gap read is capped (m, smoothly over ±2 cm): past it the lag is the
  *  route's own — a hold kept far beyond where the route lifts the foot (the
- *  toe walk's braking step holds its toes 38 cm behind FK's, and FK carries
- *  them a further 30 cm away while the release runs) — and a release
+ *  toe walk's braking step holds its toes 36 cm behind FK's) — and a release
  *  proportional to it would last seconds. */
 const RELEASE_GAP_CAP_M = 0.15;
 const RELEASE_GAP_CAP_SOFT_M = 0.02;
-/** The gap rule counts in full only where a capped gap asks for at least twice
- *  the burst's length, fading out by 1.5 times — a limb FK moves slowly around
- *  the window's end (under 1.24 m/s at the effector for the base length): the
- *  single-leg stance's lifting foot (0.19 m/s), the braking step's dragged
- *  toes (1.16). A limb FK swings fast (a walk's last step, 1.9 m/s) is still
- *  being sped up past the window, and a longer release only lets the lag grow
- *  before it catches up: the default walk's last step turned its hip
- *  3.55°/frame at 141 ms against 3.21 at 124 (FK's peak 2.46). */
-const RELEASE_GAP_REACH_FROM = 1.5;
-const RELEASE_GAP_REACH_TO = 2;
 /** FK effector speed (m/ms) under which the gap rule stands down, fading in
- *  over the next as much again (0.05–0.1 m/s; the gap's length is capped
- *  before it fades in, so the length stays continuous in FK's speed): past a
- *  still FK there is no FK speed to keep within, and the base release lifts
- *  the limb to it. */
+ *  over the next as much again (0.05–0.1 m/s): past a still FK there is no FK
+ *  speed to keep within, and the base release lifts the limb to it. */
 const RELEASE_STILL_EFFECTOR_M_PER_MS = 0.00005;
-/** Width (ms) of the smooth maximum joining the two rules, and of the smooth
- *  cap below — C1 in the gap. */
+/** A gap stretches the release only as far as FK leaves room to catch up in:
+ *  over the middle half of the stretched release (where a smoothstep does its
+ *  catching up) no moving joint of the limb may run faster than this share
+ *  below its own peak over the release — else the stretch is cut back, to the
+ *  burst's length if need be. A limb FK still speeds up past the window only
+ *  lets its lag grow before the catch-up: the 0.6× walk's braking step, its
+ *  hip already at its plateau, was stretched 123 → 289 ms and turned the hip
+ *  1.40× FK's peak (1.15 at 123 ms). The single-leg stance's lift, FK
+ *  accelerating slowly from rest, keeps 18–22% of its peak in hand at any
+ *  length. */
+const RELEASE_SLACK_MIN = 0.18;
+/** Width (ms) of the join from the burst's length to the gap's, and of the
+ *  smooth cap on the latter. */
 const RELEASE_SMOOTH_MAX_MS = 20;
 /** No release lasts longer (ms). */
 const RELEASE_MAX_MS = 800;
+/** The held point is interpolated to the window's end between the last held
+ *  frame and the first released one when they are at most this far (ms)
+ *  apart (any frame of a playing motion); farther apart (a parked stage's
+ *  settle-to-settle jump) it is read on the released frame itself. */
+const RELEASE_HELD_MAX_GAP_MS = 100;
 
 const RAD_TO_DEG = 180 / Math.PI;
 const _planScale = new THREE.Vector3();
@@ -277,24 +302,26 @@ function chainEffectorInParent(
 
 /**
  * Read FK around the end of a contact window (`toMs`) off the motion's
- * trajectory: how long a release must last for the limb's FK burst to have
- * passed, and how fast FK moves the effector relative to the limb root. A pure
+ * trajectory, `horizonMs` past it: how long a release must last for the limb's
+ * FK burst to have passed, how fast FK moves the effector relative to the limb
+ * root, each chain joint's FK speed and the effector's FK path. A pure
  * function of the trajectory and the chain, so the sampler and the stage read
  * the same plan. A chain joint the trajectory does not pose keeps the base
- * length.
+ * length and an empty read.
  */
 export function planPlantRelease(
   solver: FootPlantSolver,
   toMs: number,
   trajectory: ContactPlantTrajectory,
+  horizonMs = 2 * PLANT_RELEASE_BLEND_MS,
 ): PlantReleasePlan {
   const base = PLANT_RELEASE_BLEND_MS;
-  const plan: PlantReleasePlan = { burstMs: base, effectorSpeed: 0 };
+  const plan: PlantReleasePlan = { burstMs: base, effectorSpeed: 0, jointSpeeds: [], path: [], horizonMs };
   const chain = solver.ctx.bones;
   const keys = solver.ctx.canonicalKeys;
   const step = RELEASE_PLAN_STEP_MS;
   const first = -Math.round(base / step);
-  const last = Math.round((2 * base) / step);
+  const last = Math.round((Math.max(horizonMs, 2 * base) + base) / step);
   const samples: THREE.Quaternion[][] = [];
   for (let k = first; k <= last; k += 1) {
     const t = Math.min(trajectory.totalMs, Math.max(0, toMs + k * step));
@@ -309,7 +336,9 @@ export function planPlantRelease(
     samples.push(row);
   }
   const atEnd = -first; // the sample at toMs
-  // Each chain joint's FK speed (°/ms) over each step, and its peak over the read.
+  // The burst and FK's effector speed are read over one base release before
+  // the window's end to two after it, whatever the horizon.
+  const baseLast = atEnd + Math.round((2 * base) / step);
   const moving: { peak: number; speed: number[] }[] = [];
   for (let j = 0; j < chain.length - 1; j += 1) {
     const speed: number[] = [];
@@ -317,8 +346,9 @@ export function planPlantRelease(
     for (let k = 0; k + 1 < samples.length; k += 1) {
       const v = (samples[k]![j]!.angleTo(samples[k + 1]![j]!) * RAD_TO_DEG) / step;
       speed.push(v);
-      peak = Math.max(peak, v);
+      if (k < baseLast) peak = Math.max(peak, v);
     }
+    plan.jointSpeeds.push(speed);
     if (peak > RELEASE_STILL_JOINT_DEG_PER_MS) moving.push({ peak, speed });
   }
   if (moving.length) {
@@ -326,14 +356,14 @@ export function planPlantRelease(
     const burst = (k: number) => Math.max(...moving.map((m) => m.speed[k]! / m.peak));
     let top = 0;
     let topAt = atEnd;
-    for (let k = atEnd; k < samples.length - 1 && (k - atEnd) * step <= base; k += 1) {
+    for (let k = atEnd; k < baseLast && (k - atEnd) * step <= base; k += 1) {
       const b = burst(k);
       if (b > top) {
         top = b;
         topAt = k;
       }
     }
-    for (let k = topAt; k < samples.length - 1; k += 1) {
+    for (let k = topAt; k < baseLast; k += 1) {
       if (burst(k) >= 0.5 * top) continue;
       const halfMs = (k - atEnd) * step;
       if (halfMs <= RELEASE_BURST_HALF_MAX_MS) plan.burstMs = Math.max(base, RELEASE_BURST_STRETCH * halfMs);
@@ -350,7 +380,8 @@ export function planPlantRelease(
     chainEffectorInParent(chain, samples[0]!, a);
     for (let k = 1; k < samples.length; k += 1) {
       chainEffectorInParent(chain, samples[k]!, b);
-      plan.effectorSpeed = Math.max(plan.effectorSpeed, (a.distanceTo(b) * scale) / step);
+      if (k <= baseLast) plan.effectorSpeed = Math.max(plan.effectorSpeed, (a.distanceTo(b) * scale) / step);
+      if (k - 1 >= atEnd && (k - 1 - atEnd) * step <= horizonMs) plan.path.push(a.clone());
       a.copy(b);
     }
   }
@@ -366,32 +397,75 @@ function softMin(x: number, cap: number, soft: number): number {
   return x - (x - cap + soft) ** 2 / (4 * soft);
 }
 
+/** max(burst, L), joined over the first `soft` ms past the burst by a cubic
+ *  with the burst's value and zero slope at one end and L's at the other — so
+ *  the length is continuous, with a continuous slope, from the burst up (a
+ *  rounded max sat 5 ms above the burst where the stretch set in). */
+function joinStretch(burst: number, L: number, soft: number): number {
+  const x = L - burst;
+  if (!(x > 0)) return burst;
+  if (x >= soft) return L;
+  return burst + (2 * x * x) / soft - (x * x * x) / (soft * soft);
+}
+
 /**
- * How long (ms) a release lasts, for a plan and the horizontal gap `gapM`
- * between the held point and the effector's FK position this frame: the
- * burst's length or the gap's, whichever is longer (a smooth maximum), at most
- * {@link RELEASE_MAX_MS}. The gap's length keeps the target's own horizontal
- * travel within FK's peak effector speed v (1.98·G/L ≤ v) for a gap capped at
- * {@link RELEASE_GAP_CAP_M}, where FK moves the limb slowly enough for that to
- * matter ({@link RELEASE_GAP_REACH_TO}). Continuous with a C1 slope in the gap.
+ * The length (ms) the gap asks for: the release target's own travel kept within
+ * FK's peak effector speed v (1.98·G/L ≤ v), for the gap `gapAt` reports at
+ * {@link RELEASE_GAP_AT} of a candidate length — FK's offset from the held
+ * point where the catch-up runs fastest (a number: a fixed gap) — capped at
+ * {@link RELEASE_GAP_CAP_M} and at {@link RELEASE_MAX_MS}. A fixed point, from
+ * the gap at the window's end up (FK moving away only lengthens it). 0 for a
+ * still FK.
  */
-export function plantReleaseLengthMs(plan: PlantReleasePlan, gapM: number): number {
-  const burst = plan.burstMs;
+export function plantReleaseGapMs(
+  plan: Pick<PlantReleasePlan, 'effectorSpeed'>,
+  gapAt: number | ((lengthMs: number) => number),
+): number {
   const v = plan.effectorSpeed;
-  let gap = 0;
-  if (v > RELEASE_STILL_EFFECTOR_M_PER_MS) {
-    const reach = (RELEASE_GAP_RATE * RELEASE_GAP_CAP_M) / v / burst;
-    const weight =
-      smooth01((reach - RELEASE_GAP_REACH_FROM) / (RELEASE_GAP_REACH_TO - RELEASE_GAP_REACH_FROM)) *
-      smooth01(v / RELEASE_STILL_EFFECTOR_M_PER_MS - 1);
-    const capped = softMin(Math.max(0, gapM), RELEASE_GAP_CAP_M, RELEASE_GAP_CAP_SOFT_M);
-    gap = weight * softMin((RELEASE_GAP_RATE * capped) / v, RELEASE_MAX_MS, RELEASE_SMOOTH_MAX_MS);
-  }
-  // The burst's length is at most 2.7 × 90 ms, so the smooth maximum of the
-  // two never passes the gap's own (capped) length.
-  const d = RELEASE_SMOOTH_MAX_MS;
-  const x = gap - burst;
-  return x <= -d ? burst : x >= d ? gap : burst + ((x + d) * (x + d)) / (4 * d);
+  if (!(v > RELEASE_STILL_EFFECTOR_M_PER_MS)) return 0;
+  const gapOf = typeof gapAt === 'number' ? () => gapAt : gapAt;
+  const lengthFor = (gapM: number) =>
+    softMin(
+      (RELEASE_GAP_RATE * softMin(Math.max(0, gapM), RELEASE_GAP_CAP_M, RELEASE_GAP_CAP_SOFT_M)) / v,
+      RELEASE_MAX_MS,
+      RELEASE_SMOOTH_MAX_MS,
+    ) * smooth01(v / RELEASE_STILL_EFFECTOR_M_PER_MS - 1);
+  let gapMs = lengthFor(gapOf(0));
+  for (let i = 0; i < 6; i += 1) gapMs = Math.max(gapMs, lengthFor(gapOf(RELEASE_GAP_AT * gapMs)));
+  return gapMs;
+}
+
+/**
+ * How long (ms) a release lasts: the burst's length, or the gap's
+ * ({@link plantReleaseGapMs}) where that is longer — joined with no step
+ * — but the gap's only as far as FK's joints leave room to catch up in
+ * ({@link RELEASE_SLACK_MIN}) and the plan's read reaches.
+ */
+export function plantReleaseLengthMs(
+  plan: PlantReleasePlan,
+  gapAt: number | ((lengthMs: number) => number),
+): number {
+  const burst = plan.burstMs;
+  const step = RELEASE_PLAN_STEP_MS;
+  const base = PLANT_RELEASE_BLEND_MS;
+  const atEnd = Math.round(base / step);
+  const slack = (L: number): number => {
+    let worst = 1;
+    for (const speed of plan.jointSpeeds) {
+      const to = Math.min(speed.length - 1, atEnd + Math.round((L + base) / step));
+      let peak = 0;
+      for (let k = 0; k <= to; k += 1) peak = Math.max(peak, speed[k]!);
+      if (!(peak > RELEASE_STILL_JOINT_DEG_PER_MS)) continue;
+      let mid = 0;
+      const from = atEnd + Math.round((0.25 * L) / step);
+      for (let k = from; k <= Math.min(to, atEnd + Math.round((0.75 * L) / step)); k += 1) mid = Math.max(mid, speed[k]!);
+      worst = Math.min(worst, 1 - mid / peak);
+    }
+    return worst;
+  };
+  let L = Math.min(plantReleaseGapMs(plan, gapAt), Math.max(burst, plan.horizonMs));
+  while (L > burst && slack(L) < RELEASE_SLACK_MIN) L -= 10;
+  return joinStretch(burst, L, RELEASE_SMOOTH_MAX_MS);
 }
 
 /** One declared contact's plant, as the offline sampler and the live stage both
@@ -411,6 +485,29 @@ export interface ContactPlant {
   /** Per-window ROM-clamp rest frame (CURVED heading only); absent ⇒ the
    *  caller's shared frame ({@link ContactPlantFrame.rest}). */
   rest?: JointAngleRestReference;
+  /** The target in the chain root's PARENT frame on the last frame the window
+   *  held it, and when — what the release reads the held point at the window's
+   *  end from. Kept by the step. */
+  heldInParent?: { tMs: number; point: THREE.Vector3 } | null;
+  /** The release read for the window that last ended ({@link PlantRelease}).
+   *  Kept by the step. */
+  release?: PlantRelease | null;
+}
+
+/** How a plant lets go after its window — read once, on the first frame after
+ *  it ({@link stepContactPlants}), and kept until the release is over. */
+export interface PlantRelease {
+  /** The window end it was read for (trajectory ms). */
+  toMs: number;
+  /** How long the release lasts (ms). */
+  lengthMs: number;
+  /** The share of the release by which the drawn effector is lifted a
+   *  {@link PLANT_RELEASE_FLOOR_BAND_M} off the held point (predicted from FK's
+   *  lift); null when FK does not lift it that far within the release. */
+  liftAt: number | null;
+  /** How strongly the release keeps the drawn effector off the floor-drag
+   *  (0..1, {@link RELEASE_PIN_M}). */
+  pin: number;
 }
 
 /** The per-frame inputs {@link stepContactPlants} needs beyond the plants. */
@@ -432,44 +529,143 @@ export interface ContactPlantFrame {
   captureLiftY?: number;
   /** First captured target per effector, for `reuseInitialAnchor` (per motion). */
   initialTargets: Map<string, THREE.Vector3>;
-  /** The trajectory this frame was posed from — the FK every release reads its
-   *  length from ({@link planPlantRelease}). Absent ⇒ every release takes the
-   *  base {@link PLANT_RELEASE_BLEND_MS}. */
+  /** The trajectory this frame was posed from — the FK every release is read
+   *  off ({@link planPlantRelease}). Absent ⇒ every release takes the base
+   *  {@link PLANT_RELEASE_BLEND_MS} and nothing else: what a touchdown-planted
+   *  gait's travel assumes of its plants. */
   trajectory?: ContactPlantTrajectory | null;
 }
 
 const inPlantWindow = (fp: ContactPlant, tMs: number): boolean =>
   tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
 
-/** Each plant's release plan, for the trajectory and window it was read for. */
+/** Each plant's release plan, for the trajectory, window and horizon it was
+ *  read for. */
 const _releasePlans = new WeakMap<
   ContactPlant,
   { trajectory: ContactPlantTrajectory; toMs: number; plan: PlantReleasePlan }
 >();
 
-function releasePlanOf(fp: ContactPlant, trajectory: ContactPlantTrajectory): PlantReleasePlan {
+function releasePlanOf(fp: ContactPlant, trajectory: ContactPlantTrajectory, horizonMs: number): PlantReleasePlan {
   const hit = _releasePlans.get(fp);
-  if (hit && hit.trajectory === trajectory && hit.toMs === fp.toMs) return hit.plan;
-  const plan = planPlantRelease(fp.solver, fp.toMs, trajectory);
+  if (hit && hit.trajectory === trajectory && hit.toMs === fp.toMs && hit.plan.horizonMs >= horizonMs) return hit.plan;
+  const plan = planPlantRelease(fp.solver, fp.toMs, trajectory, horizonMs);
   _releasePlans.set(fp, { trajectory, toMs: fp.toMs, plan });
   return plan;
 }
 
-/** Height (m) the release target must rise above the held point before the
- *  drawn effector may leave the target's path (see {@link releaseContactPlant}). */
+/** How far (m) the drawn effector must lift off the held point before the
+ *  release stops keeping it off the floor-drag ({@link PlantRelease.liftAt}). */
 export const PLANT_RELEASE_FLOOR_BAND_M = 0.01;
+
+/** How far (m, smoothly saturating) the release holds the drawn effector back
+ *  from the floor-drag of its blend with FK (see {@link releaseContactPlant}):
+ *  enough for DDx's toe-offs, dragged 3–11 mm back on their first released
+ *  30 Hz frame, and the DDx-like toe-off (12 mm at 60 Hz). */
+const RELEASE_PIN_M = 0.025;
+/** The share of the release over which that hold lets go once the effector is
+ *  lifted: a smoothstep, so it lets go with no kink. */
+const RELEASE_PIN_FADE = 0.25;
+/** The hold stands down where FK lifts the effector only late in the release
+ *  (from 0.4 of it, gone by 0.6): held that long it builds a lag the rest of
+ *  the release has to catch up. The single-leg stance's foot, lifted by FK at
+ *  0.5–0.6 of its 780 ms, turned the hip 1.09× FK's peak held, 0.96× free; the
+ *  held lift at 100 ms of a 600 ms raise 1.19× against 0.94. */
+const RELEASE_PIN_LATE_FROM = 0.4;
+const RELEASE_PIN_LATE_TO = 0.6;
+
+const _relHeld = new THREE.Vector3();
+const _relQuat = new THREE.Quaternion();
+const _relOffset = new THREE.Vector3();
+
+/**
+ * Read how plant `fp` lets go after its window, on the first frame after it
+ * (`tMs`): the release's length ({@link plantReleaseLengthMs}, from FK's own
+ * motion and the gap from the held point to FK's effector) and when FK lifts
+ * the effector off the floor. The held point is taken in the limb root's
+ * PARENT frame at the window's end — interpolated between the last held frame
+ * and this one — so the read depends on neither which frames ran nor how the
+ * body has moved since; FK's effector comes off the trajectory at any time.
+ * The release ends by the motion's end (its last pose is FK's) and by the time
+ * another contact of the same leg, holding when it starts, lets go — no two
+ * releases act on one leg (the 0.6× toe walk's foot release, stretched to 256
+ * ms, outlived the toes' window by 8 ms and ran beside their release).
+ */
+function readPlantRelease(
+  fp: ContactPlant,
+  plants: readonly ContactPlant[],
+  tMs: number,
+  frame: ContactPlantFrame,
+): PlantRelease {
+  const base = PLANT_RELEASE_BLEND_MS;
+  const out: PlantRelease = { toMs: fp.toMs, lengthMs: base, liftAt: null, pin: 0 };
+  const chain = fp.solver.ctx.bones;
+  const parent = chain[chain.length - 1]!.parent;
+  const trajectory = frame.trajectory;
+  if (trajectory && parent && fp.target) {
+    parent.updateWorldMatrix(true, false);
+    _planScale.setFromMatrixScale(parent.matrixWorld);
+    const scale = Math.max(_planScale.x, _planScale.y, _planScale.z);
+    parent.getWorldQuaternion(_relQuat);
+    const held = parent.worldToLocal(_relHeld.copy(fp.target));
+    const last = fp.heldInParent;
+    if (last && last.tMs <= fp.toMs + 1e-6 && tMs > last.tMs && tMs - last.tMs <= RELEASE_HELD_MAX_GAP_MS) {
+      held.lerpVectors(last.point, held.clone(), (fp.toMs - last.tMs) / (tMs - last.tMs));
+    }
+    const heldAtEnd = held.clone();
+    let plan = releasePlanOf(fp, trajectory, 2 * base);
+    // FK's effector relative to the held point `ms` after the window, in world
+    // axes and metres (FK past the read: its last point).
+    const offsetAt = (p: PlantReleasePlan, ms: number): THREE.Vector3 =>
+      _relOffset
+        .copy(p.path[Math.min(p.path.length - 1, Math.max(0, Math.round(ms / RELEASE_PLAN_STEP_MS)))] ?? heldAtEnd)
+        .sub(heldAtEnd)
+        .applyQuaternion(_relQuat)
+        .multiplyScalar(scale);
+    const gapAt = (ms: number) => offsetAt(plan, ms).length();
+    if (plantReleaseGapMs(plan, gapAt) > plan.horizonMs) plan = releasePlanOf(fp, trajectory, RELEASE_MAX_MS);
+    let lengthMs = Math.min(RELEASE_MAX_MS, plantReleaseLengthMs(plan, gapAt));
+    lengthMs = Math.max(base, Math.min(lengthMs, trajectory.totalMs - fp.toMs));
+    // When the drawn effector is a band up: the release target rises on the
+    // smoothstep s, and the blend with FK lifts it as far again (first order),
+    // so s(2 − s) of FK's height above the held point.
+    for (let u = 0; u <= 1 + 1e-9; u += 0.005) {
+      const s = smooth01(u);
+      if (s * (2 - s) * offsetAt(plan, u * lengthMs).y >= PLANT_RELEASE_FLOOR_BAND_M) {
+        out.liftAt = u;
+        break;
+      }
+    }
+    out.lengthMs = lengthMs;
+    if (out.liftAt !== null) {
+      out.pin = 1 - smooth01((out.liftAt - RELEASE_PIN_LATE_FROM) / (RELEASE_PIN_LATE_TO - RELEASE_PIN_LATE_FROM));
+    }
+  }
+  for (const o of plants) {
+    if (o === fp || o.solver.kneeKey !== fp.solver.kneeKey) continue;
+    if (o.fromMs <= fp.toMs + 1e-6 && o.toMs > fp.toMs + 1e-6) out.lengthMs = Math.min(out.lengthMs, o.toMs - fp.toMs);
+  }
+  return out;
+}
 
 const _releasePre: THREE.Quaternion[] = [];
 const _releaseSolved = new THREE.Quaternion();
 const _releaseFk = new THREE.Vector3();
 const _releaseTarget = new THREE.Vector3();
+const _releaseAtSolve = new THREE.Vector3();
+const _releaseDrawn = new THREE.Vector3();
+const _pinRoot = new THREE.Vector3();
+const _pinFrom = new THREE.Vector3();
+const _pinTo = new THREE.Vector3();
+const _pinSwing = new THREE.Quaternion();
+const _pinWorld = new THREE.Quaternion();
+const _pinIdentity = new THREE.Quaternion();
 
 /**
  * One frame of a plant letting go, `w` (1 → 0, {@link plantReleaseWeight}) of
- * the way from its hold to FK. The limb is solved as it was held, toward a
- * target that leaves the held point, and that solve is blended with the FK pose
- * (per chain bone, local slerp) by `w` — by more while the target is still on
- * the floor (below).
+ * the way from its hold to FK, `u` of the way through `release`. The limb is
+ * solved as it was held, toward a target that leaves the held point, and that
+ * solve is blended with the FK pose (per chain bone, local slerp) by `w`.
  *
  * C1 LEAVING THE HOLD: while `w` leaves 1 with zero rate the target is still the
  * held point, so the first released frames ARE the hold (the same solve from the
@@ -491,30 +687,34 @@ const _releaseTarget = new THREE.Vector3();
  *
  * LIFT, THEN LET GO: the target's height eases to FK's on the release's own
  * smoothstep (1 − w), its horizontal position only on the square of it, so the
- * toes rise with the swing before they travel. Until they have lifted 1 cm the
- * toe-pivot walk's right toes move 3.5 / 2.9 / 2.1 mm at speed 1 / 0.85 / 1.2
- * (horizontal on 1 − w too: 6.4 / 5.4 / 4.2; the linear ramp: 7.2 / 10.1 / 4.8
- * back; the faded correction: 24.6 / 39.7 / 30.1 forward). The horizontal must
- * still reach FK's: left at the held point, the solve keeps reaching back to it
- * and the DDx walk's last release frame drops the left ankle 7.8° into FK.
+ * toes rise with the swing before they travel. The horizontal must still reach
+ * FK's: left at the held point, the solve keeps reaching back to it and the DDx
+ * walk's last release frame drops the left ankle 7.8° into FK.
  *
- * ON THE FLOOR, ON THE PATH: the blend with FK is per joint, so it drags the
- * drawn effector off the target toward FK's position — and where FK has the
- * toes well behind and above the held point (the DDx walk at 30 Hz: 7–12 cm
- * behind, 2.5–7 cm up) that dragged them back 3.3–11.3 mm along the floor on
- * the first released frame, while the target itself had moved 0.2–0.6 mm.
- * While the target is within {@link PLANT_RELEASE_FLOOR_BAND_M} of the held
- * height, the solve therefore takes the frame (blend 1), handing back to `w`
- * as the target lifts — only where FK itself lifts the effector above the held
- * point: a route that drags the foot along or down the floor has no lift to
- * wait for. The hand-back is C1 at both ends: it is scaled by 1 − (1 − w)², so
- * it leaves the hold and joins FK with `w` itself. The DDx toes now move
- * 0.2–4.0 mm on that frame.
+ * OFF THE FLOOR-DRAG: the blend with FK is per joint, so it drags the drawn
+ * effector off the solve's point toward FK's — and where FK has the toes well
+ * behind and above the held point (DDx's walk at 30 Hz: 7–12 cm behind, 2.5–7
+ * cm up) that dragged them 3.3–11.3 mm back along the floor on the first
+ * released frame, while the target itself had moved under 1 mm. The limb is
+ * therefore swung about its root joint (the hip) — one small rotation, which
+ * no joint limit can snap — to carry the effector back toward where the solve
+ * put it, horizontally, by at most {@link RELEASE_PIN_M} (a smooth
+ * saturation). It holds until the drawn effector has lifted a band
+ * ({@link PlantRelease.liftAt}, read with the release) and lets go over the
+ * next {@link RELEASE_PIN_FADE} of it — on the release's own clock, so how
+ * fast the effector happens to rise cannot time it: timed by the target
+ * crossing a height band instead, that hand-back came in one or two frames and
+ * turned the curved walks' hips 5.2–7.5°/frame at 120 Hz against FK's 1.3.
+ * It starts from nothing (the blend has not dragged yet) and ends with the
+ * blend's own, so it is C1 at both ends. DDx's released toes now move
+ * 0.2–1.9 mm on that frame.
  */
 function releaseContactPlant(
   solver: FootPlantSolver,
   held: THREE.Vector3,
   w: number,
+  u: number,
+  release: PlantRelease,
   rest: JointAngleRestReference | null | undefined,
   hingeAxisRest: JointAngleRestReference | null | undefined,
 ): void {
@@ -532,16 +732,30 @@ function releaseContactPlant(
     held.z + (_releaseFk.z - held.z) * sh,
   );
   solveFootPlant(solver, _releaseTarget, rest, hingeAxisRest);
-  const band = PLANT_RELEASE_FLOOR_BAND_M;
-  const onFloor =
-    (1 - smooth01((_releaseTarget.y - held.y) / band)) * smooth01((_releaseFk.y - held.y) / band) * (1 - sh);
-  const g = w + (1 - w) * onFloor;
+  bones[0]!.getWorldPosition(_releaseAtSolve);
   for (let i = 0; i < bones.length; i += 1) {
     _releaseSolved.copy(bones[i]!.quaternion);
-    bones[i]!.quaternion.copy(_releasePre[i]!).slerp(_releaseSolved, g);
+    bones[i]!.quaternion.copy(_releasePre[i]!).slerp(_releaseSolved, w);
   }
   // The root-most chain link's world refresh cascades to the whole limb.
-  bones[bones.length - 1]!.updateMatrixWorld(true);
+  const root = bones[bones.length - 1]!;
+  root.updateMatrixWorld(true);
+  const f = release.liftAt === null ? 0 : release.pin * (1 - smooth01((u - release.liftAt) / RELEASE_PIN_FADE));
+  if (!(f > 0)) return;
+  bones[0]!.getWorldPosition(_releaseDrawn);
+  const dx = _releaseAtSolve.x - _releaseDrawn.x;
+  const dz = _releaseAtSolve.z - _releaseDrawn.z;
+  const d = Math.hypot(dx, dz);
+  if (!(d > 1e-7)) return;
+  const k = (RELEASE_PIN_M * Math.tanh(d / RELEASE_PIN_M)) / d;
+  root.getWorldPosition(_pinRoot);
+  _pinFrom.copy(_releaseDrawn).sub(_pinRoot).normalize();
+  _pinTo.set(_releaseDrawn.x + dx * k, _releaseDrawn.y, _releaseDrawn.z + dz * k).sub(_pinRoot).normalize();
+  _pinSwing.setFromUnitVectors(_pinFrom, _pinTo).slerp(_pinIdentity, 1 - f);
+  root.getWorldQuaternion(_pinWorld).premultiply(_pinSwing);
+  if (root.parent) root.quaternion.copy(root.parent.getWorldQuaternion(_pinSwing).invert().multiply(_pinWorld));
+  else root.quaternion.copy(_pinWorld);
+  root.updateMatrixWorld(true);
 }
 
 /**
@@ -551,13 +765,15 @@ function releaseContactPlant(
  *
  * In its window a contact's chain is solved fully to the target captured as the
  * effector entered it. After the window it lets go through
- * {@link releaseContactPlant} over {@link plantReleaseLengthMs} (read from the
- * frame's trajectory; the base {@link PLANT_RELEASE_BLEND_MS} without one).
- * Neither keeps anything from one frame to the next but the captured target
- * (and the release plan, a function of the trajectory): a frame's pose is a
- * function of that frame's FK pose, the target and `tMs` alone, so no frame
- * rate, repeated call (the stage's settle and parked paths) or skipped frame
- * can change it.
+ * {@link releaseContactPlant}, read on the first frame after the window
+ * ({@link readPlantRelease}; the base {@link PLANT_RELEASE_BLEND_MS} without a
+ * trajectory). Nothing is kept from one frame to the next but the captured
+ * target, the held point in the limb root's frame on the last held frame and
+ * the release read off them: a frame's pose is a function of that frame's FK
+ * pose, those and `tMs`, so no frame rate, repeated call (the stage's settle
+ * and parked paths) or skipped frame after the release is read can change it
+ * — and the release is read at the window's end, not at the frame that found
+ * it.
  *
  * Releases run before holds, so a contact in its window always has the last word
  * on its limb — a forefoot hold is not undone by the same leg's ankle contact
@@ -573,16 +789,11 @@ export function stepContactPlants(
   let moved = false;
   for (const fp of plants) {
     if (inPlantWindow(fp, tMs)) continue;
+    const since = tMs - fp.toMs;
     let w = 0;
-    if (fp.target) {
-      const since = tMs - fp.toMs;
-      let lengthMs = PLANT_RELEASE_BLEND_MS;
-      if (since > 0 && frame.trajectory) {
-        fp.solver.ctx.bones[0]!.getWorldPosition(_releaseFk);
-        const gap = Math.hypot(_releaseFk.x - fp.target.x, _releaseFk.z - fp.target.z);
-        lengthMs = plantReleaseLengthMs(releasePlanOf(fp, frame.trajectory), gap);
-      }
-      w = plantReleaseWeight(since, lengthMs);
+    if (fp.target && since > 0) {
+      if (!fp.release || fp.release.toMs !== fp.toMs) fp.release = readPlantRelease(fp, plants, tMs, frame);
+      w = plantReleaseWeight(since, fp.release.lengthMs);
     }
     const repinned =
       w > 0 &&
@@ -590,9 +801,19 @@ export function stepContactPlants(
       plants.some((o) => o !== fp && o.solver.footKey === fp.solver.footKey && inPlantWindow(o, tMs));
     if (!fp.target || w <= 0 || w >= 1 || repinned) {
       fp.target = null; // released (or superseded) — the next window re-captures
+      fp.release = null;
+      fp.heldInParent = null;
       continue;
     }
-    releaseContactPlant(fp.solver, fp.target, w, fp.rest ?? frame.rest, frame.hingeAxisRest);
+    releaseContactPlant(
+      fp.solver,
+      fp.target,
+      w,
+      since / fp.release!.lengthMs,
+      fp.release!,
+      fp.rest ?? frame.rest,
+      frame.hingeAxisRest,
+    );
     moved = true;
   }
   for (const fp of plants) {
@@ -604,12 +825,19 @@ export function stepContactPlants(
       if (!frame.initialTargets.has(fp.solver.footKey)) {
         frame.initialTargets.set(fp.solver.footKey, fp.target.clone());
       }
+      fp.release = null;
     }
     solveFootPlant(fp.solver, fp.target, fp.rest ?? frame.rest, frame.hingeAxisRest);
+    const parent = fp.solver.ctx.bones[fp.solver.ctx.bones.length - 1]!.parent;
+    if (parent) {
+      parent.updateWorldMatrix(true, false);
+      fp.heldInParent = { tMs, point: parent.worldToLocal(fp.target.clone()) };
+    }
     moved = true;
   }
   return moved;
 }
+
 
 // ── Hand plant (Phase 3 Tier B) — the arm analog of the foot plant ───────────
 // Quadruped / plank / push-up rest on the HANDS. As the body lowers (elbows bend)

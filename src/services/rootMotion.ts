@@ -27,7 +27,7 @@ import * as THREE from 'three';
 import { normalizeBoneNameForVariant, type BodyVariantConfig } from '../anatomy/bodyVariants';
 import type { JointAngleRestReference } from './jointAngles';
 import type { TrajectoryGroundingSwitch } from './motionTrajectory';
-import { PLANT_RELEASE_BLEND_MS } from './footContact';
+import { PLANT_RELEASE_BLEND_MS, plantReleaseWeight } from './footContact';
 
 const RAD = Math.PI / 180;
 
@@ -1427,7 +1427,7 @@ export function deriveFootDrivenTravel(
     }
     if (covering) return covering.foot.endsWith('Toes') ? 1 : 0;
     if (!releasing) return free;
-    const w = 1 - (tMs - releasing.toMs) / PLANT_RELEASE_BLEND_MS;
+    const w = plantReleaseWeight(tMs - releasing.toMs);
     return w * (releasing.foot.endsWith('Toes') ? 1 : 0) + (1 - w) * free;
   };
   /**
@@ -1460,13 +1460,17 @@ export function deriveFootDrivenTravel(
       : (a.lz - b.lz) * chz + ((a.lx ?? 0) - (b.lx ?? 0)) * chx;
   };
   /** How firmly a plant holds `foot` at tMs: 1 inside a hold, fading to 0
-   *  across its release ramp, else 0. */
+   *  across its release, else 0. The release is the plant's own
+   *  ({@link plantReleaseWeight} over the base length — a touchdown-planted
+   *  gait's plants read no longer release off FK), so the travel lets go of a
+   *  foot exactly as its plant does (a linear ramp here ran up to 0.096 ahead
+   *  of the plant's smoothstep, then as far behind). */
   const holdWeightAt = (foot: 'R' | 'L', tMs: number): number => {
     let w = 0;
     for (const h of held ?? []) {
       if (!h.foot.startsWith(`${foot}_`)) continue;
       if (tMs >= h.fromMs - 1e-6 && tMs <= h.toMs + 1e-6) return 1;
-      if (h.toMs < tMs) w = Math.max(w, 1 - (tMs - h.toMs) / PLANT_RELEASE_BLEND_MS);
+      if (h.toMs < tMs) w = Math.max(w, plantReleaseWeight(tMs - h.toMs));
     }
     return clamp01(w);
   };

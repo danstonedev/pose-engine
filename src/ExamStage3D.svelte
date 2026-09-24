@@ -1999,7 +1999,8 @@
        *  PER-WINDOW rest (curved heading), else the heading-rotated
        *  composedPlantRest, else restRef; the ORIGINAL restRef always names the
        *  knee hinge axis. `trajectory` is the one `tMs` is a time of — every
-       *  release reads its length off it, exactly as the sampler's does. */
+       *  release is read off it, exactly as the sampler's is (none for a
+       *  touchdown-planted gait, whose travel assumes the base release). */
       function applyFootPlants(tMs: number, trajectory: PoseTrajectory): void {
         if (!composedPlants.length || !restRef || !modelRoot) return;
         const solved = stepContactPlants(composedPlants, tMs, {
@@ -2008,7 +2009,7 @@
           heelStrikeY: composedHeelStrikeY,
           captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,
           initialTargets: initialComposedPlantTargets,
-          trajectory,
+          trajectory: composedPlantsAtTouchdown ? null : trajectory,
         });
         if (solved) modelRoot.updateMatrixWorld(true);
       }
