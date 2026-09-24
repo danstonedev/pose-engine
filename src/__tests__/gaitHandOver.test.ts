@@ -30,7 +30,7 @@ import { captureJointAngleRestReference, type JointAngleRestReference } from '..
 import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
 import { buildFigureEightWalk, buildTravelWalk } from '../services/movementTemplates';
-import { measureContactSlide } from '../services/footContact';
+import { measureContactSlide, PLANT_RELEASE_BLEND_MS, plantReleaseWeight } from '../services/footContact';
 import {
   deriveFootDrivenTravel,
   startPlantsWhereFeetLand,
@@ -224,6 +224,39 @@ describe('the hand-over, unit: planned-start plants stall it, touchdown plants k
     // eslint-disable-next-line no-console
     console.log(`unheld heel rise: forefoot drifts ${(drift * 100).toFixed(3)} cm after the release ramp`);
     expect(drift).toBeLessThan(1e-3);
+  });
+
+  it('through a hold’s release the support point hands over on the plant’s own release weight', () => {
+    // R's forefoot is held to 300 ms, the ankle on the floor and the toes up —
+    // so a foot no plant holds bears on its ankle — and from 300 the toes rise
+    // on, so the forefoot and the ankle sweep differently and each interval's
+    // advance reads the forefoot's share of the support. The plant lets go on
+    // plantReleaseWeight (a touchdown-planted gait's plants take the base
+    // release), and the travel must let go with it: the linear ramp it had
+    // ran up to 0.096 ahead of the plant's smoothstep, then as far behind.
+    const pitchAt = (t: number): number => -0.2 - 0.8 * Math.min(1, Math.max(0, (t - 300) / 300));
+    const sample = (t: number): FeetZ =>
+      feetOf(foot(t, 0, 0, pitchAt(t), -0.1), foot(t, 0.3 + V * t, 0.12, 0, 0.1));
+    const { travel, times } = derive(sample, 600, [{ foot: 'R_Toes', fromMs: 0, toMs: 300 }], true);
+    const grid = [...new Set(times)].sort((a, b) => a - b);
+    let worst = 0;
+    let inRelease = 0;
+    for (let i = 1; i < grid.length; i += 1) {
+      const ta = grid[i - 1]!;
+      const tb = grid[i]!;
+      if (tb <= 300 + 1e-9) continue; // held: the forefoot and the ankle sweep alike
+      const a = sample(ta).ground!.R;
+      const b = sample(tb).ground!.R;
+      const ankle = a.az - b.az;
+      const share = (travel.zAt(tb) - travel.zAt(ta) - ankle) / (a.tz - b.tz - ankle);
+      const plant = (plantReleaseWeight(ta - 300) + plantReleaseWeight(tb - 300)) / 2;
+      worst = Math.max(worst, Math.abs(share - plant));
+      if (tb < 300 + PLANT_RELEASE_BLEND_MS) inRelease += 1;
+    }
+    // eslint-disable-next-line no-console
+    console.log(`release hand-over: forefoot share off the plant's weight by ${worst.toExponential(2)} at worst`);
+    expect(inRelease).toBeGreaterThanOrEqual(10);
+    expect(worst).toBeLessThan(1e-6);
   });
 
   it('a touchdown-planted gait samples at most 20 ms apart; the default keeps its sample count', () => {
