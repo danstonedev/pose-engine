@@ -1073,6 +1073,11 @@
           _swayAxisML,
         );
       }
+      /** Lift last frame's motion-time liveliness where no driver has rewritten
+       *  the trunk since (the ready hold). Wrapper over stageMotionLiveliness. */
+      function undoMotionLiveliness(): boolean {
+        return motionLive.undo(motionCapBones, modelRoot);
+      }
       // ── Composed-motion (generative keyframe sequence) playback state ─────
       // Pose-tween driven (NOT the mixer). `composedActive` gates the same
       // guarding/sway overlays clip playback applies; `composedSeq` is a
@@ -3191,6 +3196,13 @@
         }
         if (activeTween) stepTween(performance.now()); // pose tween (bones-only)
         if (activeTrajectory) stepTrajectory(performance.now()); // composed motion
+        // MOTION-TIME liveliness: lift last frame's breathing/sway where no
+        // driver has rewritten the trunk this frame — the ready hold, between the
+        // settle tween and the trajectory — so the streamed report and the
+        // recording tap below read the held pose and the deltas cannot pile up.
+        // A driven frame keeps its driver's pose: the lift only restores a bone
+        // still exactly as the last apply left it.
+        if (undoMotionLiveliness()) renderNeeded = true;
         // Overlays + live streaming apply to BOTH animation modes: clip
         // playback (mixer) and composed keyframe playback (pose tweens).
         if ((mixer && activeMotionId) || composedActive) {
