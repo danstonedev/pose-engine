@@ -50,7 +50,6 @@ import {
   buildComposedTrajectory,
   buildLoopTrajectory,
   buildPoseTrajectory,
-  strokeSquadSamples,
   type PoseTrajectory,
   type SequenceBuildLike,
   type TrajectoryKnot,
@@ -63,6 +62,7 @@ import {
   stagedBlendWithBaseline,
   trajectoryBoneDelay,
 } from '../services/motionStagger';
+import { clearFollowThroughStrokeMemo, strokeSquadTable } from '../services/followThroughStroke';
 import { buildRun, buildSitDown, buildTravelWalk } from '../services/movementTemplates';
 import { clampTimeScale } from '../services/motionConstants';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
@@ -471,12 +471,14 @@ describe('follow-through stroke cache — each distinct stroke solved once, and 
   const neg = (q: Q): Q => [-q[0], -q[1], -q[2], -q[3]];
 
   it('the path-speed table samples each stroke’s SQUAD exactly as three’s slerp does, to the bit', () => {
-    // The table unrolls three's Quaternion.slerp so that a stroke's samples
-    // share the work of the two slerps whose ends stay fixed. The c each bone
-    // trails by — and so every sampled pose — is unchanged only while every
-    // sample is the very one `squad` gives: a three upgrade that changes its
-    // slerp fails here first.
-    const ts = [0, 1 / 8, 2 / 8, 3 / 8, 4 / 8, 5 / 8, 6 / 8, 7 / 8, 1, 0.37, 0.999];
+    // The table unrolls three's Quaternion.slerp so that a stroke's nine
+    // samples share the work of the two slerps whose ends stay fixed — their
+    // acos, and the sines, which at t = k/8 and 1 − t = (8 − k)/8 are the same
+    // nine — and takes the outer slerp at its two t = 0 ends as the a·1 + b·0
+    // three's arithmetic reduces to there. The c each bone trails by — and so
+    // every sampled pose — is unchanged only while every sample is the very one
+    // `squad` gives: a three upgrade that changes its slerp fails here first.
+    const ts = [0, 1 / 8, 2 / 8, 3 / 8, 4 / 8, 5 / 8, 6 / 8, 7 / 8, 1];
     const misses: string[] = [];
     let compared = 0;
     for (let trial = 0; trial < 400; trial += 1) {
@@ -487,7 +489,7 @@ describe('follow-through stroke cache — each distinct stroke solved once, and 
       const q1 = kind === 0 ? randQ(170) : kind === 1 ? turn(q0, 1.5) : kind === 2 ? neg(turn(q0, 20)) : q0;
       const s0 = kind === 3 ? q0 : turn(q0, 10 * rnd());
       const s1 = rnd() < 0.3 ? neg(turn(q1, 3)) : turn(q1, 10 * rnd());
-      const got = strokeSquadSamples(q0, q1, s0, s1, ts);
+      const got = strokeSquadTable(q0, q1, s0, s1);
       ts.forEach((t, j) => {
         const along = new THREE.Quaternion(...q0).slerp(new THREE.Quaternion(...q1), t);
         const controls = new THREE.Quaternion(...s0).slerp(new THREE.Quaternion(...s1), t);
@@ -508,11 +510,15 @@ describe('follow-through stroke cache — each distinct stroke solved once, and 
     // rep, so each distinct stroke's c is solved once and a repeat looked up by
     // its inputs. ec3d0eb looked it up by scanning every stroke solved so far,
     // so a motion of n DISTINCT strokes cost O(n²): with one delayed bone, 16×
-    // the knots (500 → 8,000) took 34–48× the time when every knot is a new
-    // pose (solving each stroke still dominates there) and 98–122× when the
-    // bone holds still on unevenly timed knots (strokes that differ only in
-    // their slopes, cheap to solve, so the scan is all there is); keyed now,
-    // 7–13× and 9–18×. The gate is twice linear, 32×.
+    // the knots (500 → 8,000) took 85–122× the time when the bone holds still
+    // on unevenly timed knots (strokes that differ only in their slopes, cheap
+    // to solve, so the scan is all there is) and 31–48× when every knot is a
+    // new pose (solving each stroke still dominates there, so under load the
+    // scan's share can read as little as 31×: that regime runs second). Keyed,
+    // 12–19× in both under a loaded parallel run. The gate is twice linear,
+    // 32×; followThroughStroke.test.ts gates the lookups' own count, which no
+    // load moves. Every build here is cold: strokes solved in an earlier build
+    // would otherwise be looked up, not solved.
     const knotAt = (t: number, q: Q, stop: boolean): TrajectoryKnot => ({
       timeMs: t,
       pose: { variant: 'male', bones: { L_Forearm: q }, schemaVersion: POSE_SCHEMA_VERSION },
@@ -528,22 +534,31 @@ describe('follow-through stroke cache — each distinct stroke solved once, and 
       let t = 0;
       return Array.from({ length: n }, (_, i) => knotAt(i === 0 ? 0 : (t += 80 + 80 * rnd()), q, i === 0 || i === n - 1));
     };
-    // Least of five builds: preemption only ever adds time.
-    const buildMs = (knots: TrajectoryKnot[]): number => {
+    // Least of five: preemption only ever adds time. The 500-knot build is
+    // timed as sixteen of them in a row — the 8,000-knot build's strokes, over
+    // as long a stretch — so load and collection weigh on both sides alike: a
+    // lone 3 ms build against a lone 100 ms one read 34× under a loaded
+    // parallel run and 7× on a quiet one.
+    const buildMs = (sets: TrajectoryKnot[][]): number => {
       let best = Infinity;
       for (let r = 0; r < 5; r += 1) {
-        const t0 = performance.now();
-        buildPoseTrajectory(knots);
-        best = Math.min(best, performance.now() - t0);
+        let ms = 0;
+        for (const knots of sets) {
+          clearFollowThroughStrokeMemo();
+          const t0 = performance.now();
+          buildPoseTrajectory(knots);
+          ms += performance.now() - t0;
+        }
+        best = Math.min(best, ms / sets.length);
       }
       return best;
     };
     for (const [label, knotsOf] of [
-      ['every knot a new pose', moving],
       ['held still on unevenly timed knots', held],
+      ['every knot a new pose', moving],
     ] as const) {
       buildPoseTrajectory(knotsOf(2000)); // warm the JIT on this shape
-      const [small, big] = [buildMs(knotsOf(500)), buildMs(knotsOf(8000))];
+      const [small, big] = [buildMs(Array.from({ length: 16 }, () => knotsOf(500))), buildMs([knotsOf(8000)])];
       // eslint-disable-next-line no-console
       console.log(`stroke cache, ${label}: 500 knots ${small.toFixed(1)} ms, 8,000 knots ${big.toFixed(1)} ms (${(big / small).toFixed(1)}×)`);
       expect(big / small, `${label}: build time for 16× the strokes`).toBeLessThan(32);

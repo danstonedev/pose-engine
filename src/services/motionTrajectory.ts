@@ -46,12 +46,8 @@
 import * as THREE from 'three';
 import type { CustomPose } from '../types';
 import { POSE_SCHEMA_VERSION } from '../types';
-import {
-  delayedOnset,
-  followThroughKnotSlope,
-  followThroughStrokeLag,
-  trajectoryBoneDelay,
-} from './motionStagger';
+import { delayedOnset, followThroughKnotSlope, trajectoryBoneDelay } from './motionStagger';
+import { FollowThroughStrokes, hermite01 } from './followThroughStroke';
 import { clampTimeScale } from './motionConstants';
 
 /** One waypoint of the motion: an absolute pose + root state at an absolute time. */
@@ -189,13 +185,17 @@ function wideSegments(q: Q[]): boolean[] {
 
 /** SQUAD intermediate control at knot i, given aligned neighbours i-1,i,i+1. */
 function squadControl(prev: Q, cur: Q, next: Q): Q {
-  // qMul(cur, qExp(−(qLog(cur⁻¹·next) + qLog(cur⁻¹·prev))/4)), without the
-  // intermediate quaternions: the same products in the same order.
-  const ln = logFrom(cur, next, LOG_A);
-  const lp = logFrom(cur, prev, LOG_B);
-  const x = -(ln[0]! + lp[0]!) / 4;
-  const y = -(ln[1]! + lp[1]!) / 4;
-  const z = -(ln[2]! + lp[2]!) / 4;
+  return squadControlOf(cur, logFrom(cur, next, LOG_A), 0, logFrom(cur, prev, LOG_B), 0);
+}
+
+/** {@link squadControl} at `cur` from its chord logs, logFrom(cur, next) at
+ *  ln[lo..] and logFrom(cur, prev) at lp[po..]:
+ *  qMul(cur, qExp(−(qLog(cur⁻¹·next) + qLog(cur⁻¹·prev))/4)), without the
+ *  intermediate quaternions — the same products in the same order. */
+function squadControlOf(cur: Q, ln: ArrayLike<number>, lo: number, lp: ArrayLike<number>, po: number): Q {
+  const x = -(ln[lo]! + lp[po]!) / 4;
+  const y = -(ln[lo + 1]! + lp[po + 1]!) / 4;
+  const z = -(ln[lo + 2]! + lp[po + 2]!) / 4;
   const theta = Math.hypot(x, y, z);
   if (theta < 1e-9) return qMul(cur, [0, 0, 0, 1]);
   const k = Math.sin(theta) / theta;
@@ -253,536 +253,6 @@ interface TimeWarp {
   slopes: number[];
   /** Segment durations, ms (segment i runs knot i → i+1), floored at SPAN_FLOOR_MS. */
   spans: number[];
-}
-
-/** Normalized cubic Hermite from 0 to 1 over s ∈ [0,1] with end slopes `mu0`,
- *  `mu1` (in s units) — the time-warp's segment shape. Exactly 0 at s = 0 and 1
- *  at s = 1 for any slopes. */
-function hermite01(s: number, mu0: number, mu1: number): number {
-  const s2 = s * s;
-  const s3 = s2 * s;
-  return (s3 - 2 * s2 + s) * mu0 + (-2 * s3 + 3 * s2) + (s3 - s2) * mu1;
-}
-
-/** One stroke's progress curve hermite01(s, μ0, μ1) − c·s²(1 − s)², with what
- *  every c shares worked out once. Its rate d/ds is the cubic
- *  ((a3·s + a2)·s + a1)·s + μ0 with a3 = −4c, a2 = b2 + 6c, a1 = b1 − 2c: the
- *  same sums, in the same order, that each call once formed afresh, so every
- *  rate — and every c a bisection settles on — is the same to the bit. */
-interface StrokeProgress {
-  mu0: number;
-  mu1: number;
-  /** 3μ0 + 3μ1 − 6 */
-  b2: number;
-  /** 6 − 4μ0 − 2μ1 */
-  b1: number;
-  /** hermite01 at each speed-check instant ({@link SPEED_S}), filled on first use. */
-  at: number[] | null;
-}
-
-function strokeProgress(mu0: number, mu1: number): StrokeProgress {
-  return { mu0, mu1, b2: 3 * mu0 + 3 * mu1 - 6, b1: 6 - 4 * mu0 - 2 * mu1, at: null };
-}
-
-/** d/ds of the progress curve at s, trailing by c. */
-function lagRate(p: StrokeProgress, s: number, c: number): number {
-  const a3 = -4 * c;
-  const a2 = p.b2 + 6 * c;
-  const a1 = p.b1 - 2 * c;
-  return ((a3 * s + a2) * s + a1) * s + p.mu0;
-}
-
-/** {@link lagRateRange}'s answer: one object, overwritten by every call and read
- *  straight after it (the bisections call it ~40 times a stroke). */
-const rateRange = { lo: 0, hi: 0 };
-
-/** Least and greatest rate d/ds over s ∈ [0,1] of the progress curve trailing by
- *  c — a cubic, so its extremes are its ends (μ0, μ1: the lag term leaves both
- *  slopes alone) and its interior stationary points. */
-function lagRateRange(p: StrokeProgress, c: number): typeof rateRange {
-  const a3 = -4 * c;
-  const a2 = p.b2 + 6 * c;
-  const a1 = p.b1 - 2 * c;
-  let lo = Math.min(p.mu0, p.mu1);
-  let hi = Math.max(p.mu0, p.mu1);
-  // Stationary points: 3·a3·s² + 2·a2·s + a1 = 0 (NaN: none).
-  const qa = 3 * a3;
-  const qb = 2 * a2;
-  let r0 = NaN;
-  let r1 = NaN;
-  if (Math.abs(qa) < 1e-12) {
-    if (Math.abs(qb) > 1e-12) r0 = -a1 / qb;
-  } else {
-    const disc = qb * qb - 4 * qa * a1;
-    if (disc >= 0) {
-      const sq = Math.sqrt(disc);
-      r0 = (-qb + sq) / (2 * qa);
-      r1 = (-qb - sq) / (2 * qa);
-    }
-  }
-  if (r0 > 0 && r0 < 1) {
-    const r = lagRate(p, r0, c);
-    if (r < lo) lo = r;
-    if (r > hi) hi = r;
-  }
-  if (r1 > 0 && r1 < 1) {
-    const r = lagRate(p, r1, c);
-    if (r < lo) lo = r;
-    if (r > hi) hi = r;
-  }
-  rateRange.lo = lo;
-  rateRange.hi = hi;
-  return rateRange;
-}
-
-/** Intervals a stroke's path-speed table splits its SQUAD parameter into. The
- *  speed is smooth along the path: 8 interval means through a Catmull–Rom keep
- *  the run and sprint loops' capped strokes within 1.001 × their cap (16 linear
- *  intervals, at twice the cost, 1.002; 12 linear 1.013). */
-const PATH_SPEED_INTERVALS = 8;
-/** Instants across a stroke at which a bone's angular speed is checked. */
-const STROKE_SPEED_SAMPLES = 24;
-/** Those instants s = j/STROKE_SPEED_SAMPLES, and 1 − s. */
-const SPEED_S = Array.from({ length: STROKE_SPEED_SAMPLES + 1 }, (_, j) => j / STROKE_SPEED_SAMPLES);
-const SPEED_U = SPEED_S.map((s) => 1 - s);
-/** Below this summed spread (rad) of a stroke's four SQUAD quaternions the bone
- *  holds still through it: nothing to cap. */
-const STILL_PATH_RAD = 1e-6;
-
-/** Geodesic angle (rad) between two unit quaternions — atan2 of the relative
- *  rotation conj(a)·b, well conditioned at the tiny steps a speed table takes. */
-function qAngle(a: Q, b: Q): number {
-  const ax = -a[0];
-  const ay = -a[1];
-  const az = -a[2];
-  const aw = a[3];
-  const bx = b[0];
-  const by = b[1];
-  const bz = b[2];
-  const bw = b[3];
-  const x = aw * bx + ax * bw + ay * bz - az * by;
-  const y = aw * by - ax * bz + ay * bw + az * bx;
-  const z = aw * bz + ax * by - ay * bx + az * bw;
-  const w = aw * bw - ax * bx - ay * by - az * bz;
-  return 2 * Math.atan2(Math.hypot(x, y, z), Math.abs(w));
-}
-
-/** THREE.Quaternion.slerp from `a` toward `b`, with what does not depend on t —
- *  the hemisphere flip, the dot, its acos and sin — worked out once, for a pair
- *  sampled at many t. The arithmetic is three's own, step for step, so every
- *  sample equals `new Quaternion(...a).slerp(new Quaternion(...b), t)` to the
- *  bit (see {@link StrokeSquad}). */
-class SlerpPair {
-  readonly ax: number;
-  readonly ay: number;
-  readonly az: number;
-  readonly aw: number;
-  readonly bx: number;
-  readonly by: number;
-  readonly bz: number;
-  readonly bw: number;
-  /** three lerps and normalizes past this dot, instead of slerping. */
-  readonly lerp: boolean;
-  readonly theta: number;
-  readonly sin: number;
-  constructor(a: Q, b: Q) {
-    this.ax = a[0];
-    this.ay = a[1];
-    this.az = a[2];
-    this.aw = a[3];
-    let x = b[0];
-    let y = b[1];
-    let z = b[2];
-    let w = b[3];
-    let dot = this.ax * x + this.ay * y + this.az * z + this.aw * w;
-    if (dot < 0) {
-      x = -x;
-      y = -y;
-      z = -z;
-      w = -w;
-      dot = -dot;
-    }
-    this.bx = x;
-    this.by = y;
-    this.bz = z;
-    this.bw = w;
-    this.lerp = !(dot < 0.9995);
-    this.theta = this.lerp ? 0 : Math.acos(dot);
-    this.sin = this.lerp ? 0 : Math.sin(this.theta);
-  }
-  /** The slerp at t, into `out`. */
-  at(t: number, out: Q): Q {
-    let s = 1 - t;
-    if (!this.lerp) {
-      s = Math.sin(s * this.theta) / this.sin;
-      t = Math.sin(t * this.theta) / this.sin;
-      out[0] = this.ax * s + this.bx * t;
-      out[1] = this.ay * s + this.by * t;
-      out[2] = this.az * s + this.bz * t;
-      out[3] = this.aw * s + this.bw * t;
-      return out;
-    }
-    return lerpNormalize(this.ax, this.ay, this.az, this.aw, this.bx, this.by, this.bz, this.bw, s, t, out);
-  }
-}
-
-/** three's small-angle branch of slerp: lerp, then Quaternion.normalize. */
-function lerpNormalize(
-  ax: number, ay: number, az: number, aw: number,
-  bx: number, by: number, bz: number, bw: number,
-  s: number, t: number, out: Q,
-): Q {
-  const x = ax * s + bx * t;
-  const y = ay * s + by * t;
-  const z = az * s + bz * t;
-  const w = aw * s + bw * t;
-  let l = Math.sqrt(x * x + y * y + z * z + w * w);
-  if (l === 0) {
-    out[0] = 0;
-    out[1] = 0;
-    out[2] = 0;
-    out[3] = 1;
-    return out;
-  }
-  l = 1 / l;
-  out[0] = x * l;
-  out[1] = y * l;
-  out[2] = z * l;
-  out[3] = w * l;
-  return out;
-}
-
-/** THREE.Quaternion.slerp(a → b, t) in full, into `out` (a may be out). */
-function slerpInto(a: Q, b: Q, t: number, out: Q): Q {
-  const ax = a[0];
-  const ay = a[1];
-  const az = a[2];
-  const aw = a[3];
-  let x = b[0];
-  let y = b[1];
-  let z = b[2];
-  let w = b[3];
-  let dot = ax * x + ay * y + az * z + aw * w;
-  if (dot < 0) {
-    x = -x;
-    y = -y;
-    z = -z;
-    w = -w;
-    dot = -dot;
-  }
-  let s = 1 - t;
-  if (dot < 0.9995) {
-    const theta = Math.acos(dot);
-    const sin = Math.sin(theta);
-    s = Math.sin(s * theta) / sin;
-    t = Math.sin(t * theta) / sin;
-    out[0] = ax * s + x * t;
-    out[1] = ay * s + y * t;
-    out[2] = az * s + z * t;
-    out[3] = aw * s + w * t;
-    return out;
-  }
-  return lerpNormalize(ax, ay, az, aw, x, y, z, w, s, t, out);
-}
-
-/** One stroke's SQUAD, slerp(slerp(q0, q1, t), slerp(s0, s1, t), 2t(1 − t)), for
- *  sampling at many t: {@link squad}'s value to the bit — three's slerp, step
- *  for step, with the two slerps whose ends stay fixed through the stroke set
- *  up once (pinned against three in followThroughContinuity.test.ts). */
-class StrokeSquad {
-  private readonly along: SlerpPair;
-  private readonly controls: SlerpPair;
-  private readonly onPath: Q = [0, 0, 0, 0];
-  private readonly onControls: Q = [0, 0, 0, 0];
-  constructor(q0: Q, q1: Q, s0: Q, s1: Q) {
-    this.along = new SlerpPair(q0, q1);
-    this.controls = new SlerpPair(s0, s1);
-  }
-  at(t: number, out: Q): Q {
-    this.along.at(t, this.onPath);
-    this.controls.at(t, this.onControls);
-    return slerpInto(this.onPath, this.onControls, 2 * t * (1 - t), out);
-  }
-}
-
-/** A stroke's SQUAD at each of `ts` — what the path-speed table samples. Exported
- *  for the suite, which pins it to three's own slerp bit for bit. */
-export function strokeSquadSamples(
-  q0: [number, number, number, number],
-  q1: [number, number, number, number],
-  s0: [number, number, number, number],
-  s1: [number, number, number, number],
-  ts: readonly number[],
-): [number, number, number, number][] {
-  const stroke = new StrokeSquad(q0, q1, s0, s1);
-  return ts.map((t) => stroke.at(t, [0, 0, 0, 0]));
-}
-
-/** A SQUAD stroke's mean angular speed along its own parameter (rad per unit of
- *  it) over each of PATH_SPEED_INTERVALS equal intervals, or null when the bone
- *  holds still through the stroke. The path is not uniform in its parameter —
- *  its pace follows the knot tangents, slow by a zero-tangent knot, fast toward
- *  one whose neighbours lie far apart — so a bone's progress rate is not its
- *  speed. */
-function pathSpeedTable(q0: Q, q1: Q, s0: Q, s1: Q): PathSpeed | null {
-  const moving = clearlyApart(q0, q1) || clearlyApart(q0, s0) || clearlyApart(q1, s1);
-  if (!moving && qAngle(q0, q1) + qAngle(q0, s0) + qAngle(q1, s1) < STILL_PATH_RAD) return null;
-  const n = PATH_SPEED_INTERVALS;
-  const table = new Array<number>(n).fill(0);
-  const stroke = new StrokeSquad(q0, q1, s0, s1);
-  let prev: Q = [0, 0, 0, 0];
-  let cur: Q = [0, 0, 0, 0];
-  stroke.at(0, prev);
-  for (let j = 1; j <= n; j += 1) {
-    stroke.at(j / n, cur);
-    table[j - 1] = qAngle(prev, cur) * n;
-    const was = prev;
-    prev = cur;
-    cur = was;
-  }
-  return pathSpeedOf(table);
-}
-
-/** True when the rotation between a and b is certainly far above
- *  STILL_PATH_RAD, read cheaply off their 4-D dot: it is 2·acos(|a·b|/(|a||b|)),
- *  so |a·b|² ≤ 0.999998·|a|²|b|² puts it above 2.8e-3 rad — past any rounding
- *  of the exact sum it stands in for. */
-function clearlyApart(a: Q, b: Q): boolean {
-  const dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
-  const aa = a[0] * a[0] + a[1] * a[1] + a[2] * a[2] + a[3] * a[3];
-  const bb = b[0] * b[0] + b[1] * b[1] + b[2] * b[2] + b[3] * b[3];
-  return dot * dot <= 0.999998 * aa * bb;
-}
-
-/** A stroke's path-speed table as {@link pathSpeedAt} reads it: per interval
- *  between two table entries, [p1, p2 − p1, and the Catmull–Rom sums
- *  p2 − p0, 2p0 − 5p1 + 4p2 − p3, 3(p1 − p2) + p3 − p0] — each formed once, in
- *  the order the interpolation writes it. */
-type PathSpeed = number[];
-
-function pathSpeedOf(path: number[]): PathSpeed {
-  const n = path.length;
-  const out: number[] = [];
-  for (let i = 0; i <= n - 2; i += 1) {
-    const p1 = path[i]!;
-    const p2 = path[i + 1]!;
-    const p0 = i > 0 ? path[i - 1]! : 2 * p1 - p2;
-    const p3 = i + 2 < n ? path[i + 2]! : 2 * p2 - p1;
-    out.push(p1, p2 - p1, p2 - p0, 2 * p0 - 5 * p1 + 4 * p2 - p3, 3 * (p1 - p2) + p3 - p0);
-  }
-  return out;
-}
-
-/** Path speed at parameter l: Catmull–Rom through the interval means (each
- *  second-order exact at its interval's middle), linear beyond the outer two. */
-function pathSpeedAt(path: PathSpeed, l: number): number {
-  const n = PATH_SPEED_INTERVALS;
-  const x = Math.min(1, Math.max(0, l)) * n - 0.5;
-  const i = Math.max(0, Math.min(n - 2, Math.floor(x)));
-  const t = x - i;
-  const k = 5 * i;
-  if (x < 0 || x > n - 1) return path[k]! + path[k + 1]! * t;
-  return path[k]! + 0.5 * t * (path[k + 2]! + t * (path[k + 3]! + t * path[k + 4]!));
-}
-
-/** Fastest a bone moves through one stroke (rad per unit of the stroke's time)
- *  when its progress is `p` trailing by c, along a path whose speed table is
- *  `path`. Returns as soon as one instant runs faster than `stopAbove` (that
- *  instant's speed — still above it, so a caller's `<= stopAbove` reads the same
- *  as it would of the full peak). */
-function strokePeakSpeed(path: PathSpeed, p: StrokeProgress, c: number, stopAbove = Infinity): number {
-  let at = p.at;
-  if (!at) {
-    at = [];
-    for (let j = 0; j <= STROKE_SPEED_SAMPLES; j += 1) at.push(hermite01(SPEED_S[j]!, p.mu0, p.mu1));
-    p.at = at;
-  }
-  const a3 = -4 * c;
-  const a2 = p.b2 + 6 * c;
-  const a1 = p.b1 - 2 * c;
-  let peak = 0;
-  for (let j = 0; j <= STROKE_SPEED_SAMPLES; j += 1) {
-    const s = SPEED_S[j]!;
-    const u = SPEED_U[j]!;
-    const l = at[j]! - c * s * s * u * u;
-    const speed = pathSpeedAt(path, l) * Math.abs(((a3 * s + a2) * s + a1) * s + p.mu0);
-    if (speed > stopAbove) return speed;
-    if (speed > peak) peak = speed;
-  }
-  return peak;
-}
-
-/** The lag coefficient c for one delayed bone through one flowing stroke
- *  (motionStagger.followThroughStrokeLag): its own Hermite runs with slopes
- *  μ0, μ1 and the lockstep chain's with λ0, λ1. c/16 is the progress it gives
- *  up at mid-stroke, so c = 16 · midLag · rate(½) trails by midLag of the
- *  stroke's time there. It is cut back until the bone never runs backwards and
- *  neither its progress rate nor its angular speed along the stroke's path
- *  exceeds rateCeiling × the chain's fastest. The rate is linear in c at every
- *  s, so its greatest value is convex and its least concave in c: the c whose
- *  rate fits form one interval holding 0, and bisection finds its end; the
- *  speed, checked at STROKE_SPEED_SAMPLES instants, only ever cuts that c
- *  further. The rate cap alone let the path's own unevenness through: a run's
- *  hand peaked 1.29× and a sprint's fingers 1.50× their lockstep speed inside a
- *  stroke, against 1/(1 − d) = 1.19 / 1.22. `pathSpeed` builds the path's speed
- *  table (null: the bone holds still), only for a stroke the rate leaves a lag. */
-function strokeLagCoefficient(
-  mu0: number,
-  mu1: number,
-  lock0: number,
-  lock1: number,
-  pathSpeed: () => PathSpeed | null,
-  budget: { midLag: number; rateCeiling: number },
-): number {
-  const target = 16 * budget.midLag * (1.5 - (mu0 + mu1) / 4);
-  if (!(target > 0)) return 0;
-  const own = strokeProgress(mu0, mu1);
-  const lock = strokeProgress(lock0, lock1);
-  const rateCap = budget.rateCeiling * lagRateRange(lock, 0).hi;
-  const rateFits = (c: number): boolean => {
-    const { lo, hi } = lagRateRange(own, c);
-    return lo >= 0 && hi <= rateCap;
-  };
-  const largest = (fits: (c: number) => boolean, bad: number, steps: number): number => {
-    let ok = 0;
-    for (let i = 0; i < steps; i += 1) {
-      const mid = (ok + bad) / 2;
-      if (fits(mid)) ok = mid;
-      else bad = mid;
-    }
-    return ok;
-  };
-  if (!rateFits(0)) return 0; // its turns already spend the stroke's budget
-  const byRate = rateFits(target) ? target : largest(rateFits, target, 40);
-  if (!(byRate > 0)) return 0;
-  const path = pathSpeed();
-  if (!path) return byRate; // it holds still: no speed to cap
-  const speedCap = budget.rateCeiling * strokePeakSpeed(path, lock, 0);
-  const speedFits = (c: number): boolean => strokePeakSpeed(path, own, c, speedCap) <= speedCap;
-  if (speedFits(byRate)) return byRate;
-  if (!speedFits(0)) return 0;
-  // To 1/256 of the rate's c, rounded down: the speed only trims the trail.
-  return largest((c) => rateFits(c) && speedFits(c), byRate, 8);
-}
-
-/** Two strokes of one bone are the same stroke when each of their inputs agrees
- *  to this share: a repeated cycle strokes through the same poses on the same
- *  slopes, but re-times its knots by rounding-level amounts. */
-const SAME_STROKE_REL = 1e-9;
-/** A stroke's inputs: the bone's own and the lockstep chain's knot slopes over
- *  it (4), then its four SQUAD quaternions (16). */
-const STROKE_INPUTS = 20;
-/** The inputs the stroke index files a stroke under — its four slopes and the
- *  quaternion it leaves from. A stroke that matches matches on these too, so it
- *  is always in a cell the lookup visits; the rest are checked, not filed. */
-const STROKE_KEYED = 8;
-/** Width of the grid those inputs are filed on: 2⁻²⁰ ≈ 1e-6, about a thousand
- *  of the tolerance at the inputs' scale (slopes near 1, quaternion components
- *  at most 1), so a matching input all but always shares a cell. */
-const STROKE_CELL = 2 ** -20;
-/** More cells than this to visit and a lookup scans every solved stroke. */
-const STROKE_PROBES_MAX = 64;
-
-function sameStrokeInput(a: number, b: number): boolean {
-  return Math.abs(a - b) <= SAME_STROKE_REL * (1 + Math.abs(a));
-}
-
-function strokeCellHash(cell: number[]): number {
-  let h = 0x811c9dc5;
-  for (let d = 0; d < STROKE_KEYED; d += 1) h = Math.imul(h ^ cell[d]!, 0x01000193);
-  return h;
-}
-
-/**
- * The strokes of one bone already solved, so each distinct stroke's c is found
- * once. {@link StrokeIndex.find} answers what scanning every solved stroke in
- * order for the first whose inputs all match ({@link sameStrokeInput}) answers,
- * but looks only in the grid cells within the tolerance of each filed input —
- * one, unless an input sits within 1e-9 of a cell edge — so a motion's n
- * strokes cost O(n), not O(n²). Scanning every solved stroke instead made a
- * motion of distinct strokes quadratic: with one delayed bone, 16× the knots
- * took 34–122× the time (followThroughContinuity.test.ts).
- */
-class StrokeIndex {
-  private readonly buckets = new Map<number, number[]>();
-  /** Solved strokes in order — what a lookup scans when it cannot use the grid. */
-  private readonly solved: number[] = [];
-  private readonly inputs: (number[] | undefined)[] = [];
-  private readonly lo = new Array<number>(STROKE_KEYED).fill(0);
-  private readonly hi = new Array<number>(STROKE_KEYED).fill(0);
-  private readonly cell = new Array<number>(STROKE_KEYED).fill(0);
-
-  /** The earliest solved stroke whose inputs all match `v`, or −1. */
-  find(v: number[]): number {
-    let probes = 1;
-    for (let d = 0; d < STROKE_KEYED; d += 1) {
-      const a = v[d]!;
-      if (!Number.isFinite(a)) return this.scan(v);
-      // Every b within the tolerance of a, and a little more for rounding
-      // (a/2⁻²⁰ is exact, so this is the cell of a ∓ reach).
-      const x = a / STROKE_CELL;
-      const reach = (SAME_STROKE_REL * (1 + Math.abs(a)) * (1 + 1e-6)) / STROKE_CELL;
-      const lo = Math.floor(x - reach);
-      const hi = Math.floor(x + reach);
-      this.lo[d] = lo;
-      this.hi[d] = hi;
-      this.cell[d] = lo;
-      if (hi !== lo) {
-        probes *= hi - lo + 1;
-        if (probes > STROKE_PROBES_MAX) return this.scan(v);
-      }
-    }
-    let best = -1;
-    for (;;) {
-      const bucket = this.buckets.get(strokeCellHash(this.cell));
-      if (bucket) {
-        for (const j of bucket) {
-          if (best >= 0 && j >= best) break;
-          if (this.matches(v, j)) {
-            best = j;
-            break;
-          }
-        }
-      }
-      if (probes === 1) return best;
-      let d = 0;
-      while (d < STROKE_KEYED && this.cell[d] === this.hi[d]) {
-        this.cell[d] = this.lo[d]!;
-        d += 1;
-      }
-      if (d === STROKE_KEYED) return best;
-      this.cell[d] += 1;
-    }
-  }
-
-  /** File stroke `i` (solved after every stroke already filed) under a copy of
-   *  its inputs. */
-  add(i: number, v: number[]): void {
-    const own = v.slice(0, STROKE_INPUTS);
-    this.inputs[i] = own;
-    this.solved.push(i);
-    // A stroke with a filed input that is not finite matches no stroke whose
-    // input there is finite: only a scan need see it.
-    for (let d = 0; d < STROKE_KEYED; d += 1) {
-      if (!Number.isFinite(own[d]!)) return;
-      this.cell[d] = Math.floor(own[d]! / STROKE_CELL);
-    }
-    const key = strokeCellHash(this.cell);
-    const bucket = this.buckets.get(key);
-    if (bucket) bucket.push(i);
-    else this.buckets.set(key, [i]);
-  }
-
-  private matches(v: number[], j: number): boolean {
-    const w = this.inputs[j]!;
-    for (let d = 0; d < STROKE_INPUTS; d += 1) if (!sameStrokeInput(v[d]!, w[d]!)) return false;
-    return true;
-  }
-
-  private scan(v: number[]): number {
-    for (const j of this.solved) if (this.matches(v, j)) return j;
-    return -1;
-  }
 }
 
 /** Piecewise-cubic-Hermite map from knot times to knot index. Slope is forced
@@ -846,19 +316,41 @@ function buildTimeWarp(
   return { at, slopes: m, spans: h };
 }
 
+/** Scratch for {@link knotLogs} (grown as needed; read before the next call). */
+let KNOT_LOGS = new Float64Array(0);
+
+/** Each interior knot's two chord logs, 6 per knot from 6i: logFrom(q[i],
+ *  q[i − 1]) (= −the incoming chord), then logFrom(q[i], q[i + 1]) (the
+ *  outgoing one) — what both the knot's SQUAD control and its reversal read.
+ *  Valid until the next call. */
+function knotLogs(q: Q[]): Float64Array {
+  if (KNOT_LOGS.length < 6 * q.length) KNOT_LOGS = new Float64Array(Math.max(6 * q.length, 2 * KNOT_LOGS.length));
+  const logs = KNOT_LOGS;
+  for (let i = 1; i < q.length - 1; i += 1) {
+    const back = logFrom(q[i]!, q[i - 1]!, LOG_A);
+    const ahead = logFrom(q[i]!, q[i + 1]!, LOG_B);
+    for (let d = 0; d < 3; d += 1) {
+      logs[6 * i + d] = back[d]!;
+      logs[6 * i + 3 + d] = ahead[d]!;
+    }
+  }
+  return logs;
+}
+
 /** How much a bone's own path turns back at each knot, in [0,1]: 0 where it
  *  passes straight on (or has only one neighbour), 1 where it reverses exactly
  *  (the top of an out-and-back). |c_in + c_out| / (|c_in| + |c_out|) compares
  *  the Catmull–Rom tangent SQUAD uses with the chords either side; a bone that
- *  holds still on both sides reads 0 (it has nothing to trail). */
-function knotReversals(q: Q[]): number[] {
+ *  holds still on both sides reads 0 (it has nothing to trail). `logs`:
+ *  {@link knotLogs}(q). */
+function knotReversals(q: Q[], logs: Float64Array): number[] {
   const out = new Array<number>(q.length).fill(0);
   for (let i = 1; i < q.length - 1; i += 1) {
-    const back = logFrom(q[i]!, q[i - 1]!, LOG_A); // = −(incoming chord)
-    const ahead = logFrom(q[i]!, q[i + 1]!, LOG_B); // outgoing chord
-    const total = Math.hypot(back[0]!, back[1]!, back[2]!) + Math.hypot(ahead[0]!, ahead[1]!, ahead[2]!);
+    const b = 6 * i; // −(incoming chord)
+    const a = b + 3; // outgoing chord
+    const total = Math.hypot(logs[b]!, logs[b + 1]!, logs[b + 2]!) + Math.hypot(logs[a]!, logs[a + 1]!, logs[a + 2]!);
     if (total < 1e-9) continue;
-    const through = Math.hypot(ahead[0]! - back[0]!, ahead[1]! - back[1]!, ahead[2]! - back[2]!);
+    const through = Math.hypot(logs[a]! - logs[b]!, logs[a + 1]! - logs[b + 1]!, logs[a + 2]! - logs[b + 2]!);
     out[i] = Math.min(1, Math.max(0, 1 - through / total));
   }
   return out;
@@ -946,6 +438,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     lag: number[] | null;
   }
   const series = new Map<string, BoneSeries>();
+  let strokes: FollowThroughStrokes | null = null;
   for (const key of boneKeys) {
     const q: Q[] = [];
     let carry: Q = [0, 0, 0, 1];
@@ -964,6 +457,10 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     // ill-conditioned near-antipode tangent. Series with no wide segment are
     // numerically unchanged.
     const wide = wideSegments(q);
+    const delay = trajectoryBoneDelay(key);
+    // A delayed bone also reads how its path turns at each knot, off the same
+    // chord logs its SQUAD controls are built from: taken once, for both.
+    const logs = delay > 0 ? knotLogs(q) : null;
     for (let i = 0; i < n; i += 1) {
       // A STOP knot (start / held keyframe / end) — or a reversal EXTREMUM —
       // gets a zero-velocity PATH tangent: control == the knot itself. This both
@@ -975,53 +472,20 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
         s.push([k[0], k[1], k[2], k[3]]);
         continue;
       }
+      if (logs && i > 0 && i < n - 1) {
+        s.push(squadControlOf(q[i]!, logs, 6 * i + 3, logs, 6 * i));
+        continue;
+      }
       const prev = q[Math.max(0, i - 1)]!;
       const next = q[Math.min(n - 1, i + 1)]!;
       s.push(squadControl(prev, q[i]!, next));
     }
-    const delay = trajectoryBoneDelay(key);
     let slopes: number[] | null = null;
     let lag: number[] | null = null;
     if (delay > 0) {
-      const reversal = knotReversals(q);
-      const own = warp.slopes.map((m, i) => m * followThroughKnotSlope(delay, reversal[i]!));
-      const budget = followThroughStrokeLag(delay);
-      lag = new Array<number>(n - 1).fill(0);
-      // A repeated cycle strokes through the same poses on the same slopes in
-      // every rep, so each distinct stroke's c is found once and looked up by
-      // its inputs after that (StrokeIndex): a 20-cycle walk solves 430 of its
-      // 7,920 flowing bone-strokes, and the lookup stays O(1) however many
-      // distinct strokes a motion has.
-      const index = new StrokeIndex();
-      const inputs = new Array<number>(STROKE_INPUTS).fill(0);
-      for (let i = 0; i < n - 1; i += 1) {
-        // Leaving a stop the dwell already trails; reaching one, the arrival
-        // (and any late brake) stays the chain's.
-        if (stops[i] || stops[i + 1]) continue;
-        const h = warp.spans[i]!;
-        const qa = q[i]!;
-        const qb = q[i + 1]!;
-        const sa = s[i]!;
-        const sb = s[i + 1]!;
-        inputs[0] = own[i]! * h;
-        inputs[1] = own[i + 1]! * h;
-        inputs[2] = warp.slopes[i]! * h;
-        inputs[3] = warp.slopes[i + 1]! * h;
-        for (let c = 0; c < 4; c += 1) {
-          inputs[4 + c] = qa[c]!;
-          inputs[8 + c] = qb[c]!;
-          inputs[12 + c] = sa[c]!;
-          inputs[16 + c] = sb[c]!;
-        }
-        const same = index.find(inputs);
-        if (same >= 0) {
-          lag[i] = lag[same]!;
-          continue;
-        }
-        lag[i] = strokeLagCoefficient(inputs[0]!, inputs[1]!, inputs[2]!, inputs[3]!, () => pathSpeedTable(qa, qb, sa, sb), budget);
-        index.add(i, inputs);
-      }
-      slopes = own;
+      const reversal = knotReversals(q, logs!);
+      slopes = warp.slopes.map((m, i) => m * followThroughKnotSlope(delay, reversal[i]!));
+      lag = (strokes ??= new FollowThroughStrokes(warp.slopes, warp.spans, stops)).lags(q, s, slopes, delay);
     }
     series.set(key, { q, s, delay, slopes, lag });
   }
