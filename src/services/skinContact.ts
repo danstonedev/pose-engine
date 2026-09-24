@@ -36,21 +36,46 @@ function hull(points: XY[]): XY[] {
 function clip(points: Point[], polygon: XY[]): Point[] {
   let output = points;
   for (let i = 0; i < polygon.length && output.length; i++) {
-    const a = polygon[i]!, b = polygon[(i + 1) % polygon.length]!;
-    const input = output;
-    output = [];
-    let previous = input[input.length - 1]!, d0 = cross(a, b, previous);
-    for (const current of input) {
-      const d1 = cross(a, b, current);
-      if ((d0 >= 0) !== (d1 >= 0)) {
-        const t = d0 / (d0 - d1);
-        output.push({ x: previous.x + t * (current.x - previous.x), y: previous.y + t * (current.y - previous.y), z: previous.z + t * (current.z - previous.z) });
-      }
-      if (d1 >= 0) output.push(current);
-      previous = current; d0 = d1;
-    }
+    output = clipEdge(output, polygon[i]!, polygon[(i + 1) % polygon.length]!);
   }
   return output;
+}
+
+function clipEdge(input: Point[], a: XY, b: XY): Point[] {
+  if (!input.length) return [];
+  const output: Point[] = [];
+  let previous = input[input.length - 1]!, d0 = cross(a, b, previous);
+  for (const current of input) {
+    const d1 = cross(a, b, current);
+    if ((d0 >= 0) !== (d1 >= 0)) {
+      const t = d0 / (d0 - d1);
+      output.push({ x: previous.x + t * (current.x - previous.x), y: previous.y + t * (current.y - previous.y), z: previous.z + t * (current.z - previous.z) });
+    }
+    if (d1 >= 0) output.push(current);
+    previous = current; d0 = d1;
+  }
+  return output;
+}
+
+/** Remove convex openings; the remaining pieces retain interpolated skin height at the rim. */
+function supportedParts(points: Point[], polygon: XY[] | undefined, openings: { polygon: XY[]; bb: ReturnType<typeof bounds> }[]): Point[][] {
+  let parts = [polygon ? clip(points, polygon) : points];
+  for (const { polygon: opening, bb } of openings) {
+    parts = parts.flatMap(part => {
+      if (!part.length) return [];
+      if (part.every(p => p.x < bb.minX) || part.every(p => p.x > bb.maxX) || part.every(p => p.y < bb.minY) || part.every(p => p.y > bb.maxY)) return [part];
+      let inside = part;
+      const outside: Point[][] = [];
+      for (let i = 0; i < opening.length && inside.length; i++) {
+        const a = opening[i]!, b = opening[(i + 1) % opening.length]!;
+        const piece = clipEdge(inside, b, a);
+        if (piece.length) outside.push(piece);
+        inside = clipEdge(inside, a, b);
+      }
+      return outside;
+    });
+  }
+  return parts;
 }
 
 function bounds(points: XY[]) {
@@ -131,25 +156,26 @@ export class SkinContact {
     }
   }
 
-  /** Lowest skin within a finite horizontal support (triangle interiors included). */
-  lowest(polygon?: XY[], supportBones?: RegExp): number {
+  /** Lowest skin within a finite horizontal support, excluding openings. Polygons are convex and CCW in world X/Z; triangle interiors count at the rim. */
+  lowest(polygon?: XY[], supportBones?: RegExp, openings: XY[][] = []): number {
     let lowest = Infinity;
     const bb = polygon ? bounds(polygon) : null;
+    const holes = openings.filter(p => p.length >= 3).map(polygon => ({ polygon, bb: bounds(polygon) }));
     for (const skin of this.skins) {
-      if (!polygon) { for (let i = 0; i < skin.world.length; i++) if (!supportBones || supportBones.test(skin.owners[i]!)) lowest = Math.min(lowest, skin.world[i]!.y); continue; }
+      if (!polygon && !openings.length) { for (let i = 0; i < skin.world.length; i++) if (!supportBones || supportBones.test(skin.owners[i]!)) lowest = Math.min(lowest, skin.world[i]!.y); continue; }
       for (const triangle of skin.triangles) {
         if (supportBones && !triangle.every(i => supportBones.test(skin.owners[i]!))) continue;
         const points = triangle.map(i => ({ x: skin.world[i]!.x, y: skin.world[i]!.z, z: skin.world[i]!.y }));
-        if (points.every(p => p.x < bb!.minX) || points.every(p => p.x > bb!.maxX) || points.every(p => p.y < bb!.minY) || points.every(p => p.y > bb!.maxY)) continue;
-        for (const p of clip(points, polygon)) lowest = Math.min(lowest, p.z);
+        if (bb && (points.every(p => p.x < bb.minX) || points.every(p => p.x > bb.maxX) || points.every(p => p.y < bb.minY) || points.every(p => p.y > bb.maxY))) continue;
+        for (const part of supportedParts(points, polygon, holes)) for (const p of part) lowest = Math.min(lowest, p.z);
       }
     }
     return lowest;
   }
 
   /** Ground only an engaged support; the caller decides when intentional lift-off releases it. */
-  support(y: number, polygon: XY[] | undefined, settle: boolean, compressionM = 0, supportBones?: RegExp): number {
-    const lowest = this.lowest(polygon, supportBones);
+  support(y: number, polygon: XY[] | undefined, settle: boolean, compressionM = 0, supportBones?: RegExp, openings: XY[][] = []): number {
+    const lowest = this.lowest(polygon, supportBones, openings);
     if (!Number.isFinite(lowest) || (!settle && lowest >= y)) return 0;
     const compression = THREE.MathUtils.clamp(compressionM, 0, MAX_SKIN_COMPRESSION_M);
     const delta = y - lowest - compression;
@@ -158,11 +184,12 @@ export class SkinContact {
     for (const skin of this.skins) for (const p of skin.world) p.y += delta;
     // Flatten the compressed surface onto the support, with no residual overlap.
     if (compression > 0) for (const skin of this.skins) {
+      const holes = openings.filter(p => p.length >= 3).map(polygon => ({ polygon, bb: bounds(polygon) }));
       const moves = new Map<number, number>();
       for (const triangle of skin.triangles) {
         if (supportBones && !triangle.every(i => supportBones.test(skin.owners[i]!))) continue;
         const points = triangle.map(i => ({ x: skin.world[i]!.x, y: skin.world[i]!.z, z: skin.world[i]!.y }));
-        const overlap = polygon ? clip(points, polygon) : points;
+        const overlap = supportedParts(points, polygon, holes).flat();
         if (!overlap.length) continue;
         const depth = Math.min(compression, Math.max(0, y - Math.min(...overlap.map(p => p.z))));
         if (depth > 0) for (const i of triangle) moves.set(i, Math.max(moves.get(i) ?? 0, depth));

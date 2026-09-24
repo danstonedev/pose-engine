@@ -19,6 +19,27 @@ function fixture(boneName = '') {
 }
 
 describe('posed skin contact', () => {
+  it('supports triangle interiors at an opening rim without supporting skin inside the void', () => {
+    const { root, mesh, contact } = fixture();
+    // A V-shaped face: its centre vertex hangs through a square face opening.
+    const geometry = new THREE.PlaneGeometry(2, 2, 2, 2);
+    geometry.rotateX(-Math.PI / 2);
+    geometry.getAttribute('position').setY(4, -0.1);
+    geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(36), 4));
+    geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: 36 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+    contact.dispose(); mesh.geometry = geometry;
+    const skin = new SkinContact(root); skin.update();
+    const square = (r: number) => [{ x: -r, y: -r }, { x: r, y: -r }, { x: r, y: r }, { x: -r, y: r }];
+    expect(skin.lowest(square(1))).toBeCloseTo(-0.1, 7);
+    expect(skin.lowest(square(1), undefined, [square(0.25)])).toBeCloseTo(-0.075, 7);
+    expect(skin.support(0, square(1), true, 0, undefined, [square(0.25)])).toBeCloseTo(0.075, 7);
+    expect(skin.lowest(square(1), undefined, [square(0.25)])).toBeCloseTo(0, 7);
+    expect(skin.lowest()).toBeCloseTo(-0.025, 7);
+    expect(skin.lowest(square(1), undefined, [square(2)])).toBe(Infinity);
+    expect(skin.support(0, square(1), true, 0, undefined, [square(2)])).toBe(0);
+    skin.dispose();
+  });
+
   it('expands the free rib surface, keeps the loaded surface planted, and still allows pressure compression', () => {
     const { root, mesh, bone, geometry, contact, prop } = fixture('Spine02');
     geometry.scale(0.1, 0.1, 0.1); geometry.translate(0, 0, 0.1);
