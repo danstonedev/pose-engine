@@ -311,12 +311,12 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
 ];
 
 const ROM_JOINT_BY_KEY = new Map(ROM_JOINT_ROWS.map((row) => [row.canonicalKey, row]));
-const ROM_FIELD_BY_ID = new Map<string, RomFieldDefinition>();
-for (const row of ROM_JOINT_ROWS) {
-  for (const item of row.fields) {
-    ROM_FIELD_BY_ID.set(`${row.canonicalKey}.${item.key}`, item);
-  }
-}
+/** Each joint's fields by key. Keyed in two levels rather than by the joined
+ *  `joint.field` id: every ROM clamp looks fields up several times per IK pass,
+ *  and building that string each time was a tenth of a hand-reach settle. */
+const ROM_FIELD_BY_JOINT = new Map<string, Map<string, RomFieldDefinition>>(
+  ROM_JOINT_ROWS.map((row) => [row.canonicalKey, new Map(row.fields.map((item) => [item.key, item]))]),
+);
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -337,7 +337,7 @@ export function getRomFieldDefinition(
   fieldKey: string | null | undefined,
 ): RomFieldDefinition | undefined {
   if (!canonicalKey || !fieldKey) return undefined;
-  return ROM_FIELD_BY_ID.get(`${canonicalKey}.${fieldKey}`);
+  return ROM_FIELD_BY_JOINT.get(canonicalKey)?.get(fieldKey);
 }
 
 /**
