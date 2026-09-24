@@ -1220,6 +1220,7 @@ export function sampleComposedMotion(
         heelStrikeY,
         captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,
         initialTargets: initialPlantTargets,
+        restY: floorRef.restY,
         trajectory: plantsAtTouchdown ? null : trajectory,
       });
     if (anyPlant || groundReachSolved) {

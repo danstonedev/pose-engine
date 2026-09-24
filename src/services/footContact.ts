@@ -183,6 +183,54 @@ export function plantReleaseWeight(msSinceRelease: number, lengthMs = PLANT_RELE
   return 1 - u * u * (3 - 2 * u);
 }
 
+// ── Forefoot settle ──────────────────────────────────────────────────────────
+
+/** A forefoot (`X_Toes`) hold that opens with its point up to this far (m)
+ *  above the floor, and its heel no higher than this above its own floor
+ *  height, brings that point down onto the floor ({@link ContactPlant.settle}).
+ *  A heel rise pivots on a forefoot on the floor, but the route need not put it
+ *  there when the hold opens: with the ankle hold keeping the heel down, DDx's
+ *  two-cycle walk has the forefoot 0.2-1.5 cm up at its planned heel rises
+ *  (1.3-1.5 cm on the right, that hip stopped at 0°; 1.4-1.8 cm on the
+ *  engine's two-cycle walk with the same hip, forefootHoldFloor.test), and the
+ *  hold kept it floating there to its end. The 2 cm is the travel's hover band
+ *  (rootMotion FOOT_HOVER_M: the other foot of a double support may hover a
+ *  centimetre or two up).
+ *
+ *  A hold that opens with the heel higher is on a foot already in the air (the
+ *  toe-pivot walk's braking-step hold in toeContact.test, heel 7.1-9.6 cm and
+ *  forefoot 2.0-3.6 cm up as the braking step swings that leg through), and is
+ *  held where it is, as an ankle hold opened in the air is: pulled to the floor
+ *  there, the forefoot dips 6.8 mm under it as the swing drags the leg on.
+ *
+ *  A point taken UNDER the floor is held there too. The one-shot calibrated
+ *  vertical pushed it under (1.2-1.7 cm below the floor pin as that walk's
+ *  right heel rises), as it sinks every stance contact of a single-cycle clip
+ *  (the stock walk's stance ankle 2.2 cm), and lifting that forefoot alone
+ *  moves the release that follows. */
+const FOREFOOT_HOVER_M = 0.02;
+
+/** How long (ms) a forefoot hold takes to settle its point onto the floor: the
+ *  base span a plant takes to let go ({@link PLANT_RELEASE_BLEND_MS}), on the
+ *  same smoothstep, so the forefoot leaves where the hold found it and meets
+ *  the floor at rest. Measured on the DDx walk (30 Hz), whose right forefoot
+ *  settles 1.3-1.5 cm: dropped in one frame, its ankle changes speed by
+ *  8.1°/frame and lies 3.9° off its smooth path at the drop; over 40 ms, 7.4°
+ *  and 3.5°; from 80 to 160 ms the settle is no longer the ankle's worst frame
+ *  (5.9° and 1.9°, elsewhere); over 240 ms it outlasts the 237 ms hold and
+ *  lets go 1 mm up. */
+export const FOREFOOT_SETTLE_MS = PLANT_RELEASE_BLEND_MS;
+
+/** The share of a forefoot's height above the floor still held
+ *  `msSinceCapture` ms after the hold took it: 1 → 0 over
+ *  {@link FOREFOOT_SETTLE_MS} along a smoothstep. */
+function forefootSettleWeight(msSinceCapture: number): number {
+  const u = msSinceCapture / FOREFOOT_SETTLE_MS;
+  if (!(u > 0)) return 1;
+  if (u >= 1) return 0;
+  return 1 - u * u * (3 - 2 * u);
+}
+
 // ── The release, read from FK's own motion ───────────────────────────────────
 // A release starts from the hold's joint speeds, so it lags FK and must move
 // faster than FK somewhere to catch up — unless FK slows down while it does.
@@ -482,6 +530,12 @@ export interface ContactPlant {
   target: THREE.Vector3 | null;
   /** Return to this effector's FIRST captured point instead of where it lands. */
   reuseInitialAnchor: boolean;
+  /** A forefoot hold taken above the floor ({@link FOREFOOT_HOVER_M}): the
+   *  target sits on the floor, and the held point eases down to it from where
+   *  the forefoot was drawn when the hold took it — `offsetY` above the target,
+   *  at `atMs` (trajectory ms) — over {@link FOREFOOT_SETTLE_MS}. Null for every
+   *  other hold, and once released. Kept by the step. */
+  settle?: { offsetY: number; atMs: number } | null;
   /** Per-window ROM-clamp rest frame (CURVED heading only); absent ⇒ the
    *  caller's shared frame ({@link ContactPlantFrame.rest}). */
   rest?: JointAngleRestReference;
@@ -529,6 +583,11 @@ export interface ContactPlantFrame {
   captureLiftY?: number;
   /** First captured target per effector, for `reuseInitialAnchor` (per motion). */
   initialTargets: Map<string, THREE.Vector3>;
+  /** Each contact bone's world height with the body standing
+   *  (FloorReference.restY) — where a forefoot (`X_Toes`) sits on the floor, so
+   *  a forefoot hold taken above it settles onto it ({@link FOREFOOT_HOVER_M}).
+   *  Absent ⇒ every hold is held where it was captured. */
+  restY?: Readonly<Record<string, number>>;
   /** The trajectory this frame was posed from — the FK every release is read
    *  off ({@link planPlantRelease}). Absent ⇒ every release takes the base
    *  {@link PLANT_RELEASE_BLEND_MS} and nothing else: what a touchdown-planted
@@ -538,6 +597,41 @@ export interface ContactPlantFrame {
 
 const inPlantWindow = (fp: ContactPlant, tMs: number): boolean =>
   tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
+
+const _heel = new THREE.Vector3();
+
+/** The settle a forefoot hold taken now starts ({@link ContactPlant.settle}),
+ *  or null: `targetY` is where the hold would otherwise keep the forefoot,
+ *  `drawnY` where it is drawn this frame; the chain's next bone is the ankle,
+ *  whose height says whether the heel is down. */
+function forefootSettle(
+  solver: FootPlantSolver,
+  targetY: number,
+  drawnY: number,
+  tMs: number,
+  restY: Readonly<Record<string, number>> | undefined,
+): { floorY: number; settle: { offsetY: number; atMs: number } } | null {
+  const key = solver.footKey;
+  if (!/Toes$/.test(key)) return null;
+  const floorY = restY?.[key];
+  const heelFloorY = restY?.[key.replace(/Toes$/, 'Foot')];
+  const ankle = solver.ctx.bones[1];
+  if (floorY == null || heelFloorY == null || !ankle) return null;
+  const up = targetY - floorY;
+  if (!(up > 0) || up > FOREFOOT_HOVER_M) return null;
+  if (ankle.getWorldPosition(_heel).y - heelFloorY > FOREFOOT_HOVER_M) return null;
+  return { floorY, settle: { offsetY: drawnY - floorY, atMs: tMs } };
+}
+
+const _held = new THREE.Vector3();
+
+/** The point a plant holds at `tMs`: its captured target, or a settling
+ *  forefoot's way down to it. */
+function heldPoint(fp: ContactPlant, tMs: number): THREE.Vector3 {
+  if (!fp.settle) return fp.target!;
+  const up = fp.settle.offsetY * forefootSettleWeight(tMs - fp.settle.atMs);
+  return _held.copy(fp.target!).setY(fp.target!.y + up);
+}
 
 /** Each plant's release plan, for the trajectory, window and horizon it was
  *  read for. */
@@ -607,7 +701,7 @@ function readPlantRelease(
     _planScale.setFromMatrixScale(parent.matrixWorld);
     const scale = Math.max(_planScale.x, _planScale.y, _planScale.z);
     parent.getWorldQuaternion(_relQuat);
-    const held = parent.worldToLocal(_relHeld.copy(fp.target));
+    const held = parent.worldToLocal(_relHeld.copy(heldPoint(fp, tMs)));
     const last = fp.heldInParent;
     if (last && last.tMs <= fp.toMs + 1e-6 && tMs > last.tMs && tMs - last.tMs <= RELEASE_HELD_MAX_GAP_MS) {
       held.lerpVectors(last.point, held.clone(), (fp.toMs - last.tMs) / (tMs - last.tMs));
@@ -764,12 +858,14 @@ function releaseContactPlant(
  * stage both run, so a recording is frame-for-frame what the stage shows.
  *
  * In its window a contact's chain is solved fully to the target captured as the
- * effector entered it. After the window it lets go through
- * {@link releaseContactPlant}, read on the first frame after the window
- * ({@link readPlantRelease}; the base {@link PLANT_RELEASE_BLEND_MS} without a
- * trajectory). Nothing is kept from one frame to the next but the captured
- * target, the held point in the limb root's frame on the last held frame and
- * the release read off them: a frame's pose is a function of that frame's FK
+ * effector entered it — for a forefoot taken just above the floor, the floor
+ * under it, reached over {@link FOREFOOT_SETTLE_MS} ({@link ContactPlant.settle}).
+ * After the window it lets go through {@link releaseContactPlant}, read on the
+ * first frame after the window ({@link readPlantRelease}; the base
+ * {@link PLANT_RELEASE_BLEND_MS} without a trajectory). Nothing is kept from one
+ * frame to the next but what the capture took, the held point in the limb
+ * root's frame on the last held frame and the release read off them: a frame's
+ * pose is a function of that frame's FK
  * pose, those and `tMs`, so no frame rate, repeated call (the stage's settle
  * and parked paths) or skipped frame after the release is read can change it
  * — and the release is read at the window's end, not at the frame that found
@@ -801,13 +897,14 @@ export function stepContactPlants(
       plants.some((o) => o !== fp && o.solver.footKey === fp.solver.footKey && inPlantWindow(o, tMs));
     if (!fp.target || w <= 0 || w >= 1 || repinned) {
       fp.target = null; // released (or superseded) — the next window re-captures
+      fp.settle = null;
       fp.release = null;
       fp.heldInParent = null;
       continue;
     }
     releaseContactPlant(
       fp.solver,
-      fp.target,
+      heldPoint(fp, tMs),
       w,
       since / fp.release!.lengthMs,
       fp.release!,
@@ -819,19 +916,27 @@ export function stepContactPlants(
   for (const fp of plants) {
     if (!inPlantWindow(fp, tMs)) continue;
     if (!fp.target) {
-      const first = fp.reuseInitialAnchor ? frame.initialTargets.get(fp.solver.footKey) : undefined;
-      fp.target = first?.clone() ?? fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+      const key = fp.solver.footKey;
+      const first = fp.reuseInitialAnchor ? frame.initialTargets.get(key) : undefined;
+      const at = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+      fp.target = first?.clone() ?? at.clone();
       if (!first) fp.target.y -= frame.heelStrikeY + (frame.captureLiftY ?? 0);
-      if (!frame.initialTargets.has(fp.solver.footKey)) {
-        frame.initialTargets.set(fp.solver.footKey, fp.target.clone());
+      // A forefoot taken just above the floor with its heel down is held on
+      // the floor under it, reached from where it is drawn now.
+      const onFloor = forefootSettle(fp.solver, fp.target.y, at.y, tMs, frame.restY);
+      fp.settle = onFloor?.settle ?? null;
+      if (onFloor) fp.target.y = onFloor.floorY;
+      if (!frame.initialTargets.has(key)) {
+        frame.initialTargets.set(key, fp.target.clone());
       }
       fp.release = null;
     }
-    solveFootPlant(fp.solver, fp.target, fp.rest ?? frame.rest, frame.hingeAxisRest);
+    const held = heldPoint(fp, tMs);
+    solveFootPlant(fp.solver, held, fp.rest ?? frame.rest, frame.hingeAxisRest);
     const parent = fp.solver.ctx.bones[fp.solver.ctx.bones.length - 1]!.parent;
     if (parent) {
       parent.updateWorldMatrix(true, false);
-      fp.heldInParent = { tMs, point: parent.worldToLocal(fp.target.clone()) };
+      fp.heldInParent = { tMs, point: parent.worldToLocal(held.clone()) };
     }
     moved = true;
   }
