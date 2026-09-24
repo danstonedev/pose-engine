@@ -13,6 +13,7 @@ interface Skin {
   world: THREE.Vector3[];
   triangles: Triangle[];
   owners: string[];
+  breathWeights: number[];
   changed: boolean;
 }
 const cross = (a: XY, b: XY, c: XY) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
@@ -91,8 +92,13 @@ export class SkinContact {
         for (let k = 1; k < 4; k++) if (weights.getComponent(i, k) > weights.getComponent(i, slot)) slot = k;
         return mesh.skeleton.bones[indices.getComponent(i, slot)]?.name ?? '';
       });
+      const breathWeights = Array.from({ length: count }, (_, i) => {
+        let weight = 0;
+        for (let k = 0; k < 4; k++) if (/Spine|Breast/u.test(mesh.skeleton.bones[indices.getComponent(i, k)]?.name ?? '')) weight += weights.getComponent(i, k);
+        return weight;
+      });
       for (let i = 0; i < (index?.count ?? count); i += 3) triangles.push(index ? [index.getX(i), index.getX(i + 1), index.getX(i + 2)] : [i, i + 1, i + 2]);
-      this.skins.push({ mesh, original: mesh.geometry, geometry: null, world: Array.from({ length: count }, () => new THREE.Vector3()), triangles, owners, changed: false });
+      this.skins.push({ mesh, original: mesh.geometry, geometry: null, world: Array.from({ length: count }, () => new THREE.Vector3()), triangles, owners, breathWeights, changed: false });
     });
   }
 
@@ -101,6 +107,28 @@ export class SkinContact {
     this.restore();
     this.root.updateMatrixWorld(true);
     for (const skin of this.skins) for (let i = 0; i < skin.world.length; i++) skin.mesh.getVertexPosition(i, skin.world[i]!).applyMatrix4(skin.mesh.matrixWorld);
+  }
+
+  /** Rib/abdominal excursion without moving the supported skeleton or its head. */
+  breathe(base: THREE.Vector3, neck: THREE.Vector3, front: THREE.Vector3, left: THREE.Vector3, excursionM: number, supportY = -Infinity): void {
+    if (!(excursionM > 0)) return;
+    const up = neck.clone().sub(base), length = up.length();
+    if (length < 0.01) return;
+    up.divideScalar(length);
+    const amount = Math.min(excursionM, 0.012);
+    for (const skin of this.skins) for (let i = 0; i < skin.world.length; i++) {
+      const weight = skin.breathWeights[i]!;
+      if (weight < 0.001) continue;
+      const p = skin.world[i]!, relative = p.clone().sub(base);
+      const t = relative.dot(up) / length;
+      if (t <= 0 || t >= 1) continue;
+      const envelope = Math.sin(Math.PI * t) * weight * amount;
+      const delta = front.clone().multiplyScalar(THREE.MathUtils.clamp(relative.dot(front) / 0.14, -1, 1) * envelope)
+        .addScaledVector(left, THREE.MathUtils.clamp(relative.dot(left) / 0.18, -1, 1) * envelope * 0.4);
+      // Loaded tissue stays against the support; expansion goes into free space.
+      delta.y = Math.max(delta.y, supportY - p.y);
+      this.displace(skin, i, delta, false);
+    }
   }
 
   /** Lowest skin within a finite horizontal support (triangle interiors included). */
@@ -195,7 +223,7 @@ export class SkinContact {
     return shift;
   }
 
-  private displace(skin: Skin, index: number, delta: THREE.Vector3): void {
+  private displace(skin: Skin, index: number, delta: THREE.Vector3, pressure = true): void {
     if (delta.lengthSq() < 1e-18) return;
     if (!skin.geometry) skin.geometry = skin.original.clone();
     if (!skin.changed) {
@@ -221,7 +249,7 @@ export class SkinContact {
     }
     matrix.premultiply(mesh.bindMatrixInverse).multiply(mesh.bindMatrix).premultiply(mesh.matrixWorld).invert();
     const point = skin.world[index]!.add(delta);
-    this.displaced.add(point);
+    if (pressure) this.displaced.add(point);
     const local = point.clone().applyMatrix4(matrix);
     skin.geometry.getAttribute('position').setXYZ(index, local.x, local.y, local.z);
   }

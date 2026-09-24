@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { SkinContact, MAX_SKIN_COMPRESSION_M, SKIN_CONTACT_CLEARANCE_M } from '../services/skinContact';
 
-function fixture() {
+function fixture(boneName = '') {
   // Deliberately large triangles: the small prop hits face interiors, not vertices.
   const geometry = new THREE.PlaneGeometry(2, 2);
   geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(16), 4));
   geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: 16 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
   const bone = new THREE.Bone();
+  bone.name = boneName;
   const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
   mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]));
   const root = new THREE.Group(); root.add(mesh); root.updateMatrixWorld(true);
@@ -18,6 +19,27 @@ function fixture() {
 }
 
 describe('posed skin contact', () => {
+  it('expands the free rib surface, keeps the loaded surface planted, and still allows pressure compression', () => {
+    const { root, mesh, bone, geometry, contact, prop } = fixture('Spine02');
+    geometry.scale(0.1, 0.1, 0.1); geometry.translate(0, 0, 0.1);
+    contact.update();
+    const rotation = bone.quaternion.clone(), position = root.position.clone();
+    contact.breathe(new THREE.Vector3(), new THREE.Vector3(0, 0, 0.2), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0), 0.004, -0.1);
+    contact.finish();
+    expect(contact.lowest()).toBeCloseTo(-0.1, 7);
+    expect(mesh.getVertexPosition(0, new THREE.Vector3()).y).toBeGreaterThan(0.102);
+    expect(bone.quaternion.equals(rotation)).toBe(true);
+    expect(root.position.equals(position)).toBe(true);
+    prop.position.set(0, 0, 0);
+    contact.resolve(prop, new THREE.Vector3(0, 0, 1), 0.002);
+    contact.finish();
+    expect(mesh.getVertexPosition(0, new THREE.Vector3()).z).toBeCloseTo(0.098, 7);
+    contact.restore();
+    expect(mesh.geometry).toBe(geometry);
+    expect(mesh.getVertexPosition(0, new THREE.Vector3()).y).toBeCloseTo(0.1, 7);
+    contact.dispose();
+  });
+
   it('clears the whole rigid prop, including triangle interiors, with no change to its orientation', () => {
     const { contact, prop } = fixture();
     prop.rotation.z = 0.7;

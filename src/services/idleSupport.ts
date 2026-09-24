@@ -40,7 +40,7 @@ export function pinIdleFeet(bones: Bones, root: THREE.Object3D, targets: Map<str
 }
 
 /** Two-bone contact correction without changing root position or segment lengths. */
-export function pinSupportLimb(root: THREE.Object3D, hip: THREE.Object3D, knee: THREE.Object3D, foot: THREE.Object3D, targetPosition: THREE.Vector3, targetQuaternion = foot.getWorldQuaternion(new THREE.Quaternion())): void {
+export function pinSupportLimb(root: THREE.Object3D, hip: THREE.Object3D, knee: THREE.Object3D, foot: THREE.Object3D, targetPosition: THREE.Vector3, targetQuaternion = foot.getWorldQuaternion(new THREE.Quaternion()), bendDirection?: THREE.Vector3): void {
   const rotateToward = (bone: THREE.Object3D, from: THREE.Vector3, to: THREE.Vector3) => {
     const world = bone.getWorldQuaternion(new THREE.Quaternion());
     world.premultiply(new THREE.Quaternion().setFromUnitVectors(from.normalize(), to.normalize()));
@@ -53,7 +53,8 @@ export function pinSupportLimb(root: THREE.Object3D, hip: THREE.Object3D, knee: 
   const direction = targetPosition.clone().sub(a), distance = direction.length();
   if (distance < 1e-6) return;
   direction.divideScalar(distance);
-  const bend = b.clone().sub(a).addScaledVector(direction, -b.clone().sub(a).dot(direction));
+  const bend = bendDirection?.clone() ?? b.clone().sub(a);
+  bend.addScaledVector(direction, -bend.dot(direction));
   if (bend.lengthSq() < 1e-10) {
     bend.set(0, 0, 1).applyQuaternion(root.getWorldQuaternion(new THREE.Quaternion()));
     bend.addScaledVector(direction, -bend.dot(direction));
