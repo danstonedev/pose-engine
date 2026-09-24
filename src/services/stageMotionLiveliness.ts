@@ -102,8 +102,8 @@ export function createMotionLiveliness(): MotionLiveliness {
     baked[0]!.on = !!thorax;
     const lowBack = bones.get('Spine_Lower');
     if (lowBack && !lying) {
-      baked[1]!.pre.copy(lowBack.quaternion);
       const { mlDeg, apDeg } = livelinessSwayDeg(livelinessTime, motionLiveliness);
+      baked[1]!.pre.copy(lowBack.quaternion);
       _liveQ.setFromAxisAngle(swayAxisML, (onsetRamp * mlDeg * Math.PI) / 180);
       lowBack.quaternion.premultiply(_liveQ);
       _liveQ.setFromAxisAngle(swayAxisAP, (onsetRamp * apDeg * Math.PI) / 180);
