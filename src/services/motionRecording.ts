@@ -1066,7 +1066,7 @@ export function sampleComposedMotion(
       if (!engaged.length) return;
       // Where and when each hand latched, on the motion's own clock — then the
       // arms are solved to it.
-      settleHandReachLatches(engaged, tMs, floorRef.floorY, rest, poseReachFrameAt);
+      settleHandReachLatches(engaged, tMs, floorRef.floorY, rest, poseReachFrameAt, trajectory);
       for (const hp of engaged) {
         solveHandReach(
           hp.solver,
@@ -1220,6 +1220,7 @@ export function sampleComposedMotion(
         heelStrikeY,
         captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,
         initialTargets: initialPlantTargets,
+        restY: floorRef.restY,
         trajectory: plantsAtTouchdown ? null : trajectory,
       });
     if (anyPlant || groundReachSolved) {

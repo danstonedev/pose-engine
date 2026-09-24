@@ -152,17 +152,25 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     // arguments: the (possibly heading-rotated) composedPlantRest falling back
     // to restRef as the clamp frame, the ORIGINAL restRef naming the knee
     // hinge axis, the live heel-strike offset, a touchdown-planted gait's
-    // capture lift, the per-motion anchor map and the trajectory the frame was
-    // posed from (every release reads its length off it) — none for a
-    // touchdown-planted gait, whose travel (rootMotion) was derived for plants
-    // that let go over the base release, on the plant's own weight.
+    // capture lift, the per-motion anchor map, the rig's standing contact
+    // heights (where a forefoot hold puts its point: on the floor) and the
+    // trajectory the frame was posed from (every release reads its length off
+    // it) — none for a touchdown-planted gait, whose travel (rootMotion) was
+    // derived for plants that let go over the base release, on the plant's own
+    // weight.
     expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*captureLiftY: composedPlantsAtTouchdown \? composedVcalRaiseY : 0,\s*initialTargets: initialComposedPlantTargets,\s*trajectory: composedPlantsAtTouchdown \? null : trajectory,\s*\}\)/,
+      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*captureLiftY: composedPlantsAtTouchdown \? composedVcalRaiseY : 0,\s*initialTargets: initialComposedPlantTargets,\s*restY: floorRef\?\.restY,\s*trajectory: composedPlantsAtTouchdown \? null : trajectory,\s*\}\)/,
     );
-    // …the sampler feeds it the same six things from its own state…
+    // …the sampler feeds it the same seven things from its own state…
     expect(samplerSource).toMatch(
-      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*captureLiftY: plantsAtTouchdown \? vcalRaiseY : 0,\s*initialTargets: initialPlantTargets,\s*trajectory: plantsAtTouchdown \? null : trajectory,\s*\}\)/,
+      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*captureLiftY: plantsAtTouchdown \? vcalRaiseY : 0,\s*initialTargets: initialPlantTargets,\s*restY: floorRef\.restY,\s*trajectory: plantsAtTouchdown \? null : trajectory,\s*\}\)/,
     );
+    // …both from the floor reference their floor pin grounds on, captured at
+    // anatomic rest (the sampler after the baseline pose, the stage at boot).
+    expect(samplerSource).toMatch(
+      /applyCustomPose\(skinned\.skeleton, variantCfg, baselinePose\);\s*root\.updateMatrixWorld\(true\);\s*const floorRef = captureFloorReference\(skinned\.skeleton, variantCfg\);/,
+    );
+    expect(stageSource).toMatch(/floorRef = skinned \? captureFloorReference\(skinned\.skeleton, variantCfg\) : null;/);
     // …and neither keeps a private copy of the window/capture logic.
     expect(stageSource).not.toMatch(/fp\.target\.y -= /);
     expect(samplerSource).not.toMatch(/fp\.target\.y -= /);
@@ -441,10 +449,12 @@ describe('SEAM-4/SEAM-5 — the live stage runs the grounding-switch crossfade i
     expect(samplerSource).toMatch(
       /const engagedAt = handReachEngagedAt\(groundingSwitches, hp\.bone, tMs, floorRef\);\s*engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: Number\.isFinite\(engagedAt\) \? engagedAt : 0, bone: hp\.bone \}\);/,
     );
+    // …keyed by the trajectory the probe samples, so a reach's timeline is
+    // read afresh for another motion (the stage's loop trajectory included).
     expect(stageSource).toContain(
-      'settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t));',
+      'settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t), traj);',
     );
-    expect(samplerSource).toContain('settleHandReachLatches(engaged, tMs, floorRef.floorY, rest, poseReachFrameAt);');
+    expect(samplerSource).toContain('settleHandReachLatches(engaged, tMs, floorRef.floorY, rest, poseReachFrameAt, trajectory);');
     expect(stageSource).toMatch(
       /solveHandReach\(\s*hp\.solver,\s*hp\.state,\s*floorRef\.floorY,\s*restRef,\s*handReachWeightAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\),\s*true,\s*\)/,
     );

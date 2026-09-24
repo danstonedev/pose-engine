@@ -172,7 +172,7 @@ describe('a release is read once, as its window ends', () => {
       const release = plants[0]!.release;
       if (t > toMs && plants[0]!.target && release) {
         lengths.push(release.lengthMs);
-        weights.push(footContact.plantReleaseWeight(t - toMs, release.lengthMs));
+        weights.push(footContact.plantReleaseWeight(t - toMs, release.lengthMs, release.shape));
       }
     }
     root.position.copy(rootRest0);

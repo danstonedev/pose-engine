@@ -27,6 +27,7 @@ import {
   solveIKChain,
   type IKChainContext,
 } from './poseRig';
+import { clampBoneToRom } from './poseRomClamp';
 
 /** A prepared limb IK chain that pins one contact effector to a world target. */
 export interface FootPlantSolver {
@@ -167,17 +168,108 @@ export function solveFootPlant(
 export const PLANT_RELEASE_BLEND_MS = 120;
 
 /**
- * The release weight `msSinceRelease` ms after a plant window ends: 1 → 0 over
- * `lengthMs` (default {@link PLANT_RELEASE_BLEND_MS}) along a smoothstep,
- * 1 − (3u² − 2u³). Its rate is ZERO at both ends, so the release leaves the
- * hold and joins the FK swing without a velocity kink. The old linear ramp had
- * a kink at both: as it ended, the DDx walk's left ankle moved 10.6° in one
- * frame (−10.6° → 0.1°) and then not at all. 1 at or before the window's end
- * (and for a non-finite input — a caller treats that as "not releasing"), 0
- * once the release is over.
+ * How a release's weight runs from 1 to 0 over its length:
+ *  - `smoothstep`: 1 − (3u² − 2u³), its rate peaking at 1.5/length mid-way;
+ *  - `cruise`: the same C1 start and finish, but it reaches its full rate by a
+ *    fifth of the way ({@link RELEASE_CRUISE_RAMP}) and holds it to the last
+ *    fifth — a rate of 1.25/length at most, a sixth under the smoothstep's.
+ *    An ankle release that turns the leg onto FK's swing turns it no faster
+ *    than it must: on the smoothstep, 26 of the curved walks' and the
+ *    figure-eight's 72 foot releases (both rigs, 30/60/120 Hz) turned the hip
+ *    faster than both 5c1c9ac's release and FK's own peak, by up to 21% (with
+ *    the forefoot-only pin, {@link RELEASE_PIN_M}; 31, by up to 24%, with it
+ *    on every release); cruising, 8, at 30 Hz only and by 10% at most
+ *    (plantReleaseMain.test). A long release (a slow weight shift) has no
+ *    fast swing to meet, and the cruise's sharper corners lift its foot
+ *    harder than the smoothstep does (the 3 cm single-leg stance at 120 Hz,
+ *    780 ms: 1.15× FK's acceleration against 1.13 allowed), so from
+ *    {@link RELEASE_CRUISE_FROM_MS} to {@link RELEASE_CRUISE_TO_MS} it turns
+ *    into the smoothstep (a smoothstep blend of the two, still C1).
+ * Both have ZERO rate at both ends, so the release leaves the hold and joins
+ * the FK swing without a velocity kink. The old linear ramp had a kink at
+ * both: as it ended, the DDx walk's left ankle moved 10.6° in one frame
+ * (−10.6° → 0.1°) and then not at all.
  */
-export function plantReleaseWeight(msSinceRelease: number, lengthMs = PLANT_RELEASE_BLEND_MS): number {
+export type PlantReleaseShape = 'smoothstep' | 'cruise';
+
+/** The share of a `cruise` release spent reaching its full rate (and again
+ *  leaving it). */
+const RELEASE_CRUISE_RAMP = 0.2;
+/** Release lengths (ms) over which the `cruise` shape turns into the
+ *  smoothstep. */
+const RELEASE_CRUISE_FROM_MS = 300;
+const RELEASE_CRUISE_TO_MS = 500;
+
+/**
+ * The release weight `msSinceRelease` ms after a plant window ends: 1 → 0 over
+ * `lengthMs` (default {@link PLANT_RELEASE_BLEND_MS}) along `shape`
+ * ({@link PlantReleaseShape}; the smoothstep by default). 1 at or before the
+ * window's end (and for a non-finite input — a caller treats that as "not
+ * releasing"), 0 once the release is over.
+ */
+export function plantReleaseWeight(
+  msSinceRelease: number,
+  lengthMs = PLANT_RELEASE_BLEND_MS,
+  shape: PlantReleaseShape = 'smoothstep',
+): number {
   const u = msSinceRelease / lengthMs;
+  if (!(u > 0)) return 1;
+  if (u >= 1) return 0;
+  const smooth = 1 - u * u * (3 - 2 * u);
+  if (shape !== 'cruise') return smooth;
+  const toSmooth = smooth01((lengthMs - RELEASE_CRUISE_FROM_MS) / (RELEASE_CRUISE_TO_MS - RELEASE_CRUISE_FROM_MS));
+  if (toSmooth >= 1) return smooth;
+  // Distance covered (0 → 1) at a rate rising linearly over the first ramp,
+  // flat, then falling linearly over the last: C1, its rate 1 / (1 − ramp).
+  const r = RELEASE_CRUISE_RAMP;
+  const rate = 1 / (1 - r);
+  const done = u < r ? (rate * u * u) / (2 * r) : u <= 1 - r ? rate * (u - r / 2) : 1 - (rate * (1 - u) * (1 - u)) / (2 * r);
+  return (1 - toSmooth) * (1 - done) + toSmooth * smooth;
+}
+
+// ── Forefoot settle ──────────────────────────────────────────────────────────
+
+/** A forefoot (`X_Toes`) hold that opens with its point up to this far (m)
+ *  above the floor, and its heel no higher than this above its own floor
+ *  height, brings that point down onto the floor ({@link ContactPlant.settle}).
+ *  A heel rise pivots on a forefoot on the floor, but the route need not put it
+ *  there when the hold opens: with the ankle hold keeping the heel down, DDx's
+ *  two-cycle walk has the forefoot 0.2-1.5 cm up at its planned heel rises
+ *  (1.3-1.5 cm on the right, that hip stopped at 0°; 1.4-1.8 cm on the
+ *  engine's two-cycle walk with the same hip, forefootHoldFloor.test), and the
+ *  hold kept it floating there to its end. The 2 cm is the travel's hover band
+ *  (rootMotion FOOT_HOVER_M: the other foot of a double support may hover a
+ *  centimetre or two up).
+ *
+ *  A hold that opens with the heel higher is on a foot already in the air (the
+ *  toe-pivot walk's braking-step hold in toeContact.test, heel 7.1-9.6 cm and
+ *  forefoot 2.0-3.6 cm up as the braking step swings that leg through), and is
+ *  held where it is, as an ankle hold opened in the air is: pulled to the floor
+ *  there, the forefoot dips 6.8 mm under it as the swing drags the leg on.
+ *
+ *  A point taken UNDER the floor is held there too. The one-shot calibrated
+ *  vertical pushed it under (1.2-1.7 cm below the floor pin as that walk's
+ *  right heel rises), as it sinks every stance contact of a single-cycle clip
+ *  (the stock walk's stance ankle 2.2 cm), and lifting that forefoot alone
+ *  moves the release that follows. */
+const FOREFOOT_HOVER_M = 0.02;
+
+/** How long (ms) a forefoot hold takes to settle its point onto the floor: the
+ *  base span a plant takes to let go ({@link PLANT_RELEASE_BLEND_MS}), on the
+ *  same smoothstep, so the forefoot leaves where the hold found it and meets
+ *  the floor at rest. Measured on the DDx walk (30 Hz), whose right forefoot
+ *  settles 1.3-1.5 cm: dropped in one frame, its ankle changes speed by
+ *  8.1°/frame and lies 3.9° off its smooth path at the drop; over 40 ms, 7.4°
+ *  and 3.5°; from 80 to 160 ms the settle is no longer the ankle's worst frame
+ *  (5.9° and 1.9°, elsewhere); over 240 ms it outlasts the 237 ms hold and
+ *  lets go 1 mm up. */
+export const FOREFOOT_SETTLE_MS = PLANT_RELEASE_BLEND_MS;
+
+/** The share of a forefoot's height above the floor still held
+ *  `msSinceCapture` ms after the hold took it: 1 → 0 over
+ *  {@link FOREFOOT_SETTLE_MS} along a smoothstep. */
+function forefootSettleWeight(msSinceCapture: number): number {
+  const u = msSinceCapture / FOREFOOT_SETTLE_MS;
   if (!(u > 0)) return 1;
   if (u >= 1) return 0;
   return 1 - u * u * (3 - 2 * u);
@@ -482,6 +574,12 @@ export interface ContactPlant {
   target: THREE.Vector3 | null;
   /** Return to this effector's FIRST captured point instead of where it lands. */
   reuseInitialAnchor: boolean;
+  /** A forefoot hold taken above the floor ({@link FOREFOOT_HOVER_M}): the
+   *  target sits on the floor, and the held point eases down to it from where
+   *  the forefoot was drawn when the hold took it — `offsetY` above the target,
+   *  at `atMs` (trajectory ms) — over {@link FOREFOOT_SETTLE_MS}. Null for every
+   *  other hold, and once released. Kept by the step. */
+  settle?: { offsetY: number; atMs: number } | null;
   /** Per-window ROM-clamp rest frame (CURVED heading only); absent ⇒ the
    *  caller's shared frame ({@link ContactPlantFrame.rest}). */
   rest?: JointAngleRestReference;
@@ -506,8 +604,10 @@ export interface PlantRelease {
    *  lift); null when FK does not lift it that far within the release. */
   liftAt: number | null;
   /** How strongly the release keeps the drawn effector off the floor-drag
-   *  (0..1, {@link RELEASE_PIN_M}). */
+   *  (0..1, {@link RELEASE_PIN_M}; a forefoot's alone). */
   pin: number;
+  /** How its weight runs from 1 to 0 ({@link plantReleaseWeight}). */
+  shape: PlantReleaseShape;
 }
 
 /** The per-frame inputs {@link stepContactPlants} needs beyond the plants. */
@@ -529,6 +629,11 @@ export interface ContactPlantFrame {
   captureLiftY?: number;
   /** First captured target per effector, for `reuseInitialAnchor` (per motion). */
   initialTargets: Map<string, THREE.Vector3>;
+  /** Each contact bone's world height with the body standing
+   *  (FloorReference.restY) — where a forefoot (`X_Toes`) sits on the floor, so
+   *  a forefoot hold taken above it settles onto it ({@link FOREFOOT_HOVER_M}).
+   *  Absent ⇒ every hold is held where it was captured. */
+  restY?: Readonly<Record<string, number>>;
   /** The trajectory this frame was posed from — the FK every release is read
    *  off ({@link planPlantRelease}). Absent ⇒ every release takes the base
    *  {@link PLANT_RELEASE_BLEND_MS} and nothing else: what a touchdown-planted
@@ -538,6 +643,41 @@ export interface ContactPlantFrame {
 
 const inPlantWindow = (fp: ContactPlant, tMs: number): boolean =>
   tMs >= fp.fromMs - 1e-6 && tMs <= fp.toMs + 1e-6;
+
+const _heel = new THREE.Vector3();
+
+/** The settle a forefoot hold taken now starts ({@link ContactPlant.settle}),
+ *  or null: `targetY` is where the hold would otherwise keep the forefoot,
+ *  `drawnY` where it is drawn this frame; the chain's next bone is the ankle,
+ *  whose height says whether the heel is down. */
+function forefootSettle(
+  solver: FootPlantSolver,
+  targetY: number,
+  drawnY: number,
+  tMs: number,
+  restY: Readonly<Record<string, number>> | undefined,
+): { floorY: number; settle: { offsetY: number; atMs: number } } | null {
+  const key = solver.footKey;
+  if (!/Toes$/.test(key)) return null;
+  const floorY = restY?.[key];
+  const heelFloorY = restY?.[key.replace(/Toes$/, 'Foot')];
+  const ankle = solver.ctx.bones[1];
+  if (floorY == null || heelFloorY == null || !ankle) return null;
+  const up = targetY - floorY;
+  if (!(up > 0) || up > FOREFOOT_HOVER_M) return null;
+  if (ankle.getWorldPosition(_heel).y - heelFloorY > FOREFOOT_HOVER_M) return null;
+  return { floorY, settle: { offsetY: drawnY - floorY, atMs: tMs } };
+}
+
+const _held = new THREE.Vector3();
+
+/** The point a plant holds at `tMs`: its captured target, or a settling
+ *  forefoot's way down to it. */
+function heldPoint(fp: ContactPlant, tMs: number): THREE.Vector3 {
+  if (!fp.settle) return fp.target!;
+  const up = fp.settle.offsetY * forefootSettleWeight(tMs - fp.settle.atMs);
+  return _held.copy(fp.target!).setY(fp.target!.y + up);
+}
 
 /** Each plant's release plan, for the trajectory, window and horizon it was
  *  read for. */
@@ -558,7 +698,7 @@ function releasePlanOf(fp: ContactPlant, trajectory: ContactPlantTrajectory, hor
  *  release stops keeping it off the floor-drag ({@link PlantRelease.liftAt}). */
 export const PLANT_RELEASE_FLOOR_BAND_M = 0.01;
 
-/** How far (m, smoothly saturating) the release holds the drawn effector back
+/** How far (m, smoothly saturating) the release holds a released forefoot back
  *  from the floor-drag of its blend with FK (see {@link releaseContactPlant}):
  *  enough for DDx's toe-offs, dragged 3–11 mm back on their first released
  *  30 Hz frame, and the DDx-like toe-off (12 mm at 60 Hz). */
@@ -568,9 +708,10 @@ const RELEASE_PIN_M = 0.025;
 const RELEASE_PIN_FADE = 0.25;
 /** The hold stands down where FK lifts the effector only late in the release
  *  (from 0.4 of it, gone by 0.6): held that long it builds a lag the rest of
- *  the release has to catch up. The single-leg stance's foot, lifted by FK at
- *  0.5–0.6 of its 780 ms, turned the hip 1.09× FK's peak held, 0.96× free; the
- *  held lift at 100 ms of a 600 ms raise 1.19× against 0.94. */
+ *  the release has to catch up. Measured when ankle releases were held too:
+ *  the single-leg stance's foot, lifted by FK at 0.5–0.6 of its 780 ms,
+ *  turned the hip 1.09× FK's peak held, 0.96× free; the held lift at 100 ms
+ *  of a 600 ms raise 1.19× against 0.94. */
 const RELEASE_PIN_LATE_FROM = 0.4;
 const RELEASE_PIN_LATE_TO = 0.6;
 
@@ -590,6 +731,15 @@ const _relOffset = new THREE.Vector3();
  * another contact of the same leg, holding when it starts, lets go — no two
  * releases act on one leg (the 0.6× toe walk's foot release, stretched to 256
  * ms, outlived the toes' window by 8 ms and ran beside their release).
+ *
+ * Its shape ({@link PlantReleaseShape}): an ankle release cruises; a forefoot's
+ * keeps the smoothstep — the cruise, reaching its full rate sooner, turned the
+ * toe-pivot walk's braking-step knee 1.40× FK's local peak at 60 Hz against
+ * 1.23 (1.3 allowed) — and so does a release another contact of the same leg
+ * holds over (a heel rise into a forefoot hold): that hold has the last word
+ * on the leg, so the release draws nothing and only seeds the hold's solve,
+ * and cruising it moved the braking step's first released ankle frame, the
+ * hold carried on, 24.35 → 24.44°/frame at 30 Hz.
  */
 function readPlantRelease(
   fp: ContactPlant,
@@ -598,7 +748,14 @@ function readPlantRelease(
   frame: ContactPlantFrame,
 ): PlantRelease {
   const base = PLANT_RELEASE_BLEND_MS;
-  const out: PlantRelease = { toMs: fp.toMs, lengthMs: base, liftAt: null, pin: 0 };
+  // A forefoot lets go on the smoothstep, and so does a release another
+  // contact of the same leg holds over (see below).
+  const forefoot = /Toes$/.test(fp.solver.footKey);
+  const covered = plants.some(
+    (o) => o !== fp && o.solver.kneeKey === fp.solver.kneeKey && o.fromMs <= fp.toMs + 1e-6 && o.toMs > fp.toMs + 1e-6,
+  );
+  const shape: PlantReleaseShape = forefoot || covered ? 'smoothstep' : 'cruise';
+  const out: PlantRelease = { toMs: fp.toMs, lengthMs: base, liftAt: null, pin: 0, shape };
   const chain = fp.solver.ctx.bones;
   const parent = chain[chain.length - 1]!.parent;
   const trajectory = frame.trajectory;
@@ -607,7 +764,7 @@ function readPlantRelease(
     _planScale.setFromMatrixScale(parent.matrixWorld);
     const scale = Math.max(_planScale.x, _planScale.y, _planScale.z);
     parent.getWorldQuaternion(_relQuat);
-    const held = parent.worldToLocal(_relHeld.copy(fp.target));
+    const held = parent.worldToLocal(_relHeld.copy(heldPoint(fp, tMs)));
     const last = fp.heldInParent;
     if (last && last.tMs <= fp.toMs + 1e-6 && tMs > last.tMs && tMs - last.tMs <= RELEASE_HELD_MAX_GAP_MS) {
       held.lerpVectors(last.point, held.clone(), (fp.toMs - last.tMs) / (tMs - last.tMs));
@@ -627,17 +784,17 @@ function readPlantRelease(
     let lengthMs = Math.min(RELEASE_MAX_MS, plantReleaseLengthMs(plan, gapAt));
     lengthMs = Math.max(base, Math.min(lengthMs, trajectory.totalMs - fp.toMs));
     // When the drawn effector is a band up: the release target rises on the
-    // smoothstep s, and the blend with FK lifts it as far again (first order),
-    // so s(2 − s) of FK's height above the held point.
+    // release's own s = 1 − w, and the blend with FK lifts it as far again
+    // (first order), so s(2 − s) of FK's height above the held point.
     for (let u = 0; u <= 1 + 1e-9; u += 0.005) {
-      const s = smooth01(u);
+      const s = 1 - plantReleaseWeight(u * lengthMs, lengthMs, shape);
       if (s * (2 - s) * offsetAt(plan, u * lengthMs).y >= PLANT_RELEASE_FLOOR_BAND_M) {
         out.liftAt = u;
         break;
       }
     }
     out.lengthMs = lengthMs;
-    if (out.liftAt !== null) {
+    if (forefoot && out.liftAt !== null) {
       out.pin = 1 - smooth01((out.liftAt - RELEASE_PIN_LATE_FROM) / (RELEASE_PIN_LATE_TO - RELEASE_PIN_LATE_FROM));
     }
   }
@@ -686,7 +843,7 @@ const _pinIdentity = new THREE.Quaternion();
  * release frame moves within 0.03°/frame of FK's speed).
  *
  * LIFT, THEN LET GO: the target's height eases to FK's on the release's own
- * smoothstep (1 − w), its horizontal position only on the square of it, so the
+ * progress (1 − w), its horizontal position only on the square of it, so the
  * toes rise with the swing before they travel. The horizontal must still reach
  * FK's: left at the held point, the solve keeps reaching back to it and the DDx
  * walk's last release frame drops the left ankle 7.8° into FK.
@@ -695,11 +852,11 @@ const _pinIdentity = new THREE.Quaternion();
  * effector off the solve's point toward FK's — and where FK has the toes well
  * behind and above the held point (DDx's walk at 30 Hz: 7–12 cm behind, 2.5–7
  * cm up) that dragged them 3.3–11.3 mm back along the floor on the first
- * released frame, while the target itself had moved under 1 mm. The limb is
- * therefore swung about its root joint (the hip) — one small rotation, which
- * no joint limit can snap — to carry the effector back toward where the solve
- * put it, horizontally, by at most {@link RELEASE_PIN_M} (a smooth
- * saturation). It holds until the drawn effector has lifted a band
+ * released frame, while the target itself had moved under 1 mm. A released
+ * FOREFOOT is therefore swung about its root joint (the hip) — one small
+ * rotation, which no joint limit can snap — to carry it back toward where the
+ * solve put it, horizontally, by at most {@link RELEASE_PIN_M} (a smooth
+ * saturation). It holds until the drawn toes have lifted a band
  * ({@link PlantRelease.liftAt}, read with the release) and lets go over the
  * next {@link RELEASE_PIN_FADE} of it — on the release's own clock, so how
  * fast the effector happens to rise cannot time it: timed by the target
@@ -707,7 +864,13 @@ const _pinIdentity = new THREE.Quaternion();
  * turned the curved walks' hips 5.2–7.5°/frame at 120 Hz against FK's 1.3.
  * It starts from nothing (the blend has not dragged yet) and ends with the
  * blend's own, so it is C1 at both ends. DDx's released toes now move
- * 0.2–1.9 mm on that frame.
+ * 0.2–1.9 mm on that frame. An ankle release is not held so: it leaves the
+ * floor heel first, and handing its hold back, even on the release's clock,
+ * turned the 45° walk's right hip 1.11–1.13°/frame at 120 Hz on both rigs
+ * against 5c1c9ac's 0.71–0.73 (0.76 now).
+ *
+ * OFF THE FLOOR: a released forefoot is never drawn below the lower of its
+ * held point and FK's toes ({@link liftReleasedForefoot}).
  */
 function releaseContactPlant(
   solver: FootPlantSolver,
@@ -740,6 +903,7 @@ function releaseContactPlant(
   // The root-most chain link's world refresh cascades to the whole limb.
   const root = bones[bones.length - 1]!;
   root.updateMatrixWorld(true);
+  if (/Toes$/.test(solver.footKey)) liftReleasedForefoot(solver, Math.min(held.y, _releaseFk.y), rest);
   const f = release.liftAt === null ? 0 : release.pin * (1 - smooth01((u - release.liftAt) / RELEASE_PIN_FADE));
   if (!(f > 0)) return;
   bones[0]!.getWorldPosition(_releaseDrawn);
@@ -758,18 +922,99 @@ function releaseContactPlant(
   root.updateMatrixWorld(true);
 }
 
+/** How far (m) under its floor level a released forefoot is drawn before
+ *  {@link liftReleasedForefoot} lifts it all the way back: a smoothstep over
+ *  this depth, so the lift starts from nothing. */
+const RELEASE_FLOOR_EASE_M = 0.005;
+/** The chain joints (indices into the toe chain toes → ankle → knee → hip)
+ *  that lift a released forefoot, and how many passes they take. */
+const RELEASE_FLOOR_JOINTS = [1, 3] as const;
+const RELEASE_FLOOR_PASSES = 4;
+
+const _floorPre: THREE.Quaternion[] = [];
+const _floorTarget = new THREE.Vector3();
+const _floorJoint = new THREE.Vector3();
+const _floorFrom = new THREE.Vector3();
+const _floorTo = new THREE.Vector3();
+const _floorSwing = new THREE.Quaternion();
+const _floorWorld = new THREE.Quaternion();
+const _floorParent = new THREE.Quaternion();
+
+/**
+ * Keep a released forefoot from being drawn under `levelY` — the lower of its
+ * held point and FK's own toes this frame, so never higher than the route puts
+ * them. The blend of the held leg with FK's is per joint, and where the route
+ * has left the held toes far behind (the toe-pivot walk's braking step: FK's
+ * toes 38–68 cm ahead, the knee at 30°) the blended leg passes under the body
+ * with less knee than FK's, so at 60 Hz the toes went 2.8 cm under the floor
+ * at speed 1 and 3.6 at 1.5 (5c1c9ac 2.5 and 2.4), and at 60–120 Hz stayed
+ * more than 3 mm under it for 6–12 frames at speed 1 (5c1c9ac 5–8); now 0.7
+ * and 1.2 cm, 2–4 frames (plantReleaseMain.test).
+ *
+ * It turns the ANKLE, then the hip, toward the drawn toes put back at that
+ * level (CCD, ROM-clamped), eased in over {@link RELEASE_FLOOR_EASE_M} of
+ * depth. Not the knee: the knee is what the blend is short of, but turning it
+ * faster is exactly the joint speed the release keeps down (the whole chain's
+ * lift turned the braking step's knee 1.50× and 1.58× FK's local peak at 30
+ * and 60 Hz, against 1.22× and 1.23× without, 1.3 allowed at 60 Hz).
+ * Mid-swing the hip alone cannot lift the toes — a turn about it moves them
+ * along the floor — but it lets the ankle's dorsiflexion (what a real swing
+ * clears the floor with) reach. The ankle pays for it: at speeds 1.2 and 1.5
+ * it turns up to 1.56× as fast as 5c1c9ac's (female, 1.5, 120 Hz: 8.44
+ * against 5.42°/frame). A function of the frame alone, like the rest of the
+ * release.
+ */
+function liftReleasedForefoot(
+  solver: FootPlantSolver,
+  levelY: number,
+  rest: JointAngleRestReference | null | undefined,
+): void {
+  const bones = solver.ctx.bones;
+  const toes = bones[0]!;
+  toes.getWorldPosition(_releaseDrawn);
+  const depth = levelY - _releaseDrawn.y;
+  if (!(depth > 0)) return;
+  while (_floorPre.length < bones.length) _floorPre.push(new THREE.Quaternion());
+  for (let i = 0; i < bones.length; i += 1) _floorPre[i]!.copy(bones[i]!.quaternion);
+  _floorTarget.set(_releaseDrawn.x, levelY, _releaseDrawn.z);
+  for (let pass = 0; pass < RELEASE_FLOOR_PASSES; pass += 1) {
+    for (const j of RELEASE_FLOOR_JOINTS) {
+      const joint = bones[j];
+      if (!joint?.parent) continue;
+      joint.getWorldPosition(_floorJoint);
+      _floorFrom.copy(toes.getWorldPosition(_floorFrom)).sub(_floorJoint);
+      _floorTo.copy(_floorTarget).sub(_floorJoint);
+      if (_floorFrom.lengthSq() < 1e-10 || _floorTo.lengthSq() < 1e-10) continue;
+      _floorSwing.setFromUnitVectors(_floorFrom.normalize(), _floorTo.normalize());
+      joint.getWorldQuaternion(_floorWorld).premultiply(_floorSwing);
+      joint.quaternion.copy(joint.parent.getWorldQuaternion(_floorParent).invert().multiply(_floorWorld));
+      const key = solver.ctx.canonicalKeys[j];
+      if (rest && key) clampBoneToRom(joint, key, rest);
+      joint.updateMatrixWorld(true);
+    }
+  }
+  const g = smooth01(depth / RELEASE_FLOOR_EASE_M);
+  for (let i = 0; i < bones.length; i += 1) {
+    _releaseSolved.copy(bones[i]!.quaternion);
+    bones[i]!.quaternion.copy(_floorPre[i]!).slerp(_releaseSolved, g);
+  }
+  bones[bones.length - 1]!.updateMatrixWorld(true);
+}
+
 /**
  * Pin every declared contact at time `tMs` — call AFTER the frame's FK pose and
  * root transform. The ONE per-frame plant step the offline sampler and the live
  * stage both run, so a recording is frame-for-frame what the stage shows.
  *
  * In its window a contact's chain is solved fully to the target captured as the
- * effector entered it. After the window it lets go through
- * {@link releaseContactPlant}, read on the first frame after the window
- * ({@link readPlantRelease}; the base {@link PLANT_RELEASE_BLEND_MS} without a
- * trajectory). Nothing is kept from one frame to the next but the captured
- * target, the held point in the limb root's frame on the last held frame and
- * the release read off them: a frame's pose is a function of that frame's FK
+ * effector entered it — for a forefoot taken just above the floor, the floor
+ * under it, reached over {@link FOREFOOT_SETTLE_MS} ({@link ContactPlant.settle}).
+ * After the window it lets go through {@link releaseContactPlant}, read on the
+ * first frame after the window ({@link readPlantRelease}; the base
+ * {@link PLANT_RELEASE_BLEND_MS} without a trajectory). Nothing is kept from one
+ * frame to the next but what the capture took, the held point in the limb
+ * root's frame on the last held frame and the release read off them: a frame's
+ * pose is a function of that frame's FK
  * pose, those and `tMs`, so no frame rate, repeated call (the stage's settle
  * and parked paths) or skipped frame after the release is read can change it
  * — and the release is read at the window's end, not at the frame that found
@@ -793,7 +1038,7 @@ export function stepContactPlants(
     let w = 0;
     if (fp.target && since > 0) {
       if (!fp.release || fp.release.toMs !== fp.toMs) fp.release = readPlantRelease(fp, plants, tMs, frame);
-      w = plantReleaseWeight(since, fp.release.lengthMs);
+      w = plantReleaseWeight(since, fp.release.lengthMs, fp.release.shape);
     }
     const repinned =
       w > 0 &&
@@ -801,13 +1046,14 @@ export function stepContactPlants(
       plants.some((o) => o !== fp && o.solver.footKey === fp.solver.footKey && inPlantWindow(o, tMs));
     if (!fp.target || w <= 0 || w >= 1 || repinned) {
       fp.target = null; // released (or superseded) — the next window re-captures
+      fp.settle = null;
       fp.release = null;
       fp.heldInParent = null;
       continue;
     }
     releaseContactPlant(
       fp.solver,
-      fp.target,
+      heldPoint(fp, tMs),
       w,
       since / fp.release!.lengthMs,
       fp.release!,
@@ -819,19 +1065,27 @@ export function stepContactPlants(
   for (const fp of plants) {
     if (!inPlantWindow(fp, tMs)) continue;
     if (!fp.target) {
-      const first = fp.reuseInitialAnchor ? frame.initialTargets.get(fp.solver.footKey) : undefined;
-      fp.target = first?.clone() ?? fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+      const key = fp.solver.footKey;
+      const first = fp.reuseInitialAnchor ? frame.initialTargets.get(key) : undefined;
+      const at = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+      fp.target = first?.clone() ?? at.clone();
       if (!first) fp.target.y -= frame.heelStrikeY + (frame.captureLiftY ?? 0);
-      if (!frame.initialTargets.has(fp.solver.footKey)) {
-        frame.initialTargets.set(fp.solver.footKey, fp.target.clone());
+      // A forefoot taken just above the floor with its heel down is held on
+      // the floor under it, reached from where it is drawn now.
+      const onFloor = forefootSettle(fp.solver, fp.target.y, at.y, tMs, frame.restY);
+      fp.settle = onFloor?.settle ?? null;
+      if (onFloor) fp.target.y = onFloor.floorY;
+      if (!frame.initialTargets.has(key)) {
+        frame.initialTargets.set(key, fp.target.clone());
       }
       fp.release = null;
     }
-    solveFootPlant(fp.solver, fp.target, fp.rest ?? frame.rest, frame.hingeAxisRest);
+    const held = heldPoint(fp, tMs);
+    solveFootPlant(fp.solver, held, fp.rest ?? frame.rest, frame.hingeAxisRest);
     const parent = fp.solver.ctx.bones[fp.solver.ctx.bones.length - 1]!.parent;
     if (parent) {
       parent.updateWorldMatrix(true, false);
-      fp.heldInParent = { tMs, point: parent.worldToLocal(fp.target.clone()) };
+      fp.heldInParent = { tMs, point: parent.worldToLocal(held.clone()) };
     }
     moved = true;
   }
@@ -880,16 +1134,39 @@ export function solveHandPlant(
  *  contact releases. */
 export interface HandReachState {
   target: THREE.Vector3 | null;
-  /** The motion time of the last evaluation {@link settleHandReachLatches} settled
-   *  this reach at; null before the first. Kept by the settle. */
+  /** The motion time of the last frame {@link settleHandReachLatches} settled
+   *  this reach at; null before the first (and after a release). Kept by the
+   *  settle. */
   lastTMs?: number | null;
-  /** Whether the reach was near a change of state then (see
-   *  {@link HAND_LATCH_NEAR_M}). Kept by the settle. */
-  lastNear?: boolean;
-  /** The last {@link HAND_LATCH_GRID_MS} grid time the settle read this
-   *  descending hand at: when, its pulled height above the floor and where it
-   *  was. Kept by the settle. */
-  lastGrid?: { tMs: number; height: number; point: THREE.Vector3 } | null;
+  /** The reach's latch timeline on the motion's own clock
+   *  ({@link settleHandReachLatches}). Kept by the settle. */
+  timeline?: HandReachTimeline | null;
+}
+
+/**
+ * Where and when a reach latches and lets go, on the motion's own clock: a pure
+ * function of the motion (its trajectory, from the engagement on), read as far
+ * as the frames have asked. Kept by {@link settleHandReachLatches}.
+ */
+export interface HandReachTimeline {
+  /** What the timeline was read for: the caller's key (the trajectory) and the
+   *  engagement time it starts from. */
+  key: unknown;
+  engagedAtMs: number;
+  /** Every change of state so far, in time order: from `tMs` on the hand is
+   *  planted at `target` (null: descending). The first is the engagement. */
+  events: { tMs: number; target: THREE.Vector3 | null }[];
+  /** How far the timeline has been read (motion ms), and the reach there. */
+  cursorMs: number;
+  /** The pulled height above the floor (descending) or the held residual
+   *  (planted) at the cursor, m. */
+  value: number;
+  /** The evaluation before the cursor in the same state (for the rate the
+   *  next step is sized by); null right after a change of state. */
+  prev: { tMs: number; value: number } | null;
+  /** A descending hand's last {@link HAND_LATCH_GRID_MS} grid evaluation inside
+   *  the band: when, its pulled height and where it was (the stall latch). */
+  lastGrid: { tMs: number; height: number; point: THREE.Vector3 } | null;
 }
 
 /**
@@ -949,34 +1226,52 @@ const HAND_REACH_PASSES = 4;
  *  contact) stays well within this, so it never re-tracks. */
 const HAND_RELATCH_M = 0.08;
 
-/** The motion-clock grid (ms) a self-heal falls on: a latched hand lets go at the
- *  first multiple of this at which it can no longer hold its point, whichever
- *  frames ran — not on the frame that happened to find it. */
+/** The motion-clock grid (ms) the timeline is read on: a self-heal falls on
+ *  it (the first grid time at which the hand can no longer hold its point),
+ *  and so does a stall inside the band; every read of the timeline is on it
+ *  but the engagement's own. */
 const HAND_LATCH_GRID_MS = 5;
 
 /** The moment a descending hand touched the floor is solved to this (m of
  *  pulled height, 0.01 mm) — in under 5 µs of motion time where the hand drops
- *  2 mm/ms, the hand then moving 0.01 mm — by regula falsi (Illinois) on the
- *  pulled height, in at most {@link HAND_LATCH_SOLVE_STEPS} probes. Bisected
- *  instead, with a probe ahead for the band's stall, the frame both hands
- *  latched on took 38–46 probes, 40–90 ms on a loaded machine (4–12 probes,
- *  11–17 ms, now). */
+ *  2 mm/ms, the hand then moving 0.01 mm — off the pulled height's falling
+ *  side ({@link nextTouchProbe}), in at most {@link HAND_LATCH_SOLVE_STEPS}
+ *  reads. */
 const HAND_LATCH_SOLVE_M = 1e-5;
 const HAND_LATCH_SOLVE_STEPS = 12;
 
-/** How near (m) its threshold a reach must come — a latched hand's residual
- *  within this of {@link HAND_RELATCH_M}, a descending hand's pulled height
- *  within this of the {@link HAND_LATCH_M} band — at either end of a frame gap for the
- *  settle to read the grid between: a change of state can fall wholly between
- *  two frames. The female chained plank from quadruped let its hands go for a
- *  residual that peaked at 8.1 cm for about 30 ms (7.97 cm at 301 ms, 7.95 at
- *  379: a 30 Hz clock saw it, a coarse one did not, and they settled 54 mm /
- *  16° apart). Farther from both thresholds a frame costs no probe. */
-const HAND_LATCH_NEAR_M = 0.03;
-
-/** A frame gap (ms) past which the settle reads the grid between whatever the
- *  two ends show — a parked stage's settle-to-settle jumps. */
-const HAND_LATCH_WALK_GAP_MS = 100;
+/**
+ * How far apart (ms) the timeline reads a reach: as far as its distance from
+ * the next change of state (the band for a descending hand, the self-heal
+ * residual for a planted one) could be covered at the fastest of
+ * {@link HAND_LATCH_MIN_RATE_M_PER_MS} and {@link HAND_LATCH_RATE_MARGIN}× the
+ * rate between its last two reads — on the grid, and no farther than this.
+ * Read every 5 ms grid time instead (the frame-gap walk this replaced), a
+ * parked stage paid 1.3–1.5 s per push-up command (5c1c9ac: 10 ms, latching
+ * on whichever frames ran); read so, with a planted hand read farther apart
+ * ({@link HAND_LATCH_PLANTED_MAX_STEP_MS}) and two hands touching together
+ * sharing their touch solve, 11–14 ms. The timeline lands within 0.015 mm of
+ * the every-5-ms one on every hand-planted motion and chain, both rigs, at 60
+ * Hz, on a jittered clock, a 40–95 ms clock and one jump (the touch moments
+ * move inside their own solve tolerance). A reach whose state
+ * comes and goes wholly between two reads — covering twice its distance from
+ * the threshold inside one step, so moving at over twice the rate the step was
+ * sized for — is missed by every clock alike.
+ */
+const HAND_LATCH_MAX_STEP_MS = 200;
+/** Rate floor (m/ms) and margin on the observed rate the steps are sized by. */
+const HAND_LATCH_MIN_RATE_M_PER_MS = 0.0003;
+const HAND_LATCH_RATE_MARGIN = 1.5;
+/** The same for a PLANTED hand, read for its self-heal: its residual sits at
+ *  a fraction of a millimetre while its arm folds over the point (the push-up)
+ *  and moves only once the body has carried the shoulder out of the arm's
+ *  reach, so it is read up to 600 ms apart at a 0.1 m/s floor. Read 200 ms
+ *  apart at the descending hand's 0.3 m/s, one parked push-up cost 1.7–2.1×
+ *  5c1c9ac's jump (male / female), and the bird-dog two reps 1.6–2.0×; the
+ *  settled hands of all twelve hand-planted motions and three chains are
+ *  unchanged, both rigs. */
+const HAND_LATCH_PLANTED_MAX_STEP_MS = 600;
+const HAND_LATCH_PLANTED_MIN_RATE_M_PER_MS = 0.0001;
 
 const _reachLive = new THREE.Vector3();
 const _reachTarget = new THREE.Vector3();
@@ -1032,39 +1327,165 @@ const _settlePulled = new THREE.Vector3();
 const onLatchGrid = (t: number): boolean =>
   Math.abs(t / HAND_LATCH_GRID_MS - Math.round(t / HAND_LATCH_GRID_MS)) < 1e-9;
 
+/** The first grid time after `t`. */
+const nextLatchGrid = (t: number): number => (Math.floor(t / HAND_LATCH_GRID_MS + 1e-9) + 1) * HAND_LATCH_GRID_MS;
+
+/** When the timeline reads its reach next: the next grid time inside the band
+ *  (or right after a change of state), else as far as the distance to the next
+ *  change of state allows at the rate it has been moving (see
+ *  {@link HAND_LATCH_MAX_STEP_MS}). */
+function nextLatchRead(tl: HandReachTimeline, planted: boolean): number {
+  const first = nextLatchGrid(tl.cursorMs);
+  const margin = planted ? HAND_RELATCH_M - tl.value : tl.value - HAND_LATCH_M;
+  if (!(margin > 0) || !tl.prev) return first;
+  const rate = Math.max(
+    planted ? HAND_LATCH_PLANTED_MIN_RATE_M_PER_MS : HAND_LATCH_MIN_RATE_M_PER_MS,
+    (HAND_LATCH_RATE_MARGIN * Math.abs(tl.value - tl.prev.value)) / Math.max(1e-9, tl.cursorMs - tl.prev.tMs),
+  );
+  const step = Math.min(planted ? HAND_LATCH_PLANTED_MAX_STEP_MS : HAND_LATCH_MAX_STEP_MS, margin / rate);
+  return Math.max(first, Math.floor((tl.cursorMs + step) / HAND_LATCH_GRID_MS + 1e-9) * HAND_LATCH_GRID_MS);
+}
+
+/** One descending hand's touch being solved ({@link settleHandReachLatches}):
+ *  the bracket — `lo`, the last read above the touch (pulled height less
+ *  {@link HAND_TOUCH_M} there `fLo` > 0), and `hi`, the first at or below it
+ *  (`fHi` ≤ 0, the hand then `at`) — and the reads above it so far. */
+interface TouchSolve {
+  r: HandReachContact;
+  tl: HandReachTimeline;
+  lo: number;
+  fLo: number;
+  hi: number;
+  fHi: number;
+  at: { tMs: number; point: THREE.Vector3 };
+  /** Reads above the touch, oldest first (the last three are kept). */
+  above: { tMs: number; f: number }[];
+  /** Whether the last read came from the line through the last two reads
+   *  above and landed below the touch. */
+  overshot: boolean;
+  reads: number;
+  done: boolean;
+}
+
+/**
+ * Where a touch solve reads next. The pulled height is a hinge: it falls with
+ * the body and is flat once the arm reaches the floor (the hand solved onto
+ * it), so a secant through a read on the flat side lands next to that read
+ * (regula falsi took 8–11 reads per push-up hand). The touch is read off the
+ * falling side instead: the secant through both ends while the hand at the
+ * upper end is not yet on the floor, else the curve through its last three
+ * reads above it (the line through two, where there are only two), and
+ * halfway across the bracket where there is only one, or where the last such
+ * read overshot onto the flat side.
+ */
+function nextTouchProbe(x: TouchSolve): number {
+  const width = x.hi - x.lo;
+  let c = x.lo + 0.5 * width;
+  const n = x.above.length;
+  if (x.fHi > HAND_LATCH_SOLVE_M - HAND_TOUCH_M) {
+    // The hand at `hi` is not on the floor yet: both ends are on the falling
+    // side, and the secant through them is the better read.
+    c = x.hi - (x.fHi * width) / (x.fHi - x.fLo);
+  } else if (n >= 2 && !x.overshot) {
+    const a = x.above[n - 2]!;
+    const b = x.above[n - 1]!;
+    if (a.f > b.f) {
+      const line = b.tMs + (b.f * (b.tMs - a.tMs)) / (a.f - b.f);
+      if (line > x.lo && line < x.hi) c = line;
+    }
+    const z = n >= 3 ? x.above[n - 3]! : null;
+    if (z && z.f > a.f && a.f > b.f) {
+      // Three reads above it: the time as a quadratic in the height through
+      // them, read at the touch — a landing hand slows as it comes down, and
+      // the line through the last two falls short of it read after read.
+      const quad =
+        (z.tMs * a.f * b.f) / ((z.f - a.f) * (z.f - b.f)) +
+        (a.tMs * z.f * b.f) / ((a.f - z.f) * (a.f - b.f)) +
+        (b.tMs * z.f * a.f) / ((b.f - z.f) * (b.f - a.f));
+      if (quad > x.lo && quad < x.hi) c = quad;
+    }
+  }
+  // Keep the read strictly inside the bracket.
+  const edge = 1e-3 * width;
+  return Math.min(x.hi - edge, Math.max(x.lo + edge, c));
+}
+
+/** Take a touch solve's read at `c` (pulled height less the touch `fc`, the
+ *  hand then at `point`). */
+function readTouch(x: TouchSolve, c: number, fc: number, point: THREE.Vector3): void {
+  x.reads += 1;
+  const fromLine = x.above.length >= 2 && !x.overshot;
+  if (Math.abs(fc) <= HAND_LATCH_SOLVE_M) {
+    x.at = { tMs: c, point: point.clone() };
+    x.done = true;
+    return;
+  }
+  if (fc > 0) {
+    x.lo = c;
+    x.fLo = fc;
+    x.above.push({ tMs: c, f: fc });
+    if (x.above.length > 3) x.above.shift();
+    x.overshot = false;
+  } else {
+    x.hi = c;
+    x.fHi = fc;
+    x.at = { tMs: c, point: point.clone() };
+    x.overshot = fromLine;
+  }
+  if (x.reads >= HAND_LATCH_SOLVE_STEPS || x.hi - x.lo < 1e-6) x.done = true;
+}
+
+/** Latch a descending timeline at `tMs`, on the floor (`floorY`) under `point`. */
+function latchTimeline(tl: HandReachTimeline, tMs: number, point: THREE.Vector3, floorY: number): void {
+  tl.events.push({ tMs, target: new THREE.Vector3(point.x, floorY, point.z) });
+  tl.lastGrid = null;
+  tl.prev = null;
+  tl.cursorMs = tMs;
+  tl.value = 0;
+}
+
+/** The latched point (null: descending) the timeline has at `tMs`. */
+function latchAt(tl: HandReachTimeline, tMs: number): THREE.Vector3 | null {
+  let at: THREE.Vector3 | null = null;
+  for (const e of tl.events) {
+    if (e.tMs > tMs + 1e-9) break;
+    at = e.target;
+  }
+  return at;
+}
+
 /**
  * Settle every reach contact's latch at motion time `tMs`, on the motion's own
  * clock: call it on each frame, with the body posed for `tMs` (FK, root,
  * grounding pin — exactly what `probe(tMs)` poses), before solving the reaches
  * ({@link solveHandReach} with `settled`). It leaves the body posed for `tMs`.
+ * `key` names what `probe` samples (the trajectory): a reach's timeline is read
+ * afresh for another key or another engagement.
  *
- * A reach changes state at two kinds of moment, and each is found where it
- * happened, not on the frame that found it:
+ * Each reach keeps a TIMELINE of where and when it latches, read on the
+ * motion's clock from its engagement — never on the frames that ran — as far
+ * as the frames ask (one read past the latest frame). A reach changes state at
+ * two kinds of moment, and each is found where it happened:
  *  - LATCH: a descending hand latches where its pulled position touched the
  *    floor ({@link HAND_TOUCH_M}) — the moment is solved on the trajectory
- *    between the last evaluation above it (or the reach's engagement) and the
- *    first at it (regula falsi, {@link HAND_LATCH_SOLVE_M}), and the point is
- *    the pulled hand's then. A hand that comes within the {@link HAND_LATCH_M}
- *    band but never touches latches where it was at a grid time, from the
- *    next grid time that shows it descended no further;
- *  - SELF-HEAL: a latched hand that can no longer hold its point within
+ *    between the read above it (or the engagement) and the first at it
+ *    ({@link HAND_LATCH_SOLVE_M}; hands touching between the same two reads
+ *    are solved together, sharing each probe), and the point is the pulled
+ *    hand's then. A hand that comes within the {@link HAND_LATCH_M} band but
+ *    never touches latches where it was at a grid time, from the next grid time
+ *    that shows it descended no further (inside the band it is read on every
+ *    grid time);
+ *  - SELF-HEAL: a planted hand that can no longer hold its point within
  *    {@link HAND_RELATCH_M} lets go at the first {@link HAND_LATCH_GRID_MS}
- *    grid time at which it cannot, and re-latches from there as a descending
- *    hand would (the relatch reads the FK arm, not the one the hold solved).
- * Between frames nothing is evaluated unless one of the two frames either side
- * shows the reach near a change of state ({@link HAND_LATCH_NEAR_M}) or they
- * are over {@link HAND_LATCH_WALK_GAP_MS} apart (so a playing motion pays for
- * probes only around its latches and self-heals); then every grid time between
- * is walked with `probe`. So the latch depends on neither the frame rate nor
- * the frame times (a live stage's, a parked stage's settle-to-settle jumps):
- * across the engine's hand-planted motions and chains, on both rigs, 30, 60 and
- * 120 Hz, a jittered 60 Hz display clock and a 40–95 ms one settle identically
- * (latched on the first frame inside the band they settled up to 18 mm / 2.3°
- * apart at 30 and 120 Hz, 59 mm / 6.0° in a chain) — save that a change of
- * state that comes and goes wholly
- * between two frames, both over {@link HAND_LATCH_NEAR_M} from its threshold
- * and under {@link HAND_LATCH_WALK_GAP_MS} apart, is seen only by a clock that
- * samples it.
+ *    grid time at which it cannot (every grid time back to the last read that
+ *    held is checked), and re-latches from there as a descending hand would.
+ * The reads are spaced by how far the reach is from its next change of state
+ * ({@link HAND_LATCH_MAX_STEP_MS}), so where they fall is a function of the
+ * motion alone: 30, 60 and 120 Hz, a jittered clock, a 40–95 ms clock and a
+ * parked stage's settle-to-settle jumps all read the same timeline and settle
+ * identically, and none pays for reads the timeline does not need (the frame-
+ * gap walk this replaced read every 5 ms of any gap over 100 ms: 1.3–1.5 s for
+ * a parked push-up command).
  */
 export function settleHandReachLatches(
   reaches: readonly HandReachContact[],
@@ -1072,153 +1493,167 @@ export function settleHandReachLatches(
   floorY: number,
   rest: JointAngleRestReference | null | undefined,
   probe: HandReachProbe,
+  key: unknown = null,
 ): void {
-  // What this frame shows, on its own pose: whether each reach is near a change
-  // of state (a latched hand near losing its point, a descending one near the
-  // band) — then, or if it was on the last frame, the grid between is read.
-  const pending: { r: HandReachContact; from: number; fresh: boolean }[] = [];
-  const near = new Map<HandReachContact, boolean>();
-  const changed = new Set<HandReachContact>();
+  /** Solve, together, the moment each of `touches` touched the floor inside
+   *  its bracket (see {@link TouchSolve}): every probe of one hand's solve also
+   *  reads every other hand whose bracket holds it — two hands landing
+   *  together (the push-up) share every probe. Each lands within
+   *  {@link HAND_LATCH_SOLVE_M} of the touch in pulled height, or on the end of
+   *  its bracket at or below it after {@link HAND_LATCH_SOLVE_STEPS} reads. */
+  const solveTouches = (touches: TouchSolve[]): void => {
+    for (let n = 0; n < HAND_LATCH_SOLVE_STEPS * touches.length; n += 1) {
+      const s = touches.find((x) => !x.done);
+      if (!s) return;
+      const c = nextTouchProbe(s);
+      probe(c);
+      for (const x of touches) {
+        if (x.done || !(c > x.lo && c < x.hi)) continue;
+        const fc = pulledHand(x.r.solver, floorY, rest, _settlePulled).y - floorY - HAND_TOUCH_M;
+        readTouch(x, c, fc, _settlePulled);
+      }
+    }
+  };
+  /** Read reach `r` descending at `t` (the body posed there): latch it if it
+   *  stalled inside the band, or — collected into `touches` for
+   *  {@link solveTouches} — if it touched since the last read above the floor;
+   *  a hand touching on its first read latches there. */
+  const readDescending = (r: HandReachContact, tl: HandReachTimeline, t: number, touches: TouchSolve[] | null): void => {
+    const pulled = pulledHand(r.solver, floorY, rest, _settlePulled);
+    const h = pulled.y - floorY;
+    if (h <= HAND_TOUCH_M) {
+      if (touches && tl.cursorMs < t - 1e-9 && Number.isFinite(tl.value) && tl.value > HAND_TOUCH_M) {
+        // Touching: latch where it touched, between the last read above it
+        // (the cursor) and now — solved with every other hand touching now.
+        touches.push({
+          r,
+          tl,
+          lo: tl.cursorMs,
+          fLo: tl.value - HAND_TOUCH_M,
+          hi: t,
+          fHi: h - HAND_TOUCH_M,
+          at: { tMs: t, point: pulled.clone() },
+          above: [{ tMs: tl.cursorMs, f: tl.value - HAND_TOUCH_M }],
+          overshot: false,
+          reads: 0,
+          done: false,
+        });
+        return;
+      }
+      latchTimeline(tl, t, pulled, floorY);
+      return;
+    }
+    if (onLatchGrid(t) && h <= HAND_LATCH_M) {
+      // Inside the band but not touching: latch where it was at the last grid
+      // time if it has descended no further since.
+      const last = tl.lastGrid;
+      if (last && Math.abs(last.tMs - (t - HAND_LATCH_GRID_MS)) < 1e-6 && h >= last.height - HAND_DESCENT_STALL_M) {
+        latchTimeline(tl, t, last.point, floorY);
+        return;
+      }
+      tl.lastGrid = { tMs: t, height: h, point: pulled.clone() };
+    } else {
+      tl.lastGrid = null;
+    }
+    tl.prev = Number.isFinite(tl.value) && tl.cursorMs < t - 1e-9 ? { tMs: tl.cursorMs, value: tl.value } : null;
+    tl.cursorMs = t;
+    tl.value = h;
+  };
+  /** Read reach `r` planted at `t` (the body posed there): let it go at the
+   *  first grid time since the last read at which it could not hold its point,
+   *  and read it descending from there. Returns whether the body was re-posed
+   *  off `t`. */
+  const readPlanted = (r: HandReachContact, tl: HandReachTimeline, target: THREE.Vector3, t: number): boolean => {
+    const res = heldResidual(r.solver, target, rest);
+    if (res <= HAND_RELATCH_M) {
+      tl.prev = { tMs: tl.cursorMs, value: tl.value };
+      tl.cursorMs = t;
+      tl.value = res;
+      return false;
+    }
+    // It could not hold it here: find the first grid time since the last read
+    // at which it could not (every one between, back to the read that held).
+    let heal = t;
+    let reposed = false;
+    for (let g = nextLatchGrid(tl.cursorMs); g < t - 1e-6; g += HAND_LATCH_GRID_MS) {
+      probe(g);
+      reposed = true;
+      if (heldResidual(r.solver, target, rest) > HAND_RELATCH_M) {
+        heal = g;
+        break;
+      }
+    }
+    if (heal !== t) {
+      probe(heal);
+      reposed = true;
+    }
+    tl.events.push({ tMs: heal, target: null });
+    tl.prev = null;
+    tl.lastGrid = null;
+    tl.cursorMs = heal;
+    tl.value = Infinity; // no read above the floor yet: a touch here latches here
+    // Re-latch from here, at this point if it is already touching.
+    readDescending(r, tl, heal, null);
+    return reposed;
+  };
+
+  // Bring each reach's timeline up to date (read afresh for another motion or
+  // engagement), and find which must be read past this frame.
+  const pending: { r: HandReachContact; tl: HandReachTimeline }[] = [];
   for (const r of reaches) {
     const st = r.state;
-    if (st.lastTMs != null && tMs < st.lastTMs - 1e-6) {
-      st.target = null; // the clock ran back (a replay): start the reach afresh
-      st.lastTMs = null;
+    const from = Math.min(tMs, Math.max(0, r.engagedAtMs));
+    let tl = st.timeline;
+    if (!tl || tl.key !== key || Math.abs(tl.engagedAtMs - from) > 1e-6) {
+      tl = { key, engagedAtMs: from, events: [{ tMs: from, target: null }], cursorMs: from, value: Infinity, prev: null, lastGrid: null };
+      st.timeline = tl;
+      pending.push({ r, tl });
+    } else if (tl.cursorMs < tMs - 1e-9) {
+      pending.push({ r, tl });
     }
-    const fresh = st.lastTMs == null;
-    if (fresh) st.lastGrid = null;
-    const from = fresh ? Math.min(tMs, Math.max(0, r.engagedAtMs)) : st.lastTMs!;
-    const nearNow = st.target
-      ? heldResidual(r.solver, st.target, rest) > HAND_RELATCH_M - HAND_LATCH_NEAR_M
-      : pulledHand(r.solver, floorY, rest, _settlePulled).y - floorY <= HAND_LATCH_M + HAND_LATCH_NEAR_M;
-    near.set(r, nearNow);
-    const walk = fresh ? from < tMs - 1e-6 || nearNow : nearNow || st.lastNear === true || tMs - from > HAND_LATCH_WALK_GAP_MS;
-    if (walk) pending.push({ r, from, fresh });
   }
-  /** Where the pulled hand touched the floor between `lo` (above it; `fLoRead`
-   *  its height less the touch there, if the walk read it) and `hi` (touching,
-   *  `fHi` likewise, `atHi` where it was). */
-  const touchBetween = (
-    solver: FootPlantSolver,
-    lo: number,
-    fLoRead: number | null,
-    hi: number,
-    fHi: number,
-    atHi: THREE.Vector3,
-  ): THREE.Vector3 => {
-    const touchAt = (tt: number): number => {
-      probe(tt);
-      return pulledHand(solver, floorY, rest, _settlePulled).y - floorY - HAND_TOUCH_M;
-    };
-    let fLo = fLoRead ?? touchAt(lo);
-    let fHiNow = fHi;
-    let at = atHi;
-    let moved = 0; // which end the last step moved: −1 lo, +1 hi (Illinois: an end kept twice has its height halved)
-    for (let k = 0; k < HAND_LATCH_SOLVE_STEPS && fLo > 0 && fHiNow < fLo; k += 1) {
-      const c = hi - (fHiNow * (hi - lo)) / (fHiNow - fLo);
-      const fc = touchAt(c);
-      if (Math.abs(fc) <= HAND_LATCH_SOLVE_M) return _settlePulled.clone();
-      if (fc > 0) {
-        lo = c;
-        fLo = fc;
-        if (moved === -1) fHiNow /= 2;
-        moved = -1;
-      } else {
-        hi = c;
-        fHiNow = fc;
-        at = _settlePulled.clone();
-        if (moved === 1) fLo /= 2;
-        moved = 1;
-      }
+  let posedOff = false;
+  // A fresh timeline is read at the engagement first; then each is read on
+  // its own schedule until it has been read at or past this frame. Reads that
+  // fall on one time share one pose.
+  const fresh = pending.filter((p) => p.tl.value === Infinity && p.tl.events.length === 1 && p.tl.cursorMs === p.tl.engagedAtMs);
+  for (const p of fresh) {
+    if (Math.abs(p.tl.cursorMs - tMs) > 1e-9 || posedOff) {
+      probe(p.tl.cursorMs);
+      posedOff = Math.abs(p.tl.cursorMs - tMs) > 1e-9;
     }
-    return at;
-  };
-  if (pending.length) {
-    // Walk each pending reach from where it was last known: its engagement (a
-    // fresh reach, evaluated there first) or its last evaluation; then every
-    // grid time after that, and this frame.
-    const first = Math.min(...pending.map((p) => p.from));
-    const times: number[] = [];
-    for (const p of pending) if (p.fresh) times.push(p.from);
-    for (let g = (Math.floor(first / HAND_LATCH_GRID_MS) + 1) * HAND_LATCH_GRID_MS; g < tMs - 1e-6; g += HAND_LATCH_GRID_MS) {
-      times.push(g);
-    }
-    times.push(tMs);
-    const walkTimes = [...new Set(times)].sort((a, b) => a - b);
-    // Each reach's last evaluation on the walk, and its pulled height there
-    // (less the touch) where it was read — the touch solve's upper end.
-    const prev = new Map<HandReachContact, number | null>();
-    const prevF = new Map<HandReachContact, number>();
-    for (const p of pending) prev.set(p.r, p.fresh ? null : p.from);
-    for (const t of walkTimes) {
-      probe(t);
-      let reposed = false;
-      for (const p of pending) {
-        if (t < p.from - 1e-6 || (!p.fresh && t <= p.from + 1e-6)) continue;
-        if (reposed) {
-          probe(t);
-          reposed = false;
-        }
-        const st = p.r.state;
-        // A latched hand holds, or lets go here (a grid time or this frame; a
-        // non-grid frame time lets go only as this frame's own state).
-        if (st.target) {
-          if (heldResidual(p.r.solver, st.target, rest) <= HAND_RELATCH_M) {
-            prev.set(p.r, t);
-            prevF.delete(p.r);
-            continue;
-          }
-          if (!onLatchGrid(t)) continue; // it lets go at the next grid time, on a later frame
-          st.target = null;
-          changed.add(p.r);
-          prev.set(p.r, null); // re-latch from here, at this point if it is inside the band
-        }
-        const pulled = pulledHand(p.r.solver, floorY, rest, _settlePulled);
-        const h = pulled.y - floorY;
-        let at: THREE.Vector3 | null = null;
-        if (h <= HAND_TOUCH_M) {
-          // Touching: latch where it touched, between the last time it was
-          // above (if any) and now.
-          at = pulled.clone();
-          const above = prev.get(p.r);
-          if (above != null && above < t - 1e-9) {
-            at = touchBetween(p.r.solver, above, prevF.get(p.r) ?? null, t, h - HAND_TOUCH_M, at);
-            reposed = true;
-          }
-        } else if (onLatchGrid(t)) {
-          // Inside the band but not touching: latch where it was at the last
-          // grid time if it has descended no further since.
-          const last = st.lastGrid;
-          if (
-            last &&
-            Math.abs(last.tMs - (t - HAND_LATCH_GRID_MS)) < 1e-6 &&
-            last.height <= HAND_LATCH_M &&
-            h >= last.height - HAND_DESCENT_STALL_M
-          ) {
-            at = last.point;
-          } else {
-            st.lastGrid = { tMs: t, height: h, point: pulled.clone() };
-          }
-        }
-        if (!at) {
-          prev.set(p.r, t);
-          prevF.set(p.r, h - HAND_TOUCH_M);
-          continue;
-        }
-        st.lastGrid = null;
-        st.target = new THREE.Vector3(at.x, floorY, at.z);
-        changed.add(p.r);
-        prev.set(p.r, t);
-      }
+    readDescending(p.r, p.tl, p.tl.cursorMs, null);
+  }
+  const nextOf = (p: { tl: HandReachTimeline }): number => nextLatchRead(p.tl, latchAt(p.tl, p.tl.cursorMs) !== null);
+  for (;;) {
+    const open = pending.filter((p) => p.tl.cursorMs < tMs - 1e-9);
+    if (!open.length) break;
+    const t = Math.min(...open.map(nextOf));
+    probe(t);
+    posedOff = Math.abs(t - tMs) > 1e-9;
+    let reposed = false;
+    const touches: TouchSolve[] = [];
+    for (const p of open) {
+      if (Math.abs(nextOf(p) - t) > 1e-9) continue;
       if (reposed) probe(t);
+      const target = latchAt(p.tl, p.tl.cursorMs);
+      if (target) reposed = readPlanted(p.r, p.tl, target, t);
+      else {
+        reposed = false;
+        readDescending(p.r, p.tl, t, touches);
+      }
+      if (reposed) posedOff = true;
     }
-    if (walkTimes[walkTimes.length - 1] !== tMs) probe(tMs);
+    if (touches.length) {
+      solveTouches(touches);
+      for (const x of touches) latchTimeline(x.tl, x.at.tMs, x.at.point, floorY);
+      posedOff = true;
+    }
   }
+  if (posedOff) probe(tMs);
   for (const r of reaches) {
+    r.state.target = latchAt(r.state.timeline!, tMs);
     r.state.lastTMs = tMs;
-    // A reach whose state changed on the walk is near its new threshold too:
-    // the next frame reads the grid again.
-    r.state.lastNear = near.get(r)! || changed.has(r);
   }
 }
 
