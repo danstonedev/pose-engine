@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { breathingLeanFM, idleSwaySplit, idleWeightShift } from './liveliness';
 import type { BreathState } from './stageBreath';
+import { idleSupport, pinIdleFeet } from './idleSupport';
 
 type BoneMap = Map<string, THREE.Bone>;
 
@@ -64,6 +65,9 @@ export function createIdleOverlay(seed: number): IdleOverlay {
   const _idlePivotQ = new THREE.Quaternion();
   const _idlePivotInvQ = new THREE.Quaternion();
   const _idleParentQ = new THREE.Quaternion();
+  const baseRootPosition = new THREE.Vector3();
+  const baseLegs = new Map<THREE.Bone, THREE.Quaternion>();
+  const feet = new Map<string, { position: THREE.Vector3; quaternion: THREE.Quaternion }>();
 
   function apply(
     dtSec: number,
@@ -80,6 +84,21 @@ export function createIdleOverlay(seed: number): IdleOverlay {
     const thorax = bones.get('Spine_Upper');
     const lowBack = bones.get('Spine_Lower');
     if (!thorax && !lowBack) return false;
+    modelRoot.updateMatrixWorld(true);
+    const support = idleSupport(bones);
+    const standing = support === 'standing';
+    baseRootPosition.copy(modelRoot.position);
+    baseLegs.clear();
+    feet.clear();
+    if (standing) for (const side of ['L', 'R']) {
+      const foot = bones.get(`${side}_Foot`);
+      if (!foot || !bones.get(`${side}_Leg`) || !bones.get(`${side}_UpLeg`)) continue;
+      feet.set(side, { position: foot.getWorldPosition(new THREE.Vector3()), quaternion: foot.getWorldQuaternion(new THREE.Quaternion()) });
+      for (const key of ['UpLeg', 'Leg', 'Foot']) {
+        const bone = bones.get(`${side}_${key}`)!;
+        baseLegs.set(bone, bone.quaternion.clone());
+      }
+    }
     idleTime += dtSec;
     // Exertion-scaled breathing: integrate the SHARED phase accumulator
     // (phase-continuous with the motion-time overlay), rate/depth following
@@ -90,20 +109,20 @@ export function createIdleOverlay(seed: number): IdleOverlay {
       _idleBaseThoraxQ.copy(thorax.quaternion);
       _idleQ.setFromAxisAngle(
         swayAxisAP,
-        (breathingLeanFM(breath.phase, amount, breath.exertion) * Math.PI) / 180,
+        (breathingLeanFM(breath.phase, amount, breath.exertion) * (support === 'lying' ? 0.2 : 1) * Math.PI) / 180,
       );
       thorax.quaternion.premultiply(_idleQ);
     }
     if (lowBack) {
       _idleBaseLumbarQ.copy(lowBack.quaternion);
-      const { shiftM, leanDeg } = idleWeightShift(idleTime, amount, seed);
+      const { shiftM, leanDeg } = idleWeightShift(idleTime, standing ? amount : 0, seed);
       // Rig convention (pinned by the idleLiveliness rig gate): a POSITIVE
       // premultiplied Z-roll at Spine_Lower moves the head toward −X, so the
       // weight-shift lean (+ = the patient's left/+X) applies NEGATED to land
       // IN PHASE with the root travel.
-      _idleQ.setFromAxisAngle(swayAxisML, ((sway.lumbarMlDeg - leanDeg) * Math.PI) / 180);
+      _idleQ.setFromAxisAngle(swayAxisML, (((support === 'lying' ? 0 : sway.lumbarMlDeg) - leanDeg) * Math.PI) / 180);
       lowBack.quaternion.premultiply(_idleQ);
-      _idleQ.setFromAxisAngle(swayAxisAP, (sway.lumbarApDeg * Math.PI) / 180);
+      _idleQ.setFromAxisAngle(swayAxisAP, ((support === 'lying' ? 0 : sway.lumbarApDeg) * Math.PI) / 180);
       lowBack.quaternion.premultiply(_idleQ);
       idleShiftM = shiftM;
       bakePelvisShift();
@@ -115,7 +134,7 @@ export function createIdleOverlay(seed: number): IdleOverlay {
     // is untouched. The ankle joint angle therefore changes by the pivot angle.
     const lFoot = bones.get('L_Foot');
     const rFoot = bones.get('R_Foot');
-    if (Math.abs(sway.ankleRollDeg) + Math.abs(sway.anklePitchDeg) > 1e-9) {
+    if (standing && feet.size === 2 && Math.abs(sway.ankleRollDeg) + Math.abs(sway.anklePitchDeg) > 1e-9) {
       _idleBaseRootQ.copy(modelRoot.quaternion);
       _idleQ.setFromAxisAngle(swayAxisML, (sway.ankleRollDeg * Math.PI) / 180);
       _idlePivotQ.copy(_idleQ);
@@ -140,6 +159,7 @@ export function createIdleOverlay(seed: number): IdleOverlay {
     }
     idleOverlayOn = true;
     modelRoot.updateMatrixWorld(true);
+    if (standing && feet.size === 2) pinIdleFeet(bones, modelRoot, feet);
     return true;
   }
 
@@ -165,6 +185,8 @@ export function createIdleOverlay(seed: number): IdleOverlay {
     }
     idleShiftM = 0;
     bakePelvisShift();
+    for (const [bone, quaternion] of baseLegs) bone.quaternion.copy(quaternion);
+    if (modelRoot) modelRoot.position.copy(baseRootPosition);
     modelRoot?.updateMatrixWorld(true);
     return true;
   }
@@ -173,6 +195,8 @@ export function createIdleOverlay(seed: number): IdleOverlay {
     idleOverlayOn = false;
     idlePivotOn = false;
     idleShiftM = 0;
+    baseLegs.clear();
+    feet.clear();
   }
 
   return {

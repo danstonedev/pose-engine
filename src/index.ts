@@ -262,3 +262,7 @@ export {
   type StageSceneLayer,
   type StageSceneLayerFactory,
 } from './services/stageSceneLayer';
+export { SkinContact, SKIN_CONTACT_CLEARANCE_M, MAX_SKIN_COMPRESSION_M } from './services/skinContact';
+export { pinSupportLimb, idleSupport } from './services/idleSupport';
+export { createIdleOverlay, type IdleOverlay } from './services/stageIdleOverlay';
+export { createBreathState, type BreathState } from './services/stageBreath';

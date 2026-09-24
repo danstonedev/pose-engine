@@ -37,6 +37,8 @@ export interface StageSceneContext {
   bone(key: string): THREE.Object3D | null;
   /** World height (m) of the floor the standing body is grounded to; null while loading. */
   readonly floorY: number | null;
+  /** Current commanded/recorded support; retained when a recorded frame is paused. */
+  readonly groundingPosture?: string | null;
   /**
    * Glide the camera to a view of the layer's choosing: the orbit target and
    * the camera position, reached round the target on a damped spring
@@ -53,6 +55,8 @@ export interface StageSceneLayer {
   onModelLoaded?(): void;
   /** Every drawn frame, after the pose and all live overlays are final and before the draw. */
   beforeRender?(): void;
+  /** Restore temporary contact/deformation changes after all render passes. */
+  afterRender?(): void;
   /** Every loop tick: return true to have the next frame drawn (the layer is animating on its own). */
   wantsFrame?(): boolean;
   /** The stage is being torn down: release everything the layer added to the scene. */
@@ -65,6 +69,7 @@ export type StageSceneLayerFactory = (context: StageSceneContext) => StageSceneL
 export interface MountedSceneLayer {
   onModelLoaded(): void;
   beforeRender(): void;
+  afterRender(): void;
   wantsFrame(): boolean;
   dispose(): void;
   /** False once a hook has thrown (the layer is retired) or after dispose. */
@@ -115,6 +120,7 @@ export function mountSceneLayer(
   return {
     onModelLoaded: () => run('onModelLoaded', undefined, (target) => target.onModelLoaded?.()),
     beforeRender: () => run('beforeRender', undefined, (target) => target.beforeRender?.()),
+    afterRender: () => run('afterRender', undefined, (target) => target.afterRender?.()),
     wantsFrame: () => run('wantsFrame', false, (target) => target.wantsFrame?.() === true),
     dispose: () => {
       if (!active || !layer) return;
