@@ -812,17 +812,9 @@ export class FollowThroughStrokes {
    * by through a flowing stroke; 0 for a segment that leaves or reaches a stop
    * (leaving one, the dwell already trails; reaching one, the arrival — and any
    * late brake — stays the chain's). `q`, `s`: its aligned knot quaternions and
-   * SQUAD controls; `own`: its own time-warp slope at each knot (per ms);
-   * `pinned`: knots the bone passes at rest (motionTrajectory), whose strokes
-   * trail on a ramped clock instead (0 here).
+   * SQUAD controls; `own`: its own time-warp slope at each knot (per ms).
    */
-  lags(
-    q: readonly Q[],
-    s: readonly Q[],
-    own: readonly number[],
-    delay: number,
-    pinned?: readonly boolean[] | null,
-  ): number[] {
+  lags(q: readonly Q[], s: readonly Q[], own: readonly number[], delay: number): number[] {
     const n = q.length;
     const budget = followThroughStrokeLag(delay);
     const lag = new Array<number>(n - 1).fill(0);
@@ -835,7 +827,7 @@ export class FollowThroughStrokes {
     const inputs = this.inputs;
     const stored = (memo ??= new StrokeMemo());
     for (let i = 0; i < n - 1; i += 1) {
-      if (this.stops[i] || this.stops[i + 1] || pinned?.[i] || pinned?.[i + 1]) continue;
+      if (this.stops[i] || this.stops[i + 1]) continue;
       const h = this.spans[i]!;
       const qa = q[i]!;
       const qb = q[i + 1]!;

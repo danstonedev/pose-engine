@@ -38,28 +38,15 @@
  * bit-for-bit — except where a contact solver latches on the path between
  * knots (the hand-reach plant, which plants where the path touches the floor:
  * the path moves it; which frames ran does not, since the latch is found on
- * the motion's own clock — see ./motionStagger). At a PINNED knot — a
- * fly-through whose path turns a corner there (the SQUAD control is the knot
- * itself: beside a segment wider than 120°, and at the terminal overshoot) — a
- * delayed bone instead runs the chain's own progress on a ramped clock of its
- * own that brings it to rest at the knot and away from it (motionStagger
- * .followThroughRamp): C¹ where the path is not, never over the onset dwell's
- * 1/(1 − d). Root motion rides the un-warped parameter, and legs are exempt
- * (see trajectoryBoneDelay) so the foot-plant IK and slide budgets are never
- * fought.
+ * the motion's own clock — see ./motionStagger). Root
+ * motion rides the un-warped parameter, and legs are exempt (see
+ * trajectoryBoneDelay) so the foot-plant IK and slide budgets are never fought.
  */
 
 import * as THREE from 'three';
 import type { CustomPose } from '../types';
 import { POSE_SCHEMA_VERSION } from '../types';
-import {
-  delayedOnset,
-  followThroughKnotSlope,
-  followThroughRamp,
-  followThroughRampProgress,
-  trajectoryBoneDelay,
-  type FollowThroughRamp,
-} from './motionStagger';
+import { delayedOnset, followThroughKnotSlope, trajectoryBoneDelay } from './motionStagger';
 import { FollowThroughStrokes, hermite01 } from './followThroughStroke';
 import { clampTimeScale } from './motionConstants';
 
@@ -71,14 +58,12 @@ export interface TrajectoryKnot {
   rootTranslate: [number, number, number];
   /** Zero-velocity here: the motion start, a held keyframe, and the final knot. */
   stop: boolean;
-  /** A REVERSAL EXTREMUM (e.g. the terminal overshoot knot): the SQUAD
-   *  control is the knot itself, so the PATH arrives along its inbound chord
-   *  and leaves back along its outbound one instead of carrying on — but the
-   *  TIME-warp keeps flowing (unlike `stop`, the body never freezes). Without
-   *  this, SQUAD's neighbor-derived tangent carries the full inbound arc's
-   *  momentum through the knot and deepens a ~3% overshoot into a wild swing.
-   *  It is a PINNED knot (see buildPoseTrajectory): a delayed bone comes to rest
-   *  at it. */
+  /** A REVERSAL EXTREMUM (e.g. the terminal overshoot knot): the SQUAD PATH
+   *  tangent is zeroed — the pose decelerates into this knot and eases back out
+   *  along the path — but the TIME-warp keeps flowing (unlike `stop`, the body
+   *  never freezes). Without this, SQUAD's neighbor-derived tangent carries the
+   *  full inbound arc's momentum through the knot and deepens a ~3% overshoot
+   *  into a wild swing. */
   pathExtremum?: boolean;
   /** SETTLE SHAPE (roadmap 5.5): velocity class of the keyframe ARRIVING at this
    *  STOP knot. Shapes the time-warp's deceleration into the stop — 'deliberate'
@@ -175,12 +160,11 @@ function qExp(u: [number, number, number]): Q {
  *  path off the short arc — measured on the get-down-to-plank arms as a
  *  wrong-way sweep that snaps ~168° in under 10 ms. Any segment wider than this
  *  interpolates as a pure geodesic (controls = endpoints, so SQUAD degenerates
- *  to slerp exactly), and the knots flanking it are PINNED like a pathExtremum
- *  (control = the knot), so the neighbouring segments arrive along their own
- *  chords instead of inheriting its huge tangent. C0 is preserved (knot
- *  poses/times untouched), and a delayed bone passes a pinned knot at rest, so
- *  C¹ for it; segments at or under the threshold keep the numerically
- *  identical SQUAD path. */
+ *  to slerp exactly), and the knots flanking it get zero-velocity PATH tangents
+ *  (the same damping a pathExtremum gets), so the neighbouring segments ease
+ *  into the wide one instead of inheriting its huge tangent. C0 is preserved
+ *  (knot poses/times untouched); segments at or under the threshold keep the
+ *  numerically identical SQUAD path. */
 const SQUAD_SLERP_FALLBACK_DEG = 120;
 /** cos(threshold/2) — aligned unit quats q_i·q_{i+1} BELOW this dot are a
  *  wider-than-threshold rotation (angle = 2·acos(dot)). */
@@ -269,10 +253,6 @@ interface TimeWarp {
   slopes: number[];
   /** Segment durations, ms (segment i runs knot i → i+1), floored at SPAN_FLOOR_MS. */
   spans: number[];
-  /** The warp's progress through segment i, in [0,1], at raw time-linear
-   *  progress s ∈ [0,1] through it — what u(t) − i reads at t = t_i + s·h_i,
-   *  without the search for the segment. */
-  within: (i: number, s: number) => number;
 }
 
 /** Piecewise-cubic-Hermite map from knot times to knot index. Slope is forced
@@ -333,16 +313,7 @@ function buildTimeWarp(
     const h11 = s3 - s2;
     return h00 * i + h10 * (h[i]! * m[i]!) + h01 * (i + 1) + h11 * (h[i]! * m[i + 1]!);
   };
-  const within = (i: number, s0: number): number => {
-    let s = s0 <= 0 ? 0 : s0 >= 1 ? 1 : s0;
-    // The same late brake and Hermite as `at`, on segment i.
-    const b = brakes ? brakes[i + 1]! : 0;
-    if (b > 0 && stops[i + 1]) s = s * (1 - b * s * (1 - s));
-    const s2 = s * s;
-    const s3 = s2 * s;
-    return (s3 - 2 * s2 + s) * (h[i]! * m[i]!) + (-2 * s3 + 3 * s2) + (s3 - s2) * (h[i]! * m[i + 1]!);
-  };
-  return { at, slopes: m, spans: h, within };
+  return { at, slopes: m, spans: h };
 }
 
 /** Scratch for {@link knotLogs} (grown as needed; read before the next call). */
@@ -463,12 +434,8 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     slopes: number[] | null;
     /** Per segment, the c of the c·s²(1 − s)² it trails the chain by through a
      *  flowing stroke (motionStagger.followThroughStrokeLag); 0 for a segment
-     *  that leaves or reaches a stop, or a pinned knot. Null when delay == 0. */
+     *  that leaves or reaches a stop. Null when delay == 0. */
     lag: number[] | null;
-    /** Per segment, the clock a delayed bone keeps through a stroke with a
-     *  PINNED end (motionStagger.followThroughRamp), else null. Null when the
-     *  bone has no pinned knot. */
-    ramps: (FollowThroughRamp | null)[] | null;
   }
   const series = new Map<string, BoneSeries>();
   let strokes: FollowThroughStrokes | null = null;
@@ -484,32 +451,25 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     }
     const s: Q[] = [];
     // SQUAD TANGENT CLAMP (SEAM-4): a knot flanking a wider-than-threshold
-    // segment is pinned (control = the knot) — the wide segment itself then
+    // segment is damped to a zero PATH tangent — the wide segment itself then
     // interpolates as a pure short-arc slerp (both its controls equal its
-    // endpoints), and its neighbours arrive along their own chords instead of
-    // inheriting the ill-conditioned near-antipode tangent. Series with no wide
-    // segment are numerically unchanged.
+    // endpoints), and its neighbours ease into it instead of inheriting the
+    // ill-conditioned near-antipode tangent. Series with no wide segment are
+    // numerically unchanged.
     const wide = wideSegments(q);
     const delay = trajectoryBoneDelay(key);
     // A delayed bone also reads how its path turns at each knot, off the same
     // chord logs its SQUAD controls are built from: taken once, for both.
     const logs = delay > 0 ? knotLogs(q) : null;
-    // PINNED knots: interior fly-throughs whose SQUAD control is the knot
-    // itself (below). SQUAD with that control leaves and enters the knot along
-    // each side's own chord, so the path's tangent there is one chord arriving
-    // and another leaving — a corner, or a reversal. A delayed bone passes them
-    // at rest (followThroughRamp below).
-    let pinned: boolean[] | null = null;
     for (let i = 0; i < n; i += 1) {
       // A STOP knot (start / held keyframe / end) — or a reversal EXTREMUM —
-      // gets control == the knot itself. Its time-warp slope is 0 at a stop, so
-      // the pose eases in/out there without overshoot, and a hold (two equal
-      // stop knots) stays exactly constant — otherwise the SQUAD control points
-      // bend the path away from the held pose mid-segment.
+      // gets a zero-velocity PATH tangent: control == the knot itself. This both
+      // eases in/out without overshoot and keeps a hold (two equal stop knots)
+      // exactly constant — otherwise the SQUAD control points bend the path away
+      // from the held pose mid-segment.
       if (pathStops[i] || (i > 0 && wide[i - 1]) || (i < n - 1 && wide[i])) {
         const k = q[i]!;
         s.push([k[0], k[1], k[2], k[3]]);
-        if (delay > 0 && i > 0 && i < n - 1 && !stops[i]) (pinned ??= new Array<boolean>(n).fill(false))[i] = true;
         continue;
       }
       if (logs && i > 0 && i < n - 1) {
@@ -522,27 +482,12 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     }
     let slopes: number[] | null = null;
     let lag: number[] | null = null;
-    let ramps: (FollowThroughRamp | null)[] | null = null;
     if (delay > 0) {
       const reversal = knotReversals(q, logs!);
       slopes = warp.slopes.map((m, i) => m * followThroughKnotSlope(delay, reversal[i]!));
-      lag = (strokes ??= new FollowThroughStrokes(warp.slopes, warp.spans, stops)).lags(q, s, slopes, delay, pinned);
-      if (pinned) {
-        // A stroke with a pinned end runs the chain's progress on the bone's own
-        // clock: at rest at a pinned end; from rest leaving a stop (its trail out
-        // of rest); at the chain's rest arriving at one (nothing to ramp: the
-        // chain arrives at rest); at its own slope's share of the chain's at a
-        // flowing end, which meets that side's stroke C¹.
-        ramps = new Array<FollowThroughRamp | null>(n - 1).fill(null);
-        for (let k = 0; k < n - 1; k += 1) {
-          if (!pinned[k] && !pinned[k + 1]) continue;
-          const r0 = pinned[k] || stops[k] ? 0 : followThroughKnotSlope(delay, reversal[k]!);
-          const r1 = pinned[k + 1] ? 0 : stops[k + 1] ? Infinity : followThroughKnotSlope(delay, reversal[k + 1]!);
-          ramps[k] = followThroughRamp(delay, r0, r1);
-        }
-      }
+      lag = (strokes ??= new FollowThroughStrokes(warp.slopes, warp.spans, stops)).lags(q, s, slopes, delay);
     }
-    series.set(key, { q, s, delay, slopes, lag, ramps });
+    series.set(key, { q, s, delay, slopes, lag });
   }
 
   // Root orientation series (single quaternion) + controls; translate lerps.
@@ -672,12 +617,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
         // Nor can it inside a segment SHORTER than that floor: σ stops short of
         // 1 there, so the copy runs only where the segment's time is its span.
         let lb = local;
-        const ramp = bs.ramps?.[k];
-        if (ramp && timed && local > 0 && local < 1) {
-          // A stroke with a pinned end: the chain's own progress through it, on
-          // the bone's ramped clock (motionStagger.followThroughRamp).
-          lb = warp.within(k, followThroughRampProgress(ramp, sigma));
-        } else if (bs.slopes && timed && local > 0 && local < 1) {
+        if (bs.slopes && timed && local > 0 && local < 1) {
           const dwell = stops[k] ? bs.delay : 0;
           const x = delayedOnset(sigma, dwell);
           const active = (1 - dwell) * span;
