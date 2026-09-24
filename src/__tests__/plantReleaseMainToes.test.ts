@@ -1,9 +1,11 @@
 /**
- * RUNS AND LIFTS AGAINST 5c1c9ac — the travel run, jog and sprint at 0.7, 1
- * and 1.3 of their pace, a foot let go 50–250 ms into a 300–600 ms lift, and
- * an exam's hip flexion to 90° with its foot let go 150 ms in. Every release
- * into swing, both rigs, 30 / 60 / 120 Hz, measured and compared as in
- * plantReleaseMain.test.ts.
+ * THE FOREFOOT RELEASES AGAINST 5c1c9ac — DDx's walk for James (two cycles of
+ * the 0.85 walk, each stance held by its ankle and then by its forefoot until
+ * the toes lift: ddxJamesWalk, as DDx builds it) and the toe-pivot walk (DDx's
+ * hold pattern on the engine's walk) at 0.6, 0.85, 1, 1.2 and 1.5 of its pace:
+ * its toe-offs and its braking step (the left toes' release, which the route
+ * leaves far behind). Every release into swing, both rigs, 30 / 60 / 120 Hz,
+ * measured and compared as in plantReleaseMain.test.ts.
  */
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -44,6 +46,6 @@ function compareGroup(groups: MainGroup[]): void {
   }
 }
 
-describe('runs, jogs, sprints and lifts: every release no worse than 5c1c9ac’s over the same frames (documented, with its value, where not)', () => {
-  compareGroup(['RUNS', 'LIFTS']);
+describe('DDx’s walk and the toe-pivot walks: every release no worse than 5c1c9ac’s over the same frames (documented, with its value, where not)', () => {
+  compareGroup(['TOES']);
 });
