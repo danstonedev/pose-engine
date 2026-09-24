@@ -119,6 +119,16 @@ export const HAND_CASES: Record<string, HandCase> = {
   // From quadruped (lowered to prone) back up: its hands self-heal.
   'prone-chain press-up': { make: proneChain, part: 2 },
   'plank-prone-chain press-up': { make: plankProneChain, part: 2 },
+  // Sampled on their own, each drops from standing onto its hands: where the
+  // hands land, and the arms catch the body.
+  'bird-dog': { make: () => buildBirdDog() },
+  'push-up': { make: () => buildPushUp() },
+  'plank-from-quadruped': { make: () => buildPlankFromQuadruped() },
+  'quadruped-from-plank': { make: () => buildQuadrupedFromPlank() },
+  'press-up-to-quadruped': { make: () => buildPressUpToQuadruped() },
+  // Lowering from hands and knees to prone, after getting down onto them: no
+  // hand is planted, and the arms sweep back along the floor.
+  'prone-chain lower-to-prone': { make: proneChain, part: 1 },
 };
 
 export const ARM_BONES = ['L_UpperArm', 'R_UpperArm', 'L_Forearm', 'R_Forearm'] as const;

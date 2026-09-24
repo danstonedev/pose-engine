@@ -729,16 +729,15 @@ export function applyBlendedGroundingY(
  *  the eased weight folds the reach in instead. */
 export const HAND_REACH_RAMP_MS = 150;
 
-/** Let-go time (ms) for a hand the grounding releases: its arm is blended in
- *  joint space from how the reach drew it the moment it let go back to FK
- *  ({@link handReachReleasedAt}). A joint-space blend swings the hand below
- *  both ends while FK itself dives, and the longer it runs the further FK
- *  has dived: the bird-dog released right after the hands land from standing
- *  (its hand already held 5 cm under the floor, FK's 7.4) reaches 7.5 cm
- *  under the floor over 100 ms, 7.8–7.9 over 150, 8.1–8.2 over 200 and 8.7
- *  over 300 (female; 5c1c9ac, snapping to FK, 9.1). The arm still turns well
- *  inside 5c1c9ac's snap over 100 ms (the bird-dog's forearm 5.4°/frame at
- *  30 Hz against its 7.4). */
+/** Let-go time (ms) for a hand the grounding releases: its arm is FK's, still
+ *  turned by the fading share of how the reach had it turned off FK's the
+ *  moment it let go ({@link handReachReleasedAt}, footContact.solveHandReach),
+ *  so it moves with FK's arm throughout. Over 100 ms the bird-dog's lifted
+ *  forearm turns 1.8–5.4°/frame (5c1c9ac's snap 5.5–7.4) and the hand it
+ *  releases just after landing from standing goes no deeper than FK's own
+ *  (7.3–7.4 cm under the floor, female; 5c1c9ac 9.1). Over 150 ms it runs
+ *  110–140 mm along the floor near its lowest point (5c1c9ac 92–122 mm), 100
+ *  –115 over 100 ms. */
 export const HAND_REACH_RELEASE_MS = 100;
 
 /**

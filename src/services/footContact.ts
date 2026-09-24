@@ -1146,9 +1146,10 @@ export interface HandReachState {
    *  left of each change of state's jump, fading out over
    *  {@link HAND_REACH_BLEND_MS} (null: none). Kept by the settle. */
   offset?: THREE.Vector3 | null;
-  /** A reach letting go ({@link HandReachContact.untilMs}): the arm chain's
-   *  local rotations as the reach drew them the moment it let go, which the
-   *  arm is blended from back to FK; null while engaged. Kept by the settle. */
+  /** A reach letting go ({@link HandReachContact.untilMs}): per arm chain
+   *  bone, how the reach turned it off FK's the moment it let go (the local
+   *  rotation FK's is carried by), which fades back to FK; null while engaged.
+   *  Kept by the settle. */
   lettingGo?: THREE.Quaternion[] | null;
 }
 
@@ -1179,9 +1180,10 @@ export interface HandReachTimeline {
   /** A descending hand's last {@link HAND_LATCH_GRID_MS} grid evaluation inside
    *  the band: when, its pulled height and where it was (the stall latch). */
   lastGrid: { tMs: number; height: number; point: THREE.Vector3 } | null;
-  /** When the reach let go ({@link HandReachContact.untilMs}), and the arm
-   *  chain's local rotations as it was drawn then (the body posed there). */
-  letGo?: { atMs: number; quats: THREE.Quaternion[] } | null;
+  /** When the reach let go ({@link HandReachContact.untilMs}), and how it
+   *  had each arm chain bone turned off FK's local rotation then (the body
+   *  posed there). */
+  letGo?: { atMs: number; offFk: THREE.Quaternion[] } | null;
 }
 
 /**
@@ -1354,6 +1356,7 @@ const _jumpAfter = new THREE.Vector3();
 const _reachLive = new THREE.Vector3();
 const _reachTarget = new THREE.Vector3();
 const _reachDrawn = new THREE.Vector3();
+const _letGoTurn = new THREE.Quaternion();
 const _reachSolved = new THREE.Quaternion();
 const _reachPrePull: THREE.Quaternion[] = [];
 
@@ -1749,8 +1752,9 @@ export function settleHandReachLatches(
       posedOff = true;
     }
   }
-  // A reach letting go is blended back to FK from the arm as it was drawn the
-  // moment it let go: posed and solved there once (the settle's own state).
+  // A reach letting go is blended back to FK from how it had the arm turned
+  // off FK's the moment it let go: posed and solved there once (the settle's
+  // own state).
   for (const r of reaches) {
     if (r.untilMs === undefined) continue;
     const tl = r.state.timeline!;
@@ -1758,15 +1762,17 @@ export function settleHandReachLatches(
     const at = Math.min(tMs, r.untilMs);
     probe(at);
     posedOff = true;
+    const bones = r.solver.ctx.bones;
+    const fk = bones.map((b) => b.quaternion.clone());
     solveHandReach(r.solver, { target: latchAt(tl, at), offset: fadeOffsetAt(tl, at, at) }, floorY, rest, r.untilWeight ?? 1, true);
-    tl.letGo = { atMs: r.untilMs, quats: r.solver.ctx.bones.map((b) => b.quaternion.clone()) };
+    tl.letGo = { atMs: r.untilMs, offFk: bones.map((b, i) => fk[i]!.invert().multiply(b.quaternion)) };
   }
   if (posedOff) probe(tMs);
   for (const r of reaches) {
     const until = horizonOf(r);
     r.state.target = latchAt(r.state.timeline!, until);
     r.state.offset = fadeOffsetAt(r.state.timeline!, tMs, until);
-    r.state.lettingGo = r.untilMs !== undefined ? r.state.timeline!.letGo?.quats ?? null : null;
+    r.state.lettingGo = r.untilMs !== undefined ? r.state.timeline!.letGo?.offFk ?? null : null;
     r.state.lastTMs = tMs;
   }
 }
@@ -1833,8 +1839,11 @@ function solveHandReachFull(
  * latched point is weight-independent. Settled, the hand is drawn where its
  * state puts it plus the fading jumps of its changes of state (`state.offset`),
  * and a reach letting go (`state.lettingGo`) is not solved at all: its arm is
- * blended from how the reach drew it when it let go back to FK by `weight`
- * (falling 1 → 0, rootMotion.handReachWeightAt).
+ * FK's, turned by `weight` (falling 1 → 0, rootMotion.handReachWeightAt) of
+ * how the reach had each bone turned off FK's the moment it let go — so it
+ * moves with FK's arm from the start and the difference fades, where a blend
+ * from the arm as it was drawn then first had to catch FK's arm up (the hand
+ * 1.7 m/s along the floor in the bird-dog's early release, FK 1.1).
  */
 export function solveHandReach(
   solver: FootPlantSolver,
@@ -1847,9 +1856,12 @@ export function solveHandReach(
   const w = Math.min(1, Math.max(0, weight));
   const bones = solver.ctx.bones;
   if (settled && state.lettingGo) {
-    // Letting go: from the arm as the reach drew it when it let go, back to FK.
+    // Letting go: FK's arm, still turned by `weight` of how the reach had it
+    // turned off FK's when it let go.
     if (w <= 0) return;
-    for (let i = 0; i < bones.length; i += 1) bones[i]!.quaternion.slerp(state.lettingGo[i]!, w);
+    for (let i = 0; i < bones.length; i += 1) {
+      bones[i]!.quaternion.multiply(_letGoTurn.identity().slerp(state.lettingGo[i]!, w));
+    }
     bones[bones.length - 1]!.updateWorldMatrix(true, true);
     return;
   }
