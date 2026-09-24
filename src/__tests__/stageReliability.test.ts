@@ -430,18 +430,60 @@ describe('SEAM-4/SEAM-5 — the live stage runs the grounding-switch crossfade i
     );
   });
 
-  it('the hand-reach latch reads the motion time on both paths, and both drop its approach on release (lockstep)', () => {
-    // The latch interpolates the moment the hand reached the floor between
-    // evaluations, from the time each was made — so where a hand plants no
-    // longer depends on which frames ran, provided both paths hand it the time.
+  it('the hand-reach latch is settled on the motion’s own clock on both paths, then solved (lockstep)', () => {
+    // Where and when a hand latches (and self-heals) is found on the trajectory
+    // between frames (footContact.settleHandReachLatches, probing it), so it no
+    // longer depends on which frames ran — provided both paths settle it from
+    // the same engagement time, probe the same pipeline, and then only solve.
     expect(stageSource).toMatch(
-      /solveHandReach\(\s*hp\.solver,\s*hp,\s*floorRef\.floorY,\s*restRef,\s*handReachWeightAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\),\s*tMs,\s*\)/,
+      /const engagedAt = handReachEngagedAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\);\s*engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: Number\.isFinite\(engagedAt\) \? engagedAt : 0, bone: hp\.bone \}\);/,
     );
     expect(samplerSource).toMatch(
-      /solveHandReach\(\s*hp\.solver,\s*hp,\s*floorRef\.floorY,\s*rest,\s*handReachWeightAt\(groundingSwitches, hp\.bone, tMs, floorRef\),\s*tMs,\s*\)/,
+      /const engagedAt = handReachEngagedAt\(groundingSwitches, hp\.bone, tMs, floorRef\);\s*engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: Number\.isFinite\(engagedAt\) \? engagedAt : 0, bone: hp\.bone \}\);/,
     );
-    expect(stageSource).toMatch(/hp\.target = null;\s*hp\.approach = null;/);
-    expect(samplerSource).toMatch(/hp\.target = null;[^\n]*\n\s*hp\.approach = null;/);
+    expect(stageSource).toContain(
+      'settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t));',
+    );
+    expect(samplerSource).toContain('settleHandReachLatches(engaged, tMs, floorRef.floorY, rest, poseReachFrameAt);');
+    expect(stageSource).toMatch(
+      /solveHandReach\(\s*hp\.solver,\s*hp\.state,\s*floorRef\.floorY,\s*restRef,\s*handReachWeightAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\),\s*true,\s*\)/,
+    );
+    expect(samplerSource).toMatch(
+      /solveHandReach\(\s*hp\.solver,\s*hp\.state,\s*floorRef\.floorY,\s*rest,\s*handReachWeightAt\(groundingSwitches, hp\.bone, tMs, floorRef\),\s*true,\s*\)/,
+    );
+    // Both drop the latch — and when it was last settled — on release.
+    expect(stageSource).toMatch(/hp\.target = null;\s*hp\.lastTMs = null;/);
+    expect(samplerSource).toMatch(/hp\.target = null;[^\n]*\n\s*hp\.lastTMs = null;/);
+    // The probes pose what the frame poses before its reach solve: the
+    // trajectory's pose and root, then the crossfade or the posture pin.
+    const probeSteps = [
+      /traj(ectory)?\.sampleAt\(tMs\)/,
+      /apply(CustomPose|PoseComplete)\([^)]*s\.pose\)/,
+      /\.quaternion\.copy\(rootRestQuat\)\.multiply\(/,
+      /rootRestPos\.y \+ s\.rootTranslate\[1\]/,
+      /\.scale\.copy\(rootRestScale\)/,
+      /groundingBlendAt\((composedG|g)roundingBlendSpans, tMs\)/,
+      /applyBlendedGroundingY\((modelRoot|root), gBlend, apply(Composed)?GroundingPin\)/,
+      /else if \(s\.planted && s\.groundingPosture\)/,
+      /groundingContactsFor\(s\.groundingPosture, floorRef\)/,
+    ];
+    const stageProbe = stageSource.slice(stageSource.indexOf('function poseComposedReachFrameAt('));
+    const samplerProbe = samplerSource.slice(samplerSource.indexOf('const poseReachFrameAt = (tMs: number): void => {'));
+    for (const step of probeSteps) {
+      expect(stageProbe.slice(0, 1600), `stage probe: ${step}`).toMatch(step);
+      expect(samplerProbe.slice(0, 1200), `sampler probe: ${step}`).toMatch(step);
+    }
+    // …and the stage hands applyTrajectoryRoot the trajectory it probes, on
+    // every path (playing, settle, parked, loop entry).
+    for (const call of [
+      'st.groundingPosture, at.traj);',
+      's.groundingPosture, at.traj);',
+      'st.groundingPosture, trajectory);',
+      'end.groundingPosture, trajectory);',
+      's0.groundingPosture, loopTraj);',
+    ]) {
+      expect(stageSource).toContain(call);
+    }
   });
 
   it('the weighted-descent pre-pass grounds through the SAME blend as playback (lockstep arc)', () => {

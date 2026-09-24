@@ -36,8 +36,9 @@
  * segment's eased parameter, had both). Every bone still reaches every knot
  * exactly at its knot time, so the settle/measurement contract holds
  * bit-for-bit — except where a contact solver latches on the path between
- * knots (the hand-reach plant, which plants where the path reaches the floor:
- * the path moves it, which frames ran does not; see ./motionStagger). Root
+ * knots (the hand-reach plant, which plants where the path touches the floor:
+ * the path moves it; which frames ran does not, since the latch is found on
+ * the motion's own clock — see ./motionStagger). Root
  * motion rides the un-warped parameter, and legs are exempt (see
  * trajectoryBoneDelay) so the foot-plant IK and slide budgets are never fought.
  */

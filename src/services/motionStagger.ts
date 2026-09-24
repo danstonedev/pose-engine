@@ -18,13 +18,17 @@
  *      goniometric measurement are byte-identical to the un-staggered path —
  *      only the trajectory BETWEEN keyframes changes. The one exception reads
  *      the path itself: the hand-reach plant (footContact.solveHandReach)
- *      latches the floor point where the hand first reaches the floor, so a
+ *      latches the floor point where the hand touches the floor, so a
  *      hand-planted settle (quadruped, plank, push-up, bird-dog) moves with any
  *      re-timing of the arm's PATH — making this warp C¹ moved it up to
- *      2.9° / 10 mm. It does not move with the sample rate: the latch finds the
- *      moment of contact between frames, so 30, 60 and 120 Hz and a jittered
- *      clock settle within 0.8 mm / 0.4° (male rig; 10.4 mm / 2.0° when it
- *      latched on the first frame inside the floor band).
+ *      2.9° / 10 mm. It does not move with the frames that ran: the latch, and
+ *      any self-heal and re-latch, is found on the motion's own clock
+ *      (footContact.settleHandReachLatches), so 30, 60 and 120 Hz, a jittered
+ *      display clock and a 40–95 ms one settle identically on both rigs,
+ *      chains included (latched on the first frame inside the floor band they
+ *      settled up to 18 mm / 2.3° apart, 59 mm / 6.0° in a chain). Only a
+ *      change of state that comes and goes wholly between two frames, both
+ *      far from its threshold, could still be missed by a clock.
  *   2. A delayed bone's motion stays C¹: the delay is a DWELL in raw TIME that
  *      precedes the ease ({@link delayedOnset}), so the bone leaves rest with
  *      zero velocity, and it only ever dwells where it is already at rest.
@@ -121,8 +125,8 @@ const AXIAL_TRAJECTORY_FRACTION = 0.25;
  * where its own path reverses ({@link followThroughKnotSlope}). Every knot is
  * still reached EXACTLY at its knot time (the settle/measurement contract is
  * untouched, bar the reach-plant latch noted above, which plants where the
- * arm's path reaches the floor) and the lag lives mid-segment, where the eye
- * reads overlap.
+ * arm's path touches the floor — whichever frames ran) and the lag lives
+ * mid-segment, where the eye reads overlap.
  *
  * Scope (deliberately narrower than the tween-path {@link chainOnsetDelay}):
  *   - ARM chains (clavicle → fingers) get the full chain-ranked delay — the

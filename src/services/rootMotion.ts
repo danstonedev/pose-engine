@@ -740,7 +740,25 @@ export function handReachWeightAt(
   tMs: number,
   floor: FloorReference,
 ): number {
-  if (!switches?.length) return 1;
+  const engagedAt = handReachEngagedAt(switches, bone, tMs, floor);
+  if (!Number.isFinite(engagedAt)) return 1;
+  return groundingBlendEase((tMs - engagedAt) / HAND_REACH_RAMP_MS);
+}
+
+/**
+ * When (trajectory ms) the switch that last (re)introduced `bone` to the active
+ * reach set at or before `tMs` fell — −Infinity when the reach has been active
+ * since before the motion's first switch (or the motion never switches). Pure
+ * function of the switch list + time: the ramp above and the latch's search for
+ * the moment of contact (footContact.settleHandReachLatches) start from it.
+ */
+export function handReachEngagedAt(
+  switches: readonly TrajectoryGroundingSwitch[] | undefined,
+  bone: string,
+  tMs: number,
+  floor: FloorReference,
+): number {
+  if (!switches?.length) return -Infinity;
   const hasReach = (posture: string | undefined): boolean =>
     posture != null &&
     groundingContactsFor(posture, floor).some((c) => c.mode === 'reach' && c.bone === bone);
@@ -752,8 +770,7 @@ export function handReachWeightAt(
     if (inTo && !inFrom) engagedAt = s.tMs; // (re)introduced here — ramp from this switch
     else if (!inTo) engagedAt = -Infinity; // released — a later re-engage restarts the ramp
   }
-  if (!Number.isFinite(engagedAt)) return 1;
-  return groundingBlendEase((tMs - engagedAt) / HAND_REACH_RAMP_MS);
+  return engagedAt;
 }
 
 // ── Calibrated gait vertical (mean-preserving reshape) ───────────────────────

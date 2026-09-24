@@ -584,10 +584,11 @@
         groundingBlendAt,
         applyBlendedGroundingY,
         handReachWeightAt,
+        handReachEngagedAt,
         startPlantsWhereFeetLand,
         FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
-      const { buildFootPlant, stepContactPlants, buildHandPlant, solveHandReach } =
+      const { buildFootPlant, stepContactPlants, buildHandPlant, settleHandReachLatches, solveHandReach } =
         await import('./services/footContact');
       // Rig-facing composed derivations (the four trajectory pre-passes). Dynamic
       // like every other three-using service, so this component stays SSR-safe.
@@ -2014,14 +2015,50 @@
         if (solved) modelRoot.updateMatrixWorld(true);
       }
 
+      /** Pose the rig at time `tMs` of `traj` exactly as a frame is posed when
+       *  applyTrajectoryRoot solves its reach contacts — the trajectory's pose,
+       *  the root and the grounding (the crossfade or the posture pin) — so the
+       *  hand latch reads the reach on the motion's own clock between frames
+       *  (footContact.settleHandReachLatches). Mirrors the offline sampler's
+       *  poseReachFrameAt (lockstep). */
+      function poseComposedReachFrameAt(traj: PoseTrajectory, tMs: number): void {
+        if (!modelRoot || !skinnedRef || !variantCfgRef || !floorRef) return;
+        const s = traj.sampleAt(tMs);
+        applyPoseComplete(skinnedRef.skeleton, variantCfgRef, s.pose);
+        _rootQA.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+        modelRoot.quaternion.copy(rootRestQuat).multiply(_rootQA);
+        modelRoot.position.set(
+          rootRestPos.x + s.rootTranslate[0],
+          rootRestPos.y + s.rootTranslate[1],
+          rootRestPos.z + s.rootTranslate[2],
+        );
+        modelRoot.scale.copy(rootRestScale);
+        modelRoot.updateMatrixWorld(true);
+        const gBlend = composedGroundingBlendSpans.length
+          ? groundingBlendAt(composedGroundingBlendSpans, tMs)
+          : null;
+        if (gBlend) {
+          applyBlendedGroundingY(modelRoot, gBlend, applyComposedGroundingPin);
+        } else if (s.planted && s.groundingPosture) {
+          pinContactsToFloor(
+            modelRoot,
+            skinnedRef.skeleton,
+            variantCfgRef,
+            groundingContactsFor(s.groundingPosture, floorRef),
+          );
+        }
+      }
+
       /** Set the whole-body root from an absolute trajectory sample, then (planted)
-       *  pin the lower foot to the floor. */
+       *  pin the lower foot to the floor. `traj` is the trajectory the sample is
+       *  of (the hand latch probes it between frames). */
       function applyTrajectoryRoot(
         rootQuat: [number, number, number, number],
         rootTranslate: [number, number, number],
         planted: boolean,
         tMs = 0,
-        groundingPosture?: string,
+        groundingPosture: string | undefined,
+        traj: PoseTrajectory,
       ): void {
         if (!modelRoot) return;
         composedCurrentGrounding = groundingPosture ?? null; // stamp the frame's grounding for recording
@@ -2039,7 +2076,9 @@
         // REACH CONTACTS of the active posture: bring each planted hand to the
         // floor and LATCH it there, so it stays put as the body lowers over it —
         // the arm folds (the push-up). Mirrors the sampler's latch-on-contact
-        // reach solve, incl. the SEAM-4 engagement ramp (handReachWeightAt).
+        // reach solve: the latch settled on the motion's own clock
+        // (settleHandReachLatches, probing `traj`), then the SEAM-4 engagement
+        // ramp (handReachWeightAt).
         const solveComposedReachContacts = (posture: string): void => {
           if (!composedHandPlants.length || !restRef || !skinnedRef || !variantCfgRef || !floorRef)
             return;
@@ -2048,24 +2087,29 @@
               .filter((c) => c.mode === 'reach')
               .map((c) => c.bone),
           );
-          let solved = false;
+          const engaged: { solver: NonNullable<StageHandPlant['solver']>; state: StageHandPlant; engagedAtMs: number; bone: string }[] = [];
           for (const hp of composedHandPlants) {
             if (!hp.solver || !reach.has(hp.bone)) {
               hp.target = null;
-              hp.approach = null;
+              hp.lastTMs = null;
               continue;
             }
+            const engagedAt = handReachEngagedAt(composedGroundingSwitches, hp.bone, tMs, floorRef);
+            engaged.push({ solver: hp.solver, state: hp, engagedAtMs: Number.isFinite(engagedAt) ? engagedAt : 0, bone: hp.bone });
+          }
+          if (!engaged.length) return;
+          settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t));
+          for (const hp of engaged) {
             solveHandReach(
               hp.solver,
-              hp,
+              hp.state,
               floorRef.floorY,
               restRef,
               handReachWeightAt(composedGroundingSwitches, hp.bone, tMs, floorRef),
-              tMs,
+              true,
             );
-            solved = true;
           }
-          if (solved) modelRoot!.updateMatrixWorld(true);
+          modelRoot!.updateMatrixWorld(true);
         };
         // GROUNDING-SWITCH CROSSFADE (SEAM-4/SEAM-5): inside an override span
         // the grounded root-Y is the eased blend of the OUTGOING and INCOMING
@@ -2222,7 +2266,7 @@
           const st = at.traj.sampleAt(at.settleAtMs[at.nextSettle]!);
           if (skinnedRef && variantCfgRef)
             applyPoseComplete(skinnedRef.skeleton, variantCfgRef, st.pose);
-          applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, at.settleAtMs[at.nextSettle]!, st.groundingPosture);
+          applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, at.settleAtMs[at.nextSettle]!, st.groundingPosture, at.traj);
           applyFootPlants(at.settleAtMs[at.nextSettle]!, at.traj);
           at.onSettle(at.nextSettle);
           at.nextSettle += 1;
@@ -2252,7 +2296,7 @@
         const s = at.traj.sampleAt(elapsed);
         if (skinnedRef && variantCfgRef) applyPoseComplete(skinnedRef.skeleton, variantCfgRef, s.pose);
         currentPose = s.pose;
-        applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed, s.groundingPosture);
+        applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed, s.groundingPosture, at.traj);
         // Closed-chain foot contact for this frame (pins declared stance feet).
         applyFootPlants(elapsed, at.traj);
         requestRender();
@@ -2801,7 +2845,7 @@
               const st = trajectory.sampleAt(settleAtMs[i]!);
               if (skinnedRef && variantCfgRef)
                 applyPoseComplete(skinnedRef.skeleton, variantCfgRef, st.pose);
-              applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, settleAtMs[i]!, st.groundingPosture);
+              applyTrajectoryRoot(st.rootQuat, st.rootTranslate, st.planted, settleAtMs[i]!, st.groundingPosture, trajectory);
               applyFootPlants(settleAtMs[i]!, trajectory);
               measureSettle(i);
             }
@@ -2809,7 +2853,7 @@
             if (skinnedRef && variantCfgRef)
               applyPoseComplete(skinnedRef.skeleton, variantCfgRef, end.pose);
             currentPose = end.pose;
-            applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs, end.groundingPosture);
+            applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs, end.groundingPosture, trajectory);
             applyFootPlants(trajectory.totalMs, trajectory);
             resolve();
             return;
@@ -2874,7 +2918,7 @@
             const s0 = loopTraj.sampleAt(enterAtMs);
             if (skinnedRef && variantCfgRef)
               applyPoseComplete(skinnedRef.skeleton, variantCfgRef, s0.pose);
-            applyTrajectoryRoot(s0.rootQuat, s0.rootTranslate, s0.planted, enterAtMs, s0.groundingPosture);
+            applyTrajectoryRoot(s0.rootQuat, s0.rootTranslate, s0.planted, enterAtMs, s0.groundingPosture, loopTraj);
             const deltaYM = modelRoot ? liveY - modelRoot.position.y : 0;
             if (Math.abs(deltaYM) > 1e-4)
               composedVcalHandoff = { deltaYM, startedAtMs: performance.now() };

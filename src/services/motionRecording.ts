@@ -42,9 +42,11 @@ import {
   buildFootPlant,
   stepContactPlants,
   buildHandPlant,
+  settleHandReachLatches,
   solveHandReach,
   type ContactPlant,
   type FootPlantSolver,
+  type HandReachContact,
   type HandReachState,
 } from './footContact';
 import { computeBodyCoMFromBones } from './centerOfMass';
@@ -66,6 +68,7 @@ import {
   deriveWeightedDescent,
   FOOT_ROOT_DRIFT_M,
   groundingBlendAt,
+  handReachEngagedAt,
   handReachWeightAt,
   headingProfileLookup,
   heelStrikeOffsetAt,
@@ -990,6 +993,31 @@ export function sampleComposedMotion(
     }, totalMs);
   }
 
+  /** Pose the rig at time t exactly as sampleAt poses a frame when it solves the
+   *  reach contacts — the trajectory's pose, the root and the grounding (the
+   *  crossfade or the posture pin) — so the hand latch reads the reach on the
+   *  motion's own clock between frames (footContact.settleHandReachLatches). The
+   *  live stage's applyTrajectoryRoot probes the same way (lockstep). */
+  const poseReachFrameAt = (tMs: number): void => {
+    const s = trajectory.sampleAt(tMs);
+    applyCustomPose(skinned.skeleton, variantCfg, s.pose);
+    _sq.set(s.rootQuat[0], s.rootQuat[1], s.rootQuat[2], s.rootQuat[3]);
+    root.quaternion.copy(rootRestQuat).multiply(_sq);
+    root.position.set(
+      rootRestPos.x + s.rootTranslate[0],
+      rootRestPos.y + s.rootTranslate[1],
+      rootRestPos.z + s.rootTranslate[2],
+    );
+    root.scale.copy(rootRestScale);
+    root.updateMatrixWorld(true);
+    const gBlend = groundingBlendSpans.length ? groundingBlendAt(groundingBlendSpans, tMs) : null;
+    if (gBlend) {
+      applyBlendedGroundingY(root, gBlend, applyGroundingPin);
+    } else if (s.planted && s.groundingPosture) {
+      pinContactsToFloor(root, skinned.skeleton, variantCfg, groundingContactsFor(s.groundingPosture, floorRef));
+    }
+  };
+
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
     const sample = trajectory.sampleAt(tMs);
@@ -1025,23 +1053,32 @@ export function sampleComposedMotion(
           .filter((c) => c.mode === 'reach')
           .map((c) => c.bone),
       );
+      const engaged: (HandReachContact & { bone: string })[] = [];
       for (const hp of handPlants) {
         if (!reach.has(hp.bone)) {
           hp.target = null; // this posture doesn't plant this hand — release it
-          hp.approach = null;
+          hp.lastTMs = null;
           continue;
         }
+        const engagedAt = handReachEngagedAt(groundingSwitches, hp.bone, tMs, floorRef);
+        engaged.push({ solver: hp.solver, state: hp, engagedAtMs: Number.isFinite(engagedAt) ? engagedAt : 0, bone: hp.bone });
+      }
+      if (!engaged.length) return;
+      // Where and when each hand latched, on the motion's own clock — then the
+      // arms are solved to it.
+      settleHandReachLatches(engaged, tMs, floorRef.floorY, rest, poseReachFrameAt);
+      for (const hp of engaged) {
         solveHandReach(
           hp.solver,
-          hp,
+          hp.state,
           floorRef.floorY,
           rest,
           handReachWeightAt(groundingSwitches, hp.bone, tMs, floorRef),
-          tMs,
+          true,
         );
-        groundReachSolved = true;
       }
-      if (groundReachSolved) root.updateMatrixWorld(true);
+      groundReachSolved = true;
+      root.updateMatrixWorld(true);
     };
     // GROUNDING-SWITCH CROSSFADE (SEAM-4/SEAM-5): inside an override span the
     // grounded root-Y is the eased blend of the OUTGOING and INCOMING pin
