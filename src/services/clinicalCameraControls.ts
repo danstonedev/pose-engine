@@ -42,7 +42,11 @@
  * calls `update()` once per frame (before `controls.update()`), and every
  * camera mutation funnels through the component's `requestRender` so the
  * dirty-flag machinery keeps working. Focus/reset tweens are camera-only —
- * they never touch poses — and any user gesture cancels them.
+ * they never touch poses — and any user gesture cancels them. A host can also
+ * ask for a longer GLIDE to a whole new view (`glideTo`: the camera swings
+ * round the target on a damped spring, services/cameraGlide), which any user
+ * gesture likewise cancels; `onUserInput` tells the host when that happens, so
+ * a host that frames the view itself can stand aside for the student.
  *
  * Pure math (NDC conversion, dolly stepping, view-pose interpolation) is
  * exported separately so it stays unit-testable in Node.
@@ -84,6 +88,7 @@ export const CLINICAL_CAMERA_TWEEN_MS = 320;
 // chunk, defeating the lazy-three contract. Re-exported here so the public
 // surface (and `export *` from src/index.ts) is unchanged.
 import { isCoarsePointer } from './clinicalCameraLabels';
+import { createViewGlide } from './cameraGlide';
 
 export {
   CLINICAL_CAMERA_ARIA_LABEL,
@@ -332,6 +337,18 @@ export interface ClinicalCameraControlsHandle {
   resetView(): void;
   /** Keyboard-style dolly by one ~10% step. +1 in, −1 out. */
   dollyStep(direction: 1 | -1): void;
+  /**
+   * Glide the orbit target and the camera to a new view, round the target on a
+   * damped spring (services/cameraGlide; `smoothTimeS` sets its pace). A glide
+   * already under way bends toward the new view without a jolt. Any user
+   * gesture, focus or reset stops it.
+   */
+  glideTo(target: THREE.Vector3, position: THREE.Vector3, smoothTimeS?: number): void;
+  /**
+   * Called whenever the user moves the camera themselves (drag, wheel, pinch,
+   * double-click or double-tap, the camera keys). Returns an unsubscribe.
+   */
+  onUserInput(listener: () => void): () => void;
   /** Advance any active focus/reset tween. Call once per rAF frame BEFORE
    *  `controls.update()`. Uses performance.now() internally. */
   update(): void;
@@ -384,8 +401,15 @@ export function createClinicalCameraControls(
     start: number;
   }
   let tween: ActiveTween | null = null;
+  const glide = createViewGlide();
+  let glideAt = 0;
+  const userListeners = new Set<() => void>();
+  const userMoved = () => {
+    for (const listener of [...userListeners]) listener();
+  };
 
   function startTween(toTarget: THREE.Vector3, toPosition: THREE.Vector3 | null): void {
+    glide.cancel();
     tween = {
       fromTarget: controls.target.clone(),
       toTarget: toTarget.clone(),
@@ -398,6 +422,15 @@ export function createClinicalCameraControls(
   }
 
   function update(): void {
+    if (!tween && glide.active) {
+      const now = performance.now();
+      const view = glide.step(now - glideAt);
+      glideAt = now;
+      controls.target.set(...view.target);
+      camera.position.set(...view.position);
+      requestRender();
+      return;
+    }
     if (!tween) return;
     const t = (performance.now() - tween.start) / CLINICAL_CAMERA_TWEEN_MS;
     if (t >= 1) {
@@ -416,8 +449,24 @@ export function createClinicalCameraControls(
   // A user gesture takes over immediately — never fight the hand.
   const cancelTween = () => {
     tween = null;
+    glide.cancel();
   };
-  controls.addEventListener('start', cancelTween);
+  const onGestureStart = () => {
+    cancelTween();
+    userMoved();
+  };
+  controls.addEventListener('start', onGestureStart);
+
+  function glideTo(target: THREE.Vector3, position: THREE.Vector3, smoothTimeS?: number): void {
+    tween = null;
+    if (!glide.active) glideAt = performance.now();
+    glide.setGoal(
+      { target: [target.x, target.y, target.z], position: [position.x, position.y, position.z] },
+      { target: [controls.target.x, controls.target.y, controls.target.z], position: [camera.position.x, camera.position.y, camera.position.z] },
+      smoothTimeS,
+    );
+    requestRender();
+  }
 
   function captureHomeView(): void {
     home = { target: controls.target.clone(), position: camera.position.clone() };
@@ -448,6 +497,7 @@ export function createClinicalCameraControls(
 
   // ── Double-click / double-tap: focus the hit point, or reset on a miss ───
   function focusOrResetAt(clientX: number, clientY: number): void {
+    userMoved();
     const rect = domElement.getBoundingClientRect();
     const ndc = clientToNdc(clientX, clientY, rect);
     const root = getPickRoot();
@@ -506,18 +556,29 @@ export function createClinicalCameraControls(
     switch (ev.key) {
       case '+':
       case '=':
+        userMoved();
         dollyStep(1);
         break;
       case '-':
       case '_':
+        userMoved();
         dollyStep(-1);
         break;
       case '0':
       case 'Home':
+        userMoved();
         resetView();
         break;
+      case 'ArrowUp':
+      case 'ArrowDown':
+      case 'ArrowLeft':
+      case 'ArrowRight':
+        // Panned by OrbitControls' own key listener (which raises no 'start').
+        glide.cancel();
+        userMoved();
+        return;
       default:
-        return; // arrows are handled by OrbitControls' own key listener
+        return;
     }
     ev.preventDefault();
   };
@@ -535,9 +596,16 @@ export function createClinicalCameraControls(
     focusOn,
     resetView,
     dollyStep,
+    glideTo,
+    onUserInput: (listener) => {
+      userListeners.add(listener);
+      return () => userListeners.delete(listener);
+    },
     update,
     dispose: () => {
       tween = null;
+      glide.cancel();
+      userListeners.clear();
       domElement.removeEventListener('dblclick', onDblClick);
       if (touchGestures.cooperative) {
         domElement.removeEventListener('pointerdown', onTouchPointerDown);
@@ -550,7 +618,7 @@ export function createClinicalCameraControls(
         // listenToKeyEvents was never called (null key-events element).
         controls.stopListenToKeyEvents();
       }
-      controls.removeEventListener('start', cancelTween);
+      controls.removeEventListener('start', onGestureStart);
       controls.dispose();
     },
   };

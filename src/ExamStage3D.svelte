@@ -106,6 +106,12 @@
   } from './services/readyTransition';
   import { isCoarsePointer, resolveClinicalCameraAriaLabel } from './services/clinicalCameraLabels';
   import { attachContextLossRecovery, disposeObject3DTree } from './services/webglLifecycle';
+  // Three-free at module scope (three is type-only there) — static import stays SSR-safe.
+  import {
+    mountSceneLayer,
+    type MountedSceneLayer,
+    type StageSceneLayerFactory,
+  } from './services/stageSceneLayer';
 
   let {
     variant = 'male',
@@ -120,6 +126,7 @@
     idleLiveliness = 0.4,
     posable = false,
     diagnostics = false,
+    sceneLayer = null,
     onReport,
     onPoseDropped,
     onSelectJoint,
@@ -193,6 +200,17 @@
      *  clip / held). Reads the rendered bones — so an onset/transition tilt
      *  self-identifies on screen. Never repositions the body. */
     diagnostics?: boolean;
+    /** OPT-IN host scene layer (default null — other consumers are
+     *  byte-identically untouched). Called once when the stage's scene
+     *  exists, with the scene, camera, renderer, a render request and live
+     *  bone / floor lookups; the layer it returns is told when a model
+     *  loads, runs on every drawn frame once the pose and every live overlay
+     *  are final (so what it attaches to a bone follows the body exactly,
+     *  breathing included), can keep the stage drawing while it animates,
+     *  and is disposed with the stage. A layer that throws is removed and
+     *  the stage carries on (services/stageSceneLayer). Read when the stage
+     *  boots, like `posable`. */
+    sceneLayer?: StageSceneLayerFactory | null;
     /** Fires when the authored pose is rejected at load time ('variant',
      *  'schema', 'empty', 'no-skeleton'); the stage continues anatomic. */
     onPoseDropped?: (reason: string) => void;
@@ -1184,6 +1202,8 @@
        *  idle liveliness suspends so hand-posing is never perturbed. */
       let poseLayerBusy: (() => boolean) | null = null;
       let poseLayerDispose: (() => void) | null = null;
+      /** The host's scene layer (the `sceneLayer` prop), once mounted; null for a default stage. */
+      let sceneLayerHooks: MountedSceneLayer | null = null;
 
       /** Resolves a one-shot ('once') motion when the mixer fires 'finished'. */
       let motionFinishResolve: (() => void) | null = null;
@@ -1403,6 +1423,7 @@
           // 9) Rebuild the posing layer (markers / twist rig / planes) for
           //    the fresh skeleton (posable hosts only).
           poseLayerOnModelLoaded?.();
+          sceneLayerHooks?.onModelLoaded(); // the host re-anchors to the fresh skeleton
           loading = false;
           requestRender();
         } catch (err) {
@@ -3299,8 +3320,11 @@
             });
           }
         }
+        // A host scene layer animating on its own clock keeps the loop drawing.
+        if (!renderNeeded && sceneLayerHooks?.wantsFrame()) renderNeeded = true;
         if (!renderNeeded) return;
         poseLayerBeforeRender?.(); // markers / gizmo / twist / slice tracking
+        sceneLayerHooks?.beforeRender(); // host objects follow the final, rendered pose
         renderer.render(scene, camera);
         poseLayerAfterRender?.(); // rotate-ring depth-cleared overlay pass
         renderNeeded = false;
@@ -3366,6 +3390,8 @@
       // Wire the teardown BEFORE the first (awaited) model load — an unmount
       // mid-load must still stop the rAF loop and dispose everything.
       cleanup = () => {
+        sceneLayerHooks?.dispose(); // the host removes what it added, while the scene still exists
+        sceneLayerHooks = null;
         poseLayerDispose?.();
         if (activeTween) finishTween();
         stopMotion(); // resolves any awaiting one-shot motion promise
@@ -3502,6 +3528,31 @@
           poseApiImpl.setSlice(pendingSlice);
           pendingSlice = null;
         }
+      }
+
+      // ── OPT-IN host scene layer (`sceneLayer`) ───────────────────────────
+      // Mounted before the first model load so the layer sees onModelLoaded for
+      // it; its lookups are live getters, so they follow every later reload.
+      if (sceneLayer && !disposed) {
+        sceneLayerHooks = mountSceneLayer(sceneLayer, {
+          THREE,
+          scene,
+          camera,
+          renderer,
+          requestRender,
+          get modelRoot() {
+            return modelRoot;
+          },
+          get skinnedMesh() {
+            return skinnedRef;
+          },
+          bone: (key: string) => motionCapBones?.get(key) ?? null,
+          get floorY() {
+            return floorRef?.floorY ?? null;
+          },
+          glideView: (target, position, smoothTimeS) => cam.glideTo(target, position, smoothTimeS),
+          onUserView: (listener) => cam.onUserInput(listener),
+        });
       }
 
       await loadModel(variant, modelUrl, authoredPose);

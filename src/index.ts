@@ -198,6 +198,9 @@ export * from './services/orbitViewer';
 // and opt-in cooperative touch (`allowPageScrollOnMiss`: one finger scrolls
 // the page, two fingers move the camera, double-tap focuses).
 export * from './services/clinicalCameraControls';
+// The host-requested camera glide (round the target on a damped spring) the
+// controls' glideTo runs, and a stage's scene layer reaches as glideView.
+export * from './services/cameraGlide';
 
 // TransformControls rotate-gizmo configuration helpers
 export * from './services/poseGizmoHelpers';
@@ -250,3 +253,12 @@ export { default as ObservationViewer } from './ObservationViewer.svelte';
 // patient and resolves with the MEASURED outcome. Same lazy-three contract,
 // so the barrel stays SSR/prerender-safe.
 export { default as ExamStage3D } from './ExamStage3D.svelte';
+// The stage's opt-in host scene layer (the `sceneLayer` prop): the types a host
+// implements, and the guarded mount the stage drives it through.
+export {
+  mountSceneLayer,
+  type MountedSceneLayer,
+  type StageSceneContext,
+  type StageSceneLayer,
+  type StageSceneLayerFactory,
+} from './services/stageSceneLayer';
