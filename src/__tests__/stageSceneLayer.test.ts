@@ -26,6 +26,7 @@ describe('mountSceneLayer', () => {
       return {
         onModelLoaded: () => calls.push('loaded'),
         beforeRender: () => calls.push('render'),
+        afterRender: () => calls.push('restore'),
         wantsFrame: () => true,
         dispose: () => calls.push('dispose'),
       };
@@ -33,9 +34,10 @@ describe('mountSceneLayer', () => {
     expect(seen).toBe(context);
     mounted.onModelLoaded();
     mounted.beforeRender();
+    mounted.afterRender();
     expect(mounted.wantsFrame()).toBe(true);
     mounted.dispose();
-    expect(calls).toEqual(['loaded', 'render', 'dispose']);
+    expect(calls).toEqual(['loaded', 'render', 'restore', 'dispose']);
     expect(mounted.active).toBe(false);
   });
 
@@ -103,6 +105,8 @@ describe('ExamStage3D wiring of the scene layer', () => {
     expect(at('applyEyeGaze(motionDelta)')).toBeLessThan(at('sceneLayerHooks?.beforeRender()'));
     expect(at('sceneLayerHooks?.wantsFrame()')).toBeLessThan(at('if (!renderNeeded) return;'));
     expect(at('sceneLayerHooks?.beforeRender()')).toBeLessThan(at('renderer.render(scene, camera)'));
+    expect(at('renderer.render(scene, camera)')).toBeLessThan(at('sceneLayerHooks?.afterRender()'));
+    expect(at('poseLayerAfterRender?.()')).toBeLessThan(at('sceneLayerHooks?.afterRender()'));
   });
 
   it('re-anchors on every model load and is disposed before the scene is torn down', () => {

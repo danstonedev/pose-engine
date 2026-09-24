@@ -2459,6 +2459,7 @@
         composedRootQuat = [...frame.root.orientQuat];
         composedRootTranslate = [...frame.root.translateM];
         applyRootState(frame.root.orientQuat, frame.root.translateM);
+        composedCurrentGrounding = frame.groundingPosture ?? null;
         requestRender();
         startLoop();
         const report = measureNow();
@@ -3325,8 +3326,12 @@
         if (!renderNeeded) return;
         poseLayerBeforeRender?.(); // markers / gizmo / twist / slice tracking
         sceneLayerHooks?.beforeRender(); // host objects follow the final, rendered pose
-        renderer.render(scene, camera);
-        poseLayerAfterRender?.(); // rotate-ring depth-cleared overlay pass
+        try {
+          renderer.render(scene, camera);
+          poseLayerAfterRender?.(); // rotate-ring depth-cleared overlay pass
+        } finally {
+          sceneLayerHooks?.afterRender(); // contact corrections never enter the next pose or recording
+        }
         renderNeeded = false;
       };
       const startLoop = () => {
@@ -3549,6 +3554,9 @@
           bone: (key: string) => motionCapBones?.get(key) ?? null,
           get floorY() {
             return floorRef?.floorY ?? null;
+          },
+          get groundingPosture() {
+            return composedCurrentGrounding;
           },
           glideView: (target, position, smoothTimeS) => cam.glideTo(target, position, smoothTimeS),
           onUserView: (listener) => cam.onUserInput(listener),
