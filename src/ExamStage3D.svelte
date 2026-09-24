@@ -3550,6 +3550,8 @@
           get floorY() {
             return floorRef?.floorY ?? null;
           },
+          glideView: (target, position, smoothTimeS) => cam.glideTo(target, position, smoothTimeS),
+          onUserView: (listener) => cam.onUserInput(listener),
         });
       }
 

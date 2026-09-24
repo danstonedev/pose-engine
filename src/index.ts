@@ -198,6 +198,9 @@ export * from './services/orbitViewer';
 // and opt-in cooperative touch (`allowPageScrollOnMiss`: one finger scrolls
 // the page, two fingers move the camera, double-tap focuses).
 export * from './services/clinicalCameraControls';
+// The host-requested camera glide (round the target on a damped spring) the
+// controls' glideTo runs, and a stage's scene layer reaches as glideView.
+export * from './services/cameraGlide';
 
 // TransformControls rotate-gizmo configuration helpers
 export * from './services/poseGizmoHelpers';

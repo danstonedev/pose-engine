@@ -12,6 +12,9 @@
 // layer animating on its own clock keeps the dirty-flag loop drawing, and
 // `dispose` on teardown. A stage given no layer never calls any of this.
 //
+// The layer may also steer the camera (`glideView`), smoothly and only until
+// the student moves it themselves (`onUserView` says when).
+//
 // A host layer must never be able to take the patient down with it: every hook
 // runs guarded, and the first one to throw retires the whole layer (logged
 // once) while the stage keeps rendering the body.
@@ -34,6 +37,15 @@ export interface StageSceneContext {
   bone(key: string): THREE.Object3D | null;
   /** World height (m) of the floor the standing body is grounded to; null while loading. */
   readonly floorY: number | null;
+  /**
+   * Glide the camera to a view of the layer's choosing: the orbit target and
+   * the camera position, reached round the target on a damped spring
+   * (services/cameraGlide; `smoothTimeS` sets its pace). The student's own
+   * camera gestures stop it and keep working as before.
+   */
+  glideView(target: THREE.Vector3, position: THREE.Vector3, smoothTimeS?: number): void;
+  /** Called whenever the student moves the camera themselves; returns an unsubscribe. */
+  onUserView(listener: () => void): () => void;
 }
 
 export interface StageSceneLayer {
