@@ -803,19 +803,36 @@ describe('follow-through on the rig', () => {
     gateMidSwingLags('travel walk at 1.5×', 1.5, 8 / Math.sqrt(1.5), 4 / Math.sqrt(1.5));
   });
 
+  /** The design's delay d for each distal arm bone the walk gates judge: chain
+   *  rank × 0.18 / 8 (forearm 6, hand 7, finger 8). Fixed here, not read off
+   *  the engine, so the floor below does not move with the code it checks. */
+  const DESIGN_DELAY: Record<string, number> = { Forearm: 0.135, Hand: 0.1575, Index1: 0.18 };
+
+  it('the walk gates’ design delays are the engine’s', () => {
+    for (const [bone, d] of Object.entries(DESIGN_DELAY)) {
+      for (const side of ['L_', 'R_']) expect(trajectoryBoneDelay(`${side}${bone}`)).toBeCloseTo(d, 12);
+      // The budget the floor below is written from: d/2 at mid-stroke, and a
+      // full turn's knot slope cut to 3 − 2/(1 − d).
+      expect(followThroughStrokeLag(d).midLag).toBeCloseTo(d / 2, 12);
+      expect(followThroughKnotSlope(d, 1)).toBeCloseTo(3 - 2 / (1 - d), 12);
+    }
+  });
+
   /** The trail (ms) the design leaves a bone at point s of a flowing stroke of
    *  `strokeMs` — even one that arrives at a full turn of its path, at an even
    *  pace. The lag term puts it c·s²(1 − s)² of the stroke behind, c = 16 × d/2
-   *  (motionStagger.followThroughStrokeLag). Arriving at a turn, its own knot
-   *  slope is cut (motionStagger.followThroughKnotSlope, by 2d/(1 − d) of the
-   *  chain's at a full turn), and an arrival that slows must come in ahead:
-   *  s²(1 − s) × that cut. So 2d·s²(1 − s)·(4(1 − s) − 1/(1 − d)) of the
-   *  stroke — positive until about 0.7 of the way through it, and past that a
-   *  bone arriving at a full turn may reach mid-swing with the chain. */
+   *  (the budget of motionStagger.followThroughStrokeLag). Arriving at a turn,
+   *  its own knot slope is cut by 2d/(1 − d) of the chain's at a full turn
+   *  (motionStagger.followThroughKnotSlope's floor 3 − 2/(1 − d)), and an
+   *  arrival that slows must come in ahead: s²(1 − s) × that cut. So
+   *  2d·s²(1 − s)·(4(1 − s) − 1/(1 − d)) of the stroke — positive until about
+   *  0.7 of the way through it, and past that a bone arriving at a full turn
+   *  may reach mid-swing with the chain. Written from the fixed constants of
+   *  {@link DESIGN_DELAY}, pinned to the engine's by the test above. */
   function designTrailMs(key: string, s: number, strokeMs: number): number {
-    const d = trajectoryBoneDelay(key);
-    const trail = 16 * followThroughStrokeLag(d).midLag * s * s * (1 - s) * (1 - s);
-    const lead = s * s * (1 - s) * (1 - followThroughKnotSlope(d, 1));
+    const d = DESIGN_DELAY[key.replace(/^[LR]_/, '')]!;
+    const trail = 16 * (d / 2) * s * s * (1 - s) * (1 - s);
+    const lead = s * s * (1 - s) * ((2 * d) / (1 - d));
     return (trail - lead) * strokeMs;
   }
 
@@ -830,8 +847,12 @@ describe('follow-through on the rig', () => {
       // held to half of what the design keeps at ITS point even into a full turn
       // (designTrailMs — the other half for the rate and speed caps and an
       // uneven pace through the stroke); within ~0.3 of the stroke of a
-      // keyframe it arrives at, where that is nothing, only the mean holds it.
-      // The mean scales with the strokes, 8 ms at 1×. Measured (male, female
+      // keyframe it arrives at, where that is nothing, it must still trail —
+      // never cross ahead of the chain — and the mean holds it (those trail by
+      // 1.35 ms, the left forearm at s = 0.80 at 0.6×, to 8.9 ms; 5c1c9ac 5.6
+      // ms at that crossing). The mean scales with the strokes, 8 ms at 1×.
+      // Every floor here is written from the design's constants, not read off
+      // the helpers it checks (DESIGN_DELAY). Measured (male, female
       // and neutral rigs alike): least crossing 1.26–1.83 × the design's trail
       // (0.8×: the left forearm at s = 0.20 of a stroke out of a turn, 4.3 ms
       // against 3.4), mean 1.11–1.51 × 8 ms / √pace (1.5×: 7.2 ms against 6.5).
@@ -841,6 +862,7 @@ describe('follow-through on the rig', () => {
       const crossings = walkMidSwingLags(pace);
       let judged = 0;
       for (const { key, lag, s, strokeMs } of crossings) {
+        expect(lag, `${pace}×: ${key}, ${strokeMs.toFixed(0)} ms stroke at s = ${s.toFixed(2)} trails the chain`).toBeGreaterThan(0);
         const floor = designTrailMs(key, s, strokeMs) / 2;
         if (!(floor > 0)) continue;
         judged += 1;
