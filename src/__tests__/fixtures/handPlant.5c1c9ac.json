@@ -1,0 +1,842 @@
+{
+ "bird-dog-L3": {
+  "male": {
+   "30": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 19.9135,
+      "pop": 15.5635
+     },
+     "R_UpperArm": {
+      "peak": 10.6339,
+      "pop": 4.65528
+     },
+     "L_Forearm": {
+      "peak": 6.38084,
+      "pop": 5.95475
+     },
+     "R_Forearm": {
+      "peak": 23.3835,
+      "pop": 10.7072
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 171.776,
+      "depth": 0.0718646,
+      "lowSlide": 0.0944396
+     },
+     "R_Hand": {
+      "accel": 81.6034,
+      "depth": 0.0744037,
+      "lowSlide": 0.00507516
+     }
+    },
+    "comAccel": 52.4322,
+    "seamJerk": 5.15
+   },
+   "60": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 15.9978,
+      "pop": 15.6305
+     },
+     "R_UpperArm": {
+      "peak": 5.33709,
+      "pop": 1.39701
+     },
+     "L_Forearm": {
+      "peak": 5.49146,
+      "pop": 5.32633
+     },
+     "R_Forearm": {
+      "peak": 12.1499,
+      "pop": 3.00652
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 171.787,
+      "depth": 0.0723347,
+      "lowSlide": 0.119841
+     },
+     "R_Hand": {
+      "accel": 28.1343,
+      "depth": 0.0744037,
+      "lowSlide": 0.00778237
+     }
+    },
+    "comAccel": 13.694,
+    "seamJerk": 10.31
+   },
+   "120": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 15.9978,
+      "pop": 15.8154
+     },
+     "R_UpperArm": {
+      "peak": 2.67655,
+      "pop": 0.10394
+     },
+     "L_Forearm": {
+      "peak": 5.49146,
+      "pop": 5.40991
+     },
+     "R_Forearm": {
+      "peak": 6.18104,
+      "pop": 0.24357
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 171.849,
+      "depth": 0.0723347,
+      "lowSlide": 0.1316
+     },
+     "R_Hand": {
+      "accel": 10.403,
+      "depth": 0.0744943,
+      "lowSlide": 0.00998872
+     }
+    },
+    "comAccel": 3.8844,
+    "seamJerk": 20.62
+   }
+  },
+  "female": {
+   "30": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 20.8374,
+      "pop": 20.0413
+     },
+     "R_UpperArm": {
+      "peak": 11.7075,
+      "pop": 5.30476
+     },
+     "L_Forearm": {
+      "peak": 7.42495,
+      "pop": 7.18229
+     },
+     "R_Forearm": {
+      "peak": 29.2158,
+      "pop": 11.6456
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 212.926,
+      "depth": 0.0904335,
+      "lowSlide": 0.0920809
+     },
+     "R_Hand": {
+      "accel": 79.6952,
+      "depth": 0.058365,
+      "lowSlide": 0.0124657
+     }
+    },
+    "comAccel": 49.82,
+    "seamJerk": 6.39
+   },
+   "60": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 20.4921,
+      "pop": 20.0951
+     },
+     "R_UpperArm": {
+      "peak": 11.1184,
+      "pop": 6.17966
+     },
+     "L_Forearm": {
+      "peak": 5.95083,
+      "pop": 5.85197
+     },
+     "R_Forearm": {
+      "peak": 25.876,
+      "pop": 13.7346
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 212.917,
+      "depth": 0.0911532,
+      "lowSlide": 0.116865
+     },
+     "R_Hand": {
+      "accel": 29.9491,
+      "depth": 0.0584022,
+      "lowSlide": 0.0174293
+     }
+    },
+    "comAccel": 13.0108,
+    "seamJerk": 12.78
+   },
+   "120": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 20.4921,
+      "pop": 20.295
+     },
+     "R_UpperArm": {
+      "peak": 6.20171,
+      "pop": 1.28476
+     },
+     "L_Forearm": {
+      "peak": 5.95083,
+      "pop": 5.89638
+     },
+     "R_Forearm": {
+      "peak": 14.3205,
+      "pop": 2.76495
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 212.984,
+      "depth": 0.0911574,
+      "lowSlide": 0.122011
+     },
+     "R_Hand": {
+      "accel": 13.4776,
+      "depth": 0.0584372,
+      "lowSlide": 0.0216258
+     }
+    },
+    "comAccel": 4.95137,
+    "seamJerk": 25.56
+   }
+  }
+ },
+ "bird-dog-L2": {
+  "male": {
+   "30": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 19.9135,
+      "pop": 13.4462
+     },
+     "R_UpperArm": {
+      "peak": 10.6339,
+      "pop": 4.65528
+     },
+     "L_Forearm": {
+      "peak": 6.38084,
+      "pop": 5.95475
+     },
+     "R_Forearm": {
+      "peak": 23.3835,
+      "pop": 10.7072
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 157.846,
+      "depth": 0.0718646,
+      "lowSlide": 0.0944396
+     },
+     "R_Hand": {
+      "accel": 81.6034,
+      "depth": 0.0744037,
+      "lowSlide": 0.00507516
+     }
+    },
+    "comAccel": 52.4322,
+    "seamJerk": 4.74
+   },
+   "60": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 15.9557,
+      "pop": 15.589
+     },
+     "R_UpperArm": {
+      "peak": 5.33709,
+      "pop": 1.39701
+     },
+     "L_Forearm": {
+      "peak": 5.49146,
+      "pop": 5.32633
+     },
+     "R_Forearm": {
+      "peak": 12.1499,
+      "pop": 3.00652
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 171.451,
+      "depth": 0.0723347,
+      "lowSlide": 0.119841
+     },
+     "R_Hand": {
+      "accel": 28.1343,
+      "depth": 0.0744037,
+      "lowSlide": 0.00778237
+     }
+    },
+    "comAccel": 13.694,
+    "seamJerk": 10.29
+   },
+   "120": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 15.9557,
+      "pop": 15.7736
+     },
+     "R_UpperArm": {
+      "peak": 2.67655,
+      "pop": 0.10394
+     },
+     "L_Forearm": {
+      "peak": 5.49146,
+      "pop": 5.40991
+     },
+     "R_Forearm": {
+      "peak": 6.18104,
+      "pop": 0.24357
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 171.514,
+      "depth": 0.0723347,
+      "lowSlide": 0.1316
+     },
+     "R_Hand": {
+      "accel": 10.403,
+      "depth": 0.0744943,
+      "lowSlide": 0.00998872
+     }
+    },
+    "comAccel": 3.87118,
+    "seamJerk": 20.58
+   }
+  },
+  "female": {
+   "30": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 19.7959,
+      "pop": 17.9337
+     },
+     "R_UpperArm": {
+      "peak": 11.7075,
+      "pop": 5.30476
+     },
+     "L_Forearm": {
+      "peak": 7.42495,
+      "pop": 7.18229
+     },
+     "R_Forearm": {
+      "peak": 29.2158,
+      "pop": 11.6456
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 201.767,
+      "depth": 0.0904335,
+      "lowSlide": 0.0920809
+     },
+     "R_Hand": {
+      "accel": 79.6952,
+      "depth": 0.058365,
+      "lowSlide": 0.0110172
+     }
+    },
+    "comAccel": 49.82,
+    "seamJerk": 6.05
+   },
+   "60": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 20.4512,
+      "pop": 20.0546
+     },
+     "R_UpperArm": {
+      "peak": 11.1184,
+      "pop": 6.17966
+     },
+     "L_Forearm": {
+      "peak": 5.95083,
+      "pop": 5.85197
+     },
+     "R_Forearm": {
+      "peak": 25.876,
+      "pop": 13.7346
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 212.637,
+      "depth": 0.0911532,
+      "lowSlide": 0.116865
+     },
+     "R_Hand": {
+      "accel": 29.9491,
+      "depth": 0.0584022,
+      "lowSlide": 0.0160027
+     }
+    },
+    "comAccel": 13.0108,
+    "seamJerk": 12.76
+   },
+   "120": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 20.4512,
+      "pop": 20.2543
+     },
+     "R_UpperArm": {
+      "peak": 6.20171,
+      "pop": 1.28476
+     },
+     "L_Forearm": {
+      "peak": 5.95083,
+      "pop": 5.89638
+     },
+     "R_Forearm": {
+      "peak": 14.3205,
+      "pop": 2.76495
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 212.704,
+      "depth": 0.0911574,
+      "lowSlide": 0.122011
+     },
+     "R_Hand": {
+      "accel": 13.4776,
+      "depth": 0.0584372,
+      "lowSlide": 0.020167
+     }
+    },
+    "comAccel": 4.93815,
+    "seamJerk": 25.52
+   }
+  }
+ },
+ "prone-chain press-up": {
+  "male": {
+   "30": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 42.7061,
+      "pop": 12.4663
+     },
+     "R_UpperArm": {
+      "peak": 42.7068,
+      "pop": 12.4662
+     },
+     "L_Forearm": {
+      "peak": 7.15931,
+      "pop": 1.8014
+     },
+     "R_Forearm": {
+      "peak": 7.15952,
+      "pop": 1.80113
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 98.9363,
+      "depth": 0.146852,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 98.9386,
+      "depth": 0.146854,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 4.54907,
+    "seamJerk": 2.97
+   },
+   "60": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 41.4619,
+      "pop": 10.1953
+     },
+     "R_UpperArm": {
+      "peak": 41.4626,
+      "pop": 10.1952
+     },
+     "L_Forearm": {
+      "peak": 6.63523,
+      "pop": 2.84882
+     },
+     "R_Forearm": {
+      "peak": 6.63559,
+      "pop": 2.85342
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 82.5398,
+      "depth": 0.146852,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 82.5412,
+      "depth": 0.146854,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 2.05023,
+    "seamJerk": 4.95
+   },
+   "120": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 41.1346,
+      "pop": 9.60803
+     },
+     "R_UpperArm": {
+      "peak": 41.1353,
+      "pop": 9.60794
+     },
+     "L_Forearm": {
+      "peak": 5.22416,
+      "pop": 1.00723
+     },
+     "R_Forearm": {
+      "peak": 5.22459,
+      "pop": 1.00729
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 82.6336,
+      "depth": 0.146852,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 82.635,
+      "depth": 0.146854,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 2.24357,
+    "seamJerk": 9.92
+   }
+  },
+  "female": {
+   "30": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 48.8762,
+      "pop": 12.9715
+     },
+     "R_UpperArm": {
+      "peak": 48.8762,
+      "pop": 12.9715
+     },
+     "L_Forearm": {
+      "peak": 13.6684,
+      "pop": 2.98098
+     },
+     "R_Forearm": {
+      "peak": 13.6683,
+      "pop": 2.98098
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 169.831,
+      "depth": 0.163278,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 169.831,
+      "depth": 0.163278,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 6.12071,
+    "seamJerk": 5.09
+   },
+   "60": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 47.6014,
+      "pop": 10.7222
+     },
+     "R_UpperArm": {
+      "peak": 47.6014,
+      "pop": 10.7222
+     },
+     "L_Forearm": {
+      "peak": 11.1583,
+      "pop": 0.63603
+     },
+     "R_Forearm": {
+      "peak": 11.1583,
+      "pop": 0.636016
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 142.059,
+      "depth": 0.163278,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 142.059,
+      "depth": 0.163278,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 4.10005,
+    "seamJerk": 8.52
+   },
+   "120": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 47.2768,
+      "pop": 10.1514
+     },
+     "R_UpperArm": {
+      "peak": 47.2768,
+      "pop": 10.1514
+     },
+     "L_Forearm": {
+      "peak": 10.0192,
+      "pop": 0.604162
+     },
+     "R_Forearm": {
+      "peak": 10.0192,
+      "pop": 0.604148
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 127.313,
+      "depth": 0.163278,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 127.313,
+      "depth": 0.163278,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 3.77425,
+    "seamJerk": 15.28
+   }
+  }
+ },
+ "plank-prone-chain press-up": {
+  "male": {
+   "30": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 42.7061,
+      "pop": 12.4663
+     },
+     "R_UpperArm": {
+      "peak": 42.7068,
+      "pop": 12.4662
+     },
+     "L_Forearm": {
+      "peak": 7.15931,
+      "pop": 1.8014
+     },
+     "R_Forearm": {
+      "peak": 7.15952,
+      "pop": 1.80113
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 98.9363,
+      "depth": 0.146852,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 98.9386,
+      "depth": 0.146854,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 4.54907,
+    "seamJerk": 2.97
+   },
+   "60": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 41.4619,
+      "pop": 10.1953
+     },
+     "R_UpperArm": {
+      "peak": 41.4626,
+      "pop": 10.1952
+     },
+     "L_Forearm": {
+      "peak": 6.63523,
+      "pop": 2.84882
+     },
+     "R_Forearm": {
+      "peak": 6.63559,
+      "pop": 2.85342
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 82.5398,
+      "depth": 0.146852,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 82.5412,
+      "depth": 0.146854,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 2.05023,
+    "seamJerk": 4.95
+   },
+   "120": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 41.1346,
+      "pop": 9.60803
+     },
+     "R_UpperArm": {
+      "peak": 41.1353,
+      "pop": 9.60794
+     },
+     "L_Forearm": {
+      "peak": 5.22416,
+      "pop": 1.00723
+     },
+     "R_Forearm": {
+      "peak": 5.22459,
+      "pop": 1.00729
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 82.6336,
+      "depth": 0.146852,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 82.635,
+      "depth": 0.146854,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 2.24357,
+    "seamJerk": 9.92
+   }
+  },
+  "female": {
+   "30": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 48.8762,
+      "pop": 12.9715
+     },
+     "R_UpperArm": {
+      "peak": 48.8762,
+      "pop": 12.9715
+     },
+     "L_Forearm": {
+      "peak": 13.6684,
+      "pop": 2.98098
+     },
+     "R_Forearm": {
+      "peak": 13.6683,
+      "pop": 2.98098
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 169.831,
+      "depth": 0.163278,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 169.831,
+      "depth": 0.163278,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 6.12071,
+    "seamJerk": 5.09
+   },
+   "60": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 47.6014,
+      "pop": 10.7222
+     },
+     "R_UpperArm": {
+      "peak": 47.6014,
+      "pop": 10.7222
+     },
+     "L_Forearm": {
+      "peak": 11.1583,
+      "pop": 0.63603
+     },
+     "R_Forearm": {
+      "peak": 11.1583,
+      "pop": 0.636016
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 142.059,
+      "depth": 0.163278,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 142.059,
+      "depth": 0.163278,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 4.10005,
+    "seamJerk": 8.52
+   },
+   "120": {
+    "arm": {
+     "L_UpperArm": {
+      "peak": 47.2768,
+      "pop": 10.1514
+     },
+     "R_UpperArm": {
+      "peak": 47.2768,
+      "pop": 10.1514
+     },
+     "L_Forearm": {
+      "peak": 10.0192,
+      "pop": 0.604162
+     },
+     "R_Forearm": {
+      "peak": 10.0192,
+      "pop": 0.604148
+     }
+    },
+    "hands": {
+     "L_Hand": {
+      "accel": 127.313,
+      "depth": 0.163278,
+      "lowSlide": 0
+     },
+     "R_Hand": {
+      "accel": 127.313,
+      "depth": 0.163278,
+      "lowSlide": 0
+     }
+    },
+    "comAccel": 3.77425,
+    "seamJerk": 15.28
+   }
+  }
+ }
+}

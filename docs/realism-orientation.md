@@ -203,11 +203,13 @@ Verified in `motionRecording.ts:918-1146`:
 ```
 FK pose from the trajectory
   → grounding pin        pinRootToFloor :920   /  plantStanceFoot :918, :1003
-    + hand reach (posture) settleHandReachLatches :1069 — footContact.ts:1226,
-                         where each hand latched read off a per-reach timeline
-                         on the motion's own clock (probing the trajectory,
-                         never the frames that ran), then solveHandReach; the
-                         stage runs the same pair
+    + hand reach (posture) settleHandReachLatches — footContact.ts, where each
+                         hand latched read off a per-reach timeline on the
+                         motion's own clock (probing the trajectory, never the
+                         frames that ran), then solveHandReach — each change
+                         of state's jump faded out, and a hand the grounding
+                         lets go of blended back to FK on every frame, grounded
+                         or not; the stage runs the same pair
   → vertical calibration applyVerticalCalibration :1018
   → weighted descent     applyWeightedDescent :1031
   → heel-strike accent   heelStrikeOffsetAt :1045  (root.position.y += :1047)
@@ -347,7 +349,9 @@ byte-identity gates; **medium** = moves one subsystem plus its gates; **low** = 
 | `useFootRoot` gate set | `motionRecording.ts:~825-833` | 8 clauses | Which motion classes get closed-chain planting | Each excluded class is excluded for a visible reason (a jump snaps at the pin toggle; a lying body rotates toward standing) | high |
 | `SEAT_HEIGHT_M` | `rootMotion.ts:185` | 0.59 | Hips pin height when sitting | Up → perching on a bar stool, feet lift. Down → pelvis sinks through the seat | high |
 | `GROUNDING_BLEND_MS` | `rootMotion.ts:493` | 200 ms | Crossfade at a grounding-pin swap | Shorter → the measured 53 cm one-frame free-fall returns | high |
-| `HAND_REACH_RAMP_MS` | `rootMotion.ts:634` | 150 ms | Hand-reach IK engagement | 0 → the arm snaps to the floor on frame 1 | medium |
+| `HAND_REACH_RAMP_MS` | `rootMotion.ts:730` | 150 ms | Hand-reach IK engagement | 0 → the arm snaps to the floor on frame 1 | medium |
+| `HAND_REACH_RELEASE_MS` | `rootMotion.ts:742` | 100 ms | A hand the grounding lets go of (`handReachReleasedAt`): its arm blended in joint space from how the reach drew it the moment it let go back to FK (`solveHandReach`) | 0 → the arm snaps to FK in one frame: the bird-dog's lifted forearm 5.5–6.0° in one frame on 5c1c9ac and 8.1–11.2° once the latch was read at the touch (1341 °/s at 120 Hz), the upper arm 16–20° (5c1c9ac); now under 1.3° at 60/120 Hz. Longer → the blend swings the hand further under the floor where FK dives (the bird-dog released just after landing from standing: 7.5 cm under at 100 ms, 7.9 at 150, 8.7 at 300; 5c1c9ac 9.1) | medium |
+| `HAND_REACH_BLEND_MS` | `footContact.ts:1313` | 150 ms | A reach's change of state (a self-heal, a re-latch) jumps where its state puts the hand; the jump is added back to where the hand is drawn and faded out over this span from the change's own moment | 0 → the arm snaps to the new state in one frame: the prone press-up's healing hands 12.8 cm in one 120 Hz frame, a 17.1 m/s seam-jerk (gate: 12; 5c1c9ac 9.9, 15.3 female; now under 0.9) | medium |
 | **`FOOT_PLANT_IK_ITERATIONS`** | `footContact.ts:75` | **8** (shared default is 4) | CCD passes per plant | Raised in `f3fdf82` because the faster cadence pushed in-window slide 2.9 → 4.5 cm. Now ~2.5–3.5 cm across the pace range | medium |
 | `LEG_CHAIN_PARENTS` / `TOE_CHAIN_PARENTS` | `footContact.ts:43, 55` | 2 (Foot–Leg–UpLeg) / 3 (Toes–Foot–Leg–UpLeg) | How many joints a plant may recruit; the knee is the hinge in both | Foot: 3 would let the pelvis help — closer to real accommodation, at the cost of a wobbling trunk. Toes: 2 stopped at the knee and hinged nothing — 4.6–5.0° of knee varus/valgus through every toe pivot | high |
 | `PLANT_RELEASE_BLEND_MS` | `footContact.ts:168` | 120 ms | The BASE plant release at toe-off: the limb solved as held toward a target that lifts to FK's height, then reaches FK's position, blended out on a smoothstep — or, for an ankle release, a cruise that turns at 1.25/length at most and becomes the smoothstep from 300–500 ms (`plantReleaseWeight`, `PlantReleaseShape`, `footContact.ts:197-201`) — C1 where it leaves the hold and where it joins FK | Without it the released foot snapped ~20 cm and ~17°/frame. 80 ms → the DDx walk's CoM drops at 1.05 g and its knee turns 469°/s; 100 → the run's knee 30.8°/frame against FK's 22.3; 150–200 on every release → the released foot stays down into swing (DDx toe clearance 4.9–6.1 → 4.2–5.2 → 3.6–3.9 cm) | high |
