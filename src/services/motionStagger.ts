@@ -26,9 +26,9 @@
  *      (footContact.settleHandReachLatches), so 30, 60 and 120 Hz, a jittered
  *      display clock and a 40–95 ms one settle identically on both rigs,
  *      chains included (latched on the first frame inside the floor band they
- *      settled up to 18 mm / 2.3° apart, 59 mm / 6.0° in a chain). Only a
- *      change of state that comes and goes wholly between two frames, both
- *      far from its threshold, could still be missed by a clock.
+ *      settled up to 18 mm / 2.3° apart, 59 mm / 6.0° in a chain). The
+ *      timeline is read on the motion's clock, not the frames', so a change
+ *      of state too brief for its reads is missed by every clock alike.
  *   2. A delayed bone's motion stays C¹: the delay is a DWELL in raw TIME that
  *      precedes the ease ({@link delayedOnset}), so the bone leaves rest with
  *      zero velocity, and it only ever dwells where it is already at rest.

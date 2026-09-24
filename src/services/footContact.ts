@@ -985,16 +985,39 @@ export function solveHandPlant(
  *  contact releases. */
 export interface HandReachState {
   target: THREE.Vector3 | null;
-  /** The motion time of the last evaluation {@link settleHandReachLatches} settled
-   *  this reach at; null before the first. Kept by the settle. */
+  /** The motion time of the last frame {@link settleHandReachLatches} settled
+   *  this reach at; null before the first (and after a release). Kept by the
+   *  settle. */
   lastTMs?: number | null;
-  /** Whether the reach was near a change of state then (see
-   *  {@link HAND_LATCH_NEAR_M}). Kept by the settle. */
-  lastNear?: boolean;
-  /** The last {@link HAND_LATCH_GRID_MS} grid time the settle read this
-   *  descending hand at: when, its pulled height above the floor and where it
-   *  was. Kept by the settle. */
-  lastGrid?: { tMs: number; height: number; point: THREE.Vector3 } | null;
+  /** The reach's latch timeline on the motion's own clock
+   *  ({@link settleHandReachLatches}). Kept by the settle. */
+  timeline?: HandReachTimeline | null;
+}
+
+/**
+ * Where and when a reach latches and lets go, on the motion's own clock: a pure
+ * function of the motion (its trajectory, from the engagement on), read as far
+ * as the frames have asked. Kept by {@link settleHandReachLatches}.
+ */
+export interface HandReachTimeline {
+  /** What the timeline was read for: the caller's key (the trajectory) and the
+   *  engagement time it starts from. */
+  key: unknown;
+  engagedAtMs: number;
+  /** Every change of state so far, in time order: from `tMs` on the hand is
+   *  planted at `target` (null: descending). The first is the engagement. */
+  events: { tMs: number; target: THREE.Vector3 | null }[];
+  /** How far the timeline has been read (motion ms), and the reach there. */
+  cursorMs: number;
+  /** The pulled height above the floor (descending) or the held residual
+   *  (planted) at the cursor, m. */
+  value: number;
+  /** The evaluation before the cursor in the same state (for the rate the
+   *  next step is sized by); null right after a change of state. */
+  prev: { tMs: number; value: number } | null;
+  /** A descending hand's last {@link HAND_LATCH_GRID_MS} grid evaluation inside
+   *  the band: when, its pulled height and where it was (the stall latch). */
+  lastGrid: { tMs: number; height: number; point: THREE.Vector3 } | null;
 }
 
 /**
@@ -1054,34 +1077,38 @@ const HAND_REACH_PASSES = 4;
  *  contact) stays well within this, so it never re-tracks. */
 const HAND_RELATCH_M = 0.08;
 
-/** The motion-clock grid (ms) a self-heal falls on: a latched hand lets go at the
- *  first multiple of this at which it can no longer hold its point, whichever
- *  frames ran — not on the frame that happened to find it. */
+/** The motion-clock grid (ms) the timeline is read on: a self-heal falls on
+ *  it (the first grid time at which the hand can no longer hold its point),
+ *  and so does a stall inside the band; every read of the timeline is on it
+ *  but the engagement's own. */
 const HAND_LATCH_GRID_MS = 5;
 
 /** The moment a descending hand touched the floor is solved to this (m of
  *  pulled height, 0.01 mm) — in under 5 µs of motion time where the hand drops
  *  2 mm/ms, the hand then moving 0.01 mm — by regula falsi (Illinois) on the
- *  pulled height, in at most {@link HAND_LATCH_SOLVE_STEPS} probes. Bisected
- *  instead, with a probe ahead for the band's stall, the frame both hands
- *  latched on took 38–46 probes, 40–90 ms on a loaded machine (4–12 probes,
- *  11–17 ms, now). */
+ *  pulled height, in at most {@link HAND_LATCH_SOLVE_STEPS} probes. */
 const HAND_LATCH_SOLVE_M = 1e-5;
 const HAND_LATCH_SOLVE_STEPS = 12;
 
-/** How near (m) its threshold a reach must come — a latched hand's residual
- *  within this of {@link HAND_RELATCH_M}, a descending hand's pulled height
- *  within this of the {@link HAND_LATCH_M} band — at either end of a frame gap for the
- *  settle to read the grid between: a change of state can fall wholly between
- *  two frames. The female chained plank from quadruped let its hands go for a
- *  residual that peaked at 8.1 cm for about 30 ms (7.97 cm at 301 ms, 7.95 at
- *  379: a 30 Hz clock saw it, a coarse one did not, and they settled 54 mm /
- *  16° apart). Farther from both thresholds a frame costs no probe. */
-const HAND_LATCH_NEAR_M = 0.03;
-
-/** A frame gap (ms) past which the settle reads the grid between whatever the
- *  two ends show — a parked stage's settle-to-settle jumps. */
-const HAND_LATCH_WALK_GAP_MS = 100;
+/**
+ * How far apart (ms) the timeline reads a reach: as far as its distance from
+ * the next change of state (the band for a descending hand, the self-heal
+ * residual for a planted one) could be covered at the fastest of
+ * {@link HAND_LATCH_MIN_RATE_M_PER_MS} and {@link HAND_LATCH_RATE_MARGIN}× the
+ * rate between its last two reads — on the grid, and no farther than this.
+ * Read every 5 ms grid time instead (the frame-gap walk this replaced), a
+ * parked stage paid 1.3–1.5 s per push-up command (5c1c9ac: 10 ms, latching
+ * on whichever frames ran); read so, 20 ms. The timeline lands within 0.02 mm
+ * of the every-5-ms one on every hand-planted motion and chain, both rigs (the
+ * touch moments move inside their own solve tolerance). A reach whose state
+ * comes and goes wholly between two reads — covering twice its distance from
+ * the threshold inside one step, so moving at over twice the rate the step was
+ * sized for — is missed by every clock alike.
+ */
+const HAND_LATCH_MAX_STEP_MS = 200;
+/** Rate floor (m/ms) and margin on the observed rate the steps are sized by. */
+const HAND_LATCH_MIN_RATE_M_PER_MS = 0.0003;
+const HAND_LATCH_RATE_MARGIN = 1.5;
 
 const _reachLive = new THREE.Vector3();
 const _reachTarget = new THREE.Vector3();
@@ -1137,39 +1164,66 @@ const _settlePulled = new THREE.Vector3();
 const onLatchGrid = (t: number): boolean =>
   Math.abs(t / HAND_LATCH_GRID_MS - Math.round(t / HAND_LATCH_GRID_MS)) < 1e-9;
 
+/** The first grid time after `t`. */
+const nextLatchGrid = (t: number): number => (Math.floor(t / HAND_LATCH_GRID_MS + 1e-9) + 1) * HAND_LATCH_GRID_MS;
+
+/** When the timeline reads its reach next: the next grid time inside the band
+ *  (or right after a change of state), else as far as the distance to the next
+ *  change of state allows at the rate it has been moving (see
+ *  {@link HAND_LATCH_MAX_STEP_MS}). */
+function nextLatchRead(tl: HandReachTimeline, planted: boolean): number {
+  const first = nextLatchGrid(tl.cursorMs);
+  const margin = planted ? HAND_RELATCH_M - tl.value : tl.value - HAND_LATCH_M;
+  if (!(margin > 0) || !tl.prev) return first;
+  const rate = Math.max(
+    HAND_LATCH_MIN_RATE_M_PER_MS,
+    (HAND_LATCH_RATE_MARGIN * Math.abs(tl.value - tl.prev.value)) / Math.max(1e-9, tl.cursorMs - tl.prev.tMs),
+  );
+  const step = Math.min(HAND_LATCH_MAX_STEP_MS, margin / rate);
+  return Math.max(first, Math.floor((tl.cursorMs + step) / HAND_LATCH_GRID_MS + 1e-9) * HAND_LATCH_GRID_MS);
+}
+
+/** The latched point (null: descending) the timeline has at `tMs`. */
+function latchAt(tl: HandReachTimeline, tMs: number): THREE.Vector3 | null {
+  let at: THREE.Vector3 | null = null;
+  for (const e of tl.events) {
+    if (e.tMs > tMs + 1e-9) break;
+    at = e.target;
+  }
+  return at;
+}
+
 /**
  * Settle every reach contact's latch at motion time `tMs`, on the motion's own
  * clock: call it on each frame, with the body posed for `tMs` (FK, root,
  * grounding pin — exactly what `probe(tMs)` poses), before solving the reaches
  * ({@link solveHandReach} with `settled`). It leaves the body posed for `tMs`.
+ * `key` names what `probe` samples (the trajectory): a reach's timeline is read
+ * afresh for another key or another engagement.
  *
- * A reach changes state at two kinds of moment, and each is found where it
- * happened, not on the frame that found it:
+ * Each reach keeps a TIMELINE of where and when it latches, read on the
+ * motion's clock from its engagement — never on the frames that ran — as far
+ * as the frames ask (one read past the latest frame). A reach changes state at
+ * two kinds of moment, and each is found where it happened:
  *  - LATCH: a descending hand latches where its pulled position touched the
  *    floor ({@link HAND_TOUCH_M}) — the moment is solved on the trajectory
- *    between the last evaluation above it (or the reach's engagement) and the
- *    first at it (regula falsi, {@link HAND_LATCH_SOLVE_M}), and the point is
- *    the pulled hand's then. A hand that comes within the {@link HAND_LATCH_M}
- *    band but never touches latches where it was at a grid time, from the
- *    next grid time that shows it descended no further;
- *  - SELF-HEAL: a latched hand that can no longer hold its point within
+ *    between the read above it (or the engagement) and the first at it
+ *    (regula falsi, {@link HAND_LATCH_SOLVE_M}), and the point is the pulled
+ *    hand's then. A hand that comes within the {@link HAND_LATCH_M} band but
+ *    never touches latches where it was at a grid time, from the next grid time
+ *    that shows it descended no further (inside the band it is read on every
+ *    grid time);
+ *  - SELF-HEAL: a planted hand that can no longer hold its point within
  *    {@link HAND_RELATCH_M} lets go at the first {@link HAND_LATCH_GRID_MS}
- *    grid time at which it cannot, and re-latches from there as a descending
- *    hand would (the relatch reads the FK arm, not the one the hold solved).
- * Between frames nothing is evaluated unless one of the two frames either side
- * shows the reach near a change of state ({@link HAND_LATCH_NEAR_M}) or they
- * are over {@link HAND_LATCH_WALK_GAP_MS} apart (so a playing motion pays for
- * probes only around its latches and self-heals); then every grid time between
- * is walked with `probe`. So the latch depends on neither the frame rate nor
- * the frame times (a live stage's, a parked stage's settle-to-settle jumps):
- * across the engine's hand-planted motions and chains, on both rigs, 30, 60 and
- * 120 Hz, a jittered 60 Hz display clock and a 40–95 ms one settle identically
- * (latched on the first frame inside the band they settled up to 18 mm / 2.3°
- * apart at 30 and 120 Hz, 59 mm / 6.0° in a chain) — save that a change of
- * state that comes and goes wholly
- * between two frames, both over {@link HAND_LATCH_NEAR_M} from its threshold
- * and under {@link HAND_LATCH_WALK_GAP_MS} apart, is seen only by a clock that
- * samples it.
+ *    grid time at which it cannot (every grid time back to the last read that
+ *    held is checked), and re-latches from there as a descending hand would.
+ * The reads are spaced by how far the reach is from its next change of state
+ * ({@link HAND_LATCH_MAX_STEP_MS}), so where they fall is a function of the
+ * motion alone: 30, 60 and 120 Hz, a jittered clock, a 40–95 ms clock and a
+ * parked stage's settle-to-settle jumps all read the same timeline and settle
+ * identically, and none pays for reads the timeline does not need (the frame-
+ * gap walk this replaced read every 5 ms of any gap over 100 ms: 1.3–1.5 s for
+ * a parked push-up command).
  */
 export function settleHandReachLatches(
   reaches: readonly HandReachContact[],
@@ -1177,52 +1231,30 @@ export function settleHandReachLatches(
   floorY: number,
   rest: JointAngleRestReference | null | undefined,
   probe: HandReachProbe,
+  key: unknown = null,
 ): void {
-  // What this frame shows, on its own pose: whether each reach is near a change
-  // of state (a latched hand near losing its point, a descending one near the
-  // band) — then, or if it was on the last frame, the grid between is read.
-  const pending: { r: HandReachContact; from: number; fresh: boolean }[] = [];
-  const near = new Map<HandReachContact, boolean>();
-  const changed = new Set<HandReachContact>();
-  for (const r of reaches) {
-    const st = r.state;
-    if (st.lastTMs != null && tMs < st.lastTMs - 1e-6) {
-      st.target = null; // the clock ran back (a replay): start the reach afresh
-      st.lastTMs = null;
-    }
-    const fresh = st.lastTMs == null;
-    if (fresh) st.lastGrid = null;
-    const from = fresh ? Math.min(tMs, Math.max(0, r.engagedAtMs)) : st.lastTMs!;
-    const nearNow = st.target
-      ? heldResidual(r.solver, st.target, rest) > HAND_RELATCH_M - HAND_LATCH_NEAR_M
-      : pulledHand(r.solver, floorY, rest, _settlePulled).y - floorY <= HAND_LATCH_M + HAND_LATCH_NEAR_M;
-    near.set(r, nearNow);
-    const walk = fresh ? from < tMs - 1e-6 || nearNow : nearNow || st.lastNear === true || tMs - from > HAND_LATCH_WALK_GAP_MS;
-    if (walk) pending.push({ r, from, fresh });
-  }
-  /** Where the pulled hand touched the floor between `lo` (above it; `fLoRead`
-   *  its height less the touch there, if the walk read it) and `hi` (touching,
-   *  `fHi` likewise, `atHi` where it was). */
+  /** Where the pulled hand touched the floor between `lo` (above it; `fLo` its
+   *  height less the touch there) and `hi` (touching, `fHi` likewise, `atHi`
+   *  where it was). */
   const touchBetween = (
     solver: FootPlantSolver,
     lo: number,
-    fLoRead: number | null,
+    fLo: number,
     hi: number,
     fHi: number,
     atHi: THREE.Vector3,
-  ): THREE.Vector3 => {
+  ): { tMs: number; point: THREE.Vector3 } => {
     const touchAt = (tt: number): number => {
       probe(tt);
       return pulledHand(solver, floorY, rest, _settlePulled).y - floorY - HAND_TOUCH_M;
     };
-    let fLo = fLoRead ?? touchAt(lo);
     let fHiNow = fHi;
-    let at = atHi;
+    let at = { tMs: hi, point: atHi };
     let moved = 0; // which end the last step moved: −1 lo, +1 hi (Illinois: an end kept twice has its height halved)
     for (let k = 0; k < HAND_LATCH_SOLVE_STEPS && fLo > 0 && fHiNow < fLo; k += 1) {
       const c = hi - (fHiNow * (hi - lo)) / (fHiNow - fLo);
       const fc = touchAt(c);
-      if (Math.abs(fc) <= HAND_LATCH_SOLVE_M) return _settlePulled.clone();
+      if (Math.abs(fc) <= HAND_LATCH_SOLVE_M) return { tMs: c, point: _settlePulled.clone() };
       if (fc > 0) {
         lo = c;
         fLo = fc;
@@ -1231,99 +1263,140 @@ export function settleHandReachLatches(
       } else {
         hi = c;
         fHiNow = fc;
-        at = _settlePulled.clone();
+        at = { tMs: c, point: _settlePulled.clone() };
         if (moved === 1) fLo /= 2;
         moved = 1;
       }
     }
     return at;
   };
-  if (pending.length) {
-    // Walk each pending reach from where it was last known: its engagement (a
-    // fresh reach, evaluated there first) or its last evaluation; then every
-    // grid time after that, and this frame.
-    const first = Math.min(...pending.map((p) => p.from));
-    const times: number[] = [];
-    for (const p of pending) if (p.fresh) times.push(p.from);
-    for (let g = (Math.floor(first / HAND_LATCH_GRID_MS) + 1) * HAND_LATCH_GRID_MS; g < tMs - 1e-6; g += HAND_LATCH_GRID_MS) {
-      times.push(g);
-    }
-    times.push(tMs);
-    const walkTimes = [...new Set(times)].sort((a, b) => a - b);
-    // Each reach's last evaluation on the walk, and its pulled height there
-    // (less the touch) where it was read — the touch solve's upper end.
-    const prev = new Map<HandReachContact, number | null>();
-    const prevF = new Map<HandReachContact, number>();
-    for (const p of pending) prev.set(p.r, p.fresh ? null : p.from);
-    for (const t of walkTimes) {
-      probe(t);
+  /** Read reach `r` descending at `t` (the body posed there): latch it if it
+   *  touched since the last read (or stalled inside the band). Returns whether
+   *  the body was re-posed off `t`. */
+  const readDescending = (r: HandReachContact, tl: HandReachTimeline, t: number): boolean => {
+    const pulled = pulledHand(r.solver, floorY, rest, _settlePulled);
+    const h = pulled.y - floorY;
+    if (h <= HAND_TOUCH_M) {
+      // Touching: latch where it touched, between the last read above it (the
+      // cursor, if it is one) and now.
+      let at = { tMs: t, point: pulled.clone() };
       let reposed = false;
-      for (const p of pending) {
-        if (t < p.from - 1e-6 || (!p.fresh && t <= p.from + 1e-6)) continue;
-        if (reposed) {
-          probe(t);
-          reposed = false;
-        }
-        const st = p.r.state;
-        // A latched hand holds, or lets go here (a grid time or this frame; a
-        // non-grid frame time lets go only as this frame's own state).
-        if (st.target) {
-          if (heldResidual(p.r.solver, st.target, rest) <= HAND_RELATCH_M) {
-            prev.set(p.r, t);
-            prevF.delete(p.r);
-            continue;
-          }
-          if (!onLatchGrid(t)) continue; // it lets go at the next grid time, on a later frame
-          st.target = null;
-          changed.add(p.r);
-          prev.set(p.r, null); // re-latch from here, at this point if it is inside the band
-        }
-        const pulled = pulledHand(p.r.solver, floorY, rest, _settlePulled);
-        const h = pulled.y - floorY;
-        let at: THREE.Vector3 | null = null;
-        if (h <= HAND_TOUCH_M) {
-          // Touching: latch where it touched, between the last time it was
-          // above (if any) and now.
-          at = pulled.clone();
-          const above = prev.get(p.r);
-          if (above != null && above < t - 1e-9) {
-            at = touchBetween(p.r.solver, above, prevF.get(p.r) ?? null, t, h - HAND_TOUCH_M, at);
-            reposed = true;
-          }
-        } else if (onLatchGrid(t)) {
-          // Inside the band but not touching: latch where it was at the last
-          // grid time if it has descended no further since.
-          const last = st.lastGrid;
-          if (
-            last &&
-            Math.abs(last.tMs - (t - HAND_LATCH_GRID_MS)) < 1e-6 &&
-            last.height <= HAND_LATCH_M &&
-            h >= last.height - HAND_DESCENT_STALL_M
-          ) {
-            at = last.point;
-          } else {
-            st.lastGrid = { tMs: t, height: h, point: pulled.clone() };
-          }
-        }
-        if (!at) {
-          prev.set(p.r, t);
-          prevF.set(p.r, h - HAND_TOUCH_M);
-          continue;
-        }
-        st.lastGrid = null;
-        st.target = new THREE.Vector3(at.x, floorY, at.z);
-        changed.add(p.r);
-        prev.set(p.r, t);
+      if (tl.cursorMs < t - 1e-9 && Number.isFinite(tl.value) && tl.value > HAND_TOUCH_M) {
+        at = touchBetween(r.solver, tl.cursorMs, tl.value - HAND_TOUCH_M, t, h - HAND_TOUCH_M, at.point);
+        reposed = true;
       }
-      if (reposed) probe(t);
+      tl.events.push({ tMs: at.tMs, target: new THREE.Vector3(at.point.x, floorY, at.point.z) });
+      tl.lastGrid = null;
+      tl.prev = null;
+      tl.cursorMs = at.tMs;
+      tl.value = 0;
+      return reposed;
     }
-    if (walkTimes[walkTimes.length - 1] !== tMs) probe(tMs);
-  }
+    if (onLatchGrid(t) && h <= HAND_LATCH_M) {
+      // Inside the band but not touching: latch where it was at the last grid
+      // time if it has descended no further since.
+      const last = tl.lastGrid;
+      if (last && Math.abs(last.tMs - (t - HAND_LATCH_GRID_MS)) < 1e-6 && h >= last.height - HAND_DESCENT_STALL_M) {
+        tl.events.push({ tMs: t, target: new THREE.Vector3(last.point.x, floorY, last.point.z) });
+        tl.lastGrid = null;
+        tl.prev = null;
+        tl.cursorMs = t;
+        tl.value = 0;
+        return false;
+      }
+      tl.lastGrid = { tMs: t, height: h, point: pulled.clone() };
+    } else {
+      tl.lastGrid = null;
+    }
+    tl.prev = Number.isFinite(tl.value) && tl.cursorMs < t - 1e-9 ? { tMs: tl.cursorMs, value: tl.value } : null;
+    tl.cursorMs = t;
+    tl.value = h;
+    return false;
+  };
+  /** Read reach `r` planted at `t` (the body posed there): let it go at the
+   *  first grid time since the last read at which it could not hold its point,
+   *  and read it descending from there. Returns whether the body was re-posed
+   *  off `t`. */
+  const readPlanted = (r: HandReachContact, tl: HandReachTimeline, target: THREE.Vector3, t: number): boolean => {
+    const res = heldResidual(r.solver, target, rest);
+    if (res <= HAND_RELATCH_M) {
+      tl.prev = { tMs: tl.cursorMs, value: tl.value };
+      tl.cursorMs = t;
+      tl.value = res;
+      return false;
+    }
+    // It could not hold it here: find the first grid time since the last read
+    // at which it could not (every one between, back to the read that held).
+    let heal = t;
+    let reposed = false;
+    for (let g = nextLatchGrid(tl.cursorMs); g < t - 1e-6; g += HAND_LATCH_GRID_MS) {
+      probe(g);
+      reposed = true;
+      if (heldResidual(r.solver, target, rest) > HAND_RELATCH_M) {
+        heal = g;
+        break;
+      }
+    }
+    if (heal !== t) {
+      probe(heal);
+      reposed = true;
+    }
+    tl.events.push({ tMs: heal, target: null });
+    tl.prev = null;
+    tl.lastGrid = null;
+    tl.cursorMs = heal;
+    tl.value = Infinity; // no read above the floor yet: a touch here latches here
+    // Re-latch from here, at this point if it is already touching.
+    return readDescending(r, tl, heal) || reposed;
+  };
+
+  // Bring each reach's timeline up to date (read afresh for another motion or
+  // engagement), and find which must be read past this frame.
+  const pending: { r: HandReachContact; tl: HandReachTimeline }[] = [];
   for (const r of reaches) {
+    const st = r.state;
+    const from = Math.min(tMs, Math.max(0, r.engagedAtMs));
+    let tl = st.timeline;
+    if (!tl || tl.key !== key || Math.abs(tl.engagedAtMs - from) > 1e-6) {
+      tl = { key, engagedAtMs: from, events: [{ tMs: from, target: null }], cursorMs: from, value: Infinity, prev: null, lastGrid: null };
+      st.timeline = tl;
+      pending.push({ r, tl });
+    } else if (tl.cursorMs < tMs - 1e-9) {
+      pending.push({ r, tl });
+    }
+  }
+  let posedOff = false;
+  // A fresh timeline is read at the engagement first; then each is read on
+  // its own schedule until it has been read at or past this frame. Reads that
+  // fall on one time share one pose.
+  const fresh = pending.filter((p) => p.tl.value === Infinity && p.tl.events.length === 1 && p.tl.cursorMs === p.tl.engagedAtMs);
+  for (const p of fresh) {
+    if (Math.abs(p.tl.cursorMs - tMs) > 1e-9 || posedOff) {
+      probe(p.tl.cursorMs);
+      posedOff = Math.abs(p.tl.cursorMs - tMs) > 1e-9;
+    }
+    if (readDescending(p.r, p.tl, p.tl.cursorMs)) posedOff = true;
+  }
+  const nextOf = (p: { tl: HandReachTimeline }): number => nextLatchRead(p.tl, latchAt(p.tl, p.tl.cursorMs) !== null);
+  for (;;) {
+    const open = pending.filter((p) => p.tl.cursorMs < tMs - 1e-9);
+    if (!open.length) break;
+    const t = Math.min(...open.map(nextOf));
+    probe(t);
+    posedOff = Math.abs(t - tMs) > 1e-9;
+    let reposed = false;
+    for (const p of open) {
+      if (Math.abs(nextOf(p) - t) > 1e-9) continue;
+      if (reposed) probe(t);
+      const target = latchAt(p.tl, p.tl.cursorMs);
+      reposed = target ? readPlanted(p.r, p.tl, target, t) : readDescending(p.r, p.tl, t);
+      if (reposed) posedOff = true;
+    }
+  }
+  if (posedOff) probe(tMs);
+  for (const r of reaches) {
+    r.state.target = latchAt(r.state.timeline!, tMs);
     r.state.lastTMs = tMs;
-    // A reach whose state changed on the walk is near its new threshold too:
-    // the next frame reads the grid again.
-    r.state.lastNear = near.get(r)! || changed.has(r);
   }
 }
 

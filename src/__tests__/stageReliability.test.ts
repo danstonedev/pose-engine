@@ -449,10 +449,12 @@ describe('SEAM-4/SEAM-5 — the live stage runs the grounding-switch crossfade i
     expect(samplerSource).toMatch(
       /const engagedAt = handReachEngagedAt\(groundingSwitches, hp\.bone, tMs, floorRef\);\s*engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: Number\.isFinite\(engagedAt\) \? engagedAt : 0, bone: hp\.bone \}\);/,
     );
+    // …keyed by the trajectory the probe samples, so a reach's timeline is
+    // read afresh for another motion (the stage's loop trajectory included).
     expect(stageSource).toContain(
-      'settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t));',
+      'settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t), traj);',
     );
-    expect(samplerSource).toContain('settleHandReachLatches(engaged, tMs, floorRef.floorY, rest, poseReachFrameAt);');
+    expect(samplerSource).toContain('settleHandReachLatches(engaged, tMs, floorRef.floorY, rest, poseReachFrameAt, trajectory);');
     expect(stageSource).toMatch(
       /solveHandReach\(\s*hp\.solver,\s*hp\.state,\s*floorRef\.floorY,\s*restRef,\s*handReachWeightAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\),\s*true,\s*\)/,
     );

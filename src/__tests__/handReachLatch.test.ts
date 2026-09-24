@@ -258,6 +258,15 @@ describe('the hand-reach latch plants where the hand touched the floor, whicheve
         console.log(`${variant} ${name}, 30 Hz vs 40–95 ms clock (${coarse.frames.length} frames): settled hands within ${(end.hand * 1000).toFixed(3)} mm, arms within ${end.arm.toFixed(4)}°`);
         expect(end.hand, `${name}: settled hands, 30 Hz vs the coarse clock (m)`).toBeLessThan(HAND_AGREE_M);
         expect(end.arm, `${name}: settled arm joints, 30 Hz vs the coarse clock (°)`).toBeLessThan(ARM_AGREE_DEG);
+        // …and a parked stage, which jumps from the start straight to the end
+        // (ExamStage3D's hidden path): the bird-dog's replanted hand ended
+        // 140 mm off when a jump over its lift read the old engagement on.
+        const parked = record(variant, motion, 30, [0, totalMs]);
+        const jump = apart(base.frames[base.frames.length - 1]!, parked.frames[parked.frames.length - 1]!);
+        // eslint-disable-next-line no-console
+        console.log(`${variant} ${name}, 30 Hz vs one jump to the end: settled hands within ${(jump.hand * 1000).toFixed(3)} mm, arms within ${jump.arm.toFixed(4)}°`);
+        expect(jump.hand, `${name}: settled hands, 30 Hz vs one jump (m)`).toBeLessThan(HAND_AGREE_M);
+        expect(jump.arm, `${name}: settled arm joints, 30 Hz vs one jump (°)`).toBeLessThan(ARM_AGREE_DEG);
       }, 180_000);
     }
   }
@@ -279,6 +288,7 @@ describe('…and through a chain, where a latch self-heals and re-latches', () =
         const fine = recordChain(variant, segments, 120);
         const longest = Math.max(...base.map((p) => p.frames[p.frames.length - 1]!.tMs));
         const coarse = recordChain(variant, segments, 30, coarseClock(longest));
+        const parked = recordChain(variant, segments, 30, [0, longest]);
         base.forEach((part, k) => {
           const d = sharedApart(part, fine[k]!);
           const partEnd = part.frames[part.frames.length - 1]!;
@@ -295,6 +305,9 @@ describe('…and through a chain, where a latch self-heals and re-latches', () =
           expect(d.arm, `part ${k}: arm joints, 30 vs 120 Hz (°)`).toBeLessThan(ARM_AGREE_DEG);
           expect(end.hand, `part ${k}: settled hands, 30 Hz vs the coarse clock (m)`).toBeLessThan(HAND_AGREE_M);
           expect(end.arm, `part ${k}: settled arm joints, 30 Hz vs the coarse clock (°)`).toBeLessThan(ARM_AGREE_DEG);
+          const jump = apart(partEnd, parked[k]!.frames[parked[k]!.frames.length - 1]!);
+          expect(jump.hand, `part ${k}: settled hands, 30 Hz vs one jump (m)`).toBeLessThan(HAND_AGREE_M);
+          expect(jump.arm, `part ${k}: settled arm joints, 30 Hz vs one jump (°)`).toBeLessThan(ARM_AGREE_DEG);
         });
       }, 180_000);
     }
@@ -344,4 +357,42 @@ describe('a hand latched at the touch punches no deeper through the floor than o
       }
     }, 180_000);
   }
+});
+
+describe('reading the latch on the motion’s clock costs a parked stage a few frames, not the whole motion', () => {
+  // The stage's parked (hidden) path settles a command synchronously, from
+  // settle to settle — a single jump for a one-keyframe command. The latch
+  // walk this replaced read every 5 ms of any frame gap over 100 ms: one jump
+  // over the male push-up cost 1.33 s, more than recording all 271 of its 60
+  // Hz frames (0.97 s; 5c1c9ac: 10 ms, but its latch moved with the frames
+  // that ran). The timeline is read as far from its next change of state as
+  // it is (footContact HAND_LATCH_MAX_STEP_MS), so the same jump now costs
+  // 7–27% of the 60 Hz recording (20 ms of 264 for the push-up; 5c1c9ac 10.6,
+  // and 114 for getting down to quadruped against 24 here), 1.0–1.4× before.
+  // Timed against the 60 Hz recording of the same motion in the same process
+  // — the best of three each — so a loaded machine slows both alike.
+  it('male: one jump over each hand-planted motion costs under half its 60 Hz recording', () => {
+    const time = (motion: () => ComposedMotion, frameTimesMs?: number[]): number => {
+      let best = Infinity;
+      for (let k = 0; k < 3; k += 1) {
+        const t0 = performance.now();
+        record('male', motion, 60, frameTimesMs);
+        best = Math.min(best, performance.now() - t0);
+      }
+      return best;
+    };
+    for (const [name, motion] of [
+      ['push-up', buildPushUp],
+      ['bird dog', buildBirdDog],
+      ['plank from quadruped', buildPlankFromQuadruped],
+      ['get down to quadruped', buildGetDownToQuadruped],
+    ] as [string, () => ComposedMotion][]) {
+      const totalMs = record('male', motion, 60).frames.at(-1)!.tMs;
+      const full = time(motion);
+      const jump = time(motion, [0, totalMs]);
+      // eslint-disable-next-line no-console
+      console.log(`male ${name}: 60 Hz ${full.toFixed(1)} ms, one jump ${jump.toFixed(1)} ms (${((100 * jump) / full).toFixed(0)}%)`);
+      expect(jump, `${name}: one jump against the 60 Hz recording`).toBeLessThan(0.5 * full);
+    }
+  }, 180_000);
 });

@@ -2095,7 +2095,7 @@
             engaged.push({ solver: hp.solver, state: hp, engagedAtMs: Number.isFinite(engagedAt) ? engagedAt : 0, bone: hp.bone });
           }
           if (!engaged.length) return;
-          settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t));
+          settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t), traj);
           for (const hp of engaged) {
             solveHandReach(
               hp.solver,
