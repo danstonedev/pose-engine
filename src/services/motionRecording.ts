@@ -69,6 +69,7 @@ import {
   FOOT_ROOT_DRIFT_M,
   groundingBlendAt,
   handReachEngagedAt,
+  handReachReleasedAt,
   handReachWeightAt,
   headingProfileLookup,
   heelStrikeOffsetAt,
@@ -1045,17 +1046,27 @@ export function sampleComposedMotion(
     // lowers over it (the arm folds — the push-up). Latch-on-contact avoids
     // freezing a bad point mid-transition; the engagement ramp
     // ({@link handReachWeightAt}, SEAM-4) folds a newly-engaged reach in over
-    // ~150 ms instead of snapping the arm to the floor on its first frame.
-    const solveReachContacts = (posture: string): void => {
+    // ~150 ms instead of snapping the arm to the floor on its first frame, and
+    // a hand the grounding lets go of is blended back to FK over as long
+    // (handReachReleasedAt) — on every frame, grounded or not (`posture` null).
+    let reachStepped = false;
+    const solveReachContacts = (posture: string | null): void => {
+      reachStepped = true;
       if (!handPlants.length) return;
       const reach = new Set(
-        groundingContactsFor(posture, floorRef)
+        (posture ? groundingContactsFor(posture, floorRef) : [])
           .filter((c) => c.mode === 'reach')
           .map((c) => c.bone),
       );
       const engaged: (HandReachContact & { bone: string })[] = [];
       for (const hp of handPlants) {
         if (!reach.has(hp.bone)) {
+          const released = handReachReleasedAt(groundingSwitches, hp.bone, tMs, floorRef);
+          if (released) {
+            // Letting go: held where it was when the grounding let it go.
+            engaged.push({ solver: hp.solver, state: hp, engagedAtMs: released.engagedAtMs, untilMs: released.releasedAtMs, untilWeight: released.weight, bone: hp.bone });
+            continue;
+          }
           hp.target = null; // this posture doesn't plant this hand — release it
           hp.lastTMs = null;
           continue;
@@ -1133,6 +1144,9 @@ export function sampleComposedMotion(
         root.updateMatrixWorld(true);
       }
     }
+    // A frame the grounding plants no hand on still lets go of one it released
+    // (the stage steps the same after its grounding — lockstep).
+    if (!reachStepped) solveReachContacts(null);
     // Gravity-shaped descent (weighted lowers): inside a derived descent span,
     // re-time the grounded root-Y toward the gravity profile — clamped to the
     // live pin's hover/dip band. Root-Y ONLY (joints untouched); identity for

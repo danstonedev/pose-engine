@@ -584,6 +584,7 @@
         applyBlendedGroundingY,
         handReachWeightAt,
         handReachEngagedAt,
+        handReachReleasedAt,
         startPlantsWhereFeetLand,
         FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
@@ -2046,6 +2047,54 @@
         }
       }
 
+      /** REACH CONTACTS of the frame's grounding posture (null: none) at `tMs`
+       *  of `traj`: bring each planted hand to the floor and LATCH it there, so
+       *  it stays put as the body lowers over it — the arm folds (the push-up).
+       *  Mirrors the sampler's latch-on-contact reach solve: the latch settled on
+       *  the motion's own clock (settleHandReachLatches, probing `traj`), then
+       *  the SEAM-4 engagement ramp (handReachWeightAt) — which also blends a
+       *  hand the grounding lets go of back to FK (handReachReleasedAt), held
+       *  where it was when it let go. Stepped on every frame, grounded or not
+       *  (applyTrajectoryRoot), as the sampler does. */
+      function solveComposedReachContacts(posture: string | null, tMs: number, traj: PoseTrajectory): void {
+        if (!composedHandPlants.length || !restRef || !skinnedRef || !variantCfgRef || !floorRef || !modelRoot)
+          return;
+        const reach = new Set(
+          (posture ? groundingContactsFor(posture, floorRef) : [])
+            .filter((c) => c.mode === 'reach')
+            .map((c) => c.bone),
+        );
+        const engaged: { solver: NonNullable<StageHandPlant['solver']>; state: StageHandPlant; engagedAtMs: number; untilMs?: number; untilWeight?: number; bone: string }[] = [];
+        for (const hp of composedHandPlants) {
+          if (!hp.solver || !reach.has(hp.bone)) {
+            const released = hp.solver ? handReachReleasedAt(composedGroundingSwitches, hp.bone, tMs, floorRef) : null;
+            if (hp.solver && released) {
+              // Letting go: held where it was when the grounding let it go.
+              engaged.push({ solver: hp.solver, state: hp, engagedAtMs: released.engagedAtMs, untilMs: released.releasedAtMs, untilWeight: released.weight, bone: hp.bone });
+              continue;
+            }
+            hp.target = null;
+            hp.lastTMs = null;
+            continue;
+          }
+          const engagedAt = handReachEngagedAt(composedGroundingSwitches, hp.bone, tMs, floorRef);
+          engaged.push({ solver: hp.solver, state: hp, engagedAtMs: Number.isFinite(engagedAt) ? engagedAt : 0, bone: hp.bone });
+        }
+        if (!engaged.length) return;
+        settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t), traj);
+        for (const hp of engaged) {
+          solveHandReach(
+            hp.solver,
+            hp.state,
+            floorRef.floorY,
+            restRef,
+            handReachWeightAt(composedGroundingSwitches, hp.bone, tMs, floorRef),
+            true,
+          );
+        }
+        modelRoot.updateMatrixWorld(true);
+      }
+
       /** Set the whole-body root from an absolute trajectory sample, then (planted)
        *  pin the lower foot to the floor. `traj` is the trajectory the sample is
        *  of (the hand latch probes it between frames). */
@@ -2070,44 +2119,6 @@
         modelRoot.scale.copy(rootRestScale); // clear any prior-frame plant scale drift
         composedVcalRaiseY = 0; // re-measured by this frame's calibrated vertical
         modelRoot.updateMatrixWorld(true);
-        // REACH CONTACTS of the active posture: bring each planted hand to the
-        // floor and LATCH it there, so it stays put as the body lowers over it —
-        // the arm folds (the push-up). Mirrors the sampler's latch-on-contact
-        // reach solve: the latch settled on the motion's own clock
-        // (settleHandReachLatches, probing `traj`), then the SEAM-4 engagement
-        // ramp (handReachWeightAt).
-        const solveComposedReachContacts = (posture: string): void => {
-          if (!composedHandPlants.length || !restRef || !skinnedRef || !variantCfgRef || !floorRef)
-            return;
-          const reach = new Set(
-            groundingContactsFor(posture, floorRef)
-              .filter((c) => c.mode === 'reach')
-              .map((c) => c.bone),
-          );
-          const engaged: { solver: NonNullable<StageHandPlant['solver']>; state: StageHandPlant; engagedAtMs: number; bone: string }[] = [];
-          for (const hp of composedHandPlants) {
-            if (!hp.solver || !reach.has(hp.bone)) {
-              hp.target = null;
-              hp.lastTMs = null;
-              continue;
-            }
-            const engagedAt = handReachEngagedAt(composedGroundingSwitches, hp.bone, tMs, floorRef);
-            engaged.push({ solver: hp.solver, state: hp, engagedAtMs: Number.isFinite(engagedAt) ? engagedAt : 0, bone: hp.bone });
-          }
-          if (!engaged.length) return;
-          settleHandReachLatches(engaged, tMs, floorRef.floorY, restRef, (t) => poseComposedReachFrameAt(traj, t), traj);
-          for (const hp of engaged) {
-            solveHandReach(
-              hp.solver,
-              hp.state,
-              floorRef.floorY,
-              restRef,
-              handReachWeightAt(composedGroundingSwitches, hp.bone, tMs, floorRef),
-              true,
-            );
-          }
-          modelRoot!.updateMatrixWorld(true);
-        };
         // GROUNDING-SWITCH CROSSFADE (SEAM-4/SEAM-5): inside an override span
         // the grounded root-Y is the eased blend of the OUTGOING and INCOMING
         // pin solutions (shared applier — lockstep with the offline sampler);
@@ -2116,9 +2127,13 @@
         const gBlend = composedGroundingBlendSpans.length
           ? groundingBlendAt(composedGroundingBlendSpans, tMs)
           : null;
+        let reachStepped = false;
         if (gBlend && skinnedRef && variantCfgRef && floorRef) {
           applyBlendedGroundingY(modelRoot, gBlend, applyComposedGroundingPin);
-          if (planted && groundingPosture) solveComposedReachContacts(groundingPosture);
+          if (planted && groundingPosture) {
+            solveComposedReachContacts(groundingPosture, tMs, traj);
+            reachStepped = true;
+          }
         } else if (planted && groundingPosture && skinnedRef && variantCfgRef && floorRef) {
           // POSTURE-SCOPED GROUNDING: rest on the posture's contact set (the pelvis on
           // a seat for 'sitting', the toes+hands on the floor for a plank) via the
@@ -2129,7 +2144,8 @@
             variantCfgRef,
             groundingContactsFor(groundingPosture, floorRef),
           );
-          solveComposedReachContacts(groundingPosture);
+          solveComposedReachContacts(groundingPosture, tMs, traj);
+          reachStepped = true;
         } else if (
           planted &&
           composedUseFootRoot &&
@@ -2181,6 +2197,9 @@
             modelRoot.updateMatrixWorld(true);
           }
         }
+        // A frame the grounding plants no hand on still lets go of one it
+        // released (the sampler steps the same after its grounding — lockstep).
+        if (!reachStepped) solveComposedReachContacts(null, tMs, traj);
         // Gravity-shaped descent (weighted lowers): inside a derived descent
         // span, re-time the grounded root-Y toward the gravity profile, clamped
         // to the live pin's hover/dip band — root-Y only, mirroring the offline

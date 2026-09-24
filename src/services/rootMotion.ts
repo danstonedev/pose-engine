@@ -729,13 +729,26 @@ export function applyBlendedGroundingY(
  *  the eased weight folds the reach in instead. */
 export const HAND_REACH_RAMP_MS = 150;
 
+/** Let-go time (ms) for a hand the grounding releases: its arm is FK's, still
+ *  turned by the fading share of how the reach had it turned off FK's the
+ *  moment it let go ({@link handReachReleasedAt}, footContact.solveHandReach),
+ *  so it moves with FK's arm throughout. Over 100 ms the bird-dog's lifted
+ *  forearm turns 1.8–5.4°/frame (5c1c9ac's snap 5.5–7.4) and the hand it
+ *  releases just after landing from standing goes no deeper than FK's own
+ *  (7.3–7.4 cm under the floor, female; 5c1c9ac 9.1). Over 150 ms it runs
+ *  110–140 mm along the floor near its lowest point (5c1c9ac 92–122 mm), 100
+ *  –115 over 100 ms. */
+export const HAND_REACH_RELEASE_MS = 100;
+
 /**
  * The eased IK weight (0..1) for a hand-reach contact at `tMs`: 1 when the
  * reach has been active since before the motion's first switch (or the motion
  * never switches — every pre-posture behaviour, e.g. a push-up grounded 'plank'
  * throughout), ramping in over {@link HAND_REACH_RAMP_MS} from the switch that
- * (re)introduced this bone to the active reach set. Pure function of the
- * switch list + time, so the stage and the sampler stay in lockstep.
+ * (re)introduced this bone to the active reach set — and, for a bone a switch
+ * has just taken out of it, falling back to 0 over {@link HAND_REACH_RELEASE_MS}
+ * ({@link handReachReleasedAt}). Pure function of the switch list + time, so
+ * the stage and the sampler stay in lockstep.
  */
 export function handReachWeightAt(
   switches: readonly TrajectoryGroundingSwitch[] | undefined,
@@ -743,9 +756,56 @@ export function handReachWeightAt(
   tMs: number,
   floor: FloorReference,
 ): number {
+  const released = handReachReleasedAt(switches, bone, tMs, floor);
+  if (released) return 1 - groundingBlendEase((tMs - released.releasedAtMs) / HAND_REACH_RELEASE_MS);
   const engagedAt = handReachEngagedAt(switches, bone, tMs, floor);
   if (!Number.isFinite(engagedAt)) return 1;
   return groundingBlendEase((tMs - engagedAt) / HAND_REACH_RAMP_MS);
+}
+
+/**
+ * The reach a switch let go of `bone` at, when it is still letting go at `tMs`
+ * — `bone` out of the active reach set since `releasedAtMs`, less than
+ * {@link HAND_REACH_RELEASE_MS} ago — with the engagement it held from
+ * (`engagedAtMs`, trajectory ms; 0 when it had been engaged since the
+ * motion's start, as {@link handReachEngagedAt} reads it) and its engagement
+ * weight when it let go (`weight`: 1 unless still ramping in); null otherwise.
+ * Over that span the arm is blended back from how the reach drew it to FK
+ * ({@link handReachWeightAt} falls 1 → 0, footContact.solveHandReach): let
+ * go at once, it snapped to FK in one frame — the bird-dog's lifted forearm
+ * 11.2° in one frame (female, 1341 °/s at 120 Hz; 5c1c9ac 714 °/s, its upper
+ * arm 20°, 2454 °/s). Pure function of the switch list and time
+ * (sampler/stage lockstep).
+ */
+export function handReachReleasedAt(
+  switches: readonly TrajectoryGroundingSwitch[] | undefined,
+  bone: string,
+  tMs: number,
+  floor: FloorReference,
+): { releasedAtMs: number; engagedAtMs: number; weight: number } | null {
+  if (!switches?.length) return null;
+  const hasReach = (posture: string | undefined): boolean =>
+    posture != null &&
+    groundingContactsFor(posture, floor).some((c) => c.mode === 'reach' && c.bone === bone);
+  let engagedAt = -Infinity;
+  let released: { releasedAtMs: number; engagedAtMs: number; weight: number } | null = null;
+  for (const s of switches) {
+    if (s.tMs > tMs + 1e-6) break;
+    const inFrom = hasReach(s.fromPosture);
+    const inTo = hasReach(s.toPosture);
+    if (inTo && !inFrom) {
+      engagedAt = s.tMs;
+      released = null;
+    } else if (inFrom && !inTo) {
+      released = {
+        releasedAtMs: s.tMs,
+        engagedAtMs: Number.isFinite(engagedAt) ? engagedAt : 0,
+        weight: Number.isFinite(engagedAt) ? groundingBlendEase((s.tMs - engagedAt) / HAND_REACH_RAMP_MS) : 1,
+      };
+      engagedAt = -Infinity;
+    }
+  }
+  return released && tMs - released.releasedAtMs < HAND_REACH_RELEASE_MS ? released : null;
 }
 
 /**

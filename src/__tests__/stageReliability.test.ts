@@ -496,6 +496,24 @@ describe('SEAM-4/SEAM-5 — the live stage runs the grounding-switch crossfade i
     }
   });
 
+  it('a hand the grounding lets go of is blended back to FK on both paths, grounded frames or not (lockstep)', () => {
+    // A hand out of the frame's reach set that a switch released under
+    // rootMotion.HAND_REACH_RELEASE_MS ago is settled up to its release and
+    // solved by the same weight (falling 1 → 0) on both paths, instead of
+    // being dropped — so its arm does not snap to FK in one frame (the
+    // bird-dog's lifted forearm: 11.2° in one frame, 1341 °/s at 120 Hz).
+    expect(stageSource).toMatch(
+      /const released = hp\.solver \? handReachReleasedAt\(composedGroundingSwitches, hp\.bone, tMs, floorRef\) : null;\s*if \(hp\.solver && released\) \{[\s\S]{0,120}engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: released\.engagedAtMs, untilMs: released\.releasedAtMs, untilWeight: released\.weight, bone: hp\.bone \}\);/,
+    );
+    expect(samplerSource).toMatch(
+      /const released = handReachReleasedAt\(groundingSwitches, hp\.bone, tMs, floorRef\);\s*if \(released\) \{[\s\S]{0,120}engaged\.push\(\{ solver: hp\.solver, state: hp, engagedAtMs: released\.engagedAtMs, untilMs: released\.releasedAtMs, untilWeight: released\.weight, bone: hp\.bone \}\);/,
+    );
+    // …stepped on every frame: a frame whose grounding plants no hand (the
+    // stand from quadruped) still lets go of one it released.
+    expect(stageSource).toContain('if (!reachStepped) solveComposedReachContacts(null, tMs, traj);');
+    expect(samplerSource).toContain('if (!reachStepped) solveReachContacts(null);');
+  });
+
   it('the weighted-descent pre-pass grounds through the SAME blend as playback (lockstep arc)', () => {
     expect(stageSource).toMatch(
       /function setComposedWeightedDescent[\s\S]{0,2500}groundingBlendAt\(composedGroundingBlendSpans, tMs\)/,

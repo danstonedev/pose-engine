@@ -1141,6 +1141,16 @@ export interface HandReachState {
   /** The reach's latch timeline on the motion's own clock
    *  ({@link settleHandReachLatches}). Kept by the settle. */
   timeline?: HandReachTimeline | null;
+  /** Where the hand is drawn, less where its state puts it (the planted point,
+   *  or the floor below the live hand) at the frame settled last: what is
+   *  left of each change of state's jump, fading out over
+   *  {@link HAND_REACH_BLEND_MS} (null: none). Kept by the settle. */
+  offset?: THREE.Vector3 | null;
+  /** A reach letting go ({@link HandReachContact.untilMs}): per arm chain
+   *  bone, how the reach turned it off FK's the moment it let go (the local
+   *  rotation FK's is carried by), which fades back to FK; null while engaged.
+   *  Kept by the settle. */
+  lettingGo?: THREE.Quaternion[] | null;
 }
 
 /**
@@ -1154,8 +1164,11 @@ export interface HandReachTimeline {
   key: unknown;
   engagedAtMs: number;
   /** Every change of state so far, in time order: from `tMs` on the hand is
-   *  planted at `target` (null: descending). The first is the engagement. */
-  events: { tMs: number; target: THREE.Vector3 | null }[];
+   *  planted at `target` (null: descending). The first is the engagement.
+   *  `jump`: where the state before put the hand, less where this one does,
+   *  then (the planted point, or the floor below the live hand) — faded out
+   *  over {@link HAND_REACH_BLEND_MS} from `tMs` so the arm does not snap. */
+  events: { tMs: number; target: THREE.Vector3 | null; jump?: THREE.Vector3 | null }[];
   /** How far the timeline has been read (motion ms), and the reach there. */
   cursorMs: number;
   /** The pulled height above the floor (descending) or the held residual
@@ -1167,6 +1180,10 @@ export interface HandReachTimeline {
   /** A descending hand's last {@link HAND_LATCH_GRID_MS} grid evaluation inside
    *  the band: when, its pulled height and where it was (the stall latch). */
   lastGrid: { tMs: number; height: number; point: THREE.Vector3 } | null;
+  /** When the reach let go ({@link HandReachContact.untilMs}), and how it
+   *  had each arm chain bone turned off FK's local rotation then (the body
+   *  posed there). */
+  letGo?: { atMs: number; offFk: THREE.Quaternion[] } | null;
 }
 
 /**
@@ -1184,6 +1201,14 @@ export interface HandReachContact {
   solver: FootPlantSolver;
   state: HandReachState;
   engagedAtMs: number;
+  /** A reach letting go (its grounding released it at this trajectory ms,
+   *  and the arm is still blending back to FK): its timeline is settled up to
+   *  here, never past it, so what it held when it let go does not depend on
+   *  the frames either. Omitted while the reach is engaged. */
+  untilMs?: number;
+  /** Its weight ({@link solveHandReach}) the moment it let go — 1 unless it
+   *  lets go while still engaging. With {@link untilMs}. */
+  untilWeight?: number;
 }
 
 /** How close (m) the hand must get to the floor plane before it may LATCH to a fixed
@@ -1273,8 +1298,65 @@ const HAND_LATCH_RATE_MARGIN = 1.5;
 const HAND_LATCH_PLANTED_MAX_STEP_MS = 600;
 const HAND_LATCH_PLANTED_MIN_RATE_M_PER_MS = 0.0001;
 
+/**
+ * How long (ms) a reach's change of state is blended over, on the motion's
+ * clock. Where its state puts the hand can jump when the state changes: a
+ * self-heal lets go of a point the arm can no longer hold (8 cm and more from
+ * where the hand is pulled to next), and a hand re-latches where it is then.
+ * Solved straight to its new state, the arm snapped there in one frame — the
+ * press-up to quadruped after lowering to prone moved the hands 12.8 cm in one
+ * 120 Hz frame (a 17.1 m/s seam-jerk, over the gate's 12; 5c1c9ac, whose latch
+ * healed on the frame, 9.9). Each jump is instead added back to where the
+ * hand is drawn and faded out over this span (smoothstep, from the change's own
+ * moment), so the drawn hand is continuous through it; a touch-down, where the
+ * hand is where it lands, jumps by the pull's residual only. The same span
+ * lets go of a reach its grounding releases (see {@link solveHandReach}).
+ */
+export const HAND_REACH_BLEND_MS = 150;
+
+/** Where the reach's state at `tMs` puts the hand (`at`): its planted point,
+ *  or the floor below the live hand (`live`) while it is descending. */
+function stateTargetOf(target: THREE.Vector3 | null, live: THREE.Vector3, floorY: number, out: THREE.Vector3): THREE.Vector3 {
+  return target ? out.copy(target) : out.set(live.x, floorY, live.z);
+}
+
+/** What is left, at `tMs`, of the jumps of the timeline's changes of state up
+ *  to `untilMs`, each fading out over {@link HAND_REACH_BLEND_MS} from its own
+ *  moment — added to where the reach's state puts the hand, it is where the
+ *  hand is drawn. Null when nothing is left. */
+function fadeOffsetAt(tl: HandReachTimeline, tMs: number, untilMs: number): THREE.Vector3 | null {
+  let out: THREE.Vector3 | null = null;
+  for (let i = tl.events.length - 1; i >= 0; i -= 1) {
+    const e = tl.events[i]!;
+    if (e.tMs > untilMs + 1e-9 || e.tMs > tMs + 1e-9) continue;
+    const u = (tMs - e.tMs) / HAND_REACH_BLEND_MS;
+    if (u >= 1) break;
+    if (!e.jump) continue;
+    const k = 1 - smooth01(u);
+    if (k <= 0) continue;
+    out = (out ?? new THREE.Vector3()).addScaledVector(e.jump, k);
+  }
+  return out;
+}
+
+/** The jump a change of state to `next` (null: descending) at `tMs` makes in
+ *  where the reach's state puts the hand, the body posed there with the hand
+ *  live at `live`: where the state before it put the hand, less where `next`
+ *  does (none at the engagement). */
+function stateJump(tl: HandReachTimeline, tMs: number, next: THREE.Vector3 | null, live: THREE.Vector3, floorY: number): THREE.Vector3 | null {
+  // At the engagement itself nothing was drawn before it (the engagement's
+  // own ramp, or the motion's start, takes the arm from FK).
+  if (tMs <= tl.engagedAtMs + 1e-9) return null;
+  const before = stateTargetOf(latchAt(tl, tMs), live, floorY, new THREE.Vector3());
+  const jump = before.sub(stateTargetOf(next, live, floorY, _jumpAfter));
+  return jump.lengthSq() > 0 ? jump : null;
+}
+const _jumpAfter = new THREE.Vector3();
+
 const _reachLive = new THREE.Vector3();
 const _reachTarget = new THREE.Vector3();
+const _reachDrawn = new THREE.Vector3();
+const _letGoTurn = new THREE.Quaternion();
 const _reachSolved = new THREE.Quaternion();
 const _reachPrePull: THREE.Quaternion[] = [];
 
@@ -1322,6 +1404,10 @@ function heldResidual(
 }
 
 const _settlePulled = new THREE.Vector3();
+const _settleLive = new THREE.Vector3();
+
+/** Where reach `r`'s hand is live (the body posed, its arm as FK leaves it). */
+const liveHand = (r: HandReachContact, out: THREE.Vector3): THREE.Vector3 => r.solver.ctx.bones[0]!.getWorldPosition(out);
 
 /** Whether motion time `t` falls on the {@link HAND_LATCH_GRID_MS} grid. */
 const onLatchGrid = (t: number): boolean =>
@@ -1357,7 +1443,7 @@ interface TouchSolve {
   fLo: number;
   hi: number;
   fHi: number;
-  at: { tMs: number; point: THREE.Vector3 };
+  at: { tMs: number; point: THREE.Vector3; live: THREE.Vector3 };
   /** Reads above the touch, oldest first (the last three are kept). */
   above: { tMs: number; f: number }[];
   /** Whether the last read came from the line through the last two reads
@@ -1411,12 +1497,12 @@ function nextTouchProbe(x: TouchSolve): number {
 }
 
 /** Take a touch solve's read at `c` (pulled height less the touch `fc`, the
- *  hand then at `point`). */
-function readTouch(x: TouchSolve, c: number, fc: number, point: THREE.Vector3): void {
+ *  hand then pulled to `point` from `live`). */
+function readTouch(x: TouchSolve, c: number, fc: number, point: THREE.Vector3, live: THREE.Vector3): void {
   x.reads += 1;
   const fromLine = x.above.length >= 2 && !x.overshot;
   if (Math.abs(fc) <= HAND_LATCH_SOLVE_M) {
-    x.at = { tMs: c, point: point.clone() };
+    x.at = { tMs: c, point: point.clone(), live: live.clone() };
     x.done = true;
     return;
   }
@@ -1429,15 +1515,17 @@ function readTouch(x: TouchSolve, c: number, fc: number, point: THREE.Vector3): 
   } else {
     x.hi = c;
     x.fHi = fc;
-    x.at = { tMs: c, point: point.clone() };
+    x.at = { tMs: c, point: point.clone(), live: live.clone() };
     x.overshot = fromLine;
   }
   if (x.reads >= HAND_LATCH_SOLVE_STEPS || x.hi - x.lo < 1e-6) x.done = true;
 }
 
-/** Latch a descending timeline at `tMs`, on the floor (`floorY`) under `point`. */
-function latchTimeline(tl: HandReachTimeline, tMs: number, point: THREE.Vector3, floorY: number): void {
-  tl.events.push({ tMs, target: new THREE.Vector3(point.x, floorY, point.z) });
+/** Latch a descending timeline at `tMs`, on the floor (`floorY`) under `point`
+ *  (the hand then live at `live`). */
+function latchTimeline(tl: HandReachTimeline, tMs: number, point: THREE.Vector3, floorY: number, live: THREE.Vector3): void {
+  const target = new THREE.Vector3(point.x, floorY, point.z);
+  tl.events.push({ tMs, target, jump: stateJump(tl, tMs, target, live, floorY) });
   tl.lastGrid = null;
   tl.prev = null;
   tl.cursorMs = tMs;
@@ -1486,6 +1574,13 @@ function latchAt(tl: HandReachTimeline, tMs: number): THREE.Vector3 | null {
  * identically, and none pays for reads the timeline does not need (the frame-
  * gap walk this replaced read every 5 ms of any gap over 100 ms: 1.3–1.5 s for
  * a parked push-up command).
+ *
+ * Each change of state records the jump it makes in where the hand is drawn
+ * (the state before's point less the new one's, at that moment), which the
+ * frame's `offset` fades out over {@link HAND_REACH_BLEND_MS}. A reach letting
+ * go ({@link HandReachContact.untilMs}) is settled up to the moment it let go
+ * and no further, and the arm as it was drawn then is kept (posed and solved
+ * there once) for {@link solveHandReach} to blend back to FK from.
  */
 export function settleHandReachLatches(
   reaches: readonly HandReachContact[],
@@ -1509,8 +1604,9 @@ export function settleHandReachLatches(
       probe(c);
       for (const x of touches) {
         if (x.done || !(c > x.lo && c < x.hi)) continue;
+        const live = liveHand(x.r, _settleLive);
         const fc = pulledHand(x.r.solver, floorY, rest, _settlePulled).y - floorY - HAND_TOUCH_M;
-        readTouch(x, c, fc, _settlePulled);
+        readTouch(x, c, fc, _settlePulled, live);
       }
     }
   };
@@ -1519,6 +1615,7 @@ export function settleHandReachLatches(
    *  {@link solveTouches} — if it touched since the last read above the floor;
    *  a hand touching on its first read latches there. */
   const readDescending = (r: HandReachContact, tl: HandReachTimeline, t: number, touches: TouchSolve[] | null): void => {
+    const live = liveHand(r, _settleLive);
     const pulled = pulledHand(r.solver, floorY, rest, _settlePulled);
     const h = pulled.y - floorY;
     if (h <= HAND_TOUCH_M) {
@@ -1532,7 +1629,7 @@ export function settleHandReachLatches(
           fLo: tl.value - HAND_TOUCH_M,
           hi: t,
           fHi: h - HAND_TOUCH_M,
-          at: { tMs: t, point: pulled.clone() },
+          at: { tMs: t, point: pulled.clone(), live: live.clone() },
           above: [{ tMs: tl.cursorMs, f: tl.value - HAND_TOUCH_M }],
           overshot: false,
           reads: 0,
@@ -1540,7 +1637,7 @@ export function settleHandReachLatches(
         });
         return;
       }
-      latchTimeline(tl, t, pulled, floorY);
+      latchTimeline(tl, t, pulled, floorY, live);
       return;
     }
     if (onLatchGrid(t) && h <= HAND_LATCH_M) {
@@ -1548,7 +1645,7 @@ export function settleHandReachLatches(
       // time if it has descended no further since.
       const last = tl.lastGrid;
       if (last && Math.abs(last.tMs - (t - HAND_LATCH_GRID_MS)) < 1e-6 && h >= last.height - HAND_DESCENT_STALL_M) {
-        latchTimeline(tl, t, last.point, floorY);
+        latchTimeline(tl, t, last.point, floorY, live);
         return;
       }
       tl.lastGrid = { tMs: t, height: h, point: pulled.clone() };
@@ -1583,11 +1680,13 @@ export function settleHandReachLatches(
         break;
       }
     }
-    if (heal !== t) {
+    if (heal !== t || reposed) {
+      // Posed at the heal (also where it is this read's own time, but the
+      // grid walk above re-posed the body off it): it is read there next.
       probe(heal);
       reposed = true;
     }
-    tl.events.push({ tMs: heal, target: null });
+    tl.events.push({ tMs: heal, target: null, jump: stateJump(tl, heal, null, liveHand(r, _settleLive), floorY) });
     tl.prev = null;
     tl.lastGrid = null;
     tl.cursorMs = heal;
@@ -1598,18 +1697,21 @@ export function settleHandReachLatches(
   };
 
   // Bring each reach's timeline up to date (read afresh for another motion or
-  // engagement), and find which must be read past this frame.
-  const pending: { r: HandReachContact; tl: HandReachTimeline }[] = [];
+  // engagement), and find which must be read past this frame — or, for a
+  // reach letting go, up to where it let go.
+  const horizonOf = (r: HandReachContact): number => Math.min(tMs, r.untilMs ?? Infinity);
+  const pending: { r: HandReachContact; tl: HandReachTimeline; until: number }[] = [];
   for (const r of reaches) {
     const st = r.state;
-    const from = Math.min(tMs, Math.max(0, r.engagedAtMs));
+    const until = horizonOf(r);
+    const from = Math.min(until, Math.max(0, r.engagedAtMs));
     let tl = st.timeline;
     if (!tl || tl.key !== key || Math.abs(tl.engagedAtMs - from) > 1e-6) {
       tl = { key, engagedAtMs: from, events: [{ tMs: from, target: null }], cursorMs: from, value: Infinity, prev: null, lastGrid: null };
       st.timeline = tl;
-      pending.push({ r, tl });
-    } else if (tl.cursorMs < tMs - 1e-9) {
-      pending.push({ r, tl });
+      pending.push({ r, tl, until });
+    } else if (tl.cursorMs < until - 1e-9) {
+      pending.push({ r, tl, until });
     }
   }
   let posedOff = false;
@@ -1626,7 +1728,7 @@ export function settleHandReachLatches(
   }
   const nextOf = (p: { tl: HandReachTimeline }): number => nextLatchRead(p.tl, latchAt(p.tl, p.tl.cursorMs) !== null);
   for (;;) {
-    const open = pending.filter((p) => p.tl.cursorMs < tMs - 1e-9);
+    const open = pending.filter((p) => p.tl.cursorMs < p.until - 1e-9);
     if (!open.length) break;
     const t = Math.min(...open.map(nextOf));
     probe(t);
@@ -1646,13 +1748,31 @@ export function settleHandReachLatches(
     }
     if (touches.length) {
       solveTouches(touches);
-      for (const x of touches) latchTimeline(x.tl, x.at.tMs, x.at.point, floorY);
+      for (const x of touches) latchTimeline(x.tl, x.at.tMs, x.at.point, floorY, x.at.live);
       posedOff = true;
     }
   }
+  // A reach letting go is blended back to FK from how it had the arm turned
+  // off FK's the moment it let go: posed and solved there once (the settle's
+  // own state).
+  for (const r of reaches) {
+    if (r.untilMs === undefined) continue;
+    const tl = r.state.timeline!;
+    if (tl.letGo && Math.abs(tl.letGo.atMs - r.untilMs) < 1e-9) continue;
+    const at = Math.min(tMs, r.untilMs);
+    probe(at);
+    posedOff = true;
+    const bones = r.solver.ctx.bones;
+    const fk = bones.map((b) => b.quaternion.clone());
+    solveHandReach(r.solver, { target: latchAt(tl, at), offset: fadeOffsetAt(tl, at, at) }, floorY, rest, r.untilWeight ?? 1, true);
+    tl.letGo = { atMs: r.untilMs, offFk: bones.map((b, i) => fk[i]!.invert().multiply(b.quaternion)) };
+  }
   if (posedOff) probe(tMs);
   for (const r of reaches) {
-    r.state.target = latchAt(r.state.timeline!, tMs);
+    const until = horizonOf(r);
+    r.state.target = latchAt(r.state.timeline!, until);
+    r.state.offset = fadeOffsetAt(r.state.timeline!, tMs, until);
+    r.state.lettingGo = r.untilMs !== undefined ? r.state.timeline!.letGo?.offFk ?? null : null;
     r.state.lastTMs = tMs;
   }
 }
@@ -1666,11 +1786,15 @@ function solveHandReachFull(
   settled: boolean,
 ): void {
   const eff = solver.ctx.bones[0]!;
+  // Settled, the hand is drawn where its state puts it plus what is left of
+  // the last changes of state's jumps (HAND_REACH_BLEND_MS).
+  const offset = settled ? state.offset : null;
   if (state.target) {
     // A few CCD passes so the pinned hand holds against the (fast-moving) body as
     // the chest lowers — one pass under-converges and lets the hand punch through
     // the floor at the bottom of a rep.
-    for (let i = 0; i < HAND_REACH_PASSES; i += 1) solveHandPlant(solver, state.target, rest);
+    const target = offset ? _reachDrawn.copy(state.target).add(offset) : state.target;
+    for (let i = 0; i < HAND_REACH_PASSES; i += 1) solveHandPlant(solver, target, rest);
     if (settled) return;
     // Self-heal a bad latch: a point captured mid-transition can end up out of reach
     // once the body settles elsewhere. If the hand can't hold its target, drop the
@@ -1681,6 +1805,7 @@ function solveHandReachFull(
   }
   eff.getWorldPosition(_reachLive);
   _reachTarget.set(_reachLive.x, floorY, _reachLive.z);
+  if (offset) _reachTarget.add(offset);
   for (let i = 0; i < HAND_REACH_PASSES; i += 1) solveHandPlant(solver, _reachTarget, rest);
   if (settled) return;
   eff.getWorldPosition(_reachLive); // where it ended (best-effort)
@@ -1711,7 +1836,14 @@ function solveHandReachFull(
  * pre-solve FK arm (per-bone local slerp), so a newly-engaged reach folds in over
  * the caller's ramp instead of snapping the arm to the floor on its first frame.
  * Latch/self-heal decisions read the FULL solve (where the hand CAN reach), so the
- * latched point is weight-independent.
+ * latched point is weight-independent. Settled, the hand is drawn where its
+ * state puts it plus the fading jumps of its changes of state (`state.offset`),
+ * and a reach letting go (`state.lettingGo`) is not solved at all: its arm is
+ * FK's, turned by `weight` (falling 1 → 0, rootMotion.handReachWeightAt) of
+ * how the reach had each bone turned off FK's the moment it let go — so it
+ * moves with FK's arm from the start and the difference fades, where a blend
+ * from the arm as it was drawn then first had to catch FK's arm up (the hand
+ * 1.7 m/s along the floor in the bird-dog's early release, FK 1.1).
  */
 export function solveHandReach(
   solver: FootPlantSolver,
@@ -1722,12 +1854,22 @@ export function solveHandReach(
   settled = false,
 ): void {
   const w = Math.min(1, Math.max(0, weight));
+  const bones = solver.ctx.bones;
+  if (settled && state.lettingGo) {
+    // Letting go: FK's arm, still turned by `weight` of how the reach had it
+    // turned off FK's when it let go.
+    if (w <= 0) return;
+    for (let i = 0; i < bones.length; i += 1) {
+      bones[i]!.quaternion.multiply(_letGoTurn.identity().slerp(state.lettingGo[i]!, w));
+    }
+    bones[bones.length - 1]!.updateWorldMatrix(true, true);
+    return;
+  }
   if (w >= 1) {
     solveHandReachFull(solver, state, floorY, rest, settled);
     return;
   }
   if (w <= 0) return; // not engaged yet — pure FK arm this frame
-  const bones = solver.ctx.bones;
   const pre = bones.map((b) => b.quaternion.clone());
   solveHandReachFull(solver, state, floorY, rest, settled);
   for (let i = 0; i < bones.length; i += 1) {
