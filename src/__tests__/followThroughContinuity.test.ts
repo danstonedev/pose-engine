@@ -30,10 +30,10 @@
  * gated here too.
  *
  * Gated PURE (single-axis chains, signed angle, 0.1 ms finite differences; one
- * curved loop) and ON THE RIG (the travel walk every gait task is built on, at
- * two paces; the run and sprint loops; a sit-down with the arms folded, the DDx
- * chair stand's shape). Exact knot arrival — the measurement contract — is
- * pinned alongside.
+ * curved loop) and ON THE RIG (the travel walk every gait task is built on,
+ * across its 0.6–1.5 pace range; the run and sprint loops; a sit-down with the
+ * arms folded, the DDx chair stand's shape). Exact knot arrival — the
+ * measurement contract — is pinned alongside.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -57,6 +57,8 @@ import {
 } from '../services/motionTrajectory';
 import {
   chainOnsetDelay,
+  followThroughKnotSlope,
+  followThroughStrokeLag,
   PROXIMAL_TO_DISTAL_STAGGER,
   stagedBlendWithBaseline,
   trajectoryBoneDelay,
@@ -766,18 +768,74 @@ describe('follow-through on the rig', () => {
     // turn); 191256f, capping the progress rate only, 10.9 (4.3–22.8); a
     // lockstep build 0; round 2's warp −1.4 (−8.0 to +7.3); 5c1c9ac's
     // per-segment dwell 16.1.
+    // This flat floor holds at the pace it was set at (and 1.5×, below), not at
+    // every pace: where a crossing falls in its stroke moves with the pace, and
+    // late in a stroke into a turn the slowed arrival takes the trail back by
+    // design (0.6×: the left forearm at s = 0.80, 1.35 ms). The pace sweep below
+    // judges each crossing against the trail the design leaves at its point.
     gateMidSwingLags('travel walk', undefined, 8, 4);
   });
 
-  it('…and at 1.5× pace the same share of each shorter stroke: 6.5 ms on average, each at least 3.3 ms', () => {
+  it('…and at 1.5× pace, scaled to its shorter strokes: 6.5 ms on average, each at least 3.3 ms', () => {
     // The trail is budgeted as a SHARE of the stroke (d/2 at mid-stroke), and
     // paceGait splits speed evenly into stride and cadence, so at 1.5× every
     // stroke lasts 1/√1.5 = 0.816 as long (93–367 ms against 114–450) and both
     // thresholds scale with it: 8 → 6.5 ms, 4 → 3.3 ms. Measured 7.2 ms over 13
     // crossings (3.8–11.0); 191256f 7.6 (3.8–11.0); a lockstep build 0; round
-    // 2's warp −1.8 (−10.4 to +0.5).
+    // 2's warp −1.8 (−10.4 to +0.5). The mean scales so at every pace; the flat
+    // per-crossing floor only where the crossings fall where they do at 1× and
+    // 1.5× — see the pace sweep below.
     gateMidSwingLags('travel walk at 1.5×', 1.5, 8 / Math.sqrt(1.5), 4 / Math.sqrt(1.5));
   });
+
+  /** The trail (ms) the design leaves a bone at point s of a flowing stroke of
+   *  `strokeMs` — even one that arrives at a full turn of its path, at an even
+   *  pace. The lag term puts it c·s²(1 − s)² of the stroke behind, c = 16 × d/2
+   *  (motionStagger.followThroughStrokeLag). Arriving at a turn, its own knot
+   *  slope is cut (motionStagger.followThroughKnotSlope, by 2d/(1 − d) of the
+   *  chain's at a full turn), and an arrival that slows must come in ahead:
+   *  s²(1 − s) × that cut. So 2d·s²(1 − s)·(4(1 − s) − 1/(1 − d)) of the
+   *  stroke — positive until about 0.7 of the way through it, and past that a
+   *  bone arriving at a full turn may reach mid-swing with the chain. */
+  function designTrailMs(key: string, s: number, strokeMs: number): number {
+    const d = trajectoryBoneDelay(key);
+    const trail = 16 * followThroughStrokeLag(d).midLag * s * s * (1 - s) * (1 - s);
+    const lead = s * s * (1 - s) * (1 - followThroughKnotSlope(d, 1));
+    return (trail - lead) * strokeMs;
+  }
+
+  it.each([0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.5])(
+    'the travel walk at %s× pace: each mid-swing crossing trails by half the design’s trail at its point of the stroke, 8 ms / √pace on average',
+    (pace) => {
+      // Across the walk's speed range. The flat per-crossing floor above holds
+      // only at the paces it was set at: where the middle of a bone's swing
+      // falls in its stroke moves with the pace (the left forearm's from s =
+      // 0.53 at 1.2× to 0.80 at 0.6×), and the trail fades toward the keyframe
+      // while a slowed arrival into a turn takes it back. So each crossing is
+      // held to half of what the design keeps at ITS point even into a full turn
+      // (designTrailMs — the other half for the rate and speed caps and an
+      // uneven pace through the stroke); within ~0.3 of the stroke of a
+      // keyframe it arrives at, where that is nothing, only the mean holds it.
+      // The mean scales with the strokes, 8 ms at 1×. Measured (male, female
+      // and neutral rigs alike): least crossing 1.26–1.83 × the design's trail
+      // (0.8×: the left forearm at s = 0.20 of a stroke out of a turn, 4.3 ms
+      // against 3.4), mean 1.11–1.51 × 8 ms / √pace (1.5×: 7.2 ms against 6.5).
+      // 5c1c9ac, which trailed by stopping every bone at every keyframe, 2.06–
+      // 2.69 × and 1.73–2.11 ×. A lockstep build crosses with the chain, 0 at
+      // every pace; round 2's warp (2504a7e) fails at every pace too.
+      const crossings = walkMidSwingLags(pace);
+      let judged = 0;
+      for (const { key, lag, s, strokeMs } of crossings) {
+        const floor = designTrailMs(key, s, strokeMs) / 2;
+        if (!(floor > 0)) continue;
+        judged += 1;
+        expect(lag, `${pace}×: ${key}, ${strokeMs.toFixed(0)} ms stroke at s = ${s.toFixed(2)} (half the design's trail ${floor.toFixed(2)} ms)`).toBeGreaterThanOrEqual(floor);
+      }
+      expect(judged, `${pace}×: crossings the design keeps a trail at`).toBeGreaterThanOrEqual(8);
+      const mean = crossings.reduce((a, c) => a + c.lag, 0) / crossings.length;
+      expect(mean, `${pace}×: mean mid-swing lag behind the lockstep build, ms`).toBeGreaterThanOrEqual(8 / Math.sqrt(pace));
+    },
+  );
 
   it('run and sprint loops: no delayed arm bone moves faster than 1/(1 − d) × its lockstep twin through any stroke', () => {
     // The trail hurries a bone through the back half of a stroke, and a SQUAD
