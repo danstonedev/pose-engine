@@ -26,6 +26,7 @@
 import * as THREE from 'three';
 import { breathingLeanFM, livelinessSwayDeg } from './liveliness';
 import type { BreathState } from './stageBreath';
+import { idleSupport } from './idleSupport';
 
 type BoneMap = Map<string, THREE.Bone>;
 
@@ -90,16 +91,17 @@ export function createMotionLiveliness(): MotionLiveliness {
     // driven rate (phase-continuous — never t×rate, so no mid-breath jump).
     breath.advancePhase(dtSec);
     const thorax = bones.get('Spine_Upper');
+    const lying = idleSupport(bones) === 'lying';
     if (thorax) {
       baked[0]!.pre.copy(thorax.quaternion);
-      const breathDeg = onsetRamp * breathingLeanFM(breath.phase, motionLiveliness, breath.exertion);
+      const breathDeg = onsetRamp * breathingLeanFM(breath.phase, motionLiveliness, breath.exertion) * (lying ? 0.2 : 1);
       _liveQ.setFromAxisAngle(swayAxisAP, (breathDeg * Math.PI) / 180);
       thorax.quaternion.premultiply(_liveQ);
       baked[0]!.post.copy(thorax.quaternion);
     }
     baked[0]!.on = !!thorax;
     const lowBack = bones.get('Spine_Lower');
-    if (lowBack) {
+    if (lowBack && !lying) {
       baked[1]!.pre.copy(lowBack.quaternion);
       const { mlDeg, apDeg } = livelinessSwayDeg(livelinessTime, motionLiveliness);
       _liveQ.setFromAxisAngle(swayAxisML, (onsetRamp * mlDeg * Math.PI) / 180);
@@ -108,7 +110,7 @@ export function createMotionLiveliness(): MotionLiveliness {
       lowBack.quaternion.premultiply(_liveQ);
       baked[1]!.post.copy(lowBack.quaternion);
     }
-    baked[1]!.on = !!lowBack;
+    baked[1]!.on = !!lowBack && !lying;
     modelRoot.updateMatrixWorld(true);
     return true;
   }
