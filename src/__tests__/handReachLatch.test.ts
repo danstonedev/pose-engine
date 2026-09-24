@@ -359,40 +359,100 @@ describe('a hand latched at the touch punches no deeper through the floor than o
   }
 });
 
-describe('reading the latch on the motion’s clock costs a parked stage a few frames, not the whole motion', () => {
+describe('reading the latch on the motion’s clock costs a parked stage under 1.75× what 5c1c9ac’s jump did', () => {
   // The stage's parked (hidden) path settles a command synchronously, from
   // settle to settle — a single jump for a one-keyframe command. The latch
   // walk this replaced read every 5 ms of any frame gap over 100 ms: one jump
   // over the male push-up cost 1.33 s, more than recording all 271 of its 60
-  // Hz frames (0.97 s; 5c1c9ac: 10 ms, but its latch moved with the frames
-  // that ran). The timeline is read as far from its next change of state as
-  // it is (footContact HAND_LATCH_MAX_STEP_MS), so the same jump now costs
-  // 7–27% of the 60 Hz recording (20 ms of 264 for the push-up; 5c1c9ac 10.6,
-  // and 114 for getting down to quadruped against 24 here), 1.0–1.4× before.
-  // Timed against the 60 Hz recording of the same motion in the same process
-  // — the best of three each — so a loaded machine slows both alike.
-  it('male: one jump over each hand-planted motion costs under half its 60 Hz recording', () => {
-    const time = (motion: () => ComposedMotion, frameTimesMs?: number[]): number => {
-      let best = Infinity;
-      for (let k = 0; k < 3; k += 1) {
-        const t0 = performance.now();
-        record('male', motion, 60, frameTimesMs);
-        best = Math.min(best, performance.now() - t0);
+  // Hz frames (5c1c9ac: 10 ms, but its latch moved with the frames that ran).
+  //
+  // 5c1c9ac's own jump, as a share of THIS tree's 60 Hz recording of the same
+  // motion — both the best of several runs in one process on one machine, so
+  // the share holds on a faster or slower one (this tree records a frame
+  // ~3.3× faster than 5c1c9ac, which is why the shares are small):
+  //                              male    female     (5c1c9ac's jump, ms)
+  //   push-up                   0.0396   0.0376     9.5 / 9.7
+  //   bird dog                  0.0671   0.0677     8.9 / 9.0
+  //   bird dog, left, two reps  0.0393   0.0385     9.3 / 9.6
+  //   plank from quadruped      0.162    0.167      8.3 / 8.6
+  //   quadruped from plank      0.174    0.144      8.2 / 7.9
+  //   press-up to quadruped     0.139    0.122      8.6 / 8.0
+  //   get down to quadruped     1.50     1.30     122.7 / 109.5
+  //   get down to plank         1.06     1.19     118.9 / 110.2
+  // Measured the same way, this tree's jump is 1.1–1.5× 5c1c9ac's for the
+  // first six (the push-up 1.1–1.4×, the bird dog's two reps 1.35–1.5×;
+  // ±15% run to run on a shared machine) and a fifth of it for the last two.
+  // It was 1.5–2.1× (the push-ups 1.8–1.9×, the female bird dog's two reps
+  // 2.0×) before a planted hand was read up to 600 ms apart and two hands
+  // landing together shared their touch solve
+  // (footContact HAND_LATCH_PLANTED_MAX_STEP_MS, nextTouchProbe); the walk
+  // before that, 70–140×. The aim is 1.5×; the bound, 1.75×, leaves room for
+  // timing noise on a loaded machine.
+  const MAIN_SHARE: Record<Variant, Record<string, number>> = {
+    male: {
+      'push-up': 0.0396,
+      'bird dog': 0.0671,
+      'bird dog, left, two reps': 0.0393,
+      'plank from quadruped': 0.162,
+      'quadruped from plank': 0.174,
+      'press-up to quadruped': 0.139,
+      'get down to quadruped': 1.5,
+      'get down to plank': 1.06,
+    },
+    female: {
+      'push-up': 0.0376,
+      'bird dog': 0.0677,
+      'bird dog, left, two reps': 0.0385,
+      'plank from quadruped': 0.167,
+      'quadruped from plank': 0.144,
+      'press-up to quadruped': 0.122,
+      'get down to quadruped': 1.3,
+      'get down to plank': 1.19,
+    },
+  };
+  const motions: [string, () => ComposedMotion][] = [
+    ['push-up', buildPushUp],
+    ['bird dog', buildBirdDog],
+    ['bird dog, left, two reps', () => buildBirdDog({ side: 'L', reps: 2 })],
+    ['plank from quadruped', buildPlankFromQuadruped],
+    ['quadruped from plank', buildQuadrupedFromPlank],
+    ['press-up to quadruped', buildPressUpToQuadruped],
+    ['get down to quadruped', buildGetDownToQuadruped],
+    ['get down to plank', buildGetDownToPlank],
+  ];
+  for (const variant of ['male', 'female'] as const) {
+    it(`${variant}: one jump over each hand-planted motion costs under 1.75× 5c1c9ac’s share of its 60 Hz recording`, () => {
+      const r = rigs.get(variant)!;
+      // The sampling alone is timed (the motion resolved once), as 5c1c9ac's was.
+      const time = (resolved: ReturnType<typeof resolveComposedMotion>, runs: number, frameTimesMs?: number[]): number => {
+        let best = Infinity;
+        for (let k = 0; k < runs; k += 1) {
+          reset(r);
+          const t0 = performance.now();
+          sampleComposedMotion(resolved, options(r, 60, frameTimesMs));
+          best = Math.min(best, performance.now() - t0);
+        }
+        return best;
+      };
+      for (const [name, motion] of motions) {
+        const resolved = resolveComposedMotion(motion(), BODY_VARIANTS[variant]);
+        expect(resolved.status).toBe('ok');
+        const totalMs = record(variant, motion, 60).frames.at(-1)!.tMs;
+        // Interleaved, so a burst of load on the machine lands on both.
+        let full = Infinity;
+        let jump = Infinity;
+        for (let k = 0; k < 3; k += 1) {
+          full = Math.min(full, time(resolved, 1));
+          jump = Math.min(jump, time(resolved, 4, [0, totalMs]));
+        }
+        const main = MAIN_SHARE[variant][name]! * full;
+        // eslint-disable-next-line no-console
+        console.log(
+          `${variant} ${name}: 60 Hz ${full.toFixed(1)} ms, one jump ${jump.toFixed(1)} ms — ` +
+            `${(jump / main).toFixed(2)}× 5c1c9ac's (${main.toFixed(1)} ms at its share)`,
+        );
+        expect(jump, `${name}: one jump against 1.75× 5c1c9ac's`).toBeLessThan(1.75 * main);
       }
-      return best;
-    };
-    for (const [name, motion] of [
-      ['push-up', buildPushUp],
-      ['bird dog', buildBirdDog],
-      ['plank from quadruped', buildPlankFromQuadruped],
-      ['get down to quadruped', buildGetDownToQuadruped],
-    ] as [string, () => ComposedMotion][]) {
-      const totalMs = record('male', motion, 60).frames.at(-1)!.tMs;
-      const full = time(motion);
-      const jump = time(motion, [0, totalMs]);
-      // eslint-disable-next-line no-console
-      console.log(`male ${name}: 60 Hz ${full.toFixed(1)} ms, one jump ${jump.toFixed(1)} ms (${((100 * jump) / full).toFixed(0)}%)`);
-      expect(jump, `${name}: one jump against the 60 Hz recording`).toBeLessThan(0.5 * full);
-    }
-  }, 180_000);
+    }, 180_000);
+  }
 });

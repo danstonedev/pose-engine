@@ -1234,8 +1234,9 @@ const HAND_LATCH_GRID_MS = 5;
 
 /** The moment a descending hand touched the floor is solved to this (m of
  *  pulled height, 0.01 mm) — in under 5 µs of motion time where the hand drops
- *  2 mm/ms, the hand then moving 0.01 mm — by regula falsi (Illinois) on the
- *  pulled height, in at most {@link HAND_LATCH_SOLVE_STEPS} probes. */
+ *  2 mm/ms, the hand then moving 0.01 mm — off the pulled height's falling
+ *  side ({@link nextTouchProbe}), in at most {@link HAND_LATCH_SOLVE_STEPS}
+ *  reads. */
 const HAND_LATCH_SOLVE_M = 1e-5;
 const HAND_LATCH_SOLVE_STEPS = 12;
 
@@ -1247,9 +1248,12 @@ const HAND_LATCH_SOLVE_STEPS = 12;
  * rate between its last two reads — on the grid, and no farther than this.
  * Read every 5 ms grid time instead (the frame-gap walk this replaced), a
  * parked stage paid 1.3–1.5 s per push-up command (5c1c9ac: 10 ms, latching
- * on whichever frames ran); read so, 20 ms. The timeline lands within 0.02 mm
- * of the every-5-ms one on every hand-planted motion and chain, both rigs (the
- * touch moments move inside their own solve tolerance). A reach whose state
+ * on whichever frames ran); read so, with a planted hand read farther apart
+ * ({@link HAND_LATCH_PLANTED_MAX_STEP_MS}) and two hands touching together
+ * sharing their touch solve, 11–14 ms. The timeline lands within 0.015 mm of
+ * the every-5-ms one on every hand-planted motion and chain, both rigs, at 60
+ * Hz, on a jittered clock, a 40–95 ms clock and one jump (the touch moments
+ * move inside their own solve tolerance). A reach whose state
  * comes and goes wholly between two reads — covering twice its distance from
  * the threshold inside one step, so moving at over twice the rate the step was
  * sized for — is missed by every clock alike.
@@ -1258,6 +1262,16 @@ const HAND_LATCH_MAX_STEP_MS = 200;
 /** Rate floor (m/ms) and margin on the observed rate the steps are sized by. */
 const HAND_LATCH_MIN_RATE_M_PER_MS = 0.0003;
 const HAND_LATCH_RATE_MARGIN = 1.5;
+/** The same for a PLANTED hand, read for its self-heal: its residual sits at
+ *  a fraction of a millimetre while its arm folds over the point (the push-up)
+ *  and moves only once the body has carried the shoulder out of the arm's
+ *  reach, so it is read up to 600 ms apart at a 0.1 m/s floor. Read 200 ms
+ *  apart at the descending hand's 0.3 m/s, one parked push-up cost 1.7–2.1×
+ *  5c1c9ac's jump (male / female), and the bird-dog two reps 1.6–2.0×; the
+ *  settled hands of all twelve hand-planted motions and three chains are
+ *  unchanged, both rigs. */
+const HAND_LATCH_PLANTED_MAX_STEP_MS = 600;
+const HAND_LATCH_PLANTED_MIN_RATE_M_PER_MS = 0.0001;
 
 const _reachLive = new THREE.Vector3();
 const _reachTarget = new THREE.Vector3();
@@ -1325,11 +1339,109 @@ function nextLatchRead(tl: HandReachTimeline, planted: boolean): number {
   const margin = planted ? HAND_RELATCH_M - tl.value : tl.value - HAND_LATCH_M;
   if (!(margin > 0) || !tl.prev) return first;
   const rate = Math.max(
-    HAND_LATCH_MIN_RATE_M_PER_MS,
+    planted ? HAND_LATCH_PLANTED_MIN_RATE_M_PER_MS : HAND_LATCH_MIN_RATE_M_PER_MS,
     (HAND_LATCH_RATE_MARGIN * Math.abs(tl.value - tl.prev.value)) / Math.max(1e-9, tl.cursorMs - tl.prev.tMs),
   );
-  const step = Math.min(HAND_LATCH_MAX_STEP_MS, margin / rate);
+  const step = Math.min(planted ? HAND_LATCH_PLANTED_MAX_STEP_MS : HAND_LATCH_MAX_STEP_MS, margin / rate);
   return Math.max(first, Math.floor((tl.cursorMs + step) / HAND_LATCH_GRID_MS + 1e-9) * HAND_LATCH_GRID_MS);
+}
+
+/** One descending hand's touch being solved ({@link settleHandReachLatches}):
+ *  the bracket — `lo`, the last read above the touch (pulled height less
+ *  {@link HAND_TOUCH_M} there `fLo` > 0), and `hi`, the first at or below it
+ *  (`fHi` ≤ 0, the hand then `at`) — and the reads above it so far. */
+interface TouchSolve {
+  r: HandReachContact;
+  tl: HandReachTimeline;
+  lo: number;
+  fLo: number;
+  hi: number;
+  fHi: number;
+  at: { tMs: number; point: THREE.Vector3 };
+  /** Reads above the touch, oldest first (the last three are kept). */
+  above: { tMs: number; f: number }[];
+  /** Whether the last read came from the line through the last two reads
+   *  above and landed below the touch. */
+  overshot: boolean;
+  reads: number;
+  done: boolean;
+}
+
+/**
+ * Where a touch solve reads next. The pulled height is a hinge: it falls with
+ * the body and is flat once the arm reaches the floor (the hand solved onto
+ * it), so a secant through a read on the flat side lands next to that read
+ * (regula falsi took 8–11 reads per push-up hand). The touch is read off the
+ * falling side instead: the secant through both ends while the hand at the
+ * upper end is not yet on the floor, else the curve through its last three
+ * reads above it (the line through two, where there are only two), and
+ * halfway across the bracket where there is only one, or where the last such
+ * read overshot onto the flat side.
+ */
+function nextTouchProbe(x: TouchSolve): number {
+  const width = x.hi - x.lo;
+  let c = x.lo + 0.5 * width;
+  const n = x.above.length;
+  if (x.fHi > HAND_LATCH_SOLVE_M - HAND_TOUCH_M) {
+    // The hand at `hi` is not on the floor yet: both ends are on the falling
+    // side, and the secant through them is the better read.
+    c = x.hi - (x.fHi * width) / (x.fHi - x.fLo);
+  } else if (n >= 2 && !x.overshot) {
+    const a = x.above[n - 2]!;
+    const b = x.above[n - 1]!;
+    if (a.f > b.f) {
+      const line = b.tMs + (b.f * (b.tMs - a.tMs)) / (a.f - b.f);
+      if (line > x.lo && line < x.hi) c = line;
+    }
+    const z = n >= 3 ? x.above[n - 3]! : null;
+    if (z && z.f > a.f && a.f > b.f) {
+      // Three reads above it: the time as a quadratic in the height through
+      // them, read at the touch — a landing hand slows as it comes down, and
+      // the line through the last two falls short of it read after read.
+      const quad =
+        (z.tMs * a.f * b.f) / ((z.f - a.f) * (z.f - b.f)) +
+        (a.tMs * z.f * b.f) / ((a.f - z.f) * (a.f - b.f)) +
+        (b.tMs * z.f * a.f) / ((b.f - z.f) * (b.f - a.f));
+      if (quad > x.lo && quad < x.hi) c = quad;
+    }
+  }
+  // Keep the read strictly inside the bracket.
+  const edge = 1e-3 * width;
+  return Math.min(x.hi - edge, Math.max(x.lo + edge, c));
+}
+
+/** Take a touch solve's read at `c` (pulled height less the touch `fc`, the
+ *  hand then at `point`). */
+function readTouch(x: TouchSolve, c: number, fc: number, point: THREE.Vector3): void {
+  x.reads += 1;
+  const fromLine = x.above.length >= 2 && !x.overshot;
+  if (Math.abs(fc) <= HAND_LATCH_SOLVE_M) {
+    x.at = { tMs: c, point: point.clone() };
+    x.done = true;
+    return;
+  }
+  if (fc > 0) {
+    x.lo = c;
+    x.fLo = fc;
+    x.above.push({ tMs: c, f: fc });
+    if (x.above.length > 3) x.above.shift();
+    x.overshot = false;
+  } else {
+    x.hi = c;
+    x.fHi = fc;
+    x.at = { tMs: c, point: point.clone() };
+    x.overshot = fromLine;
+  }
+  if (x.reads >= HAND_LATCH_SOLVE_STEPS || x.hi - x.lo < 1e-6) x.done = true;
+}
+
+/** Latch a descending timeline at `tMs`, on the floor (`floorY`) under `point`. */
+function latchTimeline(tl: HandReachTimeline, tMs: number, point: THREE.Vector3, floorY: number): void {
+  tl.events.push({ tMs, target: new THREE.Vector3(point.x, floorY, point.z) });
+  tl.lastGrid = null;
+  tl.prev = null;
+  tl.cursorMs = tMs;
+  tl.value = 0;
 }
 
 /** The latched point (null: descending) the timeline has at `tMs`. */
@@ -1357,7 +1469,8 @@ function latchAt(tl: HandReachTimeline, tMs: number): THREE.Vector3 | null {
  *  - LATCH: a descending hand latches where its pulled position touched the
  *    floor ({@link HAND_TOUCH_M}) — the moment is solved on the trajectory
  *    between the read above it (or the engagement) and the first at it
- *    (regula falsi, {@link HAND_LATCH_SOLVE_M}), and the point is the pulled
+ *    ({@link HAND_LATCH_SOLVE_M}; hands touching between the same two reads
+ *    are solved together, sharing each probe), and the point is the pulled
  *    hand's then. A hand that comes within the {@link HAND_LATCH_M} band but
  *    never touches latches where it was at a grid time, from the next grid time
  *    that shows it descended no further (inside the band it is read on every
@@ -1382,76 +1495,61 @@ export function settleHandReachLatches(
   probe: HandReachProbe,
   key: unknown = null,
 ): void {
-  /** Where the pulled hand touched the floor between `lo` (above it; `fLo` its
-   *  height less the touch there) and `hi` (touching, `fHi` likewise, `atHi`
-   *  where it was). */
-  const touchBetween = (
-    solver: FootPlantSolver,
-    lo: number,
-    fLo: number,
-    hi: number,
-    fHi: number,
-    atHi: THREE.Vector3,
-  ): { tMs: number; point: THREE.Vector3 } => {
-    const touchAt = (tt: number): number => {
-      probe(tt);
-      return pulledHand(solver, floorY, rest, _settlePulled).y - floorY - HAND_TOUCH_M;
-    };
-    let fHiNow = fHi;
-    let at = { tMs: hi, point: atHi };
-    let moved = 0; // which end the last step moved: −1 lo, +1 hi (Illinois: an end kept twice has its height halved)
-    for (let k = 0; k < HAND_LATCH_SOLVE_STEPS && fLo > 0 && fHiNow < fLo; k += 1) {
-      const c = hi - (fHiNow * (hi - lo)) / (fHiNow - fLo);
-      const fc = touchAt(c);
-      if (Math.abs(fc) <= HAND_LATCH_SOLVE_M) return { tMs: c, point: _settlePulled.clone() };
-      if (fc > 0) {
-        lo = c;
-        fLo = fc;
-        if (moved === -1) fHiNow /= 2;
-        moved = -1;
-      } else {
-        hi = c;
-        fHiNow = fc;
-        at = { tMs: c, point: _settlePulled.clone() };
-        if (moved === 1) fLo /= 2;
-        moved = 1;
+  /** Solve, together, the moment each of `touches` touched the floor inside
+   *  its bracket (see {@link TouchSolve}): every probe of one hand's solve also
+   *  reads every other hand whose bracket holds it — two hands landing
+   *  together (the push-up) share every probe. Each lands within
+   *  {@link HAND_LATCH_SOLVE_M} of the touch in pulled height, or on the end of
+   *  its bracket at or below it after {@link HAND_LATCH_SOLVE_STEPS} reads. */
+  const solveTouches = (touches: TouchSolve[]): void => {
+    for (let n = 0; n < HAND_LATCH_SOLVE_STEPS * touches.length; n += 1) {
+      const s = touches.find((x) => !x.done);
+      if (!s) return;
+      const c = nextTouchProbe(s);
+      probe(c);
+      for (const x of touches) {
+        if (x.done || !(c > x.lo && c < x.hi)) continue;
+        const fc = pulledHand(x.r.solver, floorY, rest, _settlePulled).y - floorY - HAND_TOUCH_M;
+        readTouch(x, c, fc, _settlePulled);
       }
     }
-    return at;
   };
   /** Read reach `r` descending at `t` (the body posed there): latch it if it
-   *  touched since the last read (or stalled inside the band). Returns whether
-   *  the body was re-posed off `t`. */
-  const readDescending = (r: HandReachContact, tl: HandReachTimeline, t: number): boolean => {
+   *  stalled inside the band, or — collected into `touches` for
+   *  {@link solveTouches} — if it touched since the last read above the floor;
+   *  a hand touching on its first read latches there. */
+  const readDescending = (r: HandReachContact, tl: HandReachTimeline, t: number, touches: TouchSolve[] | null): void => {
     const pulled = pulledHand(r.solver, floorY, rest, _settlePulled);
     const h = pulled.y - floorY;
     if (h <= HAND_TOUCH_M) {
-      // Touching: latch where it touched, between the last read above it (the
-      // cursor, if it is one) and now.
-      let at = { tMs: t, point: pulled.clone() };
-      let reposed = false;
-      if (tl.cursorMs < t - 1e-9 && Number.isFinite(tl.value) && tl.value > HAND_TOUCH_M) {
-        at = touchBetween(r.solver, tl.cursorMs, tl.value - HAND_TOUCH_M, t, h - HAND_TOUCH_M, at.point);
-        reposed = true;
+      if (touches && tl.cursorMs < t - 1e-9 && Number.isFinite(tl.value) && tl.value > HAND_TOUCH_M) {
+        // Touching: latch where it touched, between the last read above it
+        // (the cursor) and now — solved with every other hand touching now.
+        touches.push({
+          r,
+          tl,
+          lo: tl.cursorMs,
+          fLo: tl.value - HAND_TOUCH_M,
+          hi: t,
+          fHi: h - HAND_TOUCH_M,
+          at: { tMs: t, point: pulled.clone() },
+          above: [{ tMs: tl.cursorMs, f: tl.value - HAND_TOUCH_M }],
+          overshot: false,
+          reads: 0,
+          done: false,
+        });
+        return;
       }
-      tl.events.push({ tMs: at.tMs, target: new THREE.Vector3(at.point.x, floorY, at.point.z) });
-      tl.lastGrid = null;
-      tl.prev = null;
-      tl.cursorMs = at.tMs;
-      tl.value = 0;
-      return reposed;
+      latchTimeline(tl, t, pulled, floorY);
+      return;
     }
     if (onLatchGrid(t) && h <= HAND_LATCH_M) {
       // Inside the band but not touching: latch where it was at the last grid
       // time if it has descended no further since.
       const last = tl.lastGrid;
       if (last && Math.abs(last.tMs - (t - HAND_LATCH_GRID_MS)) < 1e-6 && h >= last.height - HAND_DESCENT_STALL_M) {
-        tl.events.push({ tMs: t, target: new THREE.Vector3(last.point.x, floorY, last.point.z) });
-        tl.lastGrid = null;
-        tl.prev = null;
-        tl.cursorMs = t;
-        tl.value = 0;
-        return false;
+        latchTimeline(tl, t, last.point, floorY);
+        return;
       }
       tl.lastGrid = { tMs: t, height: h, point: pulled.clone() };
     } else {
@@ -1460,7 +1558,6 @@ export function settleHandReachLatches(
     tl.prev = Number.isFinite(tl.value) && tl.cursorMs < t - 1e-9 ? { tMs: tl.cursorMs, value: tl.value } : null;
     tl.cursorMs = t;
     tl.value = h;
-    return false;
   };
   /** Read reach `r` planted at `t` (the body posed there): let it go at the
    *  first grid time since the last read at which it could not hold its point,
@@ -1496,7 +1593,8 @@ export function settleHandReachLatches(
     tl.cursorMs = heal;
     tl.value = Infinity; // no read above the floor yet: a touch here latches here
     // Re-latch from here, at this point if it is already touching.
-    return readDescending(r, tl, heal) || reposed;
+    readDescending(r, tl, heal, null);
+    return reposed;
   };
 
   // Bring each reach's timeline up to date (read afresh for another motion or
@@ -1524,7 +1622,7 @@ export function settleHandReachLatches(
       probe(p.tl.cursorMs);
       posedOff = Math.abs(p.tl.cursorMs - tMs) > 1e-9;
     }
-    if (readDescending(p.r, p.tl, p.tl.cursorMs)) posedOff = true;
+    readDescending(p.r, p.tl, p.tl.cursorMs, null);
   }
   const nextOf = (p: { tl: HandReachTimeline }): number => nextLatchRead(p.tl, latchAt(p.tl, p.tl.cursorMs) !== null);
   for (;;) {
@@ -1534,12 +1632,22 @@ export function settleHandReachLatches(
     probe(t);
     posedOff = Math.abs(t - tMs) > 1e-9;
     let reposed = false;
+    const touches: TouchSolve[] = [];
     for (const p of open) {
       if (Math.abs(nextOf(p) - t) > 1e-9) continue;
       if (reposed) probe(t);
       const target = latchAt(p.tl, p.tl.cursorMs);
-      reposed = target ? readPlanted(p.r, p.tl, target, t) : readDescending(p.r, p.tl, t);
+      if (target) reposed = readPlanted(p.r, p.tl, target, t);
+      else {
+        reposed = false;
+        readDescending(p.r, p.tl, t, touches);
+      }
       if (reposed) posedOff = true;
+    }
+    if (touches.length) {
+      solveTouches(touches);
+      for (const x of touches) latchTimeline(x.tl, x.at.tMs, x.at.point, floorY);
+      posedOff = true;
     }
   }
   if (posedOff) probe(tMs);
