@@ -49,8 +49,11 @@ import { buildSequencePoses, resolveComposedMotion, type ComposedMotion } from '
 import {
   buildComposedTrajectory,
   buildLoopTrajectory,
+  buildPoseTrajectory,
+  strokeSquadSamples,
   type PoseTrajectory,
   type SequenceBuildLike,
+  type TrajectoryKnot,
 } from '../services/motionTrajectory';
 import {
   chainOnsetDelay,
@@ -451,6 +454,97 @@ describe('follow-through keeps exact arrival — every knot, every bone (the mea
       }
       const end = trajectory.sampleAt(trajectory.totalMs).pose.bones;
       for (const key of KEYS) expect(xDeg(end[key] as Q), `${label}: ${key} at the end`).toBeCloseTo(last, 9);
+    }
+  });
+});
+
+describe('follow-through stroke cache — each distinct stroke solved once, and found in O(1)', () => {
+  let seed = 20260924;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const randQ = (deg: number): Q => rot((rnd() - 0.5) * 2 * deg, [rnd() - 0.5, rnd() - 0.5, rnd() - 0.5]);
+  const turn = (q: Q, deg: number): Q => {
+    const r = new THREE.Quaternion(...q).multiply(new THREE.Quaternion(...rot(deg, [rnd() - 0.5, rnd() - 0.5, 1])));
+    return [r.x, r.y, r.z, r.w];
+  };
+  const neg = (q: Q): Q => [-q[0], -q[1], -q[2], -q[3]];
+
+  it('the path-speed table samples each stroke’s SQUAD exactly as three’s slerp does, to the bit', () => {
+    // The table unrolls three's Quaternion.slerp so that a stroke's samples
+    // share the work of the two slerps whose ends stay fixed. The c each bone
+    // trails by — and so every sampled pose — is unchanged only while every
+    // sample is the very one `squad` gives: a three upgrade that changes its
+    // slerp fails here first.
+    const ts = [0, 1 / 8, 2 / 8, 3 / 8, 4 / 8, 5 / 8, 6 / 8, 7 / 8, 1, 0.37, 0.999];
+    const misses: string[] = [];
+    let compared = 0;
+    for (let trial = 0; trial < 400; trial += 1) {
+      const q0 = randQ(170);
+      const kind = trial % 4;
+      // Far apart; within three's small-angle (lerp) branch; across the
+      // hemisphere; the same quaternion.
+      const q1 = kind === 0 ? randQ(170) : kind === 1 ? turn(q0, 1.5) : kind === 2 ? neg(turn(q0, 20)) : q0;
+      const s0 = kind === 3 ? q0 : turn(q0, 10 * rnd());
+      const s1 = rnd() < 0.3 ? neg(turn(q1, 3)) : turn(q1, 10 * rnd());
+      const got = strokeSquadSamples(q0, q1, s0, s1, ts);
+      ts.forEach((t, j) => {
+        const along = new THREE.Quaternion(...q0).slerp(new THREE.Quaternion(...q1), t);
+        const controls = new THREE.Quaternion(...s0).slerp(new THREE.Quaternion(...s1), t);
+        along.slerp(controls, 2 * t * (1 - t));
+        const want = [along.x, along.y, along.z, along.w];
+        want.forEach((w, d) => {
+          if (!Object.is(got[j]![d], w)) misses.push(`trial ${trial}, t ${t}, [${d}]: ${got[j]![d]} vs ${w}`);
+        });
+        compared += 1;
+      });
+    }
+    expect(compared).toBe(400 * ts.length);
+    expect(misses.slice(0, 5), `${misses.length} components differ from three`).toEqual([]);
+  });
+
+  it('build time grows linearly with the number of distinct flowing strokes', () => {
+    // A repeated cycle strokes through the same poses on the same slopes every
+    // rep, so each distinct stroke's c is solved once and a repeat looked up by
+    // its inputs. ec3d0eb looked it up by scanning every stroke solved so far,
+    // so a motion of n DISTINCT strokes cost O(n²): with one delayed bone, 16×
+    // the knots (500 → 8,000) took 34–48× the time when every knot is a new
+    // pose (solving each stroke still dominates there) and 98–122× when the
+    // bone holds still on unevenly timed knots (strokes that differ only in
+    // their slopes, cheap to solve, so the scan is all there is); keyed now,
+    // 7–13× and 9–18×. The gate is twice linear, 32×.
+    const knotAt = (t: number, q: Q, stop: boolean): TrajectoryKnot => ({
+      timeMs: t,
+      pose: { variant: 'male', bones: { L_Forearm: q }, schemaVersion: POSE_SCHEMA_VERSION },
+      rootQuat: [...IDENT],
+      rootTranslate: [0, 0, 0],
+      stop,
+      planted: true,
+    });
+    const moving = (n: number): TrajectoryKnot[] =>
+      Array.from({ length: n }, (_, i) => knotAt(i * 120, randQ(35), i === 0 || i === n - 1));
+    const held = (n: number): TrajectoryKnot[] => {
+      const q = rot(17, [1, 2, 3]);
+      let t = 0;
+      return Array.from({ length: n }, (_, i) => knotAt(i === 0 ? 0 : (t += 80 + 80 * rnd()), q, i === 0 || i === n - 1));
+    };
+    // Least of five builds: preemption only ever adds time.
+    const buildMs = (knots: TrajectoryKnot[]): number => {
+      let best = Infinity;
+      for (let r = 0; r < 5; r += 1) {
+        const t0 = performance.now();
+        buildPoseTrajectory(knots);
+        best = Math.min(best, performance.now() - t0);
+      }
+      return best;
+    };
+    for (const [label, knotsOf] of [
+      ['every knot a new pose', moving],
+      ['held still on unevenly timed knots', held],
+    ] as const) {
+      buildPoseTrajectory(knotsOf(2000)); // warm the JIT on this shape
+      const [small, big] = [buildMs(knotsOf(500)), buildMs(knotsOf(8000))];
+      // eslint-disable-next-line no-console
+      console.log(`stroke cache, ${label}: 500 knots ${small.toFixed(1)} ms, 8,000 knots ${big.toFixed(1)} ms (${(big / small).toFixed(1)}×)`);
+      expect(big / small, `${label}: build time for 16× the strokes`).toBeLessThan(32);
     }
   });
 });
