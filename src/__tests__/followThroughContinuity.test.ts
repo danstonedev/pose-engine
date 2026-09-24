@@ -523,8 +523,11 @@ describe('follow-through stroke cache — each distinct stroke solved once, and 
     // load moves it further (an absolute 32× gate read 31.4× on a loaded
     // runner with the keyed lookups in place) — but both builds pay that alike,
     // so the delayed bone's share of the time holds still with the knots when
-    // its strokes cost O(1) each and grows with them when they cost O(n). The
-    // gate is twice linear: its share may at most double for 16× the strokes.
+    // its strokes cost O(1) each and grows with them when they cost O(n): 16×
+    // for 16× the strokes. It reads 0.9–1.2× on a development machine, but a
+    // CI runner moves the single 8,000-knot build by a third between runs of
+    // the same code (46.6 and 62.1 ms, the share 1.33× and 2.18×), so the gate
+    // is halfway from linear to O(n) on a log scale: at most 4×.
     // Every build here is cold: strokes solved in an earlier build would
     // otherwise be looked up, not solved.
     const knotAt = (t: number, q: Q, stop: boolean, bone: string): TrajectoryKnot => ({
@@ -585,7 +588,7 @@ describe('follow-through stroke cache — each distinct stroke solved once, and 
           `8,000 knots ${bigMs.toFixed(1)} ms (lockstep ${bigLockMs.toFixed(1)}): ` +
           `${(bigMs / smallMs).toFixed(1)}× against the lockstep's ${(bigLockMs / smallLockMs).toFixed(1)}× — share grows ${growth.toFixed(2)}×`,
       );
-      expect(growth, `${label}: the delayed bone's share of the build time for 16× the strokes`).toBeLessThan(2);
+      expect(growth, `${label}: the delayed bone's share of the build time for 16× the strokes`).toBeLessThan(4);
     }
   });
 });
