@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { SkinContact, MAX_SKIN_COMPRESSION_M, SKIN_CONTACT_CLEARANCE_M } from '../services/skinContact';
+import { SkinContact, MAX_SKIN_COMPRESSION_M, SKIN_CONTACT_CLEARANCE_M, type Cushion } from '../services/skinContact';
 
 function fixture(boneName = '') {
   // Deliberately large triangles: the small prop hits face interiors, not vertices.
@@ -109,5 +109,240 @@ describe('posed skin contact', () => {
     root.position.y = 3; contact.update();
     expect(contact.support(0, undefined, false)).toBe(0);
     expect(root.position.y).toBe(3);
+  });
+
+  it('counts only skin within a support slab: skin hanging below its underside is beside it, not in it', () => {
+    const { root, mesh, contact } = fixture();
+    const geometry = new THREE.PlaneGeometry(0.2, 0.2);
+    geometry.rotateX(-Math.PI / 2);
+    geometry.translate(0, -0.35, 0);
+    geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(16), 4));
+    geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: 16 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+    contact.dispose(); mesh.geometry = geometry;
+    const skin = new SkinContact(root); skin.update();
+    const square = [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: 1, y: 1 }, { x: -1, y: 1 }];
+    expect(skin.lowest(square)).toBeCloseTo(-0.35, 7);
+    expect(skin.lowest(square, undefined, [], -0.075)).toBe(Infinity);
+    expect(skin.support(0, square, false, 0, undefined, [], -0.075)).toBe(0);
+    expect(root.position.y).toBe(0);
+    skin.dispose();
+  });
+
+  describe('a foam cushion', () => {
+    /** A flat 30 × 30 cm patch of skin owned by `bone`, lying `depth` into a cushion whose top is at y = 0. */
+    function lying(depth: number, bone = 'CC_Base_Pelvis') {
+      const geometry = new THREE.PlaneGeometry(0.3, 0.3, 20, 20);
+      geometry.rotateX(Math.PI / 2); // facing down, onto the cushion
+      geometry.translate(0, -depth, 0);
+      const count = geometry.getAttribute('position').count;
+      geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+      geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+      const skeleton = new THREE.Bone(); skeleton.name = bone;
+      const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+      mesh.add(skeleton); mesh.bind(new THREE.Skeleton([skeleton]));
+      const root = new THREE.Group(); root.add(mesh); root.updateMatrixWorld(true);
+      const contact = new SkinContact(root); contact.update();
+      return { root, mesh, geometry, contact };
+    }
+    const plinth = (overrides: Partial<Cushion> = {}): Cushion => ({
+      top: 0, polygon: [{ x: -1, y: -0.35 }, { x: 1, y: -0.35 }, { x: 1, y: 0.35 }, { x: -1, y: 0.35 }], thicknessM: 0.05, stiffness: 400_000, ...overrides,
+    });
+    const lowest = (mesh: THREE.SkinnedMesh) => {
+      let low = Infinity;
+      for (let i = 0; i < mesh.geometry.getAttribute('position').count; i++) low = Math.min(low, mesh.getVertexPosition(i, new THREE.Vector3()).y);
+      return low;
+    };
+
+    it('shares the skin’s overlap between the foam and the tissue by their stiffness, and rests the skin on the foam', () => {
+      const { mesh, geometry, contact } = lying(0.02);
+      // Tissue three times as stiff as the foam: the foam gives three quarters of the 2 cm, the tissue a quarter.
+      const field = contact.press(plinth(), { loadN: 500, tissue: () => 1_200_000, spreadM: 0 });
+      contact.finish();
+      const middle = Math.floor(field.rows / 2) * field.cols + Math.floor(field.cols / 2);
+      expect(field.deflection[middle]).toBeCloseTo(0.015, 4);
+      expect(lowest(mesh)).toBeCloseTo(-0.015, 4);
+      // The foam carries the load: the pressures over the 30 × 30 cm patch add up to it.
+      let carried = 0;
+      for (const p of field.pressure) carried += p * field.cellM * field.cellM;
+      expect(carried).toBeCloseTo(500, 3);
+      expect(field.areaM2).toBeGreaterThan(0.08);
+      expect(field.areaM2).toBeLessThan(0.1);
+      contact.restore();
+      expect(mesh.geometry).toBe(geometry);
+      expect(lowest(mesh)).toBeCloseTo(-0.02, 7);
+      contact.dispose();
+    });
+
+    it('says how far the body is from sinking to carry its own weight', () => {
+      // 2 cm in, 0.09 m² bearing, foam and tissue together 300 kPa/m: they carry about 540 N.
+      const light = lying(0.02).contact.press(plinth(), { loadN: 200, tissue: () => 1_200_000 });
+      expect(light.imbalanceM).toBeLessThan(-0.005);
+      const heavy = lying(0.02).contact.press(plinth(), { loadN: 1000, tissue: () => 1_200_000 });
+      expect(heavy.imbalanceM).toBeGreaterThan(0.005);
+      const even = lying(0.02).contact.press(plinth(), { loadN: 540, tissue: () => 1_200_000, spreadM: 0 });
+      expect(Math.abs(even.imbalanceM)).toBeLessThan(0.002);
+    });
+
+    it('bends its surface down past the skin, never up, and leaves skin under it or over an opening alone', () => {
+      const { contact } = lying(0.02);
+      const opening = [{ x: 0.5, y: -0.1 }, { x: 0.7, y: -0.1 }, { x: 0.7, y: 0.1 }, { x: 0.5, y: 0.1 }];
+      const field = contact.press(plinth({ openings: [opening] }), { loadN: 500 });
+      // A cell 3 cm past the patch's edge dips; one 30 cm away does not; the opening is not foam.
+      const cellAt = (x: number, z: number) => Math.floor((z - field.origin.y) / field.cellM) * field.cols + Math.floor((x - field.origin.x) / field.cellM);
+      expect(field.deflection[cellAt(0.18, 0)]).toBeGreaterThan(0.001);
+      expect(field.deflection[cellAt(0.45, 0)]).toBe(0);
+      expect(field.foam[cellAt(0.6, 0)]).toBe(0);
+      expect(Math.max(...field.deflection)).toBeLessThanOrEqual(0.05);
+      // Skin 7 cm down is under a 5 cm foam: it is not pressed, and bears nothing.
+      const under = lying(0.07);
+      const below = under.contact.press(plinth(), { loadN: 500 });
+      expect(below.areaM2).toBe(0);
+      under.contact.finish();
+      expect(lowest(under.mesh)).toBeCloseTo(-0.07, 7);
+    });
+
+    it('keeps the model’s own normals where nothing moved', () => {
+      const { geometry, mesh, contact } = lying(0.02);
+      const original = geometry.getAttribute('normal').clone();
+      // Only a corner of the patch reaches the foam's outline.
+      contact.press(plinth({ polygon: [{ x: 0.1, y: 0.1 }, { x: 1, y: 0.1 }, { x: 1, y: 1 }, { x: 0.1, y: 1 }] }), { loadN: 100 });
+      contact.finish();
+      const normal = mesh.geometry.getAttribute('normal');
+      let kept = 0;
+      for (let i = 0; i < normal.count; i++) if (normal.getX(i) === original.getX(i) && normal.getY(i) === original.getY(i) && normal.getZ(i) === original.getZ(i)) kept++;
+      expect(kept).toBeGreaterThan(normal.count / 2);
+      contact.dispose();
+    });
+  });
+
+  describe('one part resting on another', () => {
+    /** A 30 cm square of "trunk" skin facing up at y = 0, and an 8 cm square of "hand" skin `depth` into it. */
+    function resting(depth: number) {
+      const root = new THREE.Group();
+      const patch = (size: number, segments: number, y: number, name: string, facing: 'up' | 'down') => {
+        const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+        geometry.rotateX(facing === 'up' ? -Math.PI / 2 : Math.PI / 2);
+        geometry.translate(0, y, 0);
+        const count = geometry.getAttribute('position').count;
+        geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+        geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+        const bone = new THREE.Bone(); bone.name = name;
+        const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+        mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]));
+        root.add(mesh);
+        return mesh;
+      };
+      const trunk = patch(0.3, 30, 0, 'CC_Base_Spine02', 'up');
+      const hand = patch(0.08, 8, -depth, 'CC_Base_L_Hand', 'down');
+      root.updateMatrixWorld(true);
+      const contact = new SkinContact(root); contact.update();
+      return { root, trunk, hand, contact };
+    }
+    const HAND = /_L_Hand$/u, TRUNK = /Spine02$/u;
+    const height = (mesh: THREE.SkinnedMesh, x: number, z: number) => {
+      let best = Infinity, y = NaN;
+      for (let i = 0; i < mesh.geometry.getAttribute('position').count; i++) {
+        const p = mesh.getVertexPosition(i, new THREE.Vector3());
+        const d = Math.hypot(p.x - x, p.z - z);
+        if (d < best) { best = d; y = p.y; }
+      }
+      return y;
+    };
+
+    it('measures how far a hand has sunk into the skin under it, and nothing where nothing is under it', () => {
+      const { contact } = resting(0.01);
+      expect(contact.gap(HAND, TRUNK)).toBeCloseTo(-0.01, 4);
+      expect(contact.gap(HAND, /Nothing$/u)).toBe(Infinity);
+      contact.dispose();
+    });
+
+    it('dents the soft tissue under a resting hand, fading around it, and only so far', () => {
+      const shallow = resting(0.003);
+      shallow.contact.indent(HAND, TRUNK, 0.004);
+      shallow.contact.finish();
+      // Pressed 4 mm under the hand (its 3 mm and a millimetre's clearance); untouched 10 cm away.
+      expect(height(shallow.trunk, 0, 0)).toBeCloseTo(-0.004, 4);
+      expect(height(shallow.trunk, 0.1, 0.1)).toBeCloseTo(0, 9);
+      // The hand now rests in the dent (the contact tracks the skin it has moved).
+      expect(shallow.contact.gap(HAND, TRUNK)).toBeGreaterThan(0.0009);
+      // Never deeper than the dent allowed: a hand 1 cm in still leaves 6 mm of it in the skin.
+      const deep = resting(0.01);
+      deep.contact.indent(HAND, TRUNK, 0.004);
+      deep.contact.finish();
+      expect(height(deep.trunk, 0, 0)).toBeCloseTo(-0.004, 4);
+      deep.contact.restore();
+      expect(height(deep.trunk, 0, 0)).toBeCloseTo(0, 9);
+    });
+  });
+
+  describe('the skin round a point, seen along it (fitting a hand)', () => {
+    /**
+     * Two "legs" lying side by side 5 cm apart, each a 20 × 12 × 20 cm box of skin (top at y = 0, underside at
+     * y = -0.12): the left one owned by a bone the hand holds, the right one 2 cm below it (its top at y = -0.02) and not.
+     */
+    function legs() {
+      const root = new THREE.Group();
+      const face = (x: number, y: number, name: string, facing: 'up' | 'down') => {
+        const geometry = new THREE.PlaneGeometry(0.2, 0.2, 10, 10);
+        geometry.rotateX(facing === 'up' ? -Math.PI / 2 : Math.PI / 2);
+        geometry.translate(x, y, 0);
+        const count = geometry.getAttribute('position').count;
+        geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+        geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+        const bone = new THREE.Bone(); bone.name = name;
+        const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+        mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]));
+        root.add(mesh);
+      };
+      face(0, 0, 'CC_Base_L_ThighTwist01', 'up'); face(0, -0.12, 'CC_Base_L_ThighTwist01', 'down');
+      face(0.25, -0.02, 'CC_Base_R_ThighTwist01', 'up'); face(0.25, -0.14, 'CC_Base_R_ThighTwist01', 'down');
+      root.updateMatrixWorld(true);
+      const contact = new SkinContact(root); contact.update();
+      return contact.skinAlong(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), { own: /_L_/u, radiusM: 0.35 });
+    }
+    const at = (x: number, y: number) => new THREE.Vector3(x, y, 0.01);
+
+    it('rests on the top of what is held, not on the other limb beside it', () => {
+      const skin = legs();
+      expect(skin.height(at(0.05, 0.03))).toBeCloseTo(0, 6);
+      // Over the other leg's top (2 cm lower): nothing held there to rest on.
+      expect(skin.height(at(0.25, 0.03))).toBe(-Infinity);
+    });
+
+    it('says how far a point is into what is held, and into the rest of the body', () => {
+      const skin = legs();
+      // 1 cm into the held leg: rise 1 cm to leave it; in the held skin, not the rest.
+      expect(skin.rise(at(0.05, -0.01))).toBeCloseTo(0.01, 6);
+      expect(skin.depth(at(0.05, -0.01), 'own')).toBeCloseTo(0.01, 6);
+      expect(skin.depth(at(0.05, -0.01), 'other')).toBe(0);
+      // 3 cm into the other leg: in the rest of the body, which rising does not leave.
+      expect(skin.rise(at(0.25, -0.05))).toBe(0);
+      expect(skin.depth(at(0.25, -0.05), 'other')).toBeCloseTo(0.03, 6);
+      expect(skin.depth(at(0.25, -0.05))).toBeCloseTo(0.03, 6);
+      // Between the legs, over them, under them: in neither.
+      expect(skin.depth(at(0.125, -0.05))).toBe(0);
+      expect(skin.depth(at(0.05, 0.02))).toBe(0);
+      expect(skin.depth(at(0.05, -0.2))).toBe(0);
+    });
+
+    it('does not take skin on one side of a point only for being inside it', () => {
+      // A top with no underside in reach (a limb's edge seen side-on, its flank missed): not inside.
+      const root = new THREE.Group();
+      const geometry = new THREE.PlaneGeometry(0.2, 0.2, 10, 10);
+      geometry.rotateX(-Math.PI / 2);
+      const count = geometry.getAttribute('position').count;
+      geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+      geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+      const bone = new THREE.Bone(); bone.name = 'CC_Base_Pelvis';
+      const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+      mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]));
+      root.add(mesh); root.updateMatrixWorld(true);
+      const contact = new SkinContact(root); contact.update();
+      const skin = contact.skinAlong(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0));
+      expect(skin.height(at(0.02, 0.01))).toBeCloseTo(0, 6);
+      expect(skin.depth(at(0.02, -0.03))).toBe(0);
+      expect(skin.rise(at(0.02, -0.03))).toBe(0);
+      contact.dispose();
+    });
   });
 });
