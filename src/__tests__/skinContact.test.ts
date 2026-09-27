@@ -274,4 +274,75 @@ describe('posed skin contact', () => {
       expect(height(deep.trunk, 0, 0)).toBeCloseTo(0, 9);
     });
   });
+
+  describe('the skin round a point, seen along it (fitting a hand)', () => {
+    /**
+     * Two "legs" lying side by side 5 cm apart, each a 20 × 12 × 20 cm box of skin (top at y = 0, underside at
+     * y = -0.12): the left one owned by a bone the hand holds, the right one 2 cm below it (its top at y = -0.02) and not.
+     */
+    function legs() {
+      const root = new THREE.Group();
+      const face = (x: number, y: number, name: string, facing: 'up' | 'down') => {
+        const geometry = new THREE.PlaneGeometry(0.2, 0.2, 10, 10);
+        geometry.rotateX(facing === 'up' ? -Math.PI / 2 : Math.PI / 2);
+        geometry.translate(x, y, 0);
+        const count = geometry.getAttribute('position').count;
+        geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+        geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+        const bone = new THREE.Bone(); bone.name = name;
+        const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+        mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]));
+        root.add(mesh);
+      };
+      face(0, 0, 'CC_Base_L_ThighTwist01', 'up'); face(0, -0.12, 'CC_Base_L_ThighTwist01', 'down');
+      face(0.25, -0.02, 'CC_Base_R_ThighTwist01', 'up'); face(0.25, -0.14, 'CC_Base_R_ThighTwist01', 'down');
+      root.updateMatrixWorld(true);
+      const contact = new SkinContact(root); contact.update();
+      return contact.skinAlong(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0), { own: /_L_/u, radiusM: 0.35 });
+    }
+    const at = (x: number, y: number) => new THREE.Vector3(x, y, 0.01);
+
+    it('rests on the top of what is held, not on the other limb beside it', () => {
+      const skin = legs();
+      expect(skin.height(at(0.05, 0.03))).toBeCloseTo(0, 6);
+      // Over the other leg's top (2 cm lower): nothing held there to rest on.
+      expect(skin.height(at(0.25, 0.03))).toBe(-Infinity);
+    });
+
+    it('says how far a point is into what is held, and into the rest of the body', () => {
+      const skin = legs();
+      // 1 cm into the held leg: rise 1 cm to leave it; in the held skin, not the rest.
+      expect(skin.rise(at(0.05, -0.01))).toBeCloseTo(0.01, 6);
+      expect(skin.depth(at(0.05, -0.01), 'own')).toBeCloseTo(0.01, 6);
+      expect(skin.depth(at(0.05, -0.01), 'other')).toBe(0);
+      // 3 cm into the other leg: in the rest of the body, which rising does not leave.
+      expect(skin.rise(at(0.25, -0.05))).toBe(0);
+      expect(skin.depth(at(0.25, -0.05), 'other')).toBeCloseTo(0.03, 6);
+      expect(skin.depth(at(0.25, -0.05))).toBeCloseTo(0.03, 6);
+      // Between the legs, over them, under them: in neither.
+      expect(skin.depth(at(0.125, -0.05))).toBe(0);
+      expect(skin.depth(at(0.05, 0.02))).toBe(0);
+      expect(skin.depth(at(0.05, -0.2))).toBe(0);
+    });
+
+    it('does not take skin on one side of a point only for being inside it', () => {
+      // A top with no underside in reach (a limb's edge seen side-on, its flank missed): not inside.
+      const root = new THREE.Group();
+      const geometry = new THREE.PlaneGeometry(0.2, 0.2, 10, 10);
+      geometry.rotateX(-Math.PI / 2);
+      const count = geometry.getAttribute('position').count;
+      geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+      geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+      const bone = new THREE.Bone(); bone.name = 'CC_Base_Pelvis';
+      const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+      mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]));
+      root.add(mesh); root.updateMatrixWorld(true);
+      const contact = new SkinContact(root); contact.update();
+      const skin = contact.skinAlong(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0));
+      expect(skin.height(at(0.02, 0.01))).toBeCloseTo(0, 6);
+      expect(skin.depth(at(0.02, -0.03))).toBe(0);
+      expect(skin.rise(at(0.02, -0.03))).toBe(0);
+      contact.dispose();
+    });
+  });
 });

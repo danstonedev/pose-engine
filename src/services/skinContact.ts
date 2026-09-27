@@ -52,6 +52,42 @@ export interface CushionField {
    */
   imbalanceM: number;
 }
+/** SkinContact.skinAlong's reach: across the normal, and how far a height it keeps to rest on may lie from the origin's. */
+export interface SkinAlongOptions {
+  /**
+   * The skin of what is held, by its owning bone (a leg, for a hand holding it): what a thing laid on it rests on and
+   * rises out of. The rest of the skin it only must stay out of. Default: all of it.
+   */
+  own?: RegExp;
+  /** Round the origin across the normal (m); default 20 cm, a hand and its wrist. */
+  radiusM?: number;
+  /** Skin to rest on is taken this far under the origin's level along the normal, and this far over it (m); default 5 cm each. */
+  below?: number;
+  above?: number;
+  /** The grid's cell (m); default 5 mm. */
+  cellM?: number;
+}
+/** The posed skin round a point, seen along a direction out of it (SkinContact.skinAlong). */
+export interface SkinProfile {
+  /**
+   * The skin something laid over `point` rests on: its height there, m along the direction from the origin. Of the
+   * held skin (`own`) facing along the direction (not the far side of a limb, nor another limb's side facing the thing
+   * laid on it), the part nearest the origin's level within the reach given (the buttocks beside a hand on the sacrum,
+   * not the far thigh beyond a hand on the inner thigh); -Infinity where there is none.
+   */
+  height(point: THREE.Vector3): number;
+  /** How far `point` must move along the direction to come out of the held skin (m; 0 outside it): a finger curled into the limb it holds. */
+  rise(point: THREE.Vector3): number;
+  /**
+   * How far `point` is inside the skin there (m along the direction, the nearer way out; 0 outside it): of the held
+   * skin, the rest (`other`: a wrist or forearm in the other leg, which resting on the skin under the palm says
+   * nothing about), or all of it. Inside is between skin facing along the direction beyond it and skin facing back
+   * against it behind it.
+   */
+  depth(point: THREE.Vector3, of?: 'own' | 'other' | 'all'): number;
+}
+/** How far along the normal skinAlong reaches from its origin, either way (m): past a hand's wrist and forearm. */
+const SKIN_ALONG_REACH_M = 0.3;
 type Point = { x: number; y: number; z: number };
 type XY = Pick<Point, 'x' | 'y'>;
 type Triangle = [number, number, number];
@@ -447,6 +483,90 @@ export class SkinContact {
       return i < 0 || j < 0 || i >= cols || j >= rows ? -1 : j * cols + i;
     };
     return { top, under, cols, rows, cell, x0, z0, cellOf };
+  }
+
+  /**
+   * The posed skin round `origin`, seen along unit `normal` (out of the skin there): for fitting a rigid thing laid
+   * against it, its underside toward the skin (an examiner's hand), where a measured outline would fit it only roughly.
+   * `radiusM` round the origin across the normal, in cells of `cellM`.
+   */
+  skinAlong(origin: THREE.Vector3, normal: THREE.Vector3, { own, radiusM = 0.2, below = 0.05, above = 0.05, cellM = 0.005 }: SkinAlongOptions = {}): SkinProfile {
+    const n = normal.clone().normalize();
+    const a = new THREE.Vector3().crossVectors(Math.abs(n.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), n).normalize();
+    const b = new THREE.Vector3().crossVectors(n, a);
+    const size = Math.ceil(2 * radiusM / cellM);
+    // Each cell's crossings of the skin, as (height, facing, held) triples: facing 1 where the skin faces along the
+    // normal, held 1 where it is the skin `own` names.
+    const cells: (number[] | undefined)[] = new Array(size * size);
+    const owned = new Map<string, number>();
+    const held = (owner: string) => { let value = owned.get(owner); if (value === undefined) { value = !own || own.test(owner) ? 1 : 0; owned.set(owner, value); } return value; };
+    const d = new THREE.Vector3();
+    const local = (p: THREE.Vector3) => { d.subVectors(p, origin); return { i: (d.dot(a) + radiusM) / cellM, j: (d.dot(b) + radiusM) / cellM, h: d.dot(n) }; };
+    const cross = (i: number, j: number, h: number, facing: number, mine: number) => {
+      if (i < 0 || j < 0 || i >= size || j >= size) return;
+      (cells[j * size + i] ??= []).push(h, facing, mine);
+    };
+    const reach = Math.hypot(radiusM * Math.SQRT2, SKIN_ALONG_REACH_M), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+    for (const skin of this.skins) for (const [ia, ib, ic] of skin.triangles) {
+      const pa = skin.world[ia]!, pb = skin.world[ib]!, pc = skin.world[ic]!;
+      if (pa.distanceToSquared(origin) > reach * reach && pb.distanceToSquared(origin) > reach * reach && pc.distanceToSquared(origin) > reach * reach) continue;
+      // The mesh winds its outside counter-clockwise.
+      const facing = e1.subVectors(pb, pa).cross(e2.subVectors(pc, pa)).dot(n);
+      if (Math.abs(facing) < 1e-12) continue;
+      const A = local(pa), B = local(pb), C = local(pc), side = facing > 0 ? 1 : 0, mine = held(skin.owners[ia] ?? '');
+      const det = (B.i - A.i) * (C.j - A.j) - (C.i - A.i) * (B.j - A.j);
+      const i0 = Math.max(0, Math.ceil(Math.min(A.i, B.i, C.i) - 0.5)), i1 = Math.min(size - 1, Math.floor(Math.max(A.i, B.i, C.i) - 0.5));
+      const j0 = Math.max(0, Math.ceil(Math.min(A.j, B.j, C.j) - 0.5)), j1 = Math.min(size - 1, Math.floor(Math.max(A.j, B.j, C.j) - 0.5));
+      let covered = false;
+      if (Math.abs(det) > 1e-12) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const x = i + 0.5 - A.i, y = j + 0.5 - A.j;
+        const wb = (x * (C.j - A.j) - (C.i - A.i) * y) / det, wc = ((B.i - A.i) * y - x * (B.j - A.j)) / det, wa = 1 - wb - wc;
+        if (wa >= -1e-9 && wb >= -1e-9 && wc >= -1e-9) { cross(i, j, wa * A.h + wb * B.h + wc * C.h, side, mine); covered = true; }
+      }
+      // A triangle smaller than a cell still crosses the one it is in.
+      if (!covered) cross(Math.floor((A.i + B.i + C.i) / 3), Math.floor((A.j + B.j + C.j) / 3), (A.h + B.h + C.h) / 3, side, mine);
+    }
+    const cellOf = (point: THREE.Vector3) => {
+      const { i, j, h } = local(point);
+      const ci = Math.floor(i), cj = Math.floor(j);
+      return { crossings: ci < 0 || cj < 0 || ci >= size || cj >= size ? undefined : cells[cj * size + ci], h };
+    };
+    /**
+     * Where `point` is in the skin `of` which part (1 held, 0 the rest, -1 all): the nearest crossing beyond it along
+     * the normal and behind it, and whether it is inside (between skin facing along the normal beyond it and skin
+     * facing back against it behind it; skin on one side only is the edge of a limb seen side-on, where the grid can
+     * miss its steep flank).
+     */
+    const within = (point: THREE.Vector3, of: number) => {
+      const { crossings, h } = cellOf(point);
+      let over = Infinity, overFacing = 0, under = -Infinity, underFacing = 1;
+      if (crossings) for (let k = 0; k < crossings.length; k += 3) {
+        if (of >= 0 && crossings[k + 2] !== of) continue;
+        const at = crossings[k]!;
+        if (at >= h && at < over) { over = at; overFacing = crossings[k + 1]!; }
+        if (at < h && at > under) { under = at; underFacing = crossings[k + 1]!; }
+      }
+      return { h, over, under, inside: over < Infinity && !!overFacing && under > -Infinity && !underFacing };
+    };
+    return {
+      height(point) {
+        const { crossings } = cellOf(point);
+        let best = -Infinity;
+        if (crossings) for (let k = 0; k < crossings.length; k += 3) {
+          const h = crossings[k]!;
+          if (crossings[k + 1] && crossings[k + 2] && h >= -below && h <= above && (best === -Infinity || Math.abs(h) < Math.abs(best))) best = h;
+        }
+        return best;
+      },
+      rise(point) {
+        const { h, over, inside } = within(point, 1);
+        return inside ? over - h : 0;
+      },
+      depth(point, of = 'all') {
+        const { h, over, under, inside } = within(point, of === 'own' ? 1 : of === 'other' ? 0 : -1);
+        return inside ? Math.min(over - h, h - under) : 0;
+      },
+    };
   }
 
   /**
