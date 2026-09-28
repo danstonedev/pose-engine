@@ -95,15 +95,40 @@ interface Skin {
   mesh: THREE.SkinnedMesh;
   original: THREE.BufferGeometry;
   geometry: THREE.BufferGeometry | null;
-  world: THREE.Vector3[];
+  /** How many vertices it has. */
+  count: number;
+  /**
+   * The posed skin in world space, x, y and z for each vertex in turn: flat, because the loops run many times a frame
+   * read it far faster from one array of numbers than from a vector object per vertex.
+   */
+  world: Float64Array;
   triangles: Triangle[];
+  /** The same triangles, flat (three vertex indices each), for the loops run many times a frame. */
+  tri: Uint32Array;
   owners: string[];
-  breathWeights: number[];
+  /** Each vertex's owning bone as an index into `ownerNames`: a bone-name pattern is tested once per bone, not per vertex. */
+  ownerIds: Uint16Array;
+  ownerNames: string[];
+  breathWeights: Float64Array;
   changed: boolean;
   /** Vertices moved this frame, whose normals are recomputed (the rest keep the model's own). */
   moved: Set<number>;
+  /** Vertices pressed this frame (1), which a competing prop may not move again (resolve), and whether there are any. */
+  pressed: Uint8Array;
+  anyPressed: boolean;
   /** Each vertex's tissue stiffness, for the function it was read with. */
   tissue?: { of: (owner: string) => number; stiffness: Float32Array };
+  /** Per bone, mesh world x bind inverse x bone world x bone inverse x bind (row-major 3 x 4), refilled by update(). */
+  bones: Float64Array;
+  /** The posed skin projected onto a prop's axes (resolve), kept to be filled again. */
+  projected?: Float64Array;
+  /** Where its vertices lie against a query's outline and openings (lowest), kept to be filled again. */
+  sides?: Sides;
+  /** Where on a grid of columns its vertices are (columns), kept to be filled again. */
+  gridI?: Float64Array;
+  gridJ?: Float64Array;
+  /** Each vertex's triangles, in triangle order (offsets into `incident`), built the first time normals are needed. */
+  incident?: { start: Uint32Array; tris: Uint32Array };
 }
 const cross = (a: XY, b: XY, c: XY) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
 
@@ -121,54 +146,154 @@ function hull(points: XY[]): XY[] {
   return [...half(sorted).slice(0, -1), ...half(sorted.reverse()).slice(0, -1)];
 }
 
-/** Clip a skin triangle to a prop silhouette, retaining depth at edge intersections. */
-function clip(points: Point[], polygon: XY[]): Point[] {
-  let output = points;
-  for (let i = 0; i < polygon.length && output.length; i++) {
-    output = clipEdge(output, polygon[i]!, polygon[(i + 1) % polygon.length]!);
-  }
-  return output;
-}
-
-function clipEdge(input: Point[], a: XY, b: XY): Point[] {
-  if (!input.length) return [];
-  const output: Point[] = [];
-  let previous = input[input.length - 1]!, d0 = cross(a, b, previous);
-  for (const current of input) {
-    const d1 = cross(a, b, current);
-    if ((d0 >= 0) !== (d1 >= 0)) {
-      const t = d0 / (d0 - d1);
-      output.push({ x: previous.x + t * (current.x - previous.x), y: previous.y + t * (current.y - previous.y), z: previous.z + t * (current.z - previous.z) });
-    }
-    if (d1 >= 0) output.push(current);
-    previous = current; d0 = d1;
-  }
-  return output;
-}
-
-/** Remove convex openings; the remaining pieces retain interpolated skin height at the rim. */
-function supportedParts(points: Point[], polygon: XY[] | undefined, openings: { polygon: XY[]; bb: ReturnType<typeof bounds> }[]): Point[][] {
-  let parts = [polygon ? clip(points, polygon) : points];
-  for (const { polygon: opening, bb } of openings) {
-    parts = parts.flatMap(part => {
-      if (!part.length) return [];
-      if (part.every(p => p.x < bb.minX) || part.every(p => p.x > bb.maxX) || part.every(p => p.y < bb.minY) || part.every(p => p.y > bb.maxY)) return [part];
-      let inside = part;
-      const outside: Point[][] = [];
-      for (let i = 0; i < opening.length && inside.length; i++) {
-        const a = opening[i]!, b = opening[(i + 1) % opening.length]!;
-        const piece = clipEdge(inside, b, a);
-        if (piece.length) outside.push(piece);
-        inside = clipEdge(inside, a, b);
-      }
-      return outside;
-    });
-  }
-  return parts;
-}
-
 function bounds(points: XY[]) {
   return { minX: Math.min(...points.map(p => p.x)), maxX: Math.max(...points.map(p => p.x)), minY: Math.min(...points.map(p => p.y)), maxY: Math.max(...points.map(p => p.y)) };
+}
+
+/**
+ * A convex outline (counter-clockwise), with each edge p → q kept as the two tests the clip cuts by: from p along
+ * e = q − p (`cross(p, q, point)`), and from q back along f = p − q (`cross(q, p, point)`). Eight numbers an edge:
+ * p.x, p.y, e.x, e.y, q.x, q.y, f.x, f.y.
+ */
+interface Outline { edges: Float64Array; bb: ReturnType<typeof bounds>; beyond: Float64Array }
+/**
+ * How far past an edge (m) a triangle wholly beyond it must lie to be dropped without clipping it: far enough that no
+ * rounding in the clip could keep a sliver of it (the clip's errors are some 1e-16 of the coordinates).
+ */
+const SURELY_BEYOND_M = 1e-9;
+function outline(polygon: XY[]): Outline {
+  const edges = new Float64Array(polygon.length * 8), beyond = new Float64Array(polygon.length);
+  polygon.forEach((p, i) => {
+    const q = polygon[(i + 1) % polygon.length]!;
+    edges.set([p.x, p.y, q.x - p.x, q.y - p.y, q.x, q.y, p.x - q.x, p.y - q.y], i * 8);
+    // The cross product the clip tests a point by is the edge's length times the point's distance inside it.
+    beyond[i] = -SURELY_BEYOND_M * Math.hypot(q.x - p.x, q.y - p.y);
+  });
+  return { edges, bb: bounds(polygon), beyond };
+}
+
+/**
+ * The polygons a clip passes through, x, y, z for each point in turn (x, y across the cut, z the height kept): reused
+ * from one triangle to the next, since a frame clips thousands. Slot 0 and 1 take turns clipping to an outline; each
+ * opening a piece is cut by takes three more (its remainder, in turns, and the piece cut off).
+ */
+const scratch: Float64Array[] = [];
+function slot(k: number, points: number): Float64Array {
+  let buffer = scratch[k];
+  if (!buffer || buffer.length < points * 3) scratch[k] = buffer = new Float64Array(Math.max(96, points * 6));
+  return buffer;
+}
+/**
+ * Keep what of polygon `input` (its first `count` points) is on or inside the line from (px, py) along (ex, ey),
+ * retaining the height where it crosses the line: the points go into `output`, and their number is returned. A convex
+ * polygon can gain at most one point; `output` must hold twice `count` (a rounding-thin sliver can cross more often).
+ */
+function clipEdge(input: Float64Array, count: number, px: number, py: number, ex: number, ey: number, output: Float64Array): number {
+  if (!count) return 0;
+  let n = 0, qx = input[count * 3 - 3]!, qy = input[count * 3 - 2]!, qz = input[count * 3 - 1]!;
+  let d0 = ex * (qy - py) - ey * (qx - px);
+  for (let k = 0; k < count * 3; k += 3) {
+    const cx = input[k]!, cy = input[k + 1]!, cz = input[k + 2]!, d1 = ex * (cy - py) - ey * (cx - px);
+    if ((d0 >= 0) !== (d1 >= 0)) {
+      const t = d0 / (d0 - d1);
+      output[n] = qx + t * (cx - qx); output[n + 1] = qy + t * (cy - qy); output[n + 2] = qz + t * (cz - qz); n += 3;
+    }
+    if (d1 >= 0) { output[n] = cx; output[n + 1] = cy; output[n + 2] = cz; n += 3; }
+    qx = cx; qy = cy; qz = cz; d0 = d1;
+  }
+  return n / 3;
+}
+/** Where clipTriangle leaves the clipped polygon. */
+let clipped = slot(0, 3);
+/**
+ * Clip a triangle (x, y across the cut; z the height kept) to a convex outline, edge by edge, retaining the height at
+ * the edge intersections: the polygon is left in `clipped`, and its number of points returned (0: none of it is inside).
+ */
+function clipTriangle(ax: number, ay: number, az: number, bx: number, by: number, bz: number, cx: number, cy: number, cz: number, shape: Outline | null): number {
+  let from = 0, buffer = slot(0, 3), count = 3;
+  buffer[0] = ax; buffer[1] = ay; buffer[2] = az; buffer[3] = bx; buffer[4] = by; buffer[5] = bz; buffer[6] = cx; buffer[7] = cy; buffer[8] = cz;
+  const e = shape?.edges;
+  if (e) for (let o = 0; o < e.length && count; o += 8) {
+    const into = slot(from ^ 1, 2 * count);
+    count = clipEdge(buffer, count, e[o]!, e[o + 1]!, e[o + 2]!, e[o + 3]!, into);
+    buffer = into; from ^= 1;
+  }
+  clipped = buffer;
+  return count;
+}
+/**
+ * The lowest point of what is kept of a polygon once `holes` from `level` on are cut out of it (Infinity: nothing is),
+ * each opening cutting off, edge by edge, the piece outside that edge and going on with the rest. The pieces keep the
+ * interpolated height at the rim.
+ */
+function lowestOutside(input: Float64Array, count: number, holes: Outline[], level: number): number {
+  if (!count) return Infinity;
+  if (level === holes.length) {
+    let low = Infinity;
+    for (let k = 2; k < count * 3; k += 3) low = Math.min(low, input[k]!);
+    return low;
+  }
+  const { edges: e, bb } = holes[level]!;
+  let left = true, right = true, near = true, far = true;
+  for (let k = 0; k < count * 3; k += 3) {
+    const x = input[k]!, y = input[k + 1]!;
+    left &&= x < bb.minX; right &&= x > bb.maxX; near &&= y < bb.minY; far &&= y > bb.maxY;
+  }
+  // Wholly beside this opening's bounds: it cuts nothing off.
+  if (left || right || near || far) return lowestOutside(input, count, holes, level + 1);
+  const base = 2 + level * 3;
+  let inside = input, remaining = count, turn = 0, low = Infinity;
+  for (let o = 0; o < e.length && remaining; o += 8) {
+    // The piece beyond this edge (clipped from q back along f), then what is inside it goes on to the next edge.
+    const piece = slot(base + 2, 2 * remaining);
+    const pieces = clipEdge(inside, remaining, e[o + 4]!, e[o + 5]!, e[o + 6]!, e[o + 7]!, piece);
+    if (pieces) low = Math.min(low, lowestOutside(piece, pieces, holes, level + 1));
+    const rest = slot(base + turn, 2 * remaining);
+    remaining = clipEdge(inside, remaining, e[o]!, e[o + 1]!, e[o + 2]!, e[o + 3]!, rest);
+    inside = rest; turn ^= 1;
+  }
+  return low;
+}
+/**
+ * The lowest skin a support holds of a triangle (x, y across it; z the height): what of it is within the support's
+ * outline, with its openings cut out (Infinity: none of it).
+ */
+function lowestSupported(ax: number, ay: number, az: number, bx: number, by: number, bz: number, cx: number, cy: number, cz: number, shape: Outline | null, holes: Outline[]): number {
+  const count = clipTriangle(ax, ay, az, bx, by, bz, cx, cy, cz, shape);
+  return lowestOutside(clipped, count, holes, 0);
+}
+
+const RAISE = 0, LOWER = 1, NEAREST = 2;
+/**
+ * Draw a skin triangle (vertices a, b, c, placed on a grid of `cols` by `rows` columns by its skin's gridI and gridJ)
+ * into the columns: each corner into the column it is in, and each column centre inside it at its height there. A
+ * height into `heights` (float32, as a column keeps it): RAISE keeps the most in each column, LOWER the least; NEAREST
+ * takes, where `heights` has skin, the least of the height less it into `near.gap`.
+ */
+function draw(skin: Skin, a: number, b: number, c: number, cols: number, rows: number, heights: Float32Array, mode: number, near?: { gap: number }): void {
+  const gi = skin.gridI!, gj = skin.gridJ!, world = skin.world;
+  const ia = gi[a]!, ja = gj[a]!, ib = gi[b]!, jb = gj[b]!, ic = gi[c]!, jc = gj[c]!;
+  if (Math.max(ia, ib, ic) < 0 || Math.max(ja, jb, jc) < 0 || Math.min(ia, ib, ic) >= cols || Math.min(ja, jb, jc) >= rows) return;
+  const ay = world[a * 3 + 1]!, by = world[b * 3 + 1]!, cy = world[c * 3 + 1]!;
+  const put = (k: number, y: number) => {
+    if (mode === RAISE) { if (y > heights[k]!) heights[k] = y; }
+    else if (mode === LOWER) { if (y < heights[k]!) heights[k] = y; }
+    else if (heights[k]! > -Infinity) near!.gap = Math.min(near!.gap, Math.fround(y) - heights[k]!);
+  };
+  const corner = (i: number, j: number, y: number) => {
+    const ci = Math.floor(i), cj = Math.floor(j);
+    if (ci >= 0 && cj >= 0 && ci < cols && cj < rows) put(cj * cols + ci, y);
+  };
+  corner(ia, ja, ay); corner(ib, jb, by); corner(ic, jc, cy);
+  const det = (ib - ia) * (jc - ja) - (ic - ia) * (jb - ja);
+  if (Math.abs(det) < 1e-12) return;
+  const i0 = Math.max(0, Math.ceil(Math.min(ia, ib, ic) - 0.5)), i1 = Math.min(cols - 1, Math.floor(Math.max(ia, ib, ic) - 0.5));
+  const j0 = Math.max(0, Math.ceil(Math.min(ja, jb, jc) - 0.5)), j1 = Math.min(rows - 1, Math.floor(Math.max(ja, jb, jc) - 0.5));
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const x = i + 0.5 - ia, y = j + 0.5 - ja;
+    const wb = (x * (jc - ja) - (ic - ia) * y) / det, wc = ((ib - ia) * y - x * (jb - ja)) / det, wa = 1 - wb - wc;
+    if (wa >= -1e-9 && wb >= -1e-9 && wc >= -1e-9) put(j * cols + i, wa * ay + wb * by + wc * cy);
+  }
 }
 
 /**
@@ -234,6 +359,204 @@ function spreadDip(raw: Float32Array, foam: Uint8Array, cols: number, rows: numb
   return out;
 }
 
+const _world = new THREE.Matrix4(), _bone = new THREE.Matrix4(), _vertex = new THREE.Vector3(), _local = new THREE.Vector3();
+/**
+ * The posed skin in world space, as SkinnedMesh.getVertexPosition and then the mesh's world matrix give it, with each
+ * bone's matrices multiplied once for the mesh rather than once for every vertex and weight. `only` poses just those
+ * vertices, and `using` names every bone they are weighted to: only those bones' matrices are brought up to date. A
+ * mesh with morph targets in play is read through three.js.
+ */
+function posedWorld(skin: Skin, only?: Uint32Array, using?: Uint16Array): void {
+  const mesh = skin.mesh, world = skin.world, geometry = mesh.geometry;
+  // The mesh as it is now (a host may have changed it), read straight from its arrays where they hold plain values.
+  const position = geometry.getAttribute('position'), joints = geometry.getAttribute('skinIndex'), weights = geometry.getAttribute('skinWeight');
+  const direct = (attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute | undefined, size: number) =>
+    !!attribute && !(attribute as THREE.InterleavedBufferAttribute).isInterleavedBufferAttribute && !attribute.normalized && attribute.itemSize === size && attribute.count >= skin.count;
+  if ((geometry.morphAttributes.position && mesh.morphTargetInfluences?.some(weight => weight !== 0)) || !direct(position, 3) || !direct(joints, 4) || !direct(weights, 4)) {
+    const count = only ? only.length : skin.count;
+    for (let n = 0; n < count; n++) {
+      const i = only ? only[n]! : n;
+      mesh.getVertexPosition(i, _vertex).applyMatrix4(mesh.matrixWorld);
+      world[i * 3] = _vertex.x; world[i * 3 + 1] = _vertex.y; world[i * 3 + 2] = _vertex.z;
+    }
+    return;
+  }
+  const bones = mesh.skeleton.bones, inverses = mesh.skeleton.boneInverses, m = skin.bones;
+  _world.multiplyMatrices(mesh.matrixWorld, mesh.bindMatrixInverse);
+  const refresh = using ? using.length : bones.length;
+  for (let r = 0; r < refresh; r++) {
+    const b = using ? using[r]! : r;
+    const e = _bone.multiplyMatrices(bones[b]!.matrixWorld, inverses[b]!).premultiply(_world).multiply(mesh.bindMatrix).elements;
+    const o = b * 12;
+    m[o] = e[0]!; m[o + 1] = e[4]!; m[o + 2] = e[8]!; m[o + 3] = e[12]!;
+    m[o + 4] = e[1]!; m[o + 5] = e[5]!; m[o + 6] = e[9]!; m[o + 7] = e[13]!;
+    m[o + 8] = e[2]!; m[o + 9] = e[6]!; m[o + 10] = e[10]!; m[o + 11] = e[14]!;
+  }
+  // three.js blends a vertex's bone transforms by weight and takes the blend as a point: the bind inverse's and the
+  // world's translation count once, whatever the weights sum to (hence 1 - their sum, below).
+  const we = _world.elements, tx = we[12]!, ty = we[13]!, tz = we[14]!;
+  const bind = position.array, bone = joints!.array, share = weights!.array, count = only ? only.length : skin.count;
+  for (let n = 0; n < count; n++) {
+    const i = only ? only[n]! : n;
+    const px = bind[i * 3]!, py = bind[i * 3 + 1]!, pz = bind[i * 3 + 2]!;
+    let x = 0, y = 0, z = 0, sum = 0;
+    for (let k = i * 4; k < i * 4 + 4; k++) {
+      const w = share[k]!;
+      if (w === 0) continue;
+      const o = bone[k]! * 12;
+      x += w * (m[o]! * px + m[o + 1]! * py + m[o + 2]! * pz + m[o + 3]!);
+      y += w * (m[o + 4]! * px + m[o + 5]! * py + m[o + 6]! * pz + m[o + 7]!);
+      z += w * (m[o + 8]! * px + m[o + 9]! * py + m[o + 10]! * pz + m[o + 11]!);
+      sum += w;
+    }
+    const rest = 1 - sum;
+    world[i * 3] = x + rest * tx; world[i * 3 + 1] = y + rest * ty; world[i * 3 + 2] = z + rest * tz;
+  }
+}
+
+const WHOLE = 0, NONE = 1, PART = 2;
+/**
+ * What clipping triangle a, b, c (x, y across the cut) to the convex outline keeps of it: it WHOLE, every corner on or
+ * inside every edge (the test clipEdge keeps a corner by); NONE, every corner surely beyond one edge; else PART of it,
+ * which only clipping it finds. No outline keeps everything.
+ */
+function kept(shape: Outline | null, ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {
+  if (!shape) return WHOLE;
+  const e = shape.edges;
+  let whole = true;
+  for (let o = 0, k = 0; o < e.length; o += 8, k++) {
+    const px = e[o]!, py = e[o + 1]!, ex = e[o + 2]!, ey = e[o + 3]!;
+    const da = ex * (ay - py) - ey * (ax - px), db = ex * (by - py) - ey * (bx - px), dc = ex * (cy - py) - ey * (cx - px);
+    if (da >= 0 && db >= 0 && dc >= 0) continue;
+    whole = false;
+    const beyond = shape.beyond[k]!;
+    if (da < beyond && db < beyond && dc < beyond) return NONE;
+  }
+  return whole ? WHOLE : PART;
+}
+const CLEAR = 0, INSIDE = 1, CUT = 2;
+/**
+ * What cutting the openings out does to a triangle (a, b, c in world X/Z) already wholly over the support. CLEAR of
+ * every opening (outside its bounds, or all three corners strictly outside one of its edges), the pieces it is cut into
+ * cover all of it, so its lowest point is a corner's. Strictly INSIDE the one opening it meets (every corner on the
+ * inner side of every edge, by the tests clipEdge cuts with, both ways round), it is removed whole. Else it is CUT.
+ */
+function openingsOf(holes: Outline[], ax: number, az: number, bx: number, bz: number, cx: number, cz: number): number {
+  let met = 0;
+  for (const { edges: e, bb } of holes) {
+    if ((ax < bb.minX && bx < bb.minX && cx < bb.minX) || (ax > bb.maxX && bx > bb.maxX && cx > bb.maxX)
+      || (az < bb.minY && bz < bb.minY && cz < bb.minY) || (az > bb.maxY && bz > bb.maxY && cz > bb.maxY)) continue;
+    let inside = true, apart = false;
+    for (let o = 0; o < e.length && !apart; o += 8) {
+      const px = e[o]!, py = e[o + 1]!, ex = e[o + 2]!, ey = e[o + 3]!;
+      const da = ex * (az - py) - ey * (ax - px), db = ex * (bz - py) - ey * (bx - px), dc = ex * (cz - py) - ey * (cx - px);
+      if (da < 0 && db < 0 && dc < 0) { apart = true; continue; }
+      if (!inside) continue;
+      const qx = e[o + 4]!, qy = e[o + 5]!, fx = e[o + 6]!, fy = e[o + 7]!;
+      if (da < 0 || db < 0 || dc < 0 || fx * (az - qy) - fy * (ax - qx) >= 0 || fx * (bz - qy) - fy * (bx - qx) >= 0 || fx * (cz - qy) - fy * (cx - qx) >= 0) inside = false;
+    }
+    if (apart) continue;
+    if (!inside || ++met > 1) return CUT;
+  }
+  return met ? INSIDE : CLEAR;
+}
+
+/**
+ * Where a skin's vertices lie against a query's outline and openings, each vertex worked out once for all the
+ * triangles that share it (some six), as kept() and openingsOf() test a triangle's corners, and stamped with the query
+ * it was worked out for. Against the outline: `inside` 1 on or inside every edge, and `beyond` the edges it is surely
+ * beyond (a bit each). Against opening h (at v * holes + h): `open` bits 0 to 3 the sides of its bounds it is beyond (x
+ * under, x over, z under, z over), and bit 4 strictly inside every edge; `apart` the edges it is outside (a bit each).
+ * The openings' edges are tested only for a vertex of a triangle within their bounds (`hole` stamps those). Outlines
+ * of up to 32 edges.
+ */
+interface Sides { shape: Uint32Array; inside: Uint8Array; beyond: Uint32Array; hole: Uint32Array; open: Uint8Array; apart: Uint32Array; holes: number }
+const MOST_EDGES = 32;
+function sidesOf(skin: Skin, holes: number): Sides {
+  const sides = skin.sides;
+  if (sides && sides.holes >= holes) return sides;
+  const n = skin.count, per = Math.max(1, holes);
+  return skin.sides = {
+    shape: new Uint32Array(n), inside: new Uint8Array(n), beyond: new Uint32Array(n),
+    hole: new Uint32Array(n), open: new Uint8Array(n * per), apart: new Uint32Array(n * per), holes: per,
+  };
+}
+function markShape(sides: Sides, world: Float64Array, v: number, stamp: number, shape: Outline | null, holes: Outline[]): void {
+  if (sides.shape[v] === stamp) return;
+  sides.shape[v] = stamp;
+  const x = world[v * 3]!, z = world[v * 3 + 2]!;
+  let inside = 1, beyond = 0;
+  if (shape) {
+    const e = shape.edges;
+    for (let o = 0, k = 0; o < e.length; o += 8, k++) {
+      const d = e[o + 2]! * (z - e[o + 1]!) - e[o + 3]! * (x - e[o]!);
+      if (d < 0) { inside = 0; if (d < shape.beyond[k]!) beyond |= 1 << k; }
+    }
+  }
+  sides.inside[v] = inside; sides.beyond[v] = beyond;
+  for (let h = 0; h < holes.length; h++) {
+    const bb = holes[h]!.bb;
+    sides.open[v * sides.holes + h] = (x < bb.minX ? 1 : 0) | (x > bb.maxX ? 2 : 0) | (z < bb.minY ? 4 : 0) | (z > bb.maxY ? 8 : 0);
+  }
+}
+function markHoles(sides: Sides, world: Float64Array, v: number, stamp: number, holes: Outline[]): void {
+  if (sides.hole[v] === stamp) return;
+  sides.hole[v] = stamp;
+  const x = world[v * 3]!, z = world[v * 3 + 2]!;
+  for (let h = 0; h < holes.length; h++) {
+    const e = holes[h]!.edges, at = v * sides.holes + h;
+    let apart = 0, strict = 16;
+    for (let o = 0, k = 0; o < e.length; o += 8, k++) {
+      const d = e[o + 2]! * (z - e[o + 1]!) - e[o + 3]! * (x - e[o]!);
+      if (d < 0) { apart |= 1 << k; strict = 0; }
+      else if (strict && e[o + 6]! * (z - e[o + 5]!) - e[o + 7]! * (x - e[o + 4]!) >= 0) strict = 0;
+    }
+    sides.apart[at] = apart;
+    sides.open[at] = (sides.open[at]! & 15) | strict;
+  }
+}
+
+/** Each vertex's triangles (offsets into `tri`), in triangle order, each triangle once however many of its corners it is. */
+function incidence(skin: Skin): { start: Uint32Array; tris: Uint32Array } {
+  const n = skin.count, tri = skin.tri, start = new Uint32Array(n + 1);
+  const each = (visit: (vertex: number, t: number) => void) => {
+    for (let t = 0; t < tri.length; t += 3) {
+      const a = tri[t]!, b = tri[t + 1]!, c = tri[t + 2]!;
+      visit(a, t); if (b !== a) visit(b, t); if (c !== a && c !== b) visit(c, t);
+    }
+  };
+  each(vertex => { start[vertex + 1]!++; });
+  for (let v = 0; v < n; v++) start[v + 1]! += start[v]!;
+  const fill = start.slice(0, n), tris = new Uint32Array(start[n]!);
+  each((vertex, t) => { tris[fill[vertex]!++] = t; });
+  return { start, tris };
+}
+
+/**
+ * New normals for the skin sharing a triangle with moved skin, the rest left as `normal` holds them: each as
+ * BufferGeometry.computeVertexNormals gives it (its triangles' face normals summed in triangle order into float32, then
+ * normalized), from only the triangles round it.
+ */
+function localNormals(skin: Skin, position: ArrayLike<number>, normal: { [index: number]: number }): void {
+  const incident = skin.incident ??= incidence(skin);
+  const { start, tris } = incident, tri = skin.tri, near = new Uint8Array(skin.count);
+  for (const v of skin.moved) for (let k = start[v]!; k < start[v + 1]!; k++) { const t = tris[k]!; near[tri[t]!] = 1; near[tri[t + 1]!] = 1; near[tri[t + 2]!] = 1; }
+  for (let v = 0; v < near.length; v++) {
+    if (!near[v]) continue;
+    let x = 0, y = 0, z = 0;
+    for (let k = start[v]!; k < start[v + 1]!; k++) {
+      const t = tris[k]!, a = tri[t]! * 3, b = tri[t + 1]! * 3, c = tri[t + 2]! * 3;
+      const cbx = position[c]! - position[b]!, cby = position[c + 1]! - position[b + 1]!, cbz = position[c + 2]! - position[b + 2]!;
+      const abx = position[a]! - position[b]!, aby = position[a + 1]! - position[b + 1]!, abz = position[a + 2]! - position[b + 2]!;
+      x = Math.fround(x + (cby * abz - cbz * aby)); y = Math.fround(y + (cbz * abx - cbx * abz)); z = Math.fround(z + (cbx * aby - cby * abx));
+    }
+    const scale = 1 / (Math.sqrt(x * x + y * y + z * z) || 1);
+    normal[v * 3] = x * scale; normal[v * 3 + 1] = y * scale; normal[v * 3 + 2] = z * scale;
+  }
+}
+const plain = (attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): attribute is THREE.BufferAttribute =>
+  !(attribute as THREE.InterleavedBufferAttribute).isInterleavedBufferAttribute && !attribute.normalized && attribute.array instanceof Float32Array;
+
 function moveWorld(object: THREE.Object3D, delta: THREE.Vector3): void {
   const position = object.getWorldPosition(new THREE.Vector3()).add(delta);
   object.position.copy(object.parent ? object.parent.worldToLocal(position) : position);
@@ -254,7 +577,6 @@ function moveWorld(object: THREE.Object3D, delta: THREE.Vector3): void {
 export class SkinContact {
   private readonly skins: Skin[] = [];
   private readonly inverses = new Map<THREE.SkinnedMesh, THREE.Matrix4[]>();
-  private readonly displaced = new Set<THREE.Vector3>();
   /** The last cushion's grid (its cells and which are foam), kept while the cushion stays where it is. */
   private grid: { key: string; field: CushionField } | null = null;
 
@@ -271,21 +593,120 @@ export class SkinContact {
         for (let k = 1; k < 4; k++) if (weights.getComponent(i, k) > weights.getComponent(i, slot)) slot = k;
         return mesh.skeleton.bones[indices.getComponent(i, slot)]?.name ?? '';
       });
-      const breathWeights = Array.from({ length: count }, (_, i) => {
+      const breathWeights = Float64Array.from({ length: count }, (_, i) => {
         let weight = 0;
         for (let k = 0; k < 4; k++) if (/Spine|Breast/u.test(mesh.skeleton.bones[indices.getComponent(i, k)]?.name ?? '')) weight += weights.getComponent(i, k);
         return weight;
       });
       for (let i = 0; i < (index?.count ?? count); i += 3) triangles.push(index ? [index.getX(i), index.getX(i + 1), index.getX(i + 2)] : [i, i + 1, i + 2]);
-      this.skins.push({ mesh, original: mesh.geometry, geometry: null, world: Array.from({ length: count }, () => new THREE.Vector3()), triangles, owners, breathWeights, changed: false, moved: new Set() });
+      const tri = Uint32Array.from(triangles.flat());
+      const ownerNames = [...new Set(owners)];
+      const ownerIndex = new Map(ownerNames.map((name, i) => [name, i]));
+      const ownerIds = Uint16Array.from(owners, owner => ownerIndex.get(owner)!);
+      this.skins.push({
+        mesh, original: mesh.geometry, geometry: null, count, world: new Float64Array(count * 3), triangles, tri, owners, ownerIds, ownerNames,
+        breathWeights, changed: false, moved: new Set(), pressed: new Uint8Array(count), anyPressed: false, bones: new Float64Array(mesh.skeleton.bones.length * 12),
+      });
     });
   }
 
-  /** Once per rendered frame, after the skeleton and all breathing/sway overlays. */
-  update(): void {
+  /**
+   * Which of each skin's owning bones `pattern` names (1 or 0 per entry of `ownerNames`), tested once per bone name and
+   * kept for the next call with the same pattern (a frame asks for the same few many times).
+   */
+  private readonly masks = new Map<string, Uint8Array[]>();
+  private mask(pattern: RegExp): Uint8Array[] {
+    // A global or sticky pattern carries state from one test to the next: tested afresh, from its start, each time.
+    const stateful = pattern.global || pattern.sticky;
+    const key = `${pattern.flags}/${pattern.source}`;
+    let masks = stateful ? undefined : this.masks.get(key);
+    if (!masks) {
+      masks = this.skins.map(skin => Uint8Array.from(skin.ownerNames, name => { pattern.lastIndex = 0; return pattern.test(name) ? 1 : 0; }));
+      if (!stateful) this.masks.set(key, masks);
+    }
+    return masks;
+  }
+  /** Each skin's vertices (in order) that `pattern` names. */
+  private readonly members = new Map<string, Uint32Array[]>();
+  private named(pattern: RegExp): Uint32Array[] {
+    const key = `${pattern.flags}/${pattern.source}`;
+    let lists = pattern.global || pattern.sticky ? undefined : this.members.get(key);
+    if (!lists) {
+      const masks = this.mask(pattern);
+      lists = this.skins.map((skin, s) => {
+        const mask = masks[s]!, ids = skin.ownerIds, out: number[] = [];
+        for (let i = 0; i < ids.length; i++) if (mask[ids[i]!]) out.push(i);
+        return Uint32Array.from(out);
+      });
+      if (!(pattern.global || pattern.sticky)) this.members.set(key, lists);
+    }
+    return lists;
+  }
+  /** Each skin's triangles (offsets into `tri`, in order) whose three corners are all skin that `pattern` names. */
+  private readonly sets = new Map<string, Uint32Array[]>();
+  private within(pattern: RegExp): Uint32Array[] {
+    const key = `${pattern.flags}/${pattern.source}`;
+    let sets = pattern.global || pattern.sticky ? undefined : this.sets.get(key);
+    if (!sets) {
+      const masks = this.mask(pattern);
+      sets = this.skins.map((skin, s) => {
+        const mask = masks[s]!, ids = skin.ownerIds, tri = skin.tri, out: number[] = [];
+        for (let t = 0; t < tri.length; t += 3) if (mask[ids[tri[t]!]!] && mask[ids[tri[t + 1]!]!] && mask[ids[tri[t + 2]!]!]) out.push(t);
+        return Uint32Array.from(out);
+      });
+      if (!(pattern.global || pattern.sticky)) this.sets.set(key, sets);
+    }
+    return sets;
+  }
+
+  /** Whether the skin has been posed by a whole update yet. */
+  private posed = false;
+  /** Which query of the skin's lowest point this is (Sides). */
+  private stamp = 0;
+  /**
+   * Each skin's vertices a bone's subtree carries (any weight on it or below it), and every bone those vertices are
+   * weighted to (the subtree's, and the bones it shares skin with), found the first time it is named.
+   */
+  private readonly carries = new Map<THREE.Object3D, { vertices: Uint32Array; bones: Uint16Array }[]>();
+
+  /**
+   * Once per rendered frame, after the skeleton and all breathing/sway overlays. `moved` says only it and what hangs from
+   * it have turned since the last update, with no skin pressed in between (a solver turning one limb bone at a time): only
+   * the skin they carry is posed again, and their matrices brought up to date. Otherwise everything is.
+   */
+  update(moved?: THREE.Object3D): void {
+    if (moved && this.posed && !this.skins.some(skin => skin.changed)) {
+      moved.updateMatrixWorld(true);
+      this.inverses.clear();
+      const carried = this.carried(moved);
+      this.skins.forEach((skin, s) => posedWorld(skin, carried[s]!.vertices, carried[s]!.bones));
+      return;
+    }
     this.restore();
     this.root.updateMatrixWorld(true);
-    for (const skin of this.skins) for (let i = 0; i < skin.world.length; i++) skin.mesh.getVertexPosition(i, skin.world[i]!).applyMatrix4(skin.mesh.matrixWorld);
+    for (const skin of this.skins) posedWorld(skin);
+    this.posed = true;
+  }
+  private carried(moved: THREE.Object3D): { vertices: Uint32Array; bones: Uint16Array }[] {
+    let lists = this.carries.get(moved);
+    if (!lists) {
+      const below = new Set<THREE.Object3D>();
+      moved.traverse(object => { below.add(object); });
+      lists = this.skins.map(skin => {
+        const bones = skin.mesh.skeleton.bones, carried = Uint8Array.from(bones, bone => below.has(bone) ? 1 : 0), used = new Uint8Array(bones.length);
+        const joints = skin.mesh.geometry.getAttribute('skinIndex'), weights = skin.mesh.geometry.getAttribute('skinWeight'), out: number[] = [];
+        for (let i = 0; i < skin.count; i++) {
+          let carries = false;
+          for (let k = 0; k < 4; k++) if (weights.getComponent(i, k) !== 0 && carried[joints.getComponent(i, k)]) carries = true;
+          if (!carries) continue;
+          out.push(i);
+          for (let k = 0; k < 4; k++) if (weights.getComponent(i, k) !== 0) used[joints.getComponent(i, k)] = 1;
+        }
+        return { vertices: Uint32Array.from(out), bones: Uint16Array.from(bones.flatMap((_, b) => used[b] ? [b] : [])) };
+      });
+      this.carries.set(moved, lists);
+    }
+    return lists;
   }
 
   /** Rib/abdominal excursion without moving the supported skeleton or its head. */
@@ -295,17 +716,18 @@ export class SkinContact {
     if (length < 0.01) return;
     up.divideScalar(length);
     const amount = Math.min(excursionM, 0.012);
-    for (const skin of this.skins) for (let i = 0; i < skin.world.length; i++) {
+    const delta = new THREE.Vector3();
+    for (const skin of this.skins) for (let i = 0; i < skin.count; i++) {
       const weight = skin.breathWeights[i]!;
       if (weight < 0.001) continue;
-      const p = skin.world[i]!, relative = p.clone().sub(base);
-      const t = relative.dot(up) / length;
+      const world = skin.world, py = world[i * 3 + 1]!, rx = world[i * 3]! - base.x, ry = py - base.y, rz = world[i * 3 + 2]! - base.z;
+      const t = (rx * up.x + ry * up.y + rz * up.z) / length;
       if (t <= 0 || t >= 1) continue;
       const envelope = Math.sin(Math.PI * t) * weight * amount;
-      const delta = front.clone().multiplyScalar(THREE.MathUtils.clamp(relative.dot(front) / 0.14, -1, 1) * envelope)
-        .addScaledVector(left, THREE.MathUtils.clamp(relative.dot(left) / 0.18, -1, 1) * envelope * 0.4);
+      delta.copy(front).multiplyScalar(THREE.MathUtils.clamp((rx * front.x + ry * front.y + rz * front.z) / 0.14, -1, 1) * envelope)
+        .addScaledVector(left, THREE.MathUtils.clamp((rx * left.x + ry * left.y + rz * left.z) / 0.18, -1, 1) * envelope * 0.4);
       // Loaded tissue stays against the support; expansion goes into free space.
-      delta.y = Math.max(delta.y, supportY - p.y);
+      delta.y = Math.max(delta.y, supportY - py);
       this.displace(skin, i, delta, false);
     }
   }
@@ -318,16 +740,56 @@ export class SkinContact {
    */
   lowest(polygon?: XY[], supportBones?: RegExp, openings: XY[][] = [], floor = -Infinity): number {
     let lowest = Infinity;
-    const bb = polygon ? bounds(polygon) : null;
-    const holes = openings.filter(p => p.length >= 3).map(polygon => ({ polygon, bb: bounds(polygon) }));
-    for (const skin of this.skins) {
-      if (!polygon && !openings.length) { for (let i = 0; i < skin.world.length; i++) if ((!supportBones || supportBones.test(skin.owners[i]!)) && skin.world[i]!.y >= floor) lowest = Math.min(lowest, skin.world[i]!.y); continue; }
-      for (const triangle of skin.triangles) {
-        if (supportBones && !triangle.every(i => supportBones.test(skin.owners[i]!))) continue;
-        const points = triangle.map(i => ({ x: skin.world[i]!.x, y: skin.world[i]!.z, z: skin.world[i]!.y }));
-        if (points.every(p => p.z < floor)) continue;
-        if (bb && (points.every(p => p.x < bb.minX) || points.every(p => p.x > bb.maxX) || points.every(p => p.y < bb.minY) || points.every(p => p.y > bb.maxY))) continue;
-        for (const part of supportedParts(points, polygon, holes)) for (const p of part) lowest = Math.min(lowest, p.z);
+    if (!polygon && !openings.length) {
+      const lists = supportBones ? this.named(supportBones) : null;
+      for (let s = 0; s < this.skins.length; s++) {
+        const world = this.skins[s]!.world, list = lists?.[s], count = list ? list.length : this.skins[s]!.count;
+        for (let n = 0; n < count; n++) { const y = world[(list ? list[n]! : n) * 3 + 1]!; if (y >= floor && y < lowest) lowest = y; }
+      }
+      return lowest;
+    }
+    const shape = polygon ? outline(polygon) : null, bb = shape?.bb;
+    const holes = openings.filter(p => p.length >= 3).map(outline);
+    const sets = supportBones ? this.within(supportBones) : null;
+    // Each vertex tested once against the outline and openings, where they have few enough edges to note by the bit.
+    const byVertex = [shape, ...holes].every(item => !item || item.edges.length <= MOST_EDGES * 8), stamp = ++this.stamp;
+    for (let s = 0; s < this.skins.length; s++) {
+      const skin = this.skins[s]!, world = skin.world, tri = skin.tri, set = sets?.[s], count = set ? set.length : tri.length / 3;
+      const sides = byVertex ? sidesOf(skin, holes.length) : null, per = sides?.holes ?? 0;
+      for (let n = 0; n < count; n++) {
+        const t = set ? set[n]! : n * 3, va = tri[t]!, vb = tri[t + 1]!, vc = tri[t + 2]!, a = va * 3, b = vb * 3, c = vc * 3;
+        const ay = world[a + 1]!, by = world[b + 1]!, cy = world[c + 1]!;
+        if (ay < floor && by < floor && cy < floor) continue;
+        // What is kept of a triangle is no lower than its lowest corner (to the last bit of a clip's rounding): one no
+        // lower than the lowest skin found so far cannot be lower.
+        if (ay >= lowest && by >= lowest && cy >= lowest) continue;
+        const ax = world[a]!, az = world[a + 2]!, bx = world[b]!, bz = world[b + 2]!, cx = world[c]!, cz = world[c + 2]!;
+        if (bb && ((ax < bb.minX && bx < bb.minX && cx < bb.minX) || (ax > bb.maxX && bx > bb.maxX && cx > bb.maxX)
+          || (az < bb.minY && bz < bb.minY && cz < bb.minY) || (az > bb.maxY && bz > bb.maxY && cz > bb.maxY))) continue;
+        // Wholly over the support, the clip would keep the triangle as it is, or (wholly in an opening) drop it; wholly
+        // off it, drop it.
+        let over: number, opening = CLEAR;
+        if (sides) {
+          markShape(sides, world, va, stamp, shape, holes); markShape(sides, world, vb, stamp, shape, holes); markShape(sides, world, vc, stamp, shape, holes);
+          over = sides.beyond[va]! & sides.beyond[vb]! & sides.beyond[vc]! ? NONE : sides.inside[va]! & sides.inside[vb]! & sides.inside[vc]! ? WHOLE : PART;
+          if (over === WHOLE) for (let h = 0, met = 0; h < holes.length; h++) {
+            const oa = va * per + h, ob = vb * per + h, oc = vc * per + h;
+            if (sides.open[oa]! & sides.open[ob]! & sides.open[oc]! & 15) continue;
+            markHoles(sides, world, va, stamp, holes); markHoles(sides, world, vb, stamp, holes); markHoles(sides, world, vc, stamp, holes);
+            if (sides.apart[oa]! & sides.apart[ob]! & sides.apart[oc]!) continue;
+            if (!(sides.open[oa]! & sides.open[ob]! & sides.open[oc]! & 16) || ++met > 1) { opening = CUT; break; }
+            opening = INSIDE;
+          }
+        } else {
+          over = kept(shape, ax, az, bx, bz, cx, cz);
+          if (over === WHOLE) opening = openingsOf(holes, ax, az, bx, bz, cx, cz);
+        }
+        if (over === NONE) continue;
+        if (over === WHOLE) {
+          if (opening === CLEAR) { lowest = Math.min(lowest, ay, by, cy); continue; }
+          if (opening === INSIDE) continue;
+        }
+        lowest = Math.min(lowest, lowestSupported(ax, az, ay, bx, bz, by, cx, cz, cy, shape, holes));
       }
     }
     return lowest;
@@ -347,8 +809,8 @@ export class SkinContact {
     if (this.grid?.key !== key) this.grid = { key, field: cushionGrid(cushion, options.cellM) };
     const { origin, u, v, cellM: cell, cols, rows, foam } = this.grid.field;
     const n = cols * rows;
-    const gridI = (p: THREE.Vector3) => ((p.x - origin.x) * u.x + (p.z - origin.y) * u.y) / cell;
-    const gridJ = (p: THREE.Vector3) => ((p.x - origin.x) * v.x + (p.z - origin.y) * v.y) / cell;
+    const gridI = (x: number, z: number) => ((x - origin.x) * u.x + (z - origin.y) * u.y) / cell;
+    const gridJ = (x: number, z: number) => ((x - origin.x) * v.x + (z - origin.y) * v.y) / cell;
     // The body's underside over each cell (the lowest skin in it) and the tissue there, from skin in the foam or just
     // above it (which the body sinks onto if it is carrying too little).
     const floor = top - thickness, reach = top + thickness;
@@ -360,13 +822,17 @@ export class SkinContact {
     };
     for (const skin of this.skins) {
       if (skin.tissue?.of !== tissueOf) skin.tissue = { of: tissueOf, stiffness: Float32Array.from(skin.owners, owner => tissueOf(owner)) };
-      const stiffness = skin.tissue.stiffness;
-      for (const [a, b, c] of skin.triangles) {
-        const pa = skin.world[a]!, pb = skin.world[b]!, pc = skin.world[c]!;
-        if (Math.min(pa.y, pb.y, pc.y) >= reach || Math.max(pa.y, pb.y, pc.y) < floor) continue;
-        const ia = gridI(pa), ja = gridJ(pa), ib = gridI(pb), jb = gridJ(pb), ic = gridI(pc), jc = gridJ(pc);
+      const stiffness = skin.tissue.stiffness, tri = skin.tri, world = skin.world;
+      for (let t = 0; t < tri.length; t += 3) {
+        const a = tri[t]!, b = tri[t + 1]!, c = tri[t + 2]!;
+        const ay = world[a * 3 + 1]!, by = world[b * 3 + 1]!, cy = world[c * 3 + 1]!;
+        if (Math.min(ay, by, cy) >= reach || Math.max(ay, by, cy) < floor) continue;
+        const ax = world[a * 3]!, az = world[a * 3 + 2]!, bx = world[b * 3]!, bz = world[b * 3 + 2]!, cx = world[c * 3]!, cz = world[c * 3 + 2]!;
+        const ia = gridI(ax, az), ja = gridJ(ax, az), ib = gridI(bx, bz), jb = gridJ(bx, bz), ic = gridI(cx, cz), jc = gridJ(cx, cz);
         // Each corner marks its own cell (a triangle smaller than a cell may hold no cell's centre)…
-        for (const [i, j, p, k] of [[ia, ja, pa, a], [ib, jb, pb, b], [ic, jc, pc, c]] as const) if (p.y >= floor) mark(Math.floor(i), Math.floor(j), p.y, stiffness[k]!);
+        if (ay >= floor) mark(Math.floor(ia), Math.floor(ja), ay, stiffness[a]!);
+        if (by >= floor) mark(Math.floor(ib), Math.floor(jb), by, stiffness[b]!);
+        if (cy >= floor) mark(Math.floor(ic), Math.floor(jc), cy, stiffness[c]!);
         // …and each cell centre inside it takes its height there.
         const det = (ib - ia) * (jc - ja) - (ic - ia) * (jb - ja);
         if (Math.abs(det) < 1e-12) continue;
@@ -376,7 +842,7 @@ export class SkinContact {
           const x = i + 0.5 - ia, y = j + 0.5 - ja;
           const wb = (x * (jc - ja) - (ic - ia) * y) / det, wc = ((ib - ia) * y - x * (jb - ja)) / det, wa = 1 - wb - wc;
           if (wa < -1e-9 || wb < -1e-9 || wc < -1e-9) continue;
-          const h = wa * pa.y + wb * pb.y + wc * pc.y;
+          const h = wa * ay + wb * by + wc * cy;
           if (h < floor) continue;
           mark(i, j, h, stiffness[wa >= wb && wa >= wc ? a : wb >= wc ? b : c]!);
         }
@@ -428,55 +894,71 @@ export class SkinContact {
     // The skin under the foam's surface rests on it: its tissue gives the rest of the overlap.
     const field: CushionField = { origin, u, v, cellM: cell, cols, rows, foam, deflection, pressure, areaM2, peakPa, imbalanceM };
     const lift = new THREE.Vector3();
-    for (const skin of this.skins) for (let i = 0; i < skin.world.length; i++) {
-      const p = skin.world[i]!;
-      if (p.y >= top || p.y < floor) continue;
-      const ci = Math.floor(gridI(p)), cj = Math.floor(gridJ(p));
+    for (const skin of this.skins) for (let i = 0; i < skin.count; i++) {
+      const world = skin.world, py = world[i * 3 + 1]!;
+      if (py >= top || py < floor) continue;
+      const px = world[i * 3]!, pz = world[i * 3 + 2]!, ci = Math.floor(gridI(px, pz)), cj = Math.floor(gridJ(px, pz));
       if (ci < 0 || cj < 0 || ci >= cols || cj >= rows || !foam[cj * cols + ci]) continue;
-      const y = top - cushionDepth(field, p.x, p.z);
-      if (p.y < y) this.displace(skin, i, lift.set(0, y - p.y, 0));
+      const y = top - cushionDepth(field, px, pz);
+      if (py < y) this.displace(skin, i, lift.set(0, y - py, 0));
     }
     return field;
   }
 
   /**
-   * The top of `onto`'s skin (its highest point in each column, looking down) and `region`'s underside (its lowest),
-   * over a grid around `region` (m; world y, -Infinity / Infinity where the part has no skin), for one part resting on
-   * another: a hand on the abdomen, a forearm across it.
+   * The grid of columns round `region` (`margin` beyond its skin, in cells of `cell`; m), every vertex of both parts
+   * placed on it, and the top of `onto`'s skin over it (its highest point in each column, looking down; world y,
+   * -Infinity where it has none), for one part resting on another: a hand on the abdomen, a forearm across it. A
+   * triangle is drawn into the columns as draw() draws it (a triangle of both parts is `region`'s).
    */
-  private columns(region: RegExp, onto: RegExp, cell: number, margin: number) {
+  private tops(region: RegExp, onto: RegExp, cell: number, margin: number) {
+    const regionMasks = this.mask(region), regionMembers = this.named(region), ontoMembers = this.named(onto);
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const skin of this.skins) for (let i = 0; i < skin.world.length; i++) {
-      if (!region.test(skin.owners[i]!)) continue;
-      const p = skin.world[i]!;
-      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+    for (let s = 0; s < this.skins.length; s++) {
+      const world = this.skins[s]!.world;
+      for (const i of regionMembers[s]!) {
+        const x = world[i * 3]!, z = world[i * 3 + 2]!;
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+      }
     }
     if (!(maxX >= minX)) return null;
     const x0 = minX - margin, z0 = minZ - margin;
     const cols = Math.max(1, Math.ceil((maxX - minX + 2 * margin) / cell)), rows = Math.max(1, Math.ceil((maxZ - minZ + 2 * margin) / cell));
-    const top = new Float32Array(cols * rows).fill(-Infinity), under = new Float32Array(cols * rows).fill(Infinity);
-    const raster = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, write: (k: number, y: number) => void) => {
-      const ia = (a.x - x0) / cell, ja = (a.z - z0) / cell, ib = (b.x - x0) / cell, jb = (b.z - z0) / cell, ic = (c.x - x0) / cell, jc = (c.z - z0) / cell;
-      if (Math.max(ia, ib, ic) < 0 || Math.max(ja, jb, jc) < 0 || Math.min(ia, ib, ic) >= cols || Math.min(ja, jb, jc) >= rows) return;
-      for (const [i, j, p] of [[ia, ja, a], [ib, jb, b], [ic, jc, c]] as const) {
-        const ci = Math.floor(i), cj = Math.floor(j);
-        if (ci >= 0 && cj >= 0 && ci < cols && cj < rows) write(cj * cols + ci, p.y);
+    const top = new Float32Array(cols * rows).fill(-Infinity);
+    // Where on the grid each of the parts' vertices is (i across x, j across z, in cells), worked out once for all
+    // the triangles that share it.
+    for (let s = 0; s < this.skins.length; s++) {
+      const skin = this.skins[s]!, world = skin.world, gi = skin.gridI ??= new Float64Array(skin.count), gj = skin.gridJ ??= new Float64Array(skin.count);
+      for (const members of [regionMembers[s]!, ontoMembers[s]!]) for (const v of members) { gi[v] = (world[v * 3]! - x0) / cell; gj[v] = (world[v * 3 + 2]! - z0) / cell; }
+    }
+    const regionSets = this.within(region), ontoSets = this.within(onto);
+    for (let s = 0; s < this.skins.length; s++) {
+      const skin = this.skins[s]!, tri = skin.tri, ids = skin.ownerIds, mask = regionMasks[s]!;
+      for (const t of ontoSets[s]!) {
+        if (mask[ids[tri[t]!]!] && mask[ids[tri[t + 1]!]!] && mask[ids[tri[t + 2]!]!]) continue;
+        draw(skin, tri[t]!, tri[t + 1]!, tri[t + 2]!, cols, rows, top, RAISE);
       }
-      const det = (ib - ia) * (jc - ja) - (ic - ia) * (jb - ja);
-      if (Math.abs(det) < 1e-12) return;
-      const i0 = Math.max(0, Math.ceil(Math.min(ia, ib, ic) - 0.5)), i1 = Math.min(cols - 1, Math.floor(Math.max(ia, ib, ic) - 0.5));
-      const j0 = Math.max(0, Math.ceil(Math.min(ja, jb, jc) - 0.5)), j1 = Math.min(rows - 1, Math.floor(Math.max(ja, jb, jc) - 0.5));
-      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-        const x = i + 0.5 - ia, y = j + 0.5 - ja;
-        const wb = (x * (jc - ja) - (ic - ia) * y) / det, wc = ((ib - ia) * y - x * (jb - ja)) / det, wa = 1 - wb - wc;
-        if (wa >= -1e-9 && wb >= -1e-9 && wc >= -1e-9) write(j * cols + i, wa * a.y + wb * b.y + wc * c.y);
+    }
+    return { top, cols, rows, x0, z0, regionSets };
+  }
+
+  /** The tops() grid, and `region`'s underside over it too (its lowest point in each column; Infinity where it has none). */
+  private columns(region: RegExp, onto: RegExp, cell: number, margin: number) {
+    const grid = this.tops(region, onto, cell, margin);
+    if (!grid) return null;
+    const { top, cols, rows, x0, z0, regionSets } = grid, under = new Float32Array(cols * rows).fill(Infinity);
+    // Only a column both have skin in is read (indent), so the underside is drawn only over `onto`'s columns (a
+    // triangle writes only the columns its corners span).
+    let i0 = cols, i1 = -1, j0 = rows, j1 = -1;
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) if (top[j * cols + i]! > -Infinity) { i0 = Math.min(i0, i); i1 = Math.max(i1, i); j0 = Math.min(j0, j); j1 = Math.max(j1, j); }
+    if (i1 >= 0) for (let s = 0; s < this.skins.length; s++) {
+      const skin = this.skins[s]!, tri = skin.tri, gi = skin.gridI!, gj = skin.gridJ!;
+      for (const t of regionSets[s]!) {
+        const a = tri[t]!, b = tri[t + 1]!, c = tri[t + 2]!;
+        if (Math.floor(Math.max(gi[a]!, gi[b]!, gi[c]!)) < i0 || Math.floor(Math.min(gi[a]!, gi[b]!, gi[c]!)) > i1
+          || Math.floor(Math.max(gj[a]!, gj[b]!, gj[c]!)) < j0 || Math.floor(Math.min(gj[a]!, gj[b]!, gj[c]!)) > j1) continue;
+        draw(skin, a, b, c, cols, rows, under, LOWER);
       }
-    };
-    for (const skin of this.skins) for (const [a, b, c] of skin.triangles) {
-      const inRegion = region.test(skin.owners[a]!) && region.test(skin.owners[b]!) && region.test(skin.owners[c]!);
-      const inOnto = !inRegion && onto.test(skin.owners[a]!) && onto.test(skin.owners[b]!) && onto.test(skin.owners[c]!);
-      if (inRegion) raster(skin.world[a]!, skin.world[b]!, skin.world[c]!, (k, y) => { if (y < under[k]!) under[k] = y; });
-      else if (inOnto) raster(skin.world[a]!, skin.world[b]!, skin.world[c]!, (k, y) => { if (y > top[k]!) top[k] = y; });
     }
     const cellOf = (x: number, z: number) => {
       const i = Math.floor((x - x0) / cell), j = Math.floor((z - z0) / cell);
@@ -492,39 +974,50 @@ export class SkinContact {
    */
   skinAlong(origin: THREE.Vector3, normal: THREE.Vector3, { own, radiusM = 0.2, below = 0.05, above = 0.05, cellM = 0.005 }: SkinAlongOptions = {}): SkinProfile {
     const n = normal.clone().normalize();
-    const a = new THREE.Vector3().crossVectors(Math.abs(n.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), n).normalize();
-    const b = new THREE.Vector3().crossVectors(n, a);
+    const u = new THREE.Vector3().crossVectors(Math.abs(n.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), n).normalize();
+    const v = new THREE.Vector3().crossVectors(n, u);
     const size = Math.ceil(2 * radiusM / cellM);
     // Each cell's crossings of the skin, as (height, facing, held) triples: facing 1 where the skin faces along the
     // normal, held 1 where it is the skin `own` names.
     const cells: (number[] | undefined)[] = new Array(size * size);
-    const owned = new Map<string, number>();
-    const held = (owner: string) => { let value = owned.get(owner); if (value === undefined) { value = !own || own.test(owner) ? 1 : 0; owned.set(owner, value); } return value; };
+    const held = own ? this.mask(own) : null;
     const d = new THREE.Vector3();
-    const local = (p: THREE.Vector3) => { d.subVectors(p, origin); return { i: (d.dot(a) + radiusM) / cellM, j: (d.dot(b) + radiusM) / cellM, h: d.dot(n) }; };
+    const local = (p: THREE.Vector3) => { d.subVectors(p, origin); return { i: (d.dot(u) + radiusM) / cellM, j: (d.dot(v) + radiusM) / cellM, h: d.dot(n) }; };
     const cross = (i: number, j: number, h: number, facing: number, mine: number) => {
       if (i < 0 || j < 0 || i >= size || j >= size) return;
       (cells[j * size + i] ??= []).push(h, facing, mine);
     };
-    const reach = Math.hypot(radiusM * Math.SQRT2, SKIN_ALONG_REACH_M), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
-    for (const skin of this.skins) for (const [ia, ib, ic] of skin.triangles) {
-      const pa = skin.world[ia]!, pb = skin.world[ib]!, pc = skin.world[ic]!;
-      if (pa.distanceToSquared(origin) > reach * reach && pb.distanceToSquared(origin) > reach * reach && pc.distanceToSquared(origin) > reach * reach) continue;
-      // The mesh winds its outside counter-clockwise.
-      const facing = e1.subVectors(pb, pa).cross(e2.subVectors(pc, pa)).dot(n);
-      if (Math.abs(facing) < 1e-12) continue;
-      const A = local(pa), B = local(pb), C = local(pc), side = facing > 0 ? 1 : 0, mine = held(skin.owners[ia] ?? '');
-      const det = (B.i - A.i) * (C.j - A.j) - (C.i - A.i) * (B.j - A.j);
-      const i0 = Math.max(0, Math.ceil(Math.min(A.i, B.i, C.i) - 0.5)), i1 = Math.min(size - 1, Math.floor(Math.max(A.i, B.i, C.i) - 0.5));
-      const j0 = Math.max(0, Math.ceil(Math.min(A.j, B.j, C.j) - 0.5)), j1 = Math.min(size - 1, Math.floor(Math.max(A.j, B.j, C.j) - 0.5));
-      let covered = false;
-      if (Math.abs(det) > 1e-12) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-        const x = i + 0.5 - A.i, y = j + 0.5 - A.j;
-        const wb = (x * (C.j - A.j) - (C.i - A.i) * y) / det, wc = ((B.i - A.i) * y - x * (B.j - A.j)) / det, wa = 1 - wb - wc;
-        if (wa >= -1e-9 && wb >= -1e-9 && wc >= -1e-9) { cross(i, j, wa * A.h + wb * B.h + wc * C.h, side, mine); covered = true; }
+    const reach = Math.hypot(radiusM * Math.SQRT2, SKIN_ALONG_REACH_M), within2 = reach * reach;
+    for (let s = 0; s < this.skins.length; s++) {
+      const skin = this.skins[s]!, world = skin.world, tri = skin.tri, ids = skin.ownerIds, mask = held?.[s];
+      for (let t = 0; t < tri.length; t += 3) {
+        const ia = tri[t]!, a = ia * 3, b = tri[t + 1]! * 3, c = tri[t + 2]! * 3;
+        // Each corner from the origin.
+        const ax = world[a]! - origin.x, ay = world[a + 1]! - origin.y, az = world[a + 2]! - origin.z;
+        const bx = world[b]! - origin.x, by = world[b + 1]! - origin.y, bz = world[b + 2]! - origin.z;
+        const cx = world[c]! - origin.x, cy = world[c + 1]! - origin.y, cz = world[c + 2]! - origin.z;
+        if (ax * ax + ay * ay + az * az > within2 && bx * bx + by * by + bz * bz > within2 && cx * cx + cy * cy + cz * cz > within2) continue;
+        // The mesh winds its outside counter-clockwise.
+        const e1x = world[b]! - world[a]!, e1y = world[b + 1]! - world[a + 1]!, e1z = world[b + 2]! - world[a + 2]!;
+        const e2x = world[c]! - world[a]!, e2y = world[c + 1]! - world[a + 1]!, e2z = world[c + 2]! - world[a + 2]!;
+        const facing = (e1y * e2z - e1z * e2y) * n.x + (e1z * e2x - e1x * e2z) * n.y + (e1x * e2y - e1y * e2x) * n.z;
+        if (Math.abs(facing) < 1e-12) continue;
+        const Ai = (ax * u.x + ay * u.y + az * u.z + radiusM) / cellM, Aj = (ax * v.x + ay * v.y + az * v.z + radiusM) / cellM, Ah = ax * n.x + ay * n.y + az * n.z;
+        const Bi = (bx * u.x + by * u.y + bz * u.z + radiusM) / cellM, Bj = (bx * v.x + by * v.y + bz * v.z + radiusM) / cellM, Bh = bx * n.x + by * n.y + bz * n.z;
+        const Ci = (cx * u.x + cy * u.y + cz * u.z + radiusM) / cellM, Cj = (cx * v.x + cy * v.y + cz * v.z + radiusM) / cellM, Ch = cx * n.x + cy * n.y + cz * n.z;
+        const side = facing > 0 ? 1 : 0, mine = mask ? mask[ids[ia]!]! : 1;
+        const det = (Bi - Ai) * (Cj - Aj) - (Ci - Ai) * (Bj - Aj);
+        const i0 = Math.max(0, Math.ceil(Math.min(Ai, Bi, Ci) - 0.5)), i1 = Math.min(size - 1, Math.floor(Math.max(Ai, Bi, Ci) - 0.5));
+        const j0 = Math.max(0, Math.ceil(Math.min(Aj, Bj, Cj) - 0.5)), j1 = Math.min(size - 1, Math.floor(Math.max(Aj, Bj, Cj) - 0.5));
+        let covered = false;
+        if (Math.abs(det) > 1e-12) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+          const x = i + 0.5 - Ai, y = j + 0.5 - Aj;
+          const wb = (x * (Cj - Aj) - (Ci - Ai) * y) / det, wc = ((Bi - Ai) * y - x * (Bj - Aj)) / det, wa = 1 - wb - wc;
+          if (wa >= -1e-9 && wb >= -1e-9 && wc >= -1e-9) { cross(i, j, wa * Ah + wb * Bh + wc * Ch, side, mine); covered = true; }
+        }
+        // A triangle smaller than a cell still crosses the one it is in.
+        if (!covered) cross(Math.floor((Ai + Bi + Ci) / 3), Math.floor((Aj + Bj + Cj) / 3), (Ah + Bh + Ch) / 3, side, mine);
       }
-      // A triangle smaller than a cell still crosses the one it is in.
-      if (!covered) cross(Math.floor((A.i + B.i + C.i) / 3), Math.floor((A.j + B.j + C.j) / 3), (A.h + B.h + C.h) / 3, side, mine);
     }
     const cellOf = (point: THREE.Vector3) => {
       const { i, j, h } = local(point);
@@ -575,11 +1068,29 @@ export class SkinContact {
    * `onto` is under `region`.
    */
   gap(region: RegExp, onto: RegExp, cellM = 0.005): number {
-    const grid = this.columns(region, onto, cellM, cellM);
+    const grid = this.tops(region, onto, cellM, cellM);
     if (!grid) return Infinity;
-    let gap = Infinity;
-    for (let k = 0; k < grid.top.length; k++) if (grid.top[k]! > -Infinity && grid.under[k]! < Infinity) gap = Math.min(gap, grid.under[k]! - grid.top[k]!);
-    return gap;
+    // The least, over the columns both have skin in, of `region`'s underside less `onto`'s top: each triangle of
+    // `region` against the top under it, as it would draw into its columns (columns()), and only where it could come
+    // nearer than the nearest so far.
+    const { top, cols, rows, regionSets } = grid;
+    const near = { gap: Infinity };
+    for (let s = 0; s < this.skins.length; s++) {
+      const skin = this.skins[s]!, tri = skin.tri, gi = skin.gridI!, gj = skin.gridJ!, world = skin.world;
+      for (const t of regionSets[s]!) {
+        const a = tri[t]!, b = tri[t + 1]!, c = tri[t + 2]!;
+        const i0 = Math.max(0, Math.floor(Math.min(gi[a]!, gi[b]!, gi[c]!))), i1 = Math.min(cols - 1, Math.floor(Math.max(gi[a]!, gi[b]!, gi[c]!)));
+        const j0 = Math.max(0, Math.floor(Math.min(gj[a]!, gj[b]!, gj[c]!))), j1 = Math.min(rows - 1, Math.floor(Math.max(gj[a]!, gj[b]!, gj[c]!)));
+        let highest = -Infinity;
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) highest = Math.max(highest, top[j * cols + i]!);
+        if (highest === -Infinity) continue;
+        // Its heights are no lower than its lowest corner, less the sliver of its edges draw() lets in.
+        const ay = world[a * 3 + 1]!, by = world[b * 3 + 1]!, cy = world[c * 3 + 1]!, low = Math.min(ay, by, cy);
+        if (Math.fround(low - 2e-9 * (Math.max(ay, by, cy) - low) - 1e-12) - highest >= near.gap) continue;
+        draw(skin, a, b, c, cols, rows, top, NEAREST, near);
+      }
+    }
+    return near.gap;
   }
 
   /**
@@ -606,12 +1117,15 @@ export class SkinContact {
       wide[j * cols + i] = deepest;
     }
     const dent = spreadDip(wide, new Uint8Array(top.length).fill(1), cols, rows, spreadM / cellM / 2);
-    const down = new THREE.Vector3();
-    for (const skin of this.skins) for (let i = 0; i < skin.world.length; i++) {
-      if (!onto.test(skin.owners[i]!) || region.test(skin.owners[i]!)) continue;
-      const p = skin.world[i]!, k = cellOf(p.x, p.z);
-      if (k < 0 || !(dent[k]! > 0) || p.y < top[k]! - 0.015) continue;
-      this.displace(skin, i, down.set(0, -dent[k]!, 0));
+    const down = new THREE.Vector3(), ontoMembers = this.named(onto), regionMasks = this.mask(region);
+    for (let s = 0; s < this.skins.length; s++) {
+      const skin = this.skins[s]!, ids = skin.ownerIds, regionMask = regionMasks[s]!;
+      for (const i of ontoMembers[s]!) {
+        if (regionMask[ids[i]!]) continue;
+        const world = skin.world, k = cellOf(world[i * 3]!, world[i * 3 + 2]!);
+        if (k < 0 || !(dent[k]! > 0) || world[i * 3 + 1]! < top[k]! - 0.015) continue;
+        this.displace(skin, i, down.set(0, -dent[k]!, 0));
+      }
     }
   }
 
@@ -623,21 +1137,31 @@ export class SkinContact {
     const delta = y - lowest - compression;
     moveWorld(this.root, new THREE.Vector3(0, delta, 0));
     this.inverses.clear();
-    for (const skin of this.skins) for (const p of skin.world) p.y += delta;
+    for (const skin of this.skins) for (let k = 1; k < skin.world.length; k += 3) skin.world[k]! += delta;
     // Flatten the compressed surface onto the support, with no residual overlap.
-    if (compression > 0) for (const skin of this.skins) {
-      const holes = openings.filter(p => p.length >= 3).map(polygon => ({ polygon, bb: bounds(polygon) }));
-      const moves = new Map<number, number>();
-      for (const triangle of skin.triangles) {
-        if (supportBones && !triangle.every(i => supportBones.test(skin.owners[i]!))) continue;
-        const points = triangle.map(i => ({ x: skin.world[i]!.x, y: skin.world[i]!.z, z: skin.world[i]!.y }));
-        if (points.every(p => p.z < floor)) continue;
-        const overlap = supportedParts(points, polygon, holes).flat();
-        if (!overlap.length) continue;
-        const depth = Math.min(compression, Math.max(0, y - Math.min(...overlap.map(p => p.z))));
-        if (depth > 0) for (const i of triangle) moves.set(i, Math.max(moves.get(i) ?? 0, depth));
+    if (compression > 0) {
+      const sets = supportBones ? this.within(supportBones) : null;
+      const shape = polygon ? outline(polygon) : null, holes = openings.filter(p => p.length >= 3).map(outline);
+      for (let s = 0; s < this.skins.length; s++) {
+        const skin = this.skins[s]!, world = skin.world, tri = skin.tri, set = sets?.[s], count = set ? set.length : tri.length / 3;
+        const moves = new Map<number, number>();
+        for (let n = 0; n < count; n++) {
+          const t = set ? set[n]! : n * 3, ia = tri[t]!, ib = tri[t + 1]!, ic = tri[t + 2]!;
+          const ay = world[ia * 3 + 1]!, by = world[ib * 3 + 1]!, cy = world[ic * 3 + 1]!;
+          if (ay < floor && by < floor && cy < floor) continue;
+          const ax = world[ia * 3]!, az = world[ia * 3 + 2]!, bx = world[ib * 3]!, bz = world[ib * 3 + 2]!, cx = world[ic * 3]!, cz = world[ic * 3 + 2]!;
+          const over = kept(shape, ax, az, bx, bz, cx, cz);
+          if (over === NONE) continue;
+          const opening = over === WHOLE ? openingsOf(holes, ax, az, bx, bz, cx, cz) : CUT;
+          if (opening === INSIDE) continue;
+          const low = opening === CLEAR ? Math.min(ay, by, cy) : lowestSupported(ax, az, ay, bx, bz, by, cx, cz, cy, shape, holes);
+          // Cut, and none of it over the support.
+          if (low === Infinity) continue;
+          const depth = Math.min(compression, Math.max(0, y - low));
+          if (depth > 0) for (const i of [ia, ib, ic]) moves.set(i, Math.max(moves.get(i) ?? 0, depth));
+        }
+        for (const [i, depth] of moves) this.displace(skin, i, new THREE.Vector3(0, depth, 0));
       }
-      for (const [i, depth] of moves) this.displace(skin, i, new THREE.Vector3(0, depth, 0));
     }
     return delta;
   }
@@ -649,8 +1173,16 @@ export class SkinContact {
     const x = new THREE.Vector3().crossVectors(Math.abs(normal.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), normal).normalize();
     const y = new THREE.Vector3().crossVectors(normal, x);
     const project = (p: THREE.Vector3): Point => ({ x: p.dot(x), y: p.dot(y), z: p.dot(normal) });
-    const projected = this.skins.map(skin => ({ skin, points: skin.world.map(project) }));
-    const constraints: { skin: Skin; triangle: Triangle; required: number }[] = [];
+    // The posed skin along the three axes, projected once for all the prop's meshes.
+    for (const skin of this.skins) {
+      const world = skin.world, points = skin.projected ??= new Float64Array(world.length);
+      for (let k = 0; k < world.length; k += 3) {
+        const px = world[k]!, py = world[k + 1]!, pz = world[k + 2]!;
+        points[k] = px * x.x + py * x.y + pz * x.z; points[k + 1] = px * y.x + py * y.y + pz * y.z; points[k + 2] = px * normal.x + py * normal.y + pz * normal.z;
+      }
+    }
+    // Each triangle (an offset into its skin's `tri`) the prop must clear, and by how much.
+    const constraints: { skin: Skin; t: number; required: number }[] = [];
     let shift = 0;
     object.updateWorldMatrix(true, true);
     object.traverseVisible(child => {
@@ -664,20 +1196,27 @@ export class SkinContact {
       for (const a of [box.min.x, box.max.x]) for (const b of [box.min.y, box.max.y]) for (const c of [box.min.z, box.max.z]) corners.push(project(new THREE.Vector3(a, b, c).applyMatrix4(mesh.matrixWorld)));
       const polygon = hull(corners), bb = bounds(corners);
       if (polygon.length < 3) return;
-      const near = Math.min(...corners.map(p => p.z));
-      for (const { skin, points } of projected) for (const triangle of skin.triangles) {
-        const a = points[triangle[0]]!, b = points[triangle[1]]!, c = points[triangle[2]]!;
-        if (Math.max(a.x, b.x, c.x) < bb.minX || Math.min(a.x, b.x, c.x) > bb.maxX || Math.max(a.y, b.y, c.y) < bb.minY || Math.min(a.y, b.y, c.y) > bb.maxY || Math.max(a.z, b.z, c.z) + SKIN_CONTACT_CLEARANCE_M < near) continue;
-        const overlap = clip([a, b, c], polygon);
-        if (!overlap.length) continue;
-        const required = Math.max(...overlap.map(p => p.z)) + SKIN_CONTACT_CLEARANCE_M - near;
-        if (required <= 0) continue;
-        shift = Math.max(shift, required);
-        constraints.push({ skin, triangle, required });
+      const shape = outline(polygon), near = Math.min(...corners.map(p => p.z));
+      for (const skin of this.skins) {
+        const points = skin.projected!, tri = skin.tri;
+        for (let t = 0; t < tri.length; t += 3) {
+          const ia = tri[t]! * 3, ib = tri[t + 1]! * 3, ic = tri[t + 2]! * 3;
+          const ax = points[ia]!, ay = points[ia + 1]!, az = points[ia + 2]!, bx = points[ib]!, by = points[ib + 1]!, bz = points[ib + 2]!, cx = points[ic]!, cy = points[ic + 1]!, cz = points[ic + 2]!;
+          if (Math.max(ax, bx, cx) < bb.minX || Math.min(ax, bx, cx) > bb.maxX || Math.max(ay, by, cy) < bb.minY || Math.min(ay, by, cy) > bb.maxY || Math.max(az, bz, cz) + SKIN_CONTACT_CLEARANCE_M < near) continue;
+          if (kept(shape, ax, ay, bx, by, cx, cy) === NONE) continue;
+          const overlap = clipTriangle(ax, ay, az, bx, by, bz, cx, cy, cz, shape);
+          if (!overlap) continue;
+          let highest = -Infinity;
+          for (let k = 2; k < overlap * 3; k += 3) highest = Math.max(highest, clipped[k]!);
+          const required = highest + SKIN_CONTACT_CLEARANCE_M - near;
+          if (required <= 0) continue;
+          shift = Math.max(shift, required);
+          constraints.push({ skin, t, required });
+        }
       }
     });
     // Previously compressed tissue cannot be moved again by a competing prop.
-    const fresh = constraints.every(c => c.triangle.every(i => !this.displaced.has(c.skin.world[i]!)));
+    const fresh = constraints.every(({ skin, t }) => !skin.pressed[skin.tri[t]!] && !skin.pressed[skin.tri[t + 1]!] && !skin.pressed[skin.tri[t + 2]!]);
     const compression = fresh ? Math.min(shift, THREE.MathUtils.clamp(compressionM, 0, MAX_SKIN_COMPRESSION_M)) : 0;
     shift -= compression;
     if (shift > 0) moveWorld(object, normal.clone().multiplyScalar(shift));
@@ -687,7 +1226,7 @@ export class SkinContact {
       if (!depth) continue;
       let vertices = moves.get(c.skin);
       if (!vertices) { vertices = new Map(); moves.set(c.skin, vertices); }
-      for (const i of c.triangle) vertices.set(i, Math.max(vertices.get(i) ?? 0, depth));
+      for (let k = c.t; k < c.t + 3; k++) { const i = c.skin.tri[k]!; vertices.set(i, Math.max(vertices.get(i) ?? 0, depth)); }
     }
     for (const [skin, vertices] of moves) for (const [i, depth] of vertices) this.displace(skin, i, normal.clone().multiplyScalar(-depth));
     return shift;
@@ -698,7 +1237,8 @@ export class SkinContact {
     if (!skin.geometry) skin.geometry = skin.original.clone();
     if (!skin.changed) {
       const target = skin.geometry.getAttribute('position'), source = skin.original.getAttribute('position');
-      for (let i = 0; i < source.count; i++) target.setXYZ(i, source.getX(i), source.getY(i), source.getZ(i));
+      if (plain(target) && plain(source) && target.array.length === source.array.length) (target.array as Float32Array).set(source.array as Float32Array);
+      else for (let i = 0; i < source.count; i++) target.setXYZ(i, source.getX(i), source.getY(i), source.getZ(i));
       skin.mesh.geometry = skin.geometry;
       skin.changed = true;
     }
@@ -718,10 +1258,11 @@ export class SkinContact {
       for (let k = 0; k < 16; k++) matrix.elements[k]! += bone.elements[k]! * weight;
     }
     matrix.premultiply(mesh.bindMatrixInverse).multiply(mesh.bindMatrix).premultiply(mesh.matrixWorld).invert();
-    const point = skin.world[index]!.add(delta);
-    if (pressure) this.displaced.add(point);
+    const world = skin.world, o = index * 3;
+    world[o]! += delta.x; world[o + 1]! += delta.y; world[o + 2]! += delta.z;
+    if (pressure) { skin.pressed[index] = 1; skin.anyPressed = true; }
     skin.moved.add(index);
-    const local = point.clone().applyMatrix4(matrix);
+    const local = _local.set(world[o]!, world[o + 1]!, world[o + 2]!).applyMatrix4(matrix);
     skin.geometry.getAttribute('position').setXYZ(index, local.x, local.y, local.z);
   }
 
@@ -732,10 +1273,18 @@ export class SkinContact {
    */
   finish(): void {
     for (const skin of this.skins) if (skin.changed) {
-      const geometry = skin.geometry!;
-      geometry.getAttribute('position').needsUpdate = true;
-      geometry.computeVertexNormals();
+      const geometry = skin.geometry!, position = geometry.getAttribute('position');
+      position.needsUpdate = true;
       const normal = geometry.getAttribute('normal'), original = skin.original.getAttribute('normal');
+      // The model's own normals everywhere, and new ones round what moved: computed there alone, not over the whole mesh.
+      if (geometry.getIndex() && original && normal && plain(position) && plain(normal) && plain(original) && normal.array.length === original.array.length) {
+        (normal.array as Float32Array).set(original.array as Float32Array);
+        localNormals(skin, position.array, normal.array);
+        normal.needsUpdate = true;
+        geometry.computeBoundingSphere();
+        continue;
+      }
+      geometry.computeVertexNormals();
       if (original && normal && original.count === normal.count) {
         const near = new Uint8Array(normal.count);
         for (const triangle of skin.triangles) if (skin.moved.has(triangle[0]) || skin.moved.has(triangle[1]) || skin.moved.has(triangle[2])) for (const i of triangle) near[i] = 1;
@@ -748,9 +1297,13 @@ export class SkinContact {
 
   /** Restore after rendering so loads, recordings, reloads and undo use the original mesh. */
   restore(): void {
-    for (const skin of this.skins) { if (skin.changed) skin.mesh.geometry = skin.original; skin.changed = false; skin.moved.clear(); }
+    for (const skin of this.skins) {
+      if (skin.changed) skin.mesh.geometry = skin.original;
+      skin.changed = false;
+      skin.moved.clear();
+      if (skin.anyPressed) { skin.pressed.fill(0); skin.anyPressed = false; }
+    }
     this.inverses.clear();
-    this.displaced.clear();
   }
 
   dispose(): void {
