@@ -358,6 +358,37 @@ describe('validity gate — injected counterfactuals are caught', () => {
     expect(report.overall).toBe('fail');
   });
 
+  it('a hip rotation is held to the band for where its keyframe points the thigh (the figure-4 passes; stripped of its thigh, it fails)', () => {
+    const figure4: ComposedMotion = {
+      name: 'figure-4',
+      startFrom: 'current',
+      stance: 'floating',
+      keyframes: [
+        {
+          durationMs: 1500,
+          targets: [
+            { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 11.9 },
+            { joint: 'R_UpLeg', motion: 'hipAbduction', targetDegrees: 39.7 },
+            { joint: 'R_UpLeg', motion: 'hipRotation', targetDegrees: -102.7 },
+            { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 125 },
+          ],
+        },
+      ],
+    };
+    const resolved = resolveComposedMotion(figure4);
+    expect(resolved.status).toBe('ok');
+    expect(checkById(assessValidity(resolved).checks, 'rom-violation')!.pass).toBe(true);
+    // The same rotation on a thigh hanging straight is 57.7° past the norm: a real bug if resolution let it through.
+    const stripped: ResolvedComposedMotion = {
+      ...resolved,
+      keyframes: resolved.keyframes.map((kf) => ({ ...kf, targets: kf.targets.filter((t) => t.motion !== 'hipFlexion' && t.motion !== 'hipAbduction') })),
+    };
+    const rom = checkById(assessValidity(stripped).checks, 'rom-violation')!;
+    expect(rom.pass).toBe(false);
+    expect(rom.measured).toBeCloseTo(57.7, 1);
+    expect(rom.note).toContain('R_UpLeg.hipRotation');
+  });
+
   it('a HAND DRIVEN INTO THE THIGH → self-intersection FAIL', () => {
     // The class of defect no other check in this gate can see. Every one of them
     // measures angles, timing or the floor, so a pose can be inside every ROM

@@ -18,8 +18,10 @@
  */
 import {
   getRomFieldDefinition,
+  thighRotationRange,
   type RomFieldDefinition,
   type RomRangeDeg,
+  type ThighSwing,
 } from './romRegistry';
 
 /** Classic clinical end-feel vocabulary, plus free text via `note`. */
@@ -103,16 +105,21 @@ function clampFinite(value: number | undefined, fallback: number, bounds: RomRan
 /**
  * The range the clamp should enforce for a joint field RIGHT NOW: the
  * registry's normative range intersected with any active scenario constraint.
- * Unknown fields return null (callers keep their own fallback).
+ * A hip rotation's band, the patient's limit on it included, follows where the
+ * thigh points, when `thigh` says (thighRotationRange). Unknown fields return
+ * null (callers keep their own fallback).
  */
 export function getEffectiveRomRange(
   constraints: RomScenarioConstraints | null | undefined,
   canonicalKey: string | null | undefined,
   fieldKey: string | null | undefined,
+  thigh?: ThighSwing,
 ): RomRangeDeg | null {
   const def = getRomFieldDefinition(canonicalKey, fieldKey);
   if (!def) return null;
-  return resolveAvailableRange(def.range, getRomFieldConstraint(constraints, canonicalKey, fieldKey));
+  const available = resolveAvailableRange(def.range, getRomFieldConstraint(constraints, canonicalKey, fieldKey));
+  // The patient's limit is measured with the thigh in one plane, so it moves with the band.
+  return def.seatedFrame && thigh ? thighRotationRange(available, thigh) : available;
 }
 
 /** Tolerance (deg) for the painful-arc test. Pain-limited ROM is usually

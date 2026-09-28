@@ -29,7 +29,7 @@ import {
   isFingerJointKey,
   type JointAngleRestReference,
 } from './jointAngles';
-import { getRomFieldDefinition, type RomRangeDeg } from './romRegistry';
+import { getRomFieldDefinition, type RomRangeDeg, type ThighSwing } from './romRegistry';
 import {
   getEffectiveRomRange,
   normalizeRomConstraints,
@@ -608,10 +608,15 @@ function clampBallJoint(
 
   const flexRange = lookupRange(canonicalKey, strategy.flexionField);
   const abdRange = lookupRange(canonicalKey, strategy.abductionField);
-  const rotRange = lookupRange(canonicalKey, strategy.rotationField);
 
   const clampedAnatomicFlex = clampValue(anatomicFlex, flexRange);
   const clampedAbd = clampValue(angles.abduction, abdRange);
+  // A hip's rotation band follows where the (clamped) thigh points, as it does
+  // for a commanded hip (effectiveRomRange).
+  const rotRange = lookupRange(canonicalKey, strategy.rotationField, {
+    flexionDeg: clampedAnatomicFlex,
+    abductionDeg: clampedAbd,
+  });
   const clampedRot = clampValue(angles.rotation, rotRange);
 
   if (
@@ -795,12 +800,13 @@ function recomposeBallJoint(
 
 const ZERO_RANGE: RomRangeDeg = { min: 0, max: 0 };
 
-function lookupRange(canonicalKey: string, fieldKey: string): RomRangeDeg {
+function lookupRange(canonicalKey: string, fieldKey: string, thigh?: ThighSwing): RomRangeDeg {
   // Effective = normative ∩ the clamp's scenario constraint (romConstraints.ts),
   // so a case-authored restriction ("this elbow stops at 95°") clamps here
   // exactly like a normative limit does. `_clampConstraints` is the set passed
   // into this clamp call (null when the caller has no per-patient overrides).
-  const effective = getEffectiveRomRange(_clampConstraints, canonicalKey, fieldKey);
+  // `thigh` places a hip rotation's band (effectiveRomRange).
+  const effective = getEffectiveRomRange(_clampConstraints, canonicalKey, fieldKey, thigh);
   if (effective) return effective;
   const def = getRomFieldDefinition(canonicalKey, fieldKey);
   return def ? def.range : ZERO_RANGE;
@@ -908,7 +914,8 @@ export function inspectClinicalAngles(
 
   // Inspection is read-only and must use the same patient bounds as the solve.
   // Keep this local instead of changing the clamp's temporary constraint state.
-  const rangeFor = (field: string) => getEffectiveRomRange(constraints, canonicalKey, field) ?? ZERO_RANGE;
+  const rangeFor = (field: string, thigh?: ThighSwing) =>
+    getEffectiveRomRange(constraints, canonicalKey, field, thigh) ?? ZERO_RANGE;
 
   let raw: { flexion: number; abduction: number; rotation: number };
   let anatomicFlexion: number;
@@ -954,7 +961,11 @@ export function inspectClinicalAngles(
     anatomicFlexion = a.flexion * (strategy.flexionSign ?? 1);
     flexRange = rangeFor(strategy.flexionField);
     abdRange = rangeFor(strategy.abductionField);
-    rotRange = rangeFor(strategy.rotationField);
+    // The band the clamp would use: for a hip, where the clamped thigh points.
+    rotRange = rangeFor(strategy.rotationField, {
+      flexionDeg: Math.max(flexRange.min, Math.min(flexRange.max, anatomicFlexion)),
+      abductionDeg: Math.max(abdRange.min, Math.min(abdRange.max, a.abduction)),
+    });
   } else {
     // hinge — PARENT-LOCAL, mirroring `clampHinge`. This is the console's
     // window onto the clamp (`__romDebug`), so reading it in a different frame

@@ -31,6 +31,7 @@ import type { DerivedGaitStanceSchedule } from './gaitEnrichment';
 import { buildKeyframeTimeMap } from './keyframeTimeMap';
 import { resolveCommandTarget } from './movementCommand';
 import type { RomScenarioConstraints } from './romConstraints';
+import type { ThighSwing } from './romRegistry';
 import {
   MAX_KEYFRAMES,
   MAX_KEYFRAME_MS,
@@ -46,6 +47,7 @@ import {
   type ResolveComposedOptions,
   type ResolvedComposedMotion,
   type ResolvedSequenceKeyframe,
+  type SequenceTarget,
   type SequenceTargetOutcome,
   type StanceMode,
 } from './motionSequence';
@@ -171,6 +173,35 @@ export interface KeyframePlan {
 }
 
 /**
+ * The flexion and abduction a keyframe gives each hip, clamped as its own
+ * targets are: the pose builder composes the hip from exactly these (the last
+ * of each that survives; one the keyframe does not mention is 0), so a hip
+ * rotation in the same keyframe is clamped for where they point the thigh.
+ */
+function keyframeThighs(
+  targets: readonly (SequenceTarget | null | undefined)[],
+  weightBearing: boolean,
+  constraints: RomScenarioConstraints | null | undefined,
+): Map<string, ThighSwing> {
+  const thighs = new Map<string, ThighSwing>();
+  for (const t of targets) {
+    if (!t || typeof t.joint !== 'string' || (t.motion !== 'hipFlexion' && t.motion !== 'hipAbduction')) continue;
+    const r = resolveCommandTarget(
+      { action: 'set-joint', joint: t.joint, motion: t.motion, targetDegrees: t.targetDegrees },
+      undefined,
+      { weightBearing, constraints },
+    );
+    if (r.status === 'refused' || r.clampedDegrees == null) continue;
+    const thigh = thighs.get(t.joint) ?? { flexionDeg: 0, abductionDeg: 0 };
+    thighs.set(
+      t.joint,
+      t.motion === 'hipFlexion' ? { ...thigh, flexionDeg: r.clampedDegrees } : { ...thigh, abductionDeg: r.clampedDegrees },
+    );
+  }
+  return thighs;
+}
+
+/**
  * Resolve every keyframe: validate its shape, clamp each target through
  * {@link resolveCommandTarget} (the SAME truth path as single commands —
  * normative ROM ∩ scenario constraints, the refusal rule, the painful arc), and
@@ -251,6 +282,11 @@ export function resolveKeyframePlan(motion: ComposedMotion, ctx: KeyframePlanCon
 
     const targets: ResolvedSequenceKeyframe['targets'] = [];
     let maxDeltaDeg = 0;
+    // Planted (closed-chain) = weight-bearing: ankle DF may reach its WB max.
+    // Falls back to the motion-level stance when a keyframe doesn't set its own
+    // (templates carry stance at the top level, not per phase).
+    const weightBearing = (kf.stance ?? motion.stance) === 'planted';
+    const thighs = keyframeThighs(keptTargets, weightBearing, ctx.constraints);
     for (const t of keptTargets) {
       if (!t || typeof t.joint !== 'string' || typeof t.motion !== 'string') {
         return fail(`keyframe ${ki}: malformed target`);
@@ -258,15 +294,11 @@ export function resolveKeyframePlan(motion: ComposedMotion, ctx: KeyframePlanCon
       const r = resolveCommandTarget(
         { action: 'set-joint', joint: t.joint, motion: t.motion, targetDegrees: t.targetDegrees },
         ctx.variantCfg,
-        // Planted (closed-chain) = weight-bearing: ankle DF may reach its WB max.
-        // Falls back to the motion-level stance when a keyframe doesn't set its own
-        // (templates carry stance at the top level, not per phase). Scenario
-        // constraints (per-patient ROM overrides) are threaded so composed motion
-        // clamps to normative ∩ scenario, the same truth path as single commands.
-        {
-          weightBearing: (kf.stance ?? motion.stance) === 'planted',
-          constraints: ctx.constraints,
-        },
+        // Scenario constraints (per-patient ROM overrides) are threaded so
+        // composed motion clamps to normative ∩ scenario, the same truth path as
+        // single commands. A hip rotation is clamped for where this keyframe
+        // points the thigh.
+        { weightBearing, constraints: ctx.constraints, thigh: thighs.get(t.joint) },
       );
       const outcome: SequenceTargetOutcome = {
         keyframe: ki,

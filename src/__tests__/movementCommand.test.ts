@@ -1273,3 +1273,94 @@ describe('finger phalanges are mapped WITHOUT joining any clinical machinery', (
     ]);
   });
 });
+
+// ── The hip's rotation band follows the thigh (the figure-4) ─────────────────
+
+describe('the hip rotation band follows the thigh, on the real male rig', () => {
+  /** How far (deg) the shin hangs from plumb with the hip at flexion/abduction/rotation and the knee bent 90°. */
+  function shinFromPlumb(side: 'L' | 'R', flexion: number, abduction: number, rotation: number): number {
+    resetToAnatomic();
+    const hip = buildComposedCommandPose(
+      baselinePose,
+      `${side}_UpLeg`,
+      [
+        { motion: 'hipFlexion', degrees: flexion },
+        { motion: 'hipAbduction', degrees: abduction },
+        { motion: 'hipRotation', degrees: rotation },
+      ],
+      variantCfg,
+      null,
+      rest,
+    )!;
+    const pose = buildComposedCommandPose(baselinePose, `${side}_Leg`, [{ motion: 'kneeFlexion', degrees: 90 }], variantCfg, hip, rest)!;
+    applyAndMeasure(pose);
+    const knee = boneLookup.get(`${side}_Leg`)!.getWorldPosition(new THREE.Vector3());
+    const ankle = boneLookup.get(`${side}_Foot`)!.getWorldPosition(new THREE.Vector3());
+    return THREE.MathUtils.radToDeg(ankle.sub(knee).angleTo(new THREE.Vector3(0, -1, 0)));
+  }
+
+  it('books a flexed thigh carried out to the side as rotation: opened 45°, the shin hangs plumb only turned 45° out', () => {
+    for (const side of ['L', 'R'] as const) {
+      // Straight ahead (the seated position hip rotation is measured in), zero hangs the shin plumb.
+      expect(shinFromPlumb(side, 90, 0, 0), side).toBeLessThan(3);
+      // Opened out 45°: zero swings the shin 45° out, and it hangs plumb turned 45° out.
+      expect(shinFromPlumb(side, 90, 45, 0), side).toBeGreaterThan(43);
+      expect(shinFromPlumb(side, 90, 45, -45), side).toBeLessThan(3);
+      // Carried 20° across the body, it hangs plumb turned 20° in.
+      expect(shinFromPlumb(side, 90, -20, 20), side).toBeLessThan(3);
+    }
+  });
+
+  it('clamps a hip rotation for where the thigh points, a patient limit included', () => {
+    // The figure-4 with the knee 11 cm above the table (rig-solved; romRegistry.test.ts).
+    const thigh = { flexionDeg: 11.9, abductionDeg: 39.7 };
+    const figure4 = setJoint('R_UpLeg', 'hipRotation', -102.7);
+    expect(resolveCommandTarget(figure4, variantCfg, { thigh })).toMatchObject({ status: 'complied', clampedDegrees: -102.7 });
+    // Hanging straight, the same rotation is past the 45° norm.
+    expect(resolveCommandTarget(figure4, variantCfg)).toMatchObject({ status: 'modified', clampedDegrees: -45, limitedBy: 'normative-rom' });
+    // A hip that turns out only 25° (a patient limit) reaches 25° past where the thigh is opened.
+    const constraints = { R_UpLeg: { hipRotation: { availableRange: { min: -25, max: 45 } } } };
+    const limited = resolveCommandTarget(figure4, variantCfg, { thigh, constraints });
+    expect(limited.status).toBe('modified');
+    expect(limited.limitedBy).toBe('scenario-constraint');
+    expect(limited.clampedDegrees).toBeLessThan(-90);
+    expect(limited.clampedDegrees).toBeGreaterThan(-102.7);
+    // The thigh only moves a rotation's band.
+    const knee = resolveCommandTarget(setJoint('R_Leg', 'kneeFlexion', 150), variantCfg, { thigh });
+    expect(knee).toMatchObject({ status: 'modified', clampedDegrees: 140 });
+  });
+
+  it('resolves a keyframe’s rotation against the flexion and abduction that keyframe gives the same hip', () => {
+    const resolved = resolveComposedMotion({
+      name: 'figure-4',
+      startFrom: 'current',
+      stance: 'floating',
+      keyframes: [
+        {
+          durationMs: 1500,
+          // The rotation first: the hip's flexion and abduction are resolved before it whatever the order.
+          targets: [
+            { joint: 'R_UpLeg', motion: 'hipRotation', targetDegrees: -102.7 },
+            { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 11.9 },
+            { joint: 'R_UpLeg', motion: 'hipAbduction', targetDegrees: 39.7 },
+            { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 125 },
+            // The other hip, hanging straight, keeps the plain band.
+            { joint: 'L_UpLeg', motion: 'hipRotation', targetDegrees: -60 },
+          ],
+        },
+        // A keyframe that gives the hip no flexion or abduction composes it hanging straight.
+        { durationMs: 1500, targets: [{ joint: 'R_UpLeg', motion: 'hipRotation', targetDegrees: -102.7 }] },
+      ],
+    });
+    expect(resolved.status).toBe('ok');
+    expect(
+      resolved.outcomes
+        .filter((o) => o.motion === 'hipRotation')
+        .map((o) => [o.keyframe, o.joint, o.status, o.clampedDegrees]),
+    ).toEqual([
+      [0, 'R_UpLeg', 'complied', -102.7],
+      [0, 'L_UpLeg', 'modified', -45],
+      [1, 'R_UpLeg', 'modified', -45],
+    ]);
+  });
+});
