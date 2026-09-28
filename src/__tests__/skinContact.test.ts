@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { applyAnatomicPose } from '../services/anatomicPose';
+import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import { SkinContact, MAX_SKIN_COMPRESSION_M, SKIN_CONTACT_CLEARANCE_M, type Cushion } from '../services/skinContact';
 
 function fixture(boneName = '') {
@@ -344,5 +350,211 @@ describe('posed skin contact', () => {
       expect(skin.rise(at(0.02, -0.03))).toBe(0);
       contact.dispose();
     });
+  });
+});
+
+/**
+ * The contact is asked about the posed skin many times a frame (a limb laid on a plinth one bone at a time asks after
+ * every turn), so it poses the skin with each bone's matrices multiplied once, and poses again only what a turned bone
+ * carries. On the real bodies, what it poses is what three.js poses.
+ */
+describe('the posed skin, on the real bodies', () => {
+  const bodies = new Map<string, THREE.Group>();
+  beforeAll(async () => {
+    for (const variant of ['male', 'female'] as const) {
+      const buf = readFileSync(fileURLToPath(new URL(`../../models/painmap3D_${variant}.runtime.glb`, import.meta.url)));
+      const gltf = await new Promise<{ scene: THREE.Group }>((resolve, reject) => {
+        const loader = new GLTFLoader();
+        loader.setMeshoptDecoder(MeshoptDecoder);
+        loader.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), '', resolve as never, reject);
+      });
+      gltf.scene.scale.setScalar(BODY_VARIANTS[variant].pose.rootScale);
+      applyAnatomicPose(gltf.scene, BODY_VARIANTS[variant]);
+      bodies.set(variant, gltf.scene);
+    }
+  }, 60_000);
+  const meshes = (root: THREE.Object3D) => { const out: THREE.SkinnedMesh[] = []; root.traverse(o => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) out.push(o as THREE.SkinnedMesh); }); return out; };
+  const bone = (root: THREE.Object3D, pattern: RegExp) => { let found: THREE.Bone | undefined; root.traverse(o => { if (!found && (o as THREE.Bone).isBone && pattern.test(o.name)) found = o as THREE.Bone; }); return found!; };
+  /** The skin as the contact holds it, vertex by vertex. */
+  const world = (contact: SkinContact) => (contact as unknown as { skins: { world: Float64Array }[] }).skins
+    .map(skin => Array.from({ length: skin.world.length / 3 }, (_, i) => new THREE.Vector3().fromArray(skin.world, i * 3)));
+
+  it.each(['male', 'female'])('%s: poses the skin where SkinnedMesh.getVertexPosition puts it, turned, lying and moved', variant => {
+    const root = bodies.get(variant)!;
+    bone(root, /L_Thigh$/u).rotateX(-0.7); bone(root, /R_Forearm$/u).rotateZ(0.5); bone(root, /Spine02$/u).rotateY(0.2);
+    root.rotation.set(-Math.PI / 2, 0.3, 0); root.position.set(0.2, 0.6, -0.1); root.updateMatrixWorld(true);
+    const contact = new SkinContact(root);
+    contact.update();
+    let furthest = 0;
+    meshes(root).forEach((mesh, s) => {
+      const posed = world(contact)[s]!;
+      for (let i = 0; i < posed.length; i++) furthest = Math.max(furthest, posed[i]!.distanceTo(mesh.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld)));
+    });
+    expect(furthest).toBeLessThan(1e-9);
+    contact.dispose();
+  });
+
+  it('after one bone turns, poses again only the skin it carries, as a whole update would pose it', () => {
+    const root = bodies.get('male')!;
+    root.rotation.set(0, 0, 0); root.position.set(0, 0, 0); root.updateMatrixWorld(true);
+    const contact = new SkinContact(root);
+    contact.update();
+    const before = world(contact);
+    const knee = bone(root, /L_Calf$/u);
+    knee.rotateX(0.6);
+    contact.update(knee);
+    const partial = world(contact);
+    contact.update();
+    const whole = world(contact);
+    let furthest = 0, moved = 0, total = 0;
+    partial.forEach((skin, s) => skin.forEach((p, i) => {
+      furthest = Math.max(furthest, p.distanceTo(whole[s]![i]!));
+      total++;
+      if (p.distanceTo(before[s]![i]!) > 1e-6) moved++;
+    }));
+    expect(furthest).toBeLessThan(1e-12);
+    // The shin and foot moved, and nothing else.
+    expect(moved).toBeGreaterThan(200);
+    expect(moved).toBeLessThan(total / 5);
+    // Laid on a support in between (the whole body moved 5 cm, its skin moved with it, not posed again), then the knee
+    // turns back: the skin it carries, the thigh's included where they share it, is posed with every bone where it now
+    // is. (To the nanometre: skin moved with the body moves exactly as far, where three.js moves it that far times its
+    // weights' sum, which is 1 only to float32 rounding.)
+    contact.support(contact.lowest() + 0.05, undefined, true);
+    knee.rotateX(-0.9);
+    contact.update(knee);
+    const turned = world(contact);
+    contact.update();
+    furthest = 0;
+    world(contact).forEach((skin, s) => skin.forEach((p, i) => { furthest = Math.max(furthest, p.distanceTo(turned[s]![i]!)); }));
+    expect(furthest).toBeLessThan(1e-8);
+    contact.dispose();
+  });
+
+  it('gives the skin round what it pressed the normals computeVertexNormals would, and leaves the rest the model’s own', () => {
+    const root = bodies.get('female')!;
+    root.rotation.set(0, 0, 0); root.position.set(0, 0, 0); root.updateMatrixWorld(true);
+    const contact = new SkinContact(root);
+    contact.update();
+    // A slab under the feet: the soles are flattened onto it.
+    contact.support(contact.lowest() + 0.004, [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: 1, y: 1 }, { x: -1, y: 1 }], true, 0.004);
+    contact.finish();
+    let checked = 0;
+    for (const mesh of meshes(root)) {
+      const drawn = mesh.geometry.getAttribute('normal'), original = (contact as unknown as { skins: { mesh: THREE.SkinnedMesh; original: THREE.BufferGeometry; moved: Set<number>; triangles: [number, number, number][] }[] }).skins.find(skin => skin.mesh === mesh)!;
+      const expected = mesh.geometry.clone();
+      expected.computeVertexNormals();
+      const near = new Uint8Array(drawn.count);
+      for (const t of original.triangles) if (t.some(i => original.moved.has(i))) for (const i of t) near[i] = 1;
+      const own = original.original.getAttribute('normal'), fresh = expected.getAttribute('normal');
+      for (let i = 0; i < drawn.count; i++) {
+        const want = near[i] ? fresh : own;
+        expect([drawn.getX(i), drawn.getY(i), drawn.getZ(i)]).toEqual([want.getX(i), want.getY(i), want.getZ(i)]);
+        if (near[i]) checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(50);
+    contact.dispose();
+  });
+
+  /**
+   * The lowest skin a support holds, as clipping every triangle to the support and cutting each opening out of it gives
+   * it (the pieces keep the height at their rim), in plain arrays: what the contact's shortcuts must agree with.
+   */
+  function lowestByClipping(contact: SkinContact, polygon: { x: number; y: number }[], pattern?: RegExp, openings: { x: number; y: number }[][] = [], floor = -Infinity): number {
+    type P = { x: number; y: number; z: number };
+    const edge = (input: P[], a: { x: number; y: number }, b: { x: number; y: number }) => {
+      const side = (p: P) => (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x), out: P[] = [];
+      input.forEach((current, k) => {
+        const previous = input[(k + input.length - 1) % input.length]!, d0 = side(previous), d1 = side(current);
+        if ((d0 >= 0) !== (d1 >= 0)) { const t = d0 / (d0 - d1); out.push({ x: previous.x + t * (current.x - previous.x), y: previous.y + t * (current.y - previous.y), z: previous.z + t * (current.z - previous.z) }); }
+        if (d1 >= 0) out.push(current);
+      });
+      return out;
+    };
+    let lowest = Infinity;
+    for (const skin of (contact as unknown as { skins: { world: Float64Array; tri: Uint32Array; owners: string[] }[] }).skins) {
+      for (let t = 0; t < skin.tri.length; t += 3) {
+        const corners = [skin.tri[t]!, skin.tri[t + 1]!, skin.tri[t + 2]!];
+        if (pattern && !corners.every(i => pattern.test(skin.owners[i]!))) continue;
+        const points = corners.map(i => ({ x: skin.world[i * 3]!, y: skin.world[i * 3 + 2]!, z: skin.world[i * 3 + 1]! }));
+        if (points.every(p => p.z < floor)) continue;
+        let parts = [polygon.reduce((part, a, k) => part.length ? edge(part, a, polygon[(k + 1) % polygon.length]!) : part, points)];
+        for (const opening of openings) parts = parts.flatMap(part => {
+          const pieces: P[][] = [];
+          let inside = part;
+          opening.forEach((a, k) => {
+            const b = opening[(k + 1) % opening.length]!;
+            if (!inside.length) return;
+            const piece = edge(inside, b, a);
+            if (piece.length) pieces.push(piece);
+            inside = edge(inside, a, b);
+          });
+          return pieces;
+        });
+        for (const part of parts) for (const p of part) lowest = Math.min(lowest, p.z);
+      }
+    }
+    return lowest;
+  }
+
+  it('finds the lowest skin a support holds as clipping every triangle to it does, openings cut out', () => {
+    const root = bodies.get('male')!;
+    applyAnatomicPose(root, BODY_VARIANTS.male);
+    bone(root, /L_Thigh$/u).rotateX(-0.5); bone(root, /R_Upperarm$/u).rotateZ(-0.6); bone(root, /Head$/u).rotateY(0.4);
+    // Lying face down, turned in the room: the plinth's edges are not along the axes.
+    root.rotation.set(Math.PI / 2, 0.35, 0); root.position.set(0.1, 0.8, 0.05); root.updateMatrixWorld(true);
+    const contact = new SkinContact(root);
+    contact.update();
+    const box = new THREE.Box3();
+    for (const skin of world(contact)) for (const p of skin) box.expandByPoint(p);
+    const middle = box.getCenter(new THREE.Vector3()), low = box.min.y;
+    const turned = (s: number, t: number, about = middle, angle = 0.35) => ({ x: about.x + s * Math.cos(angle) - t * Math.sin(angle), y: about.z + s * Math.sin(angle) + t * Math.cos(angle) });
+    const plinth = [turned(-0.3, -1.1), turned(0.3, -1.1), turned(0.3, 1.1), turned(-0.3, 1.1)];
+    // The head's end: an opening under the face (32 edges), one of 40 edges, and a ring round it.
+    const head = bone(root, /Head$/u).getWorldPosition(new THREE.Vector3());
+    const ellipse = (edges: number, a: number, b: number) => Array.from({ length: edges }, (_, k) => turned(a * Math.cos(k / edges * Math.PI * 2), b * Math.sin(k / edges * Math.PI * 2), head));
+    const face = ellipse(32, 0.06, 0.09), finer = ellipse(40, 0.06, 0.09), ring = ellipse(32, 0.1, 0.13);
+    const cases: [string, Parameters<SkinContact['lowest']>][] = [
+      ['plinth', [plinth]], ['plinth, the legs', [plinth, /(Thigh|Calf|Foot|Toe)/u]], ['plinth, face opening', [plinth, undefined, [face]]],
+      ['plinth, 40-edge opening', [plinth, undefined, [finer]]], ['face ring', [ring, /Head$|Neck/u, [face]]], ['40-edge ring', [finer, /Head$|Neck/u]],
+      ['plinth slab, the arms', [plinth, /(Hand|Forearm|Upperarm)/u, [face], low + 0.05]], ['opening alone', [undefined, undefined, [face]]],
+    ];
+    for (const [name, args] of cases) {
+      const [polygon, pattern, openings, floor] = args;
+      const reference = lowestByClipping(contact, polygon ?? [turned(-5, -5), turned(5, -5), turned(5, 5), turned(-5, 5)], pattern, openings, floor);
+      expect(Number.isFinite(reference), name).toBe(true);
+      // To the last bit or so of the clip's rounding (a piece's rim can round a hair below its corners).
+      expect(Math.abs(contact.lowest(...args) - reference), name).toBeLessThan(1e-12);
+    }
+    contact.dispose();
+  });
+
+  it('measures a part resting on another as the least gap between their columns', () => {
+    const root = bodies.get('female')!;
+    const trunk = /(Spine0[12]|Waist|RibsTwist|Breast|Pelvis)$/u;
+    const pairs: [RegExp, RegExp][] = [
+      [/Head$/u, trunk], [/_L_(ForearmTwist0[12]|Hand|(Thumb|Index|Mid|Ring|Pinky)[123])$/u, trunk], [/_L_(Forearm|Upperarm)/u, trunk], [/_R_(Calf|Foot)/u, /_L_(Calf|Foot)/u],
+    ];
+    let measured = 0;
+    // Standing, and lying on the back with the left hand brought over the body.
+    for (const lying of [false, true]) {
+      applyAnatomicPose(root, BODY_VARIANTS.female);
+      if (lying) { bone(root, /L_Upperarm$/u).rotateX(-0.9); bone(root, /L_Forearm$/u).rotateX(-1.2); }
+      root.rotation.set(lying ? -Math.PI / 2 : 0, 0, 0); root.position.set(0, lying ? 0.8 : 0, 0); root.updateMatrixWorld(true);
+      const contact = new SkinContact(root);
+      contact.update();
+      const columns = contact as unknown as { columns: (region: RegExp, onto: RegExp, cell: number, margin: number) => { top: Float32Array; under: Float32Array } | null };
+      for (const [region, onto] of pairs) {
+        const grid = columns.columns(region, onto, 0.005, 0.005)!;
+        let least = Infinity;
+        grid.top.forEach((top, k) => { if (top > -Infinity && grid.under[k]! < Infinity) least = Math.min(least, grid.under[k]! - top); });
+        expect(contact.gap(region, onto), `${lying ? 'lying' : 'standing'}: ${region}`).toBe(least);
+        if (Number.isFinite(least)) measured++;
+      }
+      contact.dispose();
+    }
+    // The head over the chest and the arm beside it standing; the hand and the arm over the body lying.
+    expect(measured).toBeGreaterThanOrEqual(4);
   });
 });
