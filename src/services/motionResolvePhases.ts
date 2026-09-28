@@ -28,6 +28,7 @@
  */
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import type { DerivedGaitStanceSchedule } from './gaitEnrichment';
+import { buildKeyframeTimeMap } from './keyframeTimeMap';
 import { resolveCommandTarget } from './movementCommand';
 import type { RomScenarioConstraints } from './romConstraints';
 import {
@@ -650,60 +651,36 @@ export function assembleResolvedMotion(
 export type AuthoredTimeRemap = (t: number | undefined) => number | undefined;
 
 /**
- * Build the piecewise-linear map from the AUTHORED cumulative keyframe
- * boundaries onto the RESOLVED ones (SEAM-7, part 2) — the per-keyframe-boundary
- * refinement of R1's authored→trajectory TOTAL mapping.
+ * Build the map from the AUTHORED keyframe clock onto the RESOLVED one (SEAM-7,
+ * part 2) — the per-keyframe refinement of R1's authored→trajectory TOTAL
+ * mapping.
  *
  * The ms-authored artifacts (`contacts`, `gaitStanceWindowsMs`,
- * `headingProfileMs`) are declared at KEYFRAME BOUNDARIES on the AUTHORED clock;
+ * `headingProfileMs`) are declared at keyframe instants on the AUTHORED clock;
  * any per-keyframe re-timing (the velocity floor, the loop-wrap floor, the
- * whole-plan dilation) shifts those boundaries, so every artifact time must be
- * remapped through this function. A window that ended AT the half-cycle keyframe
- * boundary still ends exactly there in the resolved clock — even when a SINGLE
- * isolated keyframe floored (the old uniform-ratio rescale only rode the
- * whole-plan dilation and left an isolated bump's windows behind). The shared
- * authored→trajectory totals factor then carries them onto trajectory time by
- * construction. Boundary-aligned times map EXACTLY (the authored artifacts
- * always are); non-finite whole-motion pins and negatives pass through.
+ * whole-plan dilation, the `MAX_KEYFRAME_MS` cap) moves those instants, so every
+ * artifact time must be remapped through this function. It maps keyframe by
+ * keyframe and span by span (./keyframeTimeMap): each keyframe's move onto its
+ * move and its hold onto its hold. A window that ends at a keyframe's end, or
+ * starts at its arrival where its hold begins, stays exactly there on the
+ * resolved clock, even when a single keyframe floored or only its hold was
+ * capped. (Stretching each keyframe's move and hold together, as this did
+ * before, moved a window at a capped keyframe's arrival: 1.3 s early for a 20 s
+ * hold capped at 10 s.) The shared authored→trajectory map then carries them
+ * onto trajectory time. Non-finite whole-motion pins and negatives pass through.
  *
- * Returns `null` when NO keyframe boundary moved — the caller then skips the
- * remap entirely and stays byte-identical. Pure.
+ * Returns `null` when NO keyframe span moved — the caller then skips the remap
+ * entirely and stays byte-identical. Pure.
  */
 export function buildAuthoredToResolvedRemap(
   kfTiming: readonly KeyframeTiming[],
   keyframes: readonly { durationMs: number; holdMs: number }[],
 ): AuthoredTimeRemap | null {
-  const n = keyframes.length;
-  const bAuth = new Array<number>(n);
-  const bRes = new Array<number>(n);
-  let accA = 0;
-  let accR = 0;
-  let reflowed = false;
-  for (let i = 0; i < n; i += 1) {
-    accA += kfTiming[i]!.authoredMs + kfTiming[i]!.authoredHoldMs;
-    accR += keyframes[i]!.durationMs + keyframes[i]!.holdMs;
-    bAuth[i] = accA;
-    bRes[i] = accR;
-    if (accA !== accR) reflowed = true;
-  }
-  if (!reflowed) return null;
-  return (t: number | undefined): number | undefined => {
-    if (typeof t !== 'number' || !Number.isFinite(t)) return t;
-    if (t <= 0) return t; // start (0) and any negative pass through
-    let prevA = 0;
-    let prevR = 0;
-    for (let i = 0; i < n; i += 1) {
-      if (t <= bAuth[i]! + 1e-9) {
-        const spanA = bAuth[i]! - prevA;
-        const frac = spanA > 0 ? (t - prevA) / spanA : 0;
-        return prevR + frac * (bRes[i]! - prevR);
-      }
-      prevA = bAuth[i]!;
-      prevR = bRes[i]!;
-    }
-    // Past the last boundary: keep the tail's distance from cycle end.
-    return t + (bRes[n - 1]! - bAuth[n - 1]!);
-  };
+  const map = buildKeyframeTimeMap(
+    kfTiming.map((t) => ({ durationMs: t.authoredMs, holdMs: t.authoredHoldMs })),
+    keyframes,
+  );
+  return map ? (t: number | undefined): number | undefined => (typeof t === 'number' ? map(t) : t) : null;
 }
 
 /**

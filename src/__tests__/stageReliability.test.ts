@@ -184,20 +184,21 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     expect(samplerSource).toMatch(/const sampleAt = \(tMs: number\): RecordedFrame => \{\s*const sample = trajectory\.sampleAt\(tMs\);/);
   });
 
-  it('SEAM-2 — contacts are re-timed into trajectory ms by the shared stance-window factor', () => {
+  it('SEAM-2 — contacts are re-timed into trajectory ms by the shared stance-window map', () => {
     // The plants are built in AUTHORED ms (setComposedContacts runs before the
-    // trajectory exists); once the trajectory is built the stage must scale
-    // their windows by the SAME shared authored→trajectory factor the stance
+    // trajectory exists); once the trajectory is built the stage must re-time
+    // their windows through the SAME shared authored→trajectory map the stance
     // windows use — one source of truth (services/motionRecording
-    // authoredToTrajectoryTimeScale), mirroring the offline sampler. A refactor
-    // dropping either call re-opens the paced-walk contact desync.
+    // authoredToTrajectoryTimeMap), as the offline sampler does. A refactor
+    // dropping any call re-opens the paced-walk contact desync.
     expect(stageSource).toContain('scaleComposedPlantsToTrajectory(trajectory, effectiveResolved)');
     expect(stageSource).toMatch(
-      /function scaleComposedPlantsToTrajectory[\s\S]{0,700}authoredToTrajectoryTimeScale\(resolvedMotion, traj\.totalMs\)/,
+      /function scaleComposedPlantsToTrajectory[\s\S]{0,900}authoredToTrajectoryTimeMap\(resolvedMotion, traj\.totalMs\)/,
     );
     expect(derivationsSource).toMatch(
-      /function scaledStanceWindows[\s\S]{0,700}authoredToTrajectoryTimeScale\(resolvedMotion, traj\.totalMs\)/,
+      /function scaledStanceWindows[\s\S]{0,700}authoredToTrajectoryTimeMap\(resolvedMotion, traj\.totalMs\)/,
     );
+    expect(samplerSource).toContain('authoredToTrajectoryTimeMap(resolved, totalMs)');
   });
 
   it('SEAM-3 — a released plant lets go through the shared step', () => {

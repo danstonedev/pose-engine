@@ -669,6 +669,13 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
 }
 
 /** Minimal shape of buildSequencePoses' output that the trajectory needs. */
+/**
+ * The longest a trajectory holds a keyframe, once its hold is paced (`timeScale`): the resolver's `MAX_KEYFRAME_MS`
+ * again, since a slowed pace can stretch a capped hold past it. The sampler and the stage re-time contact windows
+ * through the same cap (motionRecording's authoredToTrajectoryTimeMap).
+ */
+export const TRAJECTORY_HOLD_CAP_MS = 10_000;
+
 export interface SequenceBuildLike {
   poses: CustomPose[];
   roots: {
@@ -856,7 +863,7 @@ export function buildComposedTrajectory(
       const rs = built.roots[i]!;
       const planted = rs.stance === 'planted';
       const isVeryLast = r === reps - 1 && i === n - 1;
-      const holdMs = Math.min((built.holdsMs[i] ?? 0) / timeScale, 10_000);
+      const holdMs = Math.min((built.holdsMs[i] ?? 0) / timeScale, TRAJECTORY_HOLD_CAP_MS);
       tCursor += built.durationsMs[i]! / timeScale;
       if (r === 0) settleAtMs.push(tCursor);
       if (isVeryLast) finalArrivalIdx = knots.length;
@@ -964,7 +971,7 @@ export function buildLoopTrajectory(
   // Per-cycle segment durations (travel INTO each keyframe) and dwells, scaled
   // and floored so the time-warp never divides by zero.
   const dur = built.durationsMs.map((d) => Math.max(1e-3, (d ?? 0) / ts));
-  const hold = built.holdsMs.map((h) => Math.min(Math.max(0, (h ?? 0)) / ts, 10_000));
+  const hold = built.holdsMs.map((h) => Math.min(Math.max(0, (h ?? 0)) / ts, TRAJECTORY_HOLD_CAP_MS));
 
   // Degenerate cycles can't loop meaningfully — a constant pose is the honest
   // answer (the caller only reaches here when resolved.loop is true).

@@ -26,9 +26,10 @@ import * as THREE from 'three';
 import { applyCustomPose, buildBoneByPoseKey } from './poseRig';
 import {
   GAIT_VERTICAL_MAX_RISE_M,
+  authoredToTrajectoryTimeMap,
   authoredToTrajectoryTimeScale,
   gaitPeriodMs,
-  scaleStanceWindowsMs,
+  mapStanceWindowsMs,
 } from './motionRecording';
 import {
   NO_VERTICAL_CALIBRATION,
@@ -62,6 +63,8 @@ interface AuthoredTiming {
   keyframes: { durationMs: number; holdMs: number }[];
   loop: boolean;
   reps: number;
+  /** The pace the trajectory runs at (a paced hold is capped: authoredToTrajectoryTimeMap). */
+  modifiers?: { timeScale?: number };
 }
 
 /**
@@ -149,18 +152,15 @@ export interface ComposedDerivations {
 
 /**
  * SEAM-2: re-time a motion's planned stance windows from AUTHORED ms into
- * TRAJECTORY ms with the same uniform factor the trajectory applies, so the
- * derivations stay phase-locked to the knots at any pace (mirrors the offline
- * sampler — one source of truth for the time base).
+ * TRAJECTORY ms through the same map the offline sampler uses
+ * (authoredToTrajectoryTimeMap), so the derivations stay phase-locked to the
+ * knots at any pace — one source of truth for the time base.
  */
 export function scaledStanceWindows(
   traj: PoseTrajectory,
   resolvedMotion: AuthoredTiming & { gaitStanceWindowsMs?: StanceWindow[] },
 ): StanceWindow[] | undefined {
-  return scaleStanceWindowsMs(
-    resolvedMotion.gaitStanceWindowsMs,
-    authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs),
-  );
+  return mapStanceWindowsMs(resolvedMotion.gaitStanceWindowsMs, authoredToTrajectoryTimeMap(resolvedMotion, traj.totalMs));
 }
 
 /**
@@ -180,9 +180,9 @@ export function scaledGaitPeriodMs(
 }
 
 /**
- * The per-time heading lookup of a CURVED motion, scaled by the SAME factor as
- * {@link scaledStanceWindows} so heading and stance phase can never drift apart
- * at a non-1 pace. Undefined for a constant heading (the legacy path).
+ * The per-time heading lookup of a CURVED motion, re-timed through the SAME map
+ * as {@link scaledStanceWindows} so heading and stance phase can never drift
+ * apart at a non-1 pace. Undefined for a constant heading (the legacy path).
  */
 export function scaledHeadingAt(
   traj: PoseTrajectory,
@@ -190,9 +190,9 @@ export function scaledHeadingAt(
 ): ((tMs: number) => number) | undefined {
   const prof = resolvedMotion.headingProfileMs;
   if (!prof || prof.length < 2) return undefined;
-  const scale = authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs);
+  const map = authoredToTrajectoryTimeMap(resolvedMotion, traj.totalMs);
   const lookup = headingProfileLookup(prof);
-  return scale > 0 ? (tMs: number): number => lookup(tMs / scale) : lookup;
+  return (tMs: number): number => lookup(map.toAuthored(tMs));
 }
 
 export function createComposedDerivations(ctx: StageRigContext): ComposedDerivations {
