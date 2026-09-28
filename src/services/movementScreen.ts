@@ -451,20 +451,30 @@ function holdAtAssessedPosition(motion: ComposedMotion): ComposedMotion {
           i === a.length - 1 ? { ...kf, holdMs: HOLD_MS } : kf,
         );
 
+  // Contact windows are declared on the whole movement's clock. A window of a
+  // keyframe cut after the assessed one (the single-leg stance re-plants its
+  // lifted foot after the lowering) would otherwise be re-timed into the hold
+  // that plays instead, so it is dropped; a window that ran on past the assessed
+  // keyframe lasts to the end of its hold.
+  const cut = kfs.slice(0, peak + 1).reduce((sum, kf) => sum + kf.durationMs + (kf.holdMs ?? 0), 0);
+  const contacts = motion.contacts
+    ?.filter((c) => c.fromMs == null || c.fromMs < cut)
+    .map(({ toMs, ...c }) => (toMs == null || toMs >= cut ? c : { ...c, toMs }));
+
   const { reps: _reps, ...rest } = motion;
   // A held position is a destination, not a rep — reps would take it back out.
-  return { ...rest, keyframes: kept };
+  return { ...rest, keyframes: kept, ...(contacts ? { contacts } : {}) };
 }
 
 /**
  * How long a held assessment position dwells before the motion is considered
  * done: long enough to orbit the mannequin and read the position off it. It is
  * the longest the resolver lets a keyframe last (`MAX_KEYFRAME_MS`, 10 s), and
- * no longer. It was 20 s, which played as 10 s, but the engine still counted the
- * full 20 s when it mapped the motion's foot-contact windows onto its clock
- * (`authoredToTrajectoryTimeScale`). Every window then came early, and the held
- * single-leg stance's re-plant (authored for after the lowering, which a held
- * motion never plays) landed 12.4 s in and put the raised foot down mid-hold.
+ * no longer. It was 20 s, which played as 10 s. The single-leg stance's
+ * re-plant, authored at 19.8 s for after the lowering, then fell inside the
+ * authored 20 s hold, and the resolver re-timed it into the 10 s hold that
+ * played: 12.8 s in, it put the raised foot down mid-hold. The held motion now
+ * also drops the windows of the keyframes it cuts (holdAtAssessedPosition).
  */
 const HOLD_MS = MAX_KEYFRAME_MS;
 

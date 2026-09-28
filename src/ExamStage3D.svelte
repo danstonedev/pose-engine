@@ -574,7 +574,7 @@
         buildComposedTrajectory,
         buildLoopTrajectory,
         DEFAULT_TRACKED_BONES,
-        authoredToTrajectoryTimeScale,
+        authoredToTrajectoryTimeMap,
       } = await import('./services/motionRecording');
       const {
         captureFloorReference,
@@ -1969,25 +1969,26 @@
       /** SEAM-2: re-time the plant windows from AUTHORED ms into TRAJECTORY ms.
        *  setComposedContacts must run before the trajectory exists (its
        *  per-window heading rests are looked up on the authored clock), so the
-       *  windows are captured authored and scaled HERE, once the trajectory's
-       *  total is known — by the SAME shared factor the stance windows use
-       *  (authoredToTrajectoryTimeScale; mirrors the offline sampler). Without
+       *  windows are captured authored and re-timed HERE, once the trajectory's
+       *  total is known — through the SAME shared map the stance windows use
+       *  (authoredToTrajectoryTimeMap; mirrors the offline sampler). Without
        *  this a paced (timeScale ≠ 1) walk's contacts ran 1/timeScale out of
        *  sync: the planted foot slid tens of cm and popped at release.
-       *  ±Infinity (whole-motion pins) scale to themselves; identity at pace 1. */
+       *  ±Infinity (whole-motion pins) pass through; identity at pace 1. */
       function scaleComposedPlantsToTrajectory(
         traj: PoseTrajectory,
         resolvedMotion: {
           keyframes: { durationMs: number; holdMs: number }[];
           loop: boolean;
           reps: number;
+          modifiers?: { timeScale?: number };
         },
       ): void {
-        const scale = authoredToTrajectoryTimeScale(resolvedMotion, traj.totalMs);
-        if (scale === 1) return;
+        const map = authoredToTrajectoryTimeMap(resolvedMotion, traj.totalMs);
+        if (map.identity) return;
         for (const fp of composedPlants) {
-          fp.fromMs *= scale;
-          fp.toMs *= scale;
+          fp.fromMs = map.toTrajectory(fp.fromMs);
+          fp.toMs = map.toTrajectory(fp.toMs);
         }
       }
 

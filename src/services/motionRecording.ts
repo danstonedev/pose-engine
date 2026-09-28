@@ -96,7 +96,8 @@ import type { RomScenarioConstraints } from './romConstraints';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
 import { clampTimeScale } from './motionConstants';
 export { stagedBlendWithBaseline };
-import { buildComposedTrajectory, buildLoopTrajectory } from './motionTrajectory';
+import { buildComposedTrajectory, buildLoopTrajectory, TRAJECTORY_HOLD_CAP_MS } from './motionTrajectory';
+import { buildKeyframeTimeMap, type KeyframeSpans } from './keyframeTimeMap';
 export { buildComposedTrajectory, buildLoopTrajectory };
 
 // ── Shared easing (the ONE tween curve stage + sampler use) ─────────────────
@@ -145,11 +146,85 @@ export function authoredToTrajectoryTimeScale(
   return authoredMs > 0 && trajectoryTotalMs > 0 ? trajectoryTotalMs / authoredMs : 1;
 }
 
+/** A motion's keyframe clock ↔ its trajectory's clock, both ways. */
+export interface TrajectoryTimeMap {
+  /** The two clocks are the same: nothing to re-time (the byte-exact un-paced path). */
+  identity: boolean;
+  /** A time declared on the motion's keyframe clock → the trajectory time of the same keyframe instant. */
+  toTrajectory(tMs: number): number;
+  /** A trajectory time → the keyframe clock (a heading profile is read at the authored time of a trajectory instant). */
+  toAuthored(tMs: number): number;
+}
+const IDENTITY_TIME_MAP: TrajectoryTimeMap = { identity: true, toTrajectory: (t) => t, toAuthored: (t) => t };
+
+/**
+ * SEAM-2's shared time base as a map, for the contact windows, stance windows
+ * and heading profile the sampler and the stage re-time onto the trajectory
+ * (both call this; they must never diverge).
+ *
+ * The trajectory paces every keyframe by `modifiers.timeScale`, then caps a
+ * paced hold at {@link TRAJECTORY_HOLD_CAP_MS} (buildComposedTrajectory). While
+ * the cap never bites, that is one even stretch, and the map is
+ * {@link authoredToTrajectoryTimeScale}'s factor, applied exactly as before. A
+ * slowed pace can stretch a hold past the cap, and then the trajectory is no
+ * longer an even stretch of the keyframes: one factor put the windows around
+ * that hold up to a second out (the arrival into an 8 s hold at pace 0.5 came
+ * 1 s early). The map then goes keyframe
+ * by keyframe (./keyframeTimeMap), each move onto its paced move and each hold
+ * onto its paced, capped hold, rep after rep. A looping trajectory is laid out
+ * differently (buildLoopTrajectory), and no loop holds that long; it keeps the
+ * factor.
+ */
+export function authoredToTrajectoryTimeMap(
+  motion: {
+    keyframes: { durationMs?: number; holdMs?: number }[];
+    loop?: boolean;
+    reps?: number;
+    modifiers?: { timeScale?: number };
+  },
+  trajectoryTotalMs: number,
+): TrajectoryTimeMap {
+  const timeScale = clampTimeScale(motion.modifiers?.timeScale);
+  const capped = !motion.loop && motion.keyframes.some((kf) => (kf.holdMs ?? 0) / timeScale > TRAJECTORY_HOLD_CAP_MS);
+  if (!capped) {
+    const factor = authoredToTrajectoryTimeScale(motion, trajectoryTotalMs);
+    if (factor === 1) return IDENTITY_TIME_MAP;
+    return { identity: false, toTrajectory: (t) => t * factor, toAuthored: (t) => t / factor };
+  }
+  const authored: KeyframeSpans[] = [];
+  const paced: KeyframeSpans[] = [];
+  for (let rep = 0; rep < Math.max(1, Math.floor(motion.reps ?? 1)); rep += 1) {
+    for (const kf of motion.keyframes) {
+      authored.push({ durationMs: kf.durationMs ?? 0, holdMs: kf.holdMs ?? 0 });
+      paced.push({ durationMs: (kf.durationMs ?? 0) / timeScale, holdMs: Math.min((kf.holdMs ?? 0) / timeScale, TRAJECTORY_HOLD_CAP_MS) });
+    }
+  }
+  const forward = buildKeyframeTimeMap(authored, paced);
+  const backward = buildKeyframeTimeMap(paced, authored);
+  if (!forward || !backward) return IDENTITY_TIME_MAP;
+  return { identity: false, toTrajectory: forward, toAuthored: backward };
+}
+
+/**
+ * Re-time a planned stance-window schedule (or any fromMs/toMs window list) from
+ * authored ms into trajectory ms through {@link authoredToTrajectoryTimeMap}.
+ * Every other field (foot, travelLock, …) is carried through untouched.
+ * Undefined/empty in → undefined out (the no-schedule path stays falsy).
+ */
+export function mapStanceWindowsMs<T extends { fromMs: number; toMs: number }>(
+  windows: readonly T[] | undefined,
+  map: TrajectoryTimeMap,
+): T[] | undefined {
+  if (!windows?.length) return undefined;
+  return windows.map((w) => ({ ...w, fromMs: map.toTrajectory(w.fromMs), toMs: map.toTrajectory(w.toMs) }));
+}
+
 /**
  * Scale a planned stance-window schedule (or any fromMs/toMs window list) from
  * authored ms into trajectory ms by {@link authoredToTrajectoryTimeScale}'s
  * factor. Every other field (foot, travelLock, …) is carried through untouched.
  * Undefined/empty in → undefined out (the no-schedule path stays falsy).
+ * {@link mapStanceWindowsMs} is the same where no paced hold is capped.
  */
 export function scaleStanceWindowsMs<T extends { fromMs: number; toMs: number }>(
   windows: readonly T[] | undefined,
@@ -670,7 +745,7 @@ export function sampleComposedMotion(
   const dtMs = 1000 / hz;
   const boneByKey = buildBoneByPoseKey(skinned.skeleton, variantCfg);
 
-  // AUTHORED→TRAJECTORY TIME BASE (SEAM-2): the one shared factor that maps the
+  // AUTHORED→TRAJECTORY TIME BASE (SEAM-2): the one shared map from the
   // motion's authored keyframe clock onto trajectory time — see the helper doc.
   // The foot-plant CONTACT windows were built above in authored ms (their
   // per-window heading rests must be looked up on the authored clock); re-time
@@ -678,10 +753,11 @@ export function sampleComposedMotion(
   // checks below compare like with like. ±Infinity (whole-motion pins) scale to
   // themselves; identity at timeScale 1 keeps the un-paced path byte-exact.
   const authoredToTraj = authoredToTrajectoryTimeScale(resolved, totalMs);
-  if (authoredToTraj !== 1) {
+  const toTrajectory = authoredToTrajectoryTimeMap(resolved, totalMs);
+  if (!toTrajectory.identity) {
     for (const fp of footPlants) {
-      fp.fromMs *= authoredToTraj;
-      fp.toMs *= authoredToTraj;
+      fp.fromMs = toTrajectory.toTrajectory(fp.fromMs);
+      fp.toMs = toTrajectory.toTrajectory(fp.toMs);
     }
   }
 
@@ -825,22 +901,20 @@ export function sampleComposedMotion(
         };
       };
       // The planned stance schedule is authored ms; the trajectory runs at
-      // authored/timeScale — scale it by the SAME shared factor as the plant
+      // authored/timeScale — re-time it through the SAME shared map as the plant
       // contacts (SEAM-2: one source of truth) so every derivation stays
       // phase-locked to the knots at any pace.
-      const scale = authoredToTraj;
-      const windows = scaleStanceWindowsMs(resolved.gaitStanceWindowsMs, scale);
+      const windows = mapStanceWindowsMs(resolved.gaitStanceWindowsMs, toTrajectory);
       // TRAVEL HEADING: the derived ride goes along (sinH, cosH), shuttle along
       // the perpendicular — 0 (the default) is the byte-identical legacy +Z/+X.
       // A CURVED walk (headingProfileMs) instead hands both derivations the
-      // per-time heading lookup — authored ms scaled to trajectory time by the
-      // SAME factor as the stance windows, so heading and stance phase can
+      // per-time heading lookup — authored ms re-timed to trajectory time by the
+      // SAME map as the stance windows, so heading and stance phase can
       // never drift apart at a non-1 pace.
       const headingDeg = resolved.headingDeg ?? 0;
-      const headingAtTraj =
-        headingAtAuthoredMs && scale > 0
-          ? (tMs: number): number => headingAtAuthoredMs(tMs / scale)
-          : undefined;
+      const headingAtTraj = headingAtAuthoredMs
+        ? (tMs: number): number => headingAtAuthoredMs(toTrajectory.toAuthored(tMs))
+        : undefined;
       // The travel reads the plants' windows — the same ones, already in
       // trajectory time, the plants below are solved against. A touchdown-planted
       // gait then starts each plant where its foot comes down: the schedule the

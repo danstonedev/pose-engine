@@ -475,11 +475,17 @@ describe('buildAuthoredToResolvedRemap', () => {
     expect(buildAuthoredToResolvedRemap(t, kfs)).toBeNull();
   });
 
-  it('returns null when a hold absorbs exactly what a duration lost', () => {
-    // The BOUNDARIES are what matter, not the duration/hold split.
+  it('moves a keyframe’s arrival with its move when its hold absorbs what the move gained', () => {
+    // The move and the hold are separate spans (./keyframeTimeMap). The limb now arrives at 150, so a window written
+    // for its arrival (100, where the hold began) moves with it, and the keyframe still ends where it ended.
     const kfs = [rk(150, [], 0)];
     const t = [timing(100, 0, 50)];
-    expect(buildAuthoredToResolvedRemap(t, kfs)).toBeNull();
+    const remap = buildAuthoredToResolvedRemap(t, kfs)!;
+    expect(remap).not.toBeNull();
+    expect(remap(50)).toBe(75);
+    expect(remap(100)).toBe(150);
+    expect(remap(125)).toBe(150); // inside a hold that no longer plays
+    expect(remap(150)).toBe(150);
   });
 
   describe('with kf0 stretched 100→200 and kf1 held at 100', () => {
