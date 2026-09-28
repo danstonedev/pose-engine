@@ -13,6 +13,7 @@ import { applyCustomPose, serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference } from '../services/jointAngles';
 import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type RecordedFrame } from '../services/motionRecording';
+import { movementScreenMotion, movementScreenPattern } from '../services/movementScreen';
 
 const IDS = ['hurdle-step', 'in-line-lunge', 'rotary-stability', 'trunk-stability-push-up', 'extension-clearing', 'flexion-clearing', 'multisegmental-flexion', 'multisegmental-extension', 'multisegmental-rotation', 'single-leg-stance', 'sfma-overhead-deep-squat-legacy'];
 const point = (frame: RecordedFrame, key: string) => new THREE.Vector3().fromArray(frame.worldTracks![key]!);
@@ -228,6 +229,17 @@ for (const variant of ['female', 'male'] as const) {
           for (const which of ['R', 'L'] as const) expect(at(phase, 'Foot', which).distanceTo(at(start, 'Foot', which))).toBeLessThan(.04);
         }
       }
+    });
+
+    // Held, the pattern stops in its assessed position (movementScreen's hold mode). The single-leg stance re-plants
+    // its lifted foot after the lowering, which a held motion never plays: the foot must stay up to the end. Held for
+    // an authored 20 s, which the resolver plays as 10 s, the re-plant came 12.4 s in and put the foot back down.
+    it.each(['R', 'L'] as const)('holds the single-leg stance with the knee raised to the end / %s', side => {
+      const { recording } = sample(movementScreenMotion(movementScreenPattern('sfma-repo-legacy-v1/single-leg-stance/top-tier')!, side, 'hold')!);
+      const raised = recording.frames.filter(frame => frame.tMs >= 6800);
+      expect(raised.length).toBeGreaterThan(90);
+      const start = point(recording.frames[0]!, `${side}_Foot`).y;
+      for (const frame of raised) expect(point(frame, `${side}_Foot`).y - start, `${frame.tMs} ms`).toBeGreaterThan(.4);
     });
   });
 }

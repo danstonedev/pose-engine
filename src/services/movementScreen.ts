@@ -46,7 +46,7 @@ import {
   buildGetDownToQuadruped,
   buildLowerToProne,
 } from './movementTemplates';
-import { resolveComposedMotion, type ComposedMotion, type ResolvedComposedMotion } from './motionSequence';
+import { MAX_KEYFRAME_MS, resolveComposedMotion, type ComposedMotion, type ResolvedComposedMotion } from './motionSequence';
 import type { RomScenarioConstraints } from './romConstraints';
 import { UPPER_ASSESSMENT_MOTIONS, UPPER_ASSESSMENT_NOTES } from './assessmentUpperMotions';
 import { BODY_ASSESSMENT_MOTIONS, BODY_ASSESSMENT_NOTES } from './assessmentBodyMotions';
@@ -448,7 +448,7 @@ function holdAtAssessedPosition(motion: ComposedMotion): ComposedMotion {
     peak === 0
       ? [assessed, { ...assessed, durationMs: Math.max(assessed.durationMs, 1), holdMs: HOLD_MS }]
       : kfs.slice(0, peak + 1).map((kf, i, a) =>
-          i === a.length - 1 ? { ...kf, holdMs: Math.max(kf.holdMs ?? 0, HOLD_MS) } : kf,
+          i === a.length - 1 ? { ...kf, holdMs: HOLD_MS } : kf,
         );
 
   const { reps: _reps, ...rest } = motion;
@@ -456,10 +456,17 @@ function holdAtAssessedPosition(motion: ComposedMotion): ComposedMotion {
   return { ...rest, keyframes: kept };
 }
 
-/** How long a held assessment position dwells before the motion is considered
- *  done. Long enough to orbit the mannequin and read the position off it. The
- *  resolver caps a keyframe at `MAX_KEYFRAME_MS` (10 s), so it plays as 10 s. */
-const HOLD_MS = 20000;
+/**
+ * How long a held assessment position dwells before the motion is considered
+ * done: long enough to orbit the mannequin and read the position off it. It is
+ * the longest the resolver lets a keyframe last (`MAX_KEYFRAME_MS`, 10 s), and
+ * no longer. It was 20 s, which played as 10 s, but the engine still counted the
+ * full 20 s when it mapped the motion's foot-contact windows onto its clock
+ * (`authoredToTrajectoryTimeScale`). Every window then came early, and the held
+ * single-leg stance's re-plant (authored for after the lowering, which a held
+ * motion never plays) landed 12.4 s in and put the raised foot down mid-hold.
+ */
+const HOLD_MS = MAX_KEYFRAME_MS;
 
 /** Tests with overhead arms; only FMS specifies an overhead dowel. */
 export const OVERHEAD_ARM_TESTS = new Set(['deep-squat', 'overhead-deep-squat']);

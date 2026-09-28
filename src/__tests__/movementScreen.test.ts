@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { MOVEMENT_TEMPLATES, buildSquat } from '../services/movementTemplates';
-import { resolveComposedMotion } from '../services/motionSequence';
+import { MAX_KEYFRAME_MS, resolveComposedMotion } from '../services/motionSequence';
 import type { RomScenarioConstraints } from '../services/romConstraints';
 import {
   FMS_POSITIONS,
@@ -465,6 +465,20 @@ describe('the movement screen registry', () => {
       expect(motion, `${p.testId} ${side} ${mode}`).not.toBeNull();
       expect(motion).toEqual(composeScreenMotion(positionFor(p.testId), side, null, p.testId, mode));
       expect(resolveComposedMotion(motion!).status, `${p.testId} ${side} ${mode}`).toBe('ok');
+    }
+  });
+
+  it('holds the assessed position no longer than the resolver plays a keyframe, so contact windows keep their time', () => {
+    // A held keyframe authored longer than MAX_KEYFRAME_MS still played as 10 s, but the engine counted all of it
+    // when it mapped foot-contact windows onto the motion's clock: the windows came early, and the held single-leg
+    // stance's raised foot was put back down 12.4 s in (assessmentBodyMotions.test.ts pins that on the rig).
+    for (const p of MOVEMENT_SCREEN) for (const side of ['L', 'R'] as const) {
+      const held = movementScreenMotion(p, side, 'hold')!;
+      for (const kf of held.keyframes) {
+        expect(kf.durationMs, `${p.testId} ${side}`).toBeLessThanOrEqual(MAX_KEYFRAME_MS);
+        expect(kf.holdMs ?? 0, `${p.testId} ${side}`).toBeLessThanOrEqual(MAX_KEYFRAME_MS);
+      }
+      expect(held.keyframes.at(-1)!.holdMs, `${p.testId} ${side}`).toBe(MAX_KEYFRAME_MS);
     }
   });
 
