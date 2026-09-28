@@ -84,6 +84,13 @@ export * from './services/gaitEnrichment';
 // tested). Feeds the compose planner's prompt and is playable/measurable.
 export * from './services/movementTemplates';
 
+// The FMS and SFMA movement screen (moved from simMOVE, 2026-09) — the motion
+// behind each screening pattern, the squat's ankle-keyed compensation, the held
+// assessed position, and the registry of the 20 patterns: where each is
+// performed and which part of the screening kit it uses. simMOVE's Screen and
+// simLAB play the same patterns from here; simMOVE authors and signs them off.
+export * from './services/movementScreen';
+
 // Healthy-asymmetry signature (Wave 5 life-signals) — the seed-derived 2–4%
 // L/R arm-swing amplitude difference the gait builders apply by default so the
 // default walk/run is not a perfect bilateral mirror (opt-out per builder via

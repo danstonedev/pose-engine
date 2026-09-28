@@ -18,6 +18,7 @@ no pain-map / EMR dependencies.
 | `services/movementClipSampling` | Sample GLB animation clips into bone poses |
 | `services/movementCommand` | Imperative exam ROM commands (set-joint / relax) |
 | `services/motionCommand` | Named basic-motion commands (walk / sit / stand) + asset-ingestion seam |
+| `services/movementScreen` | The FMS and SFMA patterns simMOVE and simLAB play: the motion behind each, the squat's ankle-keyed compensation, the held assessed position, and the registry of the 20 patterns with their posture and screening kit (motions in `assessmentBodyMotions` / `assessmentUpperMotions`) |
 
 ## Usage
 
