@@ -270,7 +270,7 @@ export {
   type StageSceneLayerFactory,
 } from './services/stageSceneLayer';
 export { SkinContact, SKIN_CONTACT_CLEARANCE_M, MAX_SKIN_COMPRESSION_M, DEFAULT_TISSUE_STIFFNESS, cushionDepth, cushionGrid } from './services/skinContact';
-export type { Cushion, CushionField, PressOptions, SkinAlongOptions, SkinProfile } from './services/skinContact';
+export type { Cushion, CushionField, PressOptions, SkinAlongOptions, SkinProfile, SkinSeparation } from './services/skinContact';
 export { pinSupportLimb, idleSupport } from './services/idleSupport';
 export { createIdleOverlay, type IdleOverlay } from './services/stageIdleOverlay';
 export { createBreathState, type BreathState } from './services/stageBreath';
