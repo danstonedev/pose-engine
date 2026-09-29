@@ -17,6 +17,9 @@ for (const file of [
   'painmap3D_male.runtime.glb',
   'painmap3D_female.runtime.glb',
   'painmap3D_neutral.runtime.glb',
+  'painmap3D_male.shoulder-v2.glb',
+  'painmap3D_female.shoulder-v2.glb',
+  'painmap3D_neutral.shoulder-v2.glb',
 ]) {
   copyFileSync(join(srcDir, file), join(destDir, file));
   console.log('copied', file);

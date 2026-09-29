@@ -658,7 +658,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
       }
 
       return {
-        pose: { variant: knots[k]!.pose.variant, bones, schemaVersion: POSE_SCHEMA_VERSION },
+        pose: { variant: knots[k]!.pose.variant, bones, schemaVersion: knots[k]!.pose.rigVersion ? POSE_SCHEMA_VERSION + '-shoulder-v2' : POSE_SCHEMA_VERSION, ...(knots[k]!.pose.rigVersion ? { rigVersion: knots[k]!.pose.rigVersion, rigAssetSha256: knots[k]!.pose.rigAssetSha256 } : {}) },
         rootQuat: rootQ,
         rootTranslate,
         planted,
@@ -769,7 +769,7 @@ function terminalOvershootKnot(prev: TrajectoryKnot, arrival: TrajectoryKnot): T
   const b = arrival.rootTranslate;
   return {
     timeMs: tMs,
-    pose: { variant: arrival.pose.variant, bones, schemaVersion: POSE_SCHEMA_VERSION },
+    pose: { variant: arrival.pose.variant, bones, schemaVersion: arrival.pose.rigVersion ? POSE_SCHEMA_VERSION + '-shoulder-v2' : POSE_SCHEMA_VERSION, ...(arrival.pose.rigVersion ? { rigVersion: arrival.pose.rigVersion, rigAssetSha256: arrival.pose.rigAssetSha256 } : {}) },
     rootQuat: [_qa.x, _qa.y, _qa.z, _qa.w],
     rootTranslate: [
       a[0] + (b[0] - a[0]) * frac,
@@ -1044,7 +1044,7 @@ export function buildLoopTrajectory(
 function clonePose(p: CustomPose): CustomPose {
   const bones: Record<string, [number, number, number, number]> = {};
   for (const [k, v] of Object.entries(p.bones ?? {})) bones[k] = [v[0], v[1], v[2], v[3]];
-  return { variant: p.variant, bones, schemaVersion: POSE_SCHEMA_VERSION };
+  return { variant: p.variant, bones, schemaVersion: p.rigVersion ? POSE_SCHEMA_VERSION + '-shoulder-v2' : POSE_SCHEMA_VERSION, ...(p.rigVersion ? { rigVersion: p.rigVersion, rigAssetSha256: p.rigAssetSha256 } : {}) };
 }
 function emptyPose(): CustomPose {
   return { variant: 'male', bones: {}, schemaVersion: POSE_SCHEMA_VERSION };
