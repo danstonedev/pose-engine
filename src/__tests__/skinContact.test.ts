@@ -688,7 +688,7 @@ describe('the posed skin, on the real bodies', () => {
       applyAnatomicPose(root, BODY_VARIANTS[variant]);
       root.updateMatrixWorld(true);
       const thigh = (side: string) => new RegExp(`_${side}_(Thigh|ThighTwist0[12])$`, 'u');
-      let contact = new SkinContact(root);
+      const contact = new SkinContact(root);
       contact.update();
       // Standing, the inner thighs close but clear (the male's by a centimetre, the female's by two); side by side, so
       // nothing of one lies above the other.
@@ -699,20 +699,22 @@ describe('the posed skin, on the real bodies', () => {
       expect(apart.ontoOwner, variant).toMatch(/_R_(Thigh|ThighTwist0[12])$/u);
       expect(contact.separation(thigh('R'), thigh('L')).separationM, variant).toBe(apart.separationM);
       expect(contact.gap(thigh('L'), thigh('R')), variant).toBe(Infinity);
-      contact.dispose();
       // The left leg slid 3 cm toward the right: the thighs press into each other, by as much of it as their skin follows
-      // (near the groin, the pelvis carries some of it).
+      // (near the groin, the pelvis carries some of it). Measured again where the skin now lies, as a fresh contact would.
       const leg = bone(root, /L_Thigh$/u), at = leg.getWorldPosition(new THREE.Vector3());
       const across = bone(root, /R_Thigh$/u).getWorldPosition(new THREE.Vector3()).sub(at).setY(0).normalize();
       leg.position.copy(leg.parent!.worldToLocal(at.addScaledVector(across, 0.03)));
       root.updateMatrixWorld(true);
-      contact = new SkinContact(root);
       contact.update();
       const pressed = contact.separation(thigh('L'), thigh('R')).separationM;
       expect(pressed, variant).toBeLessThan(0);
       expect(pressed, variant).toBeLessThan(apart.separationM - 0.015);
       expect(pressed, variant).toBeGreaterThan(apart.separationM - 0.035);
       contact.dispose();
+      const fresh = new SkinContact(root);
+      fresh.update();
+      expect(fresh.separation(thigh('L'), thigh('R')).separationM, variant).toBe(pressed);
+      fresh.dispose();
     }
   });
 });

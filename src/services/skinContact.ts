@@ -1252,15 +1252,16 @@ export class SkinContact {
    * of `onto` it is behind is pushed in, along its own, until it clears it (a shin's edge between the vertices of a
    * thigh's skin, none of them in the shin, still pokes through it); by up to `depthM`, and the skin round it follows,
    * less the further it lies (over `spreadM`), so a shin laid across a thigh lies in a dent in it rather than through it,
-   * whether it rests on the thigh's top or presses against its side. indent() does the like for a part resting on top of
-   * another, looking straight down.
+   * whether it rests on the thigh's top or presses against its side. Skin further than `reachM` into the other is left
+   * as it is (a frame drawn looks only as far as the dent it draws goes). indent() does the like for a part resting on
+   * top of another, looking straight down.
    */
-  yieldTo(region: RegExp, onto: RegExp, depthM: number, spreadM = 0.015): void {
+  yieldTo(region: RegExp, onto: RegExp, depthM: number, spreadM = 0.015, reachM = Math.max(0.05, depthM * 2)): void {
     if (!(depthM > 0)) return;
     const hard = this.surface(region), soft = this.surface(onto);
     if (!hard || !soft) return;
-    // Reaching as deep as a limb is thick: a vertex deeper in than the reach finds no skin to be pushed out to.
-    const reach = Math.max(0.05, depthM * 2), hardBuckets = bucket(hard, reach), softBuckets = bucket(soft, reach);
+    // A vertex deeper in than the reach finds no skin to be pushed out to: by default, as deep as a limb is thick.
+    const hardBuckets = bucket(hard, reachM), softBuckets = bucket(soft, reachM);
     const vertices = soft.owners.length, owned = soft.owners.map(owner => !region.test(owner));
     // How far each vertex of `onto`'s skin (by the place it stands at) is pushed, the furthest asked of it.
     const pushes = new Map<number, THREE.Vector3>(), normal = new THREE.Vector3();
@@ -1304,21 +1305,58 @@ export class SkinContact {
     }
     for (const [v, delta] of moved) this.displace(this.skins[soft.source[v * 2]!]!, soft.source[v * 2 + 1]!, delta);
   }
+  /**
+   * Each part's skin as it is joined up (surface(), less where it lies), which posing never changes: worked out on the
+   * part's first use and kept, its seams welded where the skin lay then (a mesh's split vertices move together).
+   * Joining it up again every call cost a drawn frame more than the search it served.
+   */
+  private readonly topologies = new Map<string, Omit<Surface, 'points' | 'normals'> | null>();
   /** A part's posed skin (Surface): its vertices, triangles, smoothed normals and rim. */
   private surface(pattern: RegExp): Surface | null {
+    const key = `${pattern.flags}/${pattern.source}`, stateful = pattern.global || pattern.sticky;
+    let topology = stateful ? undefined : this.topologies.get(key);
+    if (topology === undefined) {
+      topology = this.join(pattern);
+      if (!stateful) this.topologies.set(key, topology);
+    }
+    if (!topology) return null;
+    const { source, weld, triangles } = topology, count = weld.length;
+    const points = new Float64Array(count * 3), normals = new Float64Array(count * 3), summed = new Float64Array(count * 3);
+    for (let p = 0; p < count; p++) {
+      const world = this.skins[source[p * 2]!]!.world, v = source[p * 2 + 1]! * 3;
+      points[p * 3] = world[v]!; points[p * 3 + 1] = world[v + 1]!; points[p * 3 + 2] = world[v + 2]!;
+    }
+    // Smoothed normals, each vertex's triangles' faces weighted by their area (a welded vertex's, all of them).
+    for (let k = 0; k < triangles.length; k += 3) {
+      const a = triangles[k]! * 3, b = triangles[k + 1]! * 3, c = triangles[k + 2]! * 3;
+      const ux = points[b]! - points[a]!, uy = points[b + 1]! - points[a + 1]!, uz = points[b + 2]! - points[a + 2]!;
+      const vx = points[c]! - points[a]!, vy = points[c + 1]! - points[a + 1]!, vz = points[c + 2]! - points[a + 2]!;
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      for (let corner = 0; corner < 3; corner++) {
+        const w = weld[triangles[k + corner]!]! * 3;
+        summed[w] += nx; summed[w + 1] += ny; summed[w + 2] += nz;
+      }
+    }
+    for (let v = 0; v < count; v++) {
+      const w = weld[v]! * 3, length = Math.hypot(summed[w]!, summed[w + 1]!, summed[w + 2]!) || 1;
+      normals[v * 3] = summed[w]! / length; normals[v * 3 + 1] = summed[w + 1]! / length; normals[v * 3 + 2] = summed[w + 2]! / length;
+    }
+    return { ...topology, points, normals };
+  }
+  /** A part's skin as it is joined up (surface()): where each vertex comes from and its owner, the triangles, the welds, the rim. */
+  private join(pattern: RegExp): Omit<Surface, 'points' | 'normals'> | null {
     const members = this.named(pattern), sets = this.within(pattern);
     let points = 0, triangles = 0;
     for (let s = 0; s < this.skins.length; s++) { points += members[s]!.length; triangles += sets[s]!.length; }
     if (!points || !triangles) return null;
-    const out: Surface = {
-      points: new Float64Array(points * 3), owners: [], triangles: new Uint32Array(triangles * 3), normals: new Float64Array(points * 3),
-      rimVertex: new Uint8Array(points), rimEdges: new Set(), source: new Uint32Array(points * 2), weld: new Uint32Array(points),
+    const out: Omit<Surface, 'points' | 'normals'> = {
+      owners: [], triangles: new Uint32Array(triangles * 3), rimVertex: new Uint8Array(points), rimEdges: new Set(),
+      source: new Uint32Array(points * 2), weld: new Uint32Array(points),
     };
     let p = 0, t = 0;
     for (let s = 0; s < this.skins.length; s++) {
-      const skin = this.skins[s]!, world = skin.world, tri = skin.tri, local = new Map<number, number>();
+      const skin = this.skins[s]!, tri = skin.tri, local = new Map<number, number>();
       for (const v of members[s]!) {
-        out.points[p * 3] = world[v * 3]!; out.points[p * 3 + 1] = world[v * 3 + 1]!; out.points[p * 3 + 2] = world[v * 3 + 2]!;
         out.owners.push(skin.ownerNames[skin.ownerIds[v]!]!); out.source[p * 2] = s; out.source[p * 2 + 1] = v; local.set(v, p); p++;
       }
       for (const k of sets[s]!) {
@@ -1329,26 +1367,16 @@ export class SkinContact {
     // Vertices at one place are one (a mesh splits its skin along texture seams), for the normals and the rim.
     const weld = out.weld, at = new Map<string, number>();
     for (let v = 0; v < points; v++) {
-      const place = `${Math.round(out.points[v * 3]! * 1e4)},${Math.round(out.points[v * 3 + 1]! * 1e4)},${Math.round(out.points[v * 3 + 2]! * 1e4)}`;
+      const world = this.skins[out.source[v * 2]!]!.world, i = out.source[v * 2 + 1]! * 3;
+      const place = `${Math.round(world[i]! * 1e4)},${Math.round(world[i + 1]! * 1e4)},${Math.round(world[i + 2]! * 1e4)}`;
       weld[v] = at.get(place) ?? v;
       if (!at.has(place)) at.set(place, v);
     }
-    // Smoothed normals, each vertex's triangles' faces weighted by their area; and the rim, the edges one triangle has.
-    const uses = new Map<number, number>(), summed = new Float64Array(points * 3);
-    for (let k = 0; k < triangles; k++) {
-      const [a, b, c] = [out.triangles[k * 3]!, out.triangles[k * 3 + 1]!, out.triangles[k * 3 + 2]!], q = out.points;
-      const ux = q[b * 3]! - q[a * 3]!, uy = q[b * 3 + 1]! - q[a * 3 + 1]!, uz = q[b * 3 + 2]! - q[a * 3 + 2]!;
-      const vx = q[c * 3]! - q[a * 3]!, vy = q[c * 3 + 1]! - q[a * 3 + 1]!, vz = q[c * 3 + 2]! - q[a * 3 + 2]!;
-      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-      for (const v of [a, b, c]) { const w = weld[v]!; summed[w * 3] += nx; summed[w * 3 + 1] += ny; summed[w * 3 + 2] += nz; }
-      for (const [x, y] of [[a, b], [a, c], [b, c]] as const) {
-        const e = edgeKey(weld[x]!, weld[y]!, points);
-        uses.set(e, (uses.get(e) ?? 0) + 1);
-      }
-    }
-    for (let v = 0; v < points; v++) {
-      const w = weld[v]!, length = Math.hypot(summed[w * 3]!, summed[w * 3 + 1]!, summed[w * 3 + 2]!) || 1;
-      for (let axis = 0; axis < 3; axis++) out.normals[v * 3 + axis] = summed[w * 3 + axis]! / length;
+    // The rim: the edges only one triangle has.
+    const uses = new Map<number, number>();
+    for (let k = 0; k < triangles; k++) for (const [x, y] of [[0, 1], [0, 2], [1, 2]] as const) {
+      const e = edgeKey(weld[out.triangles[k * 3 + x]!]!, weld[out.triangles[k * 3 + y]!]!, points);
+      uses.set(e, (uses.get(e) ?? 0) + 1);
     }
     const rim = new Uint8Array(points);
     for (const [edge, used] of uses) if (used === 1) { rim[Math.floor(edge / points)] = 1; rim[edge % points] = 1; }
