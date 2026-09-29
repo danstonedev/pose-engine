@@ -60,9 +60,11 @@
  * "I can't lift it past where it hangs".
  */
 import * as THREE from 'three';
+import { projectShoulderProxyLocal, shoulderProxyCapacity } from './shoulderRuntime';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import { POSE_SCHEMA_VERSION, type CustomPose } from '../types';
 import type { JointAngleReport, JointAngleRestReference } from './jointAngles';
+import { isShoulderFieldMasked } from './jointAngles';
 import {
   effectiveRomRange,
   getRomFieldDefinition,
@@ -97,6 +99,8 @@ export type ExamMovementRefusalReason =
   | 'stage-unavailable';
 
 export interface ExamMovementOutcome {
+  shoulder?: import('./shoulderComplex').ShoulderComplexInspection;
+  realizationReason?: 'coupled-capacity' | 'achieved-shortfall' | 'incompatible-projections' | 'missing-reference';
   status: 'complied' | 'modified' | 'refused';
   joint?: string;
   motion?: string;
@@ -1206,6 +1210,7 @@ export function buildCommandPose(
   variantCfg: BodyVariantConfig,
   fromPose?: CustomPose | null,
   rest?: JointAngleRestReference | null,
+  constraints?: RomScenarioConstraints | null,
 ): CustomPose | null {
   if (cmd.action === 'relax') {
     return copyPose(baselinePose, variantCfg.id);
@@ -1219,7 +1224,7 @@ export function buildCommandPose(
   if (girdleKeyFor(cmd.joint)) {
     return buildComposedCommandPose(
       baselinePose, cmd.joint, [{ motion: cmd.motion, degrees: clampedDegrees }],
-      variantCfg, fromPose, rest,
+      variantCfg, fromPose, rest, [], constraints,
     );
   }
 
@@ -1586,6 +1591,7 @@ export function buildComposedCommandPose(
   fromPose?: CustomPose | null,
   rest?: JointAngleRestReference | null,
   explicitGirdleTargets: ComposedJointTarget[] = [],
+  constraints?: RomScenarioConstraints | null,
 ): CustomPose | null {
   const specs = SUPPORTED_MOTIONS[joint];
   if (!specs) return null;
@@ -1632,6 +1638,8 @@ export function buildComposedCommandPose(
     ctx.girdleWorld = posedGirdleWorldRotation(joint, target, baselinePose, rest);
     const side = joint.startsWith('R_') ? 'R' : 'L';
     const q = restQ.clone().multiply(composeShoulderDelta(ctx, side, F, A, R));
+    const capacity = shoulderProxyCapacity(constraints, side);
+    if (capacity.enforced && rest) q.copy(projectShoulderProxyLocal(q, joint, rest, capacity.budgetDeg) ?? q);
     target.bones[joint] = [q.x, q.y, q.z, q.w];
     return target;
   }
@@ -1703,8 +1711,10 @@ export function measureCommandMotion(
   report: JointAngleReport,
   joint: string,
   motion: string,
+  requireValidProjection = false,
 ): number | undefined {
   const value = report.joints?.[joint]?.[motion];
+  if (requireValidProjection && report.joints?.[joint] && isShoulderFieldMasked(joint, motion, report.joints[joint])) return undefined;
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
   const spec = SUPPORTED_MOTIONS[joint]?.[motion];
   return spec ? spec.fromReport(value) : value;
@@ -1719,17 +1729,35 @@ export function finalizeOutcome(
   resolved: ResolvedCommandTarget,
   achievedDegrees?: number,
   constraints?: RomScenarioConstraints | null,
+  shoulder?: import('./shoulderComplex').ShoulderComplexInspection,
 ): ExamMovementOutcome {
   const outcome: ExamMovementOutcome = { status: resolved.status };
+  if (!/^[LR]_UpperArm$/.test(resolved.joint ?? '')) shoulder = undefined;
+  if (shoulder) outcome.shoulder = shoulder;
   if (resolved.joint != null) outcome.joint = resolved.joint;
   if (resolved.motion != null) outcome.motion = resolved.motion;
   if (resolved.requestedDegrees != null) outcome.requestedDegrees = resolved.requestedDegrees;
   if (resolved.limitedBy != null) outcome.limitedBy = resolved.limitedBy;
   if (resolved.reason != null) outcome.reason = resolved.reason;
 
-  const achieved = achievedDegrees ?? resolved.clampedDegrees;
+  const achieved = shoulder ? achievedDegrees : achievedDegrees ?? resolved.clampedDegrees;
+  if (shoulder && resolved.status !== 'refused') {
+    if (shoulder.status === 'unavailable' || achievedDegrees === undefined) {
+      outcome.status = 'modified';
+      outcome.realizationReason = shoulder.status === 'unavailable' ? 'missing-reference' : 'incompatible-projections';
+    } else if (shoulder.capacity.withinBudget === false) {
+      outcome.status = 'modified'; outcome.realizationReason = 'coupled-capacity';
+    }
+  }
   if (achieved != null) {
     outcome.achievedDegrees = achieved;
+    if (/^[LR]_UpperArm$/.test(resolved.joint ?? '') && achievedDegrees !== undefined && resolved.status !== 'refused' && resolved.requestedDegrees !== undefined
+      && Math.abs(achievedDegrees - resolved.requestedDegrees) > EXAM_COMMAND_COMPLY_EPS_DEG) {
+      outcome.status = 'modified';
+      outcome.realizationReason = shoulder?.capacity.withinBudget === false ||
+        (shoulder?.capacity.enforced && shoulder.capacity.marginDeg != null && shoulder.capacity.marginDeg < EXAM_COMMAND_COMPLY_EPS_DEG)
+        ? 'coupled-capacity' : 'achieved-shortfall';
+    }
     if (resolved.joint && resolved.motion) {
       outcome.painful = isInRomPainfulArc(
         achieved,

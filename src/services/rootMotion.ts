@@ -121,6 +121,7 @@ export function rotateRestReferenceByRoot(
   }
   return {
     pelvisWorldQuat: rot4(rest.pelvisWorldQuat),
+    ...(rest.shoulderFrames ? { shoulderFrames: rest.shoulderFrames } : {}),
     localQuats: rest.localQuats,
     worldQuats,
     ...(worldDirs ? { worldDirs } : {}),
@@ -197,6 +198,7 @@ export function rotateRestReferenceByPelvis(
   }
   return {
     pelvisWorldQuat: rest.pelvisWorldQuat, // the subject of the measurement — see above
+    ...(rest.shoulderFrames ? { shoulderFrames: rest.shoulderFrames } : {}),
     localQuats: rest.localQuats,
     worldQuats,
     ...(worldDirs ? { worldDirs } : {}),

@@ -276,3 +276,4 @@ export { createIdleOverlay, type IdleOverlay } from './services/stageIdleOverlay
 export { createBreathState, type BreathState } from './services/stageBreath';
 export * from './services/movementControl';
 export * from './services/shoulderComplex';
+export * from './services/shoulderRuntime';

@@ -35,6 +35,7 @@
   let { report, filterChangedOnly = false, title = 'Joint angles' }: Props = $props();
 
   const MOVED_DEG_THRESHOLD = 1;
+  const angleText = (value: number | null) => value === null ? 'unavailable' : `${value.toFixed(1)}°`;
 
   function fieldMoved(value: number | undefined): boolean {
     return typeof value === 'number' && Math.abs(value) >= MOVED_DEG_THRESHOLD;
@@ -127,11 +128,37 @@
           {/each}
         </tbody>
       </table>
+      {#if report.shoulders}
+        <details class="joint-angles__shoulders">
+          <summary>Shoulder coordination</summary>
+          <p>Measured from the current pose. This rig uses a combined shoulder girdle.</p>
+          {#each ['L', 'R'] as side}
+            {@const shoulder = report.shoulders[side as 'L' | 'R']}
+            <p>
+              <strong>{side === 'L' ? 'Left' : 'Right'}:</strong>
+              arm elevation {angleText(shoulder.thorax.elevationDeg)};
+              relative to girdle {angleText(shoulder.girdleProxy.elevationDeg)}.
+              Elevation plane {angleText(shoulder.thorax.planeOfElevationDeg)};
+              girdle-relative twist {angleText(shoulder.girdleProxy.restAxisTwistDeg)}.
+              {#if shoulder.capacity.withinBudget === false}
+                <span class="joint-angles__capacity">Exceeds model capacity by {shoulder.capacity.excessDeg?.toFixed(1)}°.</span>
+              {/if}
+              {#if shoulder.supportResidualM !== undefined}
+                Hand support gap {(shoulder.supportResidualM * 100).toFixed(1)} cm.
+              {/if}
+            </p>
+          {/each}
+          <p>The model capacity is an engineering limit, separate from patient ROM. Twist uses the rest arm axis; an unavailable plane or twist is left unmeasured.</p>
+        </details>
+      {/if}
     {/if}
   </div>
 </aside>
 
 <style>
+  .joint-angles__shoulders { border-top: 1px solid #8885; padding-top: 8px; margin-top: 8px; }
+  .joint-angles__shoulders p { line-height: 1.5; }
+  .joint-angles__capacity { color: var(--warning, #eab65b); }
   .joint-angles {
     display: flex;
     flex-direction: column;

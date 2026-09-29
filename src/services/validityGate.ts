@@ -99,6 +99,7 @@ export interface GateFrame {
    *  RecordedFrame; consumed ONLY by the biomech hook (gaitBiomechCheck) for the
    *  normative joint-angle RMS check. The core plausibility checks never read it. */
   angles?: Record<string, Record<string, number>>;
+  shoulders?: import('./shoulderRuntime').ShoulderInspections;
   /** Preserve seat/floor support so feet-only balance is not applied there. */
   groundingPosture?: string;
 }
@@ -645,6 +646,20 @@ export function assessValidity(
   const hasFrames = !!frames && frames.length >= 2;
   if (hasFrames) {
     const fr = frames!;
+    for (const side of ['L', 'R'] as const) {
+      const values = fr.map(f => f.shoulders?.[side]);
+      const enforced = resolved.shoulderCapacity === 'enforce-proxy'
+        || values.some(s => s?.capacity.enforced);
+      const missing = values.filter(s => s?.capacity.withinBudget == null).length;
+      const exceeded = values.some(s => s?.capacity.withinBudget === false);
+      if (enforced || exceeded) checks.push({
+        id: `shoulder-capacity-${side}`, pass: !exceeded && (!enforced || missing === 0),
+        severity: enforced ? 'fail' : 'warn',
+        measured: Math.max(0, ...values.map(s => s?.capacity.excessDeg ?? 0)), threshold: 0, unit: 'deg',
+        note: missing ? `Coupled shoulder capacity is unmeasured in ${missing} frames.`
+          : 'Realized elevation relative to the girdle proxy; engineering capacity, separate from patient ROM.',
+      });
+    }
     const travels = resolved.footDrivenTravel === true || netTravelM(fr) >= th.travelEpsM;
 
     const skate = checkFootSkate(fr, opts.floorY ?? inferFloorY(fr), travels, th);

@@ -46,6 +46,7 @@
   import { computeStageDiagnostics, type StageDiagnostics } from './services/stageDiagnostics';
   import { POSE_SCHEMA_VERSION, type CustomPose, type MovementClipId } from './types';
   import type { DrivingRingMap, JointAngleReport } from './services/jointAngles';
+  import { attachShoulderSupportResiduals, recordedShoulderConstraints, shoulderConstraintsForPolicy } from './services/shoulderRuntime';
   import type { PoseRingDrag } from './services/poseRotateRings';
   import type { AnatomicalPlanes } from './services/anatomicalPlanes';
   import type { SectionCap } from './services/sectionCap';
@@ -552,7 +553,7 @@
         serializeCustomPose,
         buildBoneByPoseKey,
       } = await import('./services/poseRig');
-      const { clampBoneToRom, hasClampStrategy, setRomClampEnabled } = await import(
+      const { clampBoneToRom, enforceShoulderCapacities, hasClampStrategy, setRomClampEnabled } = await import(
         './services/poseRomClamp'
       );
       const { captureJointAngleRestReference, computeJointAngles, measureHingeFlexion } =
@@ -1117,6 +1118,9 @@
       // Reset to null when composed playback ends / is taken over (cancelComposed),
       // so a subsequent clip/idle recording can never inherit a stale posture.
       let composedCurrentGrounding: string | null = null;
+      let composedShoulderConstraints: RomScenarioConstraints | null = null;
+      let composedShoulderPolicy: 'legacy' | 'enforce-proxy' | undefined;
+      const activeShoulderConstraints = () => shoulderConstraintsForPolicy(composedShoulderPolicy, romConstraints ?? composedShoulderConstraints);
       let composedSeq = 0;
       // Cancellation tokens (PR 1 runtime foundation). composedActiveToken is the
       // composedSeq of the CURRENTLY playing composed motion; composedCancelledToken
@@ -1149,6 +1153,8 @@
         composedVcalRaiseY = 0;
         breath.setWorkIntensity(0); // exertion feed stops; the accumulator decays
         composedCurrentGrounding = null; // drop the frame grounding so a clip/idle recording can't inherit it
+        composedShoulderConstraints = null;
+        composedShoulderPolicy = undefined;
         // Abort an in-flight continuous trajectory so any awaiter unblocks.
         if (activeTrajectory) {
           const resolve = activeTrajectory.resolve;
@@ -1551,6 +1557,7 @@
         skeleton: import('three').Skeleton,
         cfg: NonNullable<typeof variantCfgRef>,
         pose: CustomPose,
+        enforce = true,
       ) {
         const base = baselinePoseRef?.bones;
         applyCustomPose(
@@ -1558,6 +1565,14 @@
           cfg,
           base ? { ...pose, bones: { ...base, ...pose.bones } } : pose,
         );
+        if (enforce) enforceCurrentShoulders();
+      }
+
+      function enforceCurrentShoulders(): void {
+        if (!skinnedRef || !variantCfgRef || !restRef) return;
+        const constraints = activeShoulderConstraints();
+        if (!constraints) return;
+        enforceShoulderCapacities(buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef), activeRestRef() ?? restRef, constraints);
       }
 
       function applyPoseNow(pose: CustomPose | null) {
@@ -2020,7 +2035,7 @@
         }
         for (const bone of reachBones) {
           const solver = buildHandPlant(skinnedRef, bone, variantCfgRef);
-          if (solver) composedHandPlants.push({ solver, bone, target: null });
+          if (solver) { solver.constraints = activeShoulderConstraints(); composedHandPlants.push({ solver, bone, target: null }); }
         }
       }
 
@@ -2038,7 +2053,7 @@
        *  release is read off it, exactly as the sampler's is (none for a
        *  touchdown-planted gait, whose travel assumes the base release). */
       function applyFootPlants(tMs: number, trajectory: PoseTrajectory): void {
-        if (!composedPlants.length || !restRef || !modelRoot) return;
+        if (!composedPlants.length || !restRef || !modelRoot) { enforceCurrentShoulders(); return; }
         const solved = stepContactPlants(composedPlants, tMs, {
           // Fixed-base folds first place the root over the feet, then refine
           // both contacts. Their clamp frame includes that root and pelvis turn.
@@ -2052,6 +2067,7 @@
           trajectory: composedPlantsAtTouchdown ? null : trajectory,
         });
         if (solved) modelRoot.updateMatrixWorld(true);
+        enforceCurrentShoulders();
       }
 
       /** Pose the rig at time `tMs` of `traj` exactly as a frame is posed when
@@ -2107,6 +2123,7 @@
         );
         const engaged: { solver: NonNullable<StageHandPlant['solver']>; state: StageHandPlant; engagedAtMs: number; untilMs?: number; untilWeight?: number; bone: string }[] = [];
         for (const hp of composedHandPlants) {
+          if (hp.solver) hp.solver.constraints = activeShoulderConstraints();
           if (!hp.solver || !reach.has(hp.bone)) {
             const released = hp.solver ? handReachReleasedAt(composedGroundingSwitches, hp.bone, tMs, floorRef) : null;
             if (hp.solver && released) {
@@ -2409,12 +2426,7 @@
       function measureNow(): JointAngleReport | null {
         if (!skinnedRef || !variantCfgRef || !restRef || !modelRoot) return null;
         modelRoot.updateMatrixWorld(true);
-        return computeJointAngles(
-          skinnedRef.skeleton,
-          variantCfgRef,
-          variantCfgRef.id,
-          activeRestRef() ?? restRef,
-        );
+        return measureNowFresh();
       }
 
       // Loop-local measure: the render loop already ran modelRoot.updateMatrixWorld()
@@ -2424,12 +2436,15 @@
       // is what made high report rates expensive.
       function measureNowFresh(): JointAngleReport | null {
         if (!skinnedRef || !variantCfgRef || !restRef) return null;
-        return computeJointAngles(
+        const report = computeJointAngles(
           skinnedRef.skeleton,
           variantCfgRef,
           variantCfgRef.id,
           activeRestRef() ?? restRef,
+          activeShoulderConstraints(),
         );
+        if (motionCapBones) attachShoulderSupportResiduals(report.shoulders, motionCapBones, composedHandPlants);
+        return report;
       }
 
       // ── Motion recording tap (samples inside the existing rAF loop) ────
@@ -2493,6 +2508,7 @@
           tMs: Math.max(0, tMs),
           pose: serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id),
           angles,
+          shoulders: report.shoulders,
           root: {
             orientQuat: [_recQ.x, _recQ.y, _recQ.z, _recQ.w],
             translateM: [
@@ -2537,7 +2553,10 @@
         cancelComposed();
         if (activeMotionId || motionAction) stopMotion();
         if (activeTween) finishTween();
-        applyPoseComplete(skinnedRef.skeleton, variantCfgRef, frame.pose);
+        composedShoulderConstraints = recordedShoulderConstraints(frame.shoulders);
+        // Replay the captured pose exactly. Subsequent edits use its restored
+        // capacity policy; scrubbing is measurement, not a new clinical solve.
+        applyPoseComplete(skinnedRef.skeleton, variantCfgRef, frame.pose, false);
         currentPose = frame.pose;
         composedRootQuat = [...frame.root.orientQuat];
         composedRootTranslate = [...frame.root.translateM];
@@ -2574,7 +2593,7 @@
         if (resolved.status === 'refused' || resolved.clampedDegrees == null) {
           // The patient does not move; answer with where the joint IS.
           const report = measureNow();
-          const achieved = report ? measureCommandMotion(report, cmd.joint, cmd.motion) : undefined;
+          const achieved = report ? measureCommandMotion(report, cmd.joint, cmd.motion, true) : undefined;
           return finalizeOutcome(resolved, achieved, romConstraints ?? null);
         }
         const target = buildCommandPose(
@@ -2584,6 +2603,7 @@
           variantCfgRef,
           currentPose,
           restRef, // shoulder elevation needs the rest world orientation
+          romConstraints,
         );
         if (!target) {
           return finalizeOutcome(
@@ -2597,8 +2617,9 @@
         // patient actually did, not what was planned.
         const report = measureNow();
         if (report) onReport?.(report);
-        const achieved = report ? measureCommandMotion(report, cmd.joint, cmd.motion) : undefined;
-        return finalizeOutcome(resolved, achieved, romConstraints ?? null);
+        const achieved = report ? measureCommandMotion(report, cmd.joint, cmd.motion, true) : undefined;
+        return finalizeOutcome(resolved, achieved, romConstraints ?? null,
+          report?.shoulders?.[cmd.joint.startsWith('R_') ? 'R' : 'L']);
       };
 
       runComposedImpl = async (
@@ -2722,7 +2743,10 @@
 
         // CROSS-MOTION CONTINUITY: fold onto the CURRENT on-stage pose + root (after
         // any ready settle above), so the motion continues from the live posture.
+        composedShoulderConstraints = effectiveResolved.constraints ?? null;
+        composedShoulderPolicy = effectiveResolved.shoulderCapacity;
         const built = buildSequencePoses(baselinePoseRef, effectiveResolved, variantCfgRef, restRef, {
+          constraints: activeShoulderConstraints(),
           currentPose,
           currentRoot: { quat: composedRootQuat, translateM: composedRootTranslate },
         });
@@ -2918,13 +2942,18 @@
           lastReport = report;
           onReport?.(report);
           for (const t of effectiveResolved.keyframes[i]!.targets) {
-            const measured = measureCommandMotion(report, t.joint, t.motion);
+            const measured = measureCommandMotion(report, t.joint, t.motion, true);
             measurements.push({
               keyframe: i,
               joint: t.joint,
               motion: t.motion,
               clampedDegrees: t.clampedDegrees,
               ...(measured != null ? { measuredDegrees: measured } : {}),
+              ...(/^[LR]_UpperArm$/.test(t.joint) ? {
+                realization: finalizeOutcome({ status: 'complied', joint: t.joint, motion: t.motion,
+                  requestedDegrees: t.clampedDegrees, clampedDegrees: t.clampedDegrees },
+                  measured, activeShoulderConstraints(), report.shoulders?.[t.joint.startsWith('R_') ? 'R' : 'L']),
+              } : {}),
             });
           }
         };
@@ -2971,7 +3000,7 @@
           }
           for (const key of touched) {
             const dot = key.indexOf('.');
-            const measured = measureCommandMotion(lastReport, key.slice(0, dot), key.slice(dot + 1));
+            const measured = measureCommandMotion(lastReport, key.slice(0, dot), key.slice(dot + 1), true);
             if (measured != null) finalAngles[key] = measured;
           }
         }

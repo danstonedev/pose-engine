@@ -33,6 +33,8 @@ import { ARM_REACH_IK_ITERATIONS, solveArmChainWithRhythm } from './poseScapuloh
 
 /** A prepared limb IK chain that pins one contact effector to a world target. */
 export interface FootPlantSolver {
+  /** Explicit patient/coupled limits for every hand trial, latch and final solve. */
+  constraints?: RomScenarioConstraints | null;
   /** The IK chain effector → … → limb root (e.g. foot → knee → hip). */
   ctx: IKChainContext;
   /** Canonical effector key, e.g. 'L_Foot' or 'L_Toes'. */
@@ -1197,7 +1199,7 @@ export function solveHandPlant(
   targetWorldPos: THREE.Vector3,
   rest: JointAngleRestReference | null | undefined,
 ): void {
-  const options = { rest, hinges: new Set([solver.kneeKey]) };
+  const options = { rest, hinges: new Set([solver.kneeKey]), constraints: solver.constraints, forceRomClamp: !!solver.constraints };
   if (solver.distalCtx) solveContactArm(solver, targetWorldPos, options);
   else solveIKChain(solver.ctx, targetWorldPos, options);
 }
@@ -1232,6 +1234,8 @@ export interface HandReachState {
  * as the frames have asked. Kept by {@link settleHandReachLatches}.
  */
 export interface HandReachTimeline {
+  /** Patient bounds participate in cache identity, including in-place edits. */
+  constraintsKey?: string;
   /** What the timeline was read for: the caller's key (the trajectory) and the
    *  engagement time it starts from. */
   key: unknown;
@@ -1779,8 +1783,9 @@ export function settleHandReachLatches(
     const until = horizonOf(r);
     const from = Math.min(until, Math.max(0, r.engagedAtMs));
     let tl = st.timeline;
-    if (!tl || tl.key !== key || Math.abs(tl.engagedAtMs - from) > 1e-6) {
-      tl = { key, engagedAtMs: from, events: [{ tMs: from, target: null }], cursorMs: from, value: Infinity, prev: null, lastGrid: null };
+    const constraintsKey = JSON.stringify(r.solver.constraints ?? null);
+    if (!tl || tl.key !== key || (tl.constraintsKey ?? 'null') !== constraintsKey || Math.abs(tl.engagedAtMs - from) > 1e-6) {
+      tl = { key, constraintsKey, engagedAtMs: from, events: [{ tMs: from, target: null }], cursorMs: from, value: Infinity, prev: null, lastGrid: null };
       st.timeline = tl;
       pending.push({ r, tl, until });
     } else if (tl.cursorMs < until - 1e-9) {

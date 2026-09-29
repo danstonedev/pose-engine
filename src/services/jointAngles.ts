@@ -51,6 +51,9 @@ import {
   type BodyVariantConfig,
 } from '../anatomy/bodyVariants';
 import { ROM_JOINT_ROWS, type RomPlane } from './romRegistry';
+import { captureShoulderFrames, inspectRigShoulders, type ShoulderInspections } from './shoulderRuntime';
+import type { ShoulderComplexFrame } from './shoulderComplex';
+import type { RomScenarioConstraints } from './romConstraints';
 
 // ── Public types ───────────────────────────────────────────────────────────
 
@@ -70,6 +73,8 @@ export interface JointAngleReport {
   variant: string;
   /** Per-joint angles, keyed by canonical bone key. */
   joints: Record<string, JointAngleSet>;
+  /** Frame-relative measurements of the realized pose, distinct from legacy projections. */
+  shoulders?: ShoulderInspections;
 }
 
 /** Snapshot of every rig bone's rest pose (post-applyAnatomicPose) in both
@@ -107,6 +112,8 @@ export interface JointAngleRestReference {
    *  name body-left. Optional for backward compatibility; absent, the axis is
    *  picked from `worldQuats` at measure time. */
   hingeAxes?: Record<string, [number, number, number]>;
+  /** Immutable anatomic reference; retained through legacy root/pelvis adjustments. */
+  shoulderFrames?: Record<'L' | 'R', ShoulderComplexFrame>;
 }
 
 // ── Constants + scratch state ──────────────────────────────────────────────
@@ -225,7 +232,8 @@ export function captureJointAngleRestReference(
     const axis = hingeAxisInParent(localQuats[key], worldQuats[key]);
     hingeAxes[key] = [axis.x, axis.y, axis.z];
   }
-  return { pelvisWorldQuat, localQuats, worldQuats, worldDirs, fingerCurlRest, hingeAxes };
+  return { pelvisWorldQuat, localQuats, worldQuats, worldDirs, fingerCurlRest, hingeAxes,
+    shoulderFrames: captureShoulderFrames(lookup) };
 }
 
 /** The hinge bones (the elbow's forearm, the knee's leg), each with its flexion
@@ -725,6 +733,7 @@ export function computeJointAngles(
   variantCfg: BodyVariantConfig,
   variantId: string,
   rest: JointAngleRestReference = emptyRestReference(),
+  constraints?: RomScenarioConstraints | null,
 ): JointAngleReport {
   const lookup = buildLookup(skeleton, variantCfg);
   const joints: Record<string, JointAngleSet> = {};
@@ -984,6 +993,7 @@ export function computeJointAngles(
     at: new Date().toISOString(),
     variant: variantId,
     joints,
+    shoulders: inspectRigShoulders(lookup, rest, constraints),
   };
 }
 
@@ -1003,6 +1013,10 @@ export function hashJointAngleReport(report: JointAngleReport | null | undefined
       h ^= segment.charCodeAt(i);
       h = (h * 0x01000193) >>> 0;
     }
+  }
+  if (report.shoulders) {
+    const extra = JSON.stringify(report.shoulders, (_key, value) => typeof value === 'number' ? Number(value.toFixed(1)) : value);
+    for (let i = 0; i < extra.length; i++) { h ^= extra.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
   }
   return h.toString(16);
 }

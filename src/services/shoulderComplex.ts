@@ -67,6 +67,8 @@ export interface ShoulderComplexInspection {
   thorax: ShoulderRelativeMeasurement;
   girdleProxy: ShoulderRelativeMeasurement;
   capacity: {
+    /** Runtime policy; absent for standalone pure inspection. */
+    enforced?: boolean;
     basis: 'engineering-girdle-proxy';
     budgetDeg: number | null;
     marginDeg: number | null;
@@ -74,6 +76,8 @@ export interface ShoulderComplexInspection {
     withinBudget: boolean | null;
   };
   diagnostics: ShoulderComplexDiagnostic[];
+  /** Geometric hand-to-latched-support residual after final projection. Not a force. */
+  supportResidualM?: number;
 }
 
 const DEG = 180 / Math.PI;

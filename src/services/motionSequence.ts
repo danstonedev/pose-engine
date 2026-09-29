@@ -52,6 +52,7 @@ import {
   type ExamMovementRefusalReason,
 } from './movementCommand';
 import type { RomScenarioConstraints } from './romConstraints';
+import { shoulderConstraintsForPolicy } from './shoulderRuntime';
 import { rootOrientQuatTuple, type RootOrient, type RootTransform } from './rootMotion';
 import { clampTimeScale } from './motionConstants';
 import {
@@ -365,6 +366,9 @@ export interface StanceContact {
 
 /** A novel movement composed as timed keyframes over the command vocabulary. */
 export interface ComposedMotion {
+  /** Explicit compatibility policy. New audited motions can enforce the
+   * engineering girdle-proxy budget; existing saved motions retain legacy behavior. */
+  shoulderCapacity?: 'legacy' | 'enforce-proxy';
   /** Stable authoring family for auditing phase responsibilities; not a runtime ID. */
   controlId?: string;
   /** Short human label the author/AI gives its creation. */
@@ -723,6 +727,9 @@ export interface ResolvedSequenceKeyframe {
 }
 
 export interface ResolvedComposedMotion {
+  shoulderCapacity?: 'legacy' | 'enforce-proxy';
+  /** Captured patient constraints also govern realized coupled shoulder capacity. */
+  constraints?: RomScenarioConstraints | null;
   status: 'ok' | 'refused';
   name?: string;
   /** Authored posture endpoints (pass-through from the input motion) — so the
@@ -1801,6 +1808,8 @@ export function resolveComposedMotion(
   // transform runs (per-keyframe shape errors are caught in phase 8).
   const shapeError = validateComposedShape(motion);
   if (shapeError) return refuse(motion, shapeError);
+  if (motion.shoulderCapacity === 'enforce-proxy')
+    opts = { ...opts, constraints: shoulderConstraintsForPolicy(motion.shoulderCapacity, opts?.constraints) };
 
   // ── PHASE 2 — TRAVEL SUGAR → COMPOSED RAW (AI-SUGAR-01): realize each keyframe's
   // semantic `travel` as a DELTA from the carried root, producing the raw
@@ -1955,6 +1964,10 @@ export function resolveComposedMotion(
     derivedSchedule,
     gaitNotes,
   });
+  if (opts?.constraints && (motion.shoulderCapacity === 'enforce-proxy'
+    || ['L', 'R'].some(side => opts!.constraints![`${side}_UpperArm`]?.girdleProxyElevation)))
+    resolved.constraints = structuredClone(opts.constraints);
+  if (motion.shoulderCapacity) resolved.shoulderCapacity = motion.shoulderCapacity;
 
   // ── PHASE 14 — ARTIFACT RE-TIMING FROM RESOLVED KEYFRAME BOUNDARIES (SEAM-7,
   // part 2): the ms-authored artifacts (`contacts`, `gaitStanceWindowsMs`,
@@ -2051,6 +2064,8 @@ export function keyframeVelocityFloorsMs(resolved: ResolvedComposedMotion): Keyf
 /** One target's MEASURED landing at its keyframe (computeJointAngles readback
  *  after the tween settles — what the patient actually did, not the plan). */
 export interface ComposedKeyframeMeasurement {
+  /** Actual shoulder realization, separate from completion of the playback clock. */
+  realization?: import('./movementCommand').ExamMovementOutcome;
   keyframe: number;
   joint: string;
   motion: string;
@@ -2146,6 +2161,7 @@ function slerpQuatTuple(a: QuatTuple, b: QuatTuple, t: number): QuatTuple {
 
 /** Options threading the CURRENT on-stage pose into the build (continuity). */
 export interface BuildSequenceOptions {
+  constraints?: RomScenarioConstraints | null;
   /** The pose the body is CURRENTLY in. When the motion's startFrom is
    *  'current' (default), keyframe poses fold onto this so unmentioned joints
    *  persist across compositions instead of snapping back to anatomic rest. */
@@ -2236,6 +2252,7 @@ export function buildSequencePoses(
       const built = buildComposedCommandPose(
         baselinePose, joint, group, variantCfg, pose, rest,
         girdleKey ? byJoint.get(girdleKey) : undefined,
+        shoulderConstraintsForPolicy(resolved.shoulderCapacity, opts?.constraints ?? resolved.constraints),
       );
       if (built) pose = built; // null only for wholly-unsupported joints — already dropped
     }

@@ -88,6 +88,7 @@ export interface TemplateContactWindow {
 }
 
 export interface MovementTemplate {
+  shoulderCapacity?: 'legacy' | 'enforce-proxy';
   id: string;
   label: string;
   /** Instruction keywords that select this template (lowercased substrings). */
@@ -977,6 +978,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
   },
   {
     id: 'endpoint-reach',
+    shoulderCapacity: 'enforce-proxy',
     label: 'Functional forward/overhead reach (endpoint reach)',
     aliases: ['reach', 'reaching', 'reach forward', 'reach up', 'functional reach', 'reach for something', 'reach overhead'],
     coordination:
