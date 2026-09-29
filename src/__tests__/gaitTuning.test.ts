@@ -27,7 +27,7 @@ import { sampleComposedMotion } from '../services/motionRecording';
 import { captureFloorReference } from '../services/rootMotion';
 import { assessValidity } from '../services/validityGate';
 import { runGaitBiomechChecks } from '../services/gaitBiomechCheck';
-import { buildTravelWalk, spinalGaitCoordination } from '../services/movementTemplates';
+import { buildTravelRun, buildTravelWalk, spinalGaitCoordination } from '../services/movementTemplates';
 import { motionObjective, gradedCheckIds } from '../services/motionObjective';
 import { searchParameters, identityVector, type Vector } from '../services/policySearch';
 import { GAIT_TRUNK_PARAMETERS, toSpinalOpts, applyTrunkGains } from '../services/gaitTuning';
@@ -68,13 +68,13 @@ beforeAll(async () => {
 
 /** Resolve + rig-sample + grade one candidate. This IS the evaluation an
  *  optimizer pays for — ~200-400 ms, dominated entirely by sampling. */
-function evaluateVector(v: Vector): { reward: number; valid: boolean; score: number } {
+function evaluateVector(v: Vector): { reward: number; valid: boolean; score: number; failures: string[] } {
   root.position.copy(rootRest0);
   root.quaternion.copy(rootQuat0);
   root.updateMatrixWorld(true);
   const motion: ComposedMotion = applyTrunkGains(buildTravelWalk(), v, spinalGaitCoordination);
   const resolved = resolveComposedMotion(motion, variantCfg);
-  if (resolved.status !== 'ok') return { reward: -Infinity, valid: false, score: 0 };
+  if (resolved.status !== 'ok') return { reward: -Infinity, valid: false, score: 0, failures: ['resolution failed'] };
   const rec = sampleComposedMotion(resolved, {
     baselinePose,
     variantCfg,
@@ -84,7 +84,9 @@ function evaluateVector(v: Vector): { reward: number; valid: boolean; score: num
   });
   const report = assessValidity(resolved, rec.frames, { floorY, runBiomechChecks: runGaitBiomechChecks });
   const obj = motionObjective(report);
-  return { reward: obj.reward, valid: obj.valid, score: report.score };
+  const failures = report.checks.filter(c => !c.pass && c.severity === 'fail')
+    .map(c => `${c.id}: ${c.measured} ${c.unit} (limit ${c.threshold}); ${c.note}`);
+  return { reward: obj.reward, valid: obj.valid, score: report.score, failures };
 }
 
 describe('the objective is CONTINUOUS where the shipped score is flat', () => {
@@ -135,6 +137,20 @@ describe('the identity point is exactly the shipped motion', () => {
       pelvis: 0.05,
       headStabilize: 1,
     });
+    for (const base of [buildTravelWalk(), buildTravelRun()]) {
+      expect(applyTrunkGains(base, identityVector(GAIT_TRUNK_PARAMETERS), spinalGaitCoordination)).toEqual(base);
+    }
+  });
+
+  it('retuning the trunk never re-adds arm carriage, girdle or distal limb coordination', () => {
+    for (const base of [buildTravelWalk(), buildTravelRun()]) {
+      const tuned = applyTrunkGains(base, { axial: 0.28, lateral: 0.08, pelvis: 0.09, headStabilize: 0.6 }, spinalGaitCoordination);
+      expect(tuned).not.toEqual(base);
+      const limbTargets = (m: ComposedMotion) => m.keyframes.map(frame => frame.targets?.filter(t =>
+        /^[LR]_/.test(t.joint) && t.motion !== 'hipRotation',
+      ));
+      expect(limbTargets(tuned)).toEqual(limbTargets(base));
+    }
   });
 
   it('every parameter identity sits inside its own bounds', () => {
@@ -162,7 +178,8 @@ describe('the loop recovers a deliberately degraded parameter', () => {
       { name: 'pelvis', min: 0.02, max: 0.1, identity: 0.09 },
       { name: 'headStabilize', min: 0.5, max: 1, identity: 0.6 },
     ];
-    expect(evaluateVector(identityVector(degraded)).valid, 'degraded start must be VALID').toBe(true);
+    const start = evaluateVector(identityVector(degraded));
+    expect(start.valid, `degraded start must be VALID: ${start.failures.join('; ')}`).toBe(true);
     const r = await searchParameters(
       degraded,
       async (v) => {

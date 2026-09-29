@@ -174,9 +174,9 @@ describe('a toe contact is a leg chain whose knee stays a hinge', () => {
     expect(footContact.kneeKeyForFoot('R_Foot')).toBe('R_Leg');
   });
 
-  it('a declared HAND contact hinges the elbow, like the grounding hand plant (it hinged nothing)', () => {
+  it('a declared HAND contact includes the girdle and hinges the elbow, like the grounding hand plant', () => {
     const plant = footContact.buildFootPlant(skinned, 'L_Hand', variantCfg)!;
-    expect(plant.ctx.canonicalKeys).toEqual(['L_Hand', 'L_Forearm', 'L_UpperArm']);
+    expect(plant.ctx.canonicalKeys).toEqual(['L_Hand', 'L_Forearm', 'L_UpperArm', 'L_Shoulder']);
     expect(plant.kneeKey).toBe('L_Forearm');
     expect(plant.kneeKey).toBe(footContact.buildHandPlant(skinned, 'L_Hand', variantCfg)!.kneeKey);
   });

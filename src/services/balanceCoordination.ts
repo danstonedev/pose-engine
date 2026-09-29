@@ -60,10 +60,10 @@ import { buildSequencePoses, type ResolvedComposedMotion } from './motionSequenc
 import {
   captureFloorReference,
   captureFootFrames,
+  footFramesForCurrentPose,
   pinRootToFloor,
   plantStanceFoot,
-  stanceFootDrift,
-  FOOT_ROOT_DRIFT_M,
+  stanceFootNeedsPlant,
 } from './rootMotion';
 
 // ── Tuning (rig-calibrated against computeBalanceTimeline; see the gates in
@@ -425,7 +425,9 @@ export function balanceCoordination(
   applyCustomPose(skeleton, variantCfg, baselinePose);
   root.updateMatrixWorld(true);
   const floorRef = captureFloorReference(skeleton, variantCfg);
-  const footFrames = captureFootFrames(skeleton, variantCfg);
+  const footFrames = footFramesForCurrentPose(captureFootFrames(skeleton, variantCfg, rest),
+    resolved.startFrom === 'current' ? harness.currentPose : null,
+    resolved.keyframes.flatMap(k => k.targets.map(t => t.joint)));
 
   /** Cumulative corrections, per keyframe, keyed `joint.motion`. */
   const corr: Map<string, number>[] = resolved.keyframes.map(() => new Map());
@@ -462,8 +464,8 @@ export function balanceCoordination(
       );
       root.scale.copy(restScale);
       root.updateMatrixWorld(true);
-      if ((stanceFootDrift(root, skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M) {
-        plantStanceFoot(root, skeleton, variantCfg, footFrames);
+      if (stanceFootNeedsPlant(root, skeleton, variantCfg, footFrames)) {
+        plantStanceFoot(root, skeleton, variantCfg, footFrames, harness.constraints);
       } else {
         pinRootToFloor(root, skeleton, variantCfg, floorRef);
       }

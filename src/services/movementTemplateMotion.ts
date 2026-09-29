@@ -30,6 +30,7 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
     durationMs: p.durationMs,
     ...(p.holdMs ? { holdMs: p.holdMs } : {}),
     ...(p.stance ? { stance: p.stance } : {}),
+    ...(p.groundingPosture ? { groundingPosture: p.groundingPosture } : {}),
     ...(p.travel ? { travel: p.travel } : {}),
     ...(p.root ? { root: p.root } : {}),
     ...(p.velocityClass ? { velocityClass: p.velocityClass } : {}),

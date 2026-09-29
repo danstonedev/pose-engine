@@ -25,7 +25,10 @@
  */
 import * as THREE from 'three';
 import { normalizeBoneNameForVariant, type BodyVariantConfig } from '../anatomy/bodyVariants';
-import type { JointAngleRestReference } from './jointAngles';
+import { captureJointAngleRestReference, localAxisTowardBodyLeft, type JointAngleRestReference } from './jointAngles';
+import { solveIKChain } from './poseRig';
+import { clampBoneToRom } from './poseRomClamp';
+import type { RomScenarioConstraints } from './romConstraints';
 import type { TrajectoryGroundingSwitch } from './motionTrajectory';
 import { PLANT_RELEASE_BLEND_MS, plantReleaseWeight } from './footContact';
 
@@ -400,22 +403,58 @@ export function pinContactsToFloor(
  *  closed chain engages. */
 export const FOOT_ROOT_DRIFT_M = 0.05;
 
-/** Full rest WORLD frame (position + orientation) of each ankle (Foot) bone,
- *  captured at anatomic stance — the target a foot-rooted plant restores the
- *  stance foot to. Call after applyAnatomicPose with world matrices current. */
+/** Full reference WORLD frame of each ankle and the pelvis's local reference.
+ *  Capture with world matrices current. If the reference pose is not anatomic,
+ *  pass the original clinical joint rest separately for anatomical IK limits. */
 export interface FootFrameReference {
   restFrame: Record<string, THREE.Matrix4>;
+  /** Pelvic articulation is measured separately from whole-body placement. */
+  pelvisLocalQuat?: THREE.Quaternion;
+  jointRest?: JointAngleRestReference;
+  pelvisParentWorldQuat?: THREE.Quaternion;
+  /** Live owner used to recover support intent across consecutive compositions. */
+  skeleton?: THREE.Skeleton;
+  supportIntent?: Map<string, THREE.Quaternion>;
 }
 
 export function captureFootFrames(
   skeleton: THREE.Skeleton,
   variantCfg: BodyVariantConfig,
+  jointRest?: JointAngleRestReference | null,
 ): FootFrameReference {
   const restFrame: Record<string, THREE.Matrix4> = {};
   for (const { key, bone } of contactBones(skeleton, variantCfg)) {
     if (key.endsWith('Foot')) restFrame[key] = bone.matrixWorld.clone();
   }
-  return { restFrame };
+  const pelvis = findPelvisBone(skeleton, variantCfg);
+  return {
+    restFrame,
+    skeleton,
+    ...(pelvis ? {
+      pelvisLocalQuat: pelvis.quaternion.clone(),
+      pelvisParentWorldQuat: pelvis.parent?.getWorldQuaternion(new THREE.Quaternion()) ?? new THREE.Quaternion(),
+      jointRest: jointRest ?? captureJointAngleRestReference(skeleton, variantCfg),
+    } : {}),
+  };
+}
+
+/** A continuation's carried leg pose belongs to its incoming pelvic frame.
+ *  Keep the boot foot targets/clinical rest, but neutralize only the NEW pelvic
+ *  excursion, so existing support compensation is not mistaken for fresh FK. */
+export function footFramesForCurrentPose(
+  frames: FootFrameReference,
+  currentPose: { bones: Record<string, readonly number[]> } | null | undefined,
+  authoredJoints?: Iterable<string>,
+): FootFrameReference {
+  const q = currentPose?.bones.Hips;
+  const joints = [...(authoredJoints ?? [])];
+  const pelvisOnly = joints.includes('Hips') && !joints.some(key => /^[LR]_(UpLeg|Leg|Foot|Toes)$/.test(key));
+  const previous = frames.skeleton ? lastArticulatedPlant.get(frames.skeleton) : undefined;
+  if (q && pelvisOnly && previous && previous.legResults.every(({ key, quaternion }) => {
+    const value = currentPose!.bones[key];
+    return value && quaternion.equals(new THREE.Quaternion(value[0], value[1], value[2], value[3]));
+  })) return { ...frames, pelvisLocalQuat: previous.pelvisReference.clone(), supportIntent: previous.legIntent };
+  return q ? { ...frames, pelvisLocalQuat: new THREE.Quaternion(q[0], q[1], q[2], q[3]) } : frames;
 }
 
 const _mInv = new THREE.Matrix4();
@@ -458,6 +497,182 @@ export function stanceFootDrift(
   return stanceBone.getWorldPosition(_fp).distanceTo(_fp2);
 }
 
+function hasPelvicArticulation(pelvis: THREE.Bone | null, frames: FootFrameReference): boolean {
+  return !!pelvis && !!frames.pelvisLocalQuat &&
+    pelvis.quaternion.clone().normalize().angleTo(frames.pelvisLocalQuat.clone().normalize()) > 1e-6;
+}
+
+/** Small pelvic rotations still need leg compensation. Waiting for the legacy
+ *  5 cm drift threshold would slide the feet, then snap them back mid-motion. */
+export function stanceFootNeedsPlant(
+  root: THREE.Object3D,
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+  frames: FootFrameReference,
+): boolean {
+  return !!frames.supportIntent || hasPelvicArticulation(findPelvisBone(skeleton, variantCfg), frames) ||
+    (stanceFootDrift(root, skeleton, variantCfg, frames) ?? 0) > FOOT_ROOT_DRIFT_M;
+}
+
+/** Set a bone's world orientation without changing any ancestor. */
+function setBoneWorldQuaternion(bone: THREE.Bone, world: THREE.Quaternion): void {
+  const parent = bone.parent?.getWorldQuaternion(new THREE.Quaternion()) ?? new THREE.Quaternion();
+  bone.quaternion.copy(parent.invert()).multiply(world).normalize();
+  bone.updateMatrixWorld(true);
+}
+
+interface ArticulatedPlantResult {
+  stanceKey: string;
+  rootWorld: THREE.Matrix4;
+  bones: { bone: THREE.Bone; local: THREE.Matrix4 }[];
+  legIntent: Map<string, THREE.Quaternion>;
+  legResults: { key: string; quaternion: THREE.Quaternion }[];
+  pelvisReference: THREE.Quaternion;
+  constraintKey: string;
+}
+const articulatedPlantResults = new WeakMap<FootFrameReference, WeakMap<THREE.Object3D, ArticulatedPlantResult>>();
+const lastArticulatedPlant = new WeakMap<THREE.Skeleton, ArticulatedPlantResult>();
+const SUPPORT_LEG_KEYS = ['L_UpLeg', 'R_UpLeg', 'L_Leg', 'R_Leg', 'L_Foot', 'R_Foot'];
+
+/** The solver writes compensating hip angles. Do not mistake those outputs for
+ *  fresh FK instructions if a caller grounds the same pose a second time.
+ *  Comparing transforms makes this a strict no-op only for the exact previous
+ *  result; reapplying any authored frame invalidates it automatically. */
+function rememberArticulatedPlant(
+  root: THREE.Object3D,
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+  frames: FootFrameReference,
+  stanceKey: string,
+  legIntent: Map<string, THREE.Quaternion>,
+  constraints?: RomScenarioConstraints | null,
+): void {
+  let results = articulatedPlantResults.get(frames);
+  if (!results) articulatedPlantResults.set(frames, results = new WeakMap());
+  const lookup = boneByCanonicalKey(skeleton, variantCfg);
+  const result = {
+    stanceKey, rootWorld: root.matrixWorld.clone(),
+    legIntent,
+    legResults: SUPPORT_LEG_KEYS.flatMap(key => lookup.has(key) ? [{ key, quaternion: lookup.get(key)!.quaternion.clone() }] : []),
+    pelvisReference: frames.pelvisLocalQuat!.clone(),
+    constraintKey: JSON.stringify(constraints ?? null),
+    bones: ['Hips', 'L_UpLeg', 'R_UpLeg', 'L_Leg', 'R_Leg', 'L_Foot', 'R_Foot'].flatMap(key => {
+      const bone = lookup.get(key);
+      return bone ? [{ bone, local: bone.matrix.clone() }] : [];
+    }),
+  };
+  results.set(root, result);
+  lastArticulatedPlant.set(skeleton, result);
+}
+
+/** Articulated-pelvis stance correction. The neutral-pelvis plant supplies the
+ *  closed-chain squat/hinge placement; the authored pelvis then rides on that
+ *  placement. Only supporting leg joints compensate for its added rotation.
+ *  A raised leg is left free, and the root may translate to keep support within
+ *  leg reach, but pelvic motion can never become opposite root rotation. */
+function plantArticulatedPelvis(
+  root: THREE.Object3D,
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+  frames: FootFrameReference,
+  pelvis: THREE.Bone,
+  constraints?: RomScenarioConstraints | null,
+): string | null {
+  const legIntent = new Map<string, THREE.Quaternion>();
+  for (const [key, bone] of boneByCanonicalKey(skeleton, variantCfg))
+    if (SUPPORT_LEG_KEYS.includes(key)) legIntent.set(key, bone.quaternion.clone());
+  const authored = pelvis.quaternion.clone();
+  pelvis.quaternion.copy(frames.pelvisLocalQuat!);
+  root.updateMatrixWorld(true);
+  // The recursive call takes the unchanged, rigid branch at the reference pose.
+  const stanceKey = plantStanceFoot(root, skeleton, variantCfg, frames);
+  if (!stanceKey) {
+    pelvis.quaternion.copy(authored);
+    root.updateMatrixWorld(true);
+    return null;
+  }
+  const bones = boneByCanonicalKey(skeleton, variantCfg);
+  const supports = ['L_Foot', 'R_Foot'].flatMap((key) => {
+    const foot = bones.get(key);
+    const knee = bones.get(key.replace('Foot', 'Leg'));
+    const hip = bones.get(key.replace('Foot', 'UpLeg'));
+    const reference = frames.restFrame[key];
+    if (!foot || !knee || !hip || !reference) return [];
+    const target = foot.getWorldPosition(new THREE.Vector3());
+    const referencePosition = new THREE.Vector3().setFromMatrixPosition(reference);
+    // The non-stance side participates only if it was already on its support
+    // plane without the extra pelvic articulation (never pin a lifted leg).
+    if (key !== stanceKey && Math.abs(target.y - referencePosition.y) > 0.015) return [];
+    return [{
+      key, foot, knee, hip, target,
+      footWorld: foot.getWorldQuaternion(new THREE.Quaternion()),
+      hipWorld: hip.getWorldQuaternion(new THREE.Quaternion()),
+      hipPosition: hip.getWorldPosition(new THREE.Vector3()),
+      reach: hip.getWorldPosition(new THREE.Vector3()).distanceTo(knee.getWorldPosition(new THREE.Vector3())) +
+        knee.getWorldPosition(new THREE.Vector3()).distanceTo(target),
+    }];
+  });
+  pelvis.quaternion.copy(authored);
+  root.updateMatrixWorld(true);
+  const shift = new THREE.Vector3();
+  for (const s of supports) shift.add(s.hipPosition.clone().sub(s.hip.getWorldPosition(new THREE.Vector3())));
+  if (supports.length) {
+    shift.divideScalar(supports.length);
+    root.position.add(shift);
+    root.updateMatrixWorld(true);
+  }
+  // A tilted pelvis raises one hip. Lower the body only as much as needed to
+  // keep every supporting ankle reachable, rather than stretching a leg or
+  // undoing the pelvis tilt. Horizontal placement comes from the support hips.
+  let lower = 0;
+  for (const s of supports) {
+    const p = s.hip.getWorldPosition(new THREE.Vector3()).sub(s.target);
+    const verticalReach = Math.sqrt(Math.max(0, s.reach * s.reach - p.x * p.x - p.z * p.z));
+    lower = Math.max(lower, p.y - verticalReach);
+  }
+  root.position.y -= lower;
+  root.updateMatrixWorld(true);
+  // Initialize legs in their pre-articulation world orientation, so the solve
+  // compensates at the hip instead of inheriting pelvis twist at the knee.
+  for (const s of supports) setBoneWorldQuaternion(s.hip, s.hipWorld);
+  const parentDelta = (pelvis.parent?.getWorldQuaternion(new THREE.Quaternion()) ?? new THREE.Quaternion())
+    .multiply(frames.pelvisParentWorldQuat!.clone().invert());
+  const rest = rotateRestReferenceByPelvis(
+    rotateRestReferenceByRoot(frames.jointRest!, parentDelta), skeleton, variantCfg,
+  );
+  for (const s of supports) {
+    const kneeKey = s.key.replace('Foot', 'Leg');
+    // A straight leg is a CCD singularity: shortening its target cannot pick
+    // a bending direction. Seed the anatomical knee hinge from the two-link
+    // reach, then let the ROM-bounded solve refine the endpoint.
+    const hipP = s.hip.getWorldPosition(new THREE.Vector3());
+    const kneeP = s.knee.getWorldPosition(new THREE.Vector3());
+    const footP = s.foot.getWorldPosition(new THREE.Vector3());
+    const a = hipP.distanceTo(kneeP), b = kneeP.distanceTo(footP);
+    const distance = hipP.distanceTo(s.target);
+    const flex = Math.acos(THREE.MathUtils.clamp((distance * distance - a * a - b * b) / (2 * a * b), -1, 1));
+    s.knee.quaternion.fromArray(rest.localQuats[kneeKey]!).multiply(new THREE.Quaternion().setFromAxisAngle(
+      localAxisTowardBodyLeft(frames.jointRest!.worldQuats[kneeKey]), flex,
+    ));
+    s.knee.updateMatrixWorld(true);
+    const swing = new THREE.Quaternion().setFromUnitVectors(
+      s.foot.getWorldPosition(new THREE.Vector3()).sub(hipP).normalize(),
+      s.target.clone().sub(hipP).normalize(),
+    );
+    setBoneWorldQuaternion(s.hip, s.hip.getWorldQuaternion(new THREE.Quaternion()).premultiply(swing));
+    solveIKChain({
+      bones: [s.foot, s.knee, s.hip],
+      canonicalKeys: [s.key, kneeKey, s.key.replace('Foot', 'UpLeg')],
+    }, s.target, { rest, hingeAxisRest: frames.jointRest, hinges: new Set([kneeKey]), iterations: 48, constraints,
+      forceRomClamp: !!constraints && Object.keys(constraints).length > 0 });
+    setBoneWorldQuaternion(s.foot, s.footWorld);
+    clampBoneToRom(s.foot, s.key, rest, constraints, !!constraints && Object.keys(constraints).length > 0);
+  }
+  root.updateMatrixWorld(true);
+  rememberArticulatedPlant(root, skeleton, variantCfg, frames, stanceKey, legIntent, constraints);
+  return stanceKey;
+}
+
 /**
  * CLOSED-CHAIN foot-rooted planting — the fix for planted movements whose feet
  * swing forward. A keyframe's pelvis-rooted FK treats the pelvis as the chain
@@ -469,9 +684,12 @@ export function stanceFootDrift(
  * pelvis stays at hip height), a squat drops the pelvis over planted feet, and
  * the COM lands over the base by construction (balance for free).
  *
- * Every authored JOINT angle is UNTOUCHED — this is a rigid transform of the
- * whole body, so only the pelvis PLACEMENT changes (exactly what a fixed foot
- * determines). The stance foot is the LOWEST ankle (single-leg → the
+ * When the pelvis has no independent articulation this retains the original
+ * rigid transform and leaves all joint angles untouched. With an articulated
+ * pelvis, the neutral-pelvis chain supplies the same root placement, then the
+ * supporting hip/knee/ankle chains compensate to preserve both the authored
+ * pelvic orientation and foot contact. A pelvis rotation never becomes an
+ * opposite root rotation. The stance foot is the LOWEST ankle (single-leg → the
  * weight-bearing foot; a symmetric bilateral stance → either, both land
  * planted). Supersedes the vertical-only {@link pinRootToFloor} for the
  * quasi-static planted set (it grounds vertically too). Mutates `root` and
@@ -483,7 +701,28 @@ export function plantStanceFoot(
   skeleton: THREE.Skeleton,
   variantCfg: BodyVariantConfig,
   frames: FootFrameReference,
+  constraints?: RomScenarioConstraints | null,
 ): string | null {
+  root.updateMatrixWorld(true);
+  const previous = articulatedPlantResults.get(frames)?.get(root);
+  if (previous && previous.rootWorld.equals(root.matrixWorld) &&
+    previous.constraintKey === JSON.stringify(constraints ?? null) &&
+    previous.bones.every(({ bone, local }) => local.equals(bone.matrix))) return previous.stanceKey;
+  const lookup = boneByCanonicalKey(skeleton, variantCfg);
+  // Direct incremental pelvis edits have no composition wrapper. Recover the
+  // input only when every leg still exactly equals this helper's last output;
+  // a newly authored hip/knee/ankle pose must remain authoritative.
+  const carriedResult = previous && previous.rootWorld.equals(root.matrixWorld) &&
+    previous.legResults.every(({ key, quaternion }) => lookup.get(key)?.quaternion.equals(quaternion));
+  const intent = frames.supportIntent ?? (carriedResult ? previous!.legIntent : undefined);
+  if (intent) {
+    for (const [key, quaternion] of intent) lookup.get(key)?.quaternion.copy(quaternion);
+    root.updateMatrixWorld(true);
+  }
+  const pelvis = findPelvisBone(skeleton, variantCfg);
+  if (hasPelvicArticulation(pelvis, frames) && frames.jointRest && frames.pelvisParentWorldQuat) {
+    return plantArticulatedPelvis(root, skeleton, variantCfg, frames, pelvis!, constraints);
+  }
   root.updateMatrixWorld(true);
   let stanceKey: string | null = null;
   let stanceBone: THREE.Bone | null = null;

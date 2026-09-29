@@ -27,7 +27,8 @@ import {
   solveIKChain,
   type IKChainContext,
 } from './poseRig';
-import { clampBoneToRom } from './poseRomClamp';
+import { clampBoneToRom, inspectClinicalAngles } from './poseRomClamp';
+import { ARM_REACH_IK_ITERATIONS, solveArmChainWithRhythm } from './poseScapulohumeral';
 
 /** A prepared limb IK chain that pins one contact effector to a world target. */
 export interface FootPlantSolver {
@@ -38,6 +39,9 @@ export interface FootPlantSolver {
   /** Canonical key of the chain's HINGE joint (the knee — the elbow for a hand
    *  contact), e.g. 'L_Leg'. Always a joint the solve actually rotates. */
   kneeKey: string;
+  /** Arm-only chain below the girdle. The full ctx includes the girdle so
+   * trial solves, engagement and release save/restore every joint IK can move. */
+  distalCtx?: IKChainContext;
 }
 
 /** Parents of the foot up to the hip: Foot → Leg(knee) → UpLeg(hip). */
@@ -55,8 +59,8 @@ const LEG_CHAIN_PARENTS = 2;
  *  where the ±5° ran out the forefoot let go (1.1 cm of slide). */
 const TOE_CHAIN_PARENTS = 3;
 
-/** Parents of the hand up to the shoulder: Hand → Forearm(elbow) → UpperArm. */
-const ARM_CHAIN_PARENTS = 2;
+/** Hand → Forearm → UpperArm → Shoulder (the clavicle/girdle proxy). */
+const ARM_CHAIN_PARENTS = 3;
 
 /**
  * CCD passes for a stance-foot plant solve (the shared default is 4).
@@ -109,7 +113,10 @@ export function buildFootPlant(
   const { parents, hingeKey } = contactChainFor(footKey);
   const ctx = buildIKChainContext(skinnedMesh, foot, parents, variantCfg);
   if (!ctx) return null;
-  return { ctx, footKey, kneeKey: hingeKey };
+  const distalCtx = /Hand$/.test(footKey)
+    ? buildIKChainContext(skinnedMesh, foot, ARM_CHAIN_PARENTS - 1, variantCfg)
+    : null;
+  return { ctx, footKey, kneeKey: hingeKey, ...(distalCtx ? { distalCtx } : {}) };
 }
 
 /**
@@ -134,12 +141,68 @@ export function solveFootPlant(
   rest: JointAngleRestReference | null | undefined,
   hingeAxisRest?: JointAngleRestReference | null,
 ): void {
-  solveIKChain(solver.ctx, targetWorldPos, {
+  const options = {
     rest,
     hinges: new Set([solver.kneeKey]),
     iterations: FOOT_PLANT_IK_ITERATIONS,
     ...(hingeAxisRest ? { hingeAxisRest } : {}),
-  });
+  };
+  if (solver.distalCtx) solveContactArm(solver, targetWorldPos, options);
+  else solveIKChain(solver.ctx, targetWorldPos, options);
+}
+
+/** Preserve an authored support pose while giving a raised contact the same
+ * girdle-aware solver as manual reach. Floor supports deliberately keep their
+ * authored girdle: applying open-chain elevation rhythm to them changes where
+ * the hand lands and the contact/release timeline. A raised target gets a
+ * bounded, smoothly introduced fallback only if the distal solve stays short.
+ * Reject a candidate that worsens the endpoint or exceeds any joint ROM. */
+function solveContactArm(
+  solver: FootPlantSolver,
+  target: THREE.Vector3,
+  options: NonNullable<Parameters<typeof solveIKChain>[2]>,
+): void {
+  const distal = solver.distalCtx!;
+  solveIKChain(distal, target, options);
+  if (!options.rest) return;
+  const bones = solver.ctx.bones;
+  const humerus = distal.bones.at(-1)!;
+  const position = new THREE.Vector3();
+  // World-height gating makes this a raised-support recovery, leaving the
+  // existing load-bearing floor strategy intact even when its elbow is near
+  // extension and a tiny endpoint change would alter the landing time.
+  const raisedWeight = smooth01((target.y - humerus.getWorldPosition(position).y) / 0.1);
+  if (raisedWeight <= 0) return;
+  const effector = bones[0]!;
+  const beforeError = effector.getWorldPosition(position).distanceTo(target);
+  if (!Number.isFinite(beforeError) || beforeError <= 0.02) return;
+  const before = bones.map(bone => bone.quaternion.clone());
+  solveArmChainWithRhythm(solver.ctx, distal, target, { ...options, iterations: ARM_REACH_IK_ITERATIONS });
+  const girdle = bones.at(-1)!;
+  const girdleTurn = before.at(-1)!.angleTo(girdle.quaternion);
+  // At most 20 degrees beyond the incoming girdle per solve, eased in over a
+  // 2–6 cm residual. The clinical clamp still limits the absolute pose when
+  // a contact makes several refinement passes.
+  const weight = Math.min(raisedWeight * smooth01((beforeError - 0.02) / 0.04), (20 * Math.PI / 180) / Math.max(girdleTurn, 1e-9));
+  for (let i = 0; i < bones.length; i += 1) {
+    const candidate = bones[i]!.quaternion.clone();
+    bones[i]!.quaternion.copy(before[i]!).slerp(candidate, weight);
+  }
+  girdle.updateMatrixWorld(true);
+  let valid = effector.getWorldPosition(position).distanceTo(target) < beforeError - 1e-6;
+  for (let i = 1; valid && i < bones.length; i += 1) {
+    const report = inspectClinicalAngles(bones[i]!, solver.ctx.canonicalKeys[i], options.rest, options.constraints);
+    if (!report) { valid = false; break; }
+    for (const axis of ['flexion', 'abduction', 'rotation'] as const) {
+      const value = axis === 'flexion' ? report.anatomicFlexion : report.raw[axis];
+      const range = report.ranges[axis];
+      if (!Number.isFinite(value) || (range && (value < range.min - 0.5 || value > range.max + 0.5))) valid = false;
+    }
+  }
+  if (!valid) {
+    bones.forEach((bone, i) => bone.quaternion.copy(before[i]!));
+    girdle.updateMatrixWorld(true);
+  }
 }
 
 // ── Plant release (SEAM-3) ───────────────────────────────────────────────────
@@ -1096,9 +1159,8 @@ export function stepContactPlants(
 // ── Hand plant (Phase 3 Tier B) — the arm analog of the foot plant ───────────
 // Quadruped / plank / push-up rest on the HANDS. As the body lowers (elbows bend)
 // the hand must stay pinned to the floor, exactly as a stance foot stays put while
-// the pelvis travels — so the same CCD IK, on the arm chain hand → elbow → shoulder,
-// the elbow kept a hinge and every joint ROM-clamped. The hand is already declared
-// an ik-effector (chainParentCount 2), so this is a direct mirror of the foot plant.
+// the pelvis travels — so the same CCD IK, with an elbow hinge and ROM clamps.
+// Both hand-contact entry points track the entire arm through its girdle.
 
 /** The elbow key for a hand key ('L_Hand' → 'L_Forearm'). */
 export function elbowKeyForHand(handKey: string): string {
@@ -1112,11 +1174,7 @@ export function buildHandPlant(
   handKey: string,
   variantCfg: BodyVariantConfig,
 ): FootPlantSolver | null {
-  const hand = buildBoneByPoseKey(skinnedMesh.skeleton, variantCfg).get(handKey);
-  if (!hand) return null;
-  const ctx = buildIKChainContext(skinnedMesh, hand, ARM_CHAIN_PARENTS, variantCfg);
-  if (!ctx) return null;
-  return { ctx, footKey: handKey, kneeKey: elbowKeyForHand(handKey) };
+  return buildFootPlant(skinnedMesh, handKey, variantCfg);
 }
 
 /** Solve the arm so its hand returns to `targetWorldPos` — elbow hinge, ROM-clamped
@@ -1126,7 +1184,9 @@ export function solveHandPlant(
   targetWorldPos: THREE.Vector3,
   rest: JointAngleRestReference | null | undefined,
 ): void {
-  solveIKChain(solver.ctx, targetWorldPos, { rest, hinges: new Set([solver.kneeKey]) });
+  const options = { rest, hinges: new Set([solver.kneeKey]) };
+  if (solver.distalCtx) solveContactArm(solver, targetWorldPos, options);
+  else solveIKChain(solver.ctx, targetWorldPos, options);
 }
 
 /** Latch state for a floor reach — null `target` = still descending, non-null =

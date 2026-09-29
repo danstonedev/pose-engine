@@ -47,7 +47,6 @@
   import { POSE_SCHEMA_VERSION, type CustomPose, type MovementClipId } from './types';
   import type { DrivingRingMap, JointAngleReport } from './services/jointAngles';
   import type { PoseRingDrag } from './services/poseRotateRings';
-  import type { TwistSegment } from './services/twistRig';
   import type { AnatomicalPlanes } from './services/anatomicalPlanes';
   import type { SectionCap } from './services/sectionCap';
   import type { IKChainContext } from './services/poseRig';
@@ -564,6 +563,8 @@
       // component's lazy-three contract intact (see the header note).
       const { createClipBlend } = await import('./services/stageClipBlend');
       const { createEyeGazeOverlay } = await import('./services/stageEyeGaze');
+      const { createStageTwistOverlay, stopClipPreservingBones } = await import('./services/stageTwistOverlay');
+      const twistOverlay = createStageTwistOverlay();
       const { createIdleOverlay } = await import('./services/stageIdleOverlay');
       const { createMotionLiveliness, LIVELINESS_ONSET_SEC } = await import(
         './services/stageMotionLiveliness'
@@ -579,11 +580,12 @@
       const {
         captureFloorReference,
         captureFootFrames,
+        footFramesForCurrentPose,
         pinRootToFloor,
         pinContactsToFloor,
         groundingContactsFor,
         plantStanceFoot,
-        stanceFootDrift,
+        stanceFootNeedsPlant,
         rotateRestReferenceByRoot,
         rotateRestReferenceByPelvis,
         applyVerticalCalibration,
@@ -604,7 +606,6 @@
         handReachEngagedAt,
         handReachReleasedAt,
         startPlantsWhereFeetLand,
-        FOOT_ROOT_DRIFT_M,
       } = await import('./services/rootMotion');
       const { buildFootPlant, stepContactPlants, buildHandPlant, settleHandReachLatches, solveHandReach } =
         await import('./services/footContact');
@@ -1182,7 +1183,7 @@
           // on every Stop, and runMotionImpl re-checks it after the load.
           driver.supersede();
         }
-        if (activeMotionId) stopMotion();
+        if (activeMotionId || motionAction) stopMotion();
         if (frozen && skinnedRef && variantCfgRef) {
           applyPoseComplete(skinnedRef.skeleton, variantCfgRef, frozen.pose);
           currentPose = frozen.pose;
@@ -1265,6 +1266,14 @@
         requestRender();
       }
 
+      function releaseFrozenClip(): void {
+        if (activeMotionId || !motionAction || !mixer || !skinnedRef) return;
+        stopClipPreservingBones(mixer, skinnedRef.skeleton.bones);
+        clipBlend.cancel();
+        motionAction = null;
+        modelRoot?.updateMatrixWorld(true);
+      }
+
       function disposeModel() {
         if (!modelRoot) return;
         // Lift any idle-liveliness bake first (keeps the shift tracker exact),
@@ -1331,6 +1340,7 @@
           //    deviation from it. Then serialize the anatomic baseline —
           //    the rest-local quaternions every command pose builds from.
           const rest = skinned ? captureJointAngleRestReference(skinned.skeleton, variantCfg) : null;
+          twistOverlay.reset(skinned?.skeleton ?? null, variantCfg);
           const baseline = skinned
             ? serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id)
             : null;
@@ -1380,7 +1390,7 @@
           composedRootQuat = [0, 0, 0, 1];
           composedRootTranslate = [0, 0, 0];
           floorRef = skinned ? captureFloorReference(skinned.skeleton, variantCfg) : null;
-          footFrames = skinned ? captureFootFrames(skinned.skeleton, variantCfg) : null;
+          footFrames = skinned ? captureFootFrames(skinned.skeleton, variantCfg, rest) : null;
           frameCamera();
 
           // 7) Wire the command surface to the fresh skeleton.
@@ -1653,6 +1663,7 @@
        *  feet (COM over the base — balance for free), instead of the feet swinging
        *  forward. Same gate as the offline sampler so live and recordings match. */
       let composedUseFootRoot = false;
+      let composedFootFrames: ReturnType<typeof captureFootFrames> | null = null;
 
       /** CALIBRATED GAIT VERTICAL for the ACTIVE composed motion — the
        *  mean-preserving reshape of the emergent grounded pelvis arc to a cm
@@ -1875,11 +1886,10 @@
           } else if (
             s.planted &&
             composedUseFootRoot &&
-            footFrames &&
-            (stanceFootDrift(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, footFrames) ?? 0) >
-              FOOT_ROOT_DRIFT_M
+            composedFootFrames &&
+            stanceFootNeedsPlant(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, composedFootFrames)
           ) {
-            plantStanceFoot(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, footFrames);
+            plantStanceFoot(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, composedFootFrames, romConstraints);
           } else if (s.planted) {
             pinRootToFloor(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, floorRef!);
           }
@@ -2178,15 +2188,14 @@
           composedUseFootRoot &&
           skinnedRef &&
           variantCfgRef &&
-          footFrames &&
-          (stanceFootDrift(modelRoot, skinnedRef.skeleton, variantCfgRef, footFrames) ?? 0) >
-            FOOT_ROOT_DRIFT_M
+          composedFootFrames &&
+          stanceFootNeedsPlant(modelRoot, skinnedRef.skeleton, variantCfgRef, composedFootFrames)
         ) {
           // Re-root the rigid body at the stance foot: the SAME authored angles read
           // as the real closed-chain movement — feet planted, pelvis placed by the
           // chain, COM over the base. The rotation is picked up by rootOrientDelta()
           // (measurement) and the recording tap, which read the live modelRoot.
-          plantStanceFoot(modelRoot, skinnedRef.skeleton, variantCfgRef, footFrames);
+          plantStanceFoot(modelRoot, skinnedRef.skeleton, variantCfgRef, composedFootFrames, romConstraints);
         } else if (planted && skinnedRef && variantCfgRef && floorRef) {
           pinRootToFloor(modelRoot, skinnedRef.skeleton, variantCfgRef, floorRef);
           // Calibrated gait vertical: scale the grounded pelvis arc about its
@@ -2505,7 +2514,7 @@
         undoIdleOverlays();
         undoEyeGaze(); // eye deltas lift before the absolute pose writes too
         cancelComposed();
-        if (activeMotionId) stopMotion();
+        if (activeMotionId || motionAction) stopMotion();
         if (activeTween) finishTween();
         applyPoseComplete(skinnedRef.skeleton, variantCfgRef, frame.pose);
         currentPose = frame.pose;
@@ -2530,7 +2539,7 @@
         undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
         poseLayerOnTakeover?.();
         cancelComposed();
-        if (activeMotionId) stopMotion();
+        if (activeMotionId || motionAction) stopMotion();
         resetRootToRest();
         if (cmd.action === 'relax') {
           await tweenTo(restingPoseRef);
@@ -2595,7 +2604,7 @@
         undoIdleOverlays(); // playback starts from the clean idle pose
         undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
         poseLayerOnTakeover?.();
-        if (activeMotionId) stopMotion();
+        if (activeMotionId || motionAction) stopMotion();
         if (activeTween) finishTween();
         cancelComposed();
         const token = composedSeq;
@@ -2681,6 +2690,10 @@
           currentPose,
           currentRoot: { quat: composedRootQuat, translateM: composedRootTranslate },
         });
+        composedFootFrames = footFrames
+          ? footFramesForCurrentPose(footFrames, effectiveResolved.startFrom === 'current' ? currentPose : null,
+            effectiveResolved.keyframes.flatMap(k => k.targets.map(t => t.joint)))
+          : null;
         const measurements: ComposedMotionPlaybackResult['measurements'] = [];
         const finalAngles: Record<string, number> = {};
         const hidden = stageHidden;
@@ -3390,13 +3403,24 @@
         // A host scene layer animating on its own clock keeps the loop drawing.
         if (!renderNeeded && sceneLayerHooks?.wantsFrame()) renderNeeded = true;
         if (!renderNeeded) return;
-        poseLayerBeforeRender?.(); // markers / gizmo / twist / slice tracking
-        sceneLayerHooks?.beforeRender(); // host objects follow the final, rendered pose
         try {
+          // Pose-only recordings do not serialize helper bones. Derive their
+          // deformation here, including when the posing controls are absent.
+          twistOverlay.beforeRender(motionAction?.getClip() ?? null);
+          modelRoot?.updateMatrixWorld(true);
+          poseLayerBeforeRender?.(); // markers / gizmo / slice tracking
+          sceneLayerHooks?.beforeRender(); // host objects follow the final, rendered pose
+          twistOverlay.refresh(); // include the host's render-only limb corrections
+          modelRoot?.updateMatrixWorld(true);
           renderer.render(scene, camera);
           poseLayerAfterRender?.(); // rotate-ring depth-cleared overlay pass
         } finally {
-          sceneLayerHooks?.afterRender(); // contact corrections never enter the next pose or recording
+          try {
+            sceneLayerHooks?.afterRender(); // contact corrections never enter the next pose or recording
+          } finally {
+            twistOverlay.afterRender();
+            modelRoot?.updateMatrixWorld(true);
+          }
         }
         renderNeeded = false;
       };
@@ -3535,6 +3559,9 @@
           get activeMotionId() {
             return activeMotionId;
           },
+          get hasMotionAction() {
+            return !!motionAction;
+          },
           get activeTween() {
             return activeTween;
           },
@@ -3565,6 +3592,8 @@
           resetRootToRest,
           undoIdleOverlays,
           undoEyeGaze,
+          setTwistEnabled: twistOverlay.setEnabled,
+          releaseFrozenClip,
           setCurrentPose: (pose) => {
             currentPose = pose;
           },

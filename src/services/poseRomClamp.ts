@@ -437,9 +437,12 @@ export function clampBoneToRom(
   canonicalKey: string | null | undefined,
   rest: JointAngleRestReference | null | undefined,
   constraints?: RomScenarioConstraints | null,
+  /** Enforce this solve's explicit scenario bounds without changing the host's
+   *  global calibration-mode preference (which may be shared by other stages). */
+  force = false,
 ): boolean {
   if (!bone || !canonicalKey || !rest) return false;
-  if (!isClampActive()) return false;
+  if (!force && !isClampActive()) return false;
   const strategy = STRATEGIES[canonicalKey];
   if (!strategy) return false;
 
