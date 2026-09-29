@@ -102,8 +102,7 @@ describe.each(['female','male','neutral'] as const)('upper assessment sources on
   bridge.root.position.copy(position);bridge.root.quaternion.copy(rotation);apply(neutral);
  });
 
- it.each(['ue-pattern1','ue-pattern2','shoulder-mobility'] as const)('%s keeps arm skin clear of the torso and head throughout both routes',async id=>{
-  for(const side of ['R','L'] as const){
+ it.each((['ue-pattern1','ue-pattern2','shoulder-mobility'] as const).flatMap(id=>(['R','L'] as const).map(side=>({id,side}))))('$id/$side keeps arm skin clear of the torso and head throughout the route',async({id,side})=>{
    bridge.root.position.set(0,0,0);bridge.root.quaternion.identity();apply(neutral);
    const recording=sampleComposedMotion(resolveComposedMotion(UPPER_ASSESSMENT_MOTIONS[id](side)),{
     baselinePose:neutral,variantCfg:bridge.cfg,rest,skeletonHarness:{root:bridge.root,skinned:bridge.skin},sampleHz:60,
@@ -125,7 +124,6 @@ describe.each(['female','male','neutral'] as const)('upper assessment sources on
     if(i%60===0)await new Promise(resolve=>setTimeout(resolve,0));
    }
    apply(neutral);
-  }
  },30000);
 });
 
