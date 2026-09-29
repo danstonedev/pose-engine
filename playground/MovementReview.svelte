@@ -5,7 +5,8 @@
   import { MOVEMENT_TEMPLATES } from '../src/services/movementTemplates.data';
   import { templateToComposedMotion } from '../src/services/movementTemplateMotion';
   import { buildTravelWalk, buildRun } from '../src/services/movementLocomotion';
-  import { buildSitDown, buildStandFromSit } from '../src/services/movementPostures';
+  import { buildSitDown, buildStandFromSit, buildGetDownToPlank, buildPushUp, buildGetDownToQuadruped, buildBirdDog } from '../src/services/movementPostures';
+  import { UPPER_ASSESSMENT_MOTIONS } from '../src/services/assessmentUpperMotions';
   import type { MotionRecording, RecordedFrame } from '../src/services/motionRecording';
 
   let stage = $state<ExamStage3D>(null!);
@@ -44,6 +45,14 @@
     Hinge: () => template('forward-hip-hinge'),
     'Thigh-assisted rise': () => template('sit-to-stand'),
     'Chair transfer': () => [buildSitDown(), buildStandFromSit()],
+    'Overhead reach': () => template('endpoint-reach'),
+    'Over-under right': () => UPPER_ASSESSMENT_MOTIONS['shoulder-mobility']('R'),
+    'Over-under left': () => UPPER_ASSESSMENT_MOTIONS['shoulder-mobility']('L'),
+    'Behind back': () => UPPER_ASSESSMENT_MOTIONS['ue-pattern1']('R'),
+    'Behind head': () => UPPER_ASSESSMENT_MOTIONS['ue-pattern2']('R'),
+    'Push-up': () => [buildGetDownToPlank(), buildPushUp({ reps: 2 })],
+    'Bird-dog right': () => [buildGetDownToQuadruped(), buildBirdDog({ side: 'R' })],
+    'Bird-dog left': () => [buildGetDownToQuadruped(), buildBirdDog({ side: 'L' })],
     Walk: () => buildTravelWalk(),
     Run: () => buildRun(),
   };

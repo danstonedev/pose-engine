@@ -175,8 +175,8 @@ describe('relaxedHands — authoring (pure)', () => {
       expect(relaxedHands(m), `${m.name} same reference`).toBe(m);
       const r = resolveComposedMotion(m, variantCfg);
       expect(
-        r.keyframes.some((kf) => kf.targets.some((t) => t.motion === 'fingerFlexion')),
-        `${m.name} gets no finger curl`,
+        r.keyframes.some((kf) => kf.targets.some((t) => t.motion === 'fingerFlexion' && t.clampedDegrees !== 0)),
+        `${m.name} gets no resting curl; explicit flat-finger targets stay flat`,
       ).toBe(false);
     }
   });
