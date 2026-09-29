@@ -382,7 +382,12 @@ const PELVIC_TILT_MAX = 2.5;
 // Do not tune this against an axis distance again. `limbClearance.test.ts` gates
 // the surface, and the validity gate's `self-intersection` check now carries it
 // for every composed motion, not just the shipped gaits.
-const ARM_ADD_BASE = 6;
+// Atomic shoulder composition now compensates the arm for the ENTIRE authored
+// girdle rotation. The former 6-degree recipe partly relied on that parent
+// rotation to close the carriage; with correct compensation it closes only
+// 4.2 cm of the rest gap. Recalibrate the explicit arm intent while keeping the
+// existing hand-carriage and mesh/capsule clearance gates together.
+const ARM_ADD_BASE = 7;
 const ARM_ADD_SWING = 0.1;
 const ARM_ADD_MAX = 20;
 // FOREARM PRO/SUP through the swing. The forearm does not ride the swing as a

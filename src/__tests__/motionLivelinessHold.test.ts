@@ -22,7 +22,7 @@ import * as THREE from 'three';
 import { createMotionLiveliness } from '../services/stageMotionLiveliness';
 import { createBreathState } from '../services/stageBreath';
 
-const stageSource = readFileSync(fileURLToPath(new URL('../ExamStage3D.svelte', import.meta.url)), 'utf8');
+const stageSource = readFileSync(fileURLToPath(new URL('../ExamStage3D.svelte', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 
 const AP = new THREE.Vector3(1, 0, 0);
 const ML = new THREE.Vector3(0, 0, 1);

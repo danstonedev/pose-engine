@@ -46,6 +46,8 @@ export interface TemplatePhase {
   durationMs: number;
   holdMs?: number;
   stance?: StanceMode;
+  /** Support used during this phase (e.g. pelvis-on-seat for a seated screen). */
+  groundingPosture?: SequenceKeyframe['groundingPosture'];
   targets: TemplateTarget[];
   /** OPTIONAL semantic whole-body travel for this phase (pass-through to the
    *  keyframe's `travel` sugar) — used by the scripted-perturbation balance
@@ -106,6 +108,32 @@ export interface MovementTemplate {
 }
 
 const VERIFY = 'clinician-authored from standard kinesiology; verify with SME';
+
+// A command on a joint replaces that joint's composed channels. Re-state the
+// setup in EVERY sweep phase so rotation never straightens the elbow/knee or
+// drops shoulder elevation. Unmentioned regions retain anatomic neutral.
+const shoulderRotationTargets = (rotation: number, raised = true): TemplateTarget[] => [
+  { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: raised ? 90 : 0 },
+  { joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: rotation },
+  { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: raised ? 90 : 0 },
+  { joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: 0 },
+];
+
+const forearmRotationTargets = (rotation: number, bent = true): TemplateTarget[] => [
+  { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
+  { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
+  { joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: 0 },
+  { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: bent ? 90 : 0 },
+  { joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: rotation },
+];
+
+const tibialRotationTargets = (rotation: number, seated = true): TemplateTarget[] => [
+  { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: seated ? 90 : 0 },
+  { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: seated ? 90 : 0 },
+  { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: seated ? 90 : 0 },
+  { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: seated ? 90 : 0 },
+  { joint: 'R_Leg', motion: 'kneeRotation', peakDeg: rotation },
+];
 
 export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
   {
@@ -868,13 +896,15 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Shoulder rotation (IR / ER AROM screen)',
     aliases: ['shoulder rotation', 'shoulder internal rotation', 'shoulder external rotation', 'rotate your shoulder', 'shoulder ir and er'],
     coordination:
-      'Shoulder held at the side / 90° abducted: rotate the arm internally then externally through the available range, keeping the scapula quiet. AROM ~70° internal, ~90° external (transverse plane).',
-    stance: 'floating',
+      'Standing with feet supported: first abduct the shoulder to 90° and flex the elbow to 90°, then rotate internally and externally while holding that setup. The girdle participates in raising the arm and stays quiet during the rotation sweep. Return rotation to centre before lowering the arm. AROM ~70° internal, ~90° external (transverse plane).',
+    stance: 'planted',
     phases: [
-      { name: 'internal', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: 65 }] },
-      { name: 'centre-1', durationMs: 500, targets: [{ joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: 0 }] },
-      { name: 'external', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: -80 }] },
-      { name: 'centre-2', durationMs: 500, targets: [{ joint: 'R_UpperArm', motion: 'shoulderRotation', peakDeg: 0 }] },
+      { name: 'set-up', durationMs: 900, holdMs: 250, targets: shoulderRotationTargets(0) },
+      { name: 'internal', durationMs: 700, holdMs: 300, targets: shoulderRotationTargets(65) },
+      { name: 'centre-1', durationMs: 500, targets: shoulderRotationTargets(0) },
+      { name: 'external', durationMs: 700, holdMs: 300, targets: shoulderRotationTargets(-80) },
+      { name: 'centre-2', durationMs: 500, holdMs: 200, targets: shoulderRotationTargets(0) },
+      { name: 'lower-arm', durationMs: 900, targets: shoulderRotationTargets(0, false) },
     ],
     source: VERIFY,
   },
@@ -898,13 +928,15 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Forearm pronation / supination (AROM screen)',
     aliases: ['forearm rotation', 'pronation and supination', 'pronate and supinate', 'turn your palm up and down', 'forearm pronation supination'],
     coordination:
-      'Elbow flexed 90° at the side: rotate the forearm to supination (palm up) then pronation (palm down). AROM ~85° supination, ~80° pronation (transverse plane).',
-    stance: 'floating',
+      'Standing with feet supported and the upper arm held at the side: first flex the elbow to 90°, then rotate the forearm to supination (palm up) and pronation (palm down) while holding elbow flexion. Centre the forearm before lowering it. AROM ~85° supination, ~80° pronation (transverse plane).',
+    stance: 'planted',
     phases: [
-      { name: 'supinate', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: 80 }] },
-      { name: 'centre-1', durationMs: 500, targets: [{ joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: 0 }] },
-      { name: 'pronate', durationMs: 700, holdMs: 300, targets: [{ joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: -75 }] },
-      { name: 'centre-2', durationMs: 500, targets: [{ joint: 'R_Forearm', motion: 'forearmRotation', peakDeg: 0 }] },
+      { name: 'set-up', durationMs: 700, holdMs: 250, targets: forearmRotationTargets(0) },
+      { name: 'supinate', durationMs: 700, holdMs: 300, targets: forearmRotationTargets(80) },
+      { name: 'centre-1', durationMs: 500, targets: forearmRotationTargets(0) },
+      { name: 'pronate', durationMs: 700, holdMs: 300, targets: forearmRotationTargets(-75) },
+      { name: 'centre-2', durationMs: 500, holdMs: 200, targets: forearmRotationTargets(0) },
+      { name: 'lower-forearm', durationMs: 700, targets: forearmRotationTargets(0, false) },
     ],
     source: VERIFY,
   },
@@ -943,13 +975,18 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Tibial rotation (knee IR / ER AROM screen)',
     aliases: ['tibial rotation', 'knee rotation', 'rotate your shin', 'tibial internal and external rotation'],
     coordination:
-      'Knee flexed ~90°, thigh fixed: rotate the tibia internally then externally. AROM ~25° internal, ~35° external (transverse plane).',
-    stance: 'floating',
+      'Sit with the pelvis supported and both hips and knees flexed 90°. Keep the thigh fixed and the tested foot free while rotating the tibia internally then externally. Centre the shin before returning to standing. AROM ~25° internal, ~35° external (transverse plane).',
+    stance: 'planted',
     phases: [
-      { name: 'internal', durationMs: 600, holdMs: 250, targets: [{ joint: 'R_Leg', motion: 'kneeRotation', peakDeg: 22 }] },
-      { name: 'centre-1', durationMs: 450, targets: [{ joint: 'R_Leg', motion: 'kneeRotation', peakDeg: 0 }] },
-      { name: 'external', durationMs: 600, holdMs: 250, targets: [{ joint: 'R_Leg', motion: 'kneeRotation', peakDeg: -30 }] },
-      { name: 'centre-2', durationMs: 450, targets: [{ joint: 'R_Leg', motion: 'kneeRotation', peakDeg: 0 }] },
+      // Keep feet supported while the legs fold. A seated FIRST phase pins the
+      // still-standing pelvis to seat height before knee flexion has occurred.
+      { name: 'lower-to-seat', durationMs: 1200, targets: tibialRotationTargets(0) },
+      { name: 'sit', durationMs: 300, holdMs: 250, groundingPosture: 'sitting', targets: tibialRotationTargets(0) },
+      { name: 'internal', durationMs: 600, holdMs: 250, groundingPosture: 'sitting', targets: tibialRotationTargets(22) },
+      { name: 'centre-1', durationMs: 450, groundingPosture: 'sitting', targets: tibialRotationTargets(0) },
+      { name: 'external', durationMs: 600, holdMs: 250, groundingPosture: 'sitting', targets: tibialRotationTargets(-30) },
+      { name: 'centre-2', durationMs: 450, holdMs: 200, groundingPosture: 'sitting', targets: tibialRotationTargets(0) },
+      { name: 'stand', durationMs: 1200, targets: tibialRotationTargets(0, false) },
     ],
     source: VERIFY,
   },

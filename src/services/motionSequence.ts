@@ -44,6 +44,7 @@ import type { JointAngleRestReference } from './jointAngles';
 import {
   buildComposedCommandPose,
   commandedBoneKeys,
+  girdleKeyForJoint,
   resolveCommandTarget,
   type ComposedJointTarget,
   type ExamMovementLimiter,
@@ -2219,7 +2220,17 @@ export function buildSequencePoses(
     }
     let pose: CustomPose = prev;
     for (const [joint, group] of byJoint) {
-      const built = buildComposedCommandPose(baselinePose, joint, group, variantCfg, pose, rest);
+      // A shoulder complex has two writers but one final orientation policy.
+      // Give same-keyframe explicit girdle axes to the arm builder atomically;
+      // a later standalone girdle write would invalidate its compensation.
+      // Girdle-only commands remain independent and carry the attached arm.
+      const pairedArm = joint.replace('Shoulder', 'UpperArm');
+      if (/^[LR]_Shoulder$/.test(joint) && byJoint.has(pairedArm) && baselinePose.bones[pairedArm]) continue;
+      const girdleKey = girdleKeyForJoint(joint);
+      const built = buildComposedCommandPose(
+        baselinePose, joint, group, variantCfg, pose, rest,
+        girdleKey ? byJoint.get(girdleKey) : undefined,
+      );
       if (built) pose = built; // null only for wholly-unsupported joints — already dropped
     }
 

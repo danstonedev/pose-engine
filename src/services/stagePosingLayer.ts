@@ -32,6 +32,7 @@ import {
 import type { IKChainContext } from './poseRig';
 import { clampBoneToRom, hasClampStrategy, setRomClampEnabled } from './poseRomClamp';
 import { solveArmChainWithRhythm } from './poseScapulohumeral';
+import { samplePoseAnimation } from './poseAnimationSampling';
 import { computeDrivingRingMap, gizmoSpaceForJoint } from './jointAngles';
 import { clampFingerCurlToRom } from './poseFingerRomClamp';
 import { clampRegionCurveToRom } from './poseRegionCurveRomClamp';
@@ -41,8 +42,6 @@ import { configureRingRotateGizmo, hiddenRingsForJoint } from './poseGizmoHelper
 import { PoseRotateRingGizmo } from './poseRotateRings';
 import type { PoseRingDrag } from './poseRotateRings';
 import { PoseClickDeselect } from './poseClickDeselect';
-import { applyTwistRig, buildTwistRig } from './twistRig';
-import type { TwistSegment } from './twistRig';
 import { ALL_LIMB_IDS, buildLimbAxisModel } from './limbAxisModel';
 import { createAnatomicalPlanes } from './anatomicalPlanes';
 import type { AnatomicalPlanes } from './anatomicalPlanes';
@@ -139,6 +138,7 @@ export interface PosingLayerContext {
   readonly modelCenter: THREE.Vector3;
   readonly modelRadius: number;
   readonly activeMotionId: MovementClipId | null;
+  readonly hasMotionAction: boolean;
   readonly activeTween: object | null;
   readonly composedActive: boolean;
   readonly mixer: THREE.AnimationMixer | null;
@@ -161,7 +161,10 @@ export interface PosingLayerContext {
   resetRootToRest(): void;
   undoIdleOverlays(): boolean;
   undoEyeGaze(): boolean;
-  /** The ONE piece of stage state the layer writes (pose continuity). */
+  setTwistEnabled(enabled: boolean): void;
+  releaseFrozenClip(): void;
+  sampleWithTwist<T>(read: () => T): T;
+  /** Pose continuity is committed through the stage's callback. */
   setCurrentPose(pose: CustomPose | null): void;
   onReport?: (report: JointAngleReport) => void;
   onSelectJoint?: (key: string | null) => void;
@@ -200,7 +203,6 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
 
   // ── Posing behaviour / overlay state (host-set via the exports) ──
   let poseRomClampOn = true;
-  let poseTwistOn = true;
   let poseShowJoints = true;
   let poseShowAxes = false;
   const planeVis = { sagittal: false, frontal: false, transverse: false, oblique: false };
@@ -277,7 +279,6 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
   // `beginCoupledProSup`. Cleared wherever `ringDrag` is.
   let proSupDrag: ProSupDragSession | null = null;
   let drivingRings: DrivingRingMap | null = null;
-  let twistRig: TwistSegment[] = [];
   let fingerCurls: Map<
     string,
     { bones: import('three').Object3D[]; rest: import('three').Quaternion[] }
@@ -707,6 +708,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
 
   // ── Selection ──────────────────────────────────────────────────────
   function selectHandle(h: PoseHandle): void {
+    stageCtx.releaseFrozenClip();
     clickDeselect.cancel();
     selected = h;
     const space = gizmoSpaceForJoint(h.key);
@@ -1036,6 +1038,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       return false;
     }
     if (!stageCtx.skinnedRef || !stageCtx.variantCfgRef || !stageCtx.baselinePoseRef || posingSuspended()) return false;
+    stageCtx.releaseFrozenClip();
     deselectImpl();
     // The preview snapshot must be the CLEAN pose, never an idle delta.
     undoEyeGaze(); // nor a baked eye delta
@@ -1129,8 +1132,6 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     reverseBoneMap = new Map();
     if (stageCtx.motionCapBones) for (const [k, b] of stageCtx.motionCapBones) reverseBoneMap.set(b, k);
     drivingRings = stageCtx.restRef ? computeDrivingRingMap(stageCtx.restRef) : null;
-    twistRig =
-      stageCtx.skinnedRef && stageCtx.variantCfgRef ? buildTwistRig(stageCtx.skinnedRef.skeleton, stageCtx.variantCfgRef) : [];
     buildPoseHandles();
     buildFingerCurls();
     if (poseShowAxes) buildAxes();
@@ -1146,12 +1147,6 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     if (suspended && selected) deselectImpl();
     if (handleGroup) handleGroup.visible = jointsActive();
     if (obliqueDot) obliqueDot.visible = obliqueEditing() && !suspended;
-    // Twist distribution only while posing owns the skeleton — a stageCtx.mixer
-    // clip / tween must never be post-processed by the pose twist rig.
-    if (poseTwistOn && twistRig.length && !suspended) {
-      applyTwistRig(twistRig);
-      stageCtx.modelRoot?.updateMatrixWorld(true);
-    }
     updatePoseHandles();
     updateRingGizmo();
     if (sliceState.plane !== 'off') {
@@ -1212,7 +1207,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       undoEyeGaze(); // eye deltas lift before the absolute pose writes
       onTakeover();
       cancelComposed();
-      if (stageCtx.activeMotionId) stopMotion();
+      if (stageCtx.hasMotionAction) stopMotion();
       if (stageCtx.activeTween) finishTween();
       resetRootToRest(); // authored poses are upright, rotation-only
       applyCustomPose(stageCtx.skinnedRef.skeleton, stageCtx.variantCfgRef, pose);
@@ -1229,7 +1224,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       undoEyeGaze(); // eye deltas lift with it (re-baked live next frame)
       onTakeover();
       cancelComposed();
-      if (stageCtx.activeMotionId) stopMotion();
+      if (stageCtx.hasMotionAction) stopMotion();
       if (stageCtx.activeTween) finishTween();
       resetRootToRest();
       applyPoseNow(null);
@@ -1249,7 +1244,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     deselectJoint: deselectImpl,
     setPosingOptions: (opts) => {
       if (opts.romClamp !== undefined) poseRomClampOn = opts.romClamp;
-      if (opts.twistRig !== undefined) poseTwistOn = opts.twistRig;
+      if (opts.twistRig !== undefined) stageCtx.setTwistEnabled(opts.twistRig);
       if (opts.showJoints !== undefined) {
         poseShowJoints = opts.showJoints;
         applyJointVisibility();
@@ -1287,23 +1282,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       // Idle deltas lift first so the export + restore are both clean.
       undoIdleOverlays();
       undoEyeGaze(); // exported bone tracks carry the eyes at rest
-      const saved = serializeCustomPose(skel, variantCfg, variantCfg.id);
-      const times = frames.map((f) => f.t);
-      const perBone = new Map<string, number[]>();
-      for (const b of skel.bones) perBone.set(b.name, []);
-      const rootBone =
-        skel.bones.find((b) => !(b.parent as import('three').Bone)?.isBone) ?? skel.bones[0]!;
-      const rootPos: number[] = [];
-      for (const f of frames) {
-        applyCustomPose(skel, variantCfg, f.pose);
-        for (const b of skel.bones) {
-          const q = b.quaternion;
-          perBone.get(b.name)!.push(q.x, q.y, q.z, q.w);
-        }
-        if (rootMotion)
-          rootPos.push(rootBone.position.x, rootBone.position.y, rootBone.position.z);
-      }
-      applyCustomPose(skel, variantCfg, saved);
+      const { times, perBone, rootBone, rootPos } = samplePoseAnimation(skel, variantCfg, frames, stageCtx.sampleWithTwist);
       stageCtx.modelRoot.updateMatrixWorld(true);
       updatePoseHandles();
       reportPosing(true);

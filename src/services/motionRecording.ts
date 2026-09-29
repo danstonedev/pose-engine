@@ -60,13 +60,13 @@ import {
   applyWeightedDescent,
   captureFloorReference,
   captureFootFrames,
+  footFramesForCurrentPose,
   deriveFootDrivenTravel,
   deriveGaitLateralShuttle,
   deriveGroundingBlendSpans,
   deriveHeelStrikeAccents,
   deriveVerticalCalibration,
   deriveWeightedDescent,
-  FOOT_ROOT_DRIFT_M,
   groundingBlendAt,
   handReachEngagedAt,
   handReachReleasedAt,
@@ -82,7 +82,7 @@ import {
   plantStanceFoot,
   rotateRestReferenceByRoot,
   rotateRestReferenceByPelvis,
-  stanceFootDrift,
+  stanceFootNeedsPlant,
   VCAL_HANDOFF_BLEND_MS,
   weightedDescentApplies,
   type FootDrivenTravel,
@@ -587,7 +587,11 @@ export function sampleComposedMotion(
   applyCustomPose(skinned.skeleton, variantCfg, baselinePose);
   root.updateMatrixWorld(true);
   const floorRef = captureFloorReference(skinned.skeleton, variantCfg);
-  const footFrames = captureFootFrames(skinned.skeleton, variantCfg);
+  const footFrames = footFramesForCurrentPose(
+    captureFootFrames(skinned.skeleton, variantCfg, rest),
+    resolved.startFrom === 'current' ? opts.currentPose : null,
+    resolved.keyframes.flatMap(k => k.targets.map(t => t.joint)),
+  );
 
   // CONTACT PLANTS (Phase 3): build the leg IK chains now, but capture each
   // foot's world target LAZILY at the first sampled frame (after that frame's FK
@@ -1058,9 +1062,9 @@ export function sampleComposedMotion(
       } else if (
         useFootRoot &&
         s.planted &&
-        (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M
+        stanceFootNeedsPlant(root, skinned.skeleton, variantCfg, footFrames)
       ) {
-        plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames);
+        plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames, opts.constraints);
       } else if (s.planted) {
         pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
       }
@@ -1190,11 +1194,11 @@ export function sampleComposedMotion(
         groundingContactsFor(sample.groundingPosture, floorRef),
       );
       solveReachContacts(sample.groundingPosture);
-    } else if (useFootRoot && sample.planted && (stanceFootDrift(root, skinned.skeleton, variantCfg, footFrames) ?? 0) > FOOT_ROOT_DRIFT_M) {
+    } else if (useFootRoot && sample.planted && stanceFootNeedsPlant(root, skinned.skeleton, variantCfg, footFrames)) {
       // The SAME authored angles now read as the real closed-chain movement — feet
       // planted, pelvis placed by the chain, COM over the base (balance for free).
       // This RIGIDLY rotates the root (not just Y), so orientation is recomputed below.
-      plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames);
+      plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames, opts.constraints);
       footRooted = true;
     } else if (sample.planted) {
       pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
@@ -1311,9 +1315,10 @@ export function sampleComposedMotion(
         restY: floorRef.restY,
         trajectory: plantsAtTouchdown ? null : trajectory,
       });
-    if (anyPlant || groundReachSolved) {
-      // A foot plant OR a grounding-posture hand reach re-solved a limb — re-read
-      // the pose so the recorded angles/tracks reflect the IK'd limb.
+    if (anyPlant || groundReachSolved || footRooted) {
+      // Contact IK, a grounding reach, or an articulated-pelvis stance plant
+      // can re-solve limb joints. Record those locals too, so replay matches
+      // the measured body and feet rather than reverting to the input FK.
       root.updateMatrixWorld(true);
       effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
     }

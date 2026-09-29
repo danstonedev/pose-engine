@@ -414,6 +414,58 @@ function girdleWorldRotation(
   return parentWorld.clone().multiply(delta).multiply(parentWorld.invert());
 }
 
+/** The complete girdle delta, including protraction and explicit overrides.
+ * Elevation targets describe the humerus relative to the trunk, so the arm
+ * must compensate the FINAL parent orientation, not just the automatic share. */
+function posedGirdleWorldRotation(
+  joint: string,
+  pose: CustomPose,
+  baselinePose: CustomPose,
+  rest: JointAngleRestReference | null | undefined,
+): THREE.Quaternion | undefined {
+  const key = girdleKeyFor(joint);
+  const local = key ? pose.bones[key] : undefined;
+  const restLocal = key ? baselinePose.bones[key] : undefined;
+  const restWorld = key ? rest?.worldQuats?.[key] : undefined;
+  if (!local || !restLocal || !restWorld) return undefined;
+  const parentWorld = new THREE.Quaternion(...restWorld)
+    .multiply(new THREE.Quaternion(...restLocal).invert());
+  return parentWorld.clone()
+    .multiply(new THREE.Quaternion(...local))
+    .multiply(new THREE.Quaternion(...restLocal).invert())
+    .multiply(parentWorld.invert());
+}
+
+/** Explicit girdle intent replaces ONLY the authored axes of the automatic
+ * result. A zero is intentional too. Un-authored tilt/upward rotation retain
+ * the rhythm share; un-authored protraction retains the incoming pose. */
+function overrideGirdleTargets(
+  target: CustomPose,
+  baselinePose: CustomPose,
+  joint: string,
+  explicitTargets: ComposedJointTarget[],
+): void {
+  const key = girdleKeyFor(joint);
+  const restArr = key ? baselinePose.bones[key] : undefined;
+  const currentArr = key ? target.bones[key] : undefined;
+  const specs = key ? SUPPORTED_MOTIONS[key] : undefined;
+  if (!key || !restArr || !currentArr || !specs || explicitTargets.length === 0) return;
+  const restQ = new THREE.Quaternion(...restArr);
+  const e = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion(...currentArr).multiply(restQ.clone().invert()), 'YXZ',
+  );
+  for (const t of explicitTargets) {
+    const spec = specs[t.motion];
+    if (!spec || !Number.isFinite(t.degrees)) continue;
+    const explicit = new THREE.Euler().setFromQuaternion(spec.buildDelta(t.degrees), 'YXZ');
+    if (t.motion === 'scapularTilt') e.x = explicit.x;
+    else if (t.motion === 'protraction') e.y = explicit.y;
+    else if (t.motion === 'upRotation') e.z = explicit.z;
+  }
+  const q = new THREE.Quaternion().setFromEuler(e).multiply(restQ);
+  target.bones[key] = [q.x, q.y, q.z, q.w];
+}
+
 // ── SCAPULOHUMERAL RHYTHM ────────────────────────────────────────────────────
 // The engine used to realize the ENTIRE commanded shoulder elevation as one
 // quaternion on the UpperArm bone, with the clavicle untouched. Glenohumeral
@@ -443,11 +495,13 @@ function girdleWorldRotation(
 // ~30° of abduction / ~60° of flexion) elevation is predominantly glenohumeral
 // and scapular motion is small, variable and subject-specific; past it the
 // ratio is ~2:1 GH:scapular. The setting phase is not a rounding detail here —
-// it is what keeps GAIT untouched. Walking arm swing is ±12-15° and running
-// ~±25°, both inside it, so neither authors any girdle rotation. That matters:
+// it keeps gait from acquiring additional ELEVATION-DRIVEN rhythm. Walking arm
+// swing is ±12-15° and running ~±25°, both inside it. Gait separately authors
+// its own tilt, upward rotation and protraction, preserved by the composer.
+// That matters:
 // there is no normative dataset of scapulothoracic joint kinematics in walking,
 // and the real scapular upward rotation over a walking arm swing is ~0-5°.
-// Adding a rhythm to gait would be inventing a motion that is not there.
+// The elevation rule should not overwrite or amplify that authored motion.
 const SCAPULOHUMERAL_SETTING_FLEX_DEG = 60;
 const SCAPULOHUMERAL_SETTING_ABD_DEG = 30;
 /** Glenohumeral : scapulothoracic elevation ratio past the setting phase.
@@ -1150,6 +1204,14 @@ export function buildCommandPose(
   if (!spec) return null;
   const restArr = baselinePose.bones?.[cmd.joint];
   if (!restArr) return null;
+  // Single commands use the same complete girdle compensation as keyframes,
+  // including any protraction carried from the current pose.
+  if (girdleKeyFor(cmd.joint)) {
+    return buildComposedCommandPose(
+      baselinePose, cmd.joint, [{ motion: cmd.motion, degrees: clampedDegrees }],
+      variantCfg, fromPose, rest,
+    );
+  }
 
   const target = copyPose(fromPose ?? baselinePose, variantCfg.id);
   const restQ = new THREE.Quaternion(restArr[0], restArr[1], restArr[2], restArr[3]);
@@ -1274,9 +1336,10 @@ function girdleKeyFor(joint: string): string | null {
  *     commanded 20°, because the clavicle kept its 16.67° of tilt. So the write
  *     is unconditional and absolute from the anatomic rest, exactly like every
  *     other commanded value — never accumulated onto the incoming pose.
- * A scapular tilt / upward rotation commanded EXPLICITLY on the same side in
- * the same keyframe is therefore superseded by the humeral share. That is the
- * documented precedence: elevation owns the sagittal and frontal girdle axes.
+ * This writes the AUTOMATIC share. Keyframe composition then replaces any
+ * explicitly authored girdle axes and compensates the humerus against that
+ * final parent orientation (see buildComposedCommandPose). Explicit intent
+ * therefore survives regardless of the order of targets in the keyframe.
  *
  * Degrades to a no-op when the clavicle is unmapped on this variant or the
  * caller's baseline does not carry it — the humerus keeps whatever
@@ -1495,7 +1558,12 @@ export interface ComposedJointTarget {
  *     lumbar flexion + lateralTilt + rotation coexist in one pose.
  *   - Any other rest-frame combination (e.g. elbow flexion + forearm rotation):
  *     the deltas are multiplied in order onto the rest local.
- * A single-motion group takes the identical path as {@link buildCommandPose}.
+ * Upper-arm groups also accept the same keyframe's explicit girdle targets.
+ * Explicit axes override automatic rhythm; the arm compensates the COMPLETE
+ * resulting girdle rotation, preserving humerothoracic swing and axial twist.
+ * Girdle-only groups retain their independent behavior and carry their children.
+ * Explicitly reducing the girdle share can increase the required GH excursion;
+ * the one-bone proxy cannot guarantee an anatomical SC/AC split or GH limit.
  */
 export function buildComposedCommandPose(
   baselinePose: CustomPose,
@@ -1504,6 +1572,7 @@ export function buildComposedCommandPose(
   variantCfg: BodyVariantConfig,
   fromPose?: CustomPose | null,
   rest?: JointAngleRestReference | null,
+  explicitGirdleTargets: ComposedJointTarget[] = [],
 ): CustomPose | null {
   const specs = SUPPORTED_MOTIONS[joint];
   if (!specs) return null;
@@ -1527,6 +1596,30 @@ export function buildComposedCommandPose(
   if (ctx.restWorldQuat)
     ctx.parentRestWorldQuat = ctx.restWorldQuat.clone().multiply(restQ.clone().invert());
 
+  if (joint.endsWith('UpperArm') && ctx.restDir) {
+    let F = 0, A = 0, R = 0;
+    for (const t of usable) {
+      if (t.motion === 'shoulderFlexion') F = t.degrees;
+      else if (t.motion === 'shoulderAbduction') A = t.degrees;
+      else if (t.motion === 'shoulderRotation') R = t.degrees;
+    }
+    // Reset the rhythm axes even below the setting phase, so a previous
+    // overhead reach cannot leak into the next low reach. An axial-only group
+    // retains the girdle pose unless that keyframe explicitly changes it.
+    if (usable.some(t => t.motion === 'shoulderFlexion' || t.motion === 'shoulderAbduction')) {
+      writeGirdle(target, baselinePose, joint, [
+        { motion: 'scapularTilt', degrees: girdleSplit(F, 'flexion').girdle },
+        { motion: 'upRotation', degrees: girdleSplit(A, 'abduction').girdle },
+      ]);
+    }
+    overrideGirdleTargets(target, baselinePose, joint, explicitGirdleTargets);
+    ctx.girdleWorld = posedGirdleWorldRotation(joint, target, baselinePose, rest);
+    const side = joint.startsWith('R_') ? 'R' : 'L';
+    const q = restQ.clone().multiply(composeShoulderDelta(ctx, side, F, A, R));
+    target.bones[joint] = [q.x, q.y, q.z, q.w];
+    return target;
+  }
+
   let q: THREE.Quaternion;
   if (usable.length === 1) {
     const spec = specs[usable[0]!.motion]!;
@@ -1544,6 +1637,7 @@ export function buildComposedCommandPose(
     if (share) writeGirdle(target, baselinePose, joint, [share]);
     // …and the cervical pair across both neck segments. See writeCompanions.
     writeCompanions(target, baselinePose, specs, usable, ctx);
+    overrideGirdleTargets(target, baselinePose, joint, explicitGirdleTargets);
     return target;
   } else if (isBallJoint(joint) && ctx.restDir) {
     // Fold flexion/abduction/rotation into one delta (shoulder world / hip canonical).
@@ -1553,23 +1647,6 @@ export function buildComposedCommandPose(
       if (t.motion.endsWith('Flexion')) F = t.degrees;
       else if (t.motion.endsWith('Abduction')) A = t.degrees;
       else if (t.motion.endsWith('Rotation')) R = t.degrees;
-    }
-    if (joint.endsWith('UpperArm')) {
-      // SCAPULOHUMERAL SPLIT on the composed path too — the humerus receives only
-      // the glenohumeral share of EACH plane, and both girdle contributions fold
-      // into one clavicle delta. Without this branch a keyframe that commands
-      // flexion and abduction together would bypass the split entirely and put
-      // the whole elevation back on the humerus.
-      const contributions = [
-        { motion: 'scapularTilt', degrees: girdleSplit(F, 'flexion').girdle },
-        { motion: 'upRotation', degrees: girdleSplit(A, 'abduction').girdle },
-      ];
-      ctx.girdleWorld =
-        girdleWorldRotation(joint, contributions, baselinePose, rest) ?? undefined;
-      q = restQ.clone().multiply(composeShoulderDelta(ctx, side, F, A, R));
-      target.bones[joint] = [q.x, q.y, q.z, q.w];
-      writeGirdle(target, baselinePose, joint, contributions);
-      return target;
     }
     q = restQ.clone().multiply(composeHipDelta(side, F, A, R));
   } else if (usable.every((t) => specs[t.motion]!.compose === 'parent')) {
@@ -1588,6 +1665,7 @@ export function buildComposedCommandPose(
   }
   target.bones[joint] = [q.x, q.y, q.z, q.w];
   writeCompanions(target, baselinePose, specs, usable, ctx);
+  overrideGirdleTargets(target, baselinePose, joint, explicitGirdleTargets);
   return target;
 }
 

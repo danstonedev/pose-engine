@@ -610,6 +610,8 @@ export function solveIKChain(
      *  joint rotated by gizmo honours the patient's — the same limb bounded two
      *  different ways depending on which control was used. */
     constraints?: RomScenarioConstraints | null;
+    /** Enforce this solve's explicit scenario bounds even in calibration mode. */
+    forceRomClamp?: boolean;
     /** CCD passes for this solve (default {@link _ikIterations} = 4). CCD's
      *  residual scales with how far the effector starts from its target, so a
      *  solve that must track a FAST-moving chain (the gait foot-plant at a
@@ -714,7 +716,7 @@ function ikPasses(
         }
       }
       if (clamp?.rest && canonicalKey) {
-        clampBoneToRom(joint, canonicalKey, clamp.rest, clamp.constraints);
+        clampBoneToRom(joint, canonicalKey, clamp.rest, clamp.constraints, clamp.forceRomClamp);
       }
       if (i > turned) turned = i;
     }

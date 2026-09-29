@@ -63,10 +63,14 @@ export function toSpinalOpts(v: Vector): {
 }
 
 /**
- * Build the candidate motion for a parameter vector.
+ * Retune an ALREADY COORDINATED gait for a parameter vector.
  *
  * The caller supplies `base` — the motion being tuned — and this applies the
- * gains. Kept as its own function so the test suite can assert that the identity
+ * difference from the shipped gains. The coordinator is additive and also
+ * authors arm carriage, girdle, wrist and finger targets: applying it again
+ * would double those unrelated channels, even at the identity vector. Compare
+ * candidate/default contributions on the same base and apply only their delta.
+ * Kept as its own function so the test suite can assert that the identity
  * vector reproduces the shipped motion EXACTLY, which is the contract that stops
  * a tuning run from silently redefining the clinical reference.
  */
@@ -75,5 +79,31 @@ export function applyTrunkGains(
   v: Vector,
   spinalGaitCoordination: (m: ComposedMotion, o: ReturnType<typeof toSpinalOpts>) => ComposedMotion,
 ): ComposedMotion {
-  return spinalGaitCoordination(base, toSpinalOpts(v));
+  const requested = toSpinalOpts(v);
+  const defaults = toSpinalOpts({});
+  if (Object.keys(defaults).every(key => requested[key as keyof typeof defaults] === defaults[key as keyof typeof defaults])) {
+    return base;
+  }
+  const reference = spinalGaitCoordination(base, defaults);
+  const candidate = spinalGaitCoordination(base, requested);
+  const key = (t: { joint: string; motion: string }) => `${t.joint}.${t.motion}`;
+  return {
+    ...base,
+    keyframes: base.keyframes.map((frame, i) => {
+      const targets = [...(frame.targets ?? [])];
+      const originalIndices = new Map(targets.map((t, index) => [key(t), index]));
+      const referenceTargets = new Map((reference.keyframes[i]?.targets ?? []).map(t => [key(t), t]));
+      const candidateTargets = new Map((candidate.keyframes[i]?.targets ?? []).map(t => [key(t), t]));
+      for (const id of new Set([...referenceTargets.keys(), ...candidateTargets.keys()])) {
+        const c = candidateTargets.get(id);
+        const r = referenceTargets.get(id);
+        const delta = (c?.targetDegrees ?? 0) - (r?.targetDegrees ?? 0);
+        if (Math.abs(delta) < 1e-9) continue;
+        const index = originalIndices.get(id);
+        if (index !== undefined) targets[index] = { ...targets[index]!, targetDegrees: targets[index]!.targetDegrees + delta };
+        else targets.push({ ...(c ?? r)!, targetDegrees: delta });
+      }
+      return { ...frame, targets };
+    }),
+  };
 }
