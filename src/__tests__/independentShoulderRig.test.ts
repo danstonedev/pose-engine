@@ -1,5 +1,7 @@
 ﻿import {beforeAll,describe,expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+const modelDirectory=fileURLToPath(new URL('../../models/',import.meta.url));
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -17,7 +19,7 @@ for(const variant of ['male','female','neutral'] as const)describe(`${variant} i
  const cfg=independentShoulderVariant(variant),legacyCfg=getBodyVariant(variant);
  let root:THREE.Object3D,skin:THREE.SkinnedMesh,legacyRoot:THREE.Object3D,legacySkin:THREE.SkinnedMesh,ref:ReturnType<typeof captureIndependentShoulderReference>,neutral:ReturnType<typeof serializeCustomPose>,legacyNeutral:ReturnType<typeof serializeCustomPose>,clips:THREE.AnimationClip[];
  beforeAll(async()=>{
-  for(const v2 of [false,true]){const bytes=readFileSync(`models/painmap3D_${variant}.${v2?'shoulder-v2':'runtime'}.glb`),gltf=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');let sm:THREE.SkinnedMesh=null!;gltf.scene.traverse(n=>{if((n as THREE.SkinnedMesh).isSkinnedMesh&&(!sm||((n as THREE.SkinnedMesh).material as THREE.Material).name==='Std_Skin_Body'))sm=n as THREE.SkinnedMesh;});applyAnatomicPose(gltf.scene,v2?cfg:legacyCfg);gltf.scene.updateMatrixWorld(true);if(v2){root=gltf.scene;skin=sm;}else{legacyRoot=gltf.scene;legacySkin=sm;clips=gltf.animations;}}
+  for(const v2 of [false,true]){const bytes=readFileSync(`${modelDirectory}painmap3D_${variant}.${v2?'shoulder-v2':'runtime'}.glb`),gltf=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');let sm:THREE.SkinnedMesh=null!;gltf.scene.traverse(n=>{if((n as THREE.SkinnedMesh).isSkinnedMesh&&(!sm||((n as THREE.SkinnedMesh).material as THREE.Material).name==='Std_Skin_Body'))sm=n as THREE.SkinnedMesh;});applyAnatomicPose(gltf.scene,v2?cfg:legacyCfg);gltf.scene.updateMatrixWorld(true);if(v2){root=gltf.scene;skin=sm;}else{legacyRoot=gltf.scene;legacySkin=sm;clips=gltf.animations;}}
   ref=captureIndependentShoulderReference(skin.skeleton,cfg);neutral=serializeCustomPose(skin.skeleton,cfg,variant);legacyNeutral=serializeCustomPose(legacySkin.skeleton,legacyCfg,variant);
  });
  const reset=()=>{root.quaternion.identity();root.position.set(0,0,0);applyCustomPose(skin.skeleton,cfg,neutral);root.updateMatrixWorld(true);};

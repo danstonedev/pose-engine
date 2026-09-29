@@ -1,5 +1,7 @@
 ﻿import {expect,it} from 'vitest';
 import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+const modelDirectory=fileURLToPath(new URL('../../models/',import.meta.url));
 import {NodeIO} from '@gltf-transform/core';
 import {EXTMeshoptCompression,KHRMeshQuantization} from '@gltf-transform/extensions';
 import {quantize} from '@gltf-transform/functions';
@@ -11,7 +13,7 @@ import {independentShoulderVariant,captureIndependentShoulderReference,applyInde
 import {applyAnatomicPose} from '../services/anatomicPose';
 const io=new NodeIO().registerExtensions([EXTMeshoptCompression,KHRMeshQuantization]).registerDependencies({'meshopt.decoder':CodecDecoder,'meshopt.encoder':MeshoptEncoder});
 for(const variant of ['male','female','neutral'] as const)it(`${variant}: shoulder skin survives host quantization within 1 mm at neutral and articulated poses`,async()=>{
- await MeshoptEncoder.ready;const path=`models/painmap3D_${variant}.shoulder-v2.glb`,original=readFileSync(path),doc=await io.read(path);await doc.transform(quantize({quantizePosition:14,quantizeNormal:10,quantizeTexcoord:12,quantizeWeight:8,quantizeColor:8}));doc.createExtension(EXTMeshoptCompression).setRequired(true).setEncoderOptions({method:EXTMeshoptCompression.EncoderMethod.QUANTIZE});const compressed=await io.writeBinary(doc);
+ await MeshoptEncoder.ready;const path=`${modelDirectory}painmap3D_${variant}.shoulder-v2.glb`,original=readFileSync(path),doc=await io.read(path);await doc.transform(quantize({quantizePosition:14,quantizeNormal:10,quantizeTexcoord:12,quantizeWeight:8,quantizeColor:8}));doc.createExtension(EXTMeshoptCompression).setRequired(true).setEncoderOptions({method:EXTMeshoptCompression.EncoderMethod.QUANTIZE});const compressed=await io.writeBinary(doc);
  const rigs=[];
  for(const bytes of [original,compressed]){const gltf=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength) as ArrayBuffer,'');const cfg=independentShoulderVariant(variant);applyAnatomicPose(gltf.scene,cfg);gltf.scene.updateMatrixWorld(true);let skin:THREE.SkinnedMesh=null!;gltf.scene.traverse(n=>{const s=n as THREE.SkinnedMesh;if(s.isSkinnedMesh&&(s.material as THREE.Material).name==='Std_Skin_Body')skin=s;});rigs.push({root:gltf.scene,skin,ref:captureIndependentShoulderReference(skin.skeleton,cfg)});}
  let worst=0;
