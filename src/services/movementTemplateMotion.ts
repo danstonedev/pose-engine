@@ -28,6 +28,7 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
       ...(x.peakAt != null ? { peakAt: x.peakAt } : {}),
     })),
     durationMs: p.durationMs,
+    ...(p.control ? { control: p.control } : {}),
     ...(p.holdMs ? { holdMs: p.holdMs } : {}),
     ...(p.stance ? { stance: p.stance } : {}),
     ...(p.groundingPosture ? { groundingPosture: p.groundingPosture } : {}),
@@ -60,6 +61,8 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
     stance: t.stance,
     ...(t.loop ? { loop: true } : {}),
     ...(t.balanceAssist ? { balanceAssist: true } : {}),
+    ...(t.footDrivenTravel ? { footDrivenTravel: true } : {}),
+    ...(t.settleEnds ? { settleEnds: true } : {}),
     ...(contacts ? { contacts } : {}),
     keyframes,
   };

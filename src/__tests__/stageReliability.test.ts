@@ -149,8 +149,8 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     // (footContact.stepContactPlants, exercised through the sampler by
     // footContact/heelStrike/gaitCurvedWalk/gaitContactSync). What the stage
     // must still get right is what it FEEDS that step, so pin the exact
-    // arguments: the (possibly heading-rotated) composedPlantRest falling back
-    // to restRef as the clamp frame, the ORIGINAL restRef naming the knee
+    // arguments: the live root/pelvis frame for a fixed-base fold, otherwise
+    // the heading-rotated contact rest, the ORIGINAL restRef naming the knee
     // hinge axis, the live heel-strike offset, a touchdown-planted gait's
     // capture lift, the per-motion anchor map, the rig's standing contact
     // heights (where a forefoot hold puts its point: on the floor) and the
@@ -158,13 +158,28 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     // it) — none for a touchdown-planted gait, whose travel (rootMotion) was
     // derived for plants that let go over the base release, on the plant's own
     // weight.
-    expect(stageSource).toMatch(
-      /function applyFootPlants[\s\S]{0,300}stepContactPlants\(composedPlants, tMs, \{\s*rest: composedPlantRest \?\? restRef,\s*hingeAxisRest: restRef,\s*heelStrikeY: composedHeelStrikeY,\s*captureLiftY: composedPlantsAtTouchdown \? composedVcalRaiseY : 0,\s*initialTargets: initialComposedPlantTargets,\s*restY: floorRef\?\.restY,\s*trajectory: composedPlantsAtTouchdown \? null : trajectory,\s*\}\)/,
-    );
-    // …the sampler feeds it the same seven things from its own state…
-    expect(samplerSource).toMatch(
-      /stepContactPlants\(footPlants, tMs, \{\s*rest: plantRest,\s*hingeAxisRest: rest,\s*heelStrikeY,\s*captureLiftY: plantsAtTouchdown \? vcalRaiseY : 0,\s*initialTargets: initialPlantTargets,\s*restY: floorRef\.restY,\s*trajectory: plantsAtTouchdown \? null : trajectory,\s*\}\)/,
-    );
+    const stageStep = stageSource.match(/stepContactPlants\(composedPlants, tMs, \{([\s\S]*?)\n\s*\}\)/)?.[1];
+    const samplerStep = samplerSource.match(/stepContactPlants\(footPlants, tMs, \{([\s\S]*?)\n\s*\}\)/)?.[1];
+    expect(stageStep).toBeDefined();
+    expect(samplerStep).toBeDefined();
+    for (const field of [
+      'rest: composedUseFootRoot ? activeRestRef() : composedPlantRest ?? restRef,',
+      'hingeAxisRest: restRef,',
+      '...(composedUseFootRoot ? { constraints: romConstraints, forceRomClamp: true } : {}),',
+      'heelStrikeY: composedHeelStrikeY,',
+      'captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,',
+      'initialTargets: initialComposedPlantTargets,', 'restY: floorRef?.restY,',
+      'trajectory: composedPlantsAtTouchdown ? null : trajectory,',
+    ]) expect(stageStep).toContain(field);
+    // The sampler supplies the equivalent dynamic frame, limits and timing.
+    expect(samplerStep).toMatch(/rest: useFootRoot \? rotateRestReferenceByPelvis\(\s*rotateRestReferenceByRoot\(rest, root\.quaternion\.clone\(\)\.multiply\(rootRestQuat\.clone\(\)\.invert\(\)\)\),\s*skinned\.skeleton, variantCfg,\s*\) : plantRest,/);
+    for (const field of [
+      'hingeAxisRest: rest,',
+      '...(useFootRoot ? { constraints: opts.constraints, forceRomClamp: true } : {}),',
+      'heelStrikeY,', 'captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,',
+      'initialTargets: initialPlantTargets,', 'restY: floorRef.restY,',
+      'trajectory: plantsAtTouchdown ? null : trajectory,',
+    ]) expect(samplerStep).toContain(field);
     // …both from the floor reference their floor pin grounds on, captured at
     // anatomic rest (the sampler after the baseline pose, the stage at boot).
     expect(samplerSource).toMatch(

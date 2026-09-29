@@ -46,9 +46,10 @@ describe('kneeValgus (hip adduction + internal rotation proxy)', () => {
   });
 
   it('is unilateral when a side is named', () => {
-    const v = kneeValgus(squat(), 'right', 12);
+    const base = squat();
+    const v = kneeValgus(base, 'right', 12);
     expect(targetOf(v, 'R_UpLeg', 'hipAbduction').length).toBeGreaterThan(0);
-    expect(targetOf(v, 'L_UpLeg', 'hipAbduction')).toHaveLength(0); // uninvolved side untouched
+    expect(targetOf(v, 'L_UpLeg', 'hipAbduction')).toEqual(targetOf(base, 'L_UpLeg', 'hipAbduction')); // uninvolved side untouched
   });
 });
 

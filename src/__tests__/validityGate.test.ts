@@ -42,6 +42,7 @@ import {
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import {
   assessValidity,
+  isQuasiStaticMotion,
   DEFAULT_VALIDITY_THRESHOLDS,
   type GateFrame,
   type ValidityCheck,
@@ -243,6 +244,33 @@ describe('validity gate — every shipped template resolves + rig-samples to a n
 
     const sts = assessValidity(...sampleFor(T('sit-to-stand')));
     expect(checkById(sts.checks, 'com-in-base'), 'sit-to-stand is quasi-static').toBeDefined();
+  });
+
+  it('distinguishes fixed bilateral transfer support from scheduled or single-foot travel', () => {
+    const { resolved } = sample(T('sit-to-stand'));
+    expect(isQuasiStaticMotion(resolved)).toBe(true);
+    expect(isQuasiStaticMotion({ ...resolved, contacts: [{ foot: 'L_Foot' }] })).toBe(false);
+    expect(isQuasiStaticMotion({ ...resolved, contacts: [
+      { foot: 'L_Foot', toMs: 500 }, { foot: 'R_Foot' },
+    ] })).toBe(false);
+    expect(isQuasiStaticMotion({ ...resolved, loop: true })).toBe(false);
+    expect(isQuasiStaticMotion({ ...resolved, keyframes: resolved.keyframes.map(k => ({
+      ...k, groundingPosture: 'quadruped' as const,
+    })) })).toBe(false);
+  });
+
+  it('scores the rising feet-supported frames while preserving the seated support exclusion', () => {
+    const [resolved, frames, opts] = sampleFor(T('sit-to-stand'));
+    expect(frames.some(f => f.groundingPosture === 'sitting')).toBe(true);
+    const clean = checkById(assessValidity(resolved, frames, opts).checks, 'com-in-base')!;
+    const moved = (seated: boolean) => frames.map(f => ({ ...f, worldTracks: {
+      ...f.worldTracks!, CoM: (f.groundingPosture === 'sitting') === seated
+        ? [10, 1, 10] as [number, number, number] : f.worldTracks!.CoM,
+    } }));
+    expect(checkById(assessValidity(resolved, moved(true), opts).checks, 'com-in-base')!.measured).toBe(clean.measured);
+    const offBase = checkById(assessValidity(resolved, moved(false), opts).checks, 'com-in-base')!;
+    expect(offBase.pass).toBe(false);
+    expect(offBase.severity).toBe('fail');
   });
 });
 

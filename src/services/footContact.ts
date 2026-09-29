@@ -21,6 +21,7 @@
 import * as THREE from 'three';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import type { JointAngleRestReference } from './jointAngles';
+import type { RomScenarioConstraints } from './romConstraints';
 import {
   buildBoneByPoseKey,
   buildIKChainContext,
@@ -78,6 +79,13 @@ const ARM_CHAIN_PARENTS = 3;
  * 4-pass result byte-for-byte.
  */
 export const FOOT_PLANT_IK_ITERATIONS = 8;
+
+/** Optional limits for a contact solve. Explicit patient restrictions also
+ * apply when the interactive rig's calibration clamp is disabled. */
+interface ContactPlantLimits {
+  constraints?: RomScenarioConstraints | null;
+  forceRomClamp?: boolean;
+}
 
 /** The knee key for a leg contact key ('L_Foot' / 'L_Toes' → 'L_Leg'). */
 export function kneeKeyForFoot(footKey: string): string {
@@ -140,11 +148,14 @@ export function solveFootPlant(
   targetWorldPos: THREE.Vector3,
   rest: JointAngleRestReference | null | undefined,
   hingeAxisRest?: JointAngleRestReference | null,
+  limits?: ContactPlantLimits,
 ): void {
   const options = {
     rest,
     hinges: new Set([solver.kneeKey]),
     iterations: FOOT_PLANT_IK_ITERATIONS,
+    constraints: limits?.constraints,
+    forceRomClamp: limits?.forceRomClamp || !!limits?.constraints && Object.keys(limits.constraints).length > 0,
     ...(hingeAxisRest ? { hingeAxisRest } : {}),
   };
   if (solver.distalCtx) solveContactArm(solver, targetWorldPos, options);
@@ -674,7 +685,7 @@ export interface PlantRelease {
 }
 
 /** The per-frame inputs {@link stepContactPlants} needs beyond the plants. */
-export interface ContactPlantFrame {
+export interface ContactPlantFrame extends ContactPlantLimits {
   /** ROM-clamp rest frame for a plant without its own `rest` (heading-rotated
    *  for a rotated walk — see {@link solveFootPlant}). */
   rest: JointAngleRestReference | null | undefined;
@@ -943,6 +954,7 @@ function releaseContactPlant(
   release: PlantRelease,
   rest: JointAngleRestReference | null | undefined,
   hingeAxisRest: JointAngleRestReference | null | undefined,
+  limits?: ContactPlantLimits,
 ): void {
   const bones = solver.ctx.bones;
   while (_releasePre.length < bones.length) _releasePre.push(new THREE.Quaternion());
@@ -957,7 +969,7 @@ function releaseContactPlant(
     held.y + (_releaseFk.y - held.y) * s,
     held.z + (_releaseFk.z - held.z) * sh,
   );
-  solveFootPlant(solver, _releaseTarget, rest, hingeAxisRest);
+  solveFootPlant(solver, _releaseTarget, rest, hingeAxisRest, limits);
   bones[0]!.getWorldPosition(_releaseAtSolve);
   for (let i = 0; i < bones.length; i += 1) {
     _releaseSolved.copy(bones[i]!.quaternion);
@@ -1122,6 +1134,7 @@ export function stepContactPlants(
       fp.release!,
       fp.rest ?? frame.rest,
       frame.hingeAxisRest,
+      frame,
     );
     moved = true;
   }
@@ -1144,7 +1157,7 @@ export function stepContactPlants(
       fp.release = null;
     }
     const held = heldPoint(fp, tMs);
-    solveFootPlant(fp.solver, held, fp.rest ?? frame.rest, frame.hingeAxisRest);
+    solveFootPlant(fp.solver, held, fp.rest ?? frame.rest, frame.hingeAxisRest, frame);
     const parent = fp.solver.ctx.bones[fp.solver.ctx.bones.length - 1]!.parent;
     if (parent) {
       parent.updateWorldMatrix(true, false);

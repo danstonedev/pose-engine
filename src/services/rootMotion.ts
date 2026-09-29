@@ -31,6 +31,7 @@ import { clampBoneToRom } from './poseRomClamp';
 import type { RomScenarioConstraints } from './romConstraints';
 import type { TrajectoryGroundingSwitch } from './motionTrajectory';
 import { PLANT_RELEASE_BLEND_MS, plantReleaseWeight } from './footContact';
+import { hasFixedBilateralFootSupport } from './motionSupport';
 
 const RAD = Math.PI / 180;
 
@@ -666,7 +667,7 @@ function plantArticulatedPelvis(
     }, s.target, { rest, hingeAxisRest: frames.jointRest, hinges: new Set([kneeKey]), iterations: 48, constraints,
       forceRomClamp: !!constraints && Object.keys(constraints).length > 0 });
     setBoneWorldQuaternion(s.foot, s.footWorld);
-    clampBoneToRom(s.foot, s.key, rest, constraints, !!constraints && Object.keys(constraints).length > 0);
+    clampBoneToRom(s.foot, s.key, rest, constraints, !!constraints && Object.keys(constraints).length > 0, { weightBearing: true });
   }
   root.updateMatrixWorld(true);
   rememberArticulatedPlant(root, skeleton, variantCfg, frames, stanceKey, legIntent, constraints);
@@ -2340,7 +2341,7 @@ export interface WeightedDescentMotionLike {
   footDrivenTravel?: boolean;
   verticalCalibrationCm?: number;
   contacts?: unknown[];
-  keyframes: { stance?: string }[];
+  keyframes: { stance?: string; durationMs?: number; holdMs?: number }[];
 }
 
 /**
@@ -2348,18 +2349,21 @@ export interface WeightedDescentMotionLike {
  * OPT IN (`weightedDescent`) and be a grounded one-shot the quasi-static
  * descent model is valid for. HARD EXCLUSIONS even when flagged — airborne
  * motions (any floating keyframe: the ballistic flight parabola owns their
- * vertical), gait/travel and loops (the calibrated + smoothed cyclic vertical
- * is deliberate), calibrated verticals (`verticalCalibrationCm` owns root-Y),
- * declared IK contacts (the plant solver owns the legs), and motions with
- * nothing planted (no grounded arc to reshape). Exported so tests (and hosts)
+ * vertical), alternating gait and loops (their cyclic vertical is deliberate),
+ * calibrated verticals (`verticalCalibrationCm` owns root-Y), changing or
+ * unilateral contacts, and motions with nothing planted. A fixed bilateral
+ * foot base can use foot-derived translation during a chair descent; its leg
+ * IK accommodates the shaped root height. Exported so tests (and hosts)
  * can assert the exclusions without running the derivation.
  */
 export function weightedDescentApplies(resolved: WeightedDescentMotionLike): boolean {
   if (resolved.status !== 'ok' || resolved.weightedDescent !== true) return false;
   if (resolved.keyframes.length === 0) return false;
-  if (resolved.loop === true || resolved.footDrivenTravel === true) return false;
+  if (resolved.loop === true) return false;
+  const fixedFeet = hasFixedBilateralFootSupport(resolved);
+  if (resolved.footDrivenTravel === true && !fixedFeet) return false;
   if (resolved.verticalCalibrationCm != null) return false;
-  if (resolved.contacts?.length) return false;
+  if (resolved.contacts?.length && !fixedFeet) return false;
   if (resolved.keyframes.some((kf) => kf.stance === 'floating')) return false;
   return resolved.keyframes.some((kf) => kf.stance === 'planted');
 }

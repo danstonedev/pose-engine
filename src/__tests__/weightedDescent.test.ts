@@ -232,9 +232,12 @@ describe('gravity-shaped sit-down: the descent accelerates until the catch', () 
 // ── 2. Root-Y-only contract + 3. grounding ──────────────────────────────────
 
 describe('root-parameter-only contract (goniometry untouched)', () => {
-  it('flagged vs unflagged sit-down differ ONLY in root-Y, inside the hover/dip band', () => {
-    const flagged = sampleMotion(buildSitDown());
-    const bare = sampleMotion(unflag(buildSitDown()));
+  it('without contact IK, flagged vs unflagged sit-down differ ONLY in root-Y, inside the hover/dip band', () => {
+    // Preserve the original pure reshape contract. The shipped closed-chain
+    // transfer now also bends the legs to absorb this offset and keep feet fixed.
+    const source = { ...buildSitDown(), contacts: undefined, footDrivenTravel: undefined };
+    const flagged = sampleMotion(source);
+    const bare = sampleMotion(unflag(source));
     expect(flagged.frames.length).toBe(bare.frames.length);
     for (let i = 0; i < flagged.frames.length; i += 1) {
       const f = flagged.frames[i]!;
@@ -369,6 +372,40 @@ describe('exclusions: the gate refuses everything outside the grounded one-shot 
     const walk = resolveComposedMotion(buildTravelWalk(), variantCfg);
     expect(walk.status).toBe('ok');
     expect(weightedDescentApplies({ ...walk, weightedDescent: true })).toBe(false);
+  });
+
+  it('with bilateral contact IK, the legs absorb weighted lowering while the feet and upper body remain stable', () => {
+    const flagged = sampleMotion(buildSitDown());
+    const bare = sampleMotion(unflag(buildSitDown()));
+    expect(flagged.frames.length).toBe(bare.frames.length);
+    for (let i = 0; i < flagged.frames.length; i++) {
+      const f = flagged.frames[i], b = bare.frames[i];
+      for (const [key, quat] of Object.entries(f.pose.bones)) {
+        if (!/^[LR]_(UpLeg|Leg|Foot|Toes)$/.test(key)) expect(quat, key).toEqual(b.pose.bones[key]);
+      }
+      for (const key of ['L_Foot', 'R_Foot']) {
+        const first = flagged.frames[0].worldTracks![key];
+        const now = f.worldTracks![key];
+        expect(Math.hypot(...now.map((v, axis) => v - first[axis])), `${key} fixed support`).toBeLessThan(0.001);
+      }
+      const dy = f.root.translateM[1] - b.root.translateM[1];
+      expect(dy).toBeLessThanOrEqual(WEIGHTED_DESCENT_MAX_HOVER_M + 1e-6);
+      expect(dy).toBeGreaterThanOrEqual(-WEIGHTED_DESCENT_MAX_DIP_M - 1e-6);
+    }
+  });
+
+  it('admits lowering over fixed bilateral support while rejecting contact windows and duplicate feet', () => {
+    const lower = { status: 'ok', weightedDescent: true, footDrivenTravel: true,
+      keyframes: [{ stance: 'planted', durationMs: 1000 }],
+      contacts: [{ foot: 'L_Foot' }, { foot: 'R_Foot' }],
+    };
+    expect(weightedDescentApplies(lower)).toBe(true);
+    expect(weightedDescentApplies({ ...lower, contacts: [
+      { foot: 'L_Foot', toMs: 500 }, { foot: 'R_Foot' },
+    ] })).toBe(false);
+    expect(weightedDescentApplies({ ...lower, contacts: [
+      { foot: 'L_Foot' }, { foot: 'L_Foot' },
+    ] })).toBe(false);
   });
 });
 

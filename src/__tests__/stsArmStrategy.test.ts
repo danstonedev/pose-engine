@@ -30,7 +30,7 @@ import { applyAnatomicPose } from '../services/anatomicPose';
 import { serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference, type JointAngleRestReference } from '../services/jointAngles';
 import { relaxedHands, resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
-import { sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
+import { authoredToTrajectoryTimeScale, sampleComposedMotion, type MotionRecording } from '../services/motionRecording';
 import { measureCommandMotion } from '../services/movementCommand';
 import { THIGH_RADIUS_M, HAND_RADIUS_M } from '../services/limbClearance';
 import { MOVEMENT_TEMPLATES, templateToComposedMotion } from '../services/movementTemplates';
@@ -123,15 +123,27 @@ const frameAt = (rec: MotionRecording, tMs: number): MotionRecording['frames'][n
   return best;
 };
 
-// Authored phase settle times: seated 700(+300 hold) → lean 1500 → push-off 1850 → stand 2300.
-const SEATED_AT = 700;
-const LEAN_AT = 1500;
-const PUSH_AT = 1850;
-const STAND_AT = 2300;
+/** Named phase landmarks survive setup insertion and velocity-governed timing. */
+function phaseTimes(rec: MotionRecording) {
+  const source = MOVEMENT_TEMPLATES.find(t => t.id === 'sit-to-stand')!;
+  const resolved = resolveComposedMotion(sts(), variantCfg);
+  expect(resolved.keyframes.length).toBe(source.phases.length);
+  const scale = authoredToTrajectoryTimeScale(resolved, rec.frames.at(-1)!.tMs);
+  const at: Record<string, number> = {};
+  let elapsed = 0;
+  for (let i = 0; i < resolved.keyframes.length; i++) {
+    const kf = resolved.keyframes[i]!;
+    elapsed += kf.durationMs;
+    at[source.phases[i]!.name] = elapsed * scale;
+    elapsed += kf.holdMs ?? 0;
+  }
+  return { SEATED_AT: at.seated!, LEAN_AT: at['lean-forward']!, PUSH_AT: at['seat-off']!, STAND_AT: at['rise-to-stand']! };
+}
 
 describe('sit-to-stand arm strategy — measured on the rig', () => {
   it('the hands ride the thighs through seat-off, then RELEASE at upright', () => {
     const rec = sampleSts();
+    const { SEATED_AT, LEAN_AT, PUSH_AT, STAND_AT } = phaseTimes(rec);
     for (const side of ['L', 'R'] as const) {
       const at = (tMs: number): number => handToThighM(frameAt(rec, tMs), side);
       // Minimum distance across the pushing window (lean → push-off settle).
@@ -164,6 +176,7 @@ describe('sit-to-stand arm strategy — measured on the rig', () => {
 
   it('the elbows EXTEND through the rise and the arms settle to a relaxed hang', () => {
     const rec = sampleSts();
+    const { SEATED_AT, LEAN_AT, PUSH_AT, STAND_AT } = phaseTimes(rec);
     const elbow = (tMs: number, side: 'L' | 'R'): number =>
       measureCommandMotion(
         { at: '', variant: 'male', joints: frameAt(rec, tMs).angles },

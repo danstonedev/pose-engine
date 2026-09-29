@@ -5,6 +5,7 @@
   import { MOVEMENT_TEMPLATES } from '../src/services/movementTemplates.data';
   import { templateToComposedMotion } from '../src/services/movementTemplateMotion';
   import { buildTravelWalk, buildRun } from '../src/services/movementLocomotion';
+  import { buildSitDown, buildStandFromSit } from '../src/services/movementPostures';
   import type { MotionRecording, RecordedFrame } from '../src/services/motionRecording';
 
   let stage = $state<ExamStage3D>(null!);
@@ -40,6 +41,9 @@
     'Shoulder rotation': () => template('shoulder-rotation'),
     'Tibial rotation': () => template('tibial-rotation'),
     Squat: () => template('squat'),
+    Hinge: () => template('forward-hip-hinge'),
+    'Thigh-assisted rise': () => template('sit-to-stand'),
+    'Chair transfer': () => [buildSitDown(), buildStandFromSit()],
     Walk: () => buildTravelWalk(),
     Run: () => buildRun(),
   };
@@ -49,21 +53,24 @@
     const planned = cases[name]();
     const motions = Array.isArray(planned) ? planned : [planned];
     const steps = [];
+    const samples = [];
     let continuation: MotionRecording | null = null;
     for (const [index, motion] of motions.entries()) {
-      if (index === 1) stage.startRecording({ name: 'pelvis continuation', sampleHz: 30, sourceKind: 'composed' });
+      stage.startRecording({ name: motion.name ?? name, sampleHz: 30, sourceKind: 'composed' });
       const resolved = resolveComposedMotion(motion, BODY_VARIANTS[variant]);
       const outcome = await stage.applyComposedMotion(resolved);
       frame = stage.captureFrame();
       steps.push({ outcome, frame });
-      if (index === 1) continuation = stage.stopRecording();
+      const recording = stage.stopRecording();
+      if (index === 1) continuation = recording;
+      samples.push(recording?.frames.map(f => ({ tMs: f.tMs, angles: f.angles, root: f.root, worldTracks: f.worldTracks })));
     }
     const outcome = steps.at(-1)!.outcome;
     const continuationSamples = continuation?.frames.map(f => ({
       tMs: f.tMs, pelvis: f.angles.Hips, root: f.root,
       feet: { L_Foot: f.worldTracks?.L_Foot, R_Foot: f.worldTracks?.R_Foot },
     }));
-    result = JSON.stringify({ outcome, frame, steps, continuationSamples }, null, 2);
+    result = JSON.stringify({ outcome, frame, steps, continuationSamples, samples }, null, 2);
     status = `${outcome.status}: ${name}`;
   }
   function reload() { ready = false; frame = null; result = ''; status = 'Loading'; }

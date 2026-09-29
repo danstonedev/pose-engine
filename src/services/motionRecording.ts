@@ -92,6 +92,7 @@ import {
   type WeightedDescentReshape,
 } from './rootMotion';
 import { balanceCoordination } from './balanceCoordination';
+import { hasFixedBilateralFootSupport } from './motionSupport';
 import type { RomScenarioConstraints } from './romConstraints';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
 import { clampTimeScale } from './motionConstants';
@@ -982,8 +983,9 @@ export function sampleComposedMotion(
   // the real closed-chain movement (feet planted, pelvis placed by the chain, COM
   // over the base — balance for free), every joint angle untouched. Used INSTEAD
   // of the vertical-only floor pin for a planted, non-travelling, non-looping
-  // motion that declares no explicit foot contacts (a travel gait owns its foot
-  // placement via footDrivenTravel/contacts; a loop is cyclic).
+  // motion with no contacts or one fixed bilateral foot base. The latter keeps
+  // this placement, then refines both ankles through contact IK. A travel gait
+  // owns its placement via footDrivenTravel; a loop is cyclic.
   //
   // In-place ONLY: a motion that travels (authored root translate) places its
   // feet at NEW ground positions, so restoring the stance foot to its ORIGINAL
@@ -1019,8 +1021,11 @@ export function sampleComposedMotion(
     !hasFloating &&
     !reorients &&
     !hasGroundingPosture &&
-    activeContacts.length === 0 &&
+    (activeContacts.length === 0 || hasFixedBilateralFootSupport({ ...resolved, contacts: activeContacts })) &&
     built.roots.some((r) => r.stance === 'planted');
+  // A fixed-base fold uses its live root/pelvis frame below. Even an identity
+  // heading profile creates per-window rests; those must not override it.
+  if (useFootRoot) for (const fp of footPlants) delete fp.rest;
 
   // GRAVITY-SHAPED GROUNDED DESCENT (weighted lowers — roadmap 3.3): for a
   // motion flagged `weightedDescent` (and admitted by the hard exclusion gate),
@@ -1033,7 +1038,7 @@ export function sampleComposedMotion(
   // every unflagged/excluded motion, so they stay byte-identical. The flagged
   // class excludes vcal, so the calibrated-vertical branch never overlaps.
   let weightedDescent: WeightedDescentReshape | null = null;
-  if (!useLoopCycle && !opts.contacts?.length && weightedDescentApplies(resolved)) {
+  if (!useLoopCycle && weightedDescentApplies(opts.contacts ? { ...resolved, contacts: opts.contacts } : resolved)) {
     weightedDescent = deriveWeightedDescent((tMs) => {
       const s = trajectory.sampleAt(tMs);
       applyCustomPose(skinned.skeleton, variantCfg, s.pose);
@@ -1307,8 +1312,15 @@ export function sampleComposedMotion(
     const anyPlant =
       footPlants.length > 0 &&
       stepContactPlants(footPlants, tMs, {
-        rest: plantRest,
+        // A fixed-base fold rotates the root and articulates the pelvis. Clamp
+        // its final contact correction in the same frame used for measurement;
+        // the constant gait-heading frame would misread hip flexion by that tilt.
+        rest: useFootRoot ? rotateRestReferenceByPelvis(
+          rotateRestReferenceByRoot(rest, root.quaternion.clone().multiply(rootRestQuat.clone().invert())),
+          skinned.skeleton, variantCfg,
+        ) : plantRest,
         hingeAxisRest: rest,
+        ...(useFootRoot ? { constraints: opts.constraints, forceRomClamp: true } : {}),
         heelStrikeY,
         captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,
         initialTargets: initialPlantTargets,

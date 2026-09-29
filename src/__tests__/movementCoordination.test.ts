@@ -117,7 +117,10 @@ describe('compound templates exhibit natural inter-joint coordination (measured)
 describe('the checker REJECTS broken coordination', () => {
   it('squat with a shallow knee breaks the hip:knee ratio', () => {
     const broken = mapTargets(templateMotion('squat'), 'L_Leg.kneeFlexion', (t) => t.targetDegrees * 0.35);
-    const res = checkCoordination(exportOf(broken), SQUAT);
+    // Leave this counterfactual unsolved: bilateral contact IK now repairs the
+    // shallow knee to reach the fixed feet. The checker grades achieved motion,
+    // so its rejection fixture must actually retain the broken ratio.
+    const res = checkCoordination(exportOf({ ...broken, contacts: undefined }), SQUAT);
     expect(res.accepted).toBe(false);
     expect(res.results.find((r) => r.kind === 'ratio' && !r.ok)).toBeDefined();
   });

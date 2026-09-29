@@ -72,6 +72,7 @@
   // importing this component never drags three into a host's initial chunk.
   import { createRecordingTap } from './services/stageRecordingTap';
   import { createStageDriver, type DriverMechanism } from './services/stageDriver';
+  import { hasFixedBilateralFootSupport } from './services/motionSupport';
   // Type-only — the module itself is dynamically imported (it pulls three).
   import type { StanceWindow } from './services/stageComposedDerivations';
   // Type-only — the posing layer module itself is dynamically imported (it pulls
@@ -2039,8 +2040,11 @@
       function applyFootPlants(tMs: number, trajectory: PoseTrajectory): void {
         if (!composedPlants.length || !restRef || !modelRoot) return;
         const solved = stepContactPlants(composedPlants, tMs, {
-          rest: composedPlantRest ?? restRef,
+          // Fixed-base folds first place the root over the feet, then refine
+          // both contacts. Their clamp frame includes that root and pelvis turn.
+          rest: composedUseFootRoot ? activeRestRef() : composedPlantRest ?? restRef,
           hingeAxisRest: restRef,
+          ...(composedUseFootRoot ? { constraints: romConstraints, forceRomClamp: true } : {}),
           heelStrikeY: composedHeelStrikeY,
           captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,
           initialTargets: initialComposedPlantTargets,
@@ -2891,9 +2895,12 @@
           !composedHasFloating &&
           !composedReorients &&
           !composedHasGrounding &&
-          !(resolved.contacts?.length ?? 0) &&
+          (!(resolved.contacts?.length ?? 0) || hasFixedBilateralFootSupport(resolved)) &&
           composedHasPlanted &&
           !!footFrames;
+        // Fixed-base contact IK uses activeRestRef, including the live root and
+        // pelvis. Discard any cached heading-window rest that would override it.
+        if (composedUseFootRoot) for (const fp of composedPlants) delete fp.rest;
         // GRAVITY-SHAPED GROUNDED DESCENT: derive the root-Y descent re-timing
         // for a flagged weighted lower from the same one-shot trajectory the
         // stage plays — AFTER composedUseFootRoot so the pre-pass grounds each

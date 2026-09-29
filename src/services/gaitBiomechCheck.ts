@@ -18,6 +18,7 @@
 
 import type { ComposedMotion, ResolvedComposedMotion } from './motionSequence';
 import { looksLikeGaitPlan } from './gaitEnrichment';
+import { hasFixedBilateralFootSupport } from './motionSupport';
 import { clampTimeScale } from './motionConstants';
 import type { ValidityCheck, GateFrame } from './validityGate';
 import {
@@ -467,7 +468,7 @@ export function runGaitBiomechChecks(
 ): { checks: ValidityCheck[]; skipped: string[] } {
   // Gait-shape guard: only travelling/reciprocal gait gets normative gait norms.
   const isGait =
-    resolved.footDrivenTravel === true ||
+    (resolved.footDrivenTravel === true && !hasFixedBilateralFootSupport(resolved)) ||
     looksLikeGaitPlan(resolved as unknown as ComposedMotion);
   if (!isGait || !frames || frames.length < 3) return { checks: [], skipped: [] };
 
