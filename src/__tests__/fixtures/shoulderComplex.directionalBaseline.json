@@ -1,0 +1,565 @@
+{
+  "description": "Read-only pre-inspector geometric baseline. Values are rest-relative directional excursion, not projected flexion. Not clinical acceptance.",
+  "sourceHashes": {
+    "src/services/movementCommand.ts": "aa2b5044d155a77f63fc43638e04178a363328ca701ad2d474b96332a7294448",
+    "src/services/motionSequence.ts": "61044bd5d158dc3859a663a288215e39afaeb1944fdab02396a08e7b2c850b3a",
+    "src/services/jointAngles.ts": "8ec1d4f46d2175ea97fd89d05ff2c09b956c6552514ad4e8cdc734a73f68389a",
+    "src/services/poseScapulohumeral.ts": "128eaad34883e8ea996d010c7231b8d2ef25f749a5468450df252d379f7ce4b5",
+    "src/services/poseRomClamp.ts": "818e33ebf33531d838501fa122d40ad06b3970417bd6a28ffddd2a81f1b8d69f",
+    "src/services/rootMotion.ts": "a6bafd11968ca1df36a110dd08184ac4104dc5019c5b866d8639b78bfc269e4d",
+    "src/services/anatomicPose.ts": "6c94e140af45a742247c014ed672c920798902dc6aefcaa36dd2e6bdfd4ad5b3",
+    "src/anatomy/bodyVariants.ts": "2df96c46dd362c541b6967d7ac4b24fb1d588a88b98c1f132d9f58aee178a3a7",
+    "src/services/poseRig.ts": "08b61d6d93354c4befe26af8cc4d56806d8875d93a509a6f1aa9c98021f0af0f",
+    "models/painmap3D_male.runtime.glb": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+    "models/painmap3D_female.runtime.glb": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+    "models/painmap3D_neutral.runtime.glb": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62"
+  },
+  "cases": [
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "neutral",
+      "thorax": 0,
+      "proxy": 0
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "automatic-flex90",
+      "thorax": 85.42633066794437,
+      "proxy": 76.1404797003788
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "automatic-flex120",
+      "thorax": 112.35776424363023,
+      "proxy": 94.59204226866464
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "automatic-flex180",
+      "thorax": 147.19489357648942,
+      "proxy": 128.69823234667865
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "explicit-zero-girdle-flex180",
+      "thorax": 147.19489359141312,
+      "proxy": 147.1948935914017
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "explicit-tilt10-flex120-arm-first",
+      "thorax": 112.35776424311526,
+      "proxy": 103.59199580271336
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "explicit-tilt10-flex120-girdle-first",
+      "thorax": 112.35776424311526,
+      "proxy": 103.59199580271336
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "combined-flex75-abd45-twist60",
+      "thorax": 69.55984082404306,
+      "proxy": 57.98278916445379
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "combined-flex75-abd45-twist-minus60",
+      "thorax": 69.54983457554843,
+      "proxy": 57.97338968387498
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "conflicting-flex120-abd45-twist30",
+      "thorax": 99.89028978982363,
+      "proxy": 83.38447586750105
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "automatic-near-overhead179_9",
+      "thorax": 147.19474534827143,
+      "proxy": 128.62240009991808
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "neutral-axial60",
+      "thorax": 0.01040015701349512,
+      "proxy": 0.01040015701349512
+    },
+    {
+      "variant": "male",
+      "side": "L",
+      "case": "neutral-axial-minus60",
+      "thorax": 0.010400222686035524,
+      "proxy": 0.010400222756123392
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "neutral",
+      "thorax": 0,
+      "proxy": 0
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "automatic-flex90",
+      "thorax": 85.42640391394104,
+      "proxy": 76.1405418438445
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "automatic-flex120",
+      "thorax": 112.35788266493527,
+      "proxy": 94.59212823591672
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "automatic-flex180",
+      "thorax": 147.19516310509334,
+      "proxy": 128.69839756414626
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "explicit-zero-girdle-flex180",
+      "thorax": 147.1951631200171,
+      "proxy": 147.19516312000573
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "explicit-tilt10-flex120-arm-first",
+      "thorax": 112.35788266442034,
+      "proxy": 103.59209661056832
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "explicit-tilt10-flex120-girdle-first",
+      "thorax": 112.35788266442034,
+      "proxy": 103.59209661056832
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "combined-flex75-abd45-twist60",
+      "thorax": 69.5598130177297,
+      "proxy": 57.98278915897191
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "combined-flex75-abd45-twist-minus60",
+      "thorax": 69.55004426852223,
+      "proxy": 57.973628537153694
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "conflicting-flex120-abd45-twist30",
+      "thorax": 99.8904136143211,
+      "proxy": 83.38457616558256
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "automatic-near-overhead179_9",
+      "thorax": 147.1950148755883,
+      "proxy": 128.622565037587
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "neutral-axial60",
+      "thorax": 0.010343315199655572,
+      "proxy": 0.01034331512918209
+    },
+    {
+      "variant": "male",
+      "side": "R",
+      "case": "neutral-axial-minus60",
+      "thorax": 0.010343380951205782,
+      "proxy": 0.010343380880732746
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "neutral",
+      "thorax": 0,
+      "proxy": 0
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "automatic-flex90",
+      "thorax": 85.42043469455436,
+      "proxy": 76.1354774089712
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "automatic-flex120",
+      "thorax": 112.3482322302158,
+      "proxy": 94.58512238504704
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "automatic-flex180",
+      "thorax": 147.17320426785548,
+      "proxy": 128.68493438485308
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "explicit-zero-girdle-flex180",
+      "thorax": 147.1732042904823,
+      "proxy": 147.1732042904755
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "explicit-tilt10-flex120-arm-first",
+      "thorax": 112.34823223032899,
+      "proxy": 103.58388141550904
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "explicit-tilt10-flex120-girdle-first",
+      "thorax": 112.34823223032899,
+      "proxy": 103.58388141550904
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "combined-flex75-abd45-twist60",
+      "thorax": 69.77569241951451,
+      "proxy": 58.25849181061624
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "combined-flex75-abd45-twist-minus60",
+      "thorax": 69.75291875602566,
+      "proxy": 58.23562945257169
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "conflicting-flex120-abd45-twist30",
+      "thorax": 99.39559774209518,
+      "proxy": 83.02812694792512
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "automatic-near-overhead179_9",
+      "thorax": 147.17305614314338,
+      "proxy": 128.6091246535099
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "neutral-axial60",
+      "thorax": 0.013224323110120041,
+      "proxy": 0.013224323110120041
+    },
+    {
+      "variant": "female",
+      "side": "L",
+      "case": "neutral-axial-minus60",
+      "thorax": 0.013224343284156274,
+      "proxy": 0.013224343284156274
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "neutral",
+      "thorax": 0,
+      "proxy": 0
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "automatic-flex90",
+      "thorax": 85.42043469455436,
+      "proxy": 76.1354774089712
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "automatic-flex120",
+      "thorax": 112.3482322302158,
+      "proxy": 94.58512238504704
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "automatic-flex180",
+      "thorax": 147.17320426785548,
+      "proxy": 128.68493438485308
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "explicit-zero-girdle-flex180",
+      "thorax": 147.1732042904823,
+      "proxy": 147.1732042904755
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "explicit-tilt10-flex120-arm-first",
+      "thorax": 112.34823223032899,
+      "proxy": 103.58388141550904
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "explicit-tilt10-flex120-girdle-first",
+      "thorax": 112.34823223032899,
+      "proxy": 103.58388141550904
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "combined-flex75-abd45-twist60",
+      "thorax": 69.77569241951451,
+      "proxy": 58.25849181061624
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "combined-flex75-abd45-twist-minus60",
+      "thorax": 69.75291875602566,
+      "proxy": 58.23562945257169
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "conflicting-flex120-abd45-twist30",
+      "thorax": 99.39559774209518,
+      "proxy": 83.02812694792512
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "automatic-near-overhead179_9",
+      "thorax": 147.17305614314338,
+      "proxy": 128.6091246535099
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "neutral-axial60",
+      "thorax": 0.013224323110120041,
+      "proxy": 0.013224323110120041
+    },
+    {
+      "variant": "female",
+      "side": "R",
+      "case": "neutral-axial-minus60",
+      "thorax": 0.013224343284156274,
+      "proxy": 0.013224343284156274
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "neutral",
+      "thorax": 0,
+      "proxy": 0
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "automatic-flex90",
+      "thorax": 85.42537407002506,
+      "proxy": 76.13966810609448
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "automatic-flex120",
+      "thorax": 112.35621766390369,
+      "proxy": 94.59091954235772
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "automatic-flex180",
+      "thorax": 147.1913737016113,
+      "proxy": 128.696074623614
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "explicit-zero-girdle-flex180",
+      "thorax": 147.1913737126839,
+      "proxy": 147.19137371267243
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "explicit-tilt10-flex120-arm-first",
+      "thorax": 112.35621766320214,
+      "proxy": 103.59067925546351
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "explicit-tilt10-flex120-girdle-first",
+      "thorax": 112.35621766320214,
+      "proxy": 103.59067925546351
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "combined-flex75-abd45-twist60",
+      "thorax": 69.49177791452139,
+      "proxy": 57.89783845462771
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "combined-flex75-abd45-twist-minus60",
+      "thorax": 69.48160545479382,
+      "proxy": 57.88795576910941
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "conflicting-flex120-abd45-twist30",
+      "thorax": 100.03896605527116,
+      "proxy": 83.49022859860675
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "automatic-near-overhead179_9",
+      "thorax": 147.19122549019428,
+      "proxy": 128.62024603104288
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "neutral-axial60",
+      "thorax": 0.00727021392751594,
+      "proxy": 0.007270213977647163
+    },
+    {
+      "variant": "neutral",
+      "side": "L",
+      "case": "neutral-axial-minus60",
+      "thorax": 0.007270270224662146,
+      "proxy": 0.007270270224662146
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "neutral",
+      "thorax": 0,
+      "proxy": 0
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "automatic-flex90",
+      "thorax": 85.42536271175135,
+      "proxy": 76.1396584694711
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "automatic-flex120",
+      "thorax": 112.35619930052296,
+      "proxy": 94.59090621143653
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "automatic-flex180",
+      "thorax": 147.19133190996547,
+      "proxy": 128.6960490041457
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "explicit-zero-girdle-flex180",
+      "thorax": 147.19133192103808,
+      "proxy": 147.1913319210266
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "explicit-tilt10-flex120-arm-first",
+      "thorax": 112.35619929982137,
+      "proxy": 103.59066362327849
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "explicit-tilt10-flex120-girdle-first",
+      "thorax": 112.35619929982137,
+      "proxy": 103.59066362327849
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "combined-flex75-abd45-twist60",
+      "thorax": 69.49178288067887,
+      "proxy": 57.89783889125317
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "combined-flex75-abd45-twist-minus60",
+      "thorax": 69.48157262765551,
+      "proxy": 57.88791828824843
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "conflicting-flex120-abd45-twist30",
+      "thorax": 100.03894841845718,
+      "proxy": 83.49021449746917
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "automatic-near-overhead179_9",
+      "thorax": 147.19118369874798,
+      "proxy": 128.62022045495806
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "neutral-axial60",
+      "thorax": 0.007286503365744241,
+      "proxy": 0.007286503365744241
+    },
+    {
+      "variant": "neutral",
+      "side": "R",
+      "case": "neutral-axial-minus60",
+      "thorax": 0.007286559587054362,
+      "proxy": 0.007286559637073128
+    }
+  ]
+}
