@@ -9,43 +9,46 @@
  * simMOVE's editor generates from them.
  */
 import type { ComposedMotion, SequenceTarget } from './motionSequence';
+import { completeBodyTargets, upperScreenControl } from './upperSupportRecipes';
 
 type Side = 'R' | 'L';
 const opposite = (side: Side): Side => side === 'R' ? 'L' : 'R';
 const target = (joint: string, motion: string, targetDegrees: number): SequenceTarget => ({joint,motion,targetDegrees});
-const trunk = (): SequenceTarget[] => ['Spine_Lower','Spine_Upper'].flatMap(joint =>
-  ['flexion','rotation','lateralTilt'].map(motion => target(joint,motion,0)));
-// Compose humeral swing and twist together. Explicit clavicle targets would
-// overwrite the engine's coupled shoulder-girdle contribution.
-const arm = (side:Side,flexion=0,abduction=0,rotation=0,elbow=0):SequenceTarget[] => [
+// Atomic shoulder composition retains authored protraction while automatic
+// rhythm supplies elevation and tilt. This is still one girdle proxy.
+const arm = (side:Side,flexion=0,abduction=0,rotation=0,elbow=0,protraction=0):SequenceTarget[] => [
+  target(`${side}_Shoulder`,'protraction',protraction),
   target(`${side}_UpperArm`,'shoulderFlexion',flexion),
   target(`${side}_UpperArm`,'shoulderAbduction',abduction),
   target(`${side}_UpperArm`,'shoulderRotation',rotation),
   target(`${side}_Forearm`,'elbowFlexion',elbow),
+  target(`${side}_Forearm`,'forearmRotation',0),
 ];
 // Bounded approach endpoints measured on both source assets. A larger elbow
 // bend on the lower route moved the wrist through the torso, so the seed stops
 // behind the low back instead of pretending to have reached the scapula.
-const lower = (side:Side) => arm(side,-60,-30,70,90);
-const upper = (side:Side) => arm(side,155,0,-90,145);
-const lowerApproach = (side:Side) => arm(side,-45,0,55,20);
-const upperApproach = (side:Side) => arm(side,145,0,-70,20);
-const neutral = () => [...trunk(),...arm('R'),...arm('L')];
+const lower = (side:Side) => arm(side,-60,-30,70,90,-4);
+const upper = (side:Side) => arm(side,155,0,-90,145,6);
+const lowerApproach = (side:Side) => arm(side,-45,0,55,20,-2);
+const upperApproach = (side:Side) => arm(side,145,0,-70,20,3);
+const neutral = () => completeBodyTargets([...arm('R'),...arm('L')]);
 function standing(name:string,approach:SequenceTarget[],peak:SequenceTarget[]):ComposedMotion {
-  return {name,startFrom:'neutral',stance:'planted',startPosture:'standing',endPosture:'standing',keyframes:[
+  const result: ComposedMotion = {name,controlId:'upper-assessment',startFrom:'neutral',stance:'planted',startPosture:'standing',endPosture:'standing',keyframes:[
     {durationMs:700,holdMs:300,targets:neutral()},
-    {durationMs:1200,targets:[...trunk(),...approach]},
-    {durationMs:1200,holdMs:1400,targets:[...trunk(),...peak]},
-    {durationMs:1200,targets:[...trunk(),...approach]},
+    {durationMs:1200,targets:completeBodyTargets(approach)},
+    {durationMs:1200,holdMs:1400,targets:completeBodyTargets(peak)},
+    {durationMs:1200,targets:completeBodyTargets(approach)},
     {durationMs:1200,holdMs:300,targets:neutral()},
   ]};
+  result.keyframes.forEach((frame, i) => { frame.control = upperScreenControl(`upper-assessment/${i}`); });
+  return result;
 }
 function cervical(motion:'flexion'|'rotation',degrees:number,name:string):ComposedMotion {
-  const neck = (value:number) => [...neutral(),...['flexion','rotation','lateralTilt','protraction'].map(field=>target('Neck',field,field===motion?value:0))];
+  const neck = (value:number) => completeBodyTargets(['flexion','rotation','lateralTilt','protraction'].map(field=>target('Neck',field,field===motion?value:0)));
   return {name,startFrom:'neutral',stance:'planted',startPosture:'standing',endPosture:'standing',keyframes:[
-    {durationMs:500,targets:neck(0)},
-    {durationMs:900,holdMs:1400,targets:neck(degrees)},
-    {durationMs:900,targets:neck(0)},
+    {durationMs:500,targets:neck(0),control:upperScreenControl('cervical/setup')},
+    {durationMs:900,holdMs:1400,targets:neck(degrees),control:upperScreenControl('cervical/peak')},
+    {durationMs:900,targets:neck(0),control:upperScreenControl('cervical/return')},
   ]};
 }
 
@@ -58,7 +61,7 @@ function shoulderMobility(side:Side):ComposedMotion {
 }
 export const UPPER_ASSESSMENT_MOTIONS = {
   'shoulder-mobility':shoulderMobility,
-  'shoulder-clearing':(side:Side)=>standing(`Shoulder clearing · ${side}`,[...arm(side,65,-20,70,110),...arm(opposite(side))],[...arm(side,90,30,70,130),...arm(opposite(side))]),
+  'shoulder-clearing':(side:Side)=>standing(`Shoulder clearing · ${side}`,[...arm(side,65,-20,70,110,3),...arm(opposite(side))],[...arm(side,90,30,70,130,6),...arm(opposite(side))]),
   'ue-pattern1':(side:Side)=>standing(`Upper extremity pattern 1 · ${side}`,[...lowerApproach(side),...arm(opposite(side))],[...lower(side),...arm(opposite(side))]),
   'ue-pattern2':(side:Side)=>standing(`Upper extremity pattern 2 · ${side}`,[...upperApproach(side),...arm(opposite(side))],[...upper(side),...arm(opposite(side))]),
   'cervical-flexion':(_side:Side)=>cervical('flexion',50,'Cervical flexion'),

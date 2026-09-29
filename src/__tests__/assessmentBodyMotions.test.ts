@@ -40,11 +40,14 @@ describe('assessment-specific whole-body source definitions', () => {
         const joints = new Set<string>();
         for (const target of frame.targets ?? []) {
           expect(Number.isFinite(target.targetDegrees)).toBe(true);
-          const key = target.joint.endsWith('_UpperArm') ? target.joint : `${target.joint}|${target.motion}`;
+          const key = `${target.joint}|${target.motion}`;
           expect(joints.has(key), `${id}: duplicate ${key}`).toBe(false);
           joints.add(key);
-          expect(target.joint.endsWith('_Shoulder')).toBe(false);
+          if (target.joint.endsWith('_Shoulder')) expect(target.motion).toBe('protraction');
         }
+        // Imported whole-body support seeds explicitly clear quiet arm axes;
+        // these body protocols still use only one nonzero humeral channel.
+        for (const side of ['L', 'R']) expect(frame.targets!.filter(t => t.joint === `${side}_UpperArm` && t.targetDegrees !== 0).length).toBeLessThanOrEqual(1);
       }
       const copy = BODY_ASSESSMENT_MOTIONS[id]!(side);
       frames[0]!.targets![0]!.targetDegrees = 999;

@@ -138,7 +138,7 @@ describe('assessment shoulders preserve calibrated overhead targets and girdle o
     }
   });
 
-  it('leaves elevation rhythm to the arm controller while explicitly clearing carried protraction', () => {
+  it('leaves elevation rhythm to the arm controller while preserving bounded authored protraction', () => {
     // Atomic composition supports authored girdle axes. These protocols keep
     // automatic elevation rhythm, and may deliberately neutralize protraction.
     for (const id of ALL) for (const selectedSide of ['R', 'L'] as const) {
@@ -150,7 +150,7 @@ describe('assessment shoulders preserve calibrated overhead targets and girdle o
         );
         for (const t of kf.targets.filter(t => t.joint.endsWith('_Shoulder') && arms.has(t.joint[0]))) {
           expect(t.motion, `${id}: automatic elevation axes remain owned by rhythm`).toBe('protraction');
-          expect(t.clampedDegrees, `${id}: intentional protraction reset`).toBe(0);
+          expect(Math.abs(t.clampedDegrees), `${id}: bounded task-specific protraction`).toBeLessThanOrEqual(6);
         }
       }
     }

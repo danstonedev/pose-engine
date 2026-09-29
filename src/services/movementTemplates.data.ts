@@ -17,7 +17,8 @@
  * (templateToComposedMotion).
  */
 
-import { functionalTemplatePhases, hingePhases, squatPhases, thighAssistedRisePhases } from './functionalRecipes';
+import { functionalControl, functionalTemplatePhases, hingePhases, squatPhases, thighAssistedRisePhases } from './functionalRecipes';
+import { completeBodyTargets } from './upperSupportRecipes';
 
 import type { BodyControlPhase } from './movementControl';
 
@@ -985,31 +986,27 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     phases: [
       {
         name: 'reach-to-target',
+        control: functionalControl('endpoint-reach/reach', 'counterbalance'),
         durationMs: 800,
         holdMs: 500,
-        targets: [
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 140 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 5 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 10 },
+        targets: completeBodyTargets([
+          { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 140 },
+          { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: 5 },
+          { joint: 'Spine_Lower', motion: 'flexion', targetDegrees: 10 },
           // COUNTERBALANCE (rig-tuned, ROM-safe): a small bilateral hip hinge sends
           // the pelvis BACKWARD over the planted feet as the reach goes forward,
           // and the free arm counters behind the trunk line.
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 6 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 6 },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: -25 },
-        ],
+          { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 6 },
+          { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 6 },
+          { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: -25 },
+          { joint: 'Neck', motion: 'flexion', targetDegrees: -5 },
+        ]).map(({ targetDegrees, ...t }) => ({ ...t, peakDeg: targetDegrees })),
       },
       {
         name: 'return',
+        control: functionalControl('endpoint-reach/return', 'counterbalance'),
         durationMs: 800,
-        targets: [
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 0 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
-        ],
+        targets: completeBodyTargets([]).map(({ targetDegrees, ...t }) => ({ ...t, peakDeg: targetDegrees })),
       },
     ],
     source: VERIFY,

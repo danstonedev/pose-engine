@@ -1,0 +1,11 @@
+# Whole-body upper reach and floor support
+
+Upper assessment routes, functional endpoint reach, push-up and bird-dog now declare responsibilities for all 23 major body joints. Explicit targets reset quiet pelvic, trunk, hip, knee, ankle, humeral and forearm rotation channels instead of relying on a prior movement's pose. Thoracic and cervical companion bones remain derived from their region commands; the Head retains its entry orientation relative to the neck. A declared or directly commanded joint is not necessarily moving.
+
+The isolated arm screens retain a neutral standing base and trunk. Their one-bone shoulder proxies add bounded task-specific protraction/retraction alongside the existing automatic elevation/tilt rhythm. Functional reach preserves its hip/free-arm counterbalance and explicitly counter-rotates the neck by 5 degrees during its 10-degree lumbar lean. The screens still stop short of verified hand-to-scapula or opposite-shoulder skin contact.
+
+Push-up holds the initial support pose for 200 ms, then retracts each girdle proxy by 6 degrees during lowering and returns it during pressing. The hand solver controls the arm to preserve support as the shoulder origin moves. Bird-dog releases and lifts the hand first, then adds 6 degrees of reaching-side protraction in a separate 200 ms phase; moving the girdle during release caused a measured elbow discontinuity. Its support-side girdle remains stable. These are engineering seeds for the current rig, not independently calibrated SC/AC/ST motions.
+
+Both floor exercises explicitly command flat digits and wrist deviation so a prior fist or wrist pose cannot become the loaded hand shape. The raised bird-dog wrist releases its floor extension. Hand support is positional IK with authored wrist orientation; toe/knee supports provide height pins. These controls do not establish palm-surface contact, friction, force distribution or dynamic balance.
+
+Validation covers complete role/target resolution, replacement of carried pelvic/trunk rotation and hand curl, and continuous real-rig support geometry for male, female and neutral models. Existing 30/60/120 Hz hand-contact, release, clock-invariance and floor-clearance limits remain in force. The playground's movement review includes these recipes and their actual posture-entry chains.
