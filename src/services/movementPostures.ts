@@ -407,6 +407,7 @@ export function buildPushUp(opts: { reps?: number } = {}): ComposedMotion {
   return {
     name: reps > 1 ? `push-up ×${reps}` : 'push-up',
     controlId: 'supported-push-up',
+    shoulderCapacity: 'enforce-proxy',
     startFrom: 'current',
     stance: 'planted',
     startPosture: 'plank',
@@ -543,6 +544,7 @@ export function buildBirdDog(opts: { side?: 'L' | 'R'; reps?: number } = {}): Co
   return {
     name: reps > 1 ? `bird-dog ×${reps}` : 'bird-dog',
     controlId: 'supported-bird-dog',
+    shoulderCapacity: 'enforce-proxy',
     startFrom: 'current',
     stance: 'planted',
     startPosture: 'quadruped',

@@ -93,6 +93,8 @@ import {
 } from './rootMotion';
 import { balanceCoordination } from './balanceCoordination';
 import { hasFixedBilateralFootSupport } from './motionSupport';
+import { enforceShoulderCapacities } from './poseRomClamp';
+import { attachShoulderSupportResiduals, shoulderConstraintsForPolicy } from './shoulderRuntime';
 import type { RomScenarioConstraints } from './romConstraints';
 import { composedTweenEase, stagedBlendWithBaseline } from './motionStagger';
 import { clampTimeScale } from './motionConstants';
@@ -278,6 +280,8 @@ export interface RecordedFrame {
   /** MEASURED clinical joint angles (computeJointAngles().joints — degrees,
    *  engine sign convention), keyed joint → motion field. */
   angles: Record<string, Record<string, number>>;
+  /** Final realized shoulder state, after all contact/IK corrections. */
+  shoulders?: import('./shoulderRuntime').ShoulderInspections;
   /** Model-root state relative to its grounded rest transform: orientation
    *  quaternion [x,y,z,w] (identity = upright) and translation in meters
    *  (INCLUDES any planted foot-pin Y shift — the honest world position). */
@@ -532,6 +536,7 @@ export function sampleComposedMotion(
   resolved: ResolvedComposedMotion,
   opts: SampleComposedOptions,
 ): MotionRecording {
+  opts = { ...opts, constraints: shoulderConstraintsForPolicy(resolved.shoulderCapacity, opts.constraints ?? resolved.constraints) };
   const { baselinePose, variantCfg, rest, skeletonHarness } = opts;
   const { root, skinned } = skeletonHarness;
   const hz = Math.max(1, Math.min(120, opts.sampleHz ?? 30));
@@ -683,6 +688,7 @@ export function sampleComposedMotion(
   const built = buildSequencePoses(baselinePose, resolved, variantCfg, rest, {
     currentPose: opts.currentPose ?? null,
     currentRoot: opts.currentRoot ?? null,
+    constraints: opts.constraints,
   });
 
   // HAND PLANTS (Phase 3 Tier B): a grounding posture may declare a hand as a
@@ -706,7 +712,7 @@ export function sampleComposedMotion(
     }
     for (const bone of reachBones) {
       const solver = buildHandPlant(skinned, bone, variantCfg);
-      if (solver) handPlants.push({ solver, bone, target: null });
+      if (solver) { solver.constraints = opts.constraints; handPlants.push({ solver, bone, target: null }); }
     }
   }
 
@@ -1364,7 +1370,12 @@ export function sampleComposedMotion(
     // byte-identical.
     const rootRest = isIdentityQuat(orientQuat) ? rest : rotateRestReferenceByRoot(rest, _sqB);
     const measureRest = rotateRestReferenceByPelvis(rootRest, skinned.skeleton, variantCfg);
-    const report = computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, measureRest);
+    if (enforceShoulderCapacities(boneByKey, measureRest, opts.constraints ?? resolved.constraints)) {
+      root.updateMatrixWorld(true);
+      effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
+    }
+    const report = computeJointAngles(skinned.skeleton, variantCfg, variantCfg.id, measureRest, opts.constraints ?? resolved.constraints);
+    attachShoulderSupportResiduals(report.shoulders, boneByKey, handPlants);
 
     const worldTracks: Record<string, [number, number, number]> = {};
     for (const key of tracked) {
@@ -1382,6 +1393,7 @@ export function sampleComposedMotion(
       tMs,
       pose: effPose,
       angles: copyAngles(report.joints as Record<string, Record<string, number>>),
+      shoulders: report.shoulders,
       root: {
         orientQuat,
         translateM: [
@@ -1631,7 +1643,7 @@ export function bakeFrameEdit(
   const frames = rec.frames.map((f, i) => {
     const d = Math.abs(f.tMs - centerT);
     if (i === idx) {
-      return { ...copyFrame(f, f.tMs), pose: editedPose, angles: editedAngles };
+      return { ...copyFrame(f, f.tMs), pose: editedPose, angles: editedAngles, shoulders: undefined };
     }
     if (blendMs <= 0 || d >= blendMs) return f;
     const w = 1 - d / blendMs; // 1 at the edit, 0 at the window edge
@@ -1639,7 +1651,7 @@ export function bakeFrameEdit(
     const angles = opts.measure
       ? opts.measure(pose)
       : blendAngles(f.angles, editedAngles, w);
-    return { ...copyFrame(f, f.tMs), pose, angles };
+    return { ...copyFrame(f, f.tMs), pose, angles, shoulders: undefined };
   });
   return { ...rec, frames };
 }
@@ -1733,6 +1745,8 @@ export interface BoneKinematicSummary {
 }
 
 export interface KinematicExport {
+  /** Measured frame-relative shoulder state; null for older/edited unmeasured frames. */
+  shoulders?: (import('./shoulderRuntime').ShoulderInspections | null)[];
   /** Self-describing docs — a second AI reads THIS to interpret the fields. */
   schema: string;
   meta: {
@@ -1935,6 +1949,7 @@ export function exportKinematics(
 
   return {
     schema: EXPORT_SCHEMA_DOC,
+    ...(rec.frames.some(f => f.shoulders) ? { shoulders: rec.frames.map(f => f.shoulders ? copyRecordingValue(f.shoulders) : null) } : {}),
     meta: {
       name: rec.name,
       id: rec.id,

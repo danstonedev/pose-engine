@@ -118,7 +118,10 @@ for (const variant of ['male', 'female', 'neutral'] as const) describe(`${varian
       // callers adjust ROOT then PELVIS; even that is not the live thorax frame.
       // Different angle conventions are not subtracted to invent a shortfall.
       const activeRest = rotateRestReferenceByPelvis(rotateRestReferenceByRoot(reference, rootDelta), skin.skeleton, cfg);
-      const legacy = computeJointAngles(skin.skeleton, cfg, variant, activeRest).joints[`${side}_UpperArm`]!;
+      const runtime = computeJointAngles(skin.skeleton, cfg, variant, activeRest);
+      expect(runtime.shoulders?.[side].girdleProxy.elevationDeg).toBeCloseTo(result.girdleProxy.elevationDeg!, 5);
+      expect(runtime.shoulders?.[side].thorax.elevationDeg).toBeCloseTo(result.thorax.elevationDeg!, 5);
+      const legacy = runtime.joints[`${side}_UpperArm`]!;
       expect(Object.values(legacy).every(Number.isFinite)).toBe(true);
     }
   });

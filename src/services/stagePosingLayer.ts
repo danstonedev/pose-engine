@@ -23,6 +23,7 @@ import {
   applyCustomPose,
   blendCustomPoseWithBaseline,
   buildIKChainContext,
+  buildBoneByPoseKey,
   disposeIKChainContext,
   distributeChainCurve,
   pinBonesToRestWorld,
@@ -30,7 +31,7 @@ import {
   solveIKChain,
 } from './poseRig';
 import type { IKChainContext } from './poseRig';
-import { clampBoneToRom, hasClampStrategy, setRomClampEnabled } from './poseRomClamp';
+import { clampBoneToRom, enforceShoulderCapacities, hasClampStrategy, setRomClampEnabled } from './poseRomClamp';
 import { solveArmChainWithRhythm } from './poseScapulohumeral';
 import { samplePoseAnimation } from './poseAnimationSampling';
 import { computeDrivingRingMap, gizmoSpaceForJoint } from './jointAngles';
@@ -339,6 +340,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
     undoIdleOverlays();
     undoEyeGaze(); // committed poses carry the eyes at rest
     stageCtx.modelRoot?.updateMatrixWorld(true);
+    if (stageCtx.restRef) enforceShoulderCapacities(buildBoneByPoseKey(stageCtx.skinnedRef.skeleton, stageCtx.variantCfgRef), stageCtx.restRef, stageCtx.romConstraints);
     stageCtx.setCurrentPose(serializeCustomPose(stageCtx.skinnedRef.skeleton, stageCtx.variantCfgRef, stageCtx.variantCfgRef.id));
   }
 

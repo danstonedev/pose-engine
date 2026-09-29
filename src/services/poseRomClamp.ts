@@ -21,6 +21,7 @@
  * the same convention the joint-angle readout panel uses.
  */
 import * as THREE from 'three';
+import { projectShoulderProxyLocal, shoulderProxyCapacity } from './shoulderRuntime';
 import {
   REST_DOWN_LOCAL,
   ballJointAngles,
@@ -463,13 +464,45 @@ export function clampBoneToRom(
       case 'body-euler':
         return clampBodyEuler(bone, canonicalKey, strategy, rest, context.weightBearing);
       case 'ball-joint':
-        return clampBallJoint(bone, canonicalKey, strategy, rest);
+        if (!/^[LR]_UpperArm$/.test(canonicalKey)
+          || !shoulderProxyCapacity(constraints, canonicalKey[0] as 'L' | 'R').enforced)
+          return clampBallJoint(bone, canonicalKey, strategy, rest);
+        {
+          const before = bone.quaternion.clone();
+          const { budgetDeg } = shoulderProxyCapacity(constraints, canonicalKey[0] as 'L' | 'R');
+          // Alternate the two independently defined feasible sets. Patient ROM
+          // has final priority if their intersection is empty; the inspector
+          // then reports the unresolved capacity excess instead of compliance.
+          for (let pass = 0; pass < 16; pass++) {
+            clampBallJoint(bone, canonicalKey, strategy, rest);
+            const projected = projectShoulderProxyLocal(bone.quaternion, canonicalKey, rest, budgetDeg);
+            if (!projected || projected.angleTo(bone.quaternion) < 1e-8) break;
+            bone.quaternion.copy(projected); bone.updateMatrixWorld(true);
+          }
+          clampBallJoint(bone, canonicalKey, strategy, rest);
+          return before.angleTo(bone.quaternion) > 1e-8;
+        }
       case 'hinge':
         return clampHinge(bone, canonicalKey, strategy, rest);
     }
   } finally {
     _clampConstraints = null;
   }
+}
+
+/** Final shared projection after authored interpolation and contact IK. Only
+ * explicitly enabled shoulders are touched; legacy recordings remain exact. */
+export function enforceShoulderCapacities(bones: ReadonlyMap<string, THREE.Bone>, rest: JointAngleRestReference,
+  constraints?: RomScenarioConstraints | null): boolean {
+  let changed = false;
+  for (const side of ['L', 'R'] as const) {
+    if (!shoulderProxyCapacity(constraints, side).enforced) continue;
+    for (const suffix of ['Shoulder', 'UpperArm']) {
+      const key = `${side}_${suffix}`, bone = bones.get(key);
+      if (bone) changed = clampBoneToRom(bone, key, rest, constraints, true) || changed;
+    }
+  }
+  return changed;
 }
 
 /** The per-scenario ROM constraints for the clamp currently running — set at

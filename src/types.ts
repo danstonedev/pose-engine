@@ -35,6 +35,7 @@ export interface JointAngleReport {
   at: string;
   variant: string;
   joints: Record<string, Record<string, number>>;
+  shoulders?: import('./services/shoulderRuntime').ShoulderInspections;
 }
 
 /** Fixed camera framing presets. */

@@ -33,6 +33,7 @@ const lowerApproach = (side:Side) => arm(side,-45,0,55,20,-2);
 const upperApproach = (side:Side) => arm(side,145,0,-70,20,3);
 const neutral = () => completeBodyTargets([...arm('R'),...arm('L')]);
 function standing(name:string,approach:SequenceTarget[],peak:SequenceTarget[]):ComposedMotion {
+  // Realized coupled capacity is enforced as well as the individual ROM rows.
   const result: ComposedMotion = {name,controlId:'upper-assessment',startFrom:'neutral',stance:'planted',startPosture:'standing',endPosture:'standing',keyframes:[
     {durationMs:700,holdMs:300,targets:neutral()},
     {durationMs:1200,targets:completeBodyTargets(approach)},
@@ -41,6 +42,7 @@ function standing(name:string,approach:SequenceTarget[],peak:SequenceTarget[]):C
     {durationMs:1200,holdMs:300,targets:neutral()},
   ]};
   result.keyframes.forEach((frame, i) => { frame.control = upperScreenControl(`upper-assessment/${i}`); });
+  result.shoulderCapacity = 'enforce-proxy';
   return result;
 }
 function cervical(motion:'flexion'|'rotation',degrees:number,name:string):ComposedMotion {

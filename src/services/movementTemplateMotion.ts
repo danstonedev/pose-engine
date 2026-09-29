@@ -57,6 +57,7 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
   }
   return {
     name: t.id,
+    ...(t.shoulderCapacity ? { shoulderCapacity: t.shoulderCapacity } : {}),
     startFrom: 'neutral',
     stance: t.stance,
     ...(t.loop ? { loop: true } : {}),

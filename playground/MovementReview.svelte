@@ -38,6 +38,9 @@
     ],
     'Shoulder arm first': () => shoulder(false),
     'Shoulder girdle first': () => shoulder(true),
+    'Shoulder constrained overhead': () => ({ shoulderCapacity: 'enforce-proxy', startFrom: 'neutral', stance: 'planted', keyframes: [
+      { durationMs: 1800, holdMs: 1200, targets: [{ joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 180 }, { joint: 'R_Shoulder', motion: 'scapularTilt', targetDegrees: 0 }] },
+    ] }),
     'Forearm rotation': () => template('forearm-rotation'),
     'Shoulder rotation': () => template('shoulder-rotation'),
     'Tibial rotation': () => template('tibial-rotation'),
@@ -72,7 +75,7 @@
       steps.push({ outcome, frame });
       const recording = stage.stopRecording();
       if (index === 1) continuation = recording;
-      samples.push(recording?.frames.map(f => ({ tMs: f.tMs, angles: f.angles, root: f.root, worldTracks: f.worldTracks })));
+      samples.push(recording?.frames.map(f => ({ tMs: f.tMs, angles: f.angles, shoulders: f.shoulders, root: f.root, worldTracks: f.worldTracks })));
     }
     const outcome = steps.at(-1)!.outcome;
     const continuationSamples = continuation?.frames.map(f => ({

@@ -149,8 +149,7 @@ describe('the stage never applies an absolute pose with the raw partial write', 
     expect(raw).toEqual(['skinned', 'skeleton']); // boot apply + the helper itself
     expect(stageSource).toContain('function applyPoseComplete(');
     // The replay entry point specifically — the one that was rig-reproduced.
-    expect(stageSource).toMatch(
-      /showRecordedFrameImpl = \(frame: RecordedFrame\) => \{[\s\S]{0,600}applyPoseComplete\(/,
-    );
+    const replayBody = stageSource.split('showRecordedFrameImpl = (frame: RecordedFrame) => {')[1]?.split('\n      };')[0];
+    expect(replayBody).toContain('applyPoseComplete(skinnedRef.skeleton, variantCfgRef, frame.pose, false)');
   });
 });
