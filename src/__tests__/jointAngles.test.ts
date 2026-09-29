@@ -4,8 +4,21 @@ import {
   captureJointAngleRestReference,
   computeJointAngles,
   hashJointAngleReport,
+  upperArmWorldAngles,
 } from '../services/jointAngles';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
+
+it('measures residual shoulder twist about the rest axis on both sides of horizontal', () => {
+  const restDir = new THREE.Vector3(0, -1, 0), restQuat = new THREE.Quaternion();
+  for (const mirror of [false, true]) for (const elevation of [0, 45, 89, 90, 91, 135, 170]) {
+    for (const degrees of [-90, -30, 0, 30, 70]) {
+      const swing = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -elevation * Math.PI / 180);
+      const twist = new THREE.Quaternion().setFromAxisAngle(restDir, degrees * (mirror ? -1 : 1) * Math.PI / 180);
+      const current = swing.clone().multiply(twist), curDir = restDir.clone().applyQuaternion(swing);
+      expect(upperArmWorldAngles(current, restQuat, curDir, restDir, mirror).rotation).toBeCloseTo(degrees, 5);
+    }
+  }
+});
 
 /** Build a synthetic CC-named skeleton sufficient to exercise every joint
  *  computeJointAngles cares about. Bones are arranged so each child sits at

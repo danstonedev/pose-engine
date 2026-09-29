@@ -967,9 +967,10 @@ export function applyBlendedGroundingY(
 }
 
 /** Ramp-in time (ms) for a newly-engaged hand-reach contact's IK weight —
- *  full-strength engagement snapped the arm at the grounding switch (SEAM-4);
- *  the eased weight folds the reach in instead. */
-export const HAND_REACH_RAMP_MS = 150;
+ *  full-strength engagement snapped the arm at the grounding switch (SEAM-4).
+ *  A 200 ms ramp also keeps re-engagement smooth under the corrected shoulder
+ *  rotation bounds; the 30/60/120 Hz planted-hand regression suite covers it. */
+export const HAND_REACH_RAMP_MS = 200;
 
 /** Let-go time (ms) for a hand the grounding releases: its arm is FK's, still
  *  turned by the fading share of how the reach had it turned off FK's the

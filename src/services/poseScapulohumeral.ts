@@ -72,16 +72,16 @@ import type { JointAngleRestReference } from './jointAngles';
  *  and every pose inside the setting phase, byte-identical to before. */
 const MIN_GIRDLE_DEG = 0.05;
 
-/** Passes per CCD solve for an arm reach. Four passes leave the handoff's
- *  lower-back target ~20 cm short on the male rig; forty reduce that to ~2 cm
- *  without widening ROM. This budget is arm-only: gait/leg solvers keep their
+/** Passes per CCD solve for an arm reach. Forty improve convergence over
+ *  four, but a target beyond the corrected internal-rotation bound remains
+ *  partial. This budget is arm-only: gait/leg solvers keep their
  *  existing defaults. Callers can still set `clampOpts.iterations` explicitly. */
 export const ARM_REACH_IK_ITERATIONS = 40;
 
 /** Same options as the underlying CCD solver, including its iteration budget,
  *  patient constraints, and optional hinge restrictions. */
 export type ArmReachSolveOptions = NonNullable<Parameters<typeof solveIKChain>[2]> & {
-  /** Experimental retry from at most two nearby arm orientations. Opt-in until
+  /** Experimental retry from nearby arm orientations. Opt-in until
    *  whole-arm contact/path checks accompany endpoint and joint-limit checks. */
   recoverStalledReach?: boolean;
 };
@@ -232,6 +232,9 @@ export function solveArmChainWithRhythm(
   };
   const recover = clampOpts?.recoverStalledReach === true && isRomClampActive();
   const original = recover ? fullCtx.bones.map(bone => bone.quaternion.clone()) : null;
+  const effector = fullCtx.bones[0];
+  const position = new THREE.Vector3();
+  const error = () => effector.getWorldPosition(position).distanceTo(target);
   const solve = () => {
     solveIKChain(fullCtx, target, reachOpts);
 
@@ -243,31 +246,33 @@ export function solveArmChainWithRhythm(
       solveIKChain(distalCtx, target, reachOpts);
     }
   };
+  const incomingError = recover && armChainInRange(fullCtx, reachOpts) ? error() : Infinity;
   solve();
   if (!recover || !original) return;
 
-  const effector = fullCtx.bones[0];
-  const position = new THREE.Vector3();
-  const error = () => effector.getWorldPosition(position).distanceTo(target);
   let bestError = error();
-  // Warm starts already close to their target retain the original path. This
-  // also avoids paying for retries on ordinary small pointer movements.
-  if (!Number.isFinite(bestError) || bestError < 0.02) return;
+  if (!Number.isFinite(bestError)) return;
   const best = fullCtx.bones.map(bone => bone.quaternion.clone());
   const restore = (quats: THREE.Quaternion[]) => {
     fullCtx.bones.forEach((bone, i) => bone.quaternion.copy(quats[i]));
     clavicle.updateMatrixWorld(true);
   };
+  if (incomingError < bestError) {
+    bestError = incomingError;
+    original.forEach((q, i) => best[i].copy(q));
+  }
+  // A valid warm start must not be displaced by a worse constrained solve.
+  if (bestError < 0.001) { restore(best); return; }
 
   // CCD can settle on the wrong side of a constrained configuration. Starting
   // from arms-down, the female cross-body probe stalls ~50 cm short forever;
-  // a modest upper-arm bend lets the SAME solver settle within 1 mm. Local-X
+  // bend/twist seeds let the SAME solver try another valid branch. Local-axis
   // perturbations follow the rig when the body turns. These are search seeds,
   // never directly accepted poses: clamp and re-solve each one first.
-  for (const degrees of [30, 60]) {
+  for (const [axis, degrees] of [[new THREE.Vector3(1, 0, 0), 30], [new THREE.Vector3(1, 0, 0), 60], [new THREE.Vector3(0, 1, 0), humerusKey?.startsWith('L_') ? -30 : 30]] as const) {
     restore(original);
     humerus.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(
-      new THREE.Vector3(1, 0, 0), degrees * Math.PI / 180,
+      axis, degrees * Math.PI / 180,
     ));
     clampBoneToRom(humerus, humerusKey, rest, reachOpts.constraints);
     humerus.updateMatrixWorld(true);
@@ -292,7 +297,7 @@ function armChainInRange(ctx: IKChainContext, options: ArmReachSolveOptions): bo
     const report = inspectClinicalAngles(ctx.bones[i], ctx.canonicalKeys[i], options.rest, options.constraints);
     if (!report) return false;
     for (const axis of ['flexion', 'abduction', 'rotation'] as const) {
-      const value = axis === 'flexion' ? report.anatomicFlexion : report.raw[axis];
+      const value = axis === 'flexion' ? report.anatomicFlexion : axis === 'rotation' ? report.anatomicRotation : report.raw.abduction;
       const range = report.ranges[axis];
       if (!Number.isFinite(value) || (range && (value < range.min - 0.5 || value > range.max + 0.5))) return false;
     }

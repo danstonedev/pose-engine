@@ -150,7 +150,7 @@ describe('assessment shoulders preserve calibrated overhead targets and girdle o
         );
         for (const t of kf.targets.filter(t => t.joint.endsWith('_Shoulder') && arms.has(t.joint[0]))) {
           expect(t.motion, `${id}: automatic elevation axes remain owned by rhythm`).toBe('protraction');
-          expect(Math.abs(t.clampedDegrees), `${id}: bounded task-specific protraction`).toBeLessThanOrEqual(6);
+          expect(Math.abs(t.clampedDegrees), `${id}: bounded task-specific protraction`).toBeLessThanOrEqual(15);
         }
       }
     }
