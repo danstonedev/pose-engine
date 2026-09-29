@@ -39,6 +39,7 @@
  * what they can and tells you what they couldn't.
  */
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
+import type { BodyControlPhase } from './movementControl';
 import type { CustomPose } from '../types';
 import type { JointAngleRestReference } from './jointAngles';
 import {
@@ -262,6 +263,8 @@ export function postureRootOrient(posture: SemanticPosture): RootOrient {
 /** One timed keyframe: the targets to reach, how long the travel takes, and
  *  an optional hold at the reached position (assessment moments, end-range). */
 export interface SequenceKeyframe {
+  /** Auditable authoring intent; does not change playback or imply validation. */
+  control?: BodyControlPhase;
   /** Joint targets. OPTIONAL: a posture-only keyframe (lie down, roll, stance
    *  change) may omit targets entirely — it carries the previous joint pose
    *  forward and applies its `root`/`stance`. A keyframe must have at least
@@ -362,6 +365,8 @@ export interface StanceContact {
 
 /** A novel movement composed as timed keyframes over the command vocabulary. */
 export interface ComposedMotion {
+  /** Stable authoring family for auditing phase responsibilities; not a runtime ID. */
+  controlId?: string;
   /** Short human label the author/AI gives its creation. */
   name?: string;
   keyframes: SequenceKeyframe[];
@@ -548,10 +553,11 @@ export interface ComposedMotion {
    *  speed), arrested at the bottom by the existing grounding — so a weighted
    *  lower (sit-down, floor get-down) reads as bodyweight caught instead of a
    *  hydraulic ease (services/rootMotion `deriveWeightedDescent`). ROOT-Y
-   *  ONLY: joint angles, knot times and every settle measurement are
-   *  untouched. Grounded one-shots only — airborne motions (ballistic arcs
-   *  own their vertical), gait/travel, loops, calibrated verticals and
-   *  declared IK contacts are hard-excluded even when flagged. For CONTROLLED
+   *  ONLY before contact solving: authored joint angles and knot times are
+   *  untouched; fixed-foot IK may adjust the legs to retain support. Grounded
+   *  one-shots only — flight, alternating gait, loops, calibrated verticals
+   *  and changing/unilateral contacts are excluded. A fixed bilateral foot
+   *  base is eligible, including foot-derived chair travel. For CONTROLLED
    *  eccentrics (the clinical squat) leave this off — the symmetric authored
    *  tempo IS the movement. Default off (unflagged motions byte-identical). */
   weightedDescent?: boolean;

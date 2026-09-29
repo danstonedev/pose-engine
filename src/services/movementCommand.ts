@@ -562,6 +562,8 @@ export function girdleSplit(
  *  axis (shoulder elevation builds a world-plane swing from them). */
 interface BuildCtx {
   variantId?: string;
+  /** Split thoracic commands only when the supplied baseline can write Mid. */
+  thoracicCompanionWritable?: boolean;
   restWorldQuat?: THREE.Quaternion;
   restDir?: THREE.Vector3;
   /** The commanded bone's PARENT world orientation at anatomic rest. Shoulder
@@ -882,10 +884,18 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   // GREAT TOE / forefoot MTP (L/R_Toes): parent X-euler like the ankle, same sign
   // both feet (toeFlexion = −euler.x, no mirror). + = extension (toe lifts up).
   const toe: SupportedMotionSpec = { buildDelta: (deg) => eulerXDelta(deg), compose: 'parent', fromReport: (deg) => deg };
-  // THORACIC (Spine_Upper): body-aligned segment — the lumbar constructions transfer verbatim.
-  const thoracicFlex: SupportedMotionSpec = { buildDelta: (deg) => eulerXDelta(deg), compose: 'parent', fromReport: (deg) => deg };
-  const thoracicLateral: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
-  const thoracicRotation: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  // THORACIC is a region (Mid + Upper in the clinical readout), not one hinge.
+  // Share its commanded bend/twist across both segments. Companion ownership
+  // also resets a carried Mid pose, so repeated absolute commands cannot drift.
+  // Partial baselines retain the full single-bone command when Mid is absent.
+  const thoracicRegion = (build: (deg: number) => THREE.Quaternion): SupportedMotionSpec => ({
+    buildDelta: (deg, ctx) => build(ctx?.thoracicCompanionWritable ? deg / 2 : deg),
+    compose: 'parent', fromReport: (deg) => deg,
+    companion: { key: 'Spine_Mid', buildDelta: (deg) => build(deg / 2) },
+  });
+  const thoracicFlex = thoracicRegion(eulerXDelta);
+  const thoracicLateral = thoracicRegion((deg) => eulerZDelta(-deg));
+  const thoracicRotation = thoracicRegion(eulerYDelta);
   // PELVIS (Hips bone). The pelvis was the one rig-reported joint with NO entry
   // here at all — declared in romRegistry, clamped by poseRomClamp, read back by
   // computeJointAngles, and commandable by nothing. That is why every shipped
@@ -1218,7 +1228,10 @@ export function buildCommandPose(
   // Context beyond the rest local: the variant (finger fits are variant-keyed),
   // plus — when the rest reference is supplied — the bone's rest WORLD
   // orientation + direction (shoulder elevation builds a world-plane swing).
-  const ctx: BuildCtx = { variantId: variantCfg.id };
+  const ctx: BuildCtx = {
+    variantId: variantCfg.id,
+    thoracicCompanionWritable: !!baselinePose.bones?.Spine_Mid,
+  };
   const rwArr = rest?.worldQuats?.[cmd.joint];
   const rdArr = rest?.worldDirs?.[cmd.joint];
   if (rwArr && rdArr) {
@@ -1428,7 +1441,7 @@ export function girdleKeyForJoint(joint: string): string | null {
  *
  * Unlike `writeGirdle` this owns the WHOLE companion rather than scoped axes,
  * because a companion bone has no independent authoring path — nothing else
- * writes `Neck_Lower`. If a second companion user ever arrives that shares its
+ * writes `Neck_Lower` or `Spine_Mid`. If a companion user ever shares its
  * bone with another writer, this needs the same axis-scoping treatment.
  */
 function writeCompanions(
@@ -1583,7 +1596,10 @@ export function buildComposedCommandPose(
 
   const target = copyPose(fromPose ?? baselinePose, variantCfg.id);
   const restQ = new THREE.Quaternion(restArr[0], restArr[1], restArr[2], restArr[3]);
-  const ctx: BuildCtx = { variantId: variantCfg.id };
+  const ctx: BuildCtx = {
+    variantId: variantCfg.id,
+    thoracicCompanionWritable: !!baselinePose.bones?.Spine_Mid,
+  };
   const rwArr = rest?.worldQuats?.[joint];
   const rdArr = rest?.worldDirs?.[joint];
   if (rwArr && rdArr) {

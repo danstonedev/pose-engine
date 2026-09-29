@@ -123,7 +123,11 @@ function deepestPose(templateId: string): CustomPose {
 function applyPelvisRooted(pose: CustomPose) {
   root.position.copy(rootRest0);
   root.quaternion.copy(rootQuat0);
-  applyCustomPose(skinned.skeleton, variantCfg, pose);
+  // This suite exercises the pelvis-free rigid contract. Articulated recipes
+  // are covered separately by pelvisPlantOwnership/functionalRecipes gates.
+  applyCustomPose(skinned.skeleton, variantCfg, {
+    ...pose, bones: { ...pose.bones, Hips: baselinePose.bones.Hips! },
+  });
   root.updateMatrixWorld(true);
 }
 

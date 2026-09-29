@@ -843,6 +843,80 @@ describe('buildCommandPose on the real male rig', () => {
     }
   });
 
+  it('thoracic region recruits both segments and replaces a carried bend without accumulation', () => {
+    for (const motion of ['flexion', 'lateralTilt', 'rotation']) {
+      resetToAnatomic();
+      const first = buildCommandPose(baselinePose, setJoint('Spine_Upper', motion, 20), 20,
+        variantCfg, null, rest)!;
+      for (const key of ['Spine_Mid', 'Spine_Upper']) {
+        const q = new THREE.Quaternion(...first.bones[key]).normalize();
+        const neutral = new THREE.Quaternion(...baselinePose.bones[key]).normalize();
+        expect(q.angleTo(neutral) * 180 / Math.PI, `${key} ${motion}`).toBeCloseTo(10, 4);
+      }
+      const second = buildCommandPose(baselinePose, setJoint('Spine_Upper', motion, -10), -10,
+        variantCfg, first, rest)!;
+      expect(measureCommandMotion(applyAndMeasure(second), 'Spine_Upper', motion)).toBeCloseTo(-10, 1);
+      const released = buildCommandPose(baselinePose, setJoint('Spine_Upper', motion, 0), 0,
+        variantCfg, second, rest)!;
+      for (const key of ['Spine_Mid', 'Spine_Upper']) {
+        expect(new THREE.Quaternion(...released.bones[key]).normalize().angleTo(
+          new THREE.Quaternion(...baselinePose.bones[key]).normalize())).toBeLessThan(1e-6);
+      }
+    }
+  });
+
+  for (const builder of ['single', 'composed'] as const) {
+    for (const withMid of [false, true]) {
+      it(`thoracic ${builder}: ${withMid ? 'splits a complete region' : 'preserves the full command without a Mid baseline'}`, () => {
+        const supplied: CustomPose = {
+          variant: 'male',
+          bones: {
+            Spine_Upper: baselinePose.bones.Spine_Upper!,
+            ...(withMid ? { Spine_Mid: baselinePose.bones.Spine_Mid! } : {}),
+          },
+        };
+        for (const motion of ['flexion', 'lateralTilt', 'rotation']) {
+          for (const degrees of [-20, 20]) {
+            resetToAnatomic();
+            // The full rest reference includes Mid; only the supplied baseline
+            // establishes whether the companion has a writable rest local.
+            const pose = builder === 'single'
+              ? buildCommandPose(supplied, setJoint('Spine_Upper', motion, degrees), degrees, variantCfg, null, rest)!
+              : buildComposedCommandPose(supplied, 'Spine_Upper', [{ motion, degrees }], variantCfg, null, rest)!;
+            expect(Object.keys(pose.bones).sort()).toEqual(Object.keys(supplied.bones).sort());
+            expect(measureCommandMotion(applyAndMeasure(pose), 'Spine_Upper', motion)).toBeCloseTo(degrees, 4);
+            for (const key of Object.keys(supplied.bones)) {
+              const delta = new THREE.Quaternion(...pose.bones[key]!).normalize().angleTo(
+                new THREE.Quaternion(...supplied.bones[key]!).normalize());
+              expect(delta * 180 / Math.PI, `${key} ${motion}`).toBeCloseTo(withMid ? 10 : 20, 4);
+            }
+          }
+        }
+      });
+    }
+  }
+
+  for (const withMid of [false, true]) {
+    it(`thoracic composed axes preserve all requested angles ${withMid ? 'across both segments' : 'with Upper alone'}`, () => {
+      resetToAnatomic();
+      const supplied: CustomPose = {
+        variant: 'male',
+        bones: { Spine_Upper: baselinePose.bones.Spine_Upper!,
+          ...(withMid ? { Spine_Mid: baselinePose.bones.Spine_Mid! } : {}) },
+      };
+      const targets = [
+        { motion: 'flexion', degrees: 20 },
+        { motion: 'lateralTilt', degrees: 10 },
+        { motion: 'rotation', degrees: 30 },
+      ];
+      const pose = buildComposedCommandPose(supplied, 'Spine_Upper', targets, variantCfg, null, rest)!;
+      expect(Object.keys(pose.bones).sort()).toEqual(Object.keys(supplied.bones).sort());
+      const report = applyAndMeasure(pose);
+      for (const target of targets)
+        expect(measureCommandMotion(report, 'Spine_Upper', target.motion)).toBeCloseTo(target.degrees, 4);
+    });
+  }
+
   it('scapula: upRotation / scapularTilt / protraction read back exact (both sides)', () => {
     for (const scap of ['L_Shoulder', 'R_Shoulder'] as const) {
       for (const [motion, deg] of [

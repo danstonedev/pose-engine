@@ -47,6 +47,7 @@
  */
 import type { ResolvedComposedMotion } from './motionSequence';
 import { computeBalanceTimeline } from './centerOfMass';
+import { hasFixedBilateralFootSupport } from './motionSupport';
 import { getRomFieldDefinition, effectiveRomRange } from './romRegistry';
 import { measureLimbClearance, type Vec3 } from './limbClearance';
 
@@ -98,6 +99,8 @@ export interface GateFrame {
    *  RecordedFrame; consumed ONLY by the biomech hook (gaitBiomechCheck) for the
    *  normative joint-angle RMS check. The core plausibility checks never read it. */
   angles?: Record<string, Record<string, number>>;
+  /** Preserve seat/floor support so feet-only balance is not applied there. */
+  groundingPosture?: string;
 }
 
 /** What a biomech hook may return. The bare array is the original contract and
@@ -221,10 +224,10 @@ const pct = (i: number, n: number): number => (n <= 1 ? 0 : round((i / (n - 1)) 
 
 /**
  * The quasi-static, planted class the CoM-over-base geometry is valid for —
- * the same exclusions {@link balanceCoordination}/`balanceAssistApplies` draws,
- * minus the opt-in flag. A gait / travelling / looping / ballistic / reoriented
- * / grounding-posture motion vaults or reorients its CoM by design, so the
- * static base test does not apply and the check is SKIPPED for it.
+ * excluding alternating gait, loops, flight and reoriented support. Unlike
+ * balance correction, this check includes transfers over a fixed bilateral
+ * foot base. Seated frames use seat support and are excluded from the feet-only
+ * CoM test; standing frames of the same transfer remain eligible.
  *
  * EXPORTED because hosts must make the SAME call before they statically score a
  * recording. simMOVE previously re-derived this from three of the seven
@@ -234,11 +237,15 @@ const pct = (i: number, n: number): number => (n <= 1 ? 0 : round((i / (n - 1)) 
  * "the COM leaves the base of support" note the split was meant to prevent.
  */
 export function isQuasiStaticMotion(r: ResolvedComposedMotion): boolean {
-  if (r.loop === true || r.footDrivenTravel === true) return false;
-  if (r.contacts?.length) return false; // scheduled gait plant — moving base
+  if (r.loop === true) return false;
+  const fixedFeet = hasFixedBilateralFootSupport(r);
+  // Foot-driven translation can also carry a pelvis over two stationary feet
+  // during chair rise. That is a fixed support base, unlike alternating gait.
+  if (r.footDrivenTravel === true && !fixedFeet) return false;
+  if (r.contacts?.length && !fixedFeet) return false;
   for (const kf of r.keyframes) {
     if (kf.stance === 'floating') return false; // airborne ballistics own their arc
-    if (kf.groundingPosture != null) return false; // rests on its own contact set
+    if (kf.groundingPosture != null && !(fixedFeet && kf.groundingPosture === 'sitting')) return false;
     const o = kf.root?.orient;
     if (o && (o.quat != null || Math.abs(o.pitchDeg ?? 0) > 20 || Math.abs(o.rollDeg ?? 0) > 20)) {
       return false; // reoriented / lying — CoM-over-FEET is meaningless
@@ -329,7 +336,7 @@ function checkComInBase(
 ): ValidityCheck | null {
   if (!frames.some((f) => f.worldTracks?.CoM)) return null;
   const tl = computeBalanceTimeline(
-    { frames: frames.map((f) => ({ tMs: f.tMs, worldTracks: f.worldTracks })) },
+    { frames: frames.map((f) => ({ tMs: f.tMs, worldTracks: f.worldTracks, groundingPosture: f.groundingPosture })) },
     floorY != null ? { floorY } : {},
   );
   if (tl.minMarginM == null) return null; // never supported (all airborne)

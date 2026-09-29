@@ -1033,7 +1033,7 @@ export function sampleComposedMotion(
   // every unflagged/excluded motion, so they stay byte-identical. The flagged
   // class excludes vcal, so the calibrated-vertical branch never overlaps.
   let weightedDescent: WeightedDescentReshape | null = null;
-  if (!useLoopCycle && !opts.contacts?.length && weightedDescentApplies(resolved)) {
+  if (!useLoopCycle && weightedDescentApplies(opts.contacts ? { ...resolved, contacts: opts.contacts } : resolved)) {
     weightedDescent = deriveWeightedDescent((tMs) => {
       const s = trajectory.sampleAt(tMs);
       applyCustomPose(skinned.skeleton, variantCfg, s.pose);

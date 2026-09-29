@@ -387,7 +387,9 @@ const PELVIC_TILT_MAX = 2.5;
 // rotation to close the carriage; with correct compensation it closes only
 // 4.2 cm of the rest gap. Recalibrate the explicit arm intent while keeping the
 // existing hand-carriage and mesh/capsule clearance gates together.
-const ARM_ADD_BASE = 7;
+// Distributed thoracic bending also shifts the shoulder origins slightly;
+// retain the same measured carriage and surface-clearance requirements.
+const ARM_ADD_BASE = 7.25;
 const ARM_ADD_SWING = 0.1;
 const ARM_ADD_MAX = 20;
 // FOREARM PRO/SUP through the swing. The forearm does not ride the swing as a
@@ -566,6 +568,11 @@ const ANK_INV_MAX = 8;
 // Neck lateral compensation for the roll leaked by the (large) axial neck counter — rig-fit
 // so the head's side-to-side tip nulls out. Sign/gain calibrated on the walk (see spinalCoord).
 const NECK_AXIAL_ROLL_COMP = 0.28;
+// Sharing axial rotation through the curved Mid/Upper thorax translates the
+// head laterally as well as turning it. A small lumbar counterbend absorbs that
+// translation; the existing neck counter still levels the resulting orientation.
+// Rig-calibrated on both bodies, not an anatomical fixed coupling ratio.
+const THORACIC_AXIAL_LEAN_COMP = 0.2;
 
 /**
  * NATURAL SPINAL GAIT COORDINATION — the reciprocal trunk motion that makes gait
@@ -844,7 +851,8 @@ export function spinalGaitCoordination(
     // had to answer for it. Counter-sign, and the same lumbar/thoracic split the
     // shuttle absorption already uses.
     const obliquityLean = pelvicObliquity;
-    const leanLower = cap(lean + 0.45 * shuttleLean + 1.0 * obliquityLean, SPINE_LATERAL_MAX);
+    const leanLower = cap(lean + 0.45 * shuttleLean + 1.0 * obliquityLean
+      + THORACIC_AXIAL_LEAN_COMP * thoracic, SPINE_LATERAL_MAX);
     // The thoracic COUNTER-lists (an S-curve): the lumbar lists toward the stance limb
     // (the physiologic weight shift), but the upper trunk leans back the other way so the
     // shoulders — and the head above them — stay centred over the base. A person's head

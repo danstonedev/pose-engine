@@ -29,9 +29,11 @@ import {
   isFingerJointKey,
   type JointAngleRestReference,
 } from './jointAngles';
-import { getRomFieldDefinition, type RomRangeDeg, type ThighSwing } from './romRegistry';
+import { effectiveRomRange, getRomFieldDefinition, type RomRangeDeg, type ThighSwing } from './romRegistry';
 import {
   getEffectiveRomRange,
+  getRomFieldConstraint,
+  resolveAvailableRange,
   normalizeRomConstraints,
   type RomScenarioConstraints,
 } from './romConstraints';
@@ -440,6 +442,8 @@ export function clampBoneToRom(
   /** Enforce this solve's explicit scenario bounds without changing the host's
    *  global calibration-mode preference (which may be shared by other stages). */
   force = false,
+  /** Closed-chain support uses the same normative band as planted commands. */
+  context: { weightBearing?: boolean } = {},
 ): boolean {
   if (!bone || !canonicalKey || !rest) return false;
   if (!force && !isClampActive()) return false;
@@ -457,7 +461,7 @@ export function clampBoneToRom(
       case 'pelvis':
         return clampPelvis(bone, canonicalKey, strategy, rest);
       case 'body-euler':
-        return clampBodyEuler(bone, canonicalKey, strategy, rest);
+        return clampBodyEuler(bone, canonicalKey, strategy, rest, context.weightBearing);
       case 'ball-joint':
         return clampBallJoint(bone, canonicalKey, strategy, rest);
       case 'hinge':
@@ -531,12 +535,13 @@ function clampBodyEuler(
   canonicalKey: string,
   strategy: BodyEulerStrategy,
   rest: JointAngleRestReference,
+  weightBearing = false,
 ): boolean {
   const restArr = rest.localQuats[canonicalKey];
   deltaFromRest(bone.quaternion, restArr, _qDelta);
   const angles = decomposeBodyDelta(_qDelta);
 
-  const flexRange = lookupRange(canonicalKey, strategy.flexionField);
+  const flexRange = lookupRange(canonicalKey, strategy.flexionField, undefined, weightBearing);
   const abdRange = lookupRange(canonicalKey, strategy.abductionField);
   const rotRange = strategy.rotationField
     ? lookupRange(canonicalKey, strategy.rotationField)
@@ -803,7 +808,12 @@ function recomposeBallJoint(
 
 const ZERO_RANGE: RomRangeDeg = { min: 0, max: 0 };
 
-function lookupRange(canonicalKey: string, fieldKey: string, thigh?: ThighSwing): RomRangeDeg {
+function lookupRange(canonicalKey: string, fieldKey: string, thigh?: ThighSwing, weightBearing = false): RomRangeDeg {
+  const field = getRomFieldDefinition(canonicalKey, fieldKey);
+  if (weightBearing && field?.weightBearingMax != null) {
+    return resolveAvailableRange(effectiveRomRange(field, { weightBearing: true }),
+      getRomFieldConstraint(_clampConstraints, canonicalKey, fieldKey));
+  }
   // Effective = normative ∩ the clamp's scenario constraint (romConstraints.ts),
   // so a case-authored restriction ("this elbow stops at 95°") clamps here
   // exactly like a normative limit does. `_clampConstraints` is the set passed

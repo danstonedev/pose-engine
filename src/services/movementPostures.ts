@@ -19,6 +19,7 @@
  */
 
 import * as THREE from 'three';
+import { chairRisePhases, functionalControl, functionalTargets, squatPhases } from './functionalRecipes';
 import type {
   ComposedMotion,
   PostureNode,
@@ -140,22 +141,28 @@ export function buildSupineLegRaise(opts: { side?: 'L' | 'R'; reps?: number } = 
 export function buildSitDown(): ComposedMotion {
   return {
     name: 'sit down',
+    controlId: 'seated-transfer/counterbalance-descent',
     startFrom: 'current',
     stance: 'planted',
     endPosture: 'sitting',
     weightedDescent: true,
+    footDrivenTravel: true,
+    settleEnds: true,
+    contacts: [{ foot: 'L_Foot' }, { foot: 'R_Foot' }],
     keyframes: [
-      // Reach back + begin to lower (feet grounded).
-      { durationMs: 600, stance: 'planted', targets: [...bilatLeg(45, 55, 12), ...trunkFlex(15, 8)] },
-      // Descend so the pelvis arrives at ~seat height (still feet-grounded).
-      { durationMs: 600, stance: 'planted', targets: [...bilatLeg(85, 95, 12), ...trunkFlex(12, 6)] },
+      // Counterbalance before lowering. Matched pelvis + hip increments keep
+      // the calibrated thigh path while bringing trunk mass over the planted feet.
+      { control: functionalControl('sit-down/lower', 'counterbalance'), durationMs: 600, stance: 'planted', targets: functionalTargets({ hip: 50, knee: 55, ankle: 12, pelvis: 5, lumbar: 24.5, thoracic: 10.5, neck: -20, arm: 75, elbow: 8 }) },
+      // Keep the forward counterbalance until the pelvis reaches the seat.
+      { control: functionalControl('sit-down/approach-seat', 'counterbalance'), durationMs: 600, stance: 'planted', targets: functionalTargets({ hip: 110, knee: 95, ankle: 12, pelvis: 25, lumbar: 35, thoracic: 15, neck: -37.5, arm: 75, elbow: 8 }) },
       // Settle onto the seat — grounding switches to the pelvis; trunk comes upright.
       {
+        control: functionalControl('sit-down/seated', 'relaxed', 'seat', true),
         durationMs: 400,
         holdMs: 300,
         stance: 'planted',
         groundingPosture: 'sitting',
-        targets: [...bilatLeg(85, 95, 8), ...trunkFlex(0, 0)],
+        targets: functionalTargets({ hip: 85, knee: 95, ankle: 8, elbow: 8 }),
       },
     ],
   };
@@ -167,26 +174,15 @@ export function buildSitDown(): ComposedMotion {
 export function buildStandFromSit(): ComposedMotion {
   return {
     name: 'stand up',
+    controlId: 'seated-transfer/relaxed-arms',
     startFrom: 'current',
     stance: 'planted',
     startPosture: 'sitting',
     endPosture: 'standing',
-    keyframes: [
-      // Seated, lean forward (nose over toes) — COM shifts over the feet.
-      {
-        durationMs: 500,
-        stance: 'planted',
-        groundingPosture: 'sitting',
-        targets: [...bilatLeg(100, 95, 12), ...trunkFlex(28, 12)],
-      },
-      // Rise to a quiet stand — weight is on the feet now (feet grounding).
-      {
-        durationMs: 800,
-        holdMs: 150,
-        stance: 'planted',
-        targets: [...bilatLeg(0, 0, 0), ...trunkFlex(0, 0)],
-      },
-    ],
+    footDrivenTravel: true,
+    settleEnds: true,
+    contacts: [{ foot: 'L_Foot' }, { foot: 'R_Foot' }],
+    keyframes: chairRisePhases('relaxed'),
   };
 }
 
@@ -307,7 +303,7 @@ function squatCompensation(dfCap: number): {
   // the lumbar spine is the weaker secondary.
   const HIP_GAIN = 0.30;
   const LUM_GAIN = 0.22;
-  const deficit = Math.max(0, DEFICIT_A - DEFICIT_B * df);
+  const deficit = df >= 32 ? 0 : Math.max(0, DEFICIT_A - DEFICIT_B * df);
   // Hip carries the deficit first, up to its ROM ceiling (100 → 120).
   const dHip = Math.min(20, deficit / HIP_GAIN);
   const rem = Math.max(0, deficit - dHip * HIP_GAIN);
@@ -349,7 +345,7 @@ export function clampSquatDorsiflexionCap(requested: number): number {
  * (margin < 0 — a backward loss of balance).
  *
  * Same builder shape the shipped 'squat' template emits (startFrom:'neutral',
- * planted, descent+ascent, ankle leads at peakAt 0.8). NO balanceAssist / contacts[]
+ * planted, descent+ascent, ankle leads at peakAt 0.75). NO balanceAssist / contacts[]
  * / root.orient / weightedDescent — the motion stays on the plant-fixed, base-honest
  * foot-root path so the balance measurement is undistorted.
  */
@@ -360,43 +356,10 @@ export function buildSquat(opts: { dorsiflexionCapDeg?: number } = {}): Composed
   const c = squatCompensation(dfCap);
   return {
     name: 'squat',
+    controlId: 'bodyweight-squat',
     startFrom: 'neutral',
     stance: 'planted',
-    keyframes: [
-      {
-        durationMs: 1000,
-        holdMs: 350,
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: c.hip },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: c.hip },
-          { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: c.knee },
-          { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: c.knee },
-          // Ankle leads the descent (peakAt 0.8) — the shin advances over the
-          // planted foot first, exactly as the shipped squat authors it.
-          { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: c.ankle, peakAt: 0.8 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: c.ankle, peakAt: 0.8 },
-          { joint: 'Spine_Lower', motion: 'flexion', targetDegrees: c.sl },
-          { joint: 'Spine_Upper', motion: 'flexion', targetDegrees: c.su },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: c.arm },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: c.arm },
-        ],
-      },
-      {
-        durationMs: 1000,
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', targetDegrees: 0 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', targetDegrees: 0 },
-          { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: 0 },
-          { joint: 'Spine_Lower', motion: 'flexion', targetDegrees: 0 },
-          { joint: 'Spine_Upper', motion: 'flexion', targetDegrees: 0 },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 0 },
-        ],
-      },
-    ],
+    keyframes: squatPhases(c),
   };
 }
 
@@ -510,7 +473,9 @@ export function buildGetDownToQuadruped(): ComposedMotion {
     weightedDescent: true,
     keyframes: [
       // Crouch + hinge forward, reaching the hands toward the floor (feet grounded).
-      { durationMs: 700, stance: 'planted', targets: [...bilatLeg(95, 115, 15), ...trunkFlex(40, 25), { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115 }, { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115 }] },
+      // The distributed thoracic bend moves the shoulder origin; this small reach correction keeps the
+      // subsequent prone hand sweep within its contact envelope without changing the final prone/press-up pose.
+      { durationMs: 700, stance: 'planted', targets: [...bilatLeg(95, 115, 15), ...trunkFlex(40, 25), { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115.25 }, { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 115.25 }] },
       // Onto hands and knees: trunk to horizontal, knees + hands to the floor.
       {
         durationMs: 700,
@@ -661,6 +626,7 @@ export function buildLowerToProne(): ComposedMotion {
         posture: 'prone',
         targets: [
           ...bilatLeg(2, 2, 20),
+          // Keep the returning hands clear as they sweep alongside the trunk.
           { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: 12 },
           { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: 12 },
           { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: 8 },

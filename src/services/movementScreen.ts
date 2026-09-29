@@ -212,77 +212,42 @@ export function assessmentSourceNotes(source?:PositionSource): readonly string[]
 const OVERHEAD_ABDUCTION_DEG = 160;
 
 /**
- * Put the arms OVERHEAD, correctly, which took three attempts and two wrong
- * theories. Recorded here because every one of the wrong turns is a trap the
- * next authored position can fall into.
+ * Use the calibrated bilateral overhead-abduction strategy for squat screens.
+ * The functional squat's forward counterweight is a different task. This
+ * adapter replaces every upper-arm channel, including quiet zero channels,
+ * so no duplicate abduction can overwrite the overhead target during resolve.
  *
- * WHY OVERRIDE AT ALL. `buildSquat` authors a 60° arm-forward reach as a
- * counterweight — right for a plain bodyweight squat, wrong for both squat
- * SCREENS, where the dowel is pressed overhead and losing that counterweight is
- * exactly what makes the test hard. Arm position is also the criterion the
- * student grades, so 60° demonstrates a different movement from the one we name.
- *
- * WRONG TURN 1 — write 170 onto the humerus in flexion. Measured on the rig:
- * `FLEX —`, `ABD 147`, arms in a wide V, hands 0.716 m apart. The cause is not
- * the shoulder model: `armSwingDelta` realizes flexion as a swing about WORLD_X,
- * which PRESERVES the arm's x component, and the rig's anatomic rest hangs the
- * humerus 16.4° lateral of vertical (rest worldDir x = -0.2824). Flexion can
- * never remove that splay, so it survives all the way to full elevation.
- *
- * WRONG TURN 2 — hand-author the scapular share alongside it. Two mistakes at
- * once. First it is unnecessary: the composed path ALREADY applies the rhythm
- * automatically, through the `girdle` hook on the shoulder specs and
- * `writeGirdle` inside `buildComposedCommandPose` — an authored flexion 170
- * writes scapularTilt 40 by itself. Second it is actively harmful: an authored
- * `R_Shoulder` target in the same keyframe as a humeral one CLOBBERS, and which
- * way depends on build order. Arm-last silently discards the scapula; scapula-
- * last leaves the humerus wrung by up to -142.9° of phantom axial rotation
- * because `unparentGirdle` corrected for a girdle value that was then replaced.
- * Every target still reports `complied`. NEVER author a scapula target on a limb
- * whose humerus this motion also commands.
- *
- * WHAT WORKS — abduction. It elevates toward vertical instead of preserving the
- * lateral offset. Measured at 160: 176.3° elevation, 3.7° off vertical, hands
- * 0.440 m apart, and upRotation 43.3° arriving automatically, which is the
- * correct scapular channel for overhead elevation and the one the panel shows
- * first. Flexion's girdle hook is hard-wired to scapularTilt and would never
- * produce it.
- *
- * The flexion target is REPLACED, not supplemented. Two shoulder fields in one
- * keyframe route through `composeShoulderDelta`, which cannot represent any arm
- * above horizontal at all — measured, flexion 170 + abduction 0 lands the arm
- * HANGING DOWN at -10° while both targets report `complied`.
- *
- * THE BALANCE COST, measured rather than feared. `squatCompensation`'s constants
- * were fitted against the 60° reach, so moving the arms was expected to wreck
- * the margin. Swept through this exact path against plain `buildSquat`, it does
- * not: df32 3.41 → 2.39 cm, df26 2.27 → 1.67, df20 2.85 → 2.44, df18 2.12 →
- * 1.90, df16 0.48 → 0.39, and BELOW the crossover it is marginally better
- * (df14 −1.18 → −1.16, df8 −6.22 → −6.06). The compensate-else-fall crossover
- * moves from df≈15.6 to df≈15.5 — inside the noise.
- *
- * That is a property of authoring the press as ABDUCTION. The earlier
- * flexion-based override did cost about 2.3 cm and pushed the crossover to
- * df≈18.3, which would have made the engine's own asserted-balanced case fall
- * over. `__tests__/movementScreen.test.ts` pins the current numbers so a future
- * re-authoring of the arms cannot quietly reintroduce that.
+ * Shoulder/girdle composition is now atomic and supports explicit girdle
+ * targets. This protocol uses the shared rhythm without an explicit override.
+ * Its single elevation plane is an authoring choice, not an engine limitation.
+ * World-space arm direction and balance are gated in movementScreen.test.ts.
  */
 function armsOverhead(motion: ComposedMotion): ComposedMotion {
   return {
     ...motion,
     keyframes: motion.keyframes.map((kf) => {
       if (!kf.targets) return kf;
-      const elevating = kf.targets.some(
-        (t) => t.motion === 'shoulderFlexion' && t.targetDegrees > 0,
-      );
-      if (!elevating) return kf;
+      const arms = kf.targets.filter(t => t.joint.endsWith('_UpperArm') && t.motion === 'shoulderFlexion');
+      if (!arms.length) return kf;
+      // Own the complete arm request in this protocol. A quiet abduction target
+      // from the base squat must not overwrite the new overhead target at resolve.
       return {
         ...kf,
-        targets: kf.targets.map((t) =>
-          t.motion === 'shoulderFlexion'
-            ? { joint: t.joint, motion: 'shoulderAbduction', targetDegrees: OVERHEAD_ABDUCTION_DEG }
-            : t,
-        ),
+        ...(kf.control ? { control: {
+          ...kf.control, id: `${kf.control.id}:overhead`,
+          joints: {
+            ...kf.control.joints,
+            L_UpperArm: { ...kf.control.joints.L_UpperArm, purpose: 'Press overhead for the squat screen, then return to standing arm position' },
+            R_UpperArm: { ...kf.control.joints.R_UpperArm, purpose: 'Press overhead for the squat screen, then return to standing arm position' },
+            L_Forearm: { ...kf.control.joints.L_Forearm, purpose: 'Maintain the elbow position for the overhead screen' },
+            R_Forearm: { ...kf.control.joints.R_Forearm, purpose: 'Maintain the elbow position for the overhead screen' },
+          },
+        } } : {}),
+        targets: [
+          ...kf.targets.filter(t => !arms.some(a => a.joint === t.joint)),
+          ...arms.map(t => ({ joint: t.joint, motion: 'shoulderAbduction',
+            targetDegrees: t.targetDegrees > 0 ? OVERHEAD_ABDUCTION_DEG : 0 })),
+        ],
       };
     }),
   };

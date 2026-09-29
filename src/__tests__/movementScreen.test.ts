@@ -138,11 +138,9 @@ describe('assessment shoulders preserve calibrated overhead targets and girdle o
     }
   });
 
-  it('never authors a scapula on a limb whose humerus it also commands', () => {
-    // writeGirdle owns the clavicle. An authored X_Shoulder alongside an
-    // X_UpperArm target clobbers: arm-last drops the scapula silently,
-    // scapula-last wrings the humerus by up to -142.9 degrees of phantom axial
-    // rotation. Neither is reported — everything says 'complied'.
+  it('leaves elevation rhythm to the arm controller while explicitly clearing carried protraction', () => {
+    // Atomic composition supports authored girdle axes. These protocols keep
+    // automatic elevation rhythm, and may deliberately neutralize protraction.
     for (const id of ALL) for (const selectedSide of ['R', 'L'] as const) {
       const m = resolvePosition(positionFor(id), selectedSide, null, id, 'movement');
       expect(m?.status, `${id} ${selectedSide}`).toBe('ok');
@@ -150,11 +148,9 @@ describe('assessment shoulders preserve calibrated overhead targets and girdle o
         const arms = new Set(
           kf.targets.filter((t) => t.joint.endsWith('_UpperArm')).map((t) => t.joint[0]),
         );
-        const scapulae = new Set(
-          kf.targets.filter((t) => t.joint.endsWith('_Shoulder')).map((t) => t.joint[0]),
-        );
-        for (const side of scapulae) {
-          expect(arms.has(side), `${id}: ${side}_Shoulder authored beside ${side}_UpperArm`).toBe(false);
+        for (const t of kf.targets.filter(t => t.joint.endsWith('_Shoulder') && arms.has(t.joint[0]))) {
+          expect(t.motion, `${id}: automatic elevation axes remain owned by rhythm`).toBe('protraction');
+          expect(t.clampedDegrees, `${id}: intentional protraction reset`).toBe(0);
         }
       }
     }
@@ -364,10 +360,13 @@ describe('the overhead tests actually press overhead', () => {
     }
   });
 
-  it('authors NO scapular target, because doing so clobbers the humerus', () => {
+  it('preserves automatic elevation rhythm and neutral protraction', () => {
     for (const id of ['deep-squat', 'overhead-deep-squat']) {
       const scap = targetsOf(id).filter((t) => t.joint.endsWith('_Shoulder'));
-      expect(scap, `${id} must let writeGirdle own the scapula`).toHaveLength(0);
+      for (const t of scap) {
+        expect(t.motion, `${id} must let writeGirdle own the elevation axes`).toBe('protraction');
+        expect(t.clampedDegrees).toBe(0);
+      }
     }
   });
 
@@ -392,7 +391,8 @@ describe('the overhead tests actually press overhead', () => {
       .filter((t) => t.motion === 'shoulderFlexion')
       .map((t) => t.clampedDegrees);
     expect(Math.max(...flex)).toBe(60);
-    expect(m.keyframes.flatMap((k) => k.targets).some((t) => t.motion === 'shoulderAbduction')).toBe(false);
+    expect(m.keyframes.flatMap((k) => k.targets).filter(t => t.motion === 'shoulderAbduction')
+      .every(t => t.clampedDegrees === 0)).toBe(true);
   });
 });
 

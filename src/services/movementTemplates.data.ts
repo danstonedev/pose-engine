@@ -17,6 +17,10 @@
  * (templateToComposedMotion).
  */
 
+import { functionalTemplatePhases, hingePhases, squatPhases, thighAssistedRisePhases } from './functionalRecipes';
+
+import type { BodyControlPhase } from './movementControl';
+
 import type {
   SemanticTravel,
   SequenceKeyframe,
@@ -42,6 +46,7 @@ export interface TemplateTarget {
 /** One timed phase of a movement: the joint peaks reached by its end, how long
  *  the travel into it takes, and how long it dwells there. */
 export interface TemplatePhase {
+  control?: BodyControlPhase;
   name: string;
   durationMs: number;
   holdMs?: number;
@@ -93,6 +98,10 @@ export interface MovementTemplate {
    *  LAST phase must flow back into the FIRST — the loop seam is a real
    *  transition the stage tweens through. Default false (one-shot). */
   loop?: boolean;
+  /** Derive root progression from the supporting feet on the loaded rig. */
+  footDrivenTravel?: boolean;
+  /** Arrive and depart at rest for a discrete transfer. */
+  settleEnds?: boolean;
   /** COM-driven postural control: run the sampled/staged motion through the
    *  `balanceCoordination` pre-pass, which measures the COM-vs-base offset per
    *  keyframe and adds the RESIDUAL re-centering the authored counterbalance
@@ -141,55 +150,9 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Bodyweight squat',
     aliases: ['squat', 'deep squat', 'bodyweight squat', 'sit back'],
     coordination:
-      'Hip and knee flex together (~1:1.2 to a deep/parallel bottom), the ankle dorsiflexes to advance the shin, and the trunk leans forward ~25° to keep the centre of mass over the mid-foot. Bilateral, planted. Sequencing: peak ankle dorsiflexion and pelvic tilt occur slightly EARLIER in the descent (~86-90%) than peak knee/hip/lumbar flexion (~98-99%, at the bottom) [Kim 2020]. Note: a true deep squat demands ~30° weight-bearing dorsiflexion; the engine caps active ankle DF at 20° (a standing-AROM norm), so 20° is the binding constraint here, not the biological target.',
+      "Shared raw-template and builder recipe: hip/knee flexion 100/120 degrees, weight-bearing ankle dorsiflexion 32 degrees, and 60-degree forward arm counterbalance. Independent pelvic tilt 4 degrees shares the trunk task with lumbar 23 and thoracic 10 degrees; cervical extension supports gaze. Pelvis and ankles lead the descent while the hips and knees complete it. Shared shoulder rhythm, quiet limb rotation, and relaxed hands complete the body intent; the Head retains its entry orientation relative to the neck.",
     stance: 'planted',
-    phases: [
-      {
-        name: 'descent-to-bottom',
-        durationMs: 1000,
-        holdMs: 350,
-        // INTRA-PHASE LEAD (Kim 2020: ankle ~86-90% vs knee/hip ~98-99% of the
-        // descent): the ankle dorsiflexion peaks EARLIER (~80%) — the shin
-        // advances over the foot to carry the COM forward — while the knee/hip/
-        // trunk complete at the bottom. Without this the descent is lockstep and
-        // reads robotic over its 1 s travel. A single lead keeps the sub-phase gap
-        // (~200 ms) above the velocity floor so phase timing stays exact.
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 100 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 120 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 120 },
-          // Weight-bearing dorsiflexion (~32°, closed-chain WB max is 35°): the
-          // shin advances over the planted foot so the knees track forward and the
-          // pelvis does NOT over-sit-back behind the heels. This is the ROOT-cause
-          // fix — the old 20° open-chain cap forced the backward CoM excursion.
-          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 32, peakAt: 0.8 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 32, peakAt: 0.8 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 27 },
-          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 10 },
-          // Light arm-forward reach — the natural bodyweight-squat counterweight
-          // that trims the CoM the last few cm over the mid-foot.
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 60 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 60 },
-        ],
-      },
-      {
-        name: 'ascent-to-stand',
-        durationMs: 1000,
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 0 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
-          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
-          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 0 },
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
-        ],
-      },
-    ],
+    phases: functionalTemplatePhases(squatPhases()),
     source: VERIFY,
   },
   {
@@ -197,41 +160,9 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Forward hip-hinge / toe-touch',
     aliases: ['toe touch', 'touch your toes', 'forward bend', 'hip hinge', 'bend forward', 'reach for the floor'],
     coordination:
-      'A hip-dominant hinge: most of the excursion is hip flexion, with the lumbar then thoracic spine flexing to round the reach, and the knees only softly unlocking. Planted.',
+      "Hip-led reach: hip flexion 70 degrees with soft knees 12 degrees, independent pelvic tilt 4 degrees, lumbar flexion 36 and thoracic flexion 20 degrees. Small ankle plantarflexion counterbalances the reach while both feet remain supported. The arms reach forward 65 degrees and the elbows soften; cervical extension supports gaze. Hips, knees and pelvis lead the spine into the bend, then all task channels return to standing.",
     stance: 'planted',
-    phases: [
-      {
-        name: 'bend-down',
-        durationMs: 1200,
-        holdMs: 350,
-        // INTRA-PHASE LEAD: a hip-dominant hinge initiates at the HIPS — the hips
-        // (and the soft knee unlock) lead (~80%) while the lumbar then thoracic
-        // spine round to reach for the floor at the end of range. Realizes the
-        // "hinge first, then round the spine" sequence the coordination note
-        // describes, instead of hip and spine folding in lockstep. The ~240 ms
-        // sub-phase gap stays above the velocity floor so phase timing is exact.
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 70, peakAt: 0.8 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 70, peakAt: 0.8 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 40 },
-          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 20 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 12, peakAt: 0.8 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 12, peakAt: 0.8 },
-        ],
-      },
-      {
-        name: 'return-upright',
-        durationMs: 1200,
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
-          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 0 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 0 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
-        ],
-      },
-    ],
+    phases: functionalTemplatePhases(hingePhases()),
     source: VERIFY,
   },
   {
@@ -543,113 +474,12 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Sit-to-stand',
     aliases: ['sit to stand', 'stand up from a chair', 'sit-to-stand', 'rise from sitting', 'get up from the chair'],
     coordination:
-      'The defining feature is the forward trunk/hip lean ("nose over toes") that brings the centre of mass over the feet BEFORE the hips and knees extend to rise — flexion momentum first, then extension [Schenkman 1990: flexion-momentum → momentum-transfer → extension]. The lean is HIP-DRIVEN with a relatively PRESERVED lumbar lordosis (only slight lumbar flexion) — heavy lumbar flexion is a compensatory/faulty pattern, not the healthy norm. ARM STRATEGY (roadmap 5.6): a natural STS pushes off the thighs — the hands rest on the thighs seated, PRESS into them through the lean (shoulders following the trunk, wrists extending as the trunk pivots over the planted hands), the elbows EXTEND through the push-off as the hips leave the seat, and the arms release to a relaxed hang at upright. The hand targets are AUTHORED here, so the universal relaxedHands transform skips this template (the author owns the hands). Bilateral, planted. (No chair prop; the seated depth is the hip/knee flexion hold.)',
+      "Neutral-to-seat preparation followed by a thigh-assisted rise. An explicit leaned lowering phase precedes seated support; seated preparation and forward lean then lead seat-off, extension and standing. Pelvic tilt is independent of root placement, and lumbar/thoracic regions share trunk inclination. Both feet remain contact-constrained throughout, with root progression derived from their geometry. The arms author a thigh push-off shape through shoulder, elbow and wrist motion; hand/thigh contact is not solved. A seated host skips only the lower-to-seat preparation.",
     stance: 'planted',
-    phases: [
-      {
-        name: 'seated',
-        durationMs: 700,
-        holdMs: 300,
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 85 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 85 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 95 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 95 },
-          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 12 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 12 },
-          // Hands resting on the thighs: the arm hangs slightly forward and
-          // ADDUCTS ~20° so the hand comes IN over the thigh (the shoulders are
-          // wider than the knees — without the adduction the hand hangs ~25 cm
-          // lateral of the femur line, rig-swept); slight elbow bend, wrist
-          // extended so the palm lies on the thigh. Rig-calibrated: wrist ~9 cm
-          // off the femur AXIS ≈ palm on the thigh surface.
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 10 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 10 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
-          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
-          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 18 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 18 },
-          { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: -18 },
-          { joint: 'R_Hand', motion: 'wristFlexion', peakDeg: -18 },
-        ],
-      },
-      {
-        name: 'lean-forward',
-        durationMs: 500,
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 105 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 105 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 95 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 95 },
-          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 18 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 18 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 12 },
-          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 10 },
-          // Hands PRESS into the thighs as the trunk pivots over them: the
-          // shoulders follow the lean, the elbows BEND to take the load, the
-          // wrists extend a little further. Rig-calibrated ~10 cm off the femur
-          // axis (still riding the thigh).
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 15 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 15 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
-          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
-          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 45 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 45 },
-          { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: -24 },
-          { joint: 'R_Hand', motion: 'wristFlexion', peakDeg: -24 },
-        ],
-      },
-      {
-        // The thigh push-off (Schenkman momentum-transfer): the hips leave the
-        // seat and the ELBOWS EXTEND as the hands drive down the thighs.
-        name: 'push-off',
-        durationMs: 350,
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 55 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 55 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 55 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 55 },
-          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 10 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 10 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 8 },
-          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 6 },
-          // The elbows EXTEND (45° → 14°) as the hands drive down the thighs —
-          // the visible push. Rig-calibrated ~10 cm off the femur axis.
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 5 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 5 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
-          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: -10 },
-          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 14 },
-          { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: -14 },
-          { joint: 'R_Hand', motion: 'wristFlexion', peakDeg: -14 },
-        ],
-      },
-      {
-        name: 'rise-to-stand',
-        durationMs: 450,
-        targets: [
-          { joint: 'L_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
-          { joint: 'R_UpLeg', motion: 'hipFlexion', peakDeg: 0 },
-          { joint: 'L_Leg', motion: 'kneeFlexion', peakDeg: 0 },
-          { joint: 'R_Leg', motion: 'kneeFlexion', peakDeg: 0 },
-          { joint: 'L_Foot', motion: 'ankleFlexion', peakDeg: 0 },
-          { joint: 'R_Foot', motion: 'ankleFlexion', peakDeg: 0 },
-          { joint: 'Spine_Lower', motion: 'flexion', peakDeg: 0 },
-          { joint: 'Spine_Upper', motion: 'flexion', peakDeg: 0 },
-          // Arms RELEASED at upright — a relaxed hang at the sides (slight
-          // elbow bend, adduction released), the hands off the thighs.
-          { joint: 'L_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
-          { joint: 'R_UpperArm', motion: 'shoulderFlexion', peakDeg: 0 },
-          { joint: 'L_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
-          { joint: 'R_UpperArm', motion: 'shoulderAbduction', peakDeg: 0 },
-          { joint: 'L_Forearm', motion: 'elbowFlexion', peakDeg: 8 },
-          { joint: 'R_Forearm', motion: 'elbowFlexion', peakDeg: 8 },
-          { joint: 'L_Hand', motion: 'wristFlexion', peakDeg: 0 },
-          { joint: 'R_Hand', motion: 'wristFlexion', peakDeg: 0 },
-        ],
-      },
-    ],
+    footDrivenTravel: true,
+    settleEnds: true,
+    contacts: [{ foot: 'L_Foot' }, { foot: 'R_Foot' }],
+    phases: functionalTemplatePhases(thighAssistedRisePhases()),
     source: VERIFY,
   },
   {
