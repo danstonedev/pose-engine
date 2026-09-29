@@ -58,6 +58,11 @@ and standing settle. Both foot contacts remain active while foot-derived root
 translation carries the pelvis over them. The thigh-assisted template includes
 a neutral-to-seat preparation; a host that already starts seated omits that
 named phase. Its hand/thigh shape is authored, not a solved hand contact.
+Rendered review still shows palms beside the knees or facing away from the
+anterior thigh during parts of the assistance phase. Existing proximity checks
+do not establish palm-surface contact or a supporting hand force. Palm alignment
+and continuous skin contact remain follow-up work; exploratory calibration is
+not included in this change.
 
 Fixed bilateral support is distinguished from alternating gait. These transfers
 receive feet-based balance checks before seat support, skip feet-only scoring
