@@ -53,6 +53,20 @@ export function createStageTwistOverlay() {
     return owned;
   }
 
+  function apply(clip: THREE.AnimationClip | null = null): void {
+    restore();
+    if (!enabled) return;
+    const owned = clip ? clipOwnedSegments(clip) : null;
+    const eligible: TwistSegment[] = [];
+    rig.forEach((segment, index) => {
+      if (owned?.has(index)) return;
+      segment.chain.forEach((bone, i) => saved[index][i].copy(bone.quaternion));
+      applied.push(index);
+      eligible.push(segment);
+    });
+    applyTwistRig(eligible);
+  }
+
   return {
     /** Call after the anatomic baseline, before applying an authored pose. */
     reset(skeleton: THREE.Skeleton | null, cfg: BodyVariantConfig): void {
@@ -66,18 +80,12 @@ export function createStageTwistOverlay() {
       restore();
       enabled = value;
     },
-    beforeRender(clip: THREE.AnimationClip | null = null): void {
-      restore();
-      if (!enabled) return;
-      const owned = clip ? clipOwnedSegments(clip) : null;
-      const eligible: TwistSegment[] = [];
-      rig.forEach((segment, index) => {
-        if (owned?.has(index)) return;
-        segment.chain.forEach((bone, i) => saved[index][i].copy(bone.quaternion));
-        applied.push(index);
-        eligible.push(segment);
-      });
-      applyTwistRig(eligible);
+    beforeRender: apply,
+    /** Pose-only exports must bake the same helper deformation into their own
+     * tracks. Otherwise the exported constant tracks suppress it on replay. */
+    sampleWithTwist<T>(read: () => T): T {
+      apply();
+      try { return read(); } finally { restore(); }
     },
     /** A host can make render-only arm corrections after markers/slicing have
      * updated. Re-derive twist from that final pose without replacing the clean

@@ -37,6 +37,8 @@ An animation clip retains ownership of a segment when it authors any twist helpe
 
 This does not turn on skin compression or self-collision globally. Those remain separate host or physical-controller capabilities.
 
+GLB pose-animation exports bake the same derived helper rotations into their animation tracks. They restore every live bone after sampling, including on failure. An exported clip can therefore retain its own helper tracks on replay without freezing twist at the neutral value.
+
 ## Rotation screens and review
 
 The raw shoulder, forearm and tibial templates establish their stated testing positions before rotation, hold those positions through the sweep, centre the rotation, then return. Tibial rotation uses bilateral leg setup and seated pelvis support. These setup changes do not replace simLAB's separately authored examination recipes.

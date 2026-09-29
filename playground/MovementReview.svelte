@@ -69,6 +69,8 @@
   function reload() { ready = false; frame = null; result = ''; status = 'Loading'; }
 </script>
 
+<svelte:head><link rel="icon" href="data:," /></svelte:head>
+
 <main>
   <h1>Movement regression review</h1>
   <p>Review pelvis support, shoulder composition, rotation setup and playback deformation on the shared stage.</p>

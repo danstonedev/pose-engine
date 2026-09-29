@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { createStageTwistOverlay, stopClipPreservingBones } from '../services/stageTwistOverlay';
 import { buildBoneByPoseKey, serializeCustomPose } from '../services/poseRig';
 import { loadRigOf, type Rig } from './plantReleaseRig';
+import { samplePoseAnimation } from '../services/poseAnimationSampling';
 
 const Y = new THREE.Vector3(0, 1, 0);
 const turn = (degrees: number) => new THREE.Quaternion().setFromAxisAngle(Y, degrees * Math.PI / 180);
@@ -136,5 +137,53 @@ describe.each(['male', 'female'] as const)('%s stage twist ownership', (variant)
     expect(helper.quaternion.angleTo(frozen[rig.skinned.skeleton.bones.indexOf(helper as THREE.Bone)])).toBeGreaterThan(1);
     overlay.afterRender();
     mixer.uncacheRoot(rig.root);
+  });
+
+  it('exports changing helper tracks that reproduce the graded twist when played as a clip', () => {
+    const baseline = serializeCustomPose(rig.skinned.skeleton, rig.variantCfg, variant);
+    const helper = helpers('L')[0];
+    const helperRest = helper.quaternion.clone();
+    byKey.get('L_Forearm')!.quaternion.multiply(turn(40));
+    byKey.get('L_Hand')!.quaternion.multiply(turn(30));
+    const pose = serializeCustomPose(rig.skinned.skeleton, rig.variantCfg, variant);
+    // Export while an unrelated edited/helper pose is visible: restore it all.
+    byKey.get('L_Forearm')!.quaternion.multiply(turn(25));
+    helper.quaternion.multiply(turn(17));
+    const live = rig.skinned.skeleton.bones.map(bone => bone.quaternion.toArray());
+    const sampled = samplePoseAnimation(rig.skinned.skeleton, rig.variantCfg,
+      [{ t: 0, pose: baseline }, { t: 1, pose }], overlay.sampleWithTwist);
+    rig.skinned.skeleton.bones.forEach((bone, i) => expect(bone.quaternion.toArray()).toEqual(live[i]));
+    const values = sampled.perBone.get(helper.name)!;
+    expect(values.slice(0, 4)).not.toEqual(values.slice(4));
+    const clip = new THREE.AnimationClip('exported', 1, [...sampled.perBone].map(([name, quats]) =>
+      new THREE.QuaternionKeyframeTrack(`${name}.quaternion`, sampled.times, quats)));
+    const mixer = new THREE.AnimationMixer(rig.root);
+    const action = mixer.clipAction(clip).setLoop(THREE.LoopOnce, 1);
+    action.clampWhenFinished = true;
+    action.play();
+    mixer.update(1);
+    const expected = helperRest.clone().multiply(turn(-40)).normalize();
+    expect(helper.quaternion.clone().normalize().angleTo(expected)).toBeLessThan(1e-6);
+    overlay.beforeRender(clip);
+    expect(helper.quaternion.clone().normalize().angleTo(expected)).toBeLessThan(1e-6);
+    overlay.afterRender();
+    mixer.stopAllAction();
+    mixer.uncacheRoot(rig.root);
+  });
+
+  it('restores every bone if export sampling fails after applying a pose and twist', () => {
+    const pose = serializeCustomPose(rig.skinned.skeleton, rig.variantCfg, variant);
+    pose.positions = { ...pose.positions, L_Forearm: [0.1, 0.2, 0.3] };
+    byKey.get('L_Forearm')!.quaternion.multiply(turn(55));
+    rig.root.updateMatrixWorld(true);
+    const live = rig.skinned.skeleton.bones.map(bone => bone.quaternion.toArray());
+    const positions = rig.skinned.skeleton.bones.map(bone => bone.position.toArray());
+    const matrices = rig.skinned.skeleton.bones.map(bone => bone.matrixWorld.toArray());
+    expect(() => samplePoseAnimation(rig.skinned.skeleton, rig.variantCfg, [{ t: 0, pose }], read =>
+      overlay.sampleWithTwist(() => { read(); throw new Error('export failure'); }),
+    )).toThrow('export failure');
+    rig.skinned.skeleton.bones.forEach((bone, i) => expect(bone.quaternion.toArray()).toEqual(live[i]));
+    rig.skinned.skeleton.bones.forEach((bone, i) => expect(bone.position.toArray()).toEqual(positions[i]));
+    rig.skinned.skeleton.bones.forEach((bone, i) => expect(bone.matrixWorld.toArray()).toEqual(matrices[i]));
   });
 });

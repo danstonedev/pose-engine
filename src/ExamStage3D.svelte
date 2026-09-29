@@ -2307,6 +2307,23 @@
         updateSeatProp(groundingPosture === 'sitting');
       }
 
+      /** Carry the achieved supporting pose into the next command. The trajectory
+       *  owns authored FK; grounding owns its compensating legs. Saving the FK
+       *  pose here would pair the next pelvic reference with the wrong legs. */
+      function commitTrajectoryPose(): void {
+        if (!skinnedRef || !variantCfgRef) return;
+        currentPose = serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
+        if (composedUseFootRoot && modelRoot) {
+          const q = rootRestQuat.clone().invert().multiply(modelRoot.quaternion);
+          composedRootQuat = [q.x, q.y, q.z, q.w];
+          composedRootTranslate = [
+            modelRoot.position.x - rootRestPos.x - pelvisShiftBakedM,
+            modelRoot.position.y - rootRestPos.y,
+            modelRoot.position.z - rootRestPos.z,
+          ];
+        }
+      }
+
       function stepTrajectory(now: number): void {
         const at = activeTrajectory;
         if (!at) return;
@@ -2347,10 +2364,10 @@
         }
         const s = at.traj.sampleAt(elapsed);
         if (skinnedRef && variantCfgRef) applyPoseComplete(skinnedRef.skeleton, variantCfgRef, s.pose);
-        currentPose = s.pose;
         applyTrajectoryRoot(s.rootQuat, s.rootTranslate, s.planted, elapsed, s.groundingPosture, at.traj);
         // Closed-chain foot contact for this frame (pins declared stance feet).
         applyFootPlants(elapsed, at.traj);
+        commitTrajectoryPose();
         requestRender();
         if (done && !at.finished) {
           at.finished = true;
@@ -2656,6 +2673,13 @@
 
         composedHasPlayed = true; // a movement is playing → future commands get the ready beat
 
+        // Capture carried support ownership before any derivation temporarily
+        // solves another pose on this skeleton and replaces its latest result.
+        composedFootFrames = footFrames
+          ? footFramesForCurrentPose(footFrames, effectiveResolved.startFrom === 'current' ? currentPose : null,
+            effectiveResolved.keyframes.flatMap(k => k.targets.map(t => t.joint)))
+          : null;
+
         // BALANCE COORDINATION (COM-driven postural control): for a motion flagged
         // `balanceAssist`, measure each keyframe's COM-vs-base offset on the live
         // rig and fold ROM-clamped re-centering targets into the resolved
@@ -2676,6 +2700,14 @@
             constraints: romConstraints ?? null,
           });
           pelvisShiftBakedM = 0; // transient absolute root writes — keep the tracker honest
+          // A balance correction can author legs that the incoming command did
+          // not mention. Those explicit targets take ownership from recovered
+          // support compensation, just as any newly authored leg pose does.
+          if (composedFootFrames?.supportIntent && effectiveResolved.keyframes.some(k =>
+            k.targets.some(t => /^[LR]_(UpLeg|Leg|Foot|Toes)$/.test(t.joint)))) {
+            composedFootFrames = footFramesForCurrentPose(footFrames!, currentPose,
+              effectiveResolved.keyframes.flatMap(k => k.targets.map(t => t.joint)));
+          }
         }
 
         // EXERTION FEED (Wave 5): the playing motion's 0..1 work intensity —
@@ -2690,10 +2722,6 @@
           currentPose,
           currentRoot: { quat: composedRootQuat, translateM: composedRootTranslate },
         });
-        composedFootFrames = footFrames
-          ? footFramesForCurrentPose(footFrames, effectiveResolved.startFrom === 'current' ? currentPose : null,
-            effectiveResolved.keyframes.flatMap(k => k.targets.map(t => t.joint)))
-          : null;
         const measurements: ComposedMotionPlaybackResult['measurements'] = [];
         const finalAngles: Record<string, number> = {};
         const hidden = stageHidden;
@@ -2909,9 +2937,9 @@
             const end = trajectory.sampleAt(trajectory.totalMs);
             if (skinnedRef && variantCfgRef)
               applyPoseComplete(skinnedRef.skeleton, variantCfgRef, end.pose);
-            currentPose = end.pose;
             applyTrajectoryRoot(end.rootQuat, end.rootTranslate, end.planted, trajectory.totalMs, end.groundingPosture, trajectory);
             applyFootPlants(trajectory.totalMs, trajectory);
+            commitTrajectoryPose();
             resolve();
             return;
           }
@@ -3593,6 +3621,7 @@
           undoIdleOverlays,
           undoEyeGaze,
           setTwistEnabled: twistOverlay.setEnabled,
+          sampleWithTwist: twistOverlay.sampleWithTwist,
           releaseFrozenClip,
           setCurrentPose: (pose) => {
             currentPose = pose;

@@ -32,6 +32,7 @@ import {
 import type { IKChainContext } from './poseRig';
 import { clampBoneToRom, hasClampStrategy, setRomClampEnabled } from './poseRomClamp';
 import { solveArmChainWithRhythm } from './poseScapulohumeral';
+import { samplePoseAnimation } from './poseAnimationSampling';
 import { computeDrivingRingMap, gizmoSpaceForJoint } from './jointAngles';
 import { clampFingerCurlToRom } from './poseFingerRomClamp';
 import { clampRegionCurveToRom } from './poseRegionCurveRomClamp';
@@ -162,6 +163,7 @@ export interface PosingLayerContext {
   undoEyeGaze(): boolean;
   setTwistEnabled(enabled: boolean): void;
   releaseFrozenClip(): void;
+  sampleWithTwist<T>(read: () => T): T;
   /** Pose continuity is committed through the stage's callback. */
   setCurrentPose(pose: CustomPose | null): void;
   onReport?: (report: JointAngleReport) => void;
@@ -1280,23 +1282,7 @@ export function createPosingLayer(stageCtx: PosingLayerContext): PosingLayer | n
       // Idle deltas lift first so the export + restore are both clean.
       undoIdleOverlays();
       undoEyeGaze(); // exported bone tracks carry the eyes at rest
-      const saved = serializeCustomPose(skel, variantCfg, variantCfg.id);
-      const times = frames.map((f) => f.t);
-      const perBone = new Map<string, number[]>();
-      for (const b of skel.bones) perBone.set(b.name, []);
-      const rootBone =
-        skel.bones.find((b) => !(b.parent as import('three').Bone)?.isBone) ?? skel.bones[0]!;
-      const rootPos: number[] = [];
-      for (const f of frames) {
-        applyCustomPose(skel, variantCfg, f.pose);
-        for (const b of skel.bones) {
-          const q = b.quaternion;
-          perBone.get(b.name)!.push(q.x, q.y, q.z, q.w);
-        }
-        if (rootMotion)
-          rootPos.push(rootBone.position.x, rootBone.position.y, rootBone.position.z);
-      }
-      applyCustomPose(skel, variantCfg, saved);
+      const { times, perBone, rootBone, rootPos } = samplePoseAnimation(skel, variantCfg, frames, stageCtx.sampleWithTwist);
       stageCtx.modelRoot.updateMatrixWorld(true);
       updatePoseHandles();
       reportPosing(true);
