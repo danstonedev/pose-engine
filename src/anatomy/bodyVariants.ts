@@ -13,6 +13,7 @@ export type CanonicalBone =
   | 'Neck'
   | 'Neck_Lower'
   | 'Shoulder'
+  | 'Scapula'
   | 'UpperArm'
   | 'Forearm'
   | 'Hand'
@@ -119,6 +120,8 @@ export interface AnatomicPose {
 }
 
 export interface BodyVariantConfig {
+  rigVersion?: 'shoulder-v2-engineering-1';
+  rigAssetSha256?: string;
   id: BodyVariantId;
   label: string;
   /** Short, non-diagnostic description shown when a person chooses a model. */
@@ -268,6 +271,7 @@ const CC_BONE_NAME_MAP: BoneNameMap = {
     Neck: ['NeckTwist02'], // upper/mid cervical (the Cervical curve control)
     Neck_Lower: ['NeckTwist01'], // lower cervical (folded into the Cervical curve)
     Shoulder: ['Clavicle'],
+    Scapula: ['Scapula'],
     UpperArm: ['Upperarm'],
     Forearm: ['Forearm'],
     Hand: ['Hand'],

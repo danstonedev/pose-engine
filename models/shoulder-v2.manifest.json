@@ -1,0 +1,828 @@
+{
+  "version": "shoulder-rig-v2-engineering-1",
+  "calibration": "engineering-estimate-unreviewed",
+  "variants": {
+    "male": {
+      "version": "shoulder-rig-v2-engineering-1",
+      "calibration": "engineering-estimate-unreviewed",
+      "variant": "male",
+      "sourceSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "axes": "Source world +X left, +Y superior, +Z anterior; segment controls use captured rest-aligned frames, not ISB clinical Euler angles.",
+      "maxBindDriftM": 8.430213747336643e-8,
+      "sides": {
+        "L": {
+          "skinIndex": 101,
+          "landmarks": {
+            "SC": [
+              0.05887621271141885,
+              1.4915985639081353,
+              -0.036267457256814725
+            ],
+            "AC": [
+              0.17032848682164525,
+              1.5065036141801433,
+              -0.06544239796461075
+            ],
+            "GH": [
+              0.18532848682164524,
+              1.4915036141801434,
+              -0.06544239796461075
+            ]
+          },
+          "scapulaLocalPosition": [
+            -1.4969962582421488,
+            11.51473074596872,
+            -0.3455988552965086
+          ],
+          "legacyUpperArmPosition": [
+            0.00003298372030258179,
+            12.97742748260498,
+            -0.000024557113647460938
+          ],
+          "patchVertices": 63,
+          "maxWeight": 0.30096250927044166,
+          "maxPrunedWeight": 0
+        },
+        "R": {
+          "skinIndex": 102,
+          "landmarks": {
+            "SC": [
+              -0.05887621271141885,
+              1.4915985639081353,
+              -0.036267457256814725
+            ],
+            "AC": [
+              -0.17032848682164525,
+              1.5065036141801433,
+              -0.06544239796461075
+            ],
+            "GH": [
+              -0.18532848682164524,
+              1.4915036141801434,
+              -0.06544239796461075
+            ]
+          },
+          "scapulaLocalPosition": [
+            1.4969962582421488,
+            11.51473074596872,
+            -0.3455988552965086
+          ],
+          "legacyUpperArmPosition": [
+            -0.00003298372030258179,
+            12.97742748260498,
+            -0.000024557113647460938
+          ],
+          "patchVertices": 63,
+          "maxWeight": 0.30096261314863776,
+          "maxPrunedWeight": 0
+        }
+      },
+      "assetSha256": "3851d2b9e279dcbc5e6cba49926f987e60c69c141d62396a1c2848d291f2fd7c",
+      "snapshot": {
+        "nodeNames": [
+          "Armature",
+          "CC_Base_Body",
+          "CC_Base_BoneRoot",
+          "CC_Base_FacialBone",
+          "CC_Base_Head",
+          "CC_Base_Hip",
+          "CC_Base_JawRoot",
+          "CC_Base_L_BigToe1",
+          "CC_Base_L_Breast",
+          "CC_Base_L_Calf",
+          "CC_Base_L_CalfTwist01",
+          "CC_Base_L_CalfTwist02",
+          "CC_Base_L_Clavicle",
+          "CC_Base_L_ElbowShareBone",
+          "CC_Base_L_Eye",
+          "CC_Base_L_Foot",
+          "CC_Base_L_Forearm",
+          "CC_Base_L_ForearmTwist01",
+          "CC_Base_L_ForearmTwist02",
+          "CC_Base_L_Hand",
+          "CC_Base_L_Index1",
+          "CC_Base_L_Index2",
+          "CC_Base_L_Index3",
+          "CC_Base_L_IndexToe1",
+          "CC_Base_L_KneeShareBone",
+          "CC_Base_L_Mid1",
+          "CC_Base_L_Mid2",
+          "CC_Base_L_Mid3",
+          "CC_Base_L_MidToe1",
+          "CC_Base_L_Pinky1",
+          "CC_Base_L_Pinky2",
+          "CC_Base_L_Pinky3",
+          "CC_Base_L_PinkyToe1",
+          "CC_Base_L_RibsTwist",
+          "CC_Base_L_Ring1",
+          "CC_Base_L_Ring2",
+          "CC_Base_L_Ring3",
+          "CC_Base_L_RingToe1",
+          "CC_Base_L_Scapula",
+          "CC_Base_L_Thigh",
+          "CC_Base_L_ThighTwist01",
+          "CC_Base_L_ThighTwist02",
+          "CC_Base_L_Thumb1",
+          "CC_Base_L_Thumb2",
+          "CC_Base_L_Thumb3",
+          "CC_Base_L_ToeBase",
+          "CC_Base_L_ToeBaseShareBone",
+          "CC_Base_L_Upperarm",
+          "CC_Base_L_UpperarmTwist01",
+          "CC_Base_L_UpperarmTwist02",
+          "CC_Base_NeckTwist01",
+          "CC_Base_NeckTwist02",
+          "CC_Base_Pelvis",
+          "CC_Base_R_BigToe1",
+          "CC_Base_R_Breast",
+          "CC_Base_R_Calf",
+          "CC_Base_R_CalfTwist01",
+          "CC_Base_R_CalfTwist02",
+          "CC_Base_R_Clavicle",
+          "CC_Base_R_ElbowShareBone",
+          "CC_Base_R_Eye",
+          "CC_Base_R_Foot",
+          "CC_Base_R_Forearm",
+          "CC_Base_R_ForearmTwist01",
+          "CC_Base_R_ForearmTwist02",
+          "CC_Base_R_Hand",
+          "CC_Base_R_Index1",
+          "CC_Base_R_Index2",
+          "CC_Base_R_Index3",
+          "CC_Base_R_IndexToe1",
+          "CC_Base_R_KneeShareBone",
+          "CC_Base_R_Mid1",
+          "CC_Base_R_Mid2",
+          "CC_Base_R_Mid3",
+          "CC_Base_R_MidToe1",
+          "CC_Base_R_Pinky1",
+          "CC_Base_R_Pinky2",
+          "CC_Base_R_Pinky3",
+          "CC_Base_R_PinkyToe1",
+          "CC_Base_R_RibsTwist",
+          "CC_Base_R_Ring1",
+          "CC_Base_R_Ring2",
+          "CC_Base_R_Ring3",
+          "CC_Base_R_RingToe1",
+          "CC_Base_R_Scapula",
+          "CC_Base_R_Thigh",
+          "CC_Base_R_ThighTwist01",
+          "CC_Base_R_ThighTwist02",
+          "CC_Base_R_Thumb1",
+          "CC_Base_R_Thumb2",
+          "CC_Base_R_Thumb3",
+          "CC_Base_R_ToeBase",
+          "CC_Base_R_ToeBaseShareBone",
+          "CC_Base_R_Upperarm",
+          "CC_Base_R_UpperarmTwist01",
+          "CC_Base_R_UpperarmTwist02",
+          "CC_Base_Spine01",
+          "CC_Base_Spine02",
+          "CC_Base_Teeth01",
+          "CC_Base_Teeth02",
+          "CC_Base_Tongue01",
+          "CC_Base_Tongue02",
+          "CC_Base_Tongue03",
+          "CC_Base_UpperJaw",
+          "CC_Base_Waist"
+        ],
+        "meshNames": [
+          "CC_Base_Body"
+        ],
+        "skinJointCounts": [
+          103
+        ],
+        "extensionsUsed": [
+          "EXT_meshopt_compression",
+          "KHR_materials_specular"
+        ],
+        "primitives": [
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "8c199822097bb3258d69d875bed78e5cdb0d323dec6cc0583f7c0ecdb8317d28",
+              "NORMAL": "2aa1d3ae9fd22384d544ed08532cae52b57bd79a98c40d5409231828b2e8d1f3",
+              "TEXCOORD_0": "d65cecb05bb614021bd9ac226dc30e1eac2f670ed698185894b4f386b9816a8e",
+              "JOINTS_0": "029eb2fc73ad65514113086997792c77d4c1e8f0cabbacb4c2072c94671d251a",
+              "WEIGHTS_0": "321c02047bcf3f19d0f43aca614b1415141b0b9abcd257e85ccdc771b0ef1c24"
+            },
+            "triangleCount": 8316,
+            "triangleListSha256": "1ce706cc58b77f58b14d0c1cc0f9bb68b42c39544e0679b7ff36253b43cb1d90"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "508c171327d2a41717e2a10728a6a47e49297d2ee36b5e07bb7ea9bd08f0f476",
+              "NORMAL": "2d68830f7ab64079cecad5d9afeafb5b84b0c50b5f8c330d8abd5a6b87bf6b62",
+              "TEXCOORD_0": "460c6f9f24f8f079fa3a773917edf911dc3886c7972e7927604742cbd5cccccf",
+              "JOINTS_0": "3529c36bc894716fadf7c5b21c9e85983acc5786c7973dbde384f579080a054e",
+              "WEIGHTS_0": "45d89d6067f3fbb9f6d788c95d1ae6210658afbd68a08d329e840bfbd55e0a41"
+            },
+            "triangleCount": 3892,
+            "triangleListSha256": "9bfcc2c8d83ba47ecf9ad4c94c43bd789876f5dc9c26453c7d60b1d03cb90bd5"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "b98009aa8d50fee1b5349f37f8b0f875b2e7b41335ec4dcbc51fae985533fe1a",
+              "NORMAL": "0459c79feee158856e9b50991e22ec21ba1d7f517d3dce6904b4258e1885cb5f",
+              "TEXCOORD_0": "9b87fbd99cfbf5ec07dc66c946bfd1eb3b093c5705d9e94ce3017e3a15f9194f",
+              "JOINTS_0": "42dcb64a81a1bc7694fdbb1fce32ad8d10ec857fb105445c2ae05bba8c1f0679",
+              "WEIGHTS_0": "68a06b6a102ab58e68165adab59ec6b726ebaaed774df080e765419d42d7c0a3"
+            },
+            "triangleCount": 8368,
+            "triangleListSha256": "25d098dfb3e6ba0b35de5a9887d97e743b42ccbebdf2652d3b4c08d135e72da2"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "eb2972e4b67299276df405d97668e702a6cd2736a54dc3a48c24ddae58bfc7bb",
+              "NORMAL": "8c076eeffb34e7792b88a2e696ee62b666b602418481b511c2447b7279f78c3d",
+              "TEXCOORD_0": "4bfc061bae286da8a1e94e6dfdd76a4b9b63f98e7a76d4ffa1486ab5073e6753",
+              "JOINTS_0": "8d6c41bcfe288b181945c415e5cd66a37606ed1d1acc7de418a0add4c1f01b83",
+              "WEIGHTS_0": "7f3667dc3ae428497b85059d63330aabeb6affb11e4e0de8a42483589f5605d3"
+            },
+            "triangleCount": 4528,
+            "triangleListSha256": "1c4174f56dcaf8d43003492ce34c959a3f7eb28a04be9dfdb92db15ef980584a"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "b00f45f0a50c2a2c08e63d1454cce1a76624c396c5069eccdded32873085810d",
+              "NORMAL": "e6676dda4b1a3e897cb622dfd99cc2864f248d5dd1b0bbfdcf6a852e8b2f30b2",
+              "TEXCOORD_0": "173a320f6ec4fc980bb6beb7fe259005bd38d3fc5df823d45eba06c0a920957e",
+              "JOINTS_0": "8dbd4ed00258dc7d31f54d3b8dea7170a92babd7ce84a9dd4c7ecd29884d4e8a",
+              "WEIGHTS_0": "1efd0121982d334bfb329cd42af52f2304d5874e5590bbe23f3ab0ffe8aa9798"
+            },
+            "triangleCount": 1788,
+            "triangleListSha256": "427761166f7bb1d9634b0da2ead3b10a24d9a0d61e25ac9dcded2ab044e71ef3"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "2ede59d77885afb58fb111ec0ef46b0b528bda3948614f5fec9944a7f0a50aff",
+              "NORMAL": "695fb938f164518fd67f57af0b54d868503ccbe9b95c6d154ea05930762051b6",
+              "TEXCOORD_0": "02a67501d0eb764f98a9de2c8ac644428cd4dc399ccd11bddc3ccab0a20a09f3",
+              "JOINTS_0": "4b39bcf41c8f579e1538162fed4fefea53e29f2ed2684cddfb7ea47e4d60104d",
+              "WEIGHTS_0": "191ada405642e86181ce8721328a3968587330fc4c6c896395ca74b45ae68bef"
+            },
+            "triangleCount": 1200,
+            "triangleListSha256": "870c1f64555b2b583af126cef831268b6aeb94ed675cde942f844fd018418d98"
+          }
+        ]
+      }
+    },
+    "female": {
+      "version": "shoulder-rig-v2-engineering-1",
+      "calibration": "engineering-estimate-unreviewed",
+      "variant": "female",
+      "sourceSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "axes": "Source world +X left, +Y superior, +Z anterior; segment controls use captured rest-aligned frames, not ISB clinical Euler angles.",
+      "maxBindDriftM": 8.664289092720246e-8,
+      "sides": {
+        "L": {
+          "skinIndex": 101,
+          "landmarks": {
+            "SC": [
+              0.04816521536934637,
+              1.4058022616724912,
+              -0.03040638158299839
+            ],
+            "AC": [
+              0.13550763862968995,
+              1.4214227926119043,
+              -0.05607494303859757
+            ],
+            "GH": [
+              0.15050763862968994,
+              1.4064227926119044,
+              -0.05607494303859757
+            ]
+          },
+          "scapulaLocalPosition": [
+            -1.506515097960687,
+            9.10532197140189,
+            -0.37318471689562926
+          ],
+          "legacyUpperArmPosition": [
+            -0.000010676681995391846,
+            10.551412582397461,
+            -8.344650268554688e-7
+          ],
+          "patchVertices": 81,
+          "maxWeight": 0.45820787050881295,
+          "maxPrunedWeight": 0
+        },
+        "R": {
+          "skinIndex": 102,
+          "landmarks": {
+            "SC": [
+              -0.04816521536934637,
+              1.4058022616724912,
+              -0.03040638158299839
+            ],
+            "AC": [
+              -0.13550763862968995,
+              1.4214227926119043,
+              -0.05607494303859757
+            ],
+            "GH": [
+              -0.15050763862968994,
+              1.4064227926119044,
+              -0.05607494303859757
+            ]
+          },
+          "scapulaLocalPosition": [
+            1.506515097960687,
+            9.10532197140189,
+            -0.37318471689562926
+          ],
+          "legacyUpperArmPosition": [
+            0.000010676681995391846,
+            10.551412582397461,
+            -8.344650268554688e-7
+          ],
+          "patchVertices": 81,
+          "maxWeight": 0.45820785347706755,
+          "maxPrunedWeight": 0
+        }
+      },
+      "assetSha256": "0b7dc2a09396219ee1e8584f160aa87eee77f5e5ffb30d88e8ea0f1bba18ff76",
+      "snapshot": {
+        "nodeNames": [
+          "Armature",
+          "CC_Base_Body",
+          "CC_Base_BoneRoot",
+          "CC_Base_FacialBone",
+          "CC_Base_Head",
+          "CC_Base_Hip",
+          "CC_Base_JawRoot",
+          "CC_Base_L_BigToe1",
+          "CC_Base_L_Breast",
+          "CC_Base_L_Calf",
+          "CC_Base_L_CalfTwist01",
+          "CC_Base_L_CalfTwist02",
+          "CC_Base_L_Clavicle",
+          "CC_Base_L_ElbowShareBone",
+          "CC_Base_L_Eye",
+          "CC_Base_L_Foot",
+          "CC_Base_L_Forearm",
+          "CC_Base_L_ForearmTwist01",
+          "CC_Base_L_ForearmTwist02",
+          "CC_Base_L_Hand",
+          "CC_Base_L_Index1",
+          "CC_Base_L_Index2",
+          "CC_Base_L_Index3",
+          "CC_Base_L_IndexToe1",
+          "CC_Base_L_KneeShareBone",
+          "CC_Base_L_Mid1",
+          "CC_Base_L_Mid2",
+          "CC_Base_L_Mid3",
+          "CC_Base_L_MidToe1",
+          "CC_Base_L_Pinky1",
+          "CC_Base_L_Pinky2",
+          "CC_Base_L_Pinky3",
+          "CC_Base_L_PinkyToe1",
+          "CC_Base_L_RibsTwist",
+          "CC_Base_L_Ring1",
+          "CC_Base_L_Ring2",
+          "CC_Base_L_Ring3",
+          "CC_Base_L_RingToe1",
+          "CC_Base_L_Scapula",
+          "CC_Base_L_Thigh",
+          "CC_Base_L_ThighTwist01",
+          "CC_Base_L_ThighTwist02",
+          "CC_Base_L_Thumb1",
+          "CC_Base_L_Thumb2",
+          "CC_Base_L_Thumb3",
+          "CC_Base_L_ToeBase",
+          "CC_Base_L_ToeBaseShareBone",
+          "CC_Base_L_Upperarm",
+          "CC_Base_L_UpperarmTwist01",
+          "CC_Base_L_UpperarmTwist02",
+          "CC_Base_NeckTwist01",
+          "CC_Base_NeckTwist02",
+          "CC_Base_Pelvis",
+          "CC_Base_R_BigToe1",
+          "CC_Base_R_Breast",
+          "CC_Base_R_Calf",
+          "CC_Base_R_CalfTwist01",
+          "CC_Base_R_CalfTwist02",
+          "CC_Base_R_Clavicle",
+          "CC_Base_R_ElbowShareBone",
+          "CC_Base_R_Eye",
+          "CC_Base_R_Foot",
+          "CC_Base_R_Forearm",
+          "CC_Base_R_ForearmTwist01",
+          "CC_Base_R_ForearmTwist02",
+          "CC_Base_R_Hand",
+          "CC_Base_R_Index1",
+          "CC_Base_R_Index2",
+          "CC_Base_R_Index3",
+          "CC_Base_R_IndexToe1",
+          "CC_Base_R_KneeShareBone",
+          "CC_Base_R_Mid1",
+          "CC_Base_R_Mid2",
+          "CC_Base_R_Mid3",
+          "CC_Base_R_MidToe1",
+          "CC_Base_R_Pinky1",
+          "CC_Base_R_Pinky2",
+          "CC_Base_R_Pinky3",
+          "CC_Base_R_PinkyToe1",
+          "CC_Base_R_RibsTwist",
+          "CC_Base_R_Ring1",
+          "CC_Base_R_Ring2",
+          "CC_Base_R_Ring3",
+          "CC_Base_R_RingToe1",
+          "CC_Base_R_Scapula",
+          "CC_Base_R_Thigh",
+          "CC_Base_R_ThighTwist01",
+          "CC_Base_R_ThighTwist02",
+          "CC_Base_R_Thumb1",
+          "CC_Base_R_Thumb2",
+          "CC_Base_R_Thumb3",
+          "CC_Base_R_ToeBase",
+          "CC_Base_R_ToeBaseShareBone",
+          "CC_Base_R_Upperarm",
+          "CC_Base_R_UpperarmTwist01",
+          "CC_Base_R_UpperarmTwist02",
+          "CC_Base_Spine01",
+          "CC_Base_Spine02",
+          "CC_Base_Teeth01",
+          "CC_Base_Teeth02",
+          "CC_Base_Tongue01",
+          "CC_Base_Tongue02",
+          "CC_Base_Tongue03",
+          "CC_Base_UpperJaw",
+          "CC_Base_Waist"
+        ],
+        "meshNames": [
+          "CC_Base_Body"
+        ],
+        "skinJointCounts": [
+          103
+        ],
+        "extensionsUsed": [
+          "EXT_meshopt_compression",
+          "KHR_materials_specular"
+        ],
+        "primitives": [
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "6a2211d35f7fb1e4d71ac518f513cefba61b55ac724e6b6a2957c1959636ccdc",
+              "NORMAL": "2b685091d0006b029460a2c6f490536199b8b5db17eb992f610a23748614e045",
+              "TEXCOORD_0": "d65cecb05bb614021bd9ac226dc30e1eac2f670ed698185894b4f386b9816a8e",
+              "JOINTS_0": "029eb2fc73ad65514113086997792c77d4c1e8f0cabbacb4c2072c94671d251a",
+              "WEIGHTS_0": "321c02047bcf3f19d0f43aca614b1415141b0b9abcd257e85ccdc771b0ef1c24"
+            },
+            "triangleCount": 8316,
+            "triangleListSha256": "b784a125e169b8288923674a60580ea0d3ae7c22f51ecfa09b654700cc4dda65"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "67aa185d0683fc11161cfce74d45ae1081dd5debf01b41bfc8dc4290a7c7a13d",
+              "NORMAL": "c7f5a509425ccbb5e43418336818869b7fee8212cbee98e495d72244948b7075",
+              "TEXCOORD_0": "460c6f9f24f8f079fa3a773917edf911dc3886c7972e7927604742cbd5cccccf",
+              "JOINTS_0": "896087af93a6d8b220407ca368466e9f64c775c9b2a153d7214cbc5ec2ad84c8",
+              "WEIGHTS_0": "a43d5c12b07bbd2b7e1ff4751816725261b8f74094486f998e0013f178091d3a"
+            },
+            "triangleCount": 3892,
+            "triangleListSha256": "9bfcc2c8d83ba47ecf9ad4c94c43bd789876f5dc9c26453c7d60b1d03cb90bd5"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "b42c808499b8dd0d4d2cd27bc628ff18f3a113f50b761ea7f75795097b912fc2",
+              "NORMAL": "0837269795df9b90b7520b2160de4609727c790509f2268b905ca174a9b3b639",
+              "TEXCOORD_0": "9b87fbd99cfbf5ec07dc66c946bfd1eb3b093c5705d9e94ce3017e3a15f9194f",
+              "JOINTS_0": "42dcb64a81a1bc7694fdbb1fce32ad8d10ec857fb105445c2ae05bba8c1f0679",
+              "WEIGHTS_0": "68a06b6a102ab58e68165adab59ec6b726ebaaed774df080e765419d42d7c0a3"
+            },
+            "triangleCount": 8368,
+            "triangleListSha256": "fed843b728a82c5a362bd73ea8471632522413b8f932cdd984b67af2e7304780"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "4e7d7423ec08d66f17211bb206cff57326af0ca64af6a6ef0b3a7d6791a4f3bf",
+              "NORMAL": "244bb6c4bdaaa865fd1f706906005cc1df8aabba7fb831a08911d338808668b7",
+              "TEXCOORD_0": "4bfc061bae286da8a1e94e6dfdd76a4b9b63f98e7a76d4ffa1486ab5073e6753",
+              "JOINTS_0": "8d6c41bcfe288b181945c415e5cd66a37606ed1d1acc7de418a0add4c1f01b83",
+              "WEIGHTS_0": "7f3667dc3ae428497b85059d63330aabeb6affb11e4e0de8a42483589f5605d3"
+            },
+            "triangleCount": 4528,
+            "triangleListSha256": "5fbe221a6524dde3efa1eb702c82e90e73c42e595e72791244fb9e3475d50491"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "bfed434759a7a352fbb99ed4dcee7fc5f8a81efa1445d07f5dde142ce37f7a10",
+              "NORMAL": "67188266cf07a2efc4faf6596a469b6b91e53bc8df3c8590ad246f7fc981e08c",
+              "TEXCOORD_0": "173a320f6ec4fc980bb6beb7fe259005bd38d3fc5df823d45eba06c0a920957e",
+              "JOINTS_0": "8dbd4ed00258dc7d31f54d3b8dea7170a92babd7ce84a9dd4c7ecd29884d4e8a",
+              "WEIGHTS_0": "1efd0121982d334bfb329cd42af52f2304d5874e5590bbe23f3ab0ffe8aa9798"
+            },
+            "triangleCount": 1788,
+            "triangleListSha256": "c9a3c352839246106ddeb7cead2df3e8177800da9323a8eac9ea7af3b62b8ff2"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "97b226afa3e5b228f8eeb73334cb78078531f9035cac38334f345b43c8b02501",
+              "NORMAL": "9d19a79daf71ff8aa4a83840067f9856432086adfa37604a5a266292ad0e04f7",
+              "TEXCOORD_0": "02a67501d0eb764f98a9de2c8ac644428cd4dc399ccd11bddc3ccab0a20a09f3",
+              "JOINTS_0": "4b39bcf41c8f579e1538162fed4fefea53e29f2ed2684cddfb7ea47e4d60104d",
+              "WEIGHTS_0": "191ada405642e86181ce8721328a3968587330fc4c6c896395ca74b45ae68bef"
+            },
+            "triangleCount": 1200,
+            "triangleListSha256": "870c1f64555b2b583af126cef831268b6aeb94ed675cde942f844fd018418d98"
+          }
+        ]
+      }
+    },
+    "neutral": {
+      "version": "shoulder-rig-v2-engineering-1",
+      "calibration": "engineering-estimate-unreviewed",
+      "variant": "neutral",
+      "sourceSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "axes": "Source world +X left, +Y superior, +Z anterior; segment controls use captured rest-aligned frames, not ISB clinical Euler angles.",
+      "maxBindDriftM": 1.3154289945642405e-7,
+      "sides": {
+        "L": {
+          "skinIndex": 101,
+          "landmarks": {
+            "SC": [
+              0.052173119375849765,
+              1.47648336902372,
+              -0.025064717701132253
+            ],
+            "AC": [
+              0.15053579518466953,
+              1.489390198979209,
+              -0.05157510364418623
+            ],
+            "GH": [
+              0.16553579518466952,
+              1.4743901989792092,
+              -0.05157510364418623
+            ]
+          },
+          "scapulaLocalPosition": [
+            -1.4714857978386533,
+            10.156686686096567,
+            -0.34996228716954425
+          ],
+          "legacyUpperArmPosition": [
+            0.00005695689469575882,
+            11.644001960754395,
+            -0.000025928020477294922
+          ],
+          "patchVertices": 73,
+          "maxWeight": 0.4281466903209901,
+          "maxPrunedWeight": 0
+        },
+        "R": {
+          "skinIndex": 102,
+          "landmarks": {
+            "SC": [
+              -0.05217312501119022,
+              1.47648336902372,
+              -0.025064717701132253
+            ],
+            "AC": [
+              -0.1505358028989719,
+              1.4893901979935416,
+              -0.05157509931223529
+            ],
+            "GH": [
+              -0.16553580289897188,
+              1.4743901979935417,
+              -0.05157509931223529
+            ]
+          },
+          "scapulaLocalPosition": [
+            1.4714858143690606,
+            10.15668670363186,
+            -0.3499612192127204
+          ],
+          "legacyUpperArmPosition": [
+            -0.00005689961835741997,
+            11.644001960754395,
+            -0.00002473592758178711
+          ],
+          "patchVertices": 73,
+          "maxWeight": 0.4281469215227312,
+          "maxPrunedWeight": 0
+        }
+      },
+      "assetSha256": "8d9122bad38e5e266d9ed0303a8c98a06feb80e8e1f9e57d6316c3fd70718561",
+      "snapshot": {
+        "nodeNames": [
+          "Armature",
+          "CC_Base_Body",
+          "CC_Base_BoneRoot",
+          "CC_Base_FacialBone",
+          "CC_Base_Head",
+          "CC_Base_Hip",
+          "CC_Base_JawRoot",
+          "CC_Base_L_BigToe1",
+          "CC_Base_L_Breast",
+          "CC_Base_L_Calf",
+          "CC_Base_L_CalfTwist01",
+          "CC_Base_L_CalfTwist02",
+          "CC_Base_L_Clavicle",
+          "CC_Base_L_ElbowShareBone",
+          "CC_Base_L_Eye",
+          "CC_Base_L_Foot",
+          "CC_Base_L_Forearm",
+          "CC_Base_L_ForearmTwist01",
+          "CC_Base_L_ForearmTwist02",
+          "CC_Base_L_Hand",
+          "CC_Base_L_Index1",
+          "CC_Base_L_Index2",
+          "CC_Base_L_Index3",
+          "CC_Base_L_IndexToe1",
+          "CC_Base_L_KneeShareBone",
+          "CC_Base_L_Mid1",
+          "CC_Base_L_Mid2",
+          "CC_Base_L_Mid3",
+          "CC_Base_L_MidToe1",
+          "CC_Base_L_Pinky1",
+          "CC_Base_L_Pinky2",
+          "CC_Base_L_Pinky3",
+          "CC_Base_L_PinkyToe1",
+          "CC_Base_L_RibsTwist",
+          "CC_Base_L_Ring1",
+          "CC_Base_L_Ring2",
+          "CC_Base_L_Ring3",
+          "CC_Base_L_RingToe1",
+          "CC_Base_L_Scapula",
+          "CC_Base_L_Thigh",
+          "CC_Base_L_ThighTwist01",
+          "CC_Base_L_ThighTwist02",
+          "CC_Base_L_Thumb1",
+          "CC_Base_L_Thumb2",
+          "CC_Base_L_Thumb3",
+          "CC_Base_L_ToeBase",
+          "CC_Base_L_ToeBaseShareBone",
+          "CC_Base_L_Upperarm",
+          "CC_Base_L_UpperarmTwist01",
+          "CC_Base_L_UpperarmTwist02",
+          "CC_Base_NeckTwist01",
+          "CC_Base_NeckTwist02",
+          "CC_Base_Pelvis",
+          "CC_Base_R_BigToe1",
+          "CC_Base_R_Breast",
+          "CC_Base_R_Calf",
+          "CC_Base_R_CalfTwist01",
+          "CC_Base_R_CalfTwist02",
+          "CC_Base_R_Clavicle",
+          "CC_Base_R_ElbowShareBone",
+          "CC_Base_R_Eye",
+          "CC_Base_R_Foot",
+          "CC_Base_R_Forearm",
+          "CC_Base_R_ForearmTwist01",
+          "CC_Base_R_ForearmTwist02",
+          "CC_Base_R_Hand",
+          "CC_Base_R_Index1",
+          "CC_Base_R_Index2",
+          "CC_Base_R_Index3",
+          "CC_Base_R_IndexToe1",
+          "CC_Base_R_KneeShareBone",
+          "CC_Base_R_Mid1",
+          "CC_Base_R_Mid2",
+          "CC_Base_R_Mid3",
+          "CC_Base_R_MidToe1",
+          "CC_Base_R_Pinky1",
+          "CC_Base_R_Pinky2",
+          "CC_Base_R_Pinky3",
+          "CC_Base_R_PinkyToe1",
+          "CC_Base_R_RibsTwist",
+          "CC_Base_R_Ring1",
+          "CC_Base_R_Ring2",
+          "CC_Base_R_Ring3",
+          "CC_Base_R_RingToe1",
+          "CC_Base_R_Scapula",
+          "CC_Base_R_Thigh",
+          "CC_Base_R_ThighTwist01",
+          "CC_Base_R_ThighTwist02",
+          "CC_Base_R_Thumb1",
+          "CC_Base_R_Thumb2",
+          "CC_Base_R_Thumb3",
+          "CC_Base_R_ToeBase",
+          "CC_Base_R_ToeBaseShareBone",
+          "CC_Base_R_Upperarm",
+          "CC_Base_R_UpperarmTwist01",
+          "CC_Base_R_UpperarmTwist02",
+          "CC_Base_Spine01",
+          "CC_Base_Spine02",
+          "CC_Base_Teeth01",
+          "CC_Base_Teeth02",
+          "CC_Base_Tongue01",
+          "CC_Base_Tongue02",
+          "CC_Base_Tongue03",
+          "CC_Base_UpperJaw",
+          "CC_Base_Waist"
+        ],
+        "meshNames": [
+          "CC_Base_Body"
+        ],
+        "skinJointCounts": [
+          103
+        ],
+        "extensionsUsed": [
+          "EXT_meshopt_compression",
+          "KHR_materials_specular"
+        ],
+        "primitives": [
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "03be6eb49f143c4f979019703a7c30d0855108d48cf7dd9d26f22fe68835115b",
+              "NORMAL": "d1cab368c7b21916c4bfc0996ca2f685cadad370c9f4eea0fe382ba979d9f53e",
+              "TEXCOORD_0": "d65cecb05bb614021bd9ac226dc30e1eac2f670ed698185894b4f386b9816a8e",
+              "COLOR_0": "3804252588f6f2514615aa92040aace47fc0d430b481b33aedd8f3607ca27830",
+              "COLOR_1": "3da4d4302b8f4975dea5b6ddcda4ba470e6af316685841fd94534e38dd94c613",
+              "JOINTS_0": "029eb2fc73ad65514113086997792c77d4c1e8f0cabbacb4c2072c94671d251a",
+              "WEIGHTS_0": "048182f867f0419aa3c515a70a644833e387201cd2ab001f9ec4d5c47ee73b57"
+            },
+            "triangleCount": 8316,
+            "triangleListSha256": "1ce706cc58b77f58b14d0c1cc0f9bb68b42c39544e0679b7ff36253b43cb1d90"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "d6144bbce988e7fc7cf46125c05bce3865d19f13b0f9162a211de4220f0649d2",
+              "NORMAL": "0e57f5a9669671d74d34eb60493e5b1f9f4ffd94d97ce66aa3a89a332cc6c23e",
+              "TEXCOORD_0": "460c6f9f24f8f079fa3a773917edf911dc3886c7972e7927604742cbd5cccccf",
+              "COLOR_0": "1f1ecfd2758fd0b1d8c00c8b4ebcf899927aee1fb0439c2de5b3b78c65c526da",
+              "COLOR_1": "4d5511d1f32b324bb864639df3f01dcf81bbb4bd9159415218fbc07f5dfd2672",
+              "JOINTS_0": "374909003d4e4fcc657c776e103b06d80e34906217f10a0af13a35892763bede",
+              "WEIGHTS_0": "5dd5c34ebe9edf1758ca1832d3f02a7281bf8a1043c867ccdad03825f995b49d"
+            },
+            "triangleCount": 3892,
+            "triangleListSha256": "9bfcc2c8d83ba47ecf9ad4c94c43bd789876f5dc9c26453c7d60b1d03cb90bd5"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "f08fc927d22aefaef49e07ffcde6a353649d34ec8d82f80ff62ce5f8ebaa2cac",
+              "NORMAL": "994736b4debdc31249ae3ba346314d7c6ab97bc6139d4fc1303db8580cb01481",
+              "TEXCOORD_0": "9b87fbd99cfbf5ec07dc66c946bfd1eb3b093c5705d9e94ce3017e3a15f9194f",
+              "COLOR_0": "5a478bebef0f6ac209ab65d0b04777d8183267940f1452500acb47ecd50b3767",
+              "COLOR_1": "beaa34dea167eb08a8a3be5803e01d25c1b47913d6a32dab12bdb575cf29dbc3",
+              "JOINTS_0": "42dcb64a81a1bc7694fdbb1fce32ad8d10ec857fb105445c2ae05bba8c1f0679",
+              "WEIGHTS_0": "b0a7be5f4d40066222dd0b56529246a1b86373619958e6284d216c2bb37c4b49"
+            },
+            "triangleCount": 8368,
+            "triangleListSha256": "25d098dfb3e6ba0b35de5a9887d97e743b42ccbebdf2652d3b4c08d135e72da2"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "f08ae95d6300afeb2549fbf2435072510d8d259600b9d5d8c5a3c35f796a3058",
+              "NORMAL": "8fc8a33d0c938fa02a54e646c400a4c1523aba8026fdae76844a8fc17fe45076",
+              "TEXCOORD_0": "4bfc061bae286da8a1e94e6dfdd76a4b9b63f98e7a76d4ffa1486ab5073e6753",
+              "COLOR_0": "84a95f5adc7680cc16097548cc86327b079b9ae2edb9306a51fb4e318652af5f",
+              "COLOR_1": "24a4107d8f743f043969ba83d6acb8f32e1e33c0765bd49ffa7b42ba16e2681e",
+              "JOINTS_0": "8d6c41bcfe288b181945c415e5cd66a37606ed1d1acc7de418a0add4c1f01b83",
+              "WEIGHTS_0": "721857f6127ee8b29ee7e0069b5b6e4e0f300e238e18f1578393e62e4970f152"
+            },
+            "triangleCount": 4528,
+            "triangleListSha256": "1c4174f56dcaf8d43003492ce34c959a3f7eb28a04be9dfdb92db15ef980584a"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "a678f1f6f10b57cd720ccaad2b947ffb5c3c3d2f349733ca412d37baefbcaedb",
+              "NORMAL": "f8aabc1e58d21d0bf5254ebb6204ba0ee2480ea98990c47783de214df289f7ba",
+              "TEXCOORD_0": "173a320f6ec4fc980bb6beb7fe259005bd38d3fc5df823d45eba06c0a920957e",
+              "COLOR_0": "3eea1e9874abc53e932cdcfe2369e8416a5e30e9b2645c59b8683e5703860b8e",
+              "COLOR_1": "4a95e8d8e7c40f2f5c361b6b2bde6b6671d9fbf9974cd3a5a0f7f91536158d12",
+              "JOINTS_0": "8dbd4ed00258dc7d31f54d3b8dea7170a92babd7ce84a9dd4c7ecd29884d4e8a",
+              "WEIGHTS_0": "1efd0121982d334bfb329cd42af52f2304d5874e5590bbe23f3ab0ffe8aa9798"
+            },
+            "triangleCount": 1788,
+            "triangleListSha256": "427761166f7bb1d9634b0da2ead3b10a24d9a0d61e25ac9dcded2ab044e71ef3"
+          },
+          {
+            "mesh": "CC_Base_Body",
+            "semantics": {
+              "POSITION": "15d8f7598213130c63649ea7e14b6b4d8db8f668e067c973a05673760f2873e2",
+              "NORMAL": "4464cca3dfa04448778e2f39af19815d2203fa8a2ef8db6fdb887077702824e6",
+              "TEXCOORD_0": "02a67501d0eb764f98a9de2c8ac644428cd4dc399ccd11bddc3ccab0a20a09f3",
+              "COLOR_0": "2fbcce5a80ba4112d1d82d67feb38b5b5edbcdd4edd2dda93470eb57beea2234",
+              "COLOR_1": "7ebdf2e3b2b614540cdee10a4fc195811d28de4384c22b92f636ddec5c92a87d",
+              "JOINTS_0": "4b39bcf41c8f579e1538162fed4fefea53e29f2ed2684cddfb7ea47e4d60104d",
+              "WEIGHTS_0": "191ada405642e86181ce8721328a3968587330fc4c6c896395ca74b45ae68bef"
+            },
+            "triangleCount": 1200,
+            "triangleListSha256": "870c1f64555b2b583af126cef831268b6aeb94ed675cde942f844fd018418d98"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1700,6 +1700,7 @@ export function compactRecording(rec: MotionRecording, precision = 4): MotionRec
       tMs: r(f.tMs),
       pose: {
         variant: f.pose.variant,
+        ...(f.pose.rigVersion ? { rigVersion: f.pose.rigVersion, rigAssetSha256: f.pose.rigAssetSha256 } : {}),
         schemaVersion: f.pose.schemaVersion,
         bones: Object.fromEntries(Object.entries(f.pose.bones ?? {}).map(([k, q]) => [k, r4(q)])),
         ...(f.pose.positions

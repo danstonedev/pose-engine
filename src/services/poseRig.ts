@@ -205,6 +205,12 @@ export function applyCustomPose(
   pose: CustomPose | null | undefined,
 ): number {
   if (!pose || !pose.bones) return 0;
+  if (pose.rigVersion !== variantCfg.rigVersion) throw new Error('Pose rig mismatch: explicit shoulder migration required');
+  if (pose.rigVersion && pose.rigAssetSha256 !== variantCfg.rigAssetSha256) throw new Error('Shoulder asset identity mismatch');
+  if (pose.rigVersion) {
+    for (const q of Object.values(pose.bones)) if (q.length!==4 || !q.every(Number.isFinite) || Math.abs(Math.hypot(...q)-1)>1e-4) throw new Error('Invalid shoulder rig pose rotation');
+    for (const p of Object.values(pose.positions??{})) if (p.length!==3 || !p.every(Number.isFinite)) throw new Error('Invalid shoulder rig pose position');
+  }
   const lookup = buildBoneByPoseKey(skeleton, variantCfg);
   let applied = 0;
   for (const [key, q] of Object.entries(pose.bones)) {
@@ -248,7 +254,7 @@ export function serializeCustomPose(
     positions[key] = [p.x, p.y, p.z];
   }
 
-  return { variant: variantId, bones, positions, schemaVersion: POSE_SCHEMA_VERSION };
+  return { variant: variantId, bones, positions, schemaVersion: variantCfg.rigVersion ? POSE_SCHEMA_VERSION + '-shoulder-v2' : POSE_SCHEMA_VERSION, ...(variantCfg.rigVersion ? { rigVersion: variantCfg.rigVersion, rigAssetSha256: variantCfg.rigAssetSha256 } : {}) };
 }
 
 /** Stable short hash used as a cache key for poseMeasurementCache. We round
@@ -276,7 +282,7 @@ export function hashCustomPose(pose: CustomPose | null | undefined): string {
       h = (h * 0x01000193) >>> 0;
     }
   }
-  return h.toString(16);
+  return (pose.rigVersion ? `${pose.rigVersion}:` : '') + h.toString(16);
 }
 
 /** Returns true if the pose has any actual override beyond the bone defaults
@@ -315,9 +321,10 @@ function copyPose(pose: CustomPose): CustomPose {
     : undefined;
   return {
     variant: pose.variant,
+    ...(pose.rigVersion ? { rigVersion: pose.rigVersion, rigAssetSha256: pose.rigAssetSha256 } : {}),
     bones,
     ...(positions ? { positions } : {}),
-    schemaVersion: POSE_SCHEMA_VERSION,
+    schemaVersion: pose.rigVersion ? POSE_SCHEMA_VERSION + '-shoulder-v2' : POSE_SCHEMA_VERSION,
   };
 }
 
@@ -362,6 +369,7 @@ export function blendCustomPosePerBone(
 
   // Cross-variant interpolation isn't meaningful (bone counts and rest
   // orientations differ) — snap to `to` regardless of t.
+  if (from.rigVersion !== to.rigVersion) throw new Error('Cannot blend different rig versions');
   if (from.variant !== to.variant) return copyPose(to);
 
   // No t=0 / t=1 fast paths: the union loop below handles those naturally
@@ -423,9 +431,10 @@ export function blendCustomPosePerBone(
 
   return {
     variant: to.variant,
+    ...(to.rigVersion ? { rigVersion: to.rigVersion, rigAssetSha256: to.rigAssetSha256 } : {}),
     bones: blendedBones,
     ...(blendedPositions ? { positions: blendedPositions } : {}),
-    schemaVersion: POSE_SCHEMA_VERSION,
+    schemaVersion: to.rigVersion ? POSE_SCHEMA_VERSION + '-shoulder-v2' : POSE_SCHEMA_VERSION,
   };
 }
 
@@ -527,6 +536,17 @@ export function buildIKChainContext(
   chainParentCount: number,
   variantCfg?: BodyVariantConfig,
 ): IKChainContext | null {
+  if (variantCfg) {
+    const lookup = buildBoneByPoseKey(skinnedMesh.skeleton, variantCfg);
+    const side = lookup.get('L_Hand') === effector ? 'L' : lookup.get('R_Hand') === effector ? 'R' : null;
+    if (side && chainParentCount >= 2) {
+      const keys = [side+'_Hand', side+'_Forearm', side+'_UpperArm', ...(chainParentCount >= 3 ? [...(lookup.has(side+'_Scapula') ? [side+'_Scapula'] : []), side+'_Shoulder'] : [])];
+      const bones = keys.map(key => lookup.get(key)!);
+      if (bones.some(bone => !bone)) return null;
+      for (let i=1;i<bones.length;i++) { let parent=bones[i-1].parent; while(parent && parent!==bones[i])parent=parent.parent; if(!parent)return null; }
+      return { bones, canonicalKeys: keys };
+    }
+  }
   const bones: THREE.Bone[] = [effector];
   let cursor: THREE.Object3D | null = effector.parent;
   while (cursor && bones.length <= chainParentCount && (cursor as THREE.Bone).isBone) {

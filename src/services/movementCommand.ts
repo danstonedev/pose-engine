@@ -1097,9 +1097,10 @@ function copyPose(pose: CustomPose, variantId: string): CustomPose {
     : undefined;
   return {
     variant: variantId,
+    ...(pose.rigVersion ? { rigVersion: pose.rigVersion, rigAssetSha256: pose.rigAssetSha256 } : {}),
     bones,
     ...(positions ? { positions } : {}),
-    schemaVersion: POSE_SCHEMA_VERSION,
+    schemaVersion: pose.rigVersion ? POSE_SCHEMA_VERSION + '-shoulder-v2' : POSE_SCHEMA_VERSION,
   };
 }
 

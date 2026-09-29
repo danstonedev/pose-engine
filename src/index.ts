@@ -277,3 +277,6 @@ export { createBreathState, type BreathState } from './services/stageBreath';
 export * from './services/movementControl';
 export * from './services/shoulderComplex';
 export * from './services/shoulderRuntime';
+
+export * from './services/independentShoulderRig';
+export { default as IndependentShoulderLab } from './IndependentShoulderLab.svelte';

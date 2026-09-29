@@ -15,6 +15,8 @@ export type ModelPose = 'tpose' | 'anatomic';
  *  used when a joint is shifted in translate mode. Most poses are
  *  rotation-only, so it's optional. */
 export interface CustomPose {
+  rigVersion?: 'shoulder-v2-engineering-1';
+  rigAssetSha256?: string;
   variant: string;
   bones: Record<string, [number, number, number, number]>;
   positions?: Record<string, [number, number, number]>;
