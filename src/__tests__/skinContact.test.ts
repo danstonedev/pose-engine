@@ -358,6 +358,123 @@ describe('posed skin contact', () => {
  * every turn), so it poses the skin with each bone's matrices multiplied once, and poses again only what a turned bone
  * carries. On the real bodies, what it poses is what three.js poses.
  */
+describe('how far two parts are apart, or pressed together', () => {
+  /** Two 10 cm cubes of skin side by side along x, `gap` apart (negative: pressed that far into each other). */
+  function cubes(gap: number) {
+    const root = new THREE.Group();
+    const cube = (x: number, name: string) => {
+      const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1, 10, 10, 10);
+      geometry.translate(x, 0, 0);
+      const count = geometry.getAttribute('position').count;
+      geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+      geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+      const bone = new THREE.Bone(); bone.name = name;
+      const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+      mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]));
+      root.add(mesh);
+    };
+    cube(0, 'CC_Base_L_ThighTwist01');
+    cube(0.1 + gap, 'CC_Base_R_Foot');
+    root.updateMatrixWorld(true);
+    const contact = new SkinContact(root);
+    contact.update();
+    return contact;
+  }
+  const THIGH = /_L_ThighTwist01$/u, FOOT = /_R_Foot$/u;
+
+  it('is the gap between two parts apart, and how deep one is pressed into the other, whichever is named first', () => {
+    for (const gap of [0.02, 0.004, 0, -0.004, -0.015]) {
+      const contact = cubes(gap);
+      expect(contact.separation(FOOT, THIGH).separationM, `${gap}`).toBeCloseTo(gap, 6);
+      expect(contact.separation(THIGH, FOOT).separationM, `${gap}`).toBeCloseTo(gap, 6);
+      contact.dispose();
+    }
+  });
+
+  it('counts a part past the rim of what it measures as outside it, not behind it', () => {
+    // A 10 cm patch of thigh skin facing up (all of the thigh a caller named), and a 2 cm foot beside it, below its level:
+    // the patch's nearest skin is its rim, and past the rim lies skin the caller left out, not the patch's inside.
+    const root = new THREE.Group();
+    const skinned = (geometry: THREE.BufferGeometry, name: string) => {
+      const count = geometry.getAttribute('position').count;
+      geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+      geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+      const bone = new THREE.Bone(); bone.name = name;
+      const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+      mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]));
+      root.add(mesh);
+    };
+    skinned(new THREE.PlaneGeometry(0.1, 0.1, 10, 10).rotateX(-Math.PI / 2), 'CC_Base_L_ThighTwist02');
+    skinned(new THREE.BoxGeometry(0.02, 0.02, 0.02, 2, 2, 2).translate(0.08, -0.02, 0), 'CC_Base_R_Foot');
+    root.updateMatrixWorld(true);
+    const contact = new SkinContact(root);
+    contact.update();
+    // The foot's nearest corner, (0.07, -0.01, ±0.01), is 2.24 cm from the patch's edge at x = 0.05.
+    expect(contact.separation(FOOT, /_L_ThighTwist02$/u).separationM).toBeCloseTo(Math.hypot(0.02, 0.01), 6);
+    contact.dispose();
+  });
+
+  it('gives where another part presses into it from the side, as far as it gives and no further', () => {
+    // A foot pressed 1 cm into the side of a thigh: the thigh's skin gives, pushed out to the foot's, so the foot rests on
+    // it; the thigh's far side and its skin away from the foot stay put.
+    const pressed = cubes(-0.01);
+    pressed.yieldTo(FOOT, THIGH, 0.02);
+    expect(pressed.separation(FOOT, THIGH).separationM).toBeGreaterThan(-0.0005);
+    expect(pressed.separation(FOOT, THIGH).separationM).toBeLessThan(0.002);
+    const skin = (pressed as unknown as { skins: { world: Float64Array; owners: string[] }[] }).skins.find(item => item.owners.some(owner => /ThighTwist01$/u.test(owner)))!;
+    const xs = Array.from({ length: skin.world.length / 3 }, (_, i) => skin.world[i * 3]!);
+    expect(Math.min(...xs)).toBeCloseTo(-0.05, 6);
+    expect(Math.max(...xs.filter(x => x < 0.045))).toBeLessThan(0.045);
+    pressed.dispose();
+    // Pressed 3 cm, it gives only the 1 cm it is let: the foot is still 2 cm or more into it.
+    const deep = cubes(-0.03), before = deep.separation(FOOT, THIGH).separationM;
+    deep.yieldTo(FOOT, THIGH, 0.01);
+    const after = deep.separation(FOOT, THIGH).separationM;
+    expect(before).toBeCloseTo(-0.03, 6);
+    expect(after).toBeLessThan(-0.019);
+    expect(after).toBeGreaterThan(before);
+    deep.dispose();
+  });
+
+  it('gives where a part pokes between the vertices of the skin it presses, none of them inside it', () => {
+    // A 10 cm patch of thigh skin of two triangles facing up, and a 2 cm foot pressed 5 mm into its middle: no vertex of
+    // the patch is in the foot, but the foot's are behind the patch's face, so the patch is pushed in to clear them.
+    const root = new THREE.Group();
+    const skinned = (geometry: THREE.BufferGeometry, name: string) => {
+      const count = geometry.getAttribute('position').count;
+      geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+      geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(Array.from({ length: count * 4 }, (_, i) => i % 4 === 0 ? 1 : 0), 4));
+      const bone = new THREE.Bone(); bone.name = name;
+      const mesh = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+      mesh.add(bone); mesh.bind(new THREE.Skeleton([bone]));
+      root.add(mesh);
+    };
+    skinned(new THREE.PlaneGeometry(0.1, 0.1, 1, 1).rotateX(-Math.PI / 2), 'CC_Base_L_ThighTwist02');
+    skinned(new THREE.BoxGeometry(0.02, 0.02, 0.02, 2, 2, 2).translate(0, 0.005, 0), 'CC_Base_R_Foot');
+    root.updateMatrixWorld(true);
+    const contact = new SkinContact(root);
+    contact.update();
+    const PATCH = /_L_ThighTwist02$/u;
+    expect(contact.separation(FOOT, PATCH).separationM).toBeCloseTo(-0.005, 6);
+    contact.yieldTo(FOOT, PATCH, 0.02);
+    expect(contact.separation(FOOT, PATCH).separationM).toBeGreaterThan(-0.0005);
+    expect(contact.separation(FOOT, PATCH).separationM).toBeLessThan(0.002);
+    contact.dispose();
+  });
+
+  it('names the bones where they come nearest, and says when they are out of reach or one has no skin', () => {
+    const pressed = cubes(-0.01);
+    expect(pressed.separation(FOOT, THIGH)).toMatchObject({ regionOwner: 'CC_Base_R_Foot', ontoOwner: 'CC_Base_L_ThighTwist01' });
+    expect(pressed.separation(THIGH, FOOT)).toMatchObject({ regionOwner: 'CC_Base_L_ThighTwist01', ontoOwner: 'CC_Base_R_Foot' });
+    pressed.dispose();
+    const apart = cubes(0.2);
+    expect(apart.separation(FOOT, THIGH).separationM).toBe(0.05);
+    expect(apart.separation(FOOT, THIGH, 0.3).separationM).toBeCloseTo(0.2, 6);
+    expect(apart.separation(FOOT, /Nothing$/u).separationM).toBe(Infinity);
+    apart.dispose();
+  });
+});
+
 describe('the posed skin, on the real bodies', () => {
   const bodies = new Map<string, THREE.Group>();
   beforeAll(async () => {
@@ -556,5 +673,48 @@ describe('the posed skin, on the real bodies', () => {
     }
     // The head over the chest and the arm beside it standing; the hand and the arm over the body lying.
     expect(measured).toBeGreaterThanOrEqual(4);
+  });
+
+  it('finds how far two parts are apart side by side, where looking straight down sees nothing, and how far pressed together', async () => {
+    for (const variant of ['male', 'female'] as const) {
+      // A fresh body: the tests before this one leave bones turned that the anatomic pose does not set.
+      const buf = readFileSync(fileURLToPath(new URL(`../../models/painmap3D_${variant}.runtime.glb`, import.meta.url)));
+      const { scene: root } = await new Promise<{ scene: THREE.Group }>((resolve, reject) => {
+        const loader = new GLTFLoader();
+        loader.setMeshoptDecoder(MeshoptDecoder);
+        loader.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), '', resolve as never, reject);
+      });
+      root.scale.setScalar(BODY_VARIANTS[variant].pose.rootScale);
+      applyAnatomicPose(root, BODY_VARIANTS[variant]);
+      root.updateMatrixWorld(true);
+      const thigh = (side: string) => new RegExp(`_${side}_(Thigh|ThighTwist0[12])$`, 'u');
+      const contact = new SkinContact(root);
+      contact.update();
+      // Standing, the inner thighs close but clear (the male's by a centimetre, the female's by two); side by side, so
+      // nothing of one lies above the other.
+      const apart = contact.separation(thigh('L'), thigh('R'));
+      expect(apart.separationM, variant).toBeGreaterThan(0.002);
+      expect(apart.separationM, variant).toBeLessThan(0.03);
+      expect(apart.regionOwner, variant).toMatch(/_L_(Thigh|ThighTwist0[12])$/u);
+      expect(apart.ontoOwner, variant).toMatch(/_R_(Thigh|ThighTwist0[12])$/u);
+      expect(contact.separation(thigh('R'), thigh('L')).separationM, variant).toBe(apart.separationM);
+      expect(contact.gap(thigh('L'), thigh('R')), variant).toBe(Infinity);
+      // The left leg slid 3 cm toward the right: the thighs press into each other, by as much of it as their skin follows
+      // (near the groin, the pelvis carries some of it). Measured again where the skin now lies, as a fresh contact would.
+      const leg = bone(root, /L_Thigh$/u), at = leg.getWorldPosition(new THREE.Vector3());
+      const across = bone(root, /R_Thigh$/u).getWorldPosition(new THREE.Vector3()).sub(at).setY(0).normalize();
+      leg.position.copy(leg.parent!.worldToLocal(at.addScaledVector(across, 0.03)));
+      root.updateMatrixWorld(true);
+      contact.update();
+      const pressed = contact.separation(thigh('L'), thigh('R')).separationM;
+      expect(pressed, variant).toBeLessThan(0);
+      expect(pressed, variant).toBeLessThan(apart.separationM - 0.015);
+      expect(pressed, variant).toBeGreaterThan(apart.separationM - 0.035);
+      contact.dispose();
+      const fresh = new SkinContact(root);
+      fresh.update();
+      expect(fresh.separation(thigh('L'), thigh('R')).separationM, variant).toBe(pressed);
+      fresh.dispose();
+    }
   });
 });

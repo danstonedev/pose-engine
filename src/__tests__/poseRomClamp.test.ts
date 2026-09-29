@@ -687,6 +687,40 @@ describe('clampBoneToRom', () => {
     });
   });
 
+  describe('hip rotation follows the thigh', () => {
+    /** The left thigh at flexion/abduction/rotation, composed as the clamp recomposes it (synthetic rest world = identity). */
+    const setThigh = (bone: THREE.Bone, flexion: number, abduction: number, rotation: number) => {
+      const [f, a] = [(flexion * Math.PI) / 180, (abduction * Math.PI) / 180];
+      const down = new THREE.Vector3(0, -1, 0);
+      const swing = new THREE.Quaternion().setFromUnitVectors(
+        down,
+        new THREE.Vector3(Math.sin(a), -Math.cos(a) * Math.cos(f), -Math.cos(a) * Math.sin(f)),
+      );
+      bone.quaternion.copy(swing.multiply(new THREE.Quaternion().setFromAxisAngle(down, (rotation * Math.PI) / 180)));
+    };
+
+    it('keeps a figure-4 thigh turned out 103°, which is 27° from the seated frame', () => {
+      const { bones, rest } = setup();
+      setThigh(bones.L_UpLeg, 11.9, 39.7, -102.7);
+      bones.Hips.updateMatrixWorld(true);
+      expect(clampBoneToRom(bones.L_UpLeg, 'L_UpLeg', rest)).toBe(false);
+      const r = inspectClinicalAngles(bones.L_UpLeg, 'L_UpLeg', rest)!;
+      expect(r.raw.rotation).toBeCloseTo(-102.7, 1);
+      expect(r.ranges.rotation!.min).toBeLessThan(-102.7);
+    });
+
+    it('still clamps the same rotation on a thigh hanging straight (−45°)', () => {
+      const { bones, rest } = setup();
+      setThigh(bones.L_UpLeg, 0, 0, -102.7);
+      bones.Hips.updateMatrixWorld(true);
+      expect(clampBoneToRom(bones.L_UpLeg, 'L_UpLeg', rest)).toBe(true);
+      bones.Hips.updateMatrixWorld(true);
+      const r = inspectClinicalAngles(bones.L_UpLeg, 'L_UpLeg', rest)!;
+      expect(r.raw.rotation).toBeCloseTo(-45, 1);
+      expect(r.ranges.rotation).toEqual({ min: -45, max: 45 });
+    });
+  });
+
   describe('hinge off-axis tolerance', () => {
     it('clamps excessive elbow off-axis swing (40° → 10°)', () => {
       const { skeleton, bones, rest } = setup();

@@ -63,7 +63,13 @@ import * as THREE from 'three';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import { POSE_SCHEMA_VERSION, type CustomPose } from '../types';
 import type { JointAngleReport, JointAngleRestReference } from './jointAngles';
-import { getRomFieldDefinition, getRomJointDefinition, effectiveRomRange } from './romRegistry';
+import {
+  effectiveRomRange,
+  getRomFieldDefinition,
+  getRomJointDefinition,
+  thighRotationRange,
+  type ThighSwing,
+} from './romRegistry';
 import {
   getRomFieldConstraint,
   isInRomPainfulArc,
@@ -140,13 +146,17 @@ export interface ResolvedCommandTarget {
  * store — that broke concurrent/preflight resolves); omit them for normative
  * ROM only. Writes nothing.
  *
+ * A hip rotation is clamped for where the thigh points: `opts.thigh` is the
+ * flexion and abduction the hip is given alongside it (thighRotationRange),
+ * which moves a scenario's limit on it too. Without it, the plain band.
+ *
  * `variantCfg` is accepted for forward-compat (per-variant vocabularies);
  * v1 validates against the variant-independent registry.
  */
 export function resolveCommandTarget(
   cmd: ExamMovementCommand,
   _variantCfg?: BodyVariantConfig,
-  opts?: { weightBearing?: boolean; constraints?: RomScenarioConstraints | null },
+  opts?: { weightBearing?: boolean; constraints?: RomScenarioConstraints | null; thigh?: ThighSwing },
 ): ResolvedCommandTarget {
   if (cmd.action === 'relax') {
     return { status: 'complied' };
@@ -173,8 +183,13 @@ export function resolveCommandTarget(
   // Closed-chain (weight-bearing, planted) targets clamp to the field's larger
   // weightBearingMax on the positive side (ankle DF: ~35° WB vs ~20° open-chain).
   // A scenario constraint still tightens it below, so a reduced-DF fault holds.
-  const baseRange = effectiveRomRange(fieldDef, { weightBearing: opts?.weightBearing });
-  const effective = resolveAvailableRange(baseRange, constraint);
+  const plain = effectiveRomRange(fieldDef, { weightBearing: opts?.weightBearing });
+  // A hip rotation's band follows the thigh (thighRotationRange), and so does a
+  // patient's own limit on it: both are measured with the thigh in one plane.
+  const thigh = fieldDef.seatedFrame ? opts?.thigh : undefined;
+  const baseRange = thigh ? thighRotationRange(plain, thigh) : plain;
+  const available = resolveAvailableRange(plain, constraint);
+  const effective = thigh ? thighRotationRange(available, thigh) : available;
   const clamped = Math.max(effective.min, Math.min(effective.max, requested));
 
   // Which layer owns the binding bound (for `limitedBy`)? Scenario when the
@@ -183,7 +198,7 @@ export function resolveCommandTarget(
   if (requested > effective.max + 1e-9) {
     limitedBy = effective.max < baseRange.max - 1e-9 ? 'scenario-constraint' : 'normative-rom';
   } else if (requested < effective.min - 1e-9) {
-    limitedBy = effective.min > fieldDef.range.min + 1e-9 ? 'scenario-constraint' : 'normative-rom';
+    limitedBy = effective.min > baseRange.min + 1e-9 ? 'scenario-constraint' : 'normative-rom';
   }
 
   const base = {

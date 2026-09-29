@@ -27,6 +27,18 @@ export interface RomFieldDefinition {
    *  (closed-chain) stance; a scenario restriction still tightens it, so a
    *  reduced-dorsiflexion fault is expressed by constraining below this. */
   weightBearingMax?: number;
+  /** A rotation about the thigh's own length whose band also holds as the
+   *  seated norm is measured: from the thigh flexed and then carried out to the
+   *  side (or across the body) without turning. The band then follows where
+   *  the thigh points ({@link thighRotationRange}). Only the hip's rotation. */
+  seatedFrame?: boolean;
+}
+
+/** Where the thigh points, in this engine's hip fields (registry convention:
+ *  + flexion, + abduction away from the midline). */
+export interface ThighSwing {
+  flexionDeg: number;
+  abductionDeg: number;
 }
 
 export interface RomJointDefinition {
@@ -61,7 +73,7 @@ function field(
   plane: RomPlane,
   options: Pick<
     RomFieldDefinition,
-    'warningMarginDeg' | 'goniometerOffsetDeg' | 'neutralSeparationDeg' | 'weightBearingMax'
+    'warningMarginDeg' | 'goniometerOffsetDeg' | 'neutralSeparationDeg' | 'weightBearingMax' | 'seatedFrame'
   > = {},
 ): RomFieldDefinition {
   const color = PLANE_COLORS[plane];
@@ -208,7 +220,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     fields: [
       field('hipFlexion', 'Flex', 'Flex', 'Ext', { min: -30, max: 120 }, 'sagittal'),
       field('hipAbduction', 'Abd', 'Abd', 'Add', { min: -30, max: 45 }, 'frontal'),
-      field('hipRotation', 'Rotate', 'Int', 'Ext', { min: -45, max: 45 }, 'transverse'),
+      field('hipRotation', 'Rotate', 'Int', 'Ext', { min: -45, max: 45 }, 'transverse', { seatedFrame: true }),
     ],
   },
   {
@@ -217,7 +229,7 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     fields: [
       field('hipFlexion', 'Flex', 'Flex', 'Ext', { min: -30, max: 120 }, 'sagittal'),
       field('hipAbduction', 'Abd', 'Abd', 'Add', { min: -30, max: 45 }, 'frontal'),
-      field('hipRotation', 'Rotate', 'Int', 'Ext', { min: -45, max: 45 }, 'transverse'),
+      field('hipRotation', 'Rotate', 'Int', 'Ext', { min: -45, max: 45 }, 'transverse', { seatedFrame: true }),
     ],
   },
   {
@@ -356,14 +368,89 @@ export function getRomFieldDefinition(
  * template's authored 32° ankle as "resolution should have clamped this" — a
  * false accusation of a bug in the clamp, produced by a second opinion about
  * the band. One rule, both callers.
+ *
+ * The same goes for the hip's rotation, whose band follows where the thigh
+ * points (`thigh`: the flexion and abduction the same keyframe or pose gives
+ * the hip; see {@link thighRotationRange}). Omitted, it is the plain band.
  */
 export function effectiveRomRange(
-  def: Pick<RomFieldDefinition, 'range' | 'weightBearingMax'>,
-  opts: { weightBearing?: boolean } = {},
+  def: Pick<RomFieldDefinition, 'range' | 'weightBearingMax' | 'seatedFrame'>,
+  opts: { weightBearing?: boolean; thigh?: ThighSwing } = {},
 ): RomRangeDeg {
-  return opts.weightBearing && def.weightBearingMax != null && def.weightBearingMax > def.range.max
-    ? { ...def.range, max: def.weightBearingMax }
-    : def.range;
+  const range =
+    opts.weightBearing && def.weightBearingMax != null && def.weightBearingMax > def.range.max
+      ? { ...def.range, max: def.weightBearingMax }
+      : def.range;
+  return def.seatedFrame && opts.thigh ? thighRotationRange(range, opts.thigh) : range;
+}
+
+const RAD = Math.PI / 180;
+/**
+ * How far (deg) the thigh swings out of hanging straight before the seated
+ * frame takes over from the neutral one: not at all up to `from`, then in a
+ * straight line to full at `to`, so the band is continuous. Standing and
+ * walking keep the plain band (a turning walk's planted hip reaches 50° of
+ * rotation with the thigh swung 22°, and the foot-plant IK clamps it there);
+ * the figure-4 swings the thigh 40° or more.
+ */
+const SEATED_FRAME_SWING_DEG = { from: 25, to: 40 };
+
+/**
+ * How much of a thigh's position this engine books as rotation about the
+ * thigh's own length (deg; + when the thigh opens out to the side, − when it
+ * is carried across the body), although nothing turned it: Codman's paradox,
+ * for the hip.
+ *
+ * The engine aims the thigh by the shortest arc from hanging straight (its
+ * flexion and abduction) and then turns it about its length (hipRotation). A
+ * thigh flexed and then carried out to the side, the way the figure-4 (FABER),
+ * the frog position and sitting cross-legged are reached, arrives turned by
+ * exactly the angle it was carried out, whatever the flexion: flexed 90° and
+ * opened 45°, the engine reads 45° of external rotation that no one applied.
+ * The seated rotation norms are measured from that flexed thigh, so this is
+ * how far they sit from the engine's zero. It takes over as the thigh swings
+ * out of hanging straight ({@link SEATED_FRAME_SWING_DEG}), and fades back out
+ * as a thigh opened past the side is carried behind (extension, where the
+ * thigh is not flexed).
+ */
+export function thighCodmanTwistDeg(thigh: ThighSwing): number {
+  const f = thigh.flexionDeg * RAD;
+  const a = thigh.abductionDeg * RAD;
+  // The thigh's direction as the hip composes it (composeHipDelta): out to the
+  // side sin(a), forward cos(a)·sin(f), down cos(a)·cos(f).
+  const out = Math.sin(a);
+  const forward = Math.cos(a) * Math.sin(f);
+  const down = Math.cos(a) * Math.cos(f);
+  const swingDeg = Math.acos(clamp(down, -1, 1)) / RAD;
+  // Where the knee points, seen from above: 0 straight ahead, +90 out to the
+  // side, −90 across the body; past the side, the thigh is going back.
+  const opening = Math.atan2(out, forward) / RAD;
+  const carried = Math.abs(opening) > 90 ? Math.sign(opening) * (180 - Math.abs(opening)) : opening;
+  const { from, to } = SEATED_FRAME_SWING_DEG;
+  return carried * clamp((swingDeg - from) / (to - from), 0, 1);
+}
+
+/**
+ * The hip's rotation band for a thigh pointing where `thigh` says: a rotation
+ * is in range if it is within the norm from the engine's zero (the thigh
+ * hanging straight and turned neither way) or from the flexed thigh carried
+ * out without turning (the seated frame; {@link thighCodmanTwistDeg}). So a
+ * thigh opened out may turn out further, by as far as it was opened, and one
+ * carried across the body may turn in further; neither side ever narrows, and
+ * a thigh in one plane (straight ahead, straight out, hanging) keeps the
+ * plain band.
+ *
+ * Without it the band forbade what ordinary hips do: held to 45° of external
+ * rotation, the figure-4's foot slid off the other knee unless that knee stayed
+ * about 40 cm above the table, while hips that turn out 44° on their own lower
+ * it to 11 ± 2 cm (Tsutsumi et al., Sci Rep 2022;12:6656). On the runtime
+ * models the figure-4 with the knee 8 to 40 cm above the table needs 60° to
+ * 105° here, which is 22° to 33° from the seated frame. + = internal, as the
+ * field.
+ */
+export function thighRotationRange(range: RomRangeDeg, thigh: ThighSwing): RomRangeDeg {
+  const twist = thighCodmanTwistDeg(thigh);
+  return { min: range.min - Math.max(0, twist), max: range.max + Math.max(0, -twist) };
 }
 
 export function getRomPercent(value: number, range: RomRangeDeg): number {

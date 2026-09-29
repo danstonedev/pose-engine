@@ -11,9 +11,11 @@
    */
   import {
     ROM_JOINT_ROWS,
+    effectiveRomRange,
     formatRomStatus,
     formatRomValue,
     getRomFieldState,
+    type RomFieldDefinition,
   } from './services/romRegistry';
   import { isShoulderFieldMasked, type JointAngleReport } from './services/jointAngles';
 
@@ -36,6 +38,14 @@
 
   function fieldMoved(value: number | undefined): boolean {
     return typeof value === 'number' && Math.abs(value) >= MOVED_DEG_THRESHOLD;
+  }
+
+  /** The field with the band the engine holds it to here: a hip's rotation
+   *  follows where its thigh points (effectiveRomRange). */
+  function bandOf(field: RomFieldDefinition, set: Record<string, number>): RomFieldDefinition {
+    if (!field.seatedFrame) return field;
+    const thigh = { flexionDeg: set.hipFlexion ?? 0, abductionDeg: set.hipAbduction ?? 0 };
+    return { ...field, range: effectiveRomRange(field, { thigh }) };
   }
 
   function jointMoved(set: Record<string, number> | undefined): boolean {
@@ -86,7 +96,7 @@
                         </span>
                       </span>
                     {:else if set[field.key] !== undefined && (!filterChangedOnly || fieldMoved(set[field.key]))}
-                      {@const state = getRomFieldState(set[field.key], field)}
+                      {@const state = getRomFieldState(set[field.key], bandOf(field, set))}
                       <span
                         class={`joint-angles__field joint-angles__field--${state.status}`}
                         style={`--rom-color: ${field.color}; --rom-value: ${state.valuePercent}%; --rom-zero: ${state.zeroPercent}%;`}

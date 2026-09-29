@@ -563,15 +563,21 @@ function checkRomViolation(
     // against the open-chain band alone accused the shipped squat template of a
     // clamp bug for its perfectly legal 32° ankle. Same helper the clamp uses.
     const weightBearing = kf.stance === 'planted';
+    // A hip rotation's band follows where the keyframe points the thigh (the
+    // same helper the clamp uses): its resolved flexion and abduction, 0 absent.
+    const thighOf = (joint: string) => ({
+      flexionDeg: kf.targets.find((x) => x.joint === joint && x.motion === 'hipFlexion')?.clampedDegrees ?? 0,
+      abductionDeg: kf.targets.find((x) => x.joint === joint && x.motion === 'hipAbduction')?.clampedDegrees ?? 0,
+    });
     for (const t of kf.targets) {
       const def = getRomFieldDefinition(t.joint, t.motion);
       if (!def) continue; // no band to assert against — skip
-      const { min, max } = effectiveRomRange(def, { weightBearing });
+      const { min, max } = effectiveRomRange(def, { weightBearing, thigh: def.seatedFrame ? thighOf(t.joint) : undefined });
       const over = t.clampedDegrees > max ? t.clampedDegrees - max : min - t.clampedDegrees;
       if (over > worstOver) {
         worstOver = over;
         worstKf = ki;
-        const side = t.clampedDegrees > max ? `> max ${max}` : `< min ${min}`;
+        const side = t.clampedDegrees > max ? `> max ${round(max, 1)}` : `< min ${round(min, 1)}`;
         worstNote = `${t.joint}.${t.motion} = ${round(t.clampedDegrees, 1)}° (${side}°) at keyframe ${ki}`;
       }
     }

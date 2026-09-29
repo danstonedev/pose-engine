@@ -86,6 +86,17 @@ export interface SkinProfile {
    */
   depth(point: THREE.Vector3, of?: 'own' | 'other' | 'all'): number;
 }
+/** Where two parts' skin come nearest (SkinContact.separation). */
+export interface SkinSeparation {
+  /**
+   * The gap between them (m), or, negative, how deep one has pressed into the other: `reachM` when neither comes within
+   * that of the other, and Infinity when either has no skin.
+   */
+  separationM: number;
+  /** The bone owning the skin where they come nearest: of the part named first, and of the other. */
+  regionOwner: string;
+  ontoOwner: string;
+}
 /** How far along the normal skinAlong reaches from its origin, either way (m): past a hand's wrist and forearm. */
 const SKIN_ALONG_REACH_M = 0.3;
 type Point = { x: number; y: number; z: number };
@@ -131,6 +142,132 @@ interface Skin {
   incident?: { start: Uint32Array; tris: Uint32Array };
 }
 const cross = (a: XY, b: XY, c: XY) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+
+/**
+ * A part's posed skin (SkinContact.separation): its vertices and their owning bones, its triangles (three vertices
+ * each), each vertex's smoothed normal (its triangles' faces, by area), and which vertices and edges lie on its rim (the
+ * cut where the part's skin meets the rest of the body's: an edge only one of its triangles has).
+ */
+interface Surface {
+  points: Float64Array; owners: string[]; triangles: Uint32Array; normals: Float64Array;
+  rimVertex: Uint8Array; rimEdges: Set<number>;
+  /** Where each vertex comes from: its skin and its index there, in pairs. */
+  source: Uint32Array;
+  /** The vertex each stands at one place with (a mesh splits its skin along texture seams): the first there. */
+  weld: Uint32Array;
+}
+/** An edge of `vertices` vertices as one number, whichever way round. */
+const edgeKey = (a: number, b: number, vertices: number) => (a < b ? a * vertices + b : b * vertices + a);
+/**
+ * The nearest point of triangle `t` of `s` to (px, py, pz) (Ericson, Real-Time Collision Detection, 5.1.5: by which of
+ * the triangle's regions the point projects into), as barycentric weights of its corners into `out`, and which part of
+ * the triangle it lies on: 0 inside it, 1 to 3 a corner (the first, second or third), 4 to 6 an edge (the first to the
+ * second, the first to the third, the second to the third).
+ */
+function closestOnTriangle(s: Surface, t: number, px: number, py: number, pz: number, out: Float64Array): number {
+  const p = s.points, ia = s.triangles[t * 3]! * 3, ib = s.triangles[t * 3 + 1]! * 3, ic = s.triangles[t * 3 + 2]! * 3;
+  const ax = p[ia]!, ay = p[ia + 1]!, az = p[ia + 2]!;
+  const abx = p[ib]! - ax, aby = p[ib + 1]! - ay, abz = p[ib + 2]! - az;
+  const acx = p[ic]! - ax, acy = p[ic + 1]! - ay, acz = p[ic + 2]! - az;
+  const apx = px - ax, apy = py - ay, apz = pz - az;
+  const set = (u: number, v: number, feature: number) => { out[0] = 1 - u - v; out[1] = u; out[2] = v; return feature; };
+  const d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+  if (d1 <= 0 && d2 <= 0) return set(0, 0, 1);
+  const bpx = apx - abx, bpy = apy - aby, bpz = apz - abz;
+  const d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+  if (d3 >= 0 && d4 <= d3) return set(1, 0, 2);
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) return set(d1 / (d1 - d3), 0, 4);
+  const cpx = apx - acx, cpy = apy - acy, cpz = apz - acz;
+  const d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+  if (d6 >= 0 && d5 <= d6) return set(0, 1, 3);
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) return set(0, d2 / (d2 - d6), 5);
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / (d4 - d3 + (d5 - d6)); return set(1 - w, w, 6); }
+  const denom = 1 / (va + vb + vc);
+  return set(vb * denom, vc * denom, 0);
+}
+/** A part's triangles bucketed in `reachM` cells by their bounds (nearestOn), and the bounds of them all. */
+interface Buckets { reachM: number; cells: Map<number, number[]>; lo: number[]; hi: number[]; seen: Int32Array; stamp: number }
+/** Cells are keyed as one number: 2048 cells a side, well past any body at any reach a caller asks for. */
+const cellKey = (i: number, j: number, k: number) => ((i & 2047) * 2048 + (j & 2047)) * 2048 + (k & 2047);
+function bucket(to: Surface, reachM: number): Buckets {
+  const p = to.points, tri = to.triangles, count = tri.length / 3, cellOf = (value: number) => Math.floor(value / reachM);
+  const cells = new Map<number, number[]>(), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let t = 0; t < count; t++) {
+    const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+    for (let c = 0; c < 3; c++) for (let axis = 0; axis < 3; axis++) {
+      const value = p[tri[t * 3 + c]! * 3 + axis]!;
+      min[axis] = Math.min(min[axis]!, value); max[axis] = Math.max(max[axis]!, value);
+    }
+    for (let axis = 0; axis < 3; axis++) { lo[axis] = Math.min(lo[axis]!, min[axis]!); hi[axis] = Math.max(hi[axis]!, max[axis]!); }
+    for (let i = cellOf(min[0]!); i <= cellOf(max[0]!); i++) for (let j = cellOf(min[1]!); j <= cellOf(max[1]!); j++) for (let k = cellOf(min[2]!); k <= cellOf(max[2]!); k++) {
+      const list = cells.get(cellKey(i, j, k));
+      if (list) list.push(t); else cells.set(cellKey(i, j, k), [t]);
+    }
+  }
+  return { reachM, cells, lo, hi, seen: new Int32Array(count).fill(-1), stamp: 0 };
+}
+/**
+ * Where `to`'s skin is nearest (px, py, pz), within the reach it was bucketed at, or null: the signed distance to it (m;
+ * negative inside, behind the skin as its smoothed normals there face, except on its rim, past which the rest of the
+ * body's skin, not measured, lies nearer), the triangle and the point's barycentric weights on it.
+ */
+function nearestOn(to: Surface, buckets: Buckets, px: number, py: number, pz: number): { signed: number; triangle: number; weights: Float64Array } | null {
+  const { reachM, cells, lo, hi, seen } = buckets;
+  if (px < lo[0]! - reachM || px > hi[0]! + reachM || py < lo[1]! - reachM || py > hi[1]! + reachM || pz < lo[2]! - reachM || pz > hi[2]! + reachM) return null;
+  const p = to.points, tri = to.triangles, vertices = to.owners.length, stamp = ++buckets.stamp;
+  const ci = Math.floor(px / reachM), cj = Math.floor(py / reachM), ck = Math.floor(pz / reachM);
+  const weights = new Float64Array(3), at = new Float64Array(3);
+  let nearest = reachM, triangle = -1, feature = 0;
+  for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) for (let k = ck - 1; k <= ck + 1; k++) {
+    const candidates = cells.get(cellKey(i, j, k));
+    if (!candidates) continue;
+    for (const t of candidates) {
+      if (seen[t] === stamp) continue;
+      seen[t] = stamp;
+      const on = closestOnTriangle(to, t, px, py, pz, weights);
+      let x = 0, y = 0, z = 0;
+      for (let c = 0; c < 3; c++) { const v = tri[t * 3 + c]! * 3; x += p[v]! * weights[c]!; y += p[v + 1]! * weights[c]!; z += p[v + 2]! * weights[c]!; }
+      const distance = Math.hypot(px - x, py - y, pz - z);
+      if (distance >= nearest) continue;
+      nearest = distance; triangle = t; feature = on; at.set(weights);
+    }
+  }
+  if (triangle < 0) return null;
+  const [a, b, c] = [tri[triangle * 3]!, tri[triangle * 3 + 1]!, tri[triangle * 3 + 2]!];
+  const onRim = feature >= 1 && feature <= 3 ? to.rimVertex[[a, b, c][feature - 1]!] === 1
+    : feature === 4 ? to.rimEdges.has(edgeKey(a, b, vertices)) : feature === 5 ? to.rimEdges.has(edgeKey(a, c, vertices)) : feature === 6 ? to.rimEdges.has(edgeKey(b, c, vertices)) : false;
+  let facing = 0;
+  for (let axis = 0; axis < 3; axis++) {
+    const onSkin = p[a * 3 + axis]! * at[0]! + p[b * 3 + axis]! * at[1]! + p[c * 3 + axis]! * at[2]!;
+    const normal = to.normals[a * 3 + axis]! * at[0]! + to.normals[b * 3 + axis]! * at[1]! + to.normals[c * 3 + axis]! * at[2]!;
+    facing += ([px, py, pz][axis]! - onSkin) * normal;
+  }
+  return { signed: !onRim && facing < 0 ? -nearest : nearest, triangle, weights: at };
+}
+/** `to`'s smoothed normal at barycentric `weights` on triangle `t`, into `out` (unit length). */
+function normalOn(to: Surface, t: number, weights: Float64Array, out: THREE.Vector3): THREE.Vector3 {
+  out.set(0, 0, 0);
+  for (let c = 0; c < 3; c++) {
+    const v = to.triangles[t * 3 + c]! * 3;
+    out.x += to.normals[v]! * weights[c]!; out.y += to.normals[v + 1]! * weights[c]!; out.z += to.normals[v + 2]! * weights[c]!;
+  }
+  return out.normalize();
+}
+/**
+ * The least signed distance from `from`'s vertices to `to`'s skin within `reachM` (m; nearestOn), and the owners there.
+ */
+function nearestSigned(from: Surface, to: Surface, reachM: number): { distance: number; from: string; to: string } {
+  const buckets = bucket(to, reachM);
+  let best = { distance: reachM, from: '', to: '' };
+  for (let q = 0; q < from.owners.length; q++) {
+    const near = nearestOn(to, buckets, from.points[q * 3]!, from.points[q * 3 + 1]!, from.points[q * 3 + 2]!);
+    if (near && near.signed < best.distance) best = { distance: near.signed, from: from.owners[q]!, to: to.owners[to.triangles[near.triangle * 3]!]! };
+  }
+  return best;
+}
 
 /** Counter-clockwise convex silhouette of a transformed mesh bounding box. */
 function hull(points: XY[]): XY[] {
@@ -1092,6 +1229,166 @@ export class SkinContact {
     }
     return near.gap;
   }
+
+  /**
+   * How far `region`'s skin lies from `onto`'s where they come nearest, in any direction (m): the gap between them, or,
+   * negative, how deep one has pressed into the other, as soft tissue gives where two parts press together (an ankle
+   * resting on the other thigh, a thigh folded against the belly). Unlike gap(), which looks straight down, it finds
+   * them side by side as well. Each part's skin is tested against the other's surface: a vertex behind the triangle
+   * nearest it (on the side its face turns away from, where a closed skin's inside lies) is that far into it. Only skin
+   * within `reachM` of the other part is measured.
+   */
+  separation(region: RegExp, onto: RegExp, reachM = 0.05): SkinSeparation {
+    const a = this.surface(region), b = this.surface(onto);
+    if (!a || !b) return { separationM: Infinity, regionOwner: '', ontoOwner: '' };
+    const into = nearestSigned(a, b, reachM), back = nearestSigned(b, a, reachM);
+    return into.distance <= back.distance
+      ? { separationM: into.distance, regionOwner: into.from, ontoOwner: into.to }
+      : { separationM: back.distance, regionOwner: back.to, ontoOwner: back.from };
+  }
+  /**
+   * Soft tissue giving where another part presses into it, in any direction: `onto`'s skin inside `region`'s is pushed
+   * out to it along `region`'s smoothed normals, and where `region`'s skin is inside `onto`'s, facing into it, the skin
+   * of `onto` it is behind is pushed in, along its own, until it clears it (a shin's edge between the vertices of a
+   * thigh's skin, none of them in the shin, still pokes through it); by up to `depthM`, and the skin round it follows,
+   * less the further it lies (over `spreadM`), so a shin laid across a thigh lies in a dent in it rather than through it,
+   * whether it rests on the thigh's top or presses against its side. Skin further than `reachM` into the other is left
+   * as it is (a frame drawn looks only as far as the dent it draws goes). indent() does the like for a part resting on
+   * top of another, looking straight down.
+   */
+  yieldTo(region: RegExp, onto: RegExp, depthM: number, spreadM = 0.015, reachM = Math.max(0.05, depthM * 2)): void {
+    if (!(depthM > 0)) return;
+    const hard = this.surface(region), soft = this.surface(onto);
+    if (!hard || !soft) return;
+    // A vertex deeper in than the reach finds no skin to be pushed out to: by default, as deep as a limb is thick.
+    const hardBuckets = bucket(hard, reachM), softBuckets = bucket(soft, reachM);
+    const vertices = soft.owners.length, owned = soft.owners.map(owner => !region.test(owner));
+    // How far each vertex of `onto`'s skin (by the place it stands at) is pushed, the furthest asked of it.
+    const pushes = new Map<number, THREE.Vector3>(), normal = new THREE.Vector3();
+    const push = (v: number, by: THREE.Vector3) => {
+      const at = soft.weld[v]!, current = pushes.get(at);
+      if (!current || by.lengthSq() > current.lengthSq()) pushes.set(at, by.clone());
+    };
+    for (let v = 0; v < vertices; v++) {
+      if (!owned[v]) continue;
+      const near = nearestOn(hard, hardBuckets, soft.points[v * 3]!, soft.points[v * 3 + 1]!, soft.points[v * 3 + 2]!);
+      if (near && near.signed < 0) push(v, normalOn(hard, near.triangle, near.weights, normal).multiplyScalar(Math.min(depthM, -near.signed + SKIN_CONTACT_CLEARANCE_M)));
+    }
+    for (let q = 0; q < hard.owners.length; q++) {
+      const near = nearestOn(soft, softBuckets, hard.points[q * 3]!, hard.points[q * 3 + 1]!, hard.points[q * 3 + 2]!);
+      if (!near || near.signed >= 0) continue;
+      const inward = normalOn(soft, near.triangle, near.weights, normal).negate();
+      // Only where it presses into that skin: skin at a sharp edge, as near one face as the side of another it is in,
+      // would be pushed across the other's and fold it.
+      if (inward.x * hard.normals[q * 3]! + inward.y * hard.normals[q * 3 + 1]! + inward.z * hard.normals[q * 3 + 2]! < 0.5) continue;
+      inward.multiplyScalar(Math.min(depthM, -near.signed + SKIN_CONTACT_CLEARANCE_M));
+      for (let c = 0; c < 3; c++) { const v = soft.triangles[near.triangle * 3 + c]!; if (owned[v]) push(v, inward); }
+    }
+    if (!pushes.size) return;
+    // The skin round the dent follows it, the push of the nearest pushed vertex fading to nothing over `spreadM`.
+    const pushed = [...pushes].map(([v, by]) => ({ x: soft.points[v * 3]!, y: soft.points[v * 3 + 1]!, z: soft.points[v * 3 + 2]!, by }));
+    const moved = new Map<number, THREE.Vector3>();
+    for (let v = 0; v < vertices; v++) {
+      if (!owned[v]) continue;
+      const own = pushes.get(soft.weld[v]!);
+      if (own) { moved.set(v, own); continue; }
+      if (!(spreadM > 0)) continue;
+      const x = soft.points[v * 3]!, y = soft.points[v * 3 + 1]!, z = soft.points[v * 3 + 2]!;
+      let best: THREE.Vector3 | null = null, fade = 0;
+      for (const entry of pushed) {
+        const distance = Math.hypot(x - entry.x, y - entry.y, z - entry.z);
+        if (distance >= spreadM) continue;
+        const share = (1 - distance / spreadM) ** 2;
+        if (share > fade) { fade = share; best = entry.by; }
+      }
+      if (best) moved.set(v, best.clone().multiplyScalar(fade));
+    }
+    for (const [v, delta] of moved) this.displace(this.skins[soft.source[v * 2]!]!, soft.source[v * 2 + 1]!, delta);
+  }
+  /**
+   * Each part's skin as it is joined up (surface(), less where it lies), which posing never changes: worked out on the
+   * part's first use and kept, its seams welded where the skin lay then (a mesh's split vertices move together).
+   * Joining it up again every call cost a drawn frame more than the search it served.
+   */
+  private readonly topologies = new Map<string, Omit<Surface, 'points' | 'normals'> | null>();
+  /** A part's posed skin (Surface): its vertices, triangles, smoothed normals and rim. */
+  private surface(pattern: RegExp): Surface | null {
+    const key = `${pattern.flags}/${pattern.source}`, stateful = pattern.global || pattern.sticky;
+    let topology = stateful ? undefined : this.topologies.get(key);
+    if (topology === undefined) {
+      topology = this.join(pattern);
+      if (!stateful) this.topologies.set(key, topology);
+    }
+    if (!topology) return null;
+    const { source, weld, triangles } = topology, count = weld.length;
+    const points = new Float64Array(count * 3), normals = new Float64Array(count * 3), summed = new Float64Array(count * 3);
+    for (let p = 0; p < count; p++) {
+      const world = this.skins[source[p * 2]!]!.world, v = source[p * 2 + 1]! * 3;
+      points[p * 3] = world[v]!; points[p * 3 + 1] = world[v + 1]!; points[p * 3 + 2] = world[v + 2]!;
+    }
+    // Smoothed normals, each vertex's triangles' faces weighted by their area (a welded vertex's, all of them).
+    for (let k = 0; k < triangles.length; k += 3) {
+      const a = triangles[k]! * 3, b = triangles[k + 1]! * 3, c = triangles[k + 2]! * 3;
+      const ux = points[b]! - points[a]!, uy = points[b + 1]! - points[a + 1]!, uz = points[b + 2]! - points[a + 2]!;
+      const vx = points[c]! - points[a]!, vy = points[c + 1]! - points[a + 1]!, vz = points[c + 2]! - points[a + 2]!;
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      for (let corner = 0; corner < 3; corner++) {
+        const w = weld[triangles[k + corner]!]! * 3;
+        summed[w] += nx; summed[w + 1] += ny; summed[w + 2] += nz;
+      }
+    }
+    for (let v = 0; v < count; v++) {
+      const w = weld[v]! * 3, length = Math.hypot(summed[w]!, summed[w + 1]!, summed[w + 2]!) || 1;
+      normals[v * 3] = summed[w]! / length; normals[v * 3 + 1] = summed[w + 1]! / length; normals[v * 3 + 2] = summed[w + 2]! / length;
+    }
+    return { ...topology, points, normals };
+  }
+  /** A part's skin as it is joined up (surface()): where each vertex comes from and its owner, the triangles, the welds, the rim. */
+  private join(pattern: RegExp): Omit<Surface, 'points' | 'normals'> | null {
+    const members = this.named(pattern), sets = this.within(pattern);
+    let points = 0, triangles = 0;
+    for (let s = 0; s < this.skins.length; s++) { points += members[s]!.length; triangles += sets[s]!.length; }
+    if (!points || !triangles) return null;
+    const out: Omit<Surface, 'points' | 'normals'> = {
+      owners: [], triangles: new Uint32Array(triangles * 3), rimVertex: new Uint8Array(points), rimEdges: new Set(),
+      source: new Uint32Array(points * 2), weld: new Uint32Array(points),
+    };
+    let p = 0, t = 0;
+    for (let s = 0; s < this.skins.length; s++) {
+      const skin = this.skins[s]!, tri = skin.tri, local = new Map<number, number>();
+      for (const v of members[s]!) {
+        out.owners.push(skin.ownerNames[skin.ownerIds[v]!]!); out.source[p * 2] = s; out.source[p * 2 + 1] = v; local.set(v, p); p++;
+      }
+      for (const k of sets[s]!) {
+        for (let c = 0; c < 3; c++) out.triangles[t * 3 + c] = local.get(tri[k + c]!)!;
+        t++;
+      }
+    }
+    // Vertices at one place are one (a mesh splits its skin along texture seams), for the normals and the rim.
+    const weld = out.weld, at = new Map<string, number>();
+    for (let v = 0; v < points; v++) {
+      const world = this.skins[out.source[v * 2]!]!.world, i = out.source[v * 2 + 1]! * 3;
+      const place = `${Math.round(world[i]! * 1e4)},${Math.round(world[i + 1]! * 1e4)},${Math.round(world[i + 2]! * 1e4)}`;
+      weld[v] = at.get(place) ?? v;
+      if (!at.has(place)) at.set(place, v);
+    }
+    // The rim: the edges only one triangle has.
+    const uses = new Map<number, number>();
+    for (let k = 0; k < triangles; k++) for (const [x, y] of [[0, 1], [0, 2], [1, 2]] as const) {
+      const e = edgeKey(weld[out.triangles[k * 3 + x]!]!, weld[out.triangles[k * 3 + y]!]!, points);
+      uses.set(e, (uses.get(e) ?? 0) + 1);
+    }
+    const rim = new Uint8Array(points);
+    for (const [edge, used] of uses) if (used === 1) { rim[Math.floor(edge / points)] = 1; rim[edge % points] = 1; }
+    // Kept for each vertex as it stands in the triangles (its weld's), and each rim edge between any two of them there.
+    for (let v = 0; v < points; v++) out.rimVertex[v] = rim[weld[v]!]!;
+    for (let k = 0; k < triangles; k++) for (const [x, y] of [[0, 1], [0, 2], [1, 2]] as const) {
+      const a = out.triangles[k * 3 + x]!, b = out.triangles[k * 3 + y]!;
+      if (uses.get(edgeKey(weld[a]!, weld[b]!, points)) === 1) out.rimEdges.add(edgeKey(a, b, points));
+    }
+    return out;
+  }
+
 
   /**
    * Soft tissue giving under a part resting on it: `onto`'s skin under `region` is pressed down out of it, by up to
