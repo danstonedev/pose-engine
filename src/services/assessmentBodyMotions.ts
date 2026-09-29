@@ -113,7 +113,14 @@ function extensionClearing(): ComposedMotion {
 }
 
 function flexionClearing(): ComposedMotion {
-  const setup = withTargets(buildBirdDog({ side: 'R' }).keyframes[0].targets ?? [], trunk());
+  // This screen folds the arms into a different support configuration from
+  // bird-dog. Retain its neutral forearm setup explicitly: inheriting the
+  // bird-dog pronation made the fully overhead solve replant the male hands
+  // and put the female elbows on the floor. Palm-surface validation for this
+  // clearing screen remains separate from the push-up/bird-dog recipes.
+  const setup = withTargets(buildBirdDog({ side: 'R' }).keyframes[0].targets ?? [], [
+    ...trunk(), target('L_Forearm', 'forearmRotation', 0), target('R_Forearm', 'forearmRotation', 0),
+  ]);
   const back = withTargets(setup, [...leg('R', 120, 140, -45), ...leg('L', 120, 140, -45), ...arms(180, 5, 'shoulderAbduction'), ...trunk(20, 20), target('R_Hand', 'wristFlexion', -35), target('L_Hand', 'wristFlexion', -35)]);
   const root = { orient: { pitchDeg: 90 } };
   return motion('Spinal flexion clearing · hips back and reach', [

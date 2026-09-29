@@ -1665,6 +1665,14 @@ export function buildComposedCommandPose(
       else if (t.motion.endsWith('Rotation')) R = t.degrees;
     }
     q = restQ.clone().multiply(composeHipDelta(side, F, A, R));
+  } else if (/^[LR]_Forearm$/.test(joint)) {
+    // Elbow swing precedes axial forearm twist regardless of target order.
+    // Replacing an elbow target can move it after pronation in a recipe; using
+    // that array order rotates the elbow's bend plane and changes hand reach.
+    const flexion = usable.find(t => t.motion === 'elbowFlexion')?.degrees ?? 0;
+    const rotation = usable.find(t => t.motion === 'forearmRotation')?.degrees ?? 0;
+    q = restQ.clone().multiply(specs.elbowFlexion!.buildDelta(flexion, ctx))
+      .multiply(specs.forearmRotation!.buildDelta(rotation, ctx));
   } else if (usable.every((t) => specs[t.motion]!.compose === 'parent')) {
     // Body-frame parent-euler joints: sum the single-axis Euler contributions.
     const e = new THREE.Euler();

@@ -37,11 +37,12 @@ export function upperScreenControl(id: string): BodyControlPhase {
  * merely because relaxedHands correctly yields ownership to a loaded hand. */
 export function supportedBodyTargets(overrides: SequenceTarget[], posture: 'plank' | 'quadruped', protraction: number): SequenceTarget[] {
   const shape = posture === 'plank'
-    ? { hip: 0, knee: 0, ankle: 20, arm: 90, elbow: 5, wrist: -45 }
-    : { hip: 95, knee: 100, ankle: -45, arm: 90, elbow: 5, wrist: -45 };
+    ? { hip: 0, knee: 0, ankle: 20, arm: 90, elbow: 5, wrist: -70 }
+    : { hip: 95, knee: 100, ankle: -45, arm: 90, elbow: 5, wrist: -70 };
   return completeBodyTargets([
     ...sides.flatMap(side => [
       bodyTarget(`${side}_Shoulder`, 'protraction', protraction),
+      bodyTarget(`${side}_Forearm`, 'forearmRotation', -45),
       ...['Thumb', 'Index', 'Mid', 'Ring', 'Pinky'].map(digit => bodyTarget(`${side}_${digit}1`, 'fingerFlexion', 0)),
     ]), ...overrides,
   ], shape);

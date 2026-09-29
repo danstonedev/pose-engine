@@ -401,7 +401,9 @@ export function buildGetDownToPlank(): ComposedMotion {
  *  press back up. Starts + ends 'plank' (grounded on toes+hands throughout). */
 export function buildPushUp(opts: { reps?: number } = {}): ComposedMotion {
   const reps = Math.max(1, Math.min(20, Math.round(opts.reps ?? 3)));
-  const top = (): SequenceTarget[] => supportedBodyTargets(plankLimbs(90, 5), 'plank', 0);
+  const palms = (extension: number): SequenceTarget[] => (['L', 'R'] as const).map(side =>
+    ({ joint: `${side}_Hand`, motion: 'wristFlexion', targetDegrees: extension }));
+  const top = (): SequenceTarget[] => supportedBodyTargets([...plankLimbs(90, 5), ...palms(-70)], 'plank', 0);
   return {
     name: reps > 1 ? `push-up ×${reps}` : 'push-up',
     controlId: 'supported-push-up',
@@ -414,7 +416,7 @@ export function buildPushUp(opts: { reps?: number } = {}): ComposedMotion {
       // Establish the hand supports before changing the shoulder origins.
       { durationMs: 350, holdMs: 200, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_TOP_PITCH } }, targets: top(), control: supportedBodyControl('push-up/top', 'plank') },
       // Lower: flatten the body; the chest descends toward the floor.
-      { durationMs: 550, holdMs: 120, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_LOW_PITCH } }, targets: supportedBodyTargets(plankLimbs(90, 90), 'plank', -6), control: supportedBodyControl('push-up/lower', 'plank') },
+      { durationMs: 550, holdMs: 120, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_LOW_PITCH } }, targets: supportedBodyTargets([...plankLimbs(90, 90), ...palms(-25)], 'plank', -6), control: supportedBodyControl('push-up/lower', 'plank') },
       // Press back up to the top.
       { durationMs: 450, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_TOP_PITCH } }, targets: top(), control: supportedBodyControl('push-up/press', 'plank') },
     ],
@@ -548,7 +550,7 @@ export function buildBirdDog(opts: { side?: 'L' | 'R'; reps?: number } = {}): Co
     ...(reps > 1 ? { reps } : {}),
     keyframes: [
       // Settle on all fours (all four grounded).
-      { durationMs: 400, stance: 'planted', groundingPosture: 'quadruped', root: { orient: { pitchDeg: QUAD_PITCH } }, targets: supportedBodyTargets([], 'quadruped', 0), control: supportedBodyControl('bird-dog/setup', 'quadruped') },
+      { durationMs: 800, holdMs: 200, stance: 'planted', groundingPosture: 'quadruped', root: { orient: { pitchDeg: QUAD_PITCH } }, targets: supportedBodyTargets([], 'quadruped', 0), control: supportedBodyControl('bird-dog/setup', 'quadruped') },
       // Raise the opposite arm + leg to horizontal and hold (raised hand released).
       { durationMs: 800, holdMs: 100, stance: 'planted', groundingPosture: grounding, root: { orient: { pitchDeg: QUAD_PITCH } }, targets: supportedBodyTargets(raise, 'quadruped', 0), control: supportedBodyControl('bird-dog/lift', 'quadruped', arm) },
       // Lengthen the reaching side after releasing the hand. Changing the

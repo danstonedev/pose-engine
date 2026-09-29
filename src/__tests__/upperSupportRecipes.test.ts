@@ -5,8 +5,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import { applyAnatomicPose } from '../services/anatomicPose';
-import { applyCustomPose, serializeCustomPose } from '../services/poseRig';
+import { applyCustomPose, serializeCustomPose, buildBoneByPoseKey, buildIKChainContext, solveIKChain, readAxialTwist } from '../services/poseRig';
 import { captureJointAngleRestReference } from '../services/jointAngles';
+import { inspectClinicalAngles } from '../services/poseRomClamp';
 import { buildComposedCommandPose } from '../services/movementCommand';
 import { buildSequencePoses, resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type RecordedFrame } from '../services/motionRecording';
@@ -55,6 +56,71 @@ for (const variant of ['male', 'female', 'neutral'] as const) describe(`${varian
     });
   }
   const qdist = (a: number[], b: number[]) => new THREE.Quaternion().fromArray(a).normalize().angleTo(new THREE.Quaternion().fromArray(b).normalize()) * 180 / Math.PI;
+
+  it('elbow flexion and forearm rotation have the same result in either target order', () => {
+    for (const side of ['L', 'R']) for (const elbow of [5, 90, 130]) for (const rotation of [-45, 30]) {
+      const targets = [{ motion: 'elbowFlexion', degrees: elbow }, { motion: 'forearmRotation', degrees: rotation }];
+      const first = buildComposedCommandPose(baseline, `${side}_Forearm`, targets, cfg, baseline, rest)!;
+      const reversed = buildComposedCommandPose(baseline, `${side}_Forearm`, [...targets].reverse(), cfg, baseline, rest)!;
+      expect(qdist(first.bones[`${side}_Forearm`]!, reversed.bones[`${side}_Forearm`]!)).toBeLessThan(.001);
+    }
+  });
+
+  it('a hand-position solve retains authored pronation and supination while respecting the elbow bound', () => {
+    const bones = buildBoneByPoseKey(skin.skeleton, cfg);
+    for (const side of ['L', 'R']) for (const rotation of [-30, 0, 30]) for (const cap of [60, 145]) {
+      root.position.set(0, 0, 0); root.quaternion.identity();
+      const pose = buildComposedCommandPose(baseline, `${side}_Forearm`, [
+        { motion: 'elbowFlexion', degrees: 60 }, { motion: 'forearmRotation', degrees: rotation },
+      ], cfg, baseline, rest)!;
+      applyCustomPose(skin.skeleton, cfg, pose); root.updateMatrixWorld(true);
+      const forearm = bones.get(`${side}_Forearm`)!, hand = bones.get(`${side}_Hand`)!;
+      const reference = new THREE.Quaternion().fromArray(rest.localQuats[`${side}_Forearm`]!);
+      const before = readAxialTwist(forearm.quaternion, reference);
+      const target = bones.get(`${side}_UpperArm`)!.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, -.35, .05));
+      solveIKChain(buildIKChainContext(skin, hand, 2, cfg)!, target, {
+        rest, hinges: new Set([`${side}_Forearm`]), iterations: 12,
+        constraints: { [`${side}_Forearm`]: { elbowFlexion: { availableRange: { max: cap } } } },
+      });
+      const flexion = inspectClinicalAngles(forearm, `${side}_Forearm`, rest)!.anatomicFlexion;
+      if (cap === 145) {
+        expect(Math.abs(readAxialTwist(forearm.quaternion, reference) - before) * 180 / Math.PI).toBeLessThan(.01);
+        expect(flexion).toBeGreaterThan(65);
+      } else {
+        // Active ROM projection takes precedence over orientation preservation.
+        // Its rest-relative clamp angle differs from the geometric elbow angle
+        // by the small rig bind bend; assert the actual constraint convention.
+        expect(flexion).toBeLessThan(60.01);
+      }
+    }
+  });
+
+  it('loaded palms face down throughout settled push-up and bird-dog repetitions', () => {
+    const bones = buildBoneByPoseKey(skin.skeleton, cfg);
+    const world = (key: string) => bones.get(key)!.getWorldPosition(new THREE.Vector3());
+    // Landmark-plane normal: wrist -> middle MCP crossed with index -> little
+    // MCP. Both meshes use opposite handedness across the two hands.
+    const normal = (side: string) => new THREE.Vector3().crossVectors(
+      world(`${side}_Mid1`).sub(world(`${side}_Hand`)),
+      world(`${side}_Pinky1`).sub(world(`${side}_Index1`)),
+    ).normalize().multiplyScalar(side === 'R' ? 1 : -1);
+    for (const [motion, setup, supported] of [
+      [buildPushUp({ reps: 2 }), buildGetDownToPlank(), ['L', 'R']],
+      [buildBirdDog({ side: 'L', reps: 2 }), buildGetDownToQuadruped(), ['R']],
+      [buildBirdDog({ side: 'R', reps: 2 }), buildGetDownToQuadruped(), ['L']],
+    ] as const) {
+      const entry = sample(setup).frames.at(-1)!;
+      for (const f of sample(motion, entry).frames.filter(f => f.tMs >= 1200)) {
+        root.position.fromArray(f.root.translateM); root.quaternion.fromArray(f.root.orientQuat);
+        applyCustomPose(skin.skeleton, cfg, f.pose); root.updateMatrixWorld(true);
+        for (const side of supported) {
+          // Engineering orientation envelope, not a claim of flat skin contact.
+          expect(normal(side).y, `${motion.name} ${side} at ${f.tMs}`).toBeLessThan(-Math.cos(Math.PI / 6));
+          expect(f.angles[`${side}_Forearm`]!.forearmRotation!).toBeLessThan(-40);
+        }
+      }
+    }
+  });
 
   it('replaces stale pelvic/trunk rotations, wrist deviation and a prior fist in each supported phase', () => {
     let dirty = baseline;

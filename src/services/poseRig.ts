@@ -571,23 +571,31 @@ const _hingeRest = new THREE.Quaternion();
 const _hingeRestInv = new THREE.Quaternion();
 const _hingeDelta = new THREE.Quaternion();
 const _hingeTwist = new THREE.Quaternion();
+const _hingeAxial = new THREE.Quaternion();
 
 /** Constrain a joint's local rotation to a HINGE: keep only the component of its
  *  delta-from-rest that twists about `axisLocal`, discarding off-axis swing. Used
  *  in IK so a knee/elbow flexes/extends to compensate rather than picking up
- *  varus/valgus or axial rotation. (Swing-twist decomposition about the axis.) */
+ *  varus/valgus or axial rotation. A forearm retains its input axial twist;
+ *  the solver cannot generate additional pronation/supination. */
 function constrainLocalToHinge(
   joint: THREE.Bone,
   restLocal: THREE.Quaternion,
   axisLocal: THREE.Vector3,
+  axialTwist = 0,
 ): void {
   _hingeRestInv.copy(restLocal).invert();
   _hingeDelta.copy(_hingeRestInv).multiply(joint.quaternion); // delta from rest
+  // Forearm pronation/supination is authored independently of elbow flexion.
+  // Remove that fixed twist before projecting the elbow hinge, then restore it.
+  // A hand-position solve must not erase palm orientation to bend the elbow.
+  if (axialTwist !== 0) _hingeDelta.multiply(_hingeAxial.setFromAxisAngle(_twAxis, -axialTwist));
   const d = _hingeDelta.x * axisLocal.x + _hingeDelta.y * axisLocal.y + _hingeDelta.z * axisLocal.z;
   _hingeTwist.set(axisLocal.x * d, axisLocal.y * d, axisLocal.z * d, _hingeDelta.w);
   if (_hingeTwist.lengthSq() < 1e-8) _hingeTwist.identity();
   else _hingeTwist.normalize();
   joint.quaternion.copy(restLocal).multiply(_hingeTwist);
+  if (axialTwist !== 0) joint.quaternion.multiply(_hingeAxial.setFromAxisAngle(_twAxis, axialTwist));
 }
 
 export function solveIKChain(
@@ -672,6 +680,14 @@ function ikPasses(
   iterations: number,
 ): number {
   let turned = 0;
+  // Capture once, before CCD: keeping a twist reintroduced by a previous CCD
+  // iteration would allow the solver to accumulate unintended axial rotation.
+  const forearmTwists = canonicalKeys.map((key, i) => {
+    const rest = key && clamp?.rest?.localQuats[key];
+    if (!key || !rest || !clamp?.hinges?.has(key) || !/^[LR]_Forearm$/.test(key)) return 0;
+    _hingeRest.fromArray(rest);
+    return readAxialTwist(bones[i].quaternion, _hingeRest);
+  });
   for (let iter = 0; iter < iterations; iter += 1) {
     // bones[1] is the joint closest to the effector (e.g. wrist's parent).
     // bones[bones.length-1] is the root of the chain (e.g. UpperArm).
@@ -702,8 +718,8 @@ function ikPasses(
       }
 
       const canonicalKey = canonicalKeys[i];
-      // Hinge joints (knee/elbow) compensate by flexion only — strip off-axis
-      // swing the free CCD introduced before clamping to ROM.
+      // Hinge joints compensate by flexion only. Preserve the forearm's authored
+      // twist, then apply the existing ROM clamp to the entire result.
       if (clamp?.rest && canonicalKey && clamp.hinges?.has(canonicalKey)) {
         const restArr = clamp.rest.localQuats[canonicalKey];
         if (restArr) {
@@ -712,6 +728,7 @@ function ikPasses(
             joint,
             _hingeRest,
             localAxisTowardBodyLeft((clamp.hingeAxisRest ?? clamp.rest).worldQuats[canonicalKey]),
+            forearmTwists[i],
           );
         }
       }
