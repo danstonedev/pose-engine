@@ -345,9 +345,9 @@ export function clampSquatDorsiflexionCap(requested: number): number {
  * (margin < 0 — a backward loss of balance).
  *
  * Same builder shape the shipped 'squat' template emits (startFrom:'neutral',
- * planted, descent+ascent, ankle leads at peakAt 0.75). NO balanceAssist / contacts[]
- * / root.orient / weightedDescent — the motion stays on the plant-fixed, base-honest
- * foot-root path so the balance measurement is undistorted.
+ * planted, descent+ascent, ankle leads at peakAt 0.75). Bilateral contacts refine
+ * the fixed foot-root placement; there is no balanceAssist, root.orient or
+ * weightedDescent, so the balance measurement retains the authored geometry.
  */
 export function buildSquat(opts: { dorsiflexionCapDeg?: number } = {}): ComposedMotion {
   const dfCap = typeof opts.dorsiflexionCapDeg === 'number' && Number.isFinite(opts.dorsiflexionCapDeg)
@@ -359,6 +359,7 @@ export function buildSquat(opts: { dorsiflexionCapDeg?: number } = {}): Composed
     controlId: 'bodyweight-squat',
     startFrom: 'neutral',
     stance: 'planted',
+    contacts: [{ foot: 'L_Foot' }, { foot: 'R_Foot' }],
     keyframes: squatPhases(c),
   };
 }

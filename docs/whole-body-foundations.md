@@ -40,6 +40,13 @@ cervical orientation, forward arm counterbalance and relaxed hands. The final
 foot IK clamp respects the weight-bearing ankle range while retaining explicit
 patient restrictions and the existing open-chain limit.
 
+Squat and forward bend declare both foot contacts. Their final contact solve
+preserves the existing closed-chain root placement and corrects the other foot's
+drift in the actual root/pelvis frame. The default male/female squat has less
+than 0.42 mm tracked-ankle drift; the forward bend has less than 2.20 mm. Root
+transforms and pelvic locals remain equal to the previous placement within
+1e-7 per sampled frame. These are bone-frame measurements, not skin contact.
+
 The `forward-hip-hinge` template is a rounded forward bend/toe-touch: its authored
 spinal flexion is intentional. It is not a neutral-spine lifting-hinge protocol.
 Root orientation in these planted motions includes whole-body support placement;
@@ -97,6 +104,13 @@ The corrected chair descent has positive minimum pre-seat balance margins on
 both tested models and sub-millimeter tracked-foot drift. These are kinematic
 support measurements, not validated forces or a clinical acceptance record.
 The balance estimate depends on the engine's mass and support approximation.
+
+Restricted-depth squats still need geometric refinement. At the current deep
+target, 26/16-degree ankle variants can retain about 29 mm of support residual
+and 25–28 mm of toe-origin floor penetration when the 120-degree hip bound is
+correctly enforced. Severe restriction can also produce negative balance margin.
+The correction preserves these limits rather than granting extra hip motion;
+it does not establish physical acceptance for those constrained recipes.
 
 The present Shoulder bone remains a combined girdle proxy. This work does not
 add independent SC/AC articulations, a scapular skin region, or measured GH/ST

@@ -153,6 +153,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       "Shared raw-template and builder recipe: hip/knee flexion 100/120 degrees, weight-bearing ankle dorsiflexion 32 degrees, and 60-degree forward arm counterbalance. Independent pelvic tilt 4 degrees shares the trunk task with lumbar 23 and thoracic 10 degrees; cervical extension supports gaze. Pelvis and ankles lead the descent while the hips and knees complete it. Shared shoulder rhythm, quiet limb rotation, and relaxed hands complete the body intent; the Head retains its entry orientation relative to the neck.",
     stance: 'planted',
     phases: functionalTemplatePhases(squatPhases()),
+    contacts: [{ foot: 'L_Foot' }, { foot: 'R_Foot' }],
     source: VERIFY,
   },
   {
@@ -163,6 +164,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
       "Hip-led reach: hip flexion 70 degrees with soft knees 12 degrees, independent pelvic tilt 4 degrees, lumbar flexion 36 and thoracic flexion 20 degrees. Small ankle plantarflexion counterbalances the reach while both feet remain supported. The arms reach forward 65 degrees and the elbows soften; cervical extension supports gaze. Hips, knees and pelvis lead the spine into the bend, then all task channels return to standing.",
     stance: 'planted',
     phases: functionalTemplatePhases(hingePhases()),
+    contacts: [{ foot: 'L_Foot' }, { foot: 'R_Foot' }],
     source: VERIFY,
   },
   {
