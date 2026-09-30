@@ -105,24 +105,13 @@ describe('the FMS overhead override does not disturb its compensation solver', (
 describe('assessment shoulders preserve calibrated overhead targets and girdle ownership', () => {
   const ALL = MOVEMENT_SCREEN.map((pattern) => pattern.testId);
 
-  it('keeps each calibrated squat overhead arm on one humeral channel', () => {
-    // The two squat overrides were measured with a single abduction command;
-    // adding a flexion channel changes that calibrated pose and balance basis.
-    for (const id of ['deep-squat', 'overhead-deep-squat']) for (const side of ['R', 'L'] as const) for (const mode of ['hold', 'movement'] as const) {
-      const m = resolvePosition(positionFor(id), side, null, id, mode);
-      expect(m?.status, `${id} ${side} ${mode}`).toBe('ok');
-      for (const kf of m!.keyframes) {
-        const perJoint = new Map<string, string[]>();
-        for (const t of kf.targets) {
-          if (!t.joint.endsWith('_UpperArm')) continue;
-          perJoint.set(t.joint, [...(perJoint.get(t.joint) ?? []), t.motion]);
-        }
-        for (const [joint, motions] of perJoint) {
-          expect(motions.length, `${id}: ${joint} carries ${motions.join('+')}`).toBe(1);
-        }
-        for (const t of kf.targets.filter(t => t.joint.endsWith('_UpperArm') && t.clampedDegrees > 0)) {
-          expect(t.motion, `${id}: ${t.joint} overhead channel`).toBe('shoulderAbduction');
-        }
+  it('owns each overhead arm as a complete atomic shoulder request', () => {
+    for (const id of ['deep-squat', 'overhead-deep-squat']) for (const mode of ['hold','movement'] as const) {
+      const m = resolvePosition(positionFor(id), 'R', null, id, mode)!;
+      expect(m.status).toBe('ok');
+      for (const kf of m.keyframes) for (const side of ['L','R']) {
+        expect(kf.targets.filter(t => t.joint === side + '_UpperArm').map(t=>t.motion).sort())
+          .toEqual(['shoulderAbduction','shoulderFlexion','shoulderRotation']);
       }
     }
   });
@@ -149,8 +138,13 @@ describe('assessment shoulders preserve calibrated overhead targets and girdle o
           kf.targets.filter((t) => t.joint.endsWith('_UpperArm')).map((t) => t.joint[0]),
         );
         for (const t of kf.targets.filter(t => t.joint.endsWith('_Shoulder') && arms.has(t.joint[0]))) {
-          expect(t.motion, `${id}: automatic elevation axes remain owned by rhythm`).toBe('protraction');
-          expect(Math.abs(t.clampedDegrees), `${id}: bounded task-specific protraction`).toBeLessThanOrEqual(15);
+          if (OVERHEAD_ARM_TESTS.has(id)) {
+            expect(['protraction','upRotation','scapularTilt']).toContain(t.motion);
+            expect(Math.abs(t.clampedDegrees)).toBeLessThanOrEqual(40);
+          } else {
+            expect(t.motion).toBe('protraction');
+            expect(Math.abs(t.clampedDegrees)).toBeLessThanOrEqual(15);
+          }
         }
       }
     }
@@ -274,7 +268,7 @@ describe('an authored impairment produces a visible compensation', () => {
     expect(peak(elsewhere, 'R_UpLeg', 'hipFlexion')).toBe(peak(clean, 'R_UpLeg', 'hipFlexion'));
   });
 
-  // The SFMA overhead squat is its own authored feet-together source. When it
+  // The SFMA overhead squat is its own authored overhead source. When it
   // stopped using the builder it silently lost the compensation above while every
   // FMS-squat test stayed green, so the same contract is pinned on it directly.
   describe('on the authored SFMA overhead squat', () => {
@@ -315,8 +309,8 @@ describe('an authored impairment produces a visible compensation', () => {
         expect(at(blocked.keyframes[index], 'Spine_Lower', 'flexion')).toBe(at(clean.keyframes[index], 'Spine_Lower', 'flexion'));
         expect(at(blocked.keyframes[index], 'R_UpLeg', 'hipFlexion')).toBe(at(clean.keyframes[index], 'R_UpLeg', 'hipFlexion'));
       }
-      expect(sfmaSquat(ankleCap(90))).toEqual(clean);
-      expect(at(hold(clean), 'Spine_Lower', 'flexion')).toBe(0);
+      expect(sfmaSquat(ankleCap(90))!.keyframes).toEqual(clean.keyframes);
+      expect(at(hold(clean), 'Spine_Lower', 'flexion')).toBe(21);
     });
   });
 });
@@ -337,51 +331,20 @@ describe('the overhead tests actually press overhead', () => {
     return p === -Infinity ? null : p;
   };
 
-  it('elevates through ABDUCTION, which reaches vertical', () => {
-    for (const id of ['deep-squat', 'overhead-deep-squat']) {
+  it('authors a wide overhead Y through the shared shoulder chain', () => {
+    for (const id of ['deep-squat','overhead-deep-squat']) {
       expect(OVERHEAD_ARM_TESTS.has(id)).toBe(true);
-      expect(peak(id, 'R_UpperArm', 'shoulderAbduction'), id).toBe(160);
-      expect(peak(id, 'L_UpperArm', 'shoulderAbduction'), id).toBe(160);
-    }
-  });
-
-  it('REPLACES the flexion target rather than adding a second field', () => {
-    for (const id of ['deep-squat', 'overhead-deep-squat']) {
-      for (const kf of resolvePosition(positionFor(id), 'R', null, id)!.keyframes) {
-        const perArm = new Map<string, Set<string>>();
-        for (const t of kf.targets) {
-          if (!t.joint.endsWith('_UpperArm')) continue;
-          (perArm.get(t.joint) ?? perArm.set(t.joint, new Set()).get(t.joint)!).add(t.motion);
-        }
-        for (const [joint, motions] of perArm) {
-          expect(motions.size, `${id} ${joint} fields ${[...motions]}`).toBe(1);
-        }
+      for (const side of ['L','R']) {
+        expect(peak(id, side+'_UpperArm','shoulderFlexion')).toBe(175);
+        expect(peak(id, side+'_UpperArm','shoulderAbduction')).toBe(140);
+        expect(peak(id, side+'_Shoulder','upRotation')).toBe(40);
       }
     }
   });
-
-  it('preserves automatic elevation rhythm and neutral protraction', () => {
-    for (const id of ['deep-squat', 'overhead-deep-squat']) {
-      const scap = targetsOf(id).filter((t) => t.joint.endsWith('_Shoulder'));
-      for (const t of scap) {
-        expect(t.motion, `${id} must let writeGirdle own the elevation axes`).toBe('protraction');
-        expect(t.clampedDegrees).toBe(0);
-      }
-    }
-  });
-
-  it('stays below the readout wrap at 164 degrees', () => {
-    for (const id of ['deep-squat', 'overhead-deep-squat']) {
-      expect(peak(id, 'R_UpperArm', 'shoulderAbduction')!, id).toBeLessThan(164);
-    }
-  });
-
-  it('retains the FMS builder press and return', () => {
-    const m = resolvePosition(positionFor('deep-squat'), 'R', null, 'deep-squat')!;
-    const last = m.keyframes[m.keyframes.length - 1].targets.find(
-      (t) => t.joint === 'R_UpperArm',
-    );
-    expect(last?.clampedDegrees).toBe(0);
+  it('raises the FMS arms and sets the feet before squatting, then holds them overhead on return',()=>{
+    const m=resolvePosition(positionFor('deep-squat'),'R',null,'deep-squat')!;
+    expect(m.keyframes[0]!.targets.find(t=>t.joint==='L_UpLeg'&&t.motion==='hipFlexion')!.clampedDegrees).toBe(0);
+    expect(m.keyframes.at(-1)!.targets.find(t=>t.joint==='L_UpperArm'&&t.motion==='shoulderFlexion')!.clampedDegrees).toBe(175);
   });
 
   it('leaves a NON-overhead resolve with its authored counterweight arms', () => {

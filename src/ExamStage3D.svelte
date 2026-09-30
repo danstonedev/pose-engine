@@ -73,7 +73,7 @@
   // importing this component never drags three into a host's initial chunk.
   import { createRecordingTap } from './services/stageRecordingTap';
   import { createStageDriver, type DriverMechanism } from './services/stageDriver';
-  import { hasFixedBilateralFootSupport } from './services/motionSupport';
+  import { hasFixedBilateralFootSupport, bilateralFootSetupMs } from './services/motionSupport';
   // Type-only — the module itself is dynamically imported (it pulls three).
   import type { StanceWindow } from './services/stageComposedDerivations';
   // Type-only — the posing layer module itself is dynamically imported (it pulls
@@ -553,6 +553,7 @@
         serializeCustomPose,
         buildBoneByPoseKey,
       } = await import('./services/poseRig');
+      const { clearLocomotorArms } = await import('./services/locomotorArmClearance');
       const { clampBoneToRom, enforceShoulderCapacities, hasClampStrategy, setRomClampEnabled } = await import(
         './services/poseRomClamp'
       );
@@ -582,6 +583,8 @@
       const {
         captureFloorReference,
         captureFootFrames,
+        captureFootSetupFrames,
+        orientFeetToSupportFrames,
         footFramesForCurrentPose,
         pinRootToFloor,
         pinContactsToFloor,
@@ -1679,6 +1682,7 @@
        *  feet (COM over the base — balance for free), instead of the feet swinging
        *  forward. Same gate as the offline sampler so live and recordings match. */
       let composedUseFootRoot = false;
+      let composedFootRootFromMs = 0;
       let composedFootFrames: ReturnType<typeof captureFootFrames> | null = null;
 
       /** CALIBRATED GAIT VERTICAL for the ACTIVE composed motion — the
@@ -1901,7 +1905,7 @@
             );
           } else if (
             s.planted &&
-            composedUseFootRoot &&
+            composedUseFootRoot && tMs >= composedFootRootFromMs &&
             composedFootFrames &&
             stanceFootNeedsPlant(modelRoot!, skinnedRef!.skeleton, variantCfgRef!, composedFootFrames)
           ) {
@@ -2075,6 +2079,12 @@
             modelRoot.updateMatrixWorld(true);
           }
         }
+        if (composedUseFootRoot && composedFootRootFromMs > 0 && tMs >= composedFootRootFromMs && composedFootFrames && skinnedRef && variantCfgRef) {
+          orientFeetToSupportFrames(buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef), composedFootFrames, activeRestRef() ?? restRef, romConstraints);
+        }
+        if (trajectory.locomotorArmClearance && skinnedRef && variantCfgRef) {
+          clearLocomotorArms(buildBoneByPoseKey(skinnedRef.skeleton, variantCfgRef), activeRestRef() ?? restRef, rootOrientDelta(), romConstraints);
+        }
         enforceCurrentShoulders();
       }
 
@@ -2214,7 +2224,7 @@
           reachStepped = true;
         } else if (
           planted &&
-          composedUseFootRoot &&
+          composedUseFootRoot && tMs >= composedFootRootFromMs &&
           skinnedRef &&
           variantCfgRef &&
           composedFootFrames &&
@@ -2920,6 +2930,8 @@
         // A grounding posture (sitting/quadruped/…) grounds on its own contact set
         // via pinContactsToFloor — never the foot-root. Mirrors the sampler gate.
         const composedHasGrounding = built.roots.some((r) => r.groundingPosture != null);
+        const setupMs = bilateralFootSetupMs(resolved);
+        composedFootRootFromMs = setupMs == null ? 0 : authoredToTrajectoryTimeMap(resolved, trajectory.totalMs).toTrajectory(setupMs);
         composedUseFootRoot =
           !resolved.footDrivenTravel &&
           !resolved.loop &&
@@ -2927,9 +2939,15 @@
           !composedHasFloating &&
           !composedReorients &&
           !composedHasGrounding &&
-          (!(resolved.contacts?.length ?? 0) || hasFixedBilateralFootSupport(resolved)) &&
+          (!(resolved.contacts?.length ?? 0) || hasFixedBilateralFootSupport(resolved) || setupMs != null) &&
           composedHasPlanted &&
           !!footFrames;
+        if (composedUseFootRoot && setupMs != null && modelRoot && skinnedRef && variantCfgRef && restRef && floorRef) {
+          const setup = trajectory.sampleAt(composedFootRootFromMs);
+          composedFootFrames = captureFootSetupFrames({ root: modelRoot, skeleton: skinnedRef.skeleton, variantCfg: variantCfgRef, rest: restRef, pose: setup.pose,
+            quaternion: rootRestQuat.clone().multiply(new THREE.Quaternion().fromArray(setup.rootQuat)),
+            position: rootRestPos.clone().add(new THREE.Vector3().fromArray(setup.rootTranslate)), floor: floorRef });
+        }
         // Fixed-base contact IK uses activeRestRef, including the live root and
         // pelvis. Discard any cached heading-window rest that would override it.
         if (composedUseFootRoot) for (const fp of composedPlants) delete fp.rest;

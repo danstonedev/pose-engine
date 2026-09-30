@@ -60,6 +60,8 @@ import {
   applyWeightedDescent,
   captureFloorReference,
   captureFootFrames,
+  captureFootSetupFrames,
+  orientFeetToSupportFrames,
   footFramesForCurrentPose,
   deriveFootDrivenTravel,
   deriveGaitLateralShuttle,
@@ -92,7 +94,8 @@ import {
   type WeightedDescentReshape,
 } from './rootMotion';
 import { balanceCoordination } from './balanceCoordination';
-import { hasFixedBilateralFootSupport } from './motionSupport';
+import { hasFixedBilateralFootSupport, bilateralFootSetupMs } from './motionSupport';
+import { clearLocomotorArms } from './locomotorArmClearance';
 import { enforceShoulderCapacities } from './poseRomClamp';
 import { attachShoulderSupportResiduals, shoulderConstraintsForPolicy } from './shoulderRuntime';
 import type { RomScenarioConstraints } from './romConstraints';
@@ -593,7 +596,7 @@ export function sampleComposedMotion(
   applyCustomPose(skinned.skeleton, variantCfg, baselinePose);
   root.updateMatrixWorld(true);
   const floorRef = captureFloorReference(skinned.skeleton, variantCfg);
-  const footFrames = footFramesForCurrentPose(
+  let footFrames = footFramesForCurrentPose(
     captureFootFrames(skinned.skeleton, variantCfg, rest),
     resolved.startFrom === 'current' ? opts.currentPose : null,
     resolved.keyframes.flatMap(k => k.targets.map(t => t.joint)),
@@ -1020,6 +1023,8 @@ export function sampleComposedMotion(
   // switching between the feet-pin and the posture-pin across the transition stays
   // smooth (no rigid re-root jump).
   const hasGroundingPosture = built.roots.some((r) => r.groundingPosture != null);
+  const setupMs = bilateralFootSetupMs({ ...resolved, contacts: activeContacts });
+  const footRootFromMs = setupMs == null ? 0 : toTrajectory.toTrajectory(setupMs);
   const useFootRoot =
     !resolved.footDrivenTravel &&
     !resolved.loop &&
@@ -1027,8 +1032,14 @@ export function sampleComposedMotion(
     !hasFloating &&
     !reorients &&
     !hasGroundingPosture &&
-    (activeContacts.length === 0 || hasFixedBilateralFootSupport({ ...resolved, contacts: activeContacts })) &&
+    (activeContacts.length === 0 || hasFixedBilateralFootSupport({ ...resolved, contacts: activeContacts }) || setupMs != null) &&
     built.roots.some((r) => r.stance === 'planted');
+  if (useFootRoot && setupMs != null) {
+    const setup = trajectory.sampleAt(footRootFromMs);
+    footFrames = captureFootSetupFrames({ root, skeleton: skinned.skeleton, variantCfg, rest, pose: setup.pose,
+      quaternion: rootRestQuat.clone().multiply(new THREE.Quaternion().fromArray(setup.rootQuat)),
+      position: rootRestPos.clone().add(new THREE.Vector3().fromArray(setup.rootTranslate)), floor: floorRef });
+  }
   // A fixed-base fold uses its live root/pelvis frame below. Even an identity
   // heading profile creates per-window rests; those must not override it.
   if (useFootRoot) for (const fp of footPlants) delete fp.rest;
@@ -1071,11 +1082,11 @@ export function sampleComposedMotion(
           groundingContactsFor(s.groundingPosture, floorRef),
         );
       } else if (
-        useFootRoot &&
+        useFootRoot && tMs >= footRootFromMs &&
         s.planted &&
         stanceFootNeedsPlant(root, skinned.skeleton, variantCfg, footFrames)
       ) {
-        plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames, opts.constraints);
+        plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames, opts.constraints ?? resolved.constraints);
       } else if (s.planted) {
         pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
       }
@@ -1205,11 +1216,11 @@ export function sampleComposedMotion(
         groundingContactsFor(sample.groundingPosture, floorRef),
       );
       solveReachContacts(sample.groundingPosture);
-    } else if (useFootRoot && sample.planted && stanceFootNeedsPlant(root, skinned.skeleton, variantCfg, footFrames)) {
+    } else if (useFootRoot && tMs >= footRootFromMs && sample.planted && stanceFootNeedsPlant(root, skinned.skeleton, variantCfg, footFrames)) {
       // The SAME authored angles now read as the real closed-chain movement — feet
       // planted, pelvis placed by the chain, COM over the base (balance for free).
       // This RIGIDLY rotates the root (not just Y), so orientation is recomputed below.
-      plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames, opts.constraints);
+      plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames, opts.constraints ?? resolved.constraints);
       footRooted = true;
     } else if (sample.planted) {
       pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
@@ -1326,7 +1337,7 @@ export function sampleComposedMotion(
           skinned.skeleton, variantCfg,
         ) : plantRest,
         hingeAxisRest: rest,
-        ...(useFootRoot ? { constraints: opts.constraints, forceRomClamp: true } : {}),
+        ...(useFootRoot ? { constraints: opts.constraints ?? resolved.constraints, forceRomClamp: true } : {}),
         heelStrikeY,
         captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,
         initialTargets: initialPlantTargets,
@@ -1378,7 +1389,10 @@ export function sampleComposedMotion(
     // byte-identical.
     const rootRest = isIdentityQuat(orientQuat) ? rest : rotateRestReferenceByRoot(rest, _sqB);
     const measureRest = rotateRestReferenceByPelvis(rootRest, skinned.skeleton, variantCfg);
-    if (enforceShoulderCapacities(boneByKey, measureRest, opts.constraints ?? resolved.constraints)) {
+    const orientedFeet = useFootRoot && setupMs != null && tMs >= footRootFromMs;
+    if (orientedFeet) orientFeetToSupportFrames(boneByKey, footFrames, measureRest, opts.constraints ?? resolved.constraints);
+    const armsCleared = resolved.locomotorArmClearance && clearLocomotorArms(boneByKey, measureRest, _sqB, opts.constraints ?? resolved.constraints);
+    if (enforceShoulderCapacities(boneByKey, measureRest, opts.constraints ?? resolved.constraints) || armsCleared || orientedFeet) {
       root.updateMatrixWorld(true);
       effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
     }

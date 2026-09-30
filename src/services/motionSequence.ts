@@ -369,6 +369,10 @@ export interface StanceContact {
 export interface ComposedMotion {
   /** Limit inter-leg penetration during an authored gait deviation. */
   gaitLegClearance?: boolean;
+  /** Freely swinging arms use shared post-contact, body-aware clearance. */
+  locomotorArmClearance?: boolean;
+  /** Establish a fixed bilateral base after the first standing setup phase. */
+  footSupportSetup?: boolean;
   /** Explicit compatibility policy. New audited motions can enforce the
    * engineering girdle-proxy budget; existing saved motions retain legacy behavior. */
   shoulderCapacity?: 'legacy' | 'enforce-proxy';
@@ -601,34 +605,12 @@ export interface ComposedMotion {
  *  make a plan bigger — nothing generates keyframes to fill the budget — it only
  *  stops the ceiling from being the reason a motion is coarse. */
 export const MAX_KEYFRAMES = 120;
-/** Most joint targets a single keyframe may hold. 58 covers a FULLY-COORDINATED gait
- *  keyframe: 6 legs + 4 arms (10 sagittal) + the spinal set (thoracic/lumbar rotation,
- *  spine + neck lateral tilt, neck gaze counter, the 3 PELVIS channels, + the 2 hip
- *  counter-rotations — 11) + the SAGITTAL spine set (lumbar/thoracic flexion + the neck's
- *  sagittal gaze counter — 3) + the limb NON-SAGITTAL / DISTAL set (per-arm shoulder
- *  abduction + forearm rotation + all 3 SCAPULAR channels + wrist flexion + wrist deviation
- *  + 5 finger curls, per-leg hip abduction + knee rotation + ankle inversion — 30) = 54,
- *  with headroom for a fault overlay. (Was 48 before the sagittal spine + scapular rotation;
- *  32 before the scapular/wrist/finger detail; 20 before the limb non-sagittal; 12 before
- *  the spinal.)
- *
- *  WHY 58 AND NOT MORE. The registry defines 66 channels, but six are READOUT-ONLY
- *  (elbowDeviation / proSup / kneeDeviation, per side), so only 60 can ever be commanded,
- *  and duplicate targets collapse on resolve. A cap at 60 or above is therefore
- *  UNREACHABLE by any plan — which sounds safe but silently retires the overflow guard
- *  below into untested dead code. 58 keeps it live and reachable while clearing the
- *  busiest measured gait keyframe (a travel walk peaks at 55) with room for an overlay.
- *
- *  RAISING THIS IS PART OF ADDING A CHANNEL, and forgetting costs more than it looks.
- *  Overflow is NON-FATAL and SILENT to the pose: the first N play and the rest are refused
- *  per-target with reason 'target-limit'. Because the coordinator appends left-side limb
- *  targets before right-side ones, an overflowing gait keyframe amputates the RIGHT side
- *  specifically — measured, when the sagittal spine landed against the old 48: a walk at 55
- *  targets silently dropped 33 of them, every one of them right-side (fingers, hip
- *  abduction, knee rotation, ankle inversion). Nothing failed loudly; two unrelated hand
- *  tests failed with values that looked like a measurement bug. `gaitTargetBudget` in
- *  gaitSpineSagittalAndGirdle.test.ts gates this directly now. */
-export const MAX_TARGETS_PER_KEYFRAME = 58;
+/** Bound on distinct imported targets per keyframe. A complete body now
+ * has 61 commandable channels, including neutral holds and both complete hands.
+ * The previous 58-target cap dropped three right-hand digits from an overhead
+ * squat. Keep room for the whole registry; test overflow separately with
+ * oversized imported input rather than deliberately denying valid body channels. */
+export const MAX_TARGETS_PER_KEYFRAME = 64;
 /** Fast clinical motion bound — the DEFAULT ('deliberate') velocity-class cap;
  *  no commanded joint may be asked to travel faster than this unless a keyframe
  *  opts into a higher {@link VelocityClass}. Keyframe durations are raised to
@@ -701,7 +683,7 @@ export interface SequenceTargetOutcome {
   limitedBy?: ExamMovementLimiter;
   painful?: boolean;
   /** Command-level refusal reason, or 'target-limit' when the target overflowed
-   *  {@link MAX_TARGETS_PER_KEYFRAME} (the first 12 still play). */
+   *  {@link MAX_TARGETS_PER_KEYFRAME} (the first N still play). */
   reason?: ExamMovementRefusalReason | 'target-limit';
 }
 
@@ -731,6 +713,10 @@ export interface ResolvedSequenceKeyframe {
 
 export interface ResolvedComposedMotion {
   gaitLegClearance?: boolean;
+  /** Freely swinging arms use shared post-contact, body-aware clearance. */
+  locomotorArmClearance?: boolean;
+  /** Establish a fixed bilateral base after the first standing setup phase. */
+  footSupportSetup?: boolean;
   shoulderCapacity?: 'legacy' | 'enforce-proxy';
   /** Captured patient constraints also govern shoulder capacity and gait clearance. */
   constraints?: RomScenarioConstraints | null;
@@ -1968,11 +1954,13 @@ export function resolveComposedMotion(
     derivedSchedule,
     gaitNotes,
   });
-  if (opts?.constraints && (motion.gaitLegClearance || motion.shoulderCapacity === 'enforce-proxy'
+  if (opts?.constraints && (motion.locomotorArmClearance || motion.footSupportSetup || motion.gaitLegClearance || motion.shoulderCapacity === 'enforce-proxy'
     || ['L', 'R'].some(side => opts!.constraints![`${side}_UpperArm`]?.girdleProxyElevation)))
     resolved.constraints = structuredClone(opts.constraints);
   if (motion.shoulderCapacity) resolved.shoulderCapacity = motion.shoulderCapacity;
   if (motion.gaitLegClearance) resolved.gaitLegClearance = true;
+  if (motion.locomotorArmClearance) resolved.locomotorArmClearance = true;
+  if (motion.footSupportSetup) resolved.footSupportSetup = true;
 
   // ── PHASE 14 — ARTIFACT RE-TIMING FROM RESOLVED KEYFRAME BOUNDARIES (SEAM-7,
   // part 2): the ms-authored artifacts (`contacts`, `gaitStanceWindowsMs`,
@@ -2123,6 +2111,7 @@ export interface KeyframeRootState {
  *  keyframes; root state persists posture/travel across keyframes. */
 export interface ComposedMotionPoses {
   gaitClearance?: import('./gaitLegClearance').GaitClearancePlan;
+  locomotorArmClearance?: boolean;
   poses: CustomPose[];
   /** Parallel to `poses`: the root orientation/translation/stance per keyframe. */
   roots: KeyframeRootState[];
@@ -2362,6 +2351,7 @@ export function buildSequencePoses(
   }) : [];
   return {
     poses,
+    ...(resolved.locomotorArmClearance ? { locomotorArmClearance: true } : {}),
     ...(resolved.gaitLegClearance && rest?.gaitLegFrames && clearanceWindows.length ? {
       gaitClearance: { frames: rest.gaitLegFrames, windows: clearanceWindows, durationsMs, holdsMs, constraints: opts?.constraints ?? resolved.constraints },
     } : {}),

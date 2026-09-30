@@ -24,9 +24,10 @@
  * does.
  */
 import * as THREE from 'three';
+import type { CustomPose } from '../types';
 import { normalizeBoneNameForVariant, type BodyVariantConfig } from '../anatomy/bodyVariants';
 import { captureJointAngleRestReference, localAxisTowardBodyLeft, type JointAngleRestReference } from './jointAngles';
-import { solveIKChain } from './poseRig';
+import { solveIKChain, applyCustomPose } from './poseRig';
 import { clampBoneToRom } from './poseRomClamp';
 import type { RomScenarioConstraints } from './romConstraints';
 import type { TrajectoryGroundingSwitch } from './motionTrajectory';
@@ -439,6 +440,48 @@ export function captureFootFrames(
       jointRest: jointRest ?? captureJointAngleRestReference(skeleton, variantCfg),
     } : {}),
   };
+}
+
+/** Capture an authored standing setup without leaving a transient pose on the
+ * live rig. Clinical joint rest stays anatomical; only the support frames move.
+ * Shared by recording and playback so the stance width does not depend on FPS.
+ */
+export function captureFootSetupFrames(args: {
+  root: THREE.Object3D; skeleton: THREE.Skeleton; variantCfg: BodyVariantConfig;
+  rest: JointAngleRestReference; pose: CustomPose; quaternion: THREE.Quaternion;
+  position: THREE.Vector3; floor: ReturnType<typeof captureFloorReference>;
+}): FootFrameReference {
+  const { root, skeleton, variantCfg, rest } = args;
+  const position = root.position.clone(), quaternion = root.quaternion.clone();
+  const quats = skeleton.bones.map(b => b.quaternion.clone());
+  try {
+    applyCustomPose(skeleton, variantCfg, args.pose);
+    root.position.copy(args.position); root.quaternion.copy(args.quaternion); root.updateMatrixWorld(true);
+    pinRootToFloor(root, skeleton, variantCfg, args.floor);
+    return captureFootFrames(skeleton, variantCfg, rest);
+  } finally {
+    skeleton.bones.forEach((b, i) => b.quaternion.copy(quats[i]!));
+    root.position.copy(position); root.quaternion.copy(quaternion); root.updateMatrixWorld(true);
+  }
+}
+
+/** A fixed standing base owns foot orientation as well as ankle position.
+ * Positional leg IK changes the inherited foot pitch/roll; restore the setup
+ * orientation within the available weight-bearing ankle range afterward.
+ */
+export function orientFeetToSupportFrames(
+  bones: ReadonlyMap<string, THREE.Bone>, frames: FootFrameReference,
+  rest: JointAngleRestReference, constraints?: RomScenarioConstraints | null,
+): void {
+  for (const side of ['L', 'R']) {
+    const key = `${side}_Foot`, foot = bones.get(key), frame = frames.restFrame[key];
+    if (!foot?.parent || !frame) continue;
+    const world = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(frame));
+    foot.quaternion.copy(foot.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(world));
+    foot.updateMatrixWorld(true);
+    clampBoneToRom(foot, key, rest, constraints, true, { weightBearing: true });
+    foot.updateMatrixWorld(true);
+  }
 }
 
 /** A continuation's carried leg pose belongs to its incoming pelvic frame.

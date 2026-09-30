@@ -124,7 +124,7 @@ describe.each(['female','male','neutral'] as const)('upper assessment sources on
     if(i%60===0)await new Promise(resolve=>setTimeout(resolve,0));
    }
    apply(neutral);
- },30000);
+ },60000); // Two-arm, every-frame skin sweeps can exceed 30 seconds on CI.
 });
 
 it('retains explicit target limits when an authored reach is restricted',()=>{

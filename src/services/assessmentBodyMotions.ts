@@ -10,6 +10,7 @@
  * simMOVE's editor generates from them.
  */
 import type { ComposedMotion, SequenceKeyframe, SequenceTarget } from './motionSequence';
+import { overheadSquatTargets } from './overheadSquat';
 import { buildBirdDog, buildPushUp } from './movementPostures';
 
 type Side = 'R' | 'L';
@@ -30,9 +31,8 @@ const standing = (): SequenceTarget[] => [
   ...leg('R', 0, 0), ...leg('L', 0, 0), ...arms(), ...trunk(),
   ...['R', 'L'].flatMap(side => [target(`${side}_UpLeg`, 'hipAbduction', 0), target(`${side}_UpLeg`, 'hipRotation', 0), target(`${side}_Toes`, 'toeFlexion', 0)]),
 ];
-/** A humerus gets only one elevation/rotation command in a frame: the current
- * composed shoulder path cannot safely combine those channels above horizontal.
- * Its scapular rhythm remains owned by the existing command implementation. */
+/** A replacement arm recipe owns the complete humeral command group. The
+ * shared atomic composer combines its elevation, axial rotation and girdle. */
 function withTargets(base: SequenceTarget[], changes: SequenceTarget[]): SequenceTarget[] {
   changes = [...new Map(changes.map(item => [`${item.joint}|${item.motion}`, item])).values()];
   const replaced = new Set(changes.map(item => `${item.joint}|${item.motion}`));
@@ -172,20 +172,17 @@ function singleLegStance(side: Side): ComposedMotion {
   ]), contacts: [{ foot: `${support}_Foot` }, { foot: `${side}_Foot`, toMs:3800 }, { foot: `${side}_Foot`, fromMs:19800,reuseInitialAnchor:true }] };
 }
 
-/** The repository's legacy SFMA overhead version has no dowel and starts with
- * feet together. Keep it distinct from FMS and from the current arms-down test. */
+/** Legacy overhead SFMA protocol: shoulder-width feet and an overhead Y,
+ * distinct from the current arms-down test and the FMS dowel squat.
+ * Protocol: https://pmc.ncbi.nlm.nih.gov/articles/PMC4004125/ (Appendix A).
+ */
 function legacySfmaOverheadSquat(): ComposedMotion {
-  const setup = withTargets(standing(), [
-    ...arms(160, 0, 'shoulderAbduction'),
-    ...(['R', 'L'] as const).flatMap(side => [
-      target(`${side}_UpLeg`, 'hipAbduction', -2), target(`${side}_Foot`, 'ankleInversion', -2),
-    ]),
-  ]);
-  const approach = withTargets(setup, [...leg('R', 55, 65, 15), ...leg('L', 55, 65, 15), target('R_UpLeg', 'hipAbduction', -2.2), target('L_UpLeg', 'hipAbduction', -2.2)]);
-  const squat = withTargets(setup, [...leg('R', 110, 135, 35), ...leg('L', 110, 135, 35), target('R_UpLeg', 'hipAbduction', -3.2), target('L_UpLeg', 'hipAbduction', -3.2)]);
-  return motion('Legacy SFMA overhead deep squat · feet together · no dowel', [
+  const setup = overheadSquatTargets(standing(), false);
+  const approach = overheadSquatTargets(withTargets(setup, [...leg('R', 57.5, 66.5, 17.5), ...leg('L', 57.5, 66.5, 17.5), ...trunk(10.5, 3.5)]), false);
+  const squat = overheadSquatTargets(withTargets(setup, [...leg('R', 115, 133, 35), ...leg('L', 115, 133, 35), ...trunk(21, 7), target('Neck','flexion',-8)]), false);
+  return { footSupportSetup: true, ...motion('Legacy SFMA overhead deep squat · shoulder-width stance · no dowel', [
     frame(setup, 900), frame(approach, 1000), frame(squat, 1500, { holdMs: 1800 }), frame(setup, 1800),
-  ]);
+  ]), contacts: [{ foot: 'L_Foot', fromMs: 900 }, { foot: 'R_Foot', fromMs: 900 }] };
 }
 
 /** Repository assessment-specific, editable kinematic sources. These do not
@@ -209,5 +206,5 @@ export const BODY_ASSESSMENT_NOTES: Record<string, string[]> = {
   'multisegmental-extension': ['The reference starts with both arms overhead and combines hip, lumbar and thoracic extension.', 'Pelvis-to-toe and shoulder-to-heel relationships must be checked on the actual body. Balance is not established by this kinematic source.'],
   'multisegmental-rotation': ['The selected turn combines bounded pelvic, hip, lumbar and thoracic rotation while both feet stay at the setup contacts.', 'The source pelvis command is limited to 30 degrees; it does not establish the 50-degree pelvis criterion. The opposite direction is a separate selected-side attempt.'],
   'single-leg-stance': ['Transfer weight for three seconds, raise the selected knee toward hip height over three seconds, hold for ten seconds, lower the leg over three seconds, then return the pelvis between both feet over three seconds. The arms stay at the sides.', 'Transfer and return timing are editable engineering defaults. Eyes-open and eyes-closed are separate case conditions; this source does not animate vision. Source foot contacts guide authoring; Test & vary measures the actual native hold and return.'],
-  'sfma-overhead-deep-squat-legacy': ['Legacy SFMA overhead version: stand with feet together and arms straight overhead, squat, hold and return to the same setup. No dowel is used.', 'The source foot-skin gap is about 0–1.4 cm. The existing foot-frame planting permits about 3.5 cm of foot relocation during descent and up to 6 mm of skin-floor correction; exact contact and physical balance remain unverified. This is separate from the current arms-down SFMA squat and the FMS dowel squat.'],
+  'sfma-overhead-deep-squat-legacy': ['Legacy SFMA overhead version: set the feet shoulder width apart with toes forward and straight arms in an overhead Y, squat, hold and return to the same setup. No dowel is used.', 'The source foot-skin gap is about 0–1.4 cm. The existing foot-frame planting permits about 3.5 cm of foot relocation during descent and up to 6 mm of skin-floor correction; exact contact and physical balance remain unverified. This is separate from the current arms-down SFMA squat and the FMS dowel squat.'],
 };
