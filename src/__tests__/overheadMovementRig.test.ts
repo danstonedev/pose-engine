@@ -71,7 +71,7 @@ describe.each(['female','male','neutral'] as const)('%s overhead movement geomet
     const deepest=rec.frames.reduce((a,b)=>a.worldTracks!.Hips![1]<b.worldTracks!.Hips![1]?a:b);
     expect(setup.worldTracks!.Hips![1]-deepest.worldTracks!.Hips![1]).toBeGreaterThan(.4);
     expect(Math.abs(rec.frames.at(-1)!.worldTracks!.Hips![1]-setup.worldTracks!.Hips![1])).toBeLessThan(.005);
-  });
+  }, 30000); // Full-motion skin hull inspection takes 9-11 seconds on CI runners.
   it('jump raises the girdles with the arms and releases them on landing',()=>{
     const rec=sample(buildJump());
     checkHeadClearance(rec);
