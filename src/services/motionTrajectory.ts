@@ -928,7 +928,7 @@ export function buildComposedTrajectory(
     }
   }
 
-  return { trajectory: withGaitLegClearance(buildPoseTrajectory(knots), built.gaitClearance, clampTimeScale(timeScale)), settleAtMs };
+  return { trajectory: withGaitLegClearance(buildPoseTrajectory(knots), built.gaitClearance, timeScale), settleAtMs };
 }
 
 export interface LoopTrajectory {

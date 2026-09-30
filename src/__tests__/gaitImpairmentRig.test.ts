@@ -15,6 +15,7 @@ import { constrainGaitLegPose, gaitLegClearance, gaitLegPoints } from '../servic
 import { buildComposedCommandPose } from '../services/movementCommand';
 import { legSkinContact } from './helpers/legSkinContact';
 import { buildComposedTrajectory, buildLoopTrajectory } from '../services/motionTrajectory';
+import { clampTimeScale } from '../services/motionConstants';
 
 describe.each(['female', 'male', 'neutral'] as const)('%s impaired walking on the production rig', variant => {
   const cfg = BODY_VARIANTS[variant];
@@ -33,7 +34,7 @@ describe.each(['female', 'male', 'neutral'] as const)('%s impaired walking on th
     inspectSkin = legSkinContact(root, bones);
   });
   const reset = () => { root.position.set(0, 0, 0); root.quaternion.identity(); applyCustomPose(skin.skeleton, cfg, baseline); root.updateMatrixWorld(true); };
-  it.each([.5, 2])('keeps clearance on the correct foot through paced repeats and loop entry at speed %s', timeScale => {
+  it.each([.5, 1.5, 2])('keeps clearance on the correct foot through paced repeats and loop entry at speed %s', timeScale => {
     reset();
     const pose = buildComposedCommandPose(baseline, 'L_UpLeg', [{motion:'hipAbduction',degrees:-18}], cfg, baseline, rest)!;
     expect(gaitLegClearance(pose, rest.gaitLegFrames!)).toBeLessThan(0);
@@ -44,6 +45,7 @@ describe.each(['female', 'male', 'neutral'] as const)('%s impaired walking on th
     };
     const open = buildComposedTrajectory(built,{startPose:pose,startQuat:[0,0,0,1],startTranslate:[0,0,0],timeScale,reps:3}).trajectory;
     const loop = buildLoopTrajectory(built,{timeScale}).trajectory;
+    const loopScale = clampTimeScale(timeScale);
     const expectSameRotation = (actual: number[], expected: number[]) => expect(
       new Quaternion().fromArray(actual).normalize().angleTo(new Quaternion().fromArray(expected).normalize())
     ).toBeLessThan(1e-6);
@@ -53,8 +55,8 @@ describe.each(['female', 'male', 'neutral'] as const)('%s impaired walking on th
       expectSameRotation(active.pose.bones.R_UpLeg!,pose.bones.R_UpLeg!);
       expectSameRotation(open.sampleAt((rep*1000+650)/timeScale).pose.bones.L_UpLeg!,pose.bones.L_UpLeg!);
       // A periodic loop starts at the first arrival, 200 ms into the authored clock.
-      expect(gaitLegClearance(loop.sampleAt((rep*1000+50)/timeScale).pose,rest.gaitLegFrames!)).toBeGreaterThanOrEqual(0);
-      expectSameRotation(loop.sampleAt((rep*1000+450)/timeScale).pose.bones.L_UpLeg!,pose.bones.L_UpLeg!);
+      expect(gaitLegClearance(loop.sampleAt((rep*1000+50)/loopScale).pose,rest.gaitLegFrames!)).toBeGreaterThanOrEqual(0);
+      expectSameRotation(loop.sampleAt((rep*1000+450)/loopScale).pose.bones.L_UpLeg!,pose.bones.L_UpLeg!);
     }
   });
   it('does not gain patient hip ROM to resolve a collision', () => {
