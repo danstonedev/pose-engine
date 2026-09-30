@@ -49,6 +49,7 @@ import { POSE_SCHEMA_VERSION } from '../types';
 import { delayedOnset, followThroughKnotSlope, trajectoryBoneDelay } from './motionStagger';
 import { FollowThroughStrokes, hermite01 } from './followThroughStroke';
 import { clampTimeScale } from './motionConstants';
+import { withGaitLegClearance, type GaitClearancePlan } from './gaitLegClearance';
 
 /** One waypoint of the motion: an absolute pose + root state at an absolute time. */
 export interface TrajectoryKnot {
@@ -105,6 +106,8 @@ export interface TrajectoryGroundingSwitch {
 }
 
 export interface PoseTrajectory {
+  /** Recheck the swinging leg after contact IK; absent outside guarded gaits. */
+  constrainGaitPoseAt?(pose: CustomPose, tMs: number): CustomPose;
   totalMs: number;
   /** Pose + root at absolute time tMs (clamped to [0, totalMs]). */
   sampleAt(tMs: number): TrajectorySample;
@@ -677,6 +680,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
 export const TRAJECTORY_HOLD_CAP_MS = 10_000;
 
 export interface SequenceBuildLike {
+  gaitClearance?: GaitClearancePlan;
   poses: CustomPose[];
   roots: {
     quat: [number, number, number, number];
@@ -924,7 +928,7 @@ export function buildComposedTrajectory(
     }
   }
 
-  return { trajectory: buildPoseTrajectory(knots), settleAtMs };
+  return { trajectory: withGaitLegClearance(buildPoseTrajectory(knots), built.gaitClearance, timeScale), settleAtMs };
 }
 
 export interface LoopTrajectory {
@@ -1033,10 +1037,10 @@ export function buildLoopTrajectory(
   const inner = buildPoseTrajectory(padded);
   const wrap = (t: number): number => ((t % period) + period) % period;
   return {
-    trajectory: {
+    trajectory: withGaitLegClearance({
       totalMs: period,
       sampleAt: (tMs: number) => inner.sampleAt(wrap(tMs)),
-    },
+    }, built.gaitClearance, ts, dur[0]!),
     enterAtMs,
   };
 }

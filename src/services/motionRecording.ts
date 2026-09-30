@@ -1340,6 +1340,14 @@ export function sampleComposedMotion(
       root.updateMatrixWorld(true);
       effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
     }
+    if (trajectory.constrainGaitPoseAt) {
+      const clear = trajectory.constrainGaitPoseAt(effPose, tMs);
+      if (clear !== effPose) {
+        applyCustomPose(skinned.skeleton, variantCfg, clear);
+        root.updateMatrixWorld(true);
+        effPose = clear;
+      }
+    }
 
     // Measure against the (possibly reoriented) rest reference — same as the
     // stage's activeRestRef(). `_sqB` = the WORLD-frame root delta from rest

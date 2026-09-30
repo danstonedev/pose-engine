@@ -2053,7 +2053,7 @@
        *  release is read off it, exactly as the sampler's is (none for a
        *  touchdown-planted gait, whose travel assumes the base release). */
       function applyFootPlants(tMs: number, trajectory: PoseTrajectory): void {
-        if (!composedPlants.length || !restRef || !modelRoot) { enforceCurrentShoulders(); return; }
+        if (!restRef || !modelRoot) { enforceCurrentShoulders(); return; }
         const solved = stepContactPlants(composedPlants, tMs, {
           // Fixed-base folds first place the root over the feet, then refine
           // both contacts. Their clamp frame includes that root and pelvis turn.
@@ -2067,6 +2067,14 @@
           trajectory: composedPlantsAtTouchdown ? null : trajectory,
         });
         if (solved) modelRoot.updateMatrixWorld(true);
+        if (trajectory.constrainGaitPoseAt && skinnedRef && variantCfgRef) {
+          const before = serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
+          const clear = trajectory.constrainGaitPoseAt(before, tMs);
+          if (clear !== before) {
+            applyPoseComplete(skinnedRef.skeleton, variantCfgRef, clear);
+            modelRoot.updateMatrixWorld(true);
+          }
+        }
         enforceCurrentShoulders();
       }
 

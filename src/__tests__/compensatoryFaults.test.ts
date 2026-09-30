@@ -65,8 +65,12 @@ describe('forwardHead (cervical + thoracic flexion)', () => {
 describe('circumduction (+ contralateral vault)', () => {
   it('abducts the swing hip and plantarflexes the stance ankle', () => {
     const c = circumduction(walk(), 'right', 15);
-    expect(targetOf(c, 'R_UpLeg', 'hipAbduction').every((d) => d === 15)).toBe(true); // swing arcs out
-    expect(targetOf(c, 'L_Foot', 'ankleFlexion').some((d) => d === -9)).toBe(true); // stance vaults (−=plantar, 15*0.6)
+    expect(Math.max(...targetOf(c, 'R_UpLeg', 'hipAbduction'))).toBe(15);
+    expect(targetOf(c, 'R_UpLeg', 'hipAbduction')).toContain(0); // stance releases the arc
+    const baseAnkle = targetOf(walk(), 'L_Foot', 'ankleFlexion');
+    const added = targetOf(c, 'L_Foot', 'ankleFlexion').map((v, i) => v - baseAnkle[i]!);
+    expect(Math.min(...added)).toBe(-9);
+    expect(Math.max(...added)).toBe(0);
     resolvesOk(c);
   });
 });
@@ -89,11 +93,13 @@ describe('genuRecurvatum (knee hyperextension, needs widened ROM)', () => {
   it('is additive on a flexed knee (deepens extension where the gait knee is near 0)', () => {
     const base = walk();
     const g = genuRecurvatum(base, undefined, 10);
-    // every existing L_Leg knee target is shifted down by exactly 10 (sustained offset)
+    // Extension deepens in stance and releases for swing.
     const b = targetOf(base, 'L_Leg', 'kneeFlexion');
     const f = targetOf(g, 'L_Leg', 'kneeFlexion');
     expect(f.length).toBe(b.length);
-    for (let i = 0; i < b.length; i += 1) expect(f[i]).toBe(b[i]! - 10);
+    const added = f.map((value, i) => value - b[i]!);
+    expect(Math.min(...added)).toBe(-10);
+    expect(Math.max(...added)).toBe(0);
   });
 });
 

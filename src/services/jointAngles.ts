@@ -54,6 +54,7 @@ import { ROM_JOINT_ROWS, type RomPlane } from './romRegistry';
 import { captureShoulderFrames, inspectRigShoulders, type ShoulderInspections } from './shoulderRuntime';
 import type { ShoulderComplexFrame } from './shoulderComplex';
 import type { RomScenarioConstraints } from './romConstraints';
+import { captureGaitLegFrames, type GaitLegFrames } from './gaitLegClearance';
 
 // ── Public types ───────────────────────────────────────────────────────────
 
@@ -83,6 +84,8 @@ export interface JointAngleReport {
  *  anatomic position reads 0 everywhere (and the readouts only move when
  *  the user actually poses the model away from rest). */
 export interface JointAngleRestReference {
+  /** Immutable leg geometry for gait clearance, independent of measurement-frame rebasing. */
+  gaitLegFrames?: GaitLegFrames;
   /** Rest world quaternion of the Hips bone — defines the pelvis "0,0,0"
    *  for the world-frame readout (option a). */
   pelvisWorldQuat: [number, number, number, number];
@@ -233,6 +236,7 @@ export function captureJointAngleRestReference(
     hingeAxes[key] = [axis.x, axis.y, axis.z];
   }
   return { pelvisWorldQuat, localQuats, worldQuats, worldDirs, fingerCurlRest, hingeAxes,
+    gaitLegFrames: captureGaitLegFrames(lookup),
     shoulderFrames: captureShoulderFrames(lookup) };
 }
 
