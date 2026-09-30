@@ -30,6 +30,41 @@ for (const variant of ['male', 'female', 'neutral'] as const) describe(`${varian
   const reset = () => { root.position.set(0, 0, 0); root.quaternion.identity(); applyCustomPose(skin.skeleton, cfg, baseline); root.updateMatrixWorld(true); };
   for (const side of ['L', 'R'] as const) {
     const key = `${side}_UpperArm`, girdleKey = `${side}_Shoulder`;
+    it(`${side}: runtime limits preserve external rotation and apply asymmetric patient bounds in command coordinates`, () => {
+      const bone = bones.get(key)!;
+      for (const [rotation, expected] of [[-90, -90], [-70, -70], [0, 0], [70, 70], [-110, -90], [90, 70]]) {
+        reset();
+        const pose = buildComposedCommandPose(baseline, key, [{ motion: 'shoulderRotation', degrees: rotation }], cfg, baseline, rest)!;
+        applyCustomPose(skin.skeleton, cfg, pose); root.updateMatrixWorld(true);
+        enforceShoulderCapacities(bones, rest, shoulderConstraintsForPolicy('enforce-proxy'));
+        root.updateMatrixWorld(true);
+        expect(inspectClinicalAngles(bone, key, rest)!.anatomicRotation).toBeCloseTo(expected, 3);
+        expect(computeJointAngles(skin.skeleton, cfg, variant, rest).joints[key].shoulderRotation).toBeCloseTo(expected, 2);
+      }
+      const constraints = { [key]: { shoulderRotation: { availableRange: { min: -30, max: 10 } } } };
+      for (const [rotation, expected] of [[-60, -30], [40, 10]]) {
+        reset();
+        const pose = buildComposedCommandPose(baseline, key, [{ motion: 'shoulderRotation', degrees: rotation }], cfg, baseline, rest)!;
+        applyCustomPose(skin.skeleton, cfg, pose); root.updateMatrixWorld(true);
+        enforceShoulderCapacities(bones, rest, shoulderConstraintsForPolicy('enforce-proxy', constraints));
+        root.updateMatrixWorld(true);
+        expect(inspectClinicalAngles(bone, key, rest, constraints)!.anatomicRotation).toBeCloseTo(expected, 3);
+        expect(computeJointAngles(skin.skeleton, cfg, variant, rest).joints[key].shoulderRotation).toBeCloseTo(expected, 2);
+      }
+      for (const [flexion, abduction] of [[90, 0], [174, 155]]) {
+        reset();
+        const pose = buildComposedCommandPose(baseline, key, [
+          { motion: 'shoulderFlexion', degrees: flexion }, { motion: 'shoulderAbduction', degrees: abduction },
+          { motion: 'shoulderRotation', degrees: -90 },
+        ], cfg, baseline, rest)!;
+        applyCustomPose(skin.skeleton, cfg, pose); root.updateMatrixWorld(true);
+        const before = bone.quaternion.clone();
+        enforceShoulderCapacities(bones, rest, shoulderConstraintsForPolicy('enforce-proxy'));
+        expect(bone.quaternion.angleTo(before)).toBeLessThan(.003);
+        expect(inspectClinicalAngles(bone, key, rest)!.anatomicRotation).toBeLessThan(-89);
+        expect(computeJointAngles(skin.skeleton, cfg, variant, rest).joints[key].shoulderRotation).toBeCloseTo(-90, 0);
+      }
+    });
     for (const rotation of [-60, 0, 60]) it(`${side}: explicit zero girdle stays fixed while swing is bounded and twist preserved (${rotation})`, () => {
       reset();
       const ts = [{ motion: 'shoulderFlexion', degrees: 180 }, { motion: 'shoulderRotation', degrees: rotation }];

@@ -60,7 +60,7 @@ describe('explicit pose subtree ROM enforcement on the female rig', () => {
     for (const key of ['R_Shoulder', 'R_UpperArm', 'R_Forearm']) {
       const value = report(key);
       for (const axis of ['flexion', 'abduction', 'rotation'] as const) {
-        const angle = axis === 'flexion' ? value.anatomicFlexion : value.raw[axis];
+        const angle = axis === 'flexion' ? value.anatomicFlexion : axis === 'rotation' ? value.anatomicRotation : value.raw.abduction;
         const range = value.ranges[axis];
         if (!range) continue;
         expect(angle, `${key}.${axis}`).toBeGreaterThanOrEqual(range.min - 0.001);
@@ -87,7 +87,7 @@ describe('explicit pose subtree ROM enforcement on the female rig', () => {
     // The editor's former call bounds the parent but leaves its child's
     // world-frame rotation outside its range after this 2-degree nudge.
     clampBoneToRom(shoulder, 'R_Shoulder', rest);
-    expect(report('R_UpperArm').raw.rotation).toBeLessThan(-91);
+    expect(report('R_UpperArm').anatomicRotation).toBeGreaterThan(71);
     const editedParent = shoulder.quaternion.toArray();
     const adjusted = clampPoseSubtreeToRom(shoulder, bones, rest);
     expect(adjusted).toContain('R_UpperArm');

@@ -628,6 +628,21 @@ function clampBodyEuler(
   return true;
 }
 
+/** The production arm's child lies along local +Y, while the canonical
+ * decomposition uses -Y. Synthetic/legacy rigs may use -Y already. Map
+ * shoulder twist to the command/registry convention before applying its
+ * asymmetric internal/external rotation limits; hips keep their convention. */
+const _ballRestAxis = new THREE.Vector3();
+const _ballRestWorld = new THREE.Quaternion();
+function ballRotationSign(key: string, rest: JointAngleRestReference): 1 | -1 {
+  if (!/^[LR]_UpperArm$/.test(key)) return 1;
+  const direction = rest.worldDirs?.[key], world = rest.worldQuats[key];
+  if (!direction || !world) return 1;
+  const localAxis = _ballRestAxis.fromArray(direction)
+    .applyQuaternion(_ballRestWorld.fromArray(world).invert());
+  return localAxis.dot(REST_DOWN_LOCAL) < 0 ? -1 : 1;
+}
+
 function clampBallJoint(
   bone: THREE.Bone,
   canonicalKey: string,
@@ -658,18 +673,20 @@ function clampBallJoint(
     flexionDeg: clampedAnatomicFlex,
     abductionDeg: clampedAbd,
   });
-  const clampedRot = clampValue(angles.rotation, rotRange);
+  const rotationSign = ballRotationSign(canonicalKey, rest);
+  const anatomicRotation = angles.rotation * rotationSign;
+  const clampedRot = clampValue(anatomicRotation, rotRange);
 
   if (
     approxEqual(clampedAnatomicFlex, anatomicFlex) &&
     approxEqual(clampedAbd, angles.abduction) &&
-    approxEqual(clampedRot, angles.rotation)
+    approxEqual(clampedRot, anatomicRotation)
   ) {
     return false;
   }
 
   const flexOut = clampedAnatomicFlex * flexSign;
-  recomposeBallJoint(flexOut, clampedAbd, clampedRot, strategy.mirror, _qDelta);
+  recomposeBallJoint(flexOut, clampedAbd, clampedRot * rotationSign, strategy.mirror, _qDelta);
   writeCanonicalDeltaToBone(bone, restWorldArr, _qDelta);
   return true;
 }
@@ -934,6 +951,9 @@ export interface ClinicalAnglesReport {
    *  For hinges the knee is `-raw.flexion`; for everything else this
    *  equals `raw.flexion`. */
   anatomicFlexion: number;
+  /** Rotation in the command/registry convention, after the production arm's
+   * local-axis sign is accounted for. `raw.rotation` stays unmodified. */
+  anatomicRotation: number;
   /** ROM ranges the clamp would apply for each axis (or `null` for an
    *  axis the joint type doesn't expose). */
   ranges: {
@@ -1027,7 +1047,8 @@ export function inspectClinicalAngles(
     rotRange = strategy.rotationRange;
   }
 
-  return { strategy: strategy.kind, raw, anatomicFlexion, ranges: { flexion: flexRange, abduction: abdRange, rotation: rotRange } };
+  const anatomicRotation = raw.rotation * (strategy.kind === 'ball-joint' ? ballRotationSign(canonicalKey, rest) : 1);
+  return { strategy: strategy.kind, raw, anatomicFlexion, anatomicRotation, ranges: { flexion: flexRange, abduction: abdRange, rotation: rotRange } };
 }
 
 /** All canonical keys with a clamp strategy, in a stable order. */

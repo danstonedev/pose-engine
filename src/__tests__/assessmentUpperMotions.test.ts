@@ -13,16 +13,18 @@ import {captureJointAngleRestReference,computeJointAngles} from '../services/joi
 import {applyCustomPose,buildBoneByPoseKey,serializeCustomPose} from '../services/poseRig';
 import {buildSequencePoses,resolveComposedMotion} from '../services/motionSequence';
 import {sampleComposedMotion} from '../services/motionRecording';
+import {createArmTorsoContact} from '../services/armTorsoContact';
+import {armHeadContact} from './helpers/armHeadContact';
 import {UPPER_ASSESSMENT_MOTIONS,UPPER_ASSESSMENT_NOTES} from '../services/assessmentUpperMotions';
 
-function prepareRig(root:Object3D,variant:'female'|'male'){
+function prepareRig(root:Object3D,variant:'female'|'male'|'neutral'){
  const cfg=BODY_VARIANTS[variant];root.scale.setScalar(cfg.pose.rootScale);
  let skin:SkinnedMesh|undefined;root.traverse(object=>{if(!skin&&(object as SkinnedMesh).isSkinnedMesh)skin=object as SkinnedMesh;});
  root.updateMatrixWorld(true);applyAnatomicPose(root,cfg);root.updateMatrixWorld(true);
  return {root,skin:skin!,cfg,bones:buildBoneByPoseKey(skin!.skeleton,cfg)};
 }
 
-describe.each(['female','male'] as const)('upper assessment sources on actual %s rig',variant=>{
+describe.each(['female','male','neutral'] as const)('upper assessment sources on actual %s rig',variant=>{
  let bridge:ReturnType<typeof prepareRig>,rest:ReturnType<typeof captureJointAngleRestReference>,neutral:ReturnType<typeof serializeCustomPose>;
  beforeAll(async()=>{
   const bytes=readFileSync(new URL(`../../models/painmap3D_${variant}.runtime.glb`,import.meta.url));
@@ -56,11 +58,18 @@ describe.each(['female','male'] as const)('upper assessment sources on actual %s
     // Geometric guardrails for a low-back approach; not a claim of scapular
     // contact or of validated deformable-skin clearance.
     expect(wrist.z).toBeLessThan(torso.z-.16);expect(elbow.z).toBeLessThan(wrist.z-.06);
-    expect(wrist.y).toBeLessThan(shoulder.y-.20);expect(Math.abs(wrist.x)).toBeLessThan(.09);
+    expect(wrist.y).toBeLessThan(shoulder.y-.20);expect(Math.abs(wrist.x)).toBeLessThan(.12);
    }
    if(id==='ue-pattern2'||id==='shoulder-mobility'){
     expect(elbow.y).toBeGreaterThan(shoulder.y+.20);expect(wrist.y).toBeLessThan(elbow.y-.10);
-    expect(wrist.z).toBeLessThan(torso.z-.10);expect(Math.abs(elbow.x)).toBeGreaterThan(.20);
+    expect(wrist.z).toBeLessThan(torso.z-.13);
+    // The elbow sits beside the head; the hand descends toward the midline
+    // with its palm facing the back rather than reaching across the neck.
+    expect(Math.abs(elbow.x)).toBeGreaterThan(.10);expect(Math.abs(elbow.x)).toBeLessThan(.24);
+    expect(Math.abs(wrist.x)).toBeLessThan(.09);
+    const palm=world(`${side}_Mid1`).sub(wrist).cross(world(`${side}_Pinky1`).sub(world(`${side}_Index1`))).normalize().multiplyScalar(side==='R'?1:-1);
+    expect(palm.z).toBeGreaterThan(.9);
+    if(id==='ue-pattern2')expect(world(`${side}_Mid3`).y).toBeLessThan(shoulder.y-.03);
     if(id==='shoulder-mobility'){
      const lower=world(`${side==='R'?'L':'R'}_Hand`);expect(lower.z).toBeLessThan(torso.z-.16);expect(lower.y).toBeLessThan(wrist.y-.30);
      const report=computeJointAngles(bridge.skin.skeleton,bridge.cfg,variant,rest);
@@ -92,6 +101,30 @@ describe.each(['female','male'] as const)('upper assessment sources on actual %s
   for(const side of ['R','L'])expect(new Vector3().fromArray(first.worldTracks![`${side}_Hand`]).distanceTo(new Vector3().fromArray(last.worldTracks![`${side}_Hand`]))).toBeLessThan(.005);
   bridge.root.position.copy(position);bridge.root.quaternion.copy(rotation);apply(neutral);
  });
+
+ it.each((['ue-pattern1','ue-pattern2','shoulder-mobility'] as const).flatMap(id=>(['R','L'] as const).map(side=>({id,side}))))('$id/$side keeps arm skin clear of the torso and head throughout the route',async({id,side})=>{
+   bridge.root.position.set(0,0,0);bridge.root.quaternion.identity();apply(neutral);
+   const recording=sampleComposedMotion(resolveComposedMotion(UPPER_ASSESSMENT_MOTIONS[id](side)),{
+    baselinePose:neutral,variantCfg:bridge.cfg,rest,skeletonHarness:{root:bridge.root,skinned:bridge.skin},sampleHz:60,
+   });
+   const first=recording.frames[0]!;
+   bridge.root.position.fromArray(first.root.translateM);bridge.root.quaternion.fromArray(first.root.orientQuat);apply(first.pose);
+   const torso=createArmTorsoContact(bridge.root)!;
+   const head=armHeadContact(bridge.root,bridge.bones.get('Neck_Lower')!);
+   const sides=id==='shoulder-mobility'?['L','R'] as const:[side];
+   for(const [i,f]of recording.frames.entries()){
+    bridge.root.position.fromArray(f.root.translateM);bridge.root.quaternion.fromArray(f.root.orientQuat);apply(f.pose);
+    for(const s of sides){
+     // Existing envelope tolerance: 3 mm. This is a collision regression,
+     // not proof of skin contact at an SFMA landmark or an FMS score.
+     expect(torso.inspect(s).penetrationM,`${side}/${s} torso at ${f.tMs}`).toBeLessThan(.003);
+     expect(head(s),`${side}/${s} head at ${f.tMs}`).toBeLessThan(.003);
+     expect(f.shoulders![s].girdleProxy.elevationDeg!).toBeLessThanOrEqual(120.001);
+    }
+    if(i%60===0)await new Promise(resolve=>setTimeout(resolve,0));
+   }
+   apply(neutral);
+ },30000);
 });
 
 it('retains explicit target limits when an authored reach is restricted',()=>{

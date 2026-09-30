@@ -207,7 +207,7 @@ function solveContactArm(
     const report = inspectClinicalAngles(bones[i]!, solver.ctx.canonicalKeys[i], options.rest, options.constraints);
     if (!report) { valid = false; break; }
     for (const axis of ['flexion', 'abduction', 'rotation'] as const) {
-      const value = axis === 'flexion' ? report.anatomicFlexion : report.raw[axis];
+      const value = axis === 'flexion' ? report.anatomicFlexion : axis === 'rotation' ? report.anatomicRotation : report.raw.abduction;
       const range = report.ranges[axis];
       if (!Number.isFinite(value) || (range && (value < range.min - 0.5 || value > range.max + 0.5))) valid = false;
     }

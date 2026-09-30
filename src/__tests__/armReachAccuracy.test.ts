@@ -57,7 +57,7 @@ describe.each(['male', 'female'] as const)('%s arm reach accuracy', variant => {
       const key = `${side}_${segment}`;
       const report = inspectClinicalAngles(bones.get(key)!, key, rest, constraints)!;
       for (const axis of ['flexion', 'abduction', 'rotation'] as const) {
-        const value = axis === 'flexion' ? report.anatomicFlexion : report.raw[axis];
+        const value = axis === 'flexion' ? report.anatomicFlexion : axis === 'rotation' ? report.anatomicRotation : report.raw.abduction;
         const range = report.ranges[axis];
         expect(Number.isFinite(value), `${key}.${axis} finite`).toBe(true);
         if (!range) continue;
@@ -67,12 +67,17 @@ describe.each(['male', 'female'] as const)('%s arm reach accuracy', variant => {
     }
   }
 
-  it.each(['L', 'R'] as const)('%s: the default settles the lower back reach beyond the historic four-pass result', side => {
+  it.each(['L', 'R'] as const)('%s: the lower-back probe remains partial at the corrected internal-rotation bound', side => {
     const oldError = reach(side, BACK_LOW, 4);
     const error = reach(side, BACK_LOW);
     expect(oldError).toBeGreaterThan(0.2);
-    expect(error).toBeLessThan(oldError / 3);
-    expect(error).toBeLessThan(variant === 'male' ? 0.025 : 0.10);
+    expect(error).toBeLessThan(oldError);
+    // The former near-contact result used 90 degrees of internal rotation
+    // because the clamp reversed the asymmetric [-90, +70] rotation band.
+    // Do not regain that endpoint by admitting the old limit violation.
+    expect(error).toBeGreaterThan(.10);
+    expect(error).toBeCloseTo(variant === 'male' ? .12465 : .16952, 3);
+    expect(inspectClinicalAngles(bones.get(`${side}_UpperArm`)!, `${side}_UpperArm`, rest)!.anatomicRotation).toBeCloseTo(70, 3);
     expectInRange(side);
   });
 
@@ -84,7 +89,7 @@ describe.each(['male', 'female'] as const)('%s arm reach accuracy', variant => {
   it.each(['L', 'R'] as const)('%s: an explicit iteration budget reaches the actual CCD solver', side => {
     const short = reach(side, BACK_LOW, 4);
     const longer = reach(side, BACK_LOW, 40);
-    expect(longer).toBeLessThan(short / 3);
+    expect(longer).toBeLessThan(short);
     expectInRange(side);
   });
 
@@ -118,7 +123,7 @@ describe.each(['male', 'female'] as const)('%s arm reach accuracy', variant => {
     const distal = buildIKChainContext(skin, hand, 2, cfg)!;
     for (let i = 1; i <= 30; i += 1) {
       const before = full.bones.map(bone => bone.quaternion.clone());
-      const target = new THREE.Vector3((CROSS_BODY[0] + i * 0.001) * (side === 'L' ? -1 : 1), CROSS_BODY[1], CROSS_BODY[2]);
+      const target = new THREE.Vector3((CROSS_BODY[0] - i * 0.001) * (side === 'L' ? -1 : 1), CROSS_BODY[1], CROSS_BODY[2]);
       solveArmChainWithRhythm(full, distal, target, { rest, recoverStalledReach: true });
       root.updateMatrixWorld(true);
       expect(hand.getWorldPosition(new THREE.Vector3()).distanceTo(target)).toBeLessThan(0.015);

@@ -16,21 +16,24 @@ const opposite = (side: Side): Side => side === 'R' ? 'L' : 'R';
 const target = (joint: string, motion: string, targetDegrees: number): SequenceTarget => ({joint,motion,targetDegrees});
 // Atomic shoulder composition retains authored protraction while automatic
 // rhythm supplies elevation and tilt. This is still one girdle proxy.
-const arm = (side:Side,flexion=0,abduction=0,rotation=0,elbow=0,protraction=0):SequenceTarget[] => [
+const arm = (side:Side,flexion=0,abduction=0,rotation=0,elbow=0,protraction=0,forearm=0,wrist=0,deviation=0):SequenceTarget[] => [
   target(`${side}_Shoulder`,'protraction',protraction),
   target(`${side}_UpperArm`,'shoulderFlexion',flexion),
   target(`${side}_UpperArm`,'shoulderAbduction',abduction),
   target(`${side}_UpperArm`,'shoulderRotation',rotation),
   target(`${side}_Forearm`,'elbowFlexion',elbow),
-  target(`${side}_Forearm`,'forearmRotation',0),
+  target(`${side}_Forearm`,'forearmRotation',forearm),
+  target(`${side}_Hand`,'wristFlexion',wrist),
+  target(`${side}_Hand`,'wristDeviation',deviation),
 ];
-// Bounded approach endpoints measured on both source assets. A larger elbow
-// bend on the lower route moved the wrist through the torso, so the seed stops
-// behind the low back instead of pretending to have reached the scapula.
-const lower = (side:Side) => arm(side,-60,-30,70,90,-4);
-const upper = (side:Side) => arm(side,155,0,-90,145,6);
-const lowerApproach = (side:Side) => arm(side,-45,0,55,20,-2);
-const upperApproach = (side:Side) => arm(side,145,0,-70,20,3);
+// Shoulder flexion and abduction are projected angles, not sequential Euler
+// rotations. Both projections describe the overhead direction; shared rhythm
+// supplies the clavicle motion. Forearm and wrist targets orient the palm.
+// The lower route remains a bounded low-back reach, not claimed scapular contact.
+const lower = (side:Side) => arm(side,-60,0,70,100,-15,-60,10,20);
+const upper = (side:Side) => arm(side,174,155,-90,148,-5,30,8,3);
+const lowerApproach = (side:Side) => arm(side,-45,20,55,20,-2,-30);
+const upperApproach = (side:Side) => arm(side,174,140,-90,45,-5,30);
 const neutral = () => completeBodyTargets([...arm('R'),...arm('L')]);
 function standing(name:string,approach:SequenceTarget[],peak:SequenceTarget[]):ComposedMotion {
   // Realized coupled capacity is enforced as well as the individual ROM rows.
@@ -74,8 +77,8 @@ export const UPPER_ASSESSMENT_MOTIONS = {
 export const UPPER_ASSESSMENT_NOTES:Record<keyof typeof UPPER_ASSESSMENT_MOTIONS,string[]> = {
   'shoulder-mobility':['Editable over/under approach, with the selected side overhead. The fists remain separated; this is not a completed mobility endpoint. Thumb placement, hand-length scoring and skin contact require review.'],
   'shoulder-clearing':['Editable shoulder-clearing approach. Opposite-shoulder palm contact and pain response require review.'],
-  'ue-pattern1':['Editable reach behind the low back, short of the opposite scapular target. Palm direction and skin contact require refinement; joint angles alone do not establish landmark contact.'],
-  'ue-pattern2':['Editable reach behind the head, short of the opposite scapular target. Palm direction and skin contact require refinement; joint angles alone do not establish landmark contact.'],
+  'ue-pattern1':['Editable reach behind the low back, short of the opposite scapular target. The forearm and wrist orient the hand away from the torso; joint angles alone do not establish landmark contact.'],
+  'ue-pattern2':['Editable overhead reach with the elbow beside the head and the palm directed toward the upper back. Opposite-scapula contact is not established; joint angles alone do not establish landmark contact.'],
   'cervical-flexion':['Neck motion is commanded with the trunk neutral. Chin-to-sternum contact and mouth closure are not measured.'],
   'cervical-extension':['Neck motion is commanded with the trunk neutral. The face-to-horizontal criterion is not measured.'],
   'cervical-rotation':['The selected side is assessed and returns to neutral. Chin-to-clavicle alignment and feet-together placement require review.'],

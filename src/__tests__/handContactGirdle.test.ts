@@ -46,7 +46,7 @@ describe.each(['male', 'female'] as const)('%s hand contact girdle', variant => 
           for (let i = 1; i < solver.ctx.bones.length; i += 1) {
             const report = inspectClinicalAngles(solver.ctx.bones[i]!, solver.ctx.canonicalKeys[i], rig.rest)!;
             for (const axis of ['flexion', 'abduction', 'rotation'] as const) {
-              const value = axis === 'flexion' ? report.anatomicFlexion : report.raw[axis];
+              const value = axis === 'flexion' ? report.anatomicFlexion : axis === 'rotation' ? report.anatomicRotation : report.raw.abduction;
               const range = report.ranges[axis];
               expect(Number.isFinite(value)).toBe(true);
               if (range) {

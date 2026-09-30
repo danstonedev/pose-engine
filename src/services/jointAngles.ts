@@ -681,11 +681,12 @@ export function upperArmWorldAngles(
   const abdOf = (v: THREE.Vector3) => Math.atan2(s * v.x, -v.y) * DEG;
   const flexion = flexOf(curDir) - flexOf(restDir);
   const abduction = abdOf(curDir) - abdOf(restDir);
-  // Axial rotation = residual twist about the CURRENT arm axis after the swing.
+  // Removing the swing on the left expresses the residual twist about the
+  // REST arm axis. Measuring it against curDir reverses the sign above 90°.
   _stTwist.copy(curWorldQuat).multiply(_q1.copy(restWorldQuat).invert()); // world delta
   _stSwing.setFromUnitVectors(restDir, curDir);
   _stTwist.premultiply(_stSwing.invert());
-  const rotation = signedAngleAboutAxis(_stTwist, curDir) * DEG * s;
+  const rotation = signedAngleAboutAxis(_stTwist, restDir) * DEG * s;
   return { flexion, abduction, rotation };
 }
 
