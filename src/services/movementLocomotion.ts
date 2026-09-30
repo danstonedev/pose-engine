@@ -16,6 +16,7 @@
  * is unchanged.
  */
 
+import { coordinateLocomotorArms } from './locomotorArmSwing';
 import { minKeyframeMsFor } from './motionSequence';
 import type {
   ComposedMotion,
@@ -438,6 +439,7 @@ export function buildTravelWalk(
         }));
   return {
     name: 'walk-forward',
+    locomotorArmClearance: true,
     startFrom: 'current',
     stance: 'planted',
     // PERSISTENT HEADING (SEAM-1): the walk's yaw plan is authored relative to
@@ -637,6 +639,8 @@ export function buildTurnInPlace(opts: { degrees?: number } = {}): ComposedMotio
         { joint: `${O}_Leg`, motion: 'kneeFlexion', targetDegrees: 0 },
         { joint: `${O}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: 0 },
         { joint: `${S}_UpperArm`, motion: 'shoulderFlexion', targetDegrees: 0 },
+        { joint: 'L_Forearm', motion: 'elbowFlexion', targetDegrees: TURN_ELBOW_DEG },
+        { joint: 'R_Forearm', motion: 'elbowFlexion', targetDegrees: TURN_ELBOW_DEG },
       ],
       root: { orient: { yawDeg: yaw1 }, translateM: [0, 0, 0] },
     });
@@ -663,7 +667,7 @@ export function buildTurnInPlace(opts: { degrees?: number } = {}): ComposedMotio
     ],
     root: { orient: { yawDeg: total }, translateM: [0, 0, 0] },
   });
-  return {
+  return coordinateLocomotorArms({
     name: 'turn-in-place',
     startFrom: 'current',
     stance: 'planted',
@@ -673,7 +677,7 @@ export function buildTurnInPlace(opts: { degrees?: number } = {}): ComposedMotio
     // goes 0→180→360, not 0→180, snap, 0→180.
     inheritHeading: true,
     keyframes,
-  };
+  });
 }
 
 /**
@@ -729,10 +733,21 @@ export function buildJump(opts: { heightM?: number; reps?: number } = {}): Compo
     { joint: 'L_Foot', motion: 'ankleFlexion', targetDegrees: ankle },
     { joint: 'R_Foot', motion: 'ankleFlexion', targetDegrees: ankle },
   ];
-  const arms = (sh: number) => [
-    { joint: 'L_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
-    { joint: 'R_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
-  ];
+  // Drive the whole shoulder chain. Explicit girdle rotation uses the same
+  // atomic clavicle/humerus composition as the assessment and gait recipes.
+  // Flexion alone otherwise tilts the girdle without raising its lateral end.
+  const arms = (sh: number) => (['L', 'R'] as const).flatMap(side => [
+    { joint: side + '_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh },
+    { joint: side + '_UpperArm', motion: 'shoulderAbduction', targetDegrees: 0 },
+    { joint: side + '_UpperArm', motion: 'shoulderRotation', targetDegrees: -25 * Math.max(0, Math.min(1, (sh - 45) / 105)) },
+    { joint: side + '_Shoulder', motion: 'upRotation', targetDegrees: Math.max(0, sh - 30) * .3 },
+    { joint: side + '_Shoulder', motion: 'scapularTilt', targetDegrees: Math.max(0, sh - 60) * .12 },
+    { joint: side + '_Shoulder', motion: 'protraction', targetDegrees: 0 },
+    { joint: side + '_Forearm', motion: 'elbowFlexion', targetDegrees: 8 },
+    { joint: side + '_Forearm', motion: 'forearmRotation', targetDegrees: 0 },
+    { joint: side + '_Hand', motion: 'wristFlexion', targetDegrees: 0 },
+    { joint: side + '_Hand', motion: 'wristDeviation', targetDegrees: 0 },
+  ]);
   const toes = (deg: number) => [
     { joint: 'L_Toes', motion: 'toeFlexion', targetDegrees: deg },
     { joint: 'R_Toes', motion: 'toeFlexion', targetDegrees: deg },
@@ -1111,6 +1126,15 @@ function runStepKeyframes(land: 'L' | 'R', s: number, pattern: RunPattern = 'run
   ];
   const trunk = [{ joint: 'Spine_Lower', motion: 'flexion', targetDegrees: spec.trunkLeanDeg }];
   const other: 'L' | 'R' = land === 'L' ? 'R' : 'L';
+  // Sample one smooth reciprocal swing on the actual step clock. The old
+  // flight target reversed most of the arm excursion inside a 60?70 ms rise,
+  // giving a visible whip at fast running despite continuous leg flight.
+  const swing = (elapsed: number) => 15 - 33 * Math.cos(Math.PI * elapsed / t.stepMs);
+  const touchArm = swing(t.flightMs + t.touchMs);
+  const absorbArm = swing(t.flightMs + t.touchMs + t.absorbMs);
+  // Begin the reversal during flight, with a small advance from the cosine
+  // peak so the arm mass does not crest with the vertical body apex.
+  const flightArm = 15 + 33 * Math.cos(Math.PI * t.flightMs / t.stepMs) - 6;
   // TOUCHDOWN — the contact instant. The landing leg is near-extended, reaching
   // down/forward for the floor exactly where the ballistic parabola lands the
   // body (landing pre-crouched would make the floor-pin yank the body down —
@@ -1130,7 +1154,7 @@ function runStepKeyframes(land: 'L' | 'R', s: number, pattern: RunPattern = 'run
       // swing, right after toe-off — not at the high knee, which is where it has
       // already begun to unfold).
       ...leg(other, 4, 98, -8),
-      ...arm(land, 20), ...arm(other, 0), ...trunk,
+      ...arm(land, touchArm), ...arm(other, 30 - touchArm), ...trunk,
     ],
   };
   // ABSORPTION / MIDSTANCE — the loading response, ~one engine-floor keyframe
@@ -1143,7 +1167,7 @@ function runStepKeyframes(land: 'L' | 'R', s: number, pattern: RunPattern = 'run
     targets: [
       ...leg(land, RUN_STANCE_HIP_DEG + RUN_ABSORB_EXTRA_HIP_DEG, RUN_STANCE_KNEE_DEG + RUN_ABSORB_EXTRA_KNEE_DEG, 12),
       ...leg(other, 32, 88, 0),
-      ...arm(land, 35), ...arm(other, -10), ...trunk,
+      ...arm(land, absorbArm), ...arm(other, 30 - absorbArm), ...trunk,
     ],
   };
   // PUSH — TOE-OFF, and the knot that closes the stance window. The landing
@@ -1170,7 +1194,7 @@ function runStepKeyframes(land: 'L' | 'R', s: number, pattern: RunPattern = 'run
     targets: [
       ...leg(land, -8, 88, -12),
       ...leg(other, 42, 35, 5),
-      ...arm(land, 18), ...arm(other, 5), ...trunk,
+      ...arm(land, flightArm), ...arm(other, 30 - flightArm), ...trunk,
     ],
   };
   return [touchdown, absorb, push, flight];

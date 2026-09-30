@@ -21,8 +21,8 @@
 import {
   SPINE_NECK_MAX,
   SPINE_NECK_LATERAL_MAX,
-  RELAXED_FINGER_CURL_DEG,
 } from './motionSequence';
+import { coordinateLocomotorArms, scaleLocomotorArmSwing } from './locomotorArmSwing';
 import { addGaitPhaseTargets } from './gaitFaultPhases';
 import type {
   ComposedMotion,
@@ -110,33 +110,9 @@ export function paceGait(motion: ComposedMotion, speed: number): ComposedMotion 
   return { ...motion, keyframes, modifiers: { ...motion.modifiers, timeScale: f } };
 }
 
-/** The joints whose amplitude IS the arm swing — scaled by {@link scaleArmSwing}. */
-const ARM_SWING_MOTIONS = new Set(['shoulderFlexion']);
-
-/**
- * Scale a gait motion's ARM SWING amplitude by `amount` (0..1), holding cadence
- * and every leg/trunk angle. `amount` 1 = the authored reciprocal swing;
- * 0 = arms held still at the side (the reduced/absent arm swing of Parkinsonian
- * or hemiplegic gait). Multiplies only the `shoulderFlexion` targets — so unlike
- * `paceGait` it sets NO `timeScale` (the walk keeps its speed; only the arms
- * quiet down) and leaves the reciprocal elbow pump and every leg angle untouched.
- * Pure; returns a new motion; over/under-range values are clamped by the normal
- * ROM path on resolve, so the clinical readout stays honest.
- */
+/** Scale the complete locomotor arm chain about its carry, preserving cadence. */
 export function scaleArmSwing(motion: ComposedMotion, amount: number): ComposedMotion {
-  const a = Math.max(0, Math.min(1, Number.isFinite(amount) ? amount : 1));
-  if (a === 1) return motion; // identity — keep it byte-for-byte
-  const keyframes = motion.keyframes.map((kf) => ({
-    ...kf,
-    ...(kf.targets
-      ? {
-          targets: kf.targets.map((t) =>
-            ARM_SWING_MOTIONS.has(t.motion) ? { ...t, targetDegrees: t.targetDegrees * a } : t,
-          ),
-        }
-      : {}),
-  }));
-  return { ...motion, keyframes };
+  return scaleLocomotorArmSwing(motion, amount);
 }
 
 /** The involved LEG's sagittal stride joints — scaled by an asymmetry's `stepLength`. */
@@ -162,7 +138,8 @@ export function applyAsymmetry(motion: ComposedMotion, asym: MovementAsymmetry |
   const step = asym.stepLength != null && asym.stepLength < 1 ? clamp01(asym.stepLength) : null;
   const arm = asym.armSwing != null && asym.armSwing < 1 ? clamp01(asym.armSwing) : null;
   if (rom == null && step == null && arm == null) return motion;
-  const keyframes = motion.keyframes.map((kf) => ({
+  const armed = arm == null ? motion : scaleLocomotorArmSwing(motion, arm, asym.side === 'left' ? 'L' : 'R');
+  const keyframes = armed.keyframes.map((kf) => ({
     ...kf,
     ...(kf.targets
       ? {
@@ -171,7 +148,6 @@ export function applyAsymmetry(motion: ComposedMotion, asym: MovementAsymmetry |
             let f = 1;
             if (rom != null) f *= rom;
             if (step != null && ASYMMETRY_STRIDE_MOTIONS.has(t.motion)) f *= step;
-            if (arm != null && ARM_SWING_MOTIONS.has(t.motion)) f *= arm;
             return f === 1 ? t : { ...t, targetDegrees: t.targetDegrees * f };
           }),
         }
@@ -348,213 +324,7 @@ const PELVIC_OBLIQUITY_MAX = 5; // ~±4-6° peak list in normal free gait
 // tilt, twice per cycle (Perry). The mean itself is posture, not gait, so only
 // the excursion is authored here.
 const PELVIC_TILT_MAX = 2.5;
-// ─── Limb non-sagittal gait coordination ─────────────────────────────────────
-// Real gait limbs move in all THREE planes; a purely sagittal swing (flexion only) reads
-// as a robotic 2-D walker. These add SUBTLE frontal + transverse components — physiologic
-// amounts, well inside ROM — derived per-limb from that limb's own sagittal phase, so the
-// arms and legs carry natural out-of-plane motion. ROM-clamped on resolve.
-// The arm hangs IN close to the body, a touch more across on the forward swing —
-// never winged OUT (abduction reads as a stiff gunslinger carriage).
-//
-// The base is larger than a textbook "physiologic adduction from neutral" because
-// it is not working from an anatomical hang. The rig's REST carriage already holds
-// the hand 26.3cm from the thigh axis while the readout calls that 0° abduction,
-// so part of this constant is closing a gap the rest pose opens, not adding a
-// stylisation on top of a natural one.
-//
-// 12 → 6, AND THE REASON THE OLD VALUE SURVIVED IS IN THE SENTENCE THIS REPLACES.
-// It read: "Rig-measured hand→thigh-AXIS distance through the walk: 15-19cm
-// against 26.3cm at rest, with visible daylight at every keyframe." Every number
-// there was true and the conclusion was wrong, because a distance to the thigh's
-// AXIS is not daylight. The thigh carries 10.3cm of flesh around that axis and
-// the hand 7.3cm (rig-measured, services/limbClearance), so 15-19cm of axis
-// separation is 2.4cm of overlap at the tight end — and the hand went through the
-// leg, which is what was reported from the deployed build.
-//
-// Measured with capsules that know their own radius (worst hand↔thigh SURFACE
-// clearance on the travel walk, and the near-linear response that sized this):
-//
-//     ARM_ADD_BASE   12      10       8       6       4
-//     clearance   −2.85   −0.89   +0.95   +2.77   +4.56  cm
-//
-// 6 sits ~3cm clear rather than barely positive, because the capsule model is
-// itself ~3cm conservative against per-vertex truth and there is no value in
-// spending that margin. Per-vertex, the walk went 0.57cm → 6.09cm.
-//
-// Do not tune this against an axis distance again. `limbClearance.test.ts` gates
-// the surface, and the validity gate's `self-intersection` check now carries it
-// for every composed motion, not just the shipped gaits.
-// Atomic shoulder composition now compensates the arm for the ENTIRE authored
-// girdle rotation. The former 6-degree recipe partly relied on that parent
-// rotation to close the carriage; with correct compensation it closes only
-// 4.2 cm of the rest gap. Recalibrate the explicit arm intent while keeping the
-// existing hand-carriage and mesh/capsule clearance gates together.
-// Distributed thoracic bending also shifts the shoulder origins slightly;
-// retain the same measured carriage and surface-clearance requirements.
-const ARM_ADD_BASE = 7.25;
-const ARM_ADD_SWING = 0.1;
-const ARM_ADD_MAX = 20;
-// FOREARM PRO/SUP through the swing. The forearm does not ride the swing as a
-// rigid stick: it rotates about its own long axis, supinating a little as the arm
-// comes forward and pronating again on the backswing (the humerus internally
-// rotates with flexion and the forearm follows). Reported pro/sup excursion in
-// walking arm swing is on the order of 10-20°.
-//
-// The SWING gain used to be 0.12 — ±2.4° at a ±20° arm swing, about a 12° base.
-// That is a 4° total excursion on a 90° ROM: measurable in the readout, invisible
-// on screen, so the forearm read as locked. 0.35 gives ~±7° (a ~14° excursion),
-// inside the reported band and actually visible.
-//
-// THE BASE'S SIGN — now resolved on the rig, and it was inverted. The registry
-// and the exam layer both define **+ = supination** (romRegistry
-// `forearmRotation` positiveAs 'Sup'; movementCommand.ts "+ = supination",
-// rig-tested), so the old +12 held the gait arm in 12° of SUPINATION while its
-// own comment claimed "pronation: palm toward the thigh".
-//
-// Measuring the palm normal on the rig settles which was intended. At the
-// anatomic rest the right palm already faces MEDIALLY — normal [0.90, −0.13,
-// 0.42], i.e. mostly +X (subject-left = toward the thigh for the right hand).
-// The rig does NOT start in a fully supinated anatomical position, so no large
-// pronation is needed. But the walk measured [0.78, 0.20, 0.59]: the +12 rotated
-// the palm AWAY from the thigh and toward facing forward (+Z 0.42 → 0.59), which
-// is the opposite of the stated intent and part of why the arm carriage did not
-// read as relaxed.
-//
-// Negative (a little pronation from rest) keeps the palm on the thigh through the
-// swing. Kept SMALL — the rest pose is already close to right, so this is a
-// nudge, not the 90° re-orientation a truly supinated rest would have needed.
-const ARM_PRO_BASE = -8;
-const ARM_PRO_SWING = 0.35;
-const ARM_PRO_MAX = 28;
-// WRIST RADIAL/ULNAR DEVIATION through the swing. This channel was never driven
-// by gait at all — `wristDeviation` measured exactly 0.000° on every frame of the
-// walk, so the hand had no frontal-plane life whatsoever. A relaxed hanging hand
-// sits in slight ULNAR deviation (the hand's mass falls to the ulnar side of the
-// forearm axis), and it oscillates a few degrees through the swing as the arm
-// adducts and the hand's inertia lags the frontal-plane motion.
-//
-// Registry sign: + = Radial (to +20°), − = Ulnar (to −30°). Authored coupling —
-// there is no bundled normative curve for wrist deviation in gait arm swing the
-// way there is for the sagittal joints, so these are plausible-and-bounded, NOT
-// claimed as normative.
-// First pass at these was too quiet to see: base −5 with a 0.2 gain measured a
-// 6.9° excursion that never left the ulnar side, and it read on screen as no
-// deviation at all. A relaxed hand hangs with ~10° of ulnar deviation, so the
-// resting bias is deepened and the swing gain raised to give a ~12° excursion
-// that is actually legible at tutorial camera distance — still less than half
-// the 30° ulnar ROM, so it stays a texture rather than a gesture.
-const WRIST_DEV_BASE = -8; // resting ulnar bias of the hanging hand, deg
-const WRIST_DEV_SWING = 0.3; // toward radial through the forward swing, ulnar on the backswing
-const WRIST_DEV_MAX = 16; // well inside the +20 radial / −30 ulnar ROM
-// SCAPULAR ROTATION IN GAIT. Protraction below was for a long time the ONLY
-// girdle channel gait authored, which left `upRotation` and `scapularTilt`
-// measuring a FLAT 0.000° across an entire walk — reported from the deployed
-// build, and confirmed by audit.
-//
-// The cause is worth stating precisely, because it is not a bug in either piece.
-// The only other writer of girdle rotation is `girdleSplit` (the scapulohumeral
-// rhythm), and that returns EXACTLY ZERO below its setting phase — 60° flexion /
-// 30° abduction. A walk peaks at 20.2° / 14.0°, so the rhythm never engages and
-// never could: the split models ELEVATION, and gait is not elevation. The girdle
-// still rotates during arm swing, just by a different route, and nothing was
-// authoring that route.
-//
-// These two are that route. Coupled to the same arm-swing signal protraction
-// uses, so all three girdle channels stay phase-locked to each other and to the
-// stride. Gains are small on purpose — this is girdle TEXTURE riding an arm
-// swing, not the large upward rotation of reaching overhead, and the two must
-// not be confused. Both stay well inside their ROM at walk and run amplitude
-// (±20° of swing ⇒ ±4.4° / ±3.2°), so neither flat-tops the way protraction
-// already does at run energy (see docs/outstanding-work.md 3.6).
-const SCAP_UPROT_GAIN = 0.22; // upward rotation with the FORWARD swing (sh > 0)
-const SCAP_UPROT_MAX = 7; // ROM is −5..60, so the backswing side is the tight one
-const SCAP_TILT_GAIN = 0.16; // POSTERIOR tilt with the forward swing (+ = Post)
-const SCAP_TILT_MAX = 5; // ROM is −10..40 — comfortable at these amplitudes
-const SCAP_PROT_GAIN = 0.35; // scapular protraction/retraction: the shoulder GIRDLE glides
-const SCAP_PROT_MAX = 10; // fore/aft on the ribcage WITH the arm swing (protract on the
-// forward swing, retract on the backswing) — arm swing isn't purely glenohumeral. Coupled
-// to the same arm's flexion, so the two scapulae counter-phase like a real girdle.
-// A relaxed swinging hand isn't a rigid paddle: it hangs, and DRAGS behind the
-// forearm as the arm swings.
-//
-// The resting base is ZERO, and that matters. It used to be +10°, a CONSTANT
-// flexion applied on every frame — and with the arm hanging at the side, wrist
-// flexion carries the hand ANTERIORLY, so the hand sat permanently tipped
-// forward. Rig-measured, the hand's long axis pointed [−0.02, −0.94, 0.34]
-// through the whole walk: 19.9° forward of vertical against the 9.5° the rig's
-// own rest pose already has. Viewed from the side that reads as a hand held
-// forward rather than an arm hanging relaxed — reported from the deployed build,
-// and the constant is exactly the 10° difference.
-//
-// At 0 the drag term below oscillates the wrist AROUND neutral instead of on top
-// of a permanent offset, so it eases into slight extension through the forward
-// swing and slight flexion on the backswing — which is what a relaxed hand does.
-const WRIST_FLEX_BASE = 0;
-const WRIST_FLEX_MAX = 22; // the total excursion never leaves this band
-/**
- * Passive wrist drag per unit of shoulder ANGULAR VELOCITY, deg per (deg/s).
- *
- * The hand is a passive mass on the end of the forearm, so its lag is set by how
- * FAST the arm is moving, not by where the arm is. This used to be driven by the
- * shoulder ANGLE (`WRIST_FLEX_BASE − 0.28 × shoulderFlexion`), which put peak
- * wrist deflection at the swing EXTREMES — precisely where the arm reverses and
- * is momentarily stationary, so the true drag is ZERO. The physical peak is at
- * MID-SWING, where the arm is fastest; the old model was a quarter-cycle out of
- * phase, and the hand appeared to "set" at the ends of the swing rather than
- * trail through the middle of it.
- *
- * Driving it from velocity also makes the drag track CADENCE for free: shorten
- * the gait cycle and the same swing amplitude yields a proportionally higher
- * angular velocity, so the hand trails harder — no per-cadence tuning constant,
- * and no separate energy gain (velocity already carries both the amplitude and
- * the tempo, so the old `WRIST_DRAG_ENERGY_GAIN` would double-count).
- *
- * 0.072 is calibrated to reproduce the previous peak drag magnitude (~5.6° at a
- * ~78 °/s peak arm velocity) so the CHARACTER of the walk's hand is preserved;
- * what changes is its phase, and how it responds to tempo.
- */
-const WRIST_DRAG_PER_DEG_S = 0.072;
-// FINGERS. A relaxed hand rests gently CURLED, not splayed straight — but not as
-// a uniform claw either. Gait used to apply ONE flat 32° to all five digits,
-// thumb included, held constant for the whole cycle: no cascade, no thumb, no
-// movement. Two corrections:
-//
-//  1. THE GRADED CASCADE, shared with the non-gait resting hand. The digits curl
-//     progressively from radial to ulnar (index straightest, little finger most
-//     curled) with the thumb differentiated — which `relaxedHands` already
-//     authored for every OTHER motion (RELAXED_FINGER_CURL_DEG). Gait disagreeing
-//     with it was the same split that had the two paths carrying different wrist
-//     postures, so it reuses that table rather than keeping a second opinion.
-//  2. TENODESIS. The finger flexors cross the wrist, so wrist position drives
-//     finger curl passively: extend the wrist and the tendons tighten and the
-//     fingers curl; flex it and they release. It is the reason a relaxed hand
-//     opens and closes slightly as the arm swings, and it is why this reads as
-//     ALIVE rather than as a posed prop — the movement is not decoration, it is
-//     the same tendon coupling a clinician tests for. Driven off the wrist value
-//     this coordinator already computes, so it stays phase-locked for free.
-const FINGER_TENODESIS_GAIN = 1.0;
-/** Curl may never go below this (a loose open hand) or above a soft-fist bound —
- *  the registry allows 0..160, which is a clenched fist at the top. 12° because
- *  the design intent is "curled, never splayed straight": at the 1.6 run cap the
- *  energy opening and the tenodesis release compound, and an 8° floor let the
- *  digits reach very nearly straight at peak wrist flexion. */
-const FINGER_CURL_FLOOR_DEG = 12;
-const FINGER_CURL_CEIL_DEG = 60;
-// ─── DISTAL ENERGY AT SPEED (roadmap 5.4) ────────────────────────────────────
-// The DERIVED gains above scale with the stride for free (a bigger arm swing ⇒ a
-// bigger counter-rotation), but the distal CONSTANTS were speed-invariant: a
-// runner swung with a walker's hand. `energy` is the locomotor intensity (1 = a
-// comfortable walk; a paced walk's speed, derived from paceGait's timeScale =
-// √speed; ~2× the speed request for a run) and grades the distal texture toward
-// run form, capped physiologic. Energy 1 is BYTE-IDENTICAL by construction
-// (every delta is ×(energy−1)).
-const FINGER_CURL_OPEN_PER_ENERGY = 10; // deg of resting curl RELEASED per energy unit above 1
-const FINGER_CURL_MIN_DEG = 14; // …floored at a loose open hand (never splayed straight)
-const ELBOW_PUMP_ENERGY_GAIN = 0.22; // extra elbow pump ∝ the arm's own swing phase, counter-
-const ELBOW_PUMP_ENERGY_MAX = 14; // phased like the authored pump (more flexion on the back-
-// swing, unwinding as the arm comes forward) so the pump AMPLITUDE grows about its mean.
-// (The wrist drag deepens with speed intrinsically — it is velocity-driven; see
-// WRIST_DRAG_PER_DEG_S. No energy gain, or the tempo would be counted twice.)
+// Head stabilization grades with locomotor intensity.
 const HEADSTAB_ENERGY_RELAX = 0.08; // headStabilize fraction released per energy unit — a
 const HEADSTAB_ENERGY_FLOOR = 0.85; // runner's head rides a touch more; never below 85%.
 /** Locomotor-intensity ceiling: buildRun's 1.6 speed cap × the run's energy
@@ -650,17 +420,6 @@ export function spinalGaitCoordination(
     opts.energy ?? (typeof tsMod === 'number' && Number.isFinite(tsMod) ? tsMod * tsMod : 1);
   const energy = Math.min(ENERGY_MAX, Math.max(1, Number.isFinite(energyRaw) ? energyRaw : 1));
   const dE = energy - 1;
-  /** Resting curl for one digit at this energy: the shared graded cascade, opened
-   *  by speed (a runner's hand un-curls toward a loose blade). */
-  const restingCurlFor = (digit: string): number =>
-    Math.max(
-      FINGER_CURL_MIN_DEG,
-      (RELAXED_FINGER_CURL_DEG[digit] ?? 32) - FINGER_CURL_OPEN_PER_ENERGY * dE,
-    );
-  // Playback pace: paceGait expresses a faster walk as `timeScale` (durations are
-  // divided by it downstream), so the authored keyframe spacing alone understates
-  // how fast the arm actually swings. Folded into the wrist-drag velocity below.
-  const paceMul = clampTimeScale(tsMod);
   const headStab =
     Math.max(0, Math.min(1, opts.headStabilize ?? 1)) *
     Math.max(HEADSTAB_ENERGY_FLOOR, 1 - HEADSTAB_ENERGY_RELAX * dE);
@@ -749,41 +508,6 @@ export function spinalGaitCoordination(
     const peakEnv = Math.max(0, ...strideEnvelope);
     return strideEnvelope.map((e) => (peakEnv > 1 ? Math.min(1, e / (peakEnv * 0.6)) : 0));
   })();
-  // Per-side SHOULDER ANGULAR VELOCITY at each keyframe, deg/s of playback time —
-  // the driver of passive wrist drag (see WRIST_DRAG_PER_DEG_S). Central
-  // difference over each keyframe's neighbours, one-sided at the ends of a
-  // non-looping motion; a LOOPING gait wraps, because a cycle has no stationary
-  // frame and the seam carries velocity like any other instant.
-  const shoulderVelDegS = (S: 'L' | 'R'): number[] => {
-    const kfs = motion.keyframes;
-    const n = kfs.length;
-    const looping = !!motion.loop && n > 1;
-    const ang = kfs.map(
-      (kf) =>
-        kf.targets?.find((t) => t.joint === `${S}_UpperArm` && t.motion === 'shoulderFlexion')
-          ?.targetDegrees,
-    );
-    // Playback ms from keyframe i−1's pose to keyframe i's pose: i's travel plus
-    // any dwell held at i−1.
-    const spanInto = (i: number): number =>
-      ((kfs[i]!.durationMs ?? 0) + (kfs[(i - 1 + n) % n]!.holdMs ?? 0)) / paceMul;
-    return kfs.map((_, i) => {
-      if (n < 2) return 0;
-      const prev = looping ? (i - 1 + n) % n : Math.max(0, i - 1);
-      const next = looping ? (i + 1) % n : Math.min(n - 1, i + 1);
-      const a = ang[prev];
-      const b = ang[next];
-      if (typeof a !== 'number' || typeof b !== 'number') return 0;
-      // Sum only the spans actually traversed between `prev` and `next`.
-      const dtMs = (prev === i ? 0 : spanInto(i)) + (next === i ? 0 : spanInto(next));
-      if (!(dtMs > 0)) return 0;
-      return ((b - a) / dtMs) * 1000;
-    });
-  };
-  const shVelDegS: Record<'L' | 'R', number[]> = {
-    L: shoulderVelDegS('L'),
-    R: shoulderVelDegS('R'),
-  };
   const keyframes = motion.keyframes.map((kf, kfIndex) => {
     const ts = kf.targets;
     if (!ts || !ts.length) return kf;
@@ -934,83 +658,6 @@ export function spinalGaitCoordination(
     // keyframe, never a spine-only motion run through here).
     const has = (joint: string, mo: string): boolean => ts.some((t) => t.joint === joint && t.motion === mo);
     for (const S of ['L', 'R'] as const) {
-      // ARM: hangs IN close to the body — a slight ADduction (−shoulderAbduction), a touch
-      // more across on the forward swing — NOT winged out; and semi-PRONATED (palm toward
-      // the thigh). The resting arm carriage a rigid straight swing lacks.
-      if (has(`${S}_UpperArm`, 'shoulderFlexion')) {
-        const sh = at(ts, `${S}_UpperArm`, 'shoulderFlexion');
-        additions.push({ joint: `${S}_UpperArm`, motion: 'shoulderAbduction', deg: cap(-(ARM_ADD_BASE + ARM_ADD_SWING * sh), ARM_ADD_MAX) });
-        if (has(`${S}_Forearm`, 'elbowFlexion')) {
-          additions.push({ joint: `${S}_Forearm`, motion: 'forearmRotation', deg: cap(ARM_PRO_BASE + ARM_PRO_SWING * sh, ARM_PRO_MAX) });
-          // ELBOW PUMP AT SPEED (roadmap 5.4): the authored pump's amplitude grows
-          // with energy — counter-phased like the authored excursion (more flexion on
-          // the backswing, unwinding forward), so the pump deepens ABOUT its mean
-          // instead of drifting. Additive on the authored elbowFlexion; dE = 0 (a
-          // speed-1 walk) pushes nothing (byte-identical).
-          if (dE > 0)
-            additions.push({ joint: `${S}_Forearm`, motion: 'elbowFlexion', deg: cap(-ELBOW_PUMP_ENERGY_GAIN * dE * sh, ELBOW_PUMP_ENERGY_MAX) });
-        }
-        // Scapular girdle glides fore/aft WITH the arm: protract on the forward swing
-        // (sh > 0), retract on the backswing (sh < 0). + protraction = Pro (romRegistry).
-        additions.push({ joint: `${S}_Shoulder`, motion: 'protraction', deg: cap(SCAP_PROT_GAIN * sh, SCAP_PROT_MAX) });
-        // …and it ROTATES as well as glides. The forward swing carries the
-        // scapula into upward rotation and posterior tilt; the backswing unwinds
-        // both. Same `sh` driver as the protraction above, so the three girdle
-        // channels move as one segment instead of one channel moving alone.
-        additions.push({ joint: `${S}_Shoulder`, motion: 'upRotation', deg: cap(SCAP_UPROT_GAIN * sh, SCAP_UPROT_MAX) });
-        additions.push({ joint: `${S}_Shoulder`, motion: 'scapularTilt', deg: cap(SCAP_TILT_GAIN * sh, SCAP_TILT_MAX) });
-        // WRIST: a relaxed hand isn't a rigid paddle — it holds a slight resting flexion
-        // and DRAGS behind the forearm. The drag follows the arm's angular VELOCITY, so it
-        // is DEEPEST AT MID-SWING (where the arm is fastest) and releases toward the swing
-        // extremes (where the arm reverses and the hand momentarily catches up) — the
-        // physical behaviour of a passive mass on the end of a swinging lever. Forward
-        // swing (velocity > 0) extends the wrist as the hand trails behind; the backswing
-        // flexes it. Faster cadence ⇒ higher velocity ⇒ a harder trail, for free.
-        const wristDeg = cap(
-          WRIST_FLEX_BASE - WRIST_DRAG_PER_DEG_S * (shVelDegS[S][kfIndex] ?? 0),
-          WRIST_FLEX_MAX,
-        );
-        additions.push({ joint: `${S}_Hand`, motion: 'wristFlexion', deg: wristDeg });
-        // …and the hand deviates in the FRONTAL plane too: a resting ulnar bias
-        // (the hand's mass hangs to the ulnar side) carried toward radial through
-        // the forward swing and back toward ulnar on the backswing. Position-
-        // coupled, so it is phase-locked to the stride and scales with it.
-        additions.push({
-          joint: `${S}_Hand`,
-          motion: 'wristDeviation',
-          deg: cap(WRIST_DEV_BASE + WRIST_DEV_SWING * sh, WRIST_DEV_MAX),
-        });
-        // FINGERS: the graded resting cascade, plus the TENODESIS swing — wrist
-        // extension tightens the long flexors and curls the digits, wrist flexion
-        // releases them. `wristDeg` is this keyframe's wrist value (registry sign,
-        // + = flexion), so −wristDeg is the extension that drives the curl.
-        const tenodesis = -FINGER_TENODESIS_GAIN * wristDeg;
-        for (const fk of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const) {
-          // The THUMB is excluded from the tenodesis swing (gain 0), for two
-          // reasons. Anatomically its carpometacarpal joint absorbs most of the
-          // excursion, so flexor pollicis longus moves it far less than the long
-          // finger flexors move the digits.
-          //
-          // The second reason was a MEASUREMENT artefact and is now gone: the
-          // readout used to sum UNSIGNED angles against a splayed metacarpal
-          // proxy, which gave every digit a floor it could not read below (~28°
-          // on the male thumb, ~20° on the index) and left both channels dead —
-          // rig-probed walk-vs-run deltas of 0.00° and 0.20°. The readout is now
-          // signed and rest-referenced and those floors do not exist, so the
-          // thumb COULD carry a tenodesis swing. It still does not, on the
-          // anatomical argument above alone — and that is now a deliberate choice
-          // rather than a limitation. Worth revisiting with a proper CMC model.
-          const gain = fk === 'Thumb1' ? 0 : 1;
-          additions.push({
-            joint: `${S}_${fk}`,
-            motion: 'fingerFlexion',
-            deg: Math.max(
-              FINGER_CURL_FLOOR_DEG,
-              Math.min(FINGER_CURL_CEIL_DEG, restingCurlFor(fk) + gain * tenodesis),
-            ),
-          });
-        }
-      }
       // LEG: the SWING leg ADducts toward the midline as it advances (the feet track near
       // the line of progression — a narrow base), NOT abducts (a wide, waddling splay); the
       // tibia rotates with knee flexion; the foot everts at loading and inverts at push-off
@@ -1040,5 +687,5 @@ export function spinalGaitCoordination(
     // rotation parked on the root cancels itself out of the pelvic readout.
     return { ...kf, targets };
   });
-  return { ...motion, keyframes };
+  return coordinateLocomotorArms({ ...motion, keyframes }, energy);
 }

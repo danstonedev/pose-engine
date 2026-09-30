@@ -20,3 +20,23 @@ export function hasFixedBilateralFootSupport(motion: {
   }
   return feet.size === 2;
 }
+
+/** A bilateral base established at the end of an explicit first setup phase.
+ * Subsequent stepping/releasing contacts are excluded. Unlike whole-motion
+ * support this must not plant the feet during the stance-width setup itself.
+ */
+export function bilateralFootSetupMs(motion: {
+  footSupportSetup?: boolean;
+  contacts?: readonly { foot: string; fromMs?: number; toMs?: number }[];
+  keyframes: readonly { durationMs?: number; holdMs?: number }[];
+}): number | null {
+  if (!motion.footSupportSetup) return null;
+  const [a, b] = motion.contacts ?? [];
+  const first = motion.keyframes[0];
+  if (motion.contacts?.length !== 2 || !a || !b || !first) return null;
+  if (new Set([a.foot, b.foot]).size !== 2 || ![a.foot, b.foot].every(f => f === 'L_Foot' || f === 'R_Foot')) return null;
+  const at = a.fromMs;
+  return at != null && Number.isFinite(at) && at > 0 && at === b.fromMs
+    && a.toMs == null && b.toMs == null
+    && at === (first.durationMs ?? 0) + (first.holdMs ?? 0) ? at : null;
+}

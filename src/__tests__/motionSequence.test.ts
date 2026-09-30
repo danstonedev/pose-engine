@@ -278,65 +278,35 @@ describe('resolveComposedMotion', () => {
     expect(r.reason).toContain('too-many-keyframes');
   });
 
-  // Six registry channels are READOUT-ONLY (elbowDeviation, proSup, kneeDeviation
-  // per side) — measured but not commandable — leaving 60 a keyframe can actually
-  // command. The cap sits just below that at 58, deliberately: at 60+ no plan
-  // could overflow and the guard would become untested dead code.
-  //
-  // DERIVED from the registry rather than hand-listed. The hand-listed version had
-  // to be extended by hand every time the cap moved, and when it moved to 64 the
-  // list was short AND named a `Head` row that does not exist — so the test failed
-  // for reasons that had nothing to do with what it measures.
   const READOUT_ONLY = new Set(['elbowDeviation', 'proSup', 'kneeDeviation']);
-  const commandable = ROM_JOINT_ROWS.flatMap((row) =>
-    row.fields
-      .filter((f) => !READOUT_ONLY.has(f.key))
-      .map((f) => ({ joint: row.canonicalKey, motion: f.key, deg: 5 })),
-  );
-  // MAX+1 DISTINCT targets — duplicates collapse on resolve, so a repeated list
-  // could never trigger the overflow this exercises.
-  const fullBodyTargets = commandable.slice(0, MAX_TARGETS_PER_KEYFRAME + 1);
+  const commandable = ROM_JOINT_ROWS.flatMap(row => row.fields
+    .filter(f => !READOUT_ONLY.has(f.key))
+    .map(f => ({ joint: row.canonicalKey, motion: f.key, deg: 5 })));
 
-  it(`a keyframe with exactly ${MAX_TARGETS_PER_KEYFRAME} targets resolves clean`, () => {
-    // Pinned so raising the cap is a deliberate act with a reason attached, not
-    // something that drifts. It went 48 → 58 when gait gained sagittal spine and
-    // scapular rotation; see the constant for why that was NOT optional, and why
-    // it stops short of the 60 that would retire the overflow guard.
-    expect(MAX_TARGETS_PER_KEYFRAME).toBe(58);
-    const r = resolveComposedMotion(
-      { keyframes: [kf(fullBodyTargets.slice(0, MAX_TARGETS_PER_KEYFRAME), 500)] },
-      variantCfg,
-    );
+  it('retains every commandable body channel, including both complete hands', () => {
+    expect(MAX_TARGETS_PER_KEYFRAME).toBe(64);
+    expect(commandable.length).toBeLessThanOrEqual(MAX_TARGETS_PER_KEYFRAME);
+    const r = resolveComposedMotion({ keyframes: [kf(commandable, 500)] }, variantCfg);
     expect(r.status).toBe('ok');
-    expect(r.keyframes[0]!.targets).toHaveLength(MAX_TARGETS_PER_KEYFRAME);
-    expect(r.outcomes).toHaveLength(MAX_TARGETS_PER_KEYFRAME);
-    expect(r.outcomes.every((o) => o.status !== 'refused')).toBe(true);
+    expect(r.keyframes[0]!.targets).toHaveLength(commandable.length);
+    expect(r.outcomes).toHaveLength(commandable.length);
+    expect(r.outcomes.every(o => o.status !== 'refused')).toBe(true);
   });
 
-  it(`overflow past ${MAX_TARGETS_PER_KEYFRAME} targets is NON-FATAL: first N play, the rest refuse as 'target-limit'`, () => {
-    const r = resolveComposedMotion({ keyframes: [kf(fullBodyTargets, 500)] }, variantCfg);
-    expect(r.status).toBe('ok'); // the keyframe/plan is never refused for overflow alone
-    // Deterministic order as received: the first MAX survive…
-    expect(r.keyframes[0]!.targets.map((t) => t.joint)).toEqual(
-      fullBodyTargets.slice(0, MAX_TARGETS_PER_KEYFRAME).map((t) => t.joint),
-    );
-    // …and the (MAX+1)th is refused-with-reason, still fully reported. WHICH one
-    // that is comes from the list, not from a literal — pinning the joint by name
-    // made this test fail every time the cap moved, for a reason unrelated to the
-    // overflow behaviour it exists to check.
-    const overflowed = fullBodyTargets[MAX_TARGETS_PER_KEYFRAME]!;
+  it('bounds oversized input and reports overflow without losing valid body channels', () => {
+    // Unknown imported channel names must also remain bounded. Do not keep
+    // the production budget below the valid registry just to exercise overflow.
+    const input = [...commandable];
+    while (input.length < MAX_TARGETS_PER_KEYFRAME) input.push({ joint: 'Hips', motion: 'unknown-'+input.length, deg: 5 });
+    const overflow = { joint: 'Hips', motion: 'unknown-overflow', deg: 9 };
+    const r = resolveComposedMotion({ keyframes: [kf([...input, overflow], 500)] }, variantCfg);
+    expect(r.status).toBe('ok');
+    expect(r.keyframes[0]!.targets).toHaveLength(commandable.length);
     expect(r.outcomes).toHaveLength(MAX_TARGETS_PER_KEYFRAME + 1);
-    const dropped = r.outcomes.filter((o) => o.reason === 'target-limit');
-    expect(dropped).toEqual([
-      {
-        keyframe: 0,
-        joint: overflowed.joint,
-        motion: overflowed.motion,
-        status: 'refused',
-        requestedDegrees: 5,
-        reason: 'target-limit',
-      },
-    ]);
+    expect(r.outcomes.filter(o => o.reason === 'target-limit')).toEqual([{
+      keyframe: 0, joint: overflow.joint, motion: overflow.motion,
+      status: 'refused', requestedDegrees: 9, reason: 'target-limit',
+    }]);
   });
 
   it('refuses malformed shapes (no keyframes / empty targets / bad duration)', () => {

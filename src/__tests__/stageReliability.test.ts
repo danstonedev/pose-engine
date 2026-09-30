@@ -175,7 +175,7 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     expect(samplerStep).toMatch(/rest: useFootRoot \? rotateRestReferenceByPelvis\(\s*rotateRestReferenceByRoot\(rest, root\.quaternion\.clone\(\)\.multiply\(rootRestQuat\.clone\(\)\.invert\(\)\)\),\s*skinned\.skeleton, variantCfg,\s*\) : plantRest,/);
     for (const field of [
       'hingeAxisRest: rest,',
-      '...(useFootRoot ? { constraints: opts.constraints, forceRomClamp: true } : {}),',
+      '...(useFootRoot ? { constraints: opts.constraints ?? resolved.constraints, forceRomClamp: true } : {}),',
       'heelStrikeY,', 'captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,',
       'initialTargets: initialPlantTargets,', 'restY: floorRef.restY,',
       'trajectory: plantsAtTouchdown ? null : trajectory,',

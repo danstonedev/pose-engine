@@ -51,8 +51,8 @@ const LIMB_NONSAG: Record<string, string> = {
   // peaks at 20.2°/14.0°. They measured exactly 0.000° until gait authored them.
   L_Shoulder: 'protraction|upRotation|scapularTilt',
   R_Shoulder: 'protraction|upRotation|scapularTilt',
-  L_UpperArm: 'shoulderAbduction', R_UpperArm: 'shoulderAbduction',
-  L_Forearm: 'forearmRotation', R_Forearm: 'forearmRotation',
+  L_UpperArm: 'shoulderAbduction|shoulderRotation', R_UpperArm: 'shoulderAbduction|shoulderRotation',
+  L_Forearm: 'forearmRotation|elbowFlexion', R_Forearm: 'forearmRotation|elbowFlexion',
   L_Hand: 'wristFlexion|wristDeviation', R_Hand: 'wristFlexion|wristDeviation',
   L_Thumb1: 'fingerFlexion', L_Index1: 'fingerFlexion', L_Mid1: 'fingerFlexion',
   L_Ring1: 'fingerFlexion', L_Pinky1: 'fingerFlexion',

@@ -92,7 +92,11 @@ for (const variant of ['male', 'female'] as const) describe(`${variant}: functio
       const initialY = rec.frames[0]!.worldTracks![key]![1]!;
       expect(Math.min(...rec.frames.map(f => f.worldTracks![key]![1]! - initialY)), key).toBeGreaterThan(-.005);
     }
-    expect(Math.max(...rec.frames.map(f => f.angles.L_Foot!.ankleFlexion!))).toBeGreaterThan(30);
+    // Fixed sole orientation adjusts the ankle after the wider-stance leg IK.
+    // It must still use weight-bearing range, beyond the 20-degree seated cap.
+    const peakAnkle = Math.max(...rec.frames.map(f => f.angles.L_Foot!.ankleFlexion!));
+    expect(peakAnkle).toBeGreaterThan(25);
+    expect(peakAnkle).toBeLessThanOrEqual(35);
   });
 
   it('weight-bearing ankle clamp preserves 32 degrees, open-chain remains 20, and explicit restrictions still win', () => {

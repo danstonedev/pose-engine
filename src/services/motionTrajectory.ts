@@ -107,6 +107,7 @@ export interface TrajectoryGroundingSwitch {
 
 export interface PoseTrajectory {
   /** Recheck the swinging leg after contact IK; absent outside guarded gaits. */
+  locomotorArmClearance?: boolean;
   constrainGaitPoseAt?(pose: CustomPose, tMs: number): CustomPose;
   totalMs: number;
   /** Pose + root at absolute time tMs (clamped to [0, totalMs]). */
@@ -681,6 +682,7 @@ export const TRAJECTORY_HOLD_CAP_MS = 10_000;
 
 export interface SequenceBuildLike {
   gaitClearance?: GaitClearancePlan;
+  locomotorArmClearance?: boolean;
   poses: CustomPose[];
   roots: {
     quat: [number, number, number, number];
@@ -928,7 +930,7 @@ export function buildComposedTrajectory(
     }
   }
 
-  return { trajectory: withGaitLegClearance(buildPoseTrajectory(knots), built.gaitClearance, timeScale), settleAtMs };
+  return { trajectory: { ...withGaitLegClearance(buildPoseTrajectory(knots), built.gaitClearance, timeScale), locomotorArmClearance: built.locomotorArmClearance }, settleAtMs };
 }
 
 export interface LoopTrajectory {
@@ -1038,6 +1040,7 @@ export function buildLoopTrajectory(
   const wrap = (t: number): number => ((t % period) + period) % period;
   return {
     trajectory: withGaitLegClearance({
+      locomotorArmClearance: built.locomotorArmClearance,
       totalMs: period,
       sampleAt: (tMs: number) => inner.sampleAt(wrap(tMs)),
     }, built.gaitClearance, ts, dur[0]!),

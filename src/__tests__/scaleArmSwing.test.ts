@@ -1,8 +1,8 @@
 /**
  * scaleArmSwing — the decreased-arm-swing modifier. A build-time keyframe reshape
- * (the paceGait/gaitBounce family), NOT a live overlay: it scales only the
- * shoulderFlexion swing amplitude, holds cadence (no timeScale) and every leg /
- * trunk / elbow angle, and is identity at amount 1.
+ * (the paceGait/gaitBounce family), NOT a live overlay: it scales the complete
+ * arm chain about its carry, holds cadence (no timeScale) and every leg /
+ * trunk angle, and is identity at amount 1.
  */
 import { describe, expect, it } from 'vitest';
 import { scaleArmSwing, templateToComposedMotion, MOVEMENT_TEMPLATES } from '../services/movementTemplates';
@@ -33,8 +33,8 @@ describe('scaleArmSwing', () => {
     // Legs untouched…
     expect(peakAbs(quiet, 'hipFlexion')).toBeCloseTo(peakAbs(base, 'hipFlexion'), 6);
     expect(peakAbs(quiet, 'kneeFlexion')).toBeCloseTo(peakAbs(base, 'kneeFlexion'), 6);
-    // …the reciprocal elbow pump untouched (not in ARM_SWING_MOTIONS)…
-    expect(peakAbs(quiet, 'elbowFlexion')).toBeCloseTo(peakAbs(base, 'elbowFlexion'), 6);
+    // Elbow pump quiets about its 20-degree carry with the shoulder.
+    expect(peakAbs(quiet, 'elbowFlexion')).toBeCloseTo(21.8, 6);
     // …and cadence unchanged (no timeScale side effect).
     expect(quiet.modifiers?.timeScale).toBe(base.modifiers?.timeScale);
   });

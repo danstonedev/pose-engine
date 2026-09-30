@@ -14,6 +14,7 @@
  * existing importer) is unchanged.
  */
 
+import { coordinateLocomotorArms } from './locomotorArmSwing';
 import type { ComposedMotion, SequenceKeyframe, StanceContact } from './motionSequence';
 import type { MovementTemplate } from './movementTemplates.data';
 
@@ -55,7 +56,7 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
       ...(c.toPhase != null ? { toMs: endOf[c.toPhase] ?? acc } : {}),
     }));
   }
-  return {
+  const result: ComposedMotion = {
     name: t.id,
     ...(t.shoulderCapacity ? { shoulderCapacity: t.shoulderCapacity } : {}),
     startFrom: 'neutral',
@@ -67,4 +68,19 @@ export function templateToComposedMotion(t: MovementTemplate): ComposedMotion {
     ...(contacts ? { contacts } : {}),
     keyframes,
   };
+  if (t.id !== 'high-knee-march') return result;
+  result.keyframes = result.keyframes.map(kf => {
+    const targets = [...(kf.targets ?? [])];
+    const swing = (side: string) => targets.find(t => t.joint === side + '_UpperArm' && t.motion === 'shoulderFlexion')?.targetDegrees ?? 0;
+    const left = swing('L'), right = swing('R');
+    for (const side of ['L', 'R']) {
+      const sh = side === 'L' ? left || -.4 * right : right || -.4 * left;
+      const old = targets.find(t => t.joint === side + '_UpperArm' && t.motion === 'shoulderFlexion');
+      if (old) old.targetDegrees = sh;
+      else targets.push({ joint: side + '_UpperArm', motion: 'shoulderFlexion', targetDegrees: sh });
+      targets.push({ joint: side + '_Forearm', motion: 'elbowFlexion', targetDegrees: 20 - .25 * sh });
+    }
+    return { ...kf, targets };
+  });
+  return coordinateLocomotorArms(result);
 }

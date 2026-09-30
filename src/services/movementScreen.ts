@@ -36,6 +36,7 @@
  * (the authored SFMA squat borrows the same solver; see `withSquatCompensation`).
  * That is why `BUILDERS` takes the constraints rather than a hardcoded number.
  */
+import { overheadSquatTargets } from './overheadSquat';
 import {
   MOVEMENT_TEMPLATES,
   templateToComposedMotion,
@@ -129,7 +130,7 @@ const BUILDERS: Record<BuilderId, (side: ScreenSide, constraints: RomScenarioCon
 /**
  * Authored squats that must carry the SAME dorsiflexion-keyed compensation.
  *
- * The SFMA overhead squat moved from `buildSquat` to its own feet-together,
+ * The SFMA overhead squat moved from `buildSquat` to its own
  * no-dowel source. Authored sources take no constraints, so simMOVE's
  * `ods-ankle-block` case — which targets exactly this pattern — was left
  * clamping the ankle to 8° while hip and spine stayed where the clean squat put
@@ -202,54 +203,29 @@ export function assessmentSourceNotes(source?:PositionSource): readonly string[]
   return source?.kind==='authored' ? ASSESSMENT_NOTES[source.motionId] ?? [] : [];
 }
 
-/**
- * Humerothoracic elevation for a dowel pressed overhead, authored as ABDUCTION.
- *
- * 160°, which measures 176.3° of true elevation — 3.7° off vertical, hands
- * 0.440 m apart over a 0.401 m shoulder gap. Above ~163 the readout wraps past
- * 180 and the panel starts printing negative abduction, so this sits below that.
+/** Prepare the overhead stance before descent; hold it through the ascent.
+ * Both protocols use the shared atomic shoulder/girdle composition. The FMS
+ * additionally authors a dowel grip; the legacy SFMA uses open overhead hands.
  */
-const OVERHEAD_ABDUCTION_DEG = 160;
-
-/**
- * Use the calibrated bilateral overhead-abduction strategy for squat screens.
- * The functional squat's forward counterweight is a different task. This
- * adapter replaces every upper-arm channel, including quiet zero channels,
- * so no duplicate abduction can overwrite the overhead target during resolve.
- *
- * Shoulder/girdle composition is now atomic and supports explicit girdle
- * targets. This protocol uses the shared rhythm without an explicit override.
- * Its single elevation plane is an authoring choice, not an engine limitation.
- * World-space arm direction and balance are gated in movementScreen.test.ts.
- */
-function armsOverhead(motion: ComposedMotion): ComposedMotion {
-  return {
-    ...motion,
-    keyframes: motion.keyframes.map((kf) => {
-      if (!kf.targets) return kf;
-      const arms = kf.targets.filter(t => t.joint.endsWith('_UpperArm') && t.motion === 'shoulderFlexion');
-      if (!arms.length) return kf;
-      // Own the complete arm request in this protocol. A quiet abduction target
-      // from the base squat must not overwrite the new overhead target at resolve.
-      return {
-        ...kf,
-        ...(kf.control ? { control: {
-          ...kf.control, id: `${kf.control.id}:overhead`,
-          joints: {
-            ...kf.control.joints,
-            L_UpperArm: { ...kf.control.joints.L_UpperArm, purpose: 'Press overhead for the squat screen, then return to standing arm position' },
-            R_UpperArm: { ...kf.control.joints.R_UpperArm, purpose: 'Press overhead for the squat screen, then return to standing arm position' },
-            L_Forearm: { ...kf.control.joints.L_Forearm, purpose: 'Maintain the elbow position for the overhead screen' },
-            R_Forearm: { ...kf.control.joints.R_Forearm, purpose: 'Maintain the elbow position for the overhead screen' },
-          },
-        } } : {}),
-        targets: [
-          ...kf.targets.filter(t => !arms.some(a => a.joint === t.joint)),
-          ...arms.map(t => ({ joint: t.joint, motion: 'shoulderAbduction',
-            targetDegrees: t.targetDegrees > 0 ? OVERHEAD_ABDUCTION_DEG : 0 })),
-        ],
-      };
-    }),
+function armsOverhead(motion: ComposedMotion, testId: string): ComposedMotion {
+  const dowel = testId === 'deep-squat';
+  const keyframes = motion.keyframes.map(kf => {
+    const control = kf.control && { ...kf.control, joints: { ...kf.control.joints } };
+    if (control) for (const side of ['L', 'R'] as const) {
+      control.joints[`${side}_Shoulder`] = { role: 'driven', purpose: 'Elevate and tilt the girdle for overhead support' };
+      control.joints[`${side}_UpperArm`] = { role: 'driven', purpose: 'Maintain the overhead arm plane through descent and ascent' };
+      control.joints[`${side}_Forearm`] = { role: 'driven', purpose: 'Retain nearly straight elbows and neutral forearm rotation' };
+      control.joints[`${side}_Hand`] = { role: 'driven', purpose: dowel ? 'Orient the wrist for the dowel grip' : 'Maintain open overhead hands' };
+    }
+    return { ...kf, ...(control ? { control } : {}), targets: overheadSquatTargets(kf.targets ?? [], dowel) };
+  });
+  if (dowel) {
+    // The functional squat starts by descending. The screen first sets its
+    // stance and raises the dowel, then retains that setup on the return.
+    keyframes.unshift({ ...keyframes[keyframes.length - 1]!, durationMs: 900, holdMs: 0 });
+  }
+  return { ...motion, keyframes, footSupportSetup: true,
+    contacts: [{ foot: 'L_Foot', fromMs: 900 }, { foot: 'R_Foot', fromMs: 900 }],
   };
 }
 
@@ -346,7 +322,7 @@ export function composeScreenMotion(
 ): ComposedMotion | null {
   let motion = composeFor(src, side, constraints);
   if (!motion) return null;
-  if (testId && OVERHEAD_ARM_TESTS.has(testId)) motion = armsOverhead(motion);
+  if (testId && OVERHEAD_ARM_TESTS.has(testId)) motion = armsOverhead(motion, testId);
   if (mode === 'hold') motion = holdAtAssessedPosition(motion);
   return motion;
 }

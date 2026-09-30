@@ -303,21 +303,8 @@ describe('relaxedHands — authoring (pure)', () => {
   });
 
   it('respects the per-keyframe target budget — a keyframe the 12-target set cannot fit is left alone', () => {
-    // The arithmetic behind this test has moved twice and is worth writing down
-    // rather than re-deriving. The registry commands 61 channels, 14 of them on
-    // the hands (10 finger curls plus wrist flexion and deviation per side),
-    // leaving 47 non-hand ones. 47 + 12 = 59, against a cap of 58 — so the
-    // busiest possible keyframe CANNOT take the resting-hand set, and the
-    // transform must skip it rather than push targets that would be silently
-    // overflow-dropped.
-    //
-    // It briefly could fit, at 46 non-hand channels, until `Neck.protraction`
-    // was added and pushed it back over. That is the useful thing to notice: this
-    // margin is one channel wide, and every new channel moves it.
-    //
-    // DERIVED from the registry so it tracks the real count instead of a
-    // hand-maintained list; the old one silently carried three `Head` targets for
-    // a row that does not exist, so it was really only 37 where it claimed 40.
+    // A complete valid body now fits. Exercise the atomic enrichment guard
+    // with an oversized imported plan instead of constraining the rig budget.
     const READOUT_ONLY = new Set(['elbowDeviation', 'proSup', 'kneeDeviation']);
     const joints: [string, string][] = ROM_JOINT_ROWS.filter(
       (row) => !HAND_JOINT_KEYS.includes(row.canonicalKey),
@@ -327,6 +314,7 @@ describe('relaxedHands — authoring (pure)', () => {
         .map((f) => [row.canonicalKey, f.key] as [string, string]),
     );
     expect(joints.length, 'every non-hand commandable channel').toBe(47);
+    while (joints.length + 12 <= MAX_TARGETS_PER_KEYFRAME) joints.push(['Hips', 'unknown-'+joints.length]);
     expect(joints.length + 12, 'the hand set would overflow the cap').toBeGreaterThan(
       MAX_TARGETS_PER_KEYFRAME,
     );
