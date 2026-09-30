@@ -44,17 +44,20 @@ describe('antalgicLean', () => {
   it('leans the trunk toward the involved side (lumbar leads, thoracic half)', () => {
     const base = walk();
     const left = antalgicLean(base, 'left', 16);
-    expect(targetOf(left, 'Spine_Lower', 'lateralTilt').every((d) => d === 16)).toBe(true); // + = left
-    expect(targetOf(left, 'Spine_Upper', 'lateralTilt').every((d) => d === 8)).toBe(true); // half
+    expect(Math.max(...targetOf(left, 'Spine_Lower', 'lateralTilt'))).toBe(16);
+    expect(targetOf(left, 'Spine_Lower', 'lateralTilt')).toContain(0);
+    expect(targetOf(left, 'Spine_Upper', 'lateralTilt')).toEqual(targetOf(left, 'Spine_Lower', 'lateralTilt').map(d => d / 2));
     const right = antalgicLean(base, 'right', 16);
-    expect(targetOf(right, 'Spine_Lower', 'lateralTilt').every((d) => d === -16)).toBe(true); // − = right
+    expect(Math.min(...targetOf(right, 'Spine_Lower', 'lateralTilt'))).toBe(-16);
+    expect(targetOf(right, 'Spine_Lower', 'lateralTilt')).toContain(0);
     expect(resolveComposedMotion(left, BODY_VARIANTS.male).status).toBe('ok');
   });
 
   it('composes with pace + adds onto any pre-existing lateralTilt', () => {
     const paced = paceGait(walk(), 1.2);
     const leaned = antalgicLean(paced, 'right', 10);
-    expect(targetOf(leaned, 'Spine_Lower', 'lateralTilt').every((d) => d === -10)).toBe(true);
+    expect(Math.min(...targetOf(leaned, 'Spine_Lower', 'lateralTilt'))).toBe(-10);
+    expect(targetOf(leaned, 'Spine_Lower', 'lateralTilt')).toContain(0);
     // pace's leg scaling is preserved (lean didn't touch the legs)
     expect(targetOf(leaned, 'R_UpLeg', 'hipFlexion')).toEqual(targetOf(paced, 'R_UpLeg', 'hipFlexion'));
   });

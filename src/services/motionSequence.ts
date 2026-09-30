@@ -70,6 +70,7 @@ import {
   resolveKeyframePlan,
   validateComposedShape,
 } from './motionResolvePhases';
+import { gaitFaultWindows } from './gaitFaultPhases';
 
 // ── Composed-motion types (structural — hosts mirror these shapes) ──────────
 
@@ -366,6 +367,8 @@ export interface StanceContact {
 
 /** A novel movement composed as timed keyframes over the command vocabulary. */
 export interface ComposedMotion {
+  /** Limit inter-leg penetration during an authored gait deviation. */
+  gaitLegClearance?: boolean;
   /** Explicit compatibility policy. New audited motions can enforce the
    * engineering girdle-proxy budget; existing saved motions retain legacy behavior. */
   shoulderCapacity?: 'legacy' | 'enforce-proxy';
@@ -727,8 +730,9 @@ export interface ResolvedSequenceKeyframe {
 }
 
 export interface ResolvedComposedMotion {
+  gaitLegClearance?: boolean;
   shoulderCapacity?: 'legacy' | 'enforce-proxy';
-  /** Captured patient constraints also govern realized coupled shoulder capacity. */
+  /** Captured patient constraints also govern shoulder capacity and gait clearance. */
   constraints?: RomScenarioConstraints | null;
   status: 'ok' | 'refused';
   name?: string;
@@ -1964,10 +1968,11 @@ export function resolveComposedMotion(
     derivedSchedule,
     gaitNotes,
   });
-  if (opts?.constraints && (motion.shoulderCapacity === 'enforce-proxy'
+  if (opts?.constraints && (motion.gaitLegClearance || motion.shoulderCapacity === 'enforce-proxy'
     || ['L', 'R'].some(side => opts!.constraints![`${side}_UpperArm`]?.girdleProxyElevation)))
     resolved.constraints = structuredClone(opts.constraints);
   if (motion.shoulderCapacity) resolved.shoulderCapacity = motion.shoulderCapacity;
+  if (motion.gaitLegClearance) resolved.gaitLegClearance = true;
 
   // ── PHASE 14 — ARTIFACT RE-TIMING FROM RESOLVED KEYFRAME BOUNDARIES (SEAM-7,
   // part 2): the ms-authored artifacts (`contacts`, `gaitStanceWindowsMs`,
@@ -2117,6 +2122,7 @@ export interface KeyframeRootState {
  *  timing and whole-body root state. Poses persist unmentioned joints across
  *  keyframes; root state persists posture/travel across keyframes. */
 export interface ComposedMotionPoses {
+  gaitClearance?: import('./gaitLegClearance').GaitClearancePlan;
   poses: CustomPose[];
   /** Parallel to `poses`: the root orientation/translation/stance per keyframe. */
   roots: KeyframeRootState[];
@@ -2346,8 +2352,19 @@ export function buildSequencePoses(
     }
   }
 
+  const clearanceWindows = resolved.gaitLegClearance ? gaitFaultWindows({
+    loop: resolved.loop,
+    gaitStanceWindowsMs: resolved.gaitStanceWindowsMs,
+    keyframes: resolved.keyframes.map(k => ({
+      durationMs: k.durationMs, holdMs: k.holdMs, stance: k.stance,
+      targets: k.targets.map(t => ({ joint: t.joint, motion: t.motion, targetDegrees: t.clampedDegrees })),
+    })),
+  }) : [];
   return {
     poses,
+    ...(resolved.gaitLegClearance && rest?.gaitLegFrames && clearanceWindows.length ? {
+      gaitClearance: { frames: rest.gaitLegFrames, windows: clearanceWindows, durationsMs, holdsMs, constraints: opts?.constraints ?? resolved.constraints },
+    } : {}),
     roots,
     durationsMs,
     holdsMs,

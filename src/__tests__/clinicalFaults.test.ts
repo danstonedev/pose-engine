@@ -196,8 +196,10 @@ describe('the bilateral tone / posture patterns', () => {
     // comparing them would compare the template, not the faults.
     const base = firstTarget(walk(), 'R_Leg', 'kneeFlexion');
     const crouch = firstTarget(crouchGait(walk(), 'right', 20), 'R_Leg', 'kneeFlexion') - base;
-    const recurv =
-      firstTarget(applyFault(walk(), 'genu-recurvatum', 'right', 10), 'R_Leg', 'kneeFlexion') - base;
+    const plain = walk(), impaired = applyFault(plain, 'genu-recurvatum', 'right', 10);
+    const recurv = Math.min(...impaired.keyframes.map((kf, i) =>
+      kf.targets!.find(t => t.joint === 'R_Leg' && t.motion === 'kneeFlexion')!.targetDegrees
+      - plain.keyframes[i]!.targets!.find(t => t.joint === 'R_Leg' && t.motion === 'kneeFlexion')!.targetDegrees));
     expect(crouch).toBeGreaterThan(0); // held in flexion
     expect(recurv).toBeLessThan(0); // driven past neutral into extension
     expect(Math.sign(crouch)).toBe(-Math.sign(recurv));

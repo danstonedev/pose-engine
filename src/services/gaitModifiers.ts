@@ -23,6 +23,7 @@ import {
   SPINE_NECK_LATERAL_MAX,
   RELAXED_FINGER_CURL_DEG,
 } from './motionSequence';
+import { addGaitPhaseTargets } from './gaitFaultPhases';
 import type {
   ComposedMotion,
   MovementAsymmetry,
@@ -214,15 +215,16 @@ export function widenStep(motion: ComposedMotion, deg = 12): ComposedMotion {
 }
 
 /**
- * ANTALGIC / compensated-Trendelenburg trunk lean — hold a sustained lateral trunk
+ * ANTALGIC / compensated-Trendelenburg trunk lean — add lateral trunk
  * lean TOWARD `side` (over the involved/painful stance limb, shifting the COM to
- * unload it) through the whole movement. Lumbar leads, thoracic follows at half.
+ * unload it) during its stance phase. Lumbar leads, thoracic follows at half.
  * `lateralTilt` + = left, so a left lean is positive. Pure; ROM-clamped on resolve.
  */
 export function antalgicLean(motion: ComposedMotion, side: 'left' | 'right', deg = 12): ComposedMotion {
   const d = Math.max(0, Math.min(25, Number.isFinite(deg) ? deg : 0));
+  if (d === 0) return motion;
   const sign = side === 'left' ? 1 : -1;
-  return addSustainedTargets(motion, [
+  return addGaitPhaseTargets(motion, side, 'stance', [
     { joint: 'Spine_Lower', motion: 'lateralTilt', deg: sign * d },
     { joint: 'Spine_Upper', motion: 'lateralTilt', deg: sign * Math.round(d * 0.5) },
   ]);
