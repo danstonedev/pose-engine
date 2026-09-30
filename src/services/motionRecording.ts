@@ -450,6 +450,7 @@ export interface SampleComposedOptions {
     fromMs?: number;
     toMs?: number;
     reuseInitialAnchor?: boolean;
+    landOnFloor?: boolean;
   }[];
   /**
    * For a LOOPING motion (`resolved.loop`), sample ONE seamless period of the
@@ -636,6 +637,7 @@ export function sampleComposedMotion(
         toMs: typeof c.toMs === 'number' ? c.toMs : Infinity,
         target: null,
         reuseInitialAnchor: c.reuseInitialAnchor === true,
+        landOnFloor: c.landOnFloor === true,
       });
     }
   }
@@ -1001,9 +1003,15 @@ export function sampleComposedMotion(
   // rest frame would fight the travel (moonwalk the body backward). Foot-rooting
   // is for the body FOLDING/DROPPING over stationary feet, not for stepping.
   const HORIZ_TRAVEL_EPS = 0.02; // 2 cm — below this the root is "in place"
-  const travels = built.roots.some(
-    (r) => Math.hypot(r.translateM[0], r.translateM[2]) > HORIZ_TRAVEL_EPS,
-  );
+  const setupMs = bilateralFootSetupMs({ ...resolved, contacts: activeContacts });
+  let elapsedForTravel = 0;
+  const travels = built.roots.some((r, i) => {
+    elapsedForTravel += (resolved.keyframes[i]?.durationMs ?? 0) + (resolved.keyframes[i]?.holdMs ?? 0);
+    // Setup may deliberately shift weight between feet. Only travel after the
+    // last landing disqualifies the subsequent fixed-base fold.
+    return (setupMs == null || elapsedForTravel > setupMs + 1e-5) &&
+      Math.hypot(r.translateM[0], r.translateM[2]) > HORIZ_TRAVEL_EPS;
+  });
   // AIRBORNE motions (a jump/hop with a floating phase) must NOT foot-root: the feet
   // genuinely leave the ground, so re-rooting the rigid body to hold the stance foot
   // at its rest frame fights the flight and snaps the body tens of cm at each
@@ -1023,7 +1031,6 @@ export function sampleComposedMotion(
   // switching between the feet-pin and the posture-pin across the transition stays
   // smooth (no rigid re-root jump).
   const hasGroundingPosture = built.roots.some((r) => r.groundingPosture != null);
-  const setupMs = bilateralFootSetupMs({ ...resolved, contacts: activeContacts });
   const footRootFromMs = setupMs == null ? 0 : toTrajectory.toTrajectory(setupMs);
   const useFootRoot =
     !resolved.footDrivenTravel &&
@@ -1040,6 +1047,8 @@ export function sampleComposedMotion(
       quaternion: rootRestQuat.clone().multiply(new THREE.Quaternion().fromArray(setup.rootQuat)),
       position: rootRestPos.clone().add(new THREE.Vector3().fromArray(setup.rootTranslate)), floor: floorRef });
   }
+  if (useFootRoot && setupMs == null && hasFixedBilateralFootSupport({ ...resolved, contacts: activeContacts }))
+    footFrames = { ...footFrames, bilateralSupport: true };
   // A fixed-base fold uses its live root/pelvis frame below. Even an identity
   // heading profile creates per-window rests; those must not override it.
   if (useFootRoot) for (const fp of footPlants) delete fp.rest;
@@ -1223,7 +1232,16 @@ export function sampleComposedMotion(
       plantStanceFoot(root, skinned.skeleton, variantCfg, footFrames, opts.constraints ?? resolved.constraints);
       footRooted = true;
     } else if (sample.planted) {
-      pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
+      // During a stance-entry step, the lifted foot must not determine the
+      // body's floor height. Ground only the feet bearing weight at this time.
+      const setupSupports = resolved.footSupportSetup && setupMs != null && tMs < footRootFromMs
+        ? footPlants.filter(p => tMs >= p.fromMs && tMs < p.toMs).flatMap(p =>
+          [p.solver.footKey, p.solver.footKey.replace(/Foot$/, 'Toes')].map(bone => ({
+            bone, targetY: floorRef.restY[bone] ?? floorRef.floorY, mode: 'vertical' as const,
+          })))
+        : [];
+      if (setupSupports.length) pinContactsToFloor(root, skinned.skeleton, variantCfg, setupSupports);
+      else pinRootToFloor(root, skinned.skeleton, variantCfg, floorRef);
       // Calibrated gait vertical: reshape the grounded pelvis arc to the requested
       // excursion (root-only; joints untouched) — amplitude-scaled about its cycle
       // mean, and (for gait) temporally SMOOTHED by cycle phase so the sharp
@@ -1344,6 +1362,14 @@ export function sampleComposedMotion(
         restY: floorRef.restY,
         trajectory: plantsAtTouchdown ? null : trajectory,
       });
+    // IK can rotate a planted ankle after the root floor pin. Keep its toe
+    // above the support plane as well, without grounding the swinging foot.
+    if (resolved.footSupportSetup && setupMs != null && tMs < footRootFromMs) {
+      const supportToes = footPlants.filter(p => tMs >= p.fromMs && tMs < p.toMs)
+        .map(p => p.solver.footKey.replace(/Foot$/, 'Toes'))
+        .map(bone => ({ bone, targetY: floorRef.restY[bone] ?? floorRef.floorY, mode: 'vertical' as const }));
+      if (supportToes.length) pinContactsToFloor(root, skinned.skeleton, variantCfg, supportToes, true);
+    }
     if (anyPlant || groundReachSolved || footRooted) {
       // Contact IK, a grounding reach, or an articulated-pelvis stance plant
       // can re-solve limb joints. Record those locals too, so replay matches

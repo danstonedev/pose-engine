@@ -37,6 +37,7 @@
  * That is why `BUILDERS` takes the constraints rather than a hardcoded number.
  */
 import { overheadSquatTargets } from './overheadSquat';
+import { stepIntoStandingStance } from './stanceTransition';
 import {
   MOVEMENT_TEMPLATES,
   templateToComposedMotion,
@@ -209,7 +210,7 @@ export function assessmentSourceNotes(source?:PositionSource): readonly string[]
  */
 function armsOverhead(motion: ComposedMotion, testId: string): ComposedMotion {
   const dowel = testId === 'deep-squat';
-  const keyframes = motion.keyframes.map(kf => {
+  const keyframes: ComposedMotion['keyframes'] = motion.keyframes.map(kf => {
     const control = kf.control && { ...kf.control, joints: { ...kf.control.joints } };
     if (control) for (const side of ['L', 'R'] as const) {
       control.joints[`${side}_Shoulder`] = { role: 'driven', purpose: 'Elevate and tilt the girdle for overhead support' };
@@ -217,16 +218,17 @@ function armsOverhead(motion: ComposedMotion, testId: string): ComposedMotion {
       control.joints[`${side}_Forearm`] = { role: 'driven', purpose: 'Retain nearly straight elbows and neutral forearm rotation' };
       control.joints[`${side}_Hand`] = { role: 'driven', purpose: dowel ? 'Orient the wrist for the dowel grip' : 'Maintain open overhead hands' };
     }
-    return { ...kf, ...(control ? { control } : {}), targets: overheadSquatTargets(kf.targets ?? [], dowel) };
+    return { ...kf, ...(control ? { control } : {}), targets: overheadSquatTargets(kf.targets ?? [], dowel, dowel) };
   });
   if (dowel) {
-    // The functional squat starts by descending. The screen first sets its
-    // stance and raises the dowel, then retains that setup on the return.
-    keyframes.unshift({ ...keyframes[keyframes.length - 1]!, durationMs: 900, holdMs: 0 });
+    // The functional builder starts with descent. Establish its base one
+    // weight-bearing side step at a time before that first loaded phase.
+    const setup = stepIntoStandingStance(keyframes[keyframes.length - 1]!.targets ?? []);
+    keyframes.unshift(...setup.keyframes);
+    return { ...motion, keyframes, footSupportSetup: true, contacts: setup.contacts };
   }
-  return { ...motion, keyframes, footSupportSetup: true,
-    contacts: [{ foot: 'L_Foot', fromMs: 900 }, { foot: 'R_Foot', fromMs: 900 }],
-  };
+  // The SFMA authored source already owns its entry, contacts and return.
+  return { ...motion, keyframes };
 }
 
 /**

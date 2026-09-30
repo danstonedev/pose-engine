@@ -52,6 +52,7 @@ import {
   type ExamMovementRefusalReason,
 } from './movementCommand';
 import type { RomScenarioConstraints } from './romConstraints';
+import { prepareStandingFootPlacement } from './stanceTransition';
 import { shoulderConstraintsForPolicy } from './shoulderRuntime';
 import { rootOrientQuatTuple, type RootOrient, type RootTransform } from './rootMotion';
 import { clampTimeScale } from './motionConstants';
@@ -360,6 +361,9 @@ export interface StanceContact {
   foot: string;
   fromMs?: number;
   toMs?: number;
+  /** A repositioning step lands on the standing sole plane, easing down from
+   * its last few centimetres of swing instead of freezing above the floor. */
+  landOnFloor?: boolean;
   /** Return to this foot's first captured plant, rather than establish a new
    * contact location. Useful for an in-place lift followed by landing. */
   reuseInitialAnchor?: boolean;
@@ -1798,6 +1802,7 @@ export function resolveComposedMotion(
   // transform runs (per-keyframe shape errors are caught in phase 8).
   const shapeError = validateComposedShape(motion);
   if (shapeError) return refuse(motion, shapeError);
+  motion = prepareStandingFootPlacement(motion, opts?.currentAngles);
   if (motion.shoulderCapacity === 'enforce-proxy')
     opts = { ...opts, constraints: shoulderConstraintsForPolicy(motion.shoulderCapacity, opts?.constraints) };
 
