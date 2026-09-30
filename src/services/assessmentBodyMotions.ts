@@ -11,6 +11,7 @@
  */
 import type { ComposedMotion, SequenceKeyframe, SequenceTarget } from './motionSequence';
 import { overheadSquatTargets } from './overheadSquat';
+import { stepIntoStandingStance } from './stanceTransition';
 import { buildBirdDog, buildPushUp } from './movementPostures';
 
 type Side = 'R' | 'L';
@@ -178,11 +179,12 @@ function singleLegStance(side: Side): ComposedMotion {
  */
 function legacySfmaOverheadSquat(): ComposedMotion {
   const setup = overheadSquatTargets(standing(), false);
+  const entry = stepIntoStandingStance(setup);
   const approach = overheadSquatTargets(withTargets(setup, [...leg('R', 57.5, 66.5, 17.5), ...leg('L', 57.5, 66.5, 17.5), ...trunk(10.5, 3.5)]), false);
   const squat = overheadSquatTargets(withTargets(setup, [...leg('R', 115, 133, 35), ...leg('L', 115, 133, 35), ...trunk(21, 7), target('Neck','flexion',-8)]), false);
   return { footSupportSetup: true, ...motion('Legacy SFMA overhead deep squat · shoulder-width stance · no dowel', [
-    frame(setup, 900), frame(approach, 1000), frame(squat, 1500, { holdMs: 1800 }), frame(setup, 1800),
-  ]), contacts: [{ foot: 'L_Foot', fromMs: 900 }, { foot: 'R_Foot', fromMs: 900 }] };
+    ...entry.keyframes, frame(approach, 1000), frame(squat, 1500, { holdMs: 1800 }), frame(setup, 1800),
+  ]), contacts: entry.contacts };
 }
 
 /** Repository assessment-specific, editable kinematic sources. These do not
@@ -206,5 +208,5 @@ export const BODY_ASSESSMENT_NOTES: Record<string, string[]> = {
   'multisegmental-extension': ['The reference starts with both arms overhead and combines hip, lumbar and thoracic extension.', 'Pelvis-to-toe and shoulder-to-heel relationships must be checked on the actual body. Balance is not established by this kinematic source.'],
   'multisegmental-rotation': ['The selected turn combines bounded pelvic, hip, lumbar and thoracic rotation while both feet stay at the setup contacts.', 'The source pelvis command is limited to 30 degrees; it does not establish the 50-degree pelvis criterion. The opposite direction is a separate selected-side attempt.'],
   'single-leg-stance': ['Transfer weight for three seconds, raise the selected knee toward hip height over three seconds, hold for ten seconds, lower the leg over three seconds, then return the pelvis between both feet over three seconds. The arms stay at the sides.', 'Transfer and return timing are editable engineering defaults. Eyes-open and eyes-closed are separate case conditions; this source does not animate vision. Source foot contacts guide authoring; Test & vary measures the actual native hold and return.'],
-  'sfma-overhead-deep-squat-legacy': ['Legacy SFMA overhead version: set the feet shoulder width apart with toes forward and straight arms in an overhead Y, squat, hold and return to the same setup. No dowel is used.', 'The source foot-skin gap is about 0–1.4 cm. The existing foot-frame planting permits about 3.5 cm of foot relocation during descent and up to 6 mm of skin-floor correction; exact contact and physical balance remain unverified. This is separate from the current arms-down SFMA squat and the FMS dowel squat.'],
+  'sfma-overhead-deep-squat-legacy': ['Legacy SFMA overhead version: step each foot into a shoulder-width stance, raise straight arms in an overhead Y, squat, hold and return to that stance. No dowel is used.', 'The transition uses alternating foot contacts and an eased sole landing; the fixed bilateral base centers the root once both feet are down. This is a kinematic support approximation, not a measured force or clinical balance score. This is separate from the current arms-down SFMA squat and the FMS dowel squat.'],
 };

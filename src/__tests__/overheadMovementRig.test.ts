@@ -14,6 +14,7 @@ import { sampleComposedMotion } from '../services/motionRecording';
 import {buildJump} from '../services/movementLocomotion';
 import {composeScreenMotion,positionFor} from '../services/movementScreen';
 import {computeBalanceTimeline} from '../services/centerOfMass';
+import { bilateralFootSetupMs } from '../services/motionSupport';
 
 describe.each(['female','male','neutral'] as const)('%s overhead movement geometry', variant => {
   const cfg = BODY_VARIANTS[variant];
@@ -48,8 +49,22 @@ describe.each(['female','male','neutral'] as const)('%s overhead movement geomet
     expect(resolved.outcomes.filter(o=>o.status==='refused'),'whole body has no dropped targets').toEqual([]);
     const rec=sample(motion);
     checkHeadClearance(rec);
-    const setup=rec.frames.find(f=>f.tMs>=900)!;
-    const supported=rec.frames.filter(f=>f.tMs>=900);
+    const readyAt=bilateralFootSetupMs(resolved)!;
+    expect(readyAt).toBeGreaterThan(3000);
+    const setup=rec.frames.find(f=>f.tMs>=readyAt)!;
+    const supported=rec.frames.filter(f=>f.tMs>=readyAt);
+    const leftSwing=rec.frames.filter(f=>f.tMs>=900&&f.tMs<1800);
+    const rightSwing=rec.frames.filter(f=>f.tMs>=2150&&f.tMs<3050);
+    const floor=rec.frames[0]!.worldTracks!;
+    expect(Math.max(...leftSwing.map(f=>f.worldTracks!.L_Foot![1]-floor.L_Foot![1]))).toBeGreaterThan(.035);
+    expect(Math.max(...rightSwing.map(f=>f.worldTracks!.R_Foot![1]-floor.R_Foot![1]))).toBeGreaterThan(.035);
+    expect(Math.max(...leftSwing.map(f=>Math.abs(f.worldTracks!.R_Foot![0]-floor.R_Foot![0])))).toBeLessThan(.02);
+    expect(Math.max(...leftSwing.map(f=>Math.abs(f.worldTracks!.R_Foot![1]-floor.R_Foot![1]))),
+      'right support foot stays on the floor while left steps').toBeLessThan(.012);
+    const leftPlant=rec.frames.find(f=>f.tMs>=1800)!;
+    expect(Math.max(...rightSwing.map(f=>Math.abs(f.worldTracks!.L_Foot![0]-leftPlant.worldTracks!.L_Foot![0])))).toBeLessThan(.025);
+    expect(Math.max(...rightSwing.map(f=>Math.abs(f.worldTracks!.L_Foot![1]-floor.L_Foot![1]))),
+      'left support foot keeps its sole near the floor while right steps').toBeLessThan(.015);
     const gap=Math.abs(setup.worldTracks!.L_Foot![0]-setup.worldTracks!.R_Foot![0]);
     expect(gap,'shoulder-width ankle spacing').toBeGreaterThan(.35);
     expect(gap).toBeLessThan(.52);
@@ -63,12 +78,17 @@ describe.each(['female','male','neutral'] as const)('%s overhead movement geomet
       if(id==='deep-squat') for(const digit of ['Index1','Mid1','Ring1','Pinky1'])
         expect(f.angles[side+'_'+digit]!.fingerFlexion,'every finger retains the dowel grip').toBeGreaterThan(95);
     }
-    console.log(JSON.stringify({variant,id,gap,drift,toeDrop,margin,capacity}));
     expect(drift,'fixed support after setup').toBeLessThan(.025);
     expect(toeDrop,'toes stay above the standing floor').toBeGreaterThan(-.005);
     expect(margin,'mass stays over the base').toBeGreaterThan(0);
     expect(capacity,'combined shoulder stays inside the proxy budget').toBeGreaterThan(0);
+    expect(Math.abs(setup.worldTracks!.L_Foot![1]-floor.L_Foot![1])).toBeLessThan(.012);
+    expect(Math.abs(setup.worldTracks!.R_Foot![1]-floor.R_Foot![1])).toBeLessThan(.012);
     const deepest=rec.frames.reduce((a,b)=>a.worldTracks!.Hips![1]<b.worldTracks!.Hips![1]?a:b);
+    expect(Math.abs(deepest.worldTracks!.Hips![0]),'pelvis stays centered during the loaded squat').toBeLessThan(.02);
+    expect(Math.abs(deepest.angles.L_Leg!.kneeRotation!-deepest.angles.R_Leg!.kneeRotation!),
+      'neutral squat does not invent unilateral tibial rotation').toBeLessThan(2);
+    expect(Math.abs(deepest.root.orientQuat[1]),'root does not yaw toward the lower ankle').toBeLessThan(.02);
     expect(setup.worldTracks!.Hips![1]-deepest.worldTracks!.Hips![1]).toBeGreaterThan(.4);
     expect(Math.abs(rec.frames.at(-1)!.worldTracks!.Hips![1]-setup.worldTracks!.Hips![1])).toBeLessThan(.005);
   }, 30000); // Full-motion skin hull inspection takes 9-11 seconds on CI runners.

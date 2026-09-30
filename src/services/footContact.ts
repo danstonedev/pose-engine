@@ -650,6 +650,8 @@ export interface ContactPlant {
   target: THREE.Vector3 | null;
   /** Return to this effector's FIRST captured point instead of where it lands. */
   reuseInitialAnchor: boolean;
+  /** Settle a deliberately repositioned foot onto its standing floor plane. */
+  landOnFloor?: boolean;
   /** A forefoot hold taken above the floor ({@link FOREFOOT_HOVER_M}): the
    *  target sits on the floor, and the held point eases down to it from where
    *  the forefoot was drawn when the hold took it — `offsetY` above the target,
@@ -1151,8 +1153,12 @@ export function stepContactPlants(
       // A forefoot taken just above the floor with its heel down is held on
       // the floor under it, reached from where it is drawn now.
       const onFloor = forefootSettle(fp.solver, fp.target.y, at.y, tMs, frame.restY);
-      fp.settle = onFloor?.settle ?? null;
-      if (onFloor) fp.target.y = onFloor.floorY;
+      const ankleFloor = fp.landOnFloor && /Foot$/.test(key) ? frame.restY?.[key] : undefined;
+      const ankleHover = ankleFloor == null ? 0 : fp.target.y - ankleFloor;
+      const landing = ankleFloor != null && ankleHover > 0 && ankleHover <= .05
+        ? { floorY: ankleFloor, settle: { offsetY: at.y - ankleFloor, atMs: tMs } } : null;
+      fp.settle = (onFloor ?? landing)?.settle ?? null;
+      if (onFloor || landing) fp.target.y = (onFloor ?? landing)!.floorY;
       if (!frame.initialTargets.has(key)) {
         frame.initialTargets.set(key, fp.target.clone());
       }

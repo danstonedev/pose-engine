@@ -36,7 +36,7 @@ for (const variant of ['male', 'female'] as const) describe(`${variant}: fixed b
     ['raw squat', () => template('squat'), .0007, .50],
     ['raw hip hinge', () => template('forward-hip-hinge'), .003, .02],
   ] as const) for (const clampEnabled of [true, false]) {
-    it(`${label}: both ankles stay fixed without changing root placement (calibration clamp ${clampEnabled})`, () => {
+    it(`${label}: both ankles stay fixed around a centered base (calibration clamp ${clampEnabled})`, () => {
       setRomClampEnabled(clampEnabled);
       const motion = create();
       expect(motion.contacts?.map(c => c.foot)).toEqual(feet);
@@ -49,9 +49,10 @@ for (const variant of ['male', 'female'] as const) describe(`${variant}: fixed b
       expect(first.Hips![1] - Math.min(...after.frames.map(f => f.worldTracks!.Hips![1]))).toBeGreaterThan(minDepthM);
       for (const [i, frame] of after.frames.entries()) {
         const old = before.frames[i]!;
-        expect(distance(frame.root.translateM, old.root.translateM), 'support correction must preserve root placement').toBeLessThan(1e-7);
-        expect(distance(frame.root.orientQuat, old.root.orientQuat), 'support correction must preserve root rotation').toBeLessThan(1e-7);
         expect(distance(frame.pose.bones.Hips!, old.pose.bones.Hips!), 'pelvic articulation remains authored').toBeLessThan(1e-7);
+        const middle=(frame.worldTracks!.L_Foot![0]+frame.worldTracks!.R_Foot![0])/2;
+        expect(Math.abs(frame.worldTracks!.Hips![0]-middle),'pelvis stays centered between planted feet').toBeLessThan(.025);
+        expect(Math.abs(frame.root.orientQuat[1]),'fixed base does not introduce whole-body yaw').toBeLessThan(.025);
         for (const key of ['L_Toes', 'R_Toes']) expect(frame.worldTracks![key]![1] - first[key]![1]).toBeGreaterThan(-.0003);
         for (const side of ['L', 'R']) {
           expect(frame.angles[`${side}_UpLeg`]!.hipFlexion!).toBeLessThanOrEqual(120.05);

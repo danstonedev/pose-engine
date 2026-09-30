@@ -28,9 +28,10 @@ describe('assessment-specific whole-body source definitions', () => {
     for (const side of ['R', 'L'] as const) {
       const motion = BODY_ASSESSMENT_MOTIONS[id]!(side), frames = motion.keyframes;
       expect(frames.length).toBeGreaterThanOrEqual(3);
-      expect(frames[0]!.targets).toEqual(frames.at(-1)!.targets);
-      expect(frames[0]!.root).toEqual(frames.at(-1)!.root);
-      expect(frames[0]!.groundingPosture).toEqual(frames.at(-1)!.groundingPosture);
+      const setup = id === 'sfma-overhead-deep-squat-legacy' ? frames[7]! : frames[0]!;
+      expect(setup.targets).toEqual(frames.at(-1)!.targets);
+      expect(setup.root?.translateM ?? [0,0,0]).toEqual(frames.at(-1)!.root?.translateM ?? [0,0,0]);
+      expect(setup.groundingPosture).toEqual(frames.at(-1)!.groundingPosture);
       expect(motion.startPosture).toBe(motion.endPosture);
       const max = Math.max(...frames.map(frame => frame.holdMs ?? 0));
       expect(max).toBeGreaterThan(0);
@@ -127,7 +128,7 @@ for (const variant of ['female', 'male'] as const) {
         expect(Object.values(frame.worldTracks!).flat().every(Number.isFinite)).toBe(true);
         expect(frame.root.orientQuat.every(Number.isFinite)).toBe(true);
       }
-      const start = result.phases[0]!, finish = result.recording.frames.at(-1)!;
+      const start = result.phases[id === 'sfma-overhead-deep-squat-legacy' ? 7 : 0]!, finish = result.recording.frames.at(-1)!;
       for (const key of ['Hips', 'Head', 'L_Hand', 'R_Hand', 'L_Foot', 'R_Foot']) {
         expect(point(start, key).distanceTo(point(finish, key)), `${id}: return ${key}`).toBeLessThan(.08);
       }
@@ -221,7 +222,7 @@ for (const variant of ['female', 'male'] as const) {
       } else if (id === 'sfma-overhead-deep-squat-legacy') {
         expect(point(start, 'Hips').y - point(assessed, 'Hips').y).toBeGreaterThan(.6);
         expect(point(assessed, 'Hips').y).toBeLessThan(at(assessed, 'Leg').y - .03);
-        for (const phase of result.phases) {
+        for (const phase of result.phases.slice(7)) {
           expect(at(phase, 'Hand').y - point(phase, 'Head').y).toBeGreaterThan(.35);
           const torso = point(phase, 'Head').sub(point(phase, 'Hips'));
           expect(THREE.MathUtils.radToDeg(torso.angleTo(new THREE.Vector3(0, 1, 0)))).toBeLessThan(40);

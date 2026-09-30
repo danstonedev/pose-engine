@@ -371,14 +371,16 @@ export function groundingContactsFor(posture: string, floor: FloorReference): Gr
  * generalisation of {@link pinRootToFloor} to non-foot contacts (a seated pelvis, a
  * planted hand). Lifts the root so the DEEPEST-penetrating 'vertical' contact meets
  * its target-Y, exactly as the feet-only pin does; orientation-agnostic (moves
- * `root.position.y` only). Returns the Y shift; no-op (0) when no vertical contact
- * resolves.
+ * `root.position.y` only). `liftOnly` guards a post-IK sole check from pulling
+ * an already clear contact downward. Returns the Y shift; no-op (0) when no
+ * vertical contact resolves.
  */
 export function pinContactsToFloor(
   root: THREE.Object3D,
   skeleton: THREE.Skeleton,
   variantCfg: BodyVariantConfig,
   contacts: GroundContact[],
+  liftOnly = false,
 ): number {
   root.updateMatrixWorld(true);
   const bones = boneByCanonicalKey(skeleton, variantCfg);
@@ -389,7 +391,7 @@ export function pinContactsToFloor(
     if (!bone || !Number.isFinite(c.targetY)) continue;
     lift = Math.max(lift, c.targetY - bone.getWorldPosition(_fp).y);
   }
-  if (!Number.isFinite(lift)) return 0;
+  if (!Number.isFinite(lift) || (liftOnly && lift <= 0)) return 0;
   root.position.y += lift;
   root.updateMatrixWorld(true);
   return lift;
@@ -412,6 +414,8 @@ export const FOOT_ROOT_DRIFT_M = 0.05;
  *  pass the original clinical joint rest separately for anatomical IK limits. */
 export interface FootFrameReference {
   restFrame: Record<string, THREE.Matrix4>;
+  /** Center an explicitly prepared bilateral stance on both feet. */
+  bilateralSupport?: boolean;
   /** Pelvic articulation is measured separately from whole-body placement. */
   pelvisLocalQuat?: THREE.Quaternion;
   jointRest?: JointAngleRestReference;
@@ -458,7 +462,7 @@ export function captureFootSetupFrames(args: {
     applyCustomPose(skeleton, variantCfg, args.pose);
     root.position.copy(args.position); root.quaternion.copy(args.quaternion); root.updateMatrixWorld(true);
     pinRootToFloor(root, skeleton, variantCfg, args.floor);
-    return captureFootFrames(skeleton, variantCfg, rest);
+    return { ...captureFootFrames(skeleton, variantCfg, rest), bilateralSupport: true };
   } finally {
     skeleton.bones.forEach((b, i) => b.quaternion.copy(quats[i]!));
     root.position.copy(position); root.quaternion.copy(quaternion); root.updateMatrixWorld(true);
@@ -768,6 +772,25 @@ export function plantStanceFoot(
   const pelvis = findPelvisBone(skeleton, variantCfg);
   if (hasPelvicArticulation(pelvis, frames) && frames.jointRest && frames.pelvisParentWorldQuat) {
     return plantArticulatedPelvis(root, skeleton, variantCfg, frames, pelvis!, constraints);
+  }
+  if (frames.bilateralSupport) {
+    const sides = ['L_Foot', 'R_Foot'] as const;
+    const feet = sides.map(key => ({ bone: lookup.get(key), reference: frames.restFrame[key] }));
+    if (feet.every(({ bone, reference }) => bone && reference)) {
+      const current = feet.map(({ bone }) => bone!.matrixWorld);
+      const delta = feet.map(({ reference }, i) => new THREE.Quaternion()
+        .setFromRotationMatrix(new THREE.Matrix4().extractRotation(reference!))
+        .multiply(new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().extractRotation(current[i]!)).invert()));
+      const rotation = delta[0]!.slerp(delta[1]!, .5);
+      const currentMid = new THREE.Vector3().setFromMatrixPosition(current[0]!).add(new THREE.Vector3().setFromMatrixPosition(current[1]!)).multiplyScalar(.5);
+      const targetMid = new THREE.Vector3().setFromMatrixPosition(feet[0]!.reference!).add(new THREE.Vector3().setFromMatrixPosition(feet[1]!.reference!)).multiplyScalar(.5);
+      const transform = new THREE.Matrix4().makeTranslation(targetMid.x, targetMid.y, targetMid.z)
+        .multiply(new THREE.Matrix4().makeRotationFromQuaternion(rotation))
+        .multiply(new THREE.Matrix4().makeTranslation(-currentMid.x, -currentMid.y, -currentMid.z));
+      root.applyMatrix4(transform);
+      root.updateMatrixWorld(true);
+      return 'L_Foot';
+    }
   }
   root.updateMatrixWorld(true);
   let stanceKey: string | null = null;

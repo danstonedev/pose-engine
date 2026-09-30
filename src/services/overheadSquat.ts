@@ -4,7 +4,7 @@ import type { SequenceTarget } from './motionSequence';
  * Engineering targets, checked on the loaded bodies; no scoring or force model.
  * The stance and arm direction are measured after the standard contact solver.
  */
-export function overheadSquatTargets(source: SequenceTarget[], dowel: boolean): SequenceTarget[] {
+export function overheadSquatTargets(source: SequenceTarget[], dowel: boolean, stance = true): SequenceTarget[] {
   const targets = source.filter(t => !/^[LR]_(UpperArm|Shoulder|Forearm|Hand|Thumb1|Index1|Mid1|Ring1|Pinky1)$/.test(t.joint)).map(t => ({ ...t }));
   const put = (joint: string, motion: string, targetDegrees: number) => {
     const old = targets.find(t => t.joint === joint && t.motion === motion);
@@ -14,8 +14,10 @@ export function overheadSquatTargets(source: SequenceTarget[], dowel: boolean): 
   for (const side of ['L', 'R']) {
     // The contact solver anchors this stance after setup and keeps each foot
     // under its own knee. Positive abduction opens the narrow neutral rig stance.
-    put(`${side}_UpLeg`, 'hipAbduction', 8);
-    put(`${side}_Foot`, 'ankleInversion', 8);
+    if (stance) {
+      put(`${side}_UpLeg`, 'hipAbduction', 8);
+      put(`${side}_Foot`, 'ankleInversion', 8);
+    }
     put(`${side}_UpperArm`, 'shoulderFlexion', 175);
     put(`${side}_UpperArm`, 'shoulderAbduction', 140);
     put(`${side}_UpperArm`, 'shoulderRotation', -25);

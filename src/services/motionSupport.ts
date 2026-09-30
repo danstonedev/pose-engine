@@ -21,9 +21,9 @@ export function hasFixedBilateralFootSupport(motion: {
   return feet.size === 2;
 }
 
-/** A bilateral base established at the end of an explicit first setup phase.
- * Subsequent stepping/releasing contacts are excluded. Unlike whole-motion
- * support this must not plant the feet during the stance-width setup itself.
+/** A bilateral base established after explicit setup steps. Each foot's last
+ * contact must continue through the squat; earlier windows may release as the
+ * opposite foot takes weight. The last landing must match a keyframe boundary.
  */
 export function bilateralFootSetupMs(motion: {
   footSupportSetup?: boolean;
@@ -31,12 +31,20 @@ export function bilateralFootSetupMs(motion: {
   keyframes: readonly { durationMs?: number; holdMs?: number }[];
 }): number | null {
   if (!motion.footSupportSetup) return null;
-  const [a, b] = motion.contacts ?? [];
-  const first = motion.keyframes[0];
-  if (motion.contacts?.length !== 2 || !a || !b || !first) return null;
-  if (new Set([a.foot, b.foot]).size !== 2 || ![a.foot, b.foot].every(f => f === 'L_Foot' || f === 'R_Foot')) return null;
-  const at = a.fromMs;
-  return at != null && Number.isFinite(at) && at > 0 && at === b.fromMs
-    && a.toMs == null && b.toMs == null
-    && at === (first.durationMs ?? 0) + (first.holdMs ?? 0) ? at : null;
+  const contacts = motion.contacts ?? [];
+  if (contacts.length < 2 || !motion.keyframes.length ||
+    contacts.some(c => c.foot !== 'L_Foot' && c.foot !== 'R_Foot')) return null;
+  const final = ['L_Foot', 'R_Foot'].map(foot => contacts.filter(c => c.foot === foot && c.toMs == null));
+  if (final.some(list => list.length !== 1)) return null;
+  const starts = final.map(list => list[0]!.fromMs);
+  if (starts.some(t => t == null || !Number.isFinite(t) || t < 0)) return null;
+  const at = Math.max(...starts as number[]);
+  if (at <= 0 || contacts.some(c => c.toMs != null && (!Number.isFinite(c.toMs) || c.toMs > at))) return null;
+  let elapsed = 0;
+  for (const kf of motion.keyframes) {
+    elapsed += (kf.durationMs ?? 0) + (kf.holdMs ?? 0);
+    if (Math.abs(elapsed - at) < 1e-5) return at;
+    if (elapsed > at) break;
+  }
+  return null;
 }
