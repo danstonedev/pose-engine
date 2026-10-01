@@ -1463,8 +1463,10 @@ export class SkinContact {
     return delta;
   }
 
-  /** Resolve every visible solid mesh in a prop, then optionally compress the contacting skin. */
-  resolve(object: THREE.Object3D, outward: THREE.Vector3, compressionM = 0): number {
+  /** Resolve every visible solid mesh in a prop, then optionally compress the
+   * contacting skin. `ignore` names the skin intentionally gripping a held
+   * prop; all other body regions still block it. */
+  resolve(object: THREE.Object3D, outward: THREE.Vector3, compressionM = 0, ignore?: RegExp): number {
     if (!object.visible || outward.lengthSq() < 1e-12) return 0;
     const normal = outward.clone().normalize();
     const x = new THREE.Vector3().crossVectors(Math.abs(normal.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0), normal).normalize();
@@ -1480,6 +1482,7 @@ export class SkinContact {
     }
     // Each triangle (an offset into its skin's `tri`) the prop must clear, and by how much.
     const constraints: { skin: Skin; t: number; required: number }[] = [];
+    const ignored = ignore ? this.mask(ignore) : null;
     let shift = 0;
     object.updateWorldMatrix(true, true);
     object.traverseVisible(child => {
@@ -1494,9 +1497,13 @@ export class SkinContact {
       const polygon = hull(corners), bb = bounds(corners);
       if (polygon.length < 3) return;
       const shape = outline(polygon), near = Math.min(...corners.map(p => p.z));
-      for (const skin of this.skins) {
+      for (let s = 0; s < this.skins.length; s++) {
+        const skin = this.skins[s]!;
         const points = skin.projected!, tri = skin.tri;
         for (let t = 0; t < tri.length; t += 3) {
+          if (ignored && ignored[s]![skin.ownerIds[tri[t]!]!] &&
+              ignored[s]![skin.ownerIds[tri[t + 1]!]!] &&
+              ignored[s]![skin.ownerIds[tri[t + 2]!]!]) continue;
           const ia = tri[t]! * 3, ib = tri[t + 1]! * 3, ic = tri[t + 2]! * 3;
           const ax = points[ia]!, ay = points[ia + 1]!, az = points[ia + 2]!, bx = points[ib]!, by = points[ib + 1]!, bz = points[ib + 2]!, cx = points[ic]!, cy = points[ic + 1]!, cz = points[ic + 2]!;
           if (Math.max(ax, bx, cx) < bb.minX || Math.min(ax, bx, cx) > bb.maxX || Math.max(ay, by, cy) < bb.minY || Math.min(ay, by, cy) > bb.maxY || Math.max(az, bz, cz) + SKIN_CONTACT_CLEARANCE_M < near) continue;

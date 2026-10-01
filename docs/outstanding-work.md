@@ -1,3 +1,5 @@
+> Status reconciliation (1 October 2026): use [movement-improvement-status.md](movement-improvement-status.md) for the current backlog. This document retains historical plans and measurements; several OPEN entries have since shipped.
+
 # Outstanding work — movement realism
 
 The live ledger for the movement-realism effort. Every entry is something

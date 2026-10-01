@@ -20,16 +20,18 @@ export function overheadSquatTargets(source: SequenceTarget[], dowel: boolean, s
     }
     put(`${side}_UpperArm`, 'shoulderFlexion', 175);
     put(`${side}_UpperArm`, 'shoulderAbduction', 140);
-    put(`${side}_UpperArm`, 'shoulderRotation', -25);
+    // A neutral humeral twist leaves the forearms to set the actual grip.
+    // The former -25° external rotation turned the elbows and palms out.
+    put(`${side}_UpperArm`, 'shoulderRotation', dowel ? 0 : -25);
     put(`${side}_Shoulder`, 'upRotation', 40);
     put(`${side}_Shoulder`, 'scapularTilt', 10);
     put(`${side}_Shoulder`, 'protraction', 0);
     put(`${side}_Forearm`, 'elbowFlexion', 3);
-    put(`${side}_Forearm`, 'forearmRotation', 0);
+    put(`${side}_Forearm`, 'forearmRotation', dowel ? 45 : 0);
     put(`${side}_Hand`, 'wristFlexion', 0);
     put(`${side}_Hand`, 'wristDeviation', 0);
     for (const digit of ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'])
-      put(`${side}_${digit}`, 'fingerFlexion', dowel ? (digit === 'Thumb1' ? 55 : 110) : 0);
+      put(`${side}_${digit}`, 'fingerFlexion', dowel ? (digit === 'Thumb1' ? 0 : 80) : 0);
   }
   return targets;
 }

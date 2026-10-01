@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { bilateralFootSetupMs } from '../services/motionSupport';
+import { withStandingStance } from '../services/stanceTransition';
 
 const standingTargets = [
   { joint: 'L_UpLeg', motion: 'hipAbduction', targetDegrees: 8 },
@@ -27,6 +28,26 @@ const genericStandingMotion = (): ComposedMotion => ({
 });
 
 describe('shared standing-foot placement', () => {
+  it('rejects invalid layouts and preserves tasks with their own moving support', () => {
+    const stance = { widthCm: 36, leftForwardCm: 8, rightForwardCm: -5 };
+    const source = genericStandingMotion();
+    expect(() => withStandingStance(source, { ...stance, widthCm: NaN })).toThrow(RangeError);
+    expect(() => withStandingStance(source, { ...stance, rightForwardCm: 13 })).toThrow(RangeError);
+    for (const motion of [source, { ...source, loop: true }, { ...source, startPosture: 'sitting' as const }])
+      expect(withStandingStance(motion, stance)).toBe(motion);
+  });
+
+  it('replaces an existing setup once and leaves the input untouched', () => {
+    const source = { ...genericStandingMotion(), contacts: undefined };
+    const before = structuredClone(source);
+    const first = withStandingStance(source, { widthCm: 36, leftForwardCm: 8, rightForwardCm: -5 });
+    const second = withStandingStance(first, { widthCm: 36, leftForwardCm: 8, rightForwardCm: -5 });
+    expect(source).toEqual(before);
+    expect(first.keyframes).toHaveLength(source.keyframes.length + 8);
+    // Reapplying a layout must not accumulate sagittal offsets.
+    expect(second).toEqual(first);
+  });
+
   it('steps into a retained wide base for an otherwise unknown whole-body motion', () => {
     const source = genericStandingMotion();
     const resolved = resolveComposedMotion(source, BODY_VARIANTS.neutral);

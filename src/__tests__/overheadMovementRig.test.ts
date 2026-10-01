@@ -1,7 +1,7 @@
 import {armHeadContact} from './helpers/armHeadContact';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { type Object3D, type SkinnedMesh } from 'three';
+import { Line3, Vector3, type Object3D, type SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
@@ -12,9 +12,11 @@ import { resolveComposedMotion, type ComposedMotion } from '../services/motionSe
 import { sampleComposedMotion } from '../services/motionRecording';
 
 import {buildJump} from '../services/movementLocomotion';
-import {composeScreenMotion,positionFor} from '../services/movementScreen';
+import {composeScreenMotion,positionFor,SCREEN_KIT} from '../services/movementScreen';
 import {computeBalanceTimeline} from '../services/centerOfMass';
 import { bilateralFootSetupMs } from '../services/motionSupport';
+import { overheadDowelPlacement } from '../services/overheadDowel';
+import { withStandingStance } from '../services/stanceTransition';
 
 describe.each(['female','male','neutral'] as const)('%s overhead movement geometry', variant => {
   const cfg = BODY_VARIANTS[variant];
@@ -75,8 +77,6 @@ describe.each(['female','male','neutral'] as const)('%s overhead movement geomet
       toeDrop=Math.min(toeDrop,w[toe]![1]-ref[toe]![1]);
       expect(w[side+'_Hand']![1]-w.Head![1],'straight overhead arms').toBeGreaterThan(.3);
       capacity=Math.min(capacity,f.shoulders![side]!.capacity.marginDeg!);
-      if(id==='deep-squat') for(const digit of ['Index1','Mid1','Ring1','Pinky1'])
-        expect(f.angles[side+'_'+digit]!.fingerFlexion,'every finger retains the dowel grip').toBeGreaterThan(95);
     }
     expect(drift,'fixed support after setup').toBeLessThan(.025);
     expect(toeDrop,'toes stay above the standing floor').toBeGreaterThan(-.005);
@@ -92,6 +92,52 @@ describe.each(['female','male','neutral'] as const)('%s overhead movement geomet
     expect(setup.worldTracks!.Hips![1]-deepest.worldTracks!.Hips![1]).toBeGreaterThan(.4);
     expect(Math.abs(rec.frames.at(-1)!.worldTracks!.Hips![1]-setup.worldTracks!.Hips![1])).toBeLessThan(.005);
   }, 30000); // Full-motion skin hull inspection takes 9-11 seconds on CI runners.
+  it('fits the dowel against both palms without burying it in the fingers', () => {
+    const rec=sample(composeScreenMotion(positionFor('deep-squat'),'R',null,'deep-squat')!);
+    const bones=buildBoneByPoseKey(skin.skeleton,cfg);
+    const readyAt=bilateralFootSetupMs(resolveComposedMotion(composeScreenMotion(positionFor('deep-squat'),'R',null,'deep-squat')!,cfg))!;
+    const supported=rec.frames.filter(f=>f.tMs>=readyAt);
+    const deepest=supported.reduce((a,b)=>a.worldTracks!.Hips![1]<b.worldTracks!.Hips![1]?a:b);
+    for(const frame of [supported[0]!,deepest,supported.at(-1)!]){
+      root.position.fromArray(frame.root.translateM);root.quaternion.fromArray(frame.root.orientQuat);
+      applyCustomPose(skin.skeleton,cfg,frame.pose);root.updateMatrixWorld(true);
+      const bar=overheadDowelPlacement(key=>bones.get(key)??null,SCREEN_KIT.dowel.lengthM,SCREEN_KIT.dowel.radiusM);
+      expect(bar,`a compatible bilateral grip exists at ${frame.tMs}`).not.toBeNull();
+      const line=new Line3(bar!.from,bar!.to),point=new Vector3(),nearest=new Vector3();
+      const gaps: Record<string,number>={};
+      root.traverse(object=>{
+        const mesh=object as SkinnedMesh;if(!mesh.isSkinnedMesh)return;
+        const indices=mesh.geometry.getAttribute('skinIndex'),weights=mesh.geometry.getAttribute('skinWeight');
+        for(let i=0;i<indices.count;i++){
+          let max=0,name='';
+          for(let j=0;j<4;j++){const weight=weights.getComponent(i,j);if(weight>max){max=weight;name=mesh.skeleton.bones[indices.getComponent(i,j)]!.name;}}
+          const match=/_([LR])_(Hand|Thumb\d|Index\d|Mid\d|Ring\d|Pinky\d)$/.exec(name);
+          if(!match)continue;
+          mesh.getVertexPosition(i,point).applyMatrix4(mesh.matrixWorld);
+          const gap=point.distanceTo(line.closestPointToPoint(point,true,nearest))-SCREEN_KIT.dowel.radiusM;
+          const key=match[1]+(match[2]==='Hand'?'palm':'digits');
+          gaps[key]=Math.min(gaps[key]??Infinity,gap);
+        }
+      });
+      for(const side of ['L','R']){
+        expect(gaps[side+'palm'],`${side} palm penetration`).toBeGreaterThan(-.003);
+        expect(gaps[side+'palm'],`${side} palm contact`).toBeLessThan(.014);
+        expect(gaps[side+'digits'],`${side} digit penetration`).toBeGreaterThan(-.006);
+        expect(gaps[side+'digits'],`${side} digit contact`).toBeLessThan(.014);
+      }
+    }
+  });
+  it('keeps a requested staggered stance planted through the squat', () => {
+    const source=composeScreenMotion(positionFor('deep-squat'),'R',null,'deep-squat')!;
+    const motion=withStandingStance(source,{widthCm:36,leftForwardCm:8,rightForwardCm:-5},variant);
+    const resolved=resolveComposedMotion(motion,cfg),rec=sample(motion);
+    const frames=rec.frames.filter(f=>f.tMs>=bilateralFootSetupMs(resolved)!);
+    const ready=frames[0]!.worldTracks!;
+    expect(Math.abs(ready.L_Foot![0]-ready.R_Foot![0])).toBeCloseTo(.36,1);
+    expect(ready.L_Foot![2]-ready.R_Foot![2]).toBeCloseTo(.13,1);
+    for(const frame of frames)for(const side of ['L','R'])
+      expect(new Vector3().fromArray(frame.worldTracks![side+'_Foot']!).distanceTo(new Vector3().fromArray(ready[side+'_Foot']!))).toBeLessThan(.025);
+  });
   it('jump raises the girdles with the arms and releases them on landing',()=>{
     const rec=sample(buildJump());
     checkHeadClearance(rec);

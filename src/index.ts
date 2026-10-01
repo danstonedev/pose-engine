@@ -90,6 +90,8 @@ export * from './services/movementTemplates';
 // performed and which part of the screening kit it uses. simMOVE's Screen and
 // simLAB play the same patterns from here; simMOVE authors and signs them off.
 export * from './services/movementScreen';
+export * from './services/overheadDowel';
+export * from './services/stanceTransition';
 
 // Healthy-asymmetry signature (Wave 5 life-signals) — the seed-derived 2–4%
 // L/R arm-swing amplitude difference the gait builders apply by default so the

@@ -25,6 +25,19 @@ function fixture(boneName = '') {
 }
 
 describe('posed skin contact', () => {
+  it('excludes intentionally gripping skin but still resolves other body regions', () => {
+    for (const name of ['CC_Base_L_Hand', 'CC_Base_Head']) {
+      const { contact, prop } = fixture(name);
+      const before = prop.position.clone();
+      const shift = contact.resolve(prop, new THREE.Vector3(0, 0, 1), 0, /_[LR]_Hand$/u);
+      if (name.endsWith('_Hand')) {
+        expect(shift).toBe(0);
+        expect(prop.position.equals(before)).toBe(true);
+      } else expect(shift).toBeGreaterThan(0.04);
+      contact.dispose();
+    }
+  });
+
   it('supports triangle interiors at an opening rim without supporting skin inside the void', () => {
     const { root, mesh, contact } = fixture();
     // A V-shaped face: its centre vertex hangs through a square face opening.
