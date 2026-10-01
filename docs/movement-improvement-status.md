@@ -38,9 +38,11 @@ preserve the shoulder's complete orientation during an overhead squat.
 
 ## Remaining work and completion criteria
 
-Next action after the initial lower-reach measurements: a Blender/engine pose
-comparison to distinguish rig/skin-weight limits from export or movement-control
-errors. See [the focused audit plan](lower-reach-followup.md#next-implementation-step).
+Blender 5.2.2 is now integrated into the [movement authoring workflow](blender-workflow.md).
+Six reference clips pass measured import/export comparison; a male-left hand
+control and candidate exporter are available. Next: use that workspace to
+investigate the lower reach, then validate a candidate against the existing
+engine bounds and skin clearance. See [the focused audit plan](lower-reach-followup.md#next-implementation-step).
 The independent-rig calibration item remains open; adding estimated bones alone
 does not close it.
 

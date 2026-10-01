@@ -1,7 +1,8 @@
 # Lower reach follow-up — 1 October 2026
 
-Status: current baseline measured; first bounded candidate rejected. The released
-lower-reach recipe remains unchanged. This begins priority 1 in
+Status: current baseline measured; first bounded candidate rejected; Blender
+5.2.2 authoring and import/export workflow established. The released lower-reach
+recipe remains unchanged. This begins priority 1 in
 [the movement work list](movement-improvement-status.md).
 
 ## Reproducible measurements
@@ -50,10 +51,11 @@ The new diagnostic also passed a strict standalone TypeScript check.
 
 ## Next implementation step
 
-Following the user's Blender question, first compare the behind-back reach in
-Blender and the engine. Blender 4.4 is installed locally; no `.blend` authoring
-source was found in the implementation workspace. Start from a copy of the
-production GLB, preserving the shipped asset.
+The user installed Blender 5.2.2 LTS. A new [Blender workflow](blender-workflow.md)
+now provides six production reference clips, a male-left hand-target authoring
+scene, a built-in candidate export command and measured engine replay checks.
+The source `.blend` was built from copies of the production GLBs. All six
+reference imports and exports passed the 0.1 mm bone/skin comparison gate.
 
 1. Inspect shoulder joint placement, bone axes, clavicle/upper-arm coordination,
    forearm twist and skin weights. The opt-in v2 scapula locations and skin patch
@@ -63,9 +65,9 @@ production GLB, preserving the shipped asset.
 3. Export the resulting pose/clip and compare the bone transforms and deformed
    skin with engine playback. Use compatible skinning; a Blender-only modifier
    or constraint must not silently become a runtime requirement.
-4. Repair the identified asset, export or motion-control problem, then repeat on
-   all three bodies and both sides. This comparison is pending; the numeric
-   probe above does not determine which layer owns the cause.
+4. Repair the identified asset or motion-control problem, then repeat on all
+   three bodies and both sides. Reference exchange now agrees at the sampled
+   times; anatomical calibration and a better accepted reach remain pending.
 
 Further procedural search should put torso clearance inside its objective and
 candidate rejection rules. Retain existing joint and proxy bounds, and inspect
