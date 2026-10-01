@@ -377,6 +377,10 @@ export interface ComposedMotion {
   locomotorArmClearance?: boolean;
   /** Establish a fixed bilateral base after the first standing setup phase. */
   footSupportSetup?: boolean;
+  /** Sagittal offsets authored by withStandingStance, so replacing a layout is idempotent. */
+  standingStanceOffsetsDeg?: { L: number; R: number };
+  /** Keep the full overhead orientation while the trunk bends, for held equipment. */
+  shoulderTrunkCompensation?: 'orientation';
   /** Explicit compatibility policy. New audited motions can enforce the
    * engineering girdle-proxy budget; existing saved motions retain legacy behavior. */
   shoulderCapacity?: 'legacy' | 'enforce-proxy';
@@ -716,6 +720,7 @@ export interface ResolvedSequenceKeyframe {
 }
 
 export interface ResolvedComposedMotion {
+  shoulderTrunkCompensation?: 'orientation';
   gaitLegClearance?: boolean;
   /** Freely swinging arms use shared post-contact, body-aware clearance. */
   locomotorArmClearance?: boolean;
@@ -1966,6 +1971,7 @@ export function resolveComposedMotion(
   if (motion.gaitLegClearance) resolved.gaitLegClearance = true;
   if (motion.locomotorArmClearance) resolved.locomotorArmClearance = true;
   if (motion.footSupportSetup) resolved.footSupportSetup = true;
+  if (motion.shoulderTrunkCompensation) resolved.shoulderTrunkCompensation = motion.shoulderTrunkCompensation;
 
   // ── PHASE 14 — ARTIFACT RE-TIMING FROM RESOLVED KEYFRAME BOUNDARIES (SEAM-7,
   // part 2): the ms-authored artifacts (`contacts`, `gaitStanceWindowsMs`,
@@ -2219,8 +2225,9 @@ export function buildSequencePoses(
   // from the REST world orientation, so a flexed/extended trunk shifts the
   // measured arm elevation by exactly the trunk's sagittal angle
   // (rig-verified: trunk −5° read as +5° extra shoulder flexion). Compensate at
-  // the MOTOR level — command clamped + trunkSum so the humerothoracic readout
-  // lands ON the clamped target.
+  // the MOTOR level. Existing recipes retain scalar elevation compensation;
+  // held overhead equipment opts into inverse parent orientation so a
+  // combined elevated pose does not acquire unintended axial twist.
   const trunkFlex = new Map<string, number>();
   for (const kf of resolved.keyframes) {
     for (const t of kf.targets) {
@@ -2235,7 +2242,8 @@ export function buildSequencePoses(
     // clobber each other, e.g. shoulder flexion + abduction).
     const byJoint = new Map<string, ComposedJointTarget[]>();
     for (const t of kf.targets) {
-      const deg = t.motion === 'shoulderFlexion' ? t.clampedDegrees + trunkSum : t.clampedDegrees;
+      const deg = t.motion === 'shoulderFlexion' && resolved.shoulderTrunkCompensation !== 'orientation'
+        ? t.clampedDegrees + trunkSum : t.clampedDegrees;
       const list = byJoint.get(t.joint) ?? [];
       list.push({ motion: t.motion, degrees: deg });
       byJoint.set(t.joint, list);
@@ -2253,6 +2261,7 @@ export function buildSequencePoses(
         baselinePose, joint, group, variantCfg, pose, rest,
         girdleKey ? byJoint.get(girdleKey) : undefined,
         shoulderConstraintsForPolicy(resolved.shoulderCapacity, opts?.constraints ?? resolved.constraints),
+        resolved.shoulderTrunkCompensation === 'orientation' && group.some(t => t.motion === 'shoulderFlexion') ? trunkSum : 0,
       );
       if (built) pose = built; // null only for wholly-unsupported joints — already dropped
     }

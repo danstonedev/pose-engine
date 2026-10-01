@@ -1503,7 +1503,7 @@ function isBallJoint(joint: string): boolean {
  *  numbers; callers must use measured angles when assessing compliance.
  *  At the shared horizontal singularity the projections contain no azimuth,
  *  so use the bisector of their signed forward/lateral directions. */
-function composeShoulderDelta(ctx: BuildCtx, side: 'L' | 'R', F: number, A: number, R: number): THREE.Quaternion {
+function composeShoulderDelta(ctx: BuildCtx, side: 'L' | 'R', F: number, A: number, R: number, trunkFlexionDeg = 0): THREE.Quaternion {
   const restDir = ctx.restDir!;
   const restWorldQuat = ctx.restWorldQuat!;
   const s = side === 'R' ? -1 : 1;
@@ -1530,7 +1530,11 @@ function composeShoulderDelta(ctx: BuildCtx, side: 'L' | 'R', F: number, A: numb
         );
     target.normalize();
   }
+  // Undo sagittal parent motion as an orientation. Adding trunk flexion to
+  // the elevation angle re-aims the arm, but introduces axial twist near
+  // overhead when abduction is also present (about 90 degrees in a squat).
   const worldSwing = new THREE.Quaternion().setFromUnitVectors(restDir, target);
+  worldSwing.premultiply(new THREE.Quaternion().setFromAxisAngle(WORLD_X, -trunkFlexionDeg * RAD));
   const delta = restWorldQuat.clone().invert().multiply(worldSwing).multiply(restWorldQuat);
   const twSign = side === 'R' ? 1 : -1;
   // Girdle-corrected (see unparentGirdle): identity when nothing accompanies it.
@@ -1593,6 +1597,7 @@ export function buildComposedCommandPose(
   rest?: JointAngleRestReference | null,
   explicitGirdleTargets: ComposedJointTarget[] = [],
   constraints?: RomScenarioConstraints | null,
+  trunkFlexionDeg = 0,
 ): CustomPose | null {
   const specs = SUPPORTED_MOTIONS[joint];
   if (!specs) return null;
@@ -1631,14 +1636,14 @@ export function buildComposedCommandPose(
     // retains the girdle pose unless that keyframe explicitly changes it.
     if (usable.some(t => t.motion === 'shoulderFlexion' || t.motion === 'shoulderAbduction')) {
       writeGirdle(target, baselinePose, joint, [
-        { motion: 'scapularTilt', degrees: girdleSplit(F, 'flexion').girdle },
+        { motion: 'scapularTilt', degrees: girdleSplit(F + trunkFlexionDeg, 'flexion').girdle },
         { motion: 'upRotation', degrees: girdleSplit(A, 'abduction').girdle },
       ]);
     }
     overrideGirdleTargets(target, baselinePose, joint, explicitGirdleTargets);
     ctx.girdleWorld = posedGirdleWorldRotation(joint, target, baselinePose, rest);
     const side = joint.startsWith('R_') ? 'R' : 'L';
-    const q = restQ.clone().multiply(composeShoulderDelta(ctx, side, F, A, R));
+    const q = restQ.clone().multiply(composeShoulderDelta(ctx, side, F, A, R, trunkFlexionDeg));
     const capacity = shoulderProxyCapacity(constraints, side);
     if (capacity.enforced && rest) q.copy(projectShoulderProxyLocal(q, joint, rest, capacity.budgetDeg) ?? q);
     target.bones[joint] = [q.x, q.y, q.z, q.w];

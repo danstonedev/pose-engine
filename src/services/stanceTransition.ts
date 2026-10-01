@@ -3,6 +3,73 @@ import type { ComposedMotion, SequenceKeyframe, SequenceTarget, StanceContact } 
 const targetOf = (targets: readonly SequenceTarget[], joint: string, motion: string): number =>
   targets.find(t => t.joint === joint && t.motion === motion)?.targetDegrees ?? 0;
 
+/** Approximate sole-centre layout relative to the pelvis, in centimetres.
+ * Forward is the body's +Z direction; left and right can be staggered. */
+export interface StandingStance {
+  widthCm: number;
+  leftForwardCm: number;
+  rightForwardCm: number;
+}
+
+export const DEFAULT_STANDING_STANCE: Readonly<StandingStance> = {
+  widthCm: 42, leftForwardCm: 0, rightForwardCm: 0,
+};
+
+const putTarget = (targets: SequenceTarget[], joint: string, motion: string, targetDegrees: number) => {
+  const old = targets.find(t => t.joint === joint && t.motion === motion);
+  if (old) old.targetDegrees = targetDegrees;
+  else targets.push({ joint, motion, targetDegrees });
+};
+
+/** Apply a foot layout to a stable standing movement. The same planted-contact
+ * entry is used by screens, library squats and any other bilateral standing
+ * posture; gait, stepping tasks and exercises with their own contacts opt out.
+ * The angles are a rig-calibrated approximation, not a clinical measurement. */
+export function withStandingStance(motion: ComposedMotion, requested: StandingStance, variant: 'male' | 'female' | 'neutral' = 'neutral'): ComposedMotion {
+  if (![requested.widthCm, requested.leftForwardCm, requested.rightForwardCm].every(Number.isFinite) ||
+    requested.widthCm < 20 || requested.widthCm > 55 ||
+    Math.abs(requested.leftForwardCm) > 12 || Math.abs(requested.rightForwardCm) > 12) {
+    throw new RangeError('Standing stance must be 20–55 cm wide with each foot within 12 cm fore/aft.');
+  }
+  const simpleContacts = !motion.contacts?.length || (motion.contacts.length === 2 &&
+    new Set(motion.contacts.map(c => c.foot)).size === 2 &&
+    motion.contacts.every(c => ['L_Foot', 'R_Foot'].includes(c.foot) && c.toMs == null && (c.fromMs == null || c.fromMs === 0)));
+  const upperOnly = motion.stance !== 'planted' && motion.keyframes.every(k =>
+    (k.targets ?? []).every(t => !/^[LR]_(?:UpLeg|Leg|Foot|Toes)$/u.test(t.joint)));
+  if ((!upperOnly && motion.stance !== 'planted') || (motion.startPosture && motion.startPosture !== 'standing') ||
+    motion.loop || motion.footDrivenTravel || motion.keyframes.length < 1 || motion.keyframes.length > 112 ||
+    motion.keyframes.some(k => k.stance === 'floating' || k.groundingPosture || k.travel) ||
+    (!motion.footSupportSetup && (!simpleContacts || motion.keyframes.some(k => k.root)))) return motion;
+  const originalSetup = motion.footSupportSetup ? motion.keyframes.slice(0, 8) : [];
+  if (motion.footSupportSetup && originalSetup.length !== 8) return motion;
+  const body = motion.keyframes.slice(originalSetup.length);
+  if (!body.length) return motion;
+  // Sole-centre fit of the loaded runtime rigs (cm = intercept + slope ×
+  // bilateral hip-abduction degrees), measured with the planted-foot sampler.
+  const fit = {
+    female: { interceptCm: 17.3, widthCmPerDeg: 3.23, forwardCmPerDeg: 1.63 },
+    male: { interceptCm: 18.3, widthCmPerDeg: 3.40, forwardCmPerDeg: 1.69 },
+    neutral: { interceptCm: 13.4, widthCmPerDeg: 2.79, forwardCmPerDeg: 1.46 },
+  }[variant];
+  const widthDeg = (requested.widthCm - fit.interceptCm) / fit.widthCmPerDeg;
+  const offsets = { L: requested.leftForwardCm / fit.forwardCmPerDeg, R: requested.rightForwardCm / fit.forwardCmPerDeg };
+  const adapt = (targets: SequenceTarget[]): SequenceTarget[] => {
+    const result = targets.map(t => ({ ...t }));
+    for (const side of ['L', 'R'] as const) {
+      putTarget(result, `${side}_UpLeg`, 'hipAbduction', widthDeg);
+      putTarget(result, `${side}_Foot`, 'ankleInversion', widthDeg);
+      putTarget(result, `${side}_UpLeg`, 'hipFlexion', targetOf(result, `${side}_UpLeg`, 'hipFlexion') - (motion.standingStanceOffsetsDeg?.[side] ?? 0) + offsets[side]);
+    }
+    return result;
+  };
+  const standing = adapt(originalSetup.length ? originalSetup[7]!.targets ?? [] : body.at(-1)!.targets ?? []);
+  const setup = stepIntoStandingStance(standing);
+  return {
+    ...motion, stance: 'planted', footSupportSetup: true, standingStanceOffsetsDeg: offsets, contacts: setup.contacts,
+    keyframes: [...setup.keyframes, ...body.map(k => ({ ...k, targets: adapt(k.targets ?? []) }))],
+  };
+}
+
 /** A supported, one-foot-at-a-time transition into a standing base. Both the
  * target stance and the contact schedule belong to this function, so a future
  * screen or authored motion cannot move the ankles laterally while they bear
@@ -23,11 +90,8 @@ export function stepIntoStandingStance(standing: SequenceTarget[]): {
   const pose = (leftOut: boolean, rightOut: boolean, lifted: 'L' | 'R' | null,
     leftExtra = 0, rightExtra = 0, leftSupport = false): SequenceTarget[] => {
     const targets = standing.map(t => ({ ...t }));
-    const put = (joint: string, motion: string, targetDegrees: number) => {
-      const old = targets.find(t => t.joint === joint && t.motion === motion);
-      if (old) old.targetDegrees = targetDegrees;
-      else targets.push({ joint, motion, targetDegrees });
-    };
+    const put = (joint: string, motion: string, targetDegrees: number) =>
+      putTarget(targets, joint, motion, targetDegrees);
     for (const side of ['L', 'R'] as const) {
       const out = side === 'L' ? leftOut : rightOut;
       const spread = side === 'L' ? left : right;
@@ -35,8 +99,9 @@ export function stepIntoStandingStance(standing: SequenceTarget[]): {
       const extra = side === 'L' ? leftExtra : rightExtra;
       put(`${side}_UpLeg`, 'hipAbduction', out ? spread + extra : 0);
       put(`${side}_Foot`, 'ankleInversion', out ? inversion + extra : 0);
+      put(`${side}_UpLeg`, 'hipFlexion', out ? targetOf(standing, `${side}_UpLeg`, 'hipFlexion') : 0);
       if (lifted === side) {
-        put(`${side}_UpLeg`, 'hipFlexion', 12);
+        put(`${side}_UpLeg`, 'hipFlexion', 12 + targetOf(standing, `${side}_UpLeg`, 'hipFlexion'));
         put(`${side}_Leg`, 'kneeFlexion', 28);
         // Clear the toe as well as the ankle: plantarflexion let the forefoot
         // cut through the floor even when the ankle joint visibly lifted.
@@ -47,7 +112,7 @@ export function stepIntoStandingStance(standing: SequenceTarget[]): {
       // Let the standing leg yield while the trunk shifts toward that foot.
       // This lowers the pelvis enough for the reaching leg to land without
       // a long straight-leg span or an excessive sideways root translation.
-      put('L_UpLeg', 'hipFlexion', 10);
+      put('L_UpLeg', 'hipFlexion', 10 + targetOf(standing, 'L_UpLeg', 'hipFlexion'));
       put('L_Leg', 'kneeFlexion', 18);
       put('L_Foot', 'ankleFlexion', 6);
       put('Spine_Lower', 'lateralTilt', 10);

@@ -1,3 +1,5 @@
+> Status reconciliation (1 October 2026): use [movement-improvement-status.md](movement-improvement-status.md) for the current backlog. This document retains historical plans and measurements; several OPEN entries have since shipped.
+
 # Movement Realism — Improvement Roadmap
 
 **Source:** `docs/animation-realism-audit.md` (4-lens, code-verified, 2026-07-20) plus engineering additions.

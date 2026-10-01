@@ -215,7 +215,7 @@ function armsOverhead(motion: ComposedMotion, testId: string): ComposedMotion {
     if (control) for (const side of ['L', 'R'] as const) {
       control.joints[`${side}_Shoulder`] = { role: 'driven', purpose: 'Elevate and tilt the girdle for overhead support' };
       control.joints[`${side}_UpperArm`] = { role: 'driven', purpose: 'Maintain the overhead arm plane through descent and ascent' };
-      control.joints[`${side}_Forearm`] = { role: 'driven', purpose: 'Retain nearly straight elbows and neutral forearm rotation' };
+      control.joints[`${side}_Forearm`] = { role: 'driven', purpose: dowel ? 'Retain nearly straight elbows and pronate for the shared dowel grip' : 'Retain nearly straight elbows and neutral forearm rotation' };
       control.joints[`${side}_Hand`] = { role: 'driven', purpose: dowel ? 'Orient the wrist for the dowel grip' : 'Maintain open overhead hands' };
     }
     return { ...kf, ...(control ? { control } : {}), targets: overheadSquatTargets(kf.targets ?? [], dowel, dowel) };
@@ -225,7 +225,7 @@ function armsOverhead(motion: ComposedMotion, testId: string): ComposedMotion {
     // weight-bearing side step at a time before that first loaded phase.
     const setup = stepIntoStandingStance(keyframes[keyframes.length - 1]!.targets ?? []);
     keyframes.unshift(...setup.keyframes);
-    return { ...motion, keyframes, footSupportSetup: true, contacts: setup.contacts };
+    return { ...motion, keyframes, footSupportSetup: true, contacts: setup.contacts, shoulderTrunkCompensation: 'orientation' };
   }
   // The SFMA authored source already owns its entry, contacts and return.
   return { ...motion, keyframes };
