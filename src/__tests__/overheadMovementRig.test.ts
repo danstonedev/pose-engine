@@ -138,6 +138,22 @@ describe.each(['female','male','neutral'] as const)('%s overhead movement geomet
     for(const frame of frames)for(const side of ['L','R'])
       expect(new Vector3().fromArray(frame.worldTracks![side+'_Foot']!).distanceTo(new Vector3().fromArray(ready[side+'_Foot']!))).toBeLessThan(.025);
   });
+  it('places a patient-specific staggered squat stance before the planted descent', () => {
+    const source = composeScreenMotion(positionFor('deep-squat'), 'R', null, 'deep-squat')!;
+    const narrow = sample(withStandingStance(source, { widthCm: 30, leftForwardCm: 8, rightForwardCm: -5 }, variant));
+    const wide = sample(withStandingStance(source, { widthCm: 50, leftForwardCm: 8, rightForwardCm: -5 }, variant));
+    const placed = (rec: ReturnType<typeof sample>) => rec.frames.find(f => f.tMs >= 3700)!.worldTracks!;
+    const narrowFeet = placed(narrow), wideFeet = placed(wide);
+    const width = (feet: typeof narrowFeet) => Math.abs(feet.L_Foot![0] - feet.R_Foot![0]);
+    expect(Math.abs(width(narrowFeet) - .30), '30 cm requested width').toBeLessThan(.045);
+    expect(Math.abs(width(wideFeet) - .50), '50 cm requested width').toBeLessThan(.045);
+    expect(width(wideFeet) - width(narrowFeet)).toBeGreaterThan(.10);
+    expect(Math.abs(narrowFeet.L_Foot![2] - narrowFeet.R_Foot![2] - .13), '13 cm requested fore/aft stagger').toBeLessThan(.05);
+    const supported = narrow.frames.filter(f => f.tMs >= 3700);
+    const drift = Math.max(...supported.flatMap(f => (['L_Foot', 'R_Foot'] as const).map(key =>
+      Math.hypot(...f.worldTracks![key]!.map((v, i) => v - narrowFeet[key]![i]!)))));
+    expect(drift).toBeLessThan(.035);
+  }, 30000);
   it('jump raises the girdles with the arms and releases them on landing',()=>{
     const rec=sample(buildJump());
     checkHeadClearance(rec);

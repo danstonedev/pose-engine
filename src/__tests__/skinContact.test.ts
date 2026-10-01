@@ -26,7 +26,7 @@ function fixture(boneName = '') {
 
 describe('posed skin contact', () => {
   it('excludes intentionally gripping skin but still resolves other body regions', () => {
-    for (const name of ['CC_Base_L_Hand', 'CC_Base_Head']) {
+    for (const name of ['CC_Base_L_Hand', 'CC_Base_Head', 'CC_Base_Spine02']) {
       const { contact, prop } = fixture(name);
       const before = prop.position.clone();
       const shift = contact.resolve(prop, new THREE.Vector3(0, 0, 1), 0, /_[LR]_Hand$/u);

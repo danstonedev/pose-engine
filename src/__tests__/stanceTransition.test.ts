@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
 import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { bilateralFootSetupMs } from '../services/motionSupport';
+import { MOVEMENT_SCREEN, movementScreenMotion } from '../services/movementScreen';
 import { withStandingStance } from '../services/stanceTransition';
 
 const standingTargets = [
@@ -48,6 +49,21 @@ describe('shared standing-foot placement', () => {
     expect(second).toEqual(first);
   });
 
+  it('offers the same foot layout to every stationary standing screen pattern', () => {
+    for (const pattern of MOVEMENT_SCREEN.filter(item => item.posture === 'standing' &&
+      !['hurdle-step', 'in-line-lunge', 'single-leg-stance', 'multisegmental-rotation'].includes(item.testId))) {
+      const motion = movementScreenMotion(pattern, 'R')!;
+      const custom = withStandingStance(motion, { widthCm: 36, leftForwardCm: 4, rightForwardCm: -3 }, 'male');
+      expect(custom.footSupportSetup, pattern.id).toBe(true);
+      expect(resolveComposedMotion(custom, BODY_VARIANTS.male).status, pattern.id).toBe('ok');
+    }
+  });
+  it('bounds patient foot dimensions and leaves an authored stepping schedule alone', () => {
+    const stance = { widthCm: 36, leftForwardCm: 4, rightForwardCm: -3 };
+    expect(() => withStandingStance(genericStandingMotion(), { ...stance, widthCm: 70 })).toThrow(RangeError);
+    const stepping = { ...genericStandingMotion(), contacts: [{ foot: 'L_Foot', fromMs: 0, toMs: 500 }] };
+    expect(withStandingStance(stepping, stance)).toBe(stepping);
+  });
   it('steps into a retained wide base for an otherwise unknown whole-body motion', () => {
     const source = genericStandingMotion();
     const resolved = resolveComposedMotion(source, BODY_VARIANTS.neutral);
