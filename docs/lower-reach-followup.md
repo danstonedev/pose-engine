@@ -50,10 +50,26 @@ The new diagnostic also passed a strict standalone TypeScript check.
 
 ## Next implementation step
 
-Search shoulder/forearm/wrist coordination with torso clearance inside the
-objective and candidate rejection rules, rather than increasing elbow flexion
-alone and checking collision afterward. Retain existing joint and proxy bounds,
-then inspect approach, assessed hold and return on every body and side.
+Following the user's Blender question, first compare the behind-back reach in
+Blender and the engine. Blender 4.4 is installed locally; no `.blend` authoring
+source was found in the implementation workspace. Start from a copy of the
+production GLB, preserving the shipped asset.
+
+1. Inspect shoulder joint placement, bone axes, clavicle/upper-arm coordination,
+   forearm twist and skin weights. The opt-in v2 scapula locations and skin patch
+   are explicitly provisional engineering estimates, not a calibrated solution.
+2. Pose a representative behind-back approach and hold using visual targets and
+   joint constraints. Keep the bounds and any unreachable target explicit.
+3. Export the resulting pose/clip and compare the bone transforms and deformed
+   skin with engine playback. Use compatible skinning; a Blender-only modifier
+   or constraint must not silently become a runtime requirement.
+4. Repair the identified asset, export or motion-control problem, then repeat on
+   all three bodies and both sides. This comparison is pending; the numeric
+   probe above does not determine which layer owns the cause.
+
+Further procedural search should put torso clearance inside its objective and
+candidate rejection rules. Retain existing joint and proxy bounds, and inspect
+approach, assessed hold and return before promoting any candidate.
 
 The current observables are wrist and distal middle-finger **joint** positions,
 palm normal, joint-angle ranges and conservative skin envelopes. The diagnostic

@@ -38,6 +38,12 @@ preserve the shoulder's complete orientation during an overhead squat.
 
 ## Remaining work and completion criteria
 
+Next action after the initial lower-reach measurements: a Blender/engine pose
+comparison to distinguish rig/skin-weight limits from export or movement-control
+errors. See [the focused audit plan](lower-reach-followup.md#next-implementation-step).
+The independent-rig calibration item remains open; adding estimated bones alone
+does not close it.
+
 | Priority | Work | Confirmed remainder | Evidence needed to close |
 |---|---|---|---|
 | 1 | Lower hand-behind-back reach — started | The released recipe reaches the low back, not the opposite scapular landmark. Reciprocal fists remain separated. The fresh 12-context baseline retained sampled torso/head clearance and shoulder capacity; a 120-degree elbow candidate was rejected for torso-envelope penetration. See [measurements and next step](lower-reach-followup.md). | All supported bodies and both sides; calibrated endpoint and palm orientation; complete trajectory skin clearance; ROM/capacity compliance; sampled/live agreement. Record genuinely unreachable targets explicitly. |
