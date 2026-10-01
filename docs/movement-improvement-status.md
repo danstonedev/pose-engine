@@ -1,15 +1,17 @@
 # Movement improvement status
 
-Reviewed 1 October 2026 against engine main `0e3a3fb`, simLAB main `555ec6c`,
-simMOVE main `76f7757`, and the pending standing-stance/dowel changes.
+Reviewed 1 October 2026. Standing stance/dowel shipped in engine #166 as
+`e55a020`; its final cloud run passed 2,637 tests and a clean typecheck.
+Host release outcomes are recorded in the workspace's October 1 shipment report.
 This is the current work list. `improvement-roadmap.md` and the older entries in
 `outstanding-work.md` preserve earlier plans and measurements; their old OPEN
 labels are not a current inventory.
 
 ## Implementation in this change
 
-The standing-stance and overhead-dowel implementation passed 2,632 engine tests
-and a clean typecheck. Host release status is recorded separately. It supports
+The standing-stance and overhead-dowel implementation passed 2,632 local engine
+tests, then all 2,637 final tests in cloud CI after additional coverage was
+recovered from the standalone checkout. Host release status is recorded separately. It supports
 simLAB movement controls, simMOVE
 standing endpoint controls, a shared stance transform, palm-based dowel placement,
 and a regression found during release review: sagittal trunk compensation must
@@ -38,7 +40,7 @@ preserve the shoulder's complete orientation during an overhead squat.
 
 | Priority | Work | Confirmed remainder | Evidence needed to close |
 |---|---|---|---|
-| 1 | Lower hand-behind-back reach | The released recipe reaches the low back, not the opposite scapular landmark. Reciprocal fists remain separated. Existing limits and penetration checks must be retained. | All supported bodies and both sides; endpoint and palm orientation; complete trajectory skin clearance; ROM/capacity compliance; sampled/live agreement. Record genuinely unreachable targets explicitly. |
+| 1 | Lower hand-behind-back reach — started | The released recipe reaches the low back, not the opposite scapular landmark. Reciprocal fists remain separated. The fresh 12-context baseline retained sampled torso/head clearance and shoulder capacity; a 120-degree elbow candidate was rejected for torso-envelope penetration. See [measurements and next step](lower-reach-followup.md). | All supported bodies and both sides; calibrated endpoint and palm orientation; complete trajectory skin clearance; ROM/capacity compliance; sampled/live agreement. Record genuinely unreachable targets explicitly. |
 | 2 | Loaded palm contact | Chair assistance and assessment push-up/rotary-clearing still lack demonstrated flat-palm skin contact. Bird-dog support/release also needs continued surface validation. | Actual skin contact and no penetration through setup, loading, release and return, with patient bounds retained. Bone anchors alone are insufficient. |
 | 3 | In-place gait grounding | The September 29 studio review retained sliding, toe-floor and some hand/thigh warnings. Travel-gait clearance tests do not establish in-place contact validity. | Reproduce each warning on current source, distinguish frame-time-dependent diagnostics from geometric defects, then pass floor/clearance checks across body models and playback speeds. |
 | 4 | Restricted squat geometry | Default support was improved; limited ankle range and restricted-depth cases remain incompletely validated. | Capacity sweeps with achieved depth, sole contact, balance estimate and explicit refusal/residual reporting. Default-squat passes do not close this item. |
