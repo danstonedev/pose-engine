@@ -3,6 +3,7 @@ import { readFileSync, existsSync, readdirSync, realpathSync } from 'node:fs';
 import { resolve, relative, isAbsolute } from 'node:path';
 
 export const MASTER_PATH = 'docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html';
+export const HOST_SOURCE_DIRS = { simlab:['packages/ddx/src/movement','packages/ddx/src/lab'], simmove:['src','experiments/lower-body','scripts'] };
 export const digest = value => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex');
 export const sourceHash = bytes => digest(bytes.toString('utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n'));
 export const contextKey = context => JSON.stringify([context.id, context.variant, context.side]);
@@ -30,8 +31,9 @@ export function runtimeSources(hashes) {
   return Object.fromEntries(Object.entries(hashes).filter(([path]) => {
     const name=path.split('/').at(-1);
     if(path.startsWith('pose-engine/src/')) return !constructors.has(name);
+    if(path.startsWith('pose-engine/models/') || path==='pose-engine/package-lock.json') return true;
     if(path.startsWith('packages/ddx/src/movement/') || path.startsWith('packages/ddx/src/lab/')) return !hostConstructors.has(name);
-    return path.startsWith('simmove/');
+    return path.startsWith('simmove/') || path==='pnpm-lock.yaml';
   }).sort(([a], [b]) => a.localeCompare(b)));
 }
 export function sourceFiles(root, directories) {
@@ -41,7 +43,7 @@ export function sourceFiles(root, directories) {
     for (const item of readdirSync(resolve(root, path), { withFileTypes: true })) {
       const child = `${path}/${item.name}`;
       if (item.isDirectory()) walk(child);
-      else if (/\.(ts|mjs|svelte|json)$/.test(item.name) && !/(^|\/)(__tests__|node_modules)\/|\.test\.|\.node-test\./.test(child)) result.push(child);
+      else if (/\.(ts|mjs|svelte|json|py|xml|glb)$/.test(item.name) && !/(^|\/)(__tests__|node_modules)\/|\.test\.|\.node-test\./.test(child)) result.push(child);
     }
   }
   directories.forEach(walk);
@@ -165,7 +167,7 @@ export function checkSnapshotSources(data, roots) {
     else { root = roots.simlab; suffix = path; }
     if (!root) continue; // A standalone engine validates its own repository scope.
     const absolute = resolve(root, suffix);
-    if (!existsSync(absolute) || sourceHash(readFileSync(absolute)) !== expected) errors.push(`stale source inventory: ${path}`);
+    if (!existsSync(absolute) || (path.endsWith('.glb') ? digest(readFileSync(absolute)) : sourceHash(readFileSync(absolute))) !== expected) errors.push(`stale source inventory: ${path}`);
   }
   for (const [variant, rig] of Object.entries(data.rigs)) {
     const bytes=readFileSync(resolve(roots.engine, `models/painmap3D_${variant}.runtime.glb`));
@@ -175,9 +177,9 @@ export function checkSnapshotSources(data, roots) {
     if(digest(raw)!==digest(rig.bones.map(bone=>bone.raw).sort()) || rig.skinJointCount!==raw.length) errors.push(`Incomplete actual ${variant} skeleton inventory`);
   }
   // Newly added runtime files cannot disappear from freshness checks.
-  for (const path of sourceFiles(roots.engine, ['src'])) if (!data.hashes[`pose-engine/${path}`]) errors.push(`runtime source missing from inventory: pose-engine/${path}`);
-  if (roots.simlab) for (const path of sourceFiles(roots.simlab, ['packages/ddx/src/movement', 'packages/ddx/src/lab'])) if (!data.hashes[path]) errors.push(`host source missing from inventory: ${path}`);
-  if (roots.simmove) for (const path of sourceFiles(roots.simmove, ['src'])) if (!data.hashes[`simmove/${path}`]) errors.push(`host source missing from inventory: simmove/${path}`);
+  for (const path of sourceFiles(roots.engine, ['src','models'])) if (!data.hashes[`pose-engine/${path}`]) errors.push(`runtime source missing from inventory: pose-engine/${path}`);
+  if (roots.simlab) for (const path of sourceFiles(roots.simlab, HOST_SOURCE_DIRS.simlab)) if (!data.hashes[path]) errors.push(`host source missing from inventory: ${path}`);
+  if (roots.simmove) for (const path of sourceFiles(roots.simmove, HOST_SOURCE_DIRS.simmove)) if (!data.hashes[`simmove/${path}`]) errors.push(`host source missing from inventory: simmove/${path}`);
   return errors;
 }
 export function assertGate(result) {

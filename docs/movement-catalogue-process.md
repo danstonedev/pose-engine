@@ -14,8 +14,9 @@ movement became Blender-reviewed or clinically qualified through this change.
 
 The shared engine CI, simLAB CI and both hosts' production build scripts run the
 catalogue gate. It rejects missing files, stale source/rig hashes, newly omitted
-runtime files, incomplete actual skeleton inventories and mismatches between the
-master and the live simLAB registries. Source hashes normalize Windows/Linux line
+runtime/native input files, incomplete actual skeleton inventories and mismatches between the
+master and the live simLAB registries. Native model/controller inputs, all engine GLB assets and locked dependencies
+are included in freshness checks. Source hashes normalize Windows/Linux line
 endings; binary rig and evidence hashes identify exact bytes.
 
 For new or changed available contexts, and previously reviewed contexts, it requires:
