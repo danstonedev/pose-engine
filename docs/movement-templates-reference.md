@@ -1,5 +1,12 @@
 # Movement Template Reference — SME Verification Sheet
 
+> Historical authoring and reference provenance. Use the
+> [master movement-joint catalogue](MASTER-MOVEMENT-JOINT-CATALOGUE.html) for
+> current references, defects, work ownership and acceptance; record corrections
+> and clinician reviews there. Original values, citations and review instructions
+> below are retained as provenance. Their validation claims require scoped
+> verification. Reconciliation remains partial; unsigned reviews stay unsigned.
+
 **Purpose.** The composed-motion planner (simMOVE / simLAB) now anchors on a small
 library of clinician-authored reference templates for core clinical movements
 (`pose-engine/src/services/movementTemplates.ts`). Each template encodes the three

@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-02T17:51:16.287Z",
+  "scope": "Read-only bounded representation audit of frozen proposal8/current v21 inputs. No source motion, native anatomy, ranges, gains, capacities or gates changed. Shared-forearm constant placement cleanup is identity-only.",
+  "sourceProbe": "pressup-distributed-pronation-probe-3.json",
+  "sourceProbeSha256": "09d63792e2a8ca258e4baf6115b25fbf82052d3c80475463dac3d13c74ed83cd",
+  "blenderProject": "blender-workspace/pressup-distributed-pronation-probe-1/distributed-pronation.blend",
+  "blenderVersion": "5.2.2 LTS",
+  "blenderExchange": {
+    "passed": 8,
+    "total": 8,
+    "maximumBoneErrorM": 0.000014320010092577314,
+    "maximumSkinErrorM": 0.000016066318494267762
+  },
+  "visuallyInspected": [
+    "female-setup.png",
+    "male-target.png"
+  ],
+  "twist": {
+    "cases": 8,
+    "maximumWristTranslationM": 6.551047810070124e-9,
+    "maximumPalmRotationDeg": 0,
+    "maximumHandYawResidualDeg": 3.855642833712747e-14,
+    "maximumTotalPronationReadoutChangeDeg": 1.4800689342892,
+    "maximumForearmNativeResidualDeg": 8.495820959248812
+  },
+  "maximumCorrespondingSkinMovementM": 0.03093789517637348,
+  "clinicalTolerance": {
+    "existingToleranceDeg": 0.05,
+    "maximumNewWristDeviationExcessDeg": 0.00235743942574,
+    "interpretation": "Reported numerical excess is within the existing tolerance; it is not independently a clinical failure."
+  },
+  "shoulderExample": {
+    "variant": "female",
+    "phase": "setup",
+    "humerothoracic": {
+      "flexion": 51.90906343516925,
+      "abduction": 38.05820224958934,
+      "rotation": -5.0852528527084235
+    },
+    "girdleRelativeHumerusElevationDeg": 63.46065894989534,
+    "existingGirdleProxyElevationBudgetDeg": 120,
+    "nativeCoordinates": {
+      "R_UpperArm_flexion": 55.095472882078624,
+      "R_UpperArm_abduction": -29.90038797919005,
+      "R_UpperArm_axial_rotation": -3.8499510723826553,
+      "L_UpperArm_flexion": 45.794290331839456,
+      "L_UpperArm_abduction": -50.14603628290058,
+      "L_UpperArm_axial_rotation": 9.765767645150115
+    },
+    "nativeOutside": [
+      {
+        "joint": "L_UpperArm_abduction",
+        "requestedRad": -0.8752134399611537,
+        "rangeRad": [
+          -0.7853981633974483,
+          3.141592653589793
+        ],
+        "excessRad": 0.08981527656370547
+      }
+    ]
+  },
+  "findings": [
+    "Hand-local axial twist can be transferred around the actual elbow-wrist axis while holding joint centers and palm orientation, without inventing an independent anatomical wrist rotation.",
+    "The existing Euler/swing decomposition total pronation readout changes by up to1.48 degrees under this redistribution; treating local components as a geometric invariant would be false.",
+    "Actual forearm skin changes up to30.94mm. A rigid native forearm and a distributed source twist are not identical contact geometry even when endpoint frames match.",
+    "After axial redistribution, source elbow off-axis rotations remain unrepresented by the two-axis native forearm, reaching8.496 degrees in setup.",
+    "Native humeral engineering serial-hinge stop is not the engine clinical humerothoracic range nor its coupled120-degree glenohumeral proxy bound. The validated source is ordinary clinical elevation but an overhead-derived local hinge value is truncated."
+  ],
+  "recommendation": {
+    "nextBoundedStep": "Author a common arm representation in Blender with actual centerline twist, a two-axis wrist, and explicit ownership of bounded elbow carrying-angle/play. Audit clinical readouts and actual skin before source promotion. Resolve native shoulder feasibility in that same shared anatomical frame; do not copy clinical numeric ranges onto unrelated native Euler coordinates.",
+    "sourceOption": "Use existing arm DOFs for closed-chain support with true forearm rotation and two-axis wrist; retain existing clinical/patient constraints, all skin/contact gates, and report infeasible cases. Off-axis elbow play may need a passive native coordinate or source-authoring constraint, with explicit semantics and existing bounds.",
+    "nativeOption": "Map distributed radioulnar twist geometrically with a declared intermediate forearm material frame. Compare source centerline plus distal palm separately from material-axis twist, and preserve collider/skin residuals. Never suppress orientation evidence or silently reclassify a changed surface as exact source.",
+    "unresolved": "No native runtime correction is promoted by this audit. Fresh source requires new capture, native trials and full-step tracking; timestep/repeatability remain pending while tracking fails."
+  }
+}

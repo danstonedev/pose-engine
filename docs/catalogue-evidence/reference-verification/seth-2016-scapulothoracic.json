@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:seth-2016-scapulothoracic",
+  "title": "A Biomechanical Model of the Scapulothoracic Joint to Accurately Capture Scapular Kinematics during Shoulder Movements",
+  "primaryUrls": [
+    "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0141028"
+  ],
+  "doi": "10.1371/journal.pone.0141028",
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Inspected primary publisher Model and Methods, Figure1 explanation, reconstruction of bone-pin kinematics, Data Availability and article copyright statement. Verified modeling/task/method claims only; separate datasets/models were not downloaded or license checked.",
+  "claims": [
+    {
+      "id": "ref:seth-2016-scapulothoracic:claim-1",
+      "description": "Paper provides an independent four-coordinate scapulothoracic modeling approach evaluated against bone-pin shoulder-task data.",
+      "kind": "derived"
+    }
+  ],
+  "limitations": [
+    "Model/data links https://purl.stanford.edu/br087nj9017 and https://simtk.org/home/scapulothoracic not downloaded or license checked.",
+    "Paper does not validate the production clavicleproxy, lower-back reach or its engineering contact geometry.",
+    "Independent scapular translation cannot be certified from currentone proxy bone."
+  ],
+  "license": {
+    "status": "verified-article",
+    "name": "CC BY",
+    "scope": "article only",
+    "retentionConditions": "Credit authors/source; licensing of separate models/datasets must be checked beforeimport."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0141028",
+        "section": "Model and Methods; Figure1; Reconstruction of Experimental Kinematics; DataAvailability"
+      },
+      {
+        "path": "simmove/docs/archive/shoulder-visual-references.md",
+        "sha256": "bdc9887aa16b89d647dbe19995ed212210a03c460a70fd6ed01c3b3f41d9fa4a",
+        "line": 67,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "joint:shoulder-flexion",
+      "joint:shoulder-abduction",
+      "joint:shoulder-er",
+      "joint:shoulder-ir",
+      "library:shoulder-flexion-elevation",
+      "library:shoulder-abduction-elevation",
+      "library:shoulder-rotation",
+      "engine-template:shoulder-flexion-elevation",
+      "engine-template:shoulder-abduction-elevation",
+      "engine-template:shoulder-rotation"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}

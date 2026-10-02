@@ -1,0 +1,607 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-02T17:34:43.143Z",
+  "scope": "Fresh editor captures and native verification of current proposal8 source. Native completion, source-pose representation, native tracking and clinical/visual acceptance are separate.",
+  "sourceHost": "http://127.0.0.1:5199/edit",
+  "hostSync": "pressup-runtime-host-sync-4.json",
+  "nativeReport": "pressup-whole-chain-native-v21-1.json",
+  "nativeSourceHashesUnchanged": true,
+  "mujocoVersion": "3.13.0",
+  "timestepS": 0.001,
+  "unchangedDiagnosticGates": {
+    "jointDeg": 15,
+    "segmentChangeDeg": 15,
+    "pelvisM": 0.05
+  },
+  "segmentMetricScope": "Head/hands/feet pelvis-relative change since setup versus source change; constant setup differences cancel; forearms are not measured.",
+  "results": [
+    {
+      "variant": "female",
+      "input": "pressup-whole-chain-inputs-v21-1/fms-repo-legacy-v1-trunk-stability-push-up-extension-clearing-female-both.json",
+      "inputSha256": "da79e2d28b27520209b2b50f2126794b88eabfa5a0f5728719a35559550e9166",
+      "hashes": {
+        "routeSha256": "55fc107319e6775e6279b80c5ec64f1902030a0102a61a358cff954817390b82",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "c447dd9d4894340810a8a8fb21e163e5af25e1c5cdc40b4f417a4d6ce82ab59a",
+        "controllerVersion": "authored-pelvis-support-torque-v21"
+      },
+      "numericalComplete": true,
+      "invariants": {
+        "finite": true,
+        "withinMotorCaps": true,
+        "noExternalWrench": true,
+        "sourceAndTimingPreserved": true
+      },
+      "calculatedSeconds": 4.399999999999804,
+      "nativeSteps": 4400,
+      "sourceCapture": [
+        {
+          "tMs": 0,
+          "sourceTimeMs": 1000,
+          "skinFloorTranslationM": 2.7755575615628914e-17,
+          "supportSeed": null
+        },
+        {
+          "tMs": 1500,
+          "supportSeed": null
+        },
+        {
+          "tMs": 3100,
+          "supportSeed": null
+        },
+        {
+          "tMs": 4400,
+          "sourceTimeMs": 5400,
+          "skinFloorTranslationM": 2.7755575615628914e-17,
+          "supportSeed": null
+        }
+      ],
+      "maximumAbsoluteCaptureSkinFloorTranslationM": 2.7755575615628914e-17,
+      "nativeInitialFloorTranslationM": 0.00432385673467366,
+      "sampledMaximumJointDeg": 34.07225968351907,
+      "maximumPelvisErrorM": 0.02269643347026341,
+      "maximumSegmentChangeError": {
+        "timeS": 3.1,
+        "label": "Hold target (3.1 s)",
+        "body": "L_Hand",
+        "errorDeg": 10.522931732855785
+      },
+      "fullStepTrackingReport": "pressup-whole-chain-native-v21-female-tracking-1.json",
+      "fullStepPeak": {
+        "timeS": 2.6849999999998153,
+        "joint": "L_Shoulder_scapular_tilt",
+        "errorDeg": 34.17994902560476,
+        "desiredRad": 0.09508038640375706,
+        "motor": {
+          "key": "L_Shoulder_scapular_tilt",
+          "torqueNm": -10,
+          "limitNm": 10
+        }
+      },
+      "trackingPass": false,
+      "sourceRepresentation": [
+        {
+          "timeS": 0,
+          "sourceIssues": [
+            {
+              "body": "R_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.6680108677344577
+            },
+            {
+              "body": "L_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.668008416143609
+            },
+            {
+              "body": "R_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 7.173919050648664
+            },
+            {
+              "body": "R_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 21.559367154592227
+            },
+            {
+              "body": "L_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 8.502263734388968
+            },
+            {
+              "body": "L_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 37.658305650799534
+            }
+          ],
+          "outsideNativeRange": [
+            {
+              "joint": "L_UpperArm_abduction",
+              "requestedDeg": -50.14603628290058,
+              "excessDeg": 5.146036282900578
+            }
+          ],
+          "forearms": [
+            {
+              "body": "R_Forearm",
+              "positionErrorM": 0.0005092792766161489,
+              "orientationErrorDeg": 25.03915885520071
+            },
+            {
+              "body": "L_Forearm",
+              "positionErrorM": 0.009370042420181204,
+              "orientationErrorDeg": 44.8241648768121
+            }
+          ]
+        },
+        {
+          "timeS": 1.5,
+          "sourceIssues": [
+            {
+              "body": "R_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.6680108677344577
+            },
+            {
+              "body": "L_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.668008416143609
+            },
+            {
+              "body": "R_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.12723995136383875
+            },
+            {
+              "body": "R_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 20.04067237850667
+            },
+            {
+              "body": "L_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.12224286642536344
+            },
+            {
+              "body": "L_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 42.005211854911295
+            }
+          ],
+          "outsideNativeRange": [],
+          "forearms": [
+            {
+              "body": "R_Forearm",
+              "positionErrorM": 0.00039388719592839714,
+              "orientationErrorDeg": 20.19454157794505
+            },
+            {
+              "body": "L_Forearm",
+              "positionErrorM": 0.00033946316338894785,
+              "orientationErrorDeg": 41.999191227544095
+            }
+          ]
+        },
+        {
+          "timeS": 3.1,
+          "sourceIssues": [
+            {
+              "body": "R_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.6680108677344577
+            },
+            {
+              "body": "L_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.668008416143609
+            },
+            {
+              "body": "R_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.12723995136383875
+            },
+            {
+              "body": "R_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 20.04067237850667
+            },
+            {
+              "body": "L_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.12224286642536344
+            },
+            {
+              "body": "L_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 42.005211854911295
+            }
+          ],
+          "outsideNativeRange": [],
+          "forearms": [
+            {
+              "body": "R_Forearm",
+              "positionErrorM": 0.00027169820423540594,
+              "orientationErrorDeg": 20.197630743078413
+            },
+            {
+              "body": "L_Forearm",
+              "positionErrorM": 0.0002627191008382713,
+              "orientationErrorDeg": 41.998976905467266
+            }
+          ]
+        },
+        {
+          "timeS": 4.4,
+          "sourceIssues": [
+            {
+              "body": "R_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.6680108677344577
+            },
+            {
+              "body": "L_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.668008416143609
+            },
+            {
+              "body": "R_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 5.421797697887109
+            },
+            {
+              "body": "R_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 22.628230551101087
+            },
+            {
+              "body": "L_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 4.832144031861518
+            },
+            {
+              "body": "L_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 37.673009574521124
+            }
+          ],
+          "outsideNativeRange": [
+            {
+              "joint": "L_UpperArm_abduction",
+              "requestedDeg": -50.827058818947876,
+              "excessDeg": 5.8270588189478785
+            }
+          ],
+          "forearms": [
+            {
+              "body": "R_Forearm",
+              "positionErrorM": 0.0005184002065692426,
+              "orientationErrorDeg": 26.160796899341687
+            },
+            {
+              "body": "L_Forearm",
+              "positionErrorM": 0.010491280509632292,
+              "orientationErrorDeg": 44.70587163297364
+            }
+          ]
+        }
+      ],
+      "initialLowestNativeShape": {
+        "shape": "L_UpLeg_surface_skin_geom",
+        "body": "L_UpLeg",
+        "minimumY": 0.0009999999999999037,
+        "minimumYBeforeInitializationFit": -0.003323856734673756,
+        "sourceExactMinimumY": -0.0033082584041403407
+      }
+    },
+    {
+      "variant": "male",
+      "input": "pressup-whole-chain-inputs-v21-1/fms-repo-legacy-v1-trunk-stability-push-up-extension-clearing-male-both.json",
+      "inputSha256": "5e008f7523278f0cb326192a11f405b502caf75e0ceaa2c95b0e24646aa5f910",
+      "hashes": {
+        "routeSha256": "40a5b710acb2b2ae795fa39e80848100fe846c9bb840c5d6ff62abe1c0ddcb9f",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "c447dd9d4894340810a8a8fb21e163e5af25e1c5cdc40b4f417a4d6ce82ab59a",
+        "controllerVersion": "authored-pelvis-support-torque-v21"
+      },
+      "numericalComplete": true,
+      "invariants": {
+        "finite": true,
+        "withinMotorCaps": true,
+        "noExternalWrench": true,
+        "sourceAndTimingPreserved": true
+      },
+      "calculatedSeconds": 4.399999999999804,
+      "nativeSteps": 4400,
+      "sourceCapture": [
+        {
+          "tMs": 0,
+          "sourceTimeMs": 1000,
+          "skinFloorTranslationM": 0.000017343591577137496,
+          "supportSeed": null
+        },
+        {
+          "tMs": 1500,
+          "supportSeed": null
+        },
+        {
+          "tMs": 3100,
+          "supportSeed": null
+        },
+        {
+          "tMs": 4400,
+          "sourceTimeMs": 5400,
+          "skinFloorTranslationM": 0.0000016589503927244564,
+          "supportSeed": null
+        }
+      ],
+      "maximumAbsoluteCaptureSkinFloorTranslationM": 0.000017343591577137496,
+      "nativeInitialFloorTranslationM": 0.00703607945557539,
+      "sampledMaximumJointDeg": 22.78473921135878,
+      "maximumPelvisErrorM": 0.013006999898040338,
+      "maximumSegmentChangeError": {
+        "timeS": 3.1,
+        "label": "Hold target (3.1 s)",
+        "body": "L_Hand",
+        "errorDeg": 12.371024265195064
+      },
+      "fullStepTrackingReport": "pressup-whole-chain-native-v21-male-tracking-1.json",
+      "fullStepPeak": {
+        "timeS": 3.9439999999996767,
+        "joint": "R_Shoulder_scapular_tilt",
+        "errorDeg": 23.409948707476904,
+        "desiredRad": -0.023810789316956776,
+        "motor": {
+          "key": "R_Shoulder_scapular_tilt",
+          "torqueNm": -10,
+          "limitNm": 10
+        }
+      },
+      "trackingPass": false,
+      "sourceRepresentation": [
+        {
+          "timeS": 0,
+          "sourceIssues": [
+            {
+              "body": "R_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.7071920073861249
+            },
+            {
+              "body": "L_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.7072335471288683
+            },
+            {
+              "body": "R_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 4.270835969342321
+            },
+            {
+              "body": "R_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 23.577922131815548
+            },
+            {
+              "body": "L_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 4.915581635593855
+            },
+            {
+              "body": "L_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 24.74247046321124
+            }
+          ],
+          "outsideNativeRange": [],
+          "forearms": [
+            {
+              "body": "R_Forearm",
+              "positionErrorM": 0.00043330988323974116,
+              "orientationErrorDeg": 27.447668876270388
+            },
+            {
+              "body": "L_Forearm",
+              "positionErrorM": 0.0004382510071560223,
+              "orientationErrorDeg": 28.84733868636932
+            }
+          ]
+        },
+        {
+          "timeS": 1.5,
+          "sourceIssues": [
+            {
+              "body": "R_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.7071920073861249
+            },
+            {
+              "body": "L_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.7072335471288683
+            },
+            {
+              "body": "R_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.09785869636745793
+            },
+            {
+              "body": "R_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 13.732888650224455
+            },
+            {
+              "body": "L_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.09071792500674998
+            },
+            {
+              "body": "L_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 24.449380264297975
+            }
+          ],
+          "outsideNativeRange": [],
+          "forearms": [
+            {
+              "body": "R_Forearm",
+              "positionErrorM": 0.00035790704444758794,
+              "orientationErrorDeg": 13.731817548885921
+            },
+            {
+              "body": "L_Forearm",
+              "positionErrorM": 0.0003001028820829544,
+              "orientationErrorDeg": 24.62103046664032
+            }
+          ]
+        },
+        {
+          "timeS": 3.1,
+          "sourceIssues": [
+            {
+              "body": "R_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.7071920073861249
+            },
+            {
+              "body": "L_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.7072335471288683
+            },
+            {
+              "body": "R_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.09785869636745795
+            },
+            {
+              "body": "R_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 13.732888650224451
+            },
+            {
+              "body": "L_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.09071792500674998
+            },
+            {
+              "body": "L_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 24.449380264297975
+            }
+          ],
+          "outsideNativeRange": [],
+          "forearms": [
+            {
+              "body": "R_Forearm",
+              "positionErrorM": 0.00022588212198151205,
+              "orientationErrorDeg": 13.732016003249305
+            },
+            {
+              "body": "L_Forearm",
+              "positionErrorM": 0.00022216508918364327,
+              "orientationErrorDeg": 24.618004023639646
+            }
+          ]
+        },
+        {
+          "timeS": 4.4,
+          "sourceIssues": [
+            {
+              "body": "R_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.7071920073861249
+            },
+            {
+              "body": "L_Foot",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 0.7072335471288683
+            },
+            {
+              "body": "R_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 4.389855704856896
+            },
+            {
+              "body": "R_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 24.563980812236167
+            },
+            {
+              "body": "L_Forearm",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 4.455490895075434
+            },
+            {
+              "body": "L_Hand",
+              "kind": "unrepresented-native-rotation",
+              "residualDeg": 25.172425493730668
+            }
+          ],
+          "outsideNativeRange": [],
+          "forearms": [
+            {
+              "body": "R_Forearm",
+              "positionErrorM": 0.00045818960579630853,
+              "orientationErrorDeg": 28.404141326560808
+            },
+            {
+              "body": "L_Forearm",
+              "positionErrorM": 0.0004557681418915702,
+              "orientationErrorDeg": 29.363833502556254
+            }
+          ]
+        }
+      ],
+      "initialLowestNativeShape": {
+        "shape": "Spine_Lower_surface_skin_left_anterior_geom",
+        "body": "Spine_Lower",
+        "minimumY": 0.0009999999999998899,
+        "minimumYBeforeInitializationFit": -0.0060360794555755,
+        "sourceExactMinimumY": -0.006036080708504435
+      }
+    }
+  ],
+  "flexionPalmRegression": {
+    "testsPassed": 2,
+    "totalTargetedTests": 2,
+    "log": "pressup-whole-chain-flexion-palm-v21-1.log",
+    "details": "pressup-whole-chain-flexion-palm-v21-1.json",
+    "results": [
+      {
+        "variant": "female",
+        "routeSha256": "653007058289f5356cb16f9d075a001f4808f706e7adf7cbf0d4c642175a4f35",
+        "hands": [
+          {
+            "body": "R_Hand",
+            "positionErrorM": 0.000080283782396718,
+            "orientationErrorDeg": 0.27897009453465077
+          },
+          {
+            "body": "L_Hand",
+            "positionErrorM": 0.00007255353941054587,
+            "orientationErrorDeg": 0.254681527581705
+          }
+        ],
+        "floorTranslationM": 0.015662193445201485
+      },
+      {
+        "variant": "male",
+        "routeSha256": "fba8170f8600aea50601076c2a84fd2ef74a3eaa4f088a5c163c889e703d132f",
+        "hands": [
+          {
+            "body": "R_Hand",
+            "positionErrorM": 0.00009176210088144696,
+            "orientationErrorDeg": 0.33850966873880173
+          },
+          {
+            "body": "L_Hand",
+            "positionErrorM": 0.00007802251790358832,
+            "orientationErrorDeg": 0.29140357041256076
+          }
+        ],
+        "floorTranslationM": 0.01910799293039349
+      }
+    ]
+  },
+  "status": "0/2 native tracking qualified. Existing flexion palm regression passes2/2. Source/native arm representation remains unresolved.",
+  "repeatabilityAndTimestepSensitivity": "Not run: current source fails the unchanged native tracking gate and has substantial source/native forearm rotation disagreement. Preserve this evidence before a bounded representation correction."
+}

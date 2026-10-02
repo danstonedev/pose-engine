@@ -1,0 +1,368 @@
+{
+  "version": 1,
+  "status": "source continuity improved; fresh Blender, clinical, native and hosts pending source freeze",
+  "scope": "Bilateral spinal extension clearing on male/female/neutral. Actual complete source101-bone trajectories at60Hz including production twist. This is kinematic contact guidance, not physical stiffness/compression.",
+  "algorithm": [
+    "Capture actually supported setup bend and elbow plane; FK100deg cannot be assumed attained after contact projection.",
+    "Measure bounded FK bend progression and minimum across the prepared route; map progress from supported setup bend to authored endpoint.",
+    "Solve the geometric elbow guide from fixed wrist plus measured segment lengths. A numerical prior-pose tie-break selects nearby redundant postures; final fixed-palm and clinical projection remains unchanged.",
+    "For repeated or reversed source FK states, reuse/interpolate the outbound bounded branch, then refine the palm at current body state. Numerical source identity tolerance1e-6 dimensionless prevents quaternion roundoff from creating spurious duplicate states.",
+    "No per-variant constants, joint ROM/contact gate relaxation, body root lift, physical actuator increase, or imported simulation-force claims."
+  ],
+  "baseline": {
+    "file": "blender-workspace/pressup-whole-chain-motion-1/continuity-review/continuity.json",
+    "sha256": "6e643fe2d724b9901ad8de5402c1cd3b1330215092bfcb9fd66b33c44ab410ef",
+    "cases": [
+      {
+        "variant": "male",
+        "frames": 325,
+        "boneCount": 101,
+        "wristDriftM": {
+          "L": 0.00008191279856121978,
+          "R": 0.00009359565841557449
+        },
+        "maximumAdjacentBoneRotation": {
+          "bone": "CC_Base_L_Forearm",
+          "fromMs": 2216.6666666666665,
+          "toMs": 2233.3333333333335,
+          "radians": 0.11437559872865677,
+          "degrees": 6.553239086433897
+        },
+        "maximumAdjacentBoneTranslation": {
+          "bone": "CC_Base_L_Forearm",
+          "fromMs": 2216.6666666666665,
+          "toMs": 2233.3333333333335,
+          "distanceM": 0.01843562964034378
+        },
+        "seamWorstPosition": {
+          "bone": "CC_Base_R_Upperarm",
+          "distanceM": 0.00929349984415652,
+          "localAngleDeg": 4.667110521665202
+        },
+        "seamWorstLocalRotation": {
+          "bone": "CC_Base_R_Clavicle",
+          "distanceM": 0,
+          "localAngleDeg": 6.083132533787552
+        }
+      },
+      {
+        "variant": "female",
+        "frames": 325,
+        "boneCount": 101,
+        "wristDriftM": {
+          "L": 0.00009064273468746213,
+          "R": 0.00007612894024637472
+        },
+        "maximumAdjacentBoneRotation": {
+          "bone": "CC_Base_L_Forearm",
+          "fromMs": 2216.6666666666665,
+          "toMs": 2233.3333333333335,
+          "radians": 0.15370607376098633,
+          "degrees": 8.80670931203104
+        },
+        "maximumAdjacentBoneTranslation": {
+          "bone": "CC_Base_L_ForearmTwist01",
+          "fromMs": 2216.6666666666665,
+          "toMs": 2233.3333333333335,
+          "distanceM": 0.023257056093965927
+        },
+        "seamWorstPosition": {
+          "bone": "CC_Base_R_Upperarm",
+          "distanceM": 0.008477600387829423,
+          "localAngleDeg": 4.376055243676626
+        },
+        "seamWorstLocalRotation": {
+          "bone": "CC_Base_R_Clavicle",
+          "distanceM": 0,
+          "localAngleDeg": 6.266882124820643
+        }
+      },
+      {
+        "variant": "neutral",
+        "frames": 325,
+        "boneCount": 101,
+        "wristDriftM": {
+          "L": 0.00008716293462142972,
+          "R": 0.00008214421856016082
+        },
+        "maximumAdjacentBoneRotation": {
+          "bone": "CC_Base_L_Forearm",
+          "fromMs": 2216.6666666666665,
+          "toMs": 2233.3333333333335,
+          "radians": 0.11386556178331375,
+          "degrees": 6.524016122069997
+        },
+        "maximumAdjacentBoneTranslation": {
+          "bone": "CC_Base_L_ElbowShareBone",
+          "fromMs": 2216.6666666666665,
+          "toMs": 2233.3333333333335,
+          "distanceM": 0.01503528702010171
+        },
+        "seamWorstPosition": {
+          "bone": "CC_Base_R_UpperarmTwist01",
+          "distanceM": 0.009451826686024276,
+          "localAngleDeg": 4.149994338282598
+        },
+        "seamWorstLocalRotation": {
+          "bone": "CC_Base_L_ForearmTwist01",
+          "distanceM": 0.0022009289166119847,
+          "localAngleDeg": 9.687426347011042
+        }
+      }
+    ]
+  },
+  "currentSource": {
+    "file": "remaining-batches/pressup-guide-source-4.json",
+    "sha256": "8c7a58247159ead9e2e393f170529cb16eb9653820dfe0867cf18d67d593291a",
+    "sourceStable": true,
+    "sourceBefore": "5ba1a3958798c2adb120b6ea3124eae8cf1412c11af379665d02cc28a000fa85",
+    "cases": [
+      {
+        "variant": "male",
+        "frames": 325,
+        "elapsedMs": 4428.9812999999995,
+        "phases": {
+          "0:extension-clearing/setup:move": {
+            "rotationDeg": 0.0000034150945850063755,
+            "translationM": 1.099852989298853e-15,
+            "positionWitness": {
+              "bone": "CC_Base_R_MidToe1",
+              "fromMs": 300,
+              "toMs": 316.6666666666667
+            },
+            "rotationWitness": {
+              "bone": "CC_Base_L_RibsTwist",
+              "fromMs": 0,
+              "toMs": 16.666666666666668
+            }
+          },
+          "1:extension-clearing/press-and-hold:move": {
+            "rotationDeg": 2.534198784213779,
+            "translationM": 0.013211037965741355,
+            "positionWitness": {
+              "bone": "CC_Base_L_Eye",
+              "fromMs": 1750.0000000000002,
+              "toMs": 1766.6666666666667
+            },
+            "rotationWitness": {
+              "bone": "CC_Base_R_Forearm",
+              "fromMs": 1900.0000000000002,
+              "toMs": 1916.6666666666667
+            }
+          },
+          "1:extension-clearing/press-and-hold:hold": {
+            "rotationDeg": 0.04775941649733485,
+            "translationM": 0.000148966874457295,
+            "rotationWitness": {
+              "bone": "CC_Base_L_Clavicle",
+              "fromMs": 4083.3333333333335,
+              "toMs": 4100
+            },
+            "positionWitness": {
+              "bone": "CC_Base_L_Forearm",
+              "fromMs": 4083.3333333333335,
+              "toMs": 4100
+            }
+          },
+          "2:extension-clearing/return:move": {
+            "rotationDeg": 3.143908531958366,
+            "translationM": 0.015249607679813905,
+            "positionWitness": {
+              "bone": "CC_Base_L_Eye",
+              "fromMs": 4750,
+              "toMs": 4766.666666666667
+            },
+            "rotationWitness": {
+              "bone": "CC_Base_R_Forearm",
+              "fromMs": 4666.666666666667,
+              "toMs": 4683.333333333334
+            }
+          }
+        },
+        "seam": {
+          "rotationDeg": 0.0000034150945850063755,
+          "translationM": 8.064132208641563e-16
+        },
+        "endpointReached": true,
+        "bodySupportFeasible": true,
+        "iterations": 1,
+        "forward": 0.258171,
+        "peakElbows": [
+          10.969413254329739,
+          10.971420287189854
+        ],
+        "maximumPalmDriftM": 0.00010919556394865237
+      },
+      {
+        "variant": "female",
+        "frames": 325,
+        "elapsedMs": 3770.0177000000012,
+        "phases": {
+          "0:extension-clearing/setup:move": {
+            "rotationDeg": 0.0000029575586669421963,
+            "translationM": 1.1707006007833799e-15,
+            "positionWitness": {
+              "bone": "CC_Base_L_BigToe1",
+              "fromMs": 0,
+              "toMs": 16.666666666666668
+            },
+            "rotationWitness": {
+              "bone": "CC_Base_Tongue01",
+              "fromMs": 0,
+              "toMs": 16.666666666666668
+            }
+          },
+          "1:extension-clearing/press-and-hold:move": {
+            "rotationDeg": 2.5531229083796503,
+            "translationM": 0.011640878034628004,
+            "positionWitness": {
+              "bone": "CC_Base_L_Eye",
+              "fromMs": 1816.6666666666667,
+              "toMs": 1833.3333333333335
+            },
+            "rotationWitness": {
+              "bone": "CC_Base_R_Forearm",
+              "fromMs": 1900.0000000000002,
+              "toMs": 1916.6666666666667
+            }
+          },
+          "1:extension-clearing/press-and-hold:hold": {
+            "rotationDeg": 0.029302433242401293,
+            "translationM": 0.00008740345367673527,
+            "rotationWitness": {
+              "bone": "CC_Base_L_Clavicle",
+              "fromMs": 4083.3333333333335,
+              "toMs": 4100
+            },
+            "positionWitness": {
+              "bone": "CC_Base_L_ForearmTwist01",
+              "fromMs": 4083.3333333333335,
+              "toMs": 4100
+            }
+          },
+          "2:extension-clearing/return:move": {
+            "rotationDeg": 3.0431170767897475,
+            "translationM": 0.013425603782625454,
+            "positionWitness": {
+              "bone": "CC_Base_L_Eye",
+              "fromMs": 4750,
+              "toMs": 4766.666666666667
+            },
+            "rotationWitness": {
+              "bone": "CC_Base_R_Forearm",
+              "fromMs": 4583.333333333334,
+              "toMs": 4600
+            }
+          }
+        },
+        "seam": {
+          "rotationDeg": 0.0000029575586669421963,
+          "translationM": 1.2077662604489713e-15
+        },
+        "endpointReached": true,
+        "bodySupportFeasible": true,
+        "iterations": 1,
+        "forward": 0.258171,
+        "peakElbows": [
+          11.508049932764497,
+          11.465329183631273
+        ],
+        "maximumPalmDriftM": 0.00005951008196586894
+      },
+      {
+        "variant": "neutral",
+        "frames": 325,
+        "elapsedMs": 3737.608699999999,
+        "phases": {
+          "0:extension-clearing/setup:move": {
+            "rotationDeg": 0.0000029575586669421963,
+            "translationM": 1.1868196585369479e-15,
+            "positionWitness": {
+              "bone": "CC_Base_L_MidToe1",
+              "fromMs": 216.66666666666669,
+              "toMs": 233.33333333333334
+            },
+            "rotationWitness": {
+              "bone": "CC_Base_L_RibsTwist",
+              "fromMs": 0,
+              "toMs": 16.666666666666668
+            }
+          },
+          "1:extension-clearing/press-and-hold:move": {
+            "rotationDeg": 2.6018880779402145,
+            "translationM": 0.01064844518964668,
+            "positionWitness": {
+              "bone": "CC_Base_R_Eye",
+              "fromMs": 1733.3333333333335,
+              "toMs": 1750.0000000000002
+            },
+            "rotationWitness": {
+              "bone": "CC_Base_R_Forearm",
+              "fromMs": 1900.0000000000002,
+              "toMs": 1916.6666666666667
+            }
+          },
+          "1:extension-clearing/press-and-hold:hold": {
+            "rotationDeg": 0.03370609027217066,
+            "translationM": 0.00009842983494876623,
+            "rotationWitness": {
+              "bone": "CC_Base_L_Clavicle",
+              "fromMs": 4083.3333333333335,
+              "toMs": 4100
+            },
+            "positionWitness": {
+              "bone": "CC_Base_L_ForearmTwist01",
+              "fromMs": 4083.3333333333335,
+              "toMs": 4100
+            }
+          },
+          "2:extension-clearing/return:move": {
+            "rotationDeg": 3.1367891780740367,
+            "translationM": 0.01229113085160103,
+            "positionWitness": {
+              "bone": "CC_Base_R_Eye",
+              "fromMs": 4750,
+              "toMs": 4766.666666666667
+            },
+            "rotationWitness": {
+              "bone": "CC_Base_R_Forearm",
+              "fromMs": 4583.333333333334,
+              "toMs": 4600
+            }
+          }
+        },
+        "seam": {
+          "rotationDeg": 0.0000029575586669421963,
+          "translationM": 7.141416430484169e-16
+        },
+        "endpointReached": true,
+        "bodySupportFeasible": true,
+        "iterations": 1,
+        "forward": 0.258171,
+        "peakElbows": [
+          10.972625970473402,
+          10.947211241692457
+        ],
+        "maximumPalmDriftM": 0.0000564809040297124
+      }
+    ]
+  },
+  "regression": {
+    "file": "remaining-batches/pressup-guide-loop-hold-tests-1.log",
+    "result": "Vitest3/3 pass; reused existing.001rad orientation gate for stationary hold and complete pose loop. PowerShell exit1 due known Git safe.directory startup stderr, not assertions; clean full run pending root."
+  },
+  "preservedFailures": [
+    "pressup-planner-proposal-9: no-pole construction slow, neutral endpoint unresolved",
+    "pressup-guide-continuity-2: seam fixed but original early straight-arm singularity remained",
+    "pressup-guide-continuity-3: FK setup bend discontinuity caused return branch jumps",
+    "pressup-guide-continuity-4: numeric source-repeat matcher created duplicate branches",
+    "pressup-guide-source-1 and-2: setup angle/plane mismatch not resolved by seed interpolation alone",
+    "pressup-guide-source-3: prior posture reduced jumps but did not fix discontinuous initial task"
+  ],
+  "remaining": [
+    "fresh immutable production recipe export and Blender full-frame skin/roundtrip/visual review",
+    "independent live-thorax clinical bounds on all975frames",
+    "live/sampled patient parity and unchanged timeout regression gates",
+    "native tracking/shared arm-frame feasibility and physical validation"
+  ]
+}

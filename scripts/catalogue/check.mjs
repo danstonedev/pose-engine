@@ -2,7 +2,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { readMaster, checkSnapshotSources, evaluateCatalogue, assertGate } from './gate.mjs';
+import { readMaster, parseMaster, checkSnapshotSources, evaluateCatalogue, assertGate } from './gate.mjs';
+import { retentionErrors, trackingRetentionErrors } from './reconcile.mjs';
 
 const engineRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 try {
@@ -17,6 +18,12 @@ try {
     if(previousFiles) {
       const previousPin=JSON.parse(execFileSync('git',['show','HEAD^1:scripts/catalogue/baseline-pin.json'],{cwd:engineRoot,encoding:'utf8'}));
       if(previousPin.sha256!==pin.sha256) throw Error('The historical baseline pin differs from the base revision; rebaselining is prohibited.');
+    }
+    const previousMaster=execFileSync('git',['ls-tree','--name-only','HEAD^1','docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html'],{cwd:engineRoot,encoding:'utf8'}).trim();
+    if(previousMaster) {
+      const previous=parseMaster(execFileSync('git',['show','HEAD^1:docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html'],{cwd:engineRoot,encoding:'utf8',maxBuffer:64*1024*1024}));
+      const dropped=[...retentionErrors(previous.data.program,data.program),...trackingRetentionErrors(previous.tracking,tracking)];
+      if(dropped.length) throw Error(dropped.join('\n'));
     }
   }
   const hostScope = process.argv[2];
