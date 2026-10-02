@@ -15,6 +15,7 @@ import {buildSequencePoses,resolveComposedMotion} from '../services/motionSequen
 import {sampleComposedMotion} from '../services/motionRecording';
 import {createArmTorsoContact} from '../services/armTorsoContact';
 import {armHeadContact} from './helpers/armHeadContact';
+import {createStageTwistOverlay} from '../services/stageTwistOverlay';
 import {UPPER_ASSESSMENT_MOTIONS,UPPER_ASSESSMENT_NOTES} from '../services/assessmentUpperMotions';
 
 function prepareRig(root:Object3D,variant:'female'|'male'|'neutral'){
@@ -71,7 +72,7 @@ describe.each(['female','male','neutral'] as const)('upper assessment sources on
     expect(palm.z).toBeGreaterThan(.9);
     if(id==='ue-pattern2')expect(world(`${side}_Mid3`).y).toBeLessThan(shoulder.y-.03);
     if(id==='shoulder-mobility'){
-     const lower=world(`${side==='R'?'L':'R'}_Hand`);expect(lower.z).toBeLessThan(torso.z-.16);expect(lower.y).toBeLessThan(wrist.y-.30);
+     const lower=world(`${side==='R'?'L':'R'}_Hand`);expect(lower.z).toBeLessThan(torso.z-.16);expect(lower.y).toBeLessThan(wrist.y-.20);
      const report=computeJointAngles(bridge.skin.skeleton,bridge.cfg,variant,rest);
      expect(report.joints[`${side}_Index1`].fingerFlexion).toBeGreaterThan(130);
     }
@@ -85,6 +86,34 @@ describe.each(['female','male','neutral'] as const)('upper assessment sources on
     expect(report.joints.Neck[field]).toBeCloseTo(expected,1);
     for(const key of ['R_UpperArm','L_UpperArm','R_Forearm','L_Forearm'])expect(built.poses[peak].bones[key]).toEqual(built.poses[0].bones[key]);
    }
+  }
+ });
+ it.each(['ue-pattern1','shoulder-mobility'] as const)('%s raises the lower wrist on both sides without moving the trunk',id=>{
+  for(const side of ['R','L'] as const){
+   const lowerSide=id==='ue-pattern1'?side:side==='L'?'R':'L';
+   const motion=UPPER_ASSESSMENT_MOTIONS[id](side);
+   const held=(candidate:typeof motion)=>{
+    bridge.root.position.set(0,0,0);bridge.root.quaternion.identity();apply(neutral);
+    const recording=sampleComposedMotion(resolveComposedMotion(candidate),{
+     baselinePose:neutral,variantCfg:bridge.cfg,rest,skeletonHarness:{root:bridge.root,skinned:bridge.skin},sampleHz:6,
+    });
+    // Measure the display path, including shared hand policy and root support.
+    const frame=recording.frames.find(f=>f.tMs>=4100)!;
+    bridge.root.position.fromArray(frame.root.translateM);bridge.root.quaternion.fromArray(frame.root.orientQuat);apply(frame.pose);
+    return {pose:frame.pose,wrist:world(`${lowerSide}_Hand`),middle:world(`${lowerSide}_Mid3`)};
+   };
+   const current=held(motion);
+   // Fixed shipped baseline; compare achieved geometry rather than asserting
+   // the new recipe's angle constants or claiming an anatomical endpoint.
+   const previous:Record<string,number>={shoulderFlexion:-60,shoulderAbduction:0,shoulderRotation:70,elbowFlexion:100,protraction:-15,forearmRotation:-60,wristFlexion:10,wristDeviation:20};
+   for(const t of motion.keyframes[2].targets!)if(t.joint.startsWith(`${lowerSide}_`)&&t.motion in previous)t.targetDegrees=previous[t.motion];
+   const previousHold=held(motion);
+   expect(current.wrist.y-previousHold.wrist.y).toBeGreaterThan(.03);
+   if(id==='ue-pattern1'){
+    expect(current.middle.y-previousHold.middle.y).toBeGreaterThan(.07);
+    expect(current.middle.y).toBeGreaterThan(current.wrist.y+.005);
+   }
+   for(const key of ['Hips','Spine_Lower','Spine_Upper'])expect(new Quaternion().fromArray(current.pose.bones[key]).normalize().angleTo(new Quaternion().fromArray(neutral.bones[key]).normalize())).toBeLessThan(1e-6);
   }
  });
  it('samples the coordinated over/under route with finite geometry and a completed return',()=>{
@@ -104,6 +133,7 @@ describe.each(['female','male','neutral'] as const)('upper assessment sources on
 
  it.each((['ue-pattern1','ue-pattern2','shoulder-mobility'] as const).flatMap(id=>(['R','L'] as const).map(side=>({id,side}))))('$id/$side keeps arm skin clear of the torso and head throughout the route',async({id,side})=>{
    bridge.root.position.set(0,0,0);bridge.root.quaternion.identity();apply(neutral);
+   const twist=createStageTwistOverlay();twist.reset(bridge.skin.skeleton,bridge.cfg);
    const recording=sampleComposedMotion(resolveComposedMotion(UPPER_ASSESSMENT_MOTIONS[id](side)),{
     baselinePose:neutral,variantCfg:bridge.cfg,rest,skeletonHarness:{root:bridge.root,skinned:bridge.skin},sampleHz:60,
    });
@@ -114,6 +144,7 @@ describe.each(['female','male','neutral'] as const)('upper assessment sources on
    const sides=id==='shoulder-mobility'?['L','R'] as const:[side];
    for(const [i,f]of recording.frames.entries()){
     bridge.root.position.fromArray(f.root.translateM);bridge.root.quaternion.fromArray(f.root.orientQuat);apply(f.pose);
+    torso.refresh();
     for(const s of sides){
      // Existing envelope tolerance: 3 mm. This is a collision regression,
      // not proof of skin contact at an SFMA landmark or an FMS score.
@@ -121,6 +152,13 @@ describe.each(['female','male','neutral'] as const)('upper assessment sources on
      expect(head(s),`${side}/${s} head at ${f.tMs}`).toBeLessThan(.003);
      expect(f.shoulders![s].girdleProxy.elevationDeg!).toBeLessThanOrEqual(120.001);
     }
+    twist.sampleWithTwist(()=>{
+     torso.refresh();
+     for(const s of sides){
+      expect(torso.inspect(s).penetrationM,`${side}/${s} rendered torso at ${f.tMs}`).toBeLessThan(.003);
+      expect(head(s),`${side}/${s} rendered head at ${f.tMs}`).toBeLessThan(.003);
+     }
+    });
     if(i%60===0)await new Promise(resolve=>setTimeout(resolve,0));
    }
    apply(neutral);

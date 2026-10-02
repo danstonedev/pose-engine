@@ -30,7 +30,10 @@ const arm = (side:Side,flexion=0,abduction=0,rotation=0,elbow=0,protraction=0,fo
 // rotations. Both projections describe the overhead direction; shared rhythm
 // supplies the clavicle motion. Forearm and wrist targets orient the palm.
 // The lower route remains a bounded low-back reach, not claimed scapular contact.
-const lower = (side:Side) => arm(side,-60,0,70,100,-15,-60,10,20);
+// Blender hand-target review: coordinate retraction and modest abduction with
+// elbow flexion, then turn the fingers upward with the forearm/wrist. The
+// shared target is checked on all bodies, including render-time skin twist.
+const lower = (side:Side) => arm(side,-60,15,70,115,-30,-25.5,40,20);
 const upper = (side:Side) => arm(side,174,155,-90,148,-5,30,8,3);
 const lowerApproach = (side:Side) => arm(side,-45,20,55,20,-2,-30);
 const upperApproach = (side:Side) => arm(side,174,140,-90,45,-5,30);
