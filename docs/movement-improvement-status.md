@@ -133,6 +133,16 @@ mixed result is unqualified; it must not be promoted as an overall physics gain.
 The isolated 19-test hand-latch file also passes for this candidate, retaining
 the timing gate (`floor-elbow-hand-latch-12.log`).
 
+Cloud CI on `bf34c01` subsequently failed the male parked-push-up timing check
+(38.9 ms versus the unchanged 38.4 ms budget). The follow-up reuses residual
+scratch objects and looks up a cached arm guide before solving its setup again.
+The 40 floor/contact/timing tests pass locally; male/female push-up seeks measure
+11.5/10.5 ms, with a clean typecheck. All twelve re-exported GLBs in
+`floor-support-motion-7` are byte-identical to the reviewed motion-6 clips
+(`docs/evidence/floor-support-cache-animation-2026-10-02.json`). Existing skin and
+native failures therefore remain recorded; this performance correction does not
+qualify them. A new cloud run is required for the follow-up commit.
+
 Next: qualify loaded palms and source/native tracking in the recovered floor movements, then the 20 remaining stops (hurdle 4, lunge 4, rotary 4, multisegmental flexion 2, rotation 4, legacy squat 2). Blender now contains timed native collider review scenes, including head/neck, but continuous skin coverage and posed joint seams remain open. The shared prone source also passes a neutral-model playback regression. Native neutral fixtures remain open; host rollout is tracked by the companion shipment and PRs.
 
 ## Remaining work and completion criteria

@@ -1140,10 +1140,12 @@ export function stepContactPlants(
   plants: readonly ContactPlant[],
   tMs: number,
   frame: ContactPlantFrame,
+  /** Initialize active targets without changing the pose, for guide lookup. */
+  captureOnly = false,
 ): boolean {
   let moved = false;
   for (const fp of plants) {
-    if (inPlantWindow(fp, tMs)) continue;
+    if (captureOnly || inPlantWindow(fp, tMs)) continue;
     const since = tMs - fp.toMs;
     let w = 0;
     if (fp.target && since > 0) {
@@ -1222,6 +1224,7 @@ export function stepContactPlants(
       }
       fp.release = null;
     }
+    if (captureOnly) continue;
     const held = heldPoint(fp, tMs);
     const approachWeight = fp.palmApproach && fp.palmApproach.untilMs > 0 ? smooth01(tMs / fp.palmApproach.untilMs) : 1;
     const beforeApproach = approachWeight < 1 ? fp.solver.ctx.bones.map(bone => bone.quaternion.clone()) : null;
@@ -1305,6 +1308,26 @@ export function preparePalmSupportApproach(
   if (!inherited) poseAt(setupAt);
   captureSupports(inherited);
   poseAt(setupAt);
+  // A cached guide already contains the bounded setup solution. Capture its
+  // target identity first; avoid solving both arms just to look it up.
+  stepContactPlants(palms, setupAt, frameAt(), true);
+  const setupFrame = frameAt();
+  const cacheKeys = palms.map((plant, index) => JSON.stringify([
+    trajectoryKey, setupAt, totalMs, setupFrame.constraints, setupFrame.rest,
+    (inherited ? incoming[index]!.position : plant.target)?.toArray(), plant.targetOrientation?.toArray(), plant.palmSupport,
+    plant.solver.ctx.bones.map(bone => bone.position.toArray()), plant.solver.palmNormalLocal?.toArray(),
+  ]));
+  const cached = palms.map((plant, index) => palmGuideCache.get(plant.solver.ctx.bones[0]!)?.get(cacheKeys[index]!));
+  if (palms.length && cached.every(Boolean)) {
+    palms.forEach((plant, index) => {
+      if (inherited) plant.target = incoming[index]!.position.clone();
+      plant.palmApproach = { untilMs: setupAt, path: cached[index]!, seed: cached[index]![0]!.quats,
+        ...(inherited ? { incomingOrientation: incoming[index]!.orientation } : {}) };
+      plant.fromMs = 0;
+    });
+    poseAt(0);
+    return;
+  }
   stepContactPlants(palms, setupAt, frameAt());
   palms.forEach((plant, index) => {
     if (inherited) plant.target = incoming[index]!.position.clone();
@@ -1312,21 +1335,6 @@ export function preparePalmSupportApproach(
       ...(inherited ? { incomingOrientation: incoming[index]!.orientation } : {}) };
     plant.fromMs = 0;
   });
-  const setupFrame = frameAt();
-  const cacheKeys = palms.map(plant => JSON.stringify([
-    trajectoryKey, setupAt, totalMs, setupFrame.constraints, setupFrame.rest,
-    plant.target?.toArray(), plant.targetOrientation?.toArray(), plant.palmSupport,
-    plant.solver.ctx.bones.map(bone => bone.position.toArray()), plant.solver.palmNormalLocal?.toArray(),
-  ]));
-  const cached = palms.map((plant, index) => palmGuideCache.get(plant.solver.ctx.bones[0]!)?.get(cacheKeys[index]!));
-  if (palms.length && cached.every(Boolean)) {
-    palms.forEach((plant, index) => {
-      plant.palmApproach!.path = cached[index]!;
-      plant.palmApproach!.seed = cached[index]![0]!.quats;
-    });
-    poseAt(0);
-    return;
-  }
   // Solve the supported route on its own fixed clock, continuing the previous
   // bounded arm solution. This keeps the elbow branch continuous without making
   // playback depend on frame rate, seek order or the caller's previous frame.

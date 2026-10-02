@@ -24,33 +24,38 @@ export function solveHandContactPose(
   root.updateWorldMatrix(true, true);
   const axes = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
   const point = new THREE.Vector3(), rotation = new THREE.Quaternion();
+  // The finite-difference solve evaluates this residual many times. Reuse its
+  // geometric scratch values; no pose state or previous-frame result is cached.
+  const shoulderPoint = new THREE.Vector3(), elbowPoint = new THREE.Vector3(), wristPoint = new THREE.Vector3();
+  const direction = new THREE.Vector3(), radial = new THREE.Vector3(), elbowError = new THREE.Vector3();
+  const handRotation = new THREE.Quaternion(), deltaRotation = new THREE.Quaternion();
   const angularScale = .12;
   const preferredElbow = () => {
-    const shoulder = bones[2]!.getWorldPosition(new THREE.Vector3());
-    const elbow = bones[1]!.getWorldPosition(new THREE.Vector3());
-    const wrist = hand.getWorldPosition(new THREE.Vector3());
+    const shoulder = bones[2]!.getWorldPosition(shoulderPoint);
+    const elbow = bones[1]!.getWorldPosition(elbowPoint);
+    const wrist = hand.getWorldPosition(wristPoint);
     const a = shoulder.distanceTo(elbow), b = elbow.distanceTo(wrist);
-    const direction = position.clone().sub(shoulder);
+    direction.copy(position).sub(shoulder);
     const distance = Math.max(1e-8, direction.length());
     direction.divideScalar(distance);
     const along = Math.min(a, Math.max(-a, (a * a - b * b + distance * distance) / (2 * distance)));
-    const radial = elbowDirection!.clone().addScaledVector(direction, -elbowDirection!.dot(direction)).normalize();
+    radial.copy(elbowDirection!).addScaledVector(direction, -elbowDirection!.dot(direction)).normalize();
     return shoulder.addScaledVector(direction, along).addScaledVector(radial, Math.sqrt(Math.max(0, a * a - along * along)));
   };
   const residual = (): number[] => {
     root.updateWorldMatrix(true, true);
     hand.getWorldPosition(point).sub(position);
-    rotation.copy(orientation).multiply(hand.getWorldQuaternion(new THREE.Quaternion()).invert());
+    rotation.copy(orientation).multiply(hand.getWorldQuaternion(handRotation).invert());
     if (rotation.w < 0) rotation.set(-rotation.x, -rotation.y, -rotation.z, -rotation.w);
     const length = Math.hypot(rotation.x, rotation.y, rotation.z);
     const scale = length > 1e-10 ? -angularScale * 2 * Math.atan2(length, rotation.w) / length : -2 * angularScale;
     const result = [point.x, point.y, point.z, rotation.x * scale, rotation.y * scale, rotation.z * scale];
     // A planted palm cannot be solved by folding the forearm through its
     // support plane. Keep this inequality in the final palm refinement too.
-    if (minimumElbowY != null) result.push(Math.min(0, bones[1]!.getWorldPosition(new THREE.Vector3()).y - minimumElbowY));
+    if (minimumElbowY != null) result.push(Math.min(0, bones[1]!.getWorldPosition(elbowError).y - minimumElbowY));
     // A bend guide follows the shoulder. Freezing its initial world-space
     // point also constrains girdle translation and distorts shoulder motion.
-    if (elbowDirection) result.push(...bones[1]!.getWorldPosition(new THREE.Vector3()).sub(preferredElbow()).multiplyScalar(.25).toArray());
+    if (elbowDirection) result.push(...bones[1]!.getWorldPosition(elbowError).sub(preferredElbow()).multiplyScalar(.25).toArray());
     return result;
   };
   const clamp = (index: number) => clampBoneToRom(bones[index]!, canonicalKeys[index], rest, constraints, true);
@@ -64,11 +69,11 @@ export function solveHandContactPose(
     const epsilon = .001;
     const columns: number[][] = [];
     for (let joint = 0; joint < bones.length; joint += 1) for (const axis of axes) {
-      bones[joint]!.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(axis, epsilon));
+      bones[joint]!.quaternion.multiply(deltaRotation.setFromAxisAngle(axis, epsilon));
       clamp(joint);
       const plus = residual();
       restore();
-      bones[joint]!.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(axis, -epsilon));
+      bones[joint]!.quaternion.multiply(deltaRotation.setFromAxisAngle(axis, -epsilon));
       clamp(joint);
       const minus = residual();
       restore();
@@ -97,7 +102,7 @@ export function solveHandContactPose(
     for (const fraction of [1, .5, .25, .125]) {
       restore();
       for (let joint = bones.length - 1; joint >= 0; joint -= 1) {
-        for (let axis = 0; axis < 3; axis += 1) bones[joint]!.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(axes[axis]!, delta[joint * 3 + axis]! * step * fraction));
+        for (let axis = 0; axis < 3; axis += 1) bones[joint]!.quaternion.multiply(deltaRotation.setFromAxisAngle(axes[axis]!, delta[joint * 3 + axis]! * step * fraction));
         clamp(joint);
       }
       const next = residual();
