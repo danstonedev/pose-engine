@@ -1,0 +1,38 @@
+{
+  "checks": [
+    "Every actual runtime bone appears in the full-motion table",
+    "The header exposes current defect/reference counts and pending source reviews",
+    "Every one of 291 motions renders its coverage and applicable defect/reference/work records",
+    "Source inspection counts retain their limited scope",
+    "Direct navigation opens and reveals joints, defects, reference data and shared work",
+    "Selecting a defect opens the record editor and selects the correct stable ID",
+    "Whole pelvis-to-head chain appears for an isolated shoulder motion",
+    "Verified status requires evidence",
+    "Tracking records survive a browser reload",
+    "All five program record types can be edited without duplicating their stable IDs",
+    "Program editing protects stable record IDs and original source locators",
+    "Reference acceptance drafts remain separate from movement approval",
+    "Saved standalone master preserves program records, historical tracking, observations, context identities and frozen baseline",
+    "A saved master reopens in a fresh browser with every program edit retained",
+    "Stale browser program drafts neither overwrite newer file records nor disappear silently",
+    "Saving after a draft conflict preserves the newer authoritative program",
+    "Phase records remain separate from full-motion review",
+    "Procedural builders outside combined lab entries are selectable",
+    "Legacy availability gaps remain visible"
+  ],
+  "counts": {
+    "motions": 291,
+    "entries": 209,
+    "bones": 101,
+    "table": 101,
+    "coverage": 291,
+    "defects": 71,
+    "references": 27,
+    "findings": 298,
+    "sources": 89,
+    "workUnits": 10
+  },
+  "pageErrors": [],
+  "result": "passed",
+  "canonicalMasterUnmodified": true
+}

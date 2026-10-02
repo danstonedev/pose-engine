@@ -1,0 +1,362 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-10-02T19:53:44.198Z",
+  "purpose": "Actual Blender baseline for the reported shoulder flexion versus abduction contrast; no runtime correction",
+  "workUnitId": "work:shoulder-coordination-and-endpoints",
+  "acceptedContexts": 0,
+  "cleanMainDiagnostic": {
+    "artifact": {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-flexion-baseline.json",
+      "sha256": "82550ea1d19c49ca752b0f1b2f79b97b89c2c5302337202b56ddc7ddcae289f4",
+      "bytes": 631837
+    },
+    "runtimeBaselineCommit": "f70c2ce0cba3bd9f86e97a9ba775c57e30f3729d",
+    "repositoryHeadAtDiagnostic": "e870cd22884ddc551249f192df49a707063bfac1",
+    "runtimeSourceIdentity": "8fe9a407a067cb30567907442a7cbe5c28f3c03965a272ff0bf7d6429aaa2ba5",
+    "contextIdentities": [
+      {
+        "context": "[\"joint:shoulder-abduction\",\"male\",\"right\"]",
+        "identity": "17fdb467331a1d8903f3b3a0cde447868e18cbb02da0e3f438bbb47581f29bc9"
+      },
+      {
+        "context": "[\"joint:shoulder-flexion\",\"male\",\"right\"]",
+        "identity": "2cca2a4f551f79b893f7194748e86930751aaaf1bc40e900814918c811cb49f6"
+      }
+    ],
+    "masterUnmodified": true
+  },
+  "originalWipBaseline": {
+    "repository": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\simmove\\pose-engine",
+    "head": "274ad55a3a84df593c12c24852ec80bc744d3d13",
+    "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+    "provenance": {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/provenance.json",
+      "sha256": "3b10cbecfd78d4c2abc2ecea5041fd4dbe0f22b9ebbbe5a528cd09fd2c565489",
+      "bytes": 11276
+    },
+    "sourceFreshness": "All scoped original files and full exporter runtime digest rechecked unchanged after capture. Same production rigs and twist implementation; motion/trajectory/ROM source differs from clean main. These outputs do not inherit clean-main context identities.",
+    "blender": {
+      "executable": "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe",
+      "version": "5.2.2 LTS",
+      "buildHash": "d13f752e3b9c"
+    },
+    "inputs": [
+      {
+        "file": "shoulder-flexion-160.json",
+        "sha256": "3349c5104ae9adf46616b2e51d122ca9712c255c5d7f258f2d5b5fe2b861dc97",
+        "plane": "flexion",
+        "commandDeg": 160,
+        "sourceContext": [
+          "joint:shoulder-flexion",
+          "male",
+          "right"
+        ],
+        "isolatedContextIdentity": "2cca2a4f551f79b893f7194748e86930751aaaf1bc40e900814918c811cb49f6",
+        "registeredDefault": false,
+        "modification": "Diagnostic input only: one authored peak changed180 to160; no registry/runtime edits"
+      },
+      {
+        "file": "shoulder-abduction-160.json",
+        "sha256": "95c25172b35fb3eeab2f4cafb6e106f55faa5f614b4660a9cbd328ec7cfcb83a",
+        "plane": "abduction",
+        "commandDeg": 160,
+        "sourceContext": [
+          "joint:shoulder-abduction",
+          "male",
+          "right"
+        ],
+        "isolatedContextIdentity": "17fdb467331a1d8903f3b3a0cde447868e18cbb02da0e3f438bbb47581f29bc9",
+        "registeredDefault": true,
+        "modification": "None; exact retained definition motions[0]"
+      },
+      {
+        "file": "shoulder-flexion-180.json",
+        "sha256": "ce9aa215c77916ab6aa9b6ef1040e29982992270159260cb9c24ad82e5d57475",
+        "plane": "flexion",
+        "commandDeg": 180,
+        "sourceContext": [
+          "joint:shoulder-flexion",
+          "male",
+          "right"
+        ],
+        "isolatedContextIdentity": "2cca2a4f551f79b893f7194748e86930751aaaf1bc40e900814918c811cb49f6",
+        "registeredDefault": true,
+        "modification": "None; exact retained definition motions[0]"
+      }
+    ]
+  },
+  "cases": [
+    {
+      "folder": "flexion-160",
+      "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+      "romClamp": {
+        "requested": "context-default",
+        "effective": true,
+        "environment": "node",
+        "scope": "Global FK/calibration clamp mode. Explicit contact and patient projections retain their own required limits."
+      },
+      "project": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/full-motion-review.blend",
+        "sha256": "07693c3367f411e4c6061ac6163cefff145119e2b1f4afd486f3636acbcbeabb",
+        "bytes": 4334019
+      },
+      "manifest": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/manifest.json",
+        "sha256": "709572f50b222ce52a6fe336b59887fc1e586ca5df96e55f0db0b1c1683a9558",
+        "bytes": 7471
+      },
+      "importEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/full-motion-exchange.json",
+        "sha256": "8558d8fbbdf1b9f48402129b5fb7a7c027abbcebd71d30c53b068ea5f69f652d",
+        "bytes": 3053
+      },
+      "roundtripEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/roundtrip-results.json",
+        "sha256": "84c6d147de162cf417c8237579a7656ca2767fe0d9855e81a11588edd05760a5",
+        "bytes": 4927
+      },
+      "helperEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/male-helper-trace.json",
+        "sha256": "029b44a77ed242eef8257e43920bed38e8d73b3fe73937d4f2b8ff770b9873a6",
+        "bytes": 216404
+      },
+      "routeEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/male-route-summary.json",
+        "sha256": "70e7ef9774781a01d8d03091ab5ca74478f8e33c565a4ca347e602f12545a925",
+        "bytes": 21894
+      },
+      "matchedRearHold": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/matched-captures/male-right-back-2067ms.png",
+        "sha256": "8be34ed88bb33386a5a70588cac0cfe8eadee8d4c1c8b789ce5d3f07bb4c3a2d",
+        "bytes": 1151570
+      },
+      "helperMaximum": {
+        "CC_Base_R_Clavicle": {
+          "localExcursionDeg": 39.99999551387989,
+          "frame": 51,
+          "seconds": 1.7
+        },
+        "CC_Base_R_Upperarm": {
+          "localExcursionDeg": 123.6383161063563,
+          "frame": 52,
+          "seconds": 1.7333333333333334
+        },
+        "CC_Base_R_UpperarmTwist01": {
+          "localExcursionDeg": 63.93419056898474,
+          "frame": 90,
+          "seconds": 3
+        },
+        "CC_Base_R_UpperarmTwist02": {
+          "localExcursionDeg": 31.96708155724517,
+          "frame": 90,
+          "seconds": 3
+        }
+      },
+      "largestLateralHandDeparture": {
+        "frame": 104,
+        "seconds": 3.466666666666667,
+        "handWorldM": [
+          -0.6189938069712165,
+          1.4830360839881387,
+          0.3445099365491874
+        ],
+        "deltaXM": -0.25773505149141374
+      }
+    },
+    {
+      "folder": "abduction-160",
+      "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+      "romClamp": {
+        "requested": "context-default",
+        "effective": true,
+        "environment": "node",
+        "scope": "Global FK/calibration clamp mode. Explicit contact and patient projections retain their own required limits."
+      },
+      "project": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/full-motion-review.blend",
+        "sha256": "417f21dd6c26b14e4248f39e3d653241b82ada977a8e4dd2adbc3531c2b8c7ce",
+        "bytes": 4332325
+      },
+      "manifest": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/manifest.json",
+        "sha256": "1a0c654eacaac9d6bd594e1e166aae4367a6a32b01963a12bf49d2ff75b4a0bd",
+        "bytes": 7495
+      },
+      "importEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/full-motion-exchange.json",
+        "sha256": "a0c37fd0ec3d839a65466185d87d94587eae4bdffe0f97f058cd439e26de337f",
+        "bytes": 3063
+      },
+      "roundtripEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/roundtrip-results.json",
+        "sha256": "ab5d7db9930df2db8ba5b023d70427a161e4936b45b07960577fac5bf7245218",
+        "bytes": 4931
+      },
+      "helperEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/male-helper-trace.json",
+        "sha256": "198ca124654ce58f8bbba2883d6e7eb5a2fc097cad544bd0af825d4d21933884",
+        "bytes": 217363
+      },
+      "routeEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/male-route-summary.json",
+        "sha256": "f3aaf1808a1d0261043888a2afcda923e7454dd57e8fb95c17d869bcdade79cc",
+        "bytes": 22030
+      },
+      "matchedRearHold": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/matched-captures/male-right-back-2067ms.png",
+        "sha256": "56ef3f7f98a57f663be1286655a0954d9500a05068645d14422e4cd51a7b3535",
+        "bytes": 1141420
+      },
+      "helperMaximum": {
+        "CC_Base_R_Clavicle": {
+          "localExcursionDeg": 43.33332943428202,
+          "frame": 51,
+          "seconds": 1.7
+        },
+        "CC_Base_R_Upperarm": {
+          "localExcursionDeg": 117.62898553651209,
+          "frame": 90,
+          "seconds": 3
+        },
+        "CC_Base_R_UpperarmTwist01": {
+          "localExcursionDeg": 6.835570810242598,
+          "frame": 52,
+          "seconds": 1.7333333333333334
+        },
+        "CC_Base_R_UpperarmTwist02": {
+          "localExcursionDeg": 3.417641622070088,
+          "frame": 90,
+          "seconds": 3
+        }
+      },
+      "largestLateralHandDeparture": {
+        "frame": 104,
+        "seconds": 3.466666666666667,
+        "handWorldM": [
+          -0.7682266745463411,
+          1.6570597530243871,
+          -0.08564780619669167
+        ],
+        "deltaXM": -0.4069679190665383
+      }
+    },
+    {
+      "folder": "flexion-180",
+      "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+      "romClamp": {
+        "requested": "context-default",
+        "effective": true,
+        "environment": "node",
+        "scope": "Global FK/calibration clamp mode. Explicit contact and patient projections retain their own required limits."
+      },
+      "project": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/full-motion-review.blend",
+        "sha256": "9d90ba3d798f77c361aee0d369fcf2c94d2d12b04938c1953822553af855509c",
+        "bytes": 4334110
+      },
+      "manifest": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/manifest.json",
+        "sha256": "4a00708f9b940c288d8c617a4256bd267f7e08e176b07fa1cd3941af4f7f9b11",
+        "bytes": 7471
+      },
+      "importEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/full-motion-exchange.json",
+        "sha256": "2573bc64e4d0670705dc8784a0dc32814bbf6eaf9f4c6128f18d220bab01db36",
+        "bytes": 3057
+      },
+      "roundtripEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/roundtrip-results.json",
+        "sha256": "a1972c963624493dfd7d6b3cc40f3f29b6591fc6ca32c8091b175f4d7545bee5",
+        "bytes": 4930
+      },
+      "helperEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/male-helper-trace.json",
+        "sha256": "62fb5525ae511ad6c787e37dd66e81805dad0cdf66c4886ebca6180973349037",
+        "bytes": 216368
+      },
+      "routeEvidence": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/male-route-summary.json",
+        "sha256": "62586aa74f7738b13442a9eb1201bff6d0df87838444f912b142cdaf80197699",
+        "bytes": 21962
+      },
+      "matchedRearHold": {
+        "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/matched-captures/male-right-back-2067ms.png",
+        "sha256": "daaa6139921417d31b69fab6222d21af48f830449b2f201799370670c6e36e90",
+        "bytes": 1153077
+      },
+      "helperMaximum": {
+        "CC_Base_R_Clavicle": {
+          "localExcursionDeg": 39.99999551387989,
+          "frame": 51,
+          "seconds": 1.7
+        },
+        "CC_Base_R_Upperarm": {
+          "localExcursionDeg": 149.2242358252933,
+          "frame": 90,
+          "seconds": 3
+        },
+        "CC_Base_R_UpperarmTwist01": {
+          "localExcursionDeg": 104.41467714117506,
+          "frame": 52,
+          "seconds": 1.7333333333333334
+        },
+        "CC_Base_R_UpperarmTwist02": {
+          "localExcursionDeg": 52.20733124216534,
+          "frame": 90,
+          "seconds": 3
+        }
+      },
+      "largestLateralHandDeparture": {
+        "frame": 34,
+        "seconds": 1.1333333333333333,
+        "handWorldM": [
+          -0.7474008555894026,
+          1.603296328098453,
+          0.12673933725417053
+        ],
+        "deltaXM": -0.3861421001095998
+      }
+    }
+  ],
+  "exchange": {
+    "casesPassed": 9,
+    "casesFailed": 0,
+    "checkpointsPerCase": 5,
+    "sampleHz": 30,
+    "framesPerCase": 118,
+    "durationMs": 3900,
+    "toleranceM": 0.0001,
+    "maxImportBoneErrorM": 0.000029715965181977042,
+    "maxImportSkinNearestVertexErrorM": 0.000009478521860728506,
+    "maxRoundtripBoneErrorM": 0.00002968510586198029,
+    "maxRoundtripSkinNearestVertexErrorM": 0.000009991847308970351,
+    "scope": "Measured bone heads and sparse rendered skin samples at five times; roundtrip success does not establish whole-surface, motion, clinical or host acceptance."
+  },
+  "captures": {
+    "total": 99,
+    "fullBody": 81,
+    "matchedMaleRight": 18,
+    "inspection": "Viewed male/right rear approach, hold and return captures for all three inputs plus their whole-body side hold views. Other body/side/time quality reviews remain open."
+  },
+  "observations": [
+    "Same160deg authored target,2.0667s and matched rear camera reproduce a sharp folded/pinched flexion shoulder surface versus a smoother abduction surface. The registered180deg flexion also shows the fold.",
+    "Male/right exported helper maxima repeat clean-main numerical baseline within export precision: Twist0163.934deg for160flexion,6.836deg for160abduction,104.415deg for180flexion. These local quaternion excursions are cosmetic deformation measurements, not anatomical GH/ST or axial rotation.",
+    "Flexion hand route bows laterally during transitions relative to its initial X:160deg maximum0.257735m at3.4667s;180deg maximum0.386142m at1.1333s. This supports investigating coordinated per-bone interpolation as well as helper twist; no anatomical threshold is inferred."
+  ],
+  "hypotheses": [
+    "Inverse girdle compensation changes local upper-arm rotation that the helper distributor treats as twist. Skin cause requires a controlled overlay comparison.",
+    "Girdle and humerus compensate at keyframes and then interpolate separately. Matched trajectory evidence supports investigating transient coordination."
+  ],
+  "remaining": [
+    "Author a correction only after scoped acceptance and a controlled diagnosis; baseline armatures have editable sampled animation but no dedicated right-arm IK controller.",
+    "Retained primary reference trajectories/models, permissions and frame/body mapping remain missing; existing verified papers do not supply those measurements.",
+    "Full-surface deformation, all applicable sides/phases/loops, both hosts and native applicability remain unreviewed.",
+    "Original active-floor work stays separate; no overlap or changes to its runtime/tool sources."
+  ],
+  "nextAction": "Within existing shoulder coordination work unit, compare local-helper extraction and coordinated trajectory against these retained baseline clips, define reference-supported criteria, then author one bounded shared correction in Blender.",
+  "artifactInventory": {
+    "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/artifacts.json",
+    "sha256": "72ff8ad5b19c27241616d78b1361e1991e59fa43a1d30dc546baaab9ebbe3d4c",
+    "bytes": 38245
+  }
+}

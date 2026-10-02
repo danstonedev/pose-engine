@@ -1,0 +1,101 @@
+{
+  "blenderVersion": "5.2.2 LTS",
+  "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+  "toleranceM": 0.0001,
+  "scope": "Bone and rendered-skin exchange. Movement quality remains a separate review.",
+  "cases": [
+    {
+      "id": "male-shoulder-flexion-160",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4547302021500357e-05,
+          "maxSkinErrorM": 5.60304260943667e-06
+        },
+        {
+          "timeSec": 0.26666666666666666,
+          "maxBoneErrorM": 1.4547302021500357e-05,
+          "maxSkinErrorM": 9.478521860728506e-06
+        },
+        {
+          "timeSec": 1.1666666666666667,
+          "maxBoneErrorM": 1.4547302021500357e-05,
+          "maxSkinErrorM": 9.478521860728506e-06
+        },
+        {
+          "timeSec": 2.066666666666667,
+          "maxBoneErrorM": 1.4547302021500357e-05,
+          "maxSkinErrorM": 9.478521860728506e-06
+        },
+        {
+          "timeSec": 3.9000000000000004,
+          "maxBoneErrorM": 1.4547302021500357e-05,
+          "maxSkinErrorM": 9.478521860728506e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-shoulder-flexion-160",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.9715965181977042e-05,
+          "maxSkinErrorM": 2.0748664155689767e-06
+        },
+        {
+          "timeSec": 0.26666666666666666,
+          "maxBoneErrorM": 2.9715965181977042e-05,
+          "maxSkinErrorM": 5.477028025779873e-06
+        },
+        {
+          "timeSec": 1.1666666666666667,
+          "maxBoneErrorM": 2.9715965181977042e-05,
+          "maxSkinErrorM": 5.706269348593196e-06
+        },
+        {
+          "timeSec": 2.066666666666667,
+          "maxBoneErrorM": 2.9715965181977042e-05,
+          "maxSkinErrorM": 8.897927727957722e-06
+        },
+        {
+          "timeSec": 3.9000000000000004,
+          "maxBoneErrorM": 2.9715965181977042e-05,
+          "maxSkinErrorM": 5.477028025779873e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-shoulder-flexion-160",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.2773741766938813e-05,
+          "maxSkinErrorM": 3.380111593287438e-06
+        },
+        {
+          "timeSec": 0.26666666666666666,
+          "maxBoneErrorM": 1.2773741766938813e-05,
+          "maxSkinErrorM": 5.119076377013698e-06
+        },
+        {
+          "timeSec": 1.1666666666666667,
+          "maxBoneErrorM": 1.2773741766938813e-05,
+          "maxSkinErrorM": 7.90008925832808e-06
+        },
+        {
+          "timeSec": 2.066666666666667,
+          "maxBoneErrorM": 1.2773741766938813e-05,
+          "maxSkinErrorM": 8.924489520723e-06
+        },
+        {
+          "timeSec": 3.9000000000000004,
+          "maxBoneErrorM": 1.2773741766938813e-05,
+          "maxSkinErrorM": 5.119076377013698e-06
+        }
+      ],
+      "passed": true
+    }
+  ]
+}
