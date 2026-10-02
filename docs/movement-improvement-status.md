@@ -9,7 +9,7 @@ labels are not a current inventory.
 
 Lower-reach follow-up: the Blender-derived lower reach now raises the wrist 3.57–4.31 cm
 on all bodies. All 12 sampled trajectories retain canonical/rendered torso/head
-clearance and shoulder capacity. This change passes 2,643 engine tests; host shipment is tracked separately;
+clearance and shoulder capacity. This change passed 2,643 engine tests and shipped in engine #167, simMOVE #130 and simLAB #333;
 the opposite-scapular endpoint remains open. See [the measured change](lower-reach-followup.md#blender-derived-improvement--1-october-2026).
 
 ## Standing stance and dowel shipment
@@ -47,7 +47,7 @@ Blender now has a shared body-material authoring bridge in simMOVE. One profile
 covers 12 regions, including the head and both cervical segments, and is consumed
 by native physics across core movement families. The native collision models
 can be reviewed in Blender, and exported profiles imported into the local
-physics editor. This is a native material authoring bridge; deployment is tracked in the host PR.
+physics editor. The authoring/material foundation shipped in simMOVE #130; simLAB #333 pins the paired engine. Native calculation remains local development only under simMOVE's existing guard.
 
 Whole-body surface coverage and host integration take priority over more
 isolated endpoint fitting. The companion simMOVE foundation now gives all 23 body segments passive contact
@@ -79,7 +79,7 @@ does not close it.
 | Priority | Work | Confirmed remainder | Evidence needed to close |
 |---|---|---|---|
 | 0 | Whole-body contact fidelity - foundation implemented | Shared Blender/native material profile covers head, both neck segments and all limb/trunk regions. All 23 native segments now have contact cells, with measured lumbar geometry and neutral torso seam coverage. Posed seam continuity and complete skin coverage remain open. | Continuous source-skin coverage, bounded intentional contact/compression, native model checks and shared live/sampled behavior. Material exchange alone does not close body realism. |
-| 1 | Lower hand-behind-back reach — improved locally | Blender-derived coordination raises the wrist 3.57–4.31 cm, with zero measured canonical/rendered torso/head envelope penetration at 60 Hz in 12 contexts. Deployment, opposite-scapular contact and reciprocal fist completion remain open. See [measurements](lower-reach-followup.md). | Calibrated endpoint/palm contact, clinical review and live-host agreement on all bodies/sides. Retain the existing ROM/capacity and clearance gates; record genuinely unreachable targets explicitly. |
+| 1 | Lower hand-behind-back reach — improvement shipped | Blender-derived coordination raises the wrist 3.57–4.31 cm, with zero measured canonical/rendered torso/head envelope penetration at 60 Hz in 12 contexts. Engine #167 and both host integrations shipped. Opposite-scapular contact and reciprocal fist completion remain open. See [measurements](lower-reach-followup.md). | Calibrated endpoint/palm contact, clinical review and live-host agreement on all bodies/sides. Retain the existing ROM/capacity and clearance gates; record genuinely unreachable targets explicitly. |
 | 2 | Loaded palm contact | Chair assistance and assessment push-up/rotary-clearing still lack demonstrated flat-palm skin contact. Bird-dog support/release also needs continued surface validation. | Actual skin contact and no penetration through setup, loading, release and return, with patient bounds retained. Bone anchors alone are insufficient. |
 | 3 | In-place gait grounding | The September 29 studio review retained sliding, toe-floor and some hand/thigh warnings. Travel-gait clearance tests do not establish in-place contact validity. | Reproduce each warning on current source, distinguish frame-time-dependent diagnostics from geometric defects, then pass floor/clearance checks across body models and playback speeds. |
 | 4 | Restricted squat geometry | Default support was improved; limited ankle range and restricted-depth cases remain incompletely validated. | Capacity sweeps with achieved depth, sole contact, balance estimate and explicit refusal/residual reporting. Default-squat passes do not close this item. |
