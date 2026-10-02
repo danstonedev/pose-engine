@@ -26,10 +26,10 @@
     "bones": 101,
     "table": 101,
     "coverage": 291,
-    "defects": 71,
+    "defects": 73,
     "references": 27,
-    "findings": 298,
-    "sources": 89,
+    "findings": 305,
+    "sources": 96,
     "workUnits": 10
   },
   "pageErrors": [],

@@ -1,0 +1,70 @@
+{
+  "sourceBefore": "0e9aa287bfd938dcd3bfb5486246cadf542e5365d760f9dc0e9ad91dd9a05ade",
+  "scriptSha256": "d374b546c0ced877923c5cbc7913e7d277f14802c47e8d4db111e4529825297b",
+  "sampleHz": 60,
+  "globalRomClamp": false,
+  "scope": "Fresh rig for each run; all authored elbow target angles perturbed by ±5e-8 degrees under the existing restrictive-patient scenario. This tests sensitivity, not attainable contact or movement acceptance.",
+  "tolerances": {
+    "rotationRadians": 0.00017453292519943296,
+    "rotationDegrees": 0.01,
+    "trackedPositionM": 0.0001,
+    "provenance": "Existing browser stage parity checks; stricter than floorPalmSupports rotational tolerance"
+  },
+  "cases": [
+    {
+      "variant": "neutral",
+      "deltaDeg": -5e-8,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "frames": 325,
+      "elapsedMs": 6690.457499999999,
+      "maximumRotation": {
+        "radians": 0.0005559666768469088,
+        "degrees": 0.031854544133241576,
+        "key": "L_UpperArm",
+        "tMs": 4550
+      },
+      "maximumPosition": {
+        "meters": 0.00010549860339135824,
+        "key": "L_Forearm",
+        "tMs": 4550
+      },
+      "patientViolations": [],
+      "firstDifferenceFailure": {
+        "metric": "rotation",
+        "key": "L_Hand",
+        "tMs": 4516.666666666667,
+        "radians": 0.0002128129712890343
+      },
+      "passed": false
+    },
+    {
+      "variant": "neutral",
+      "deltaDeg": 5e-8,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "frames": 325,
+      "elapsedMs": 7188.0977,
+      "maximumRotation": {
+        "radians": 0.004093510486941256,
+        "degrees": 0.23454087429427647,
+        "key": "L_UpperArm",
+        "tMs": 4516.666666666667
+      },
+      "maximumPosition": {
+        "meters": 0.0015217384793462254,
+        "key": "L_Pinky1",
+        "tMs": 4516.666666666667
+      },
+      "patientViolations": [],
+      "firstDifferenceFailure": {
+        "metric": "rotation",
+        "key": "L_Shoulder",
+        "tMs": 4516.666666666667,
+        "radians": 0.0008279019123077175
+      },
+      "passed": false
+    }
+  ],
+  "sourceAfter": "0e9aa287bfd938dcd3bfb5486246cadf542e5365d760f9dc0e9ad91dd9a05ade",
+  "sourceStable": true,
+  "passed": false
+}

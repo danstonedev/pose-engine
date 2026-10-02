@@ -1,0 +1,181 @@
+{
+  "scope": "Read-only algebra experiment: source QuickHull and polar dual before/after near-identical dual-vertex welding. Collider runtime is unchanged.",
+  "results": [
+    {
+      "variant": "female",
+      "tolerance": null,
+      "outer": {
+        "maxOriginalExcess": 4.863887070882811e-13,
+        "maxDualExcess": 0.000017352658554514733,
+        "minOriginalDistance": 0.07041245609187004,
+        "minimumDualFaceArea": 3.4317376369641976e-11,
+        "dualInputs": 288,
+        "dualUnique": 185
+      },
+      "core": {
+        "maxOriginalExcess": 4.863887070882811e-13,
+        "maxDualExcess": 0.00009847017612063524,
+        "minOriginalDistance": 0.07041245609187004,
+        "minimumDualFaceArea": 5.2438507724298634e-11,
+        "dualInputs": 288,
+        "dualUnique": 185
+      },
+      "minimumSourcePaddingM": -0.001869069372930604,
+      "minimumCoreThicknessM": 0.003298189837807941
+    },
+    {
+      "variant": "female",
+      "tolerance": 1e-9,
+      "outer": {
+        "maxOriginalExcess": 4.863887070882811e-13,
+        "maxDualExcess": 5.219824572577636e-11,
+        "minOriginalDistance": 0.07041245609187004,
+        "minimumDualFaceArea": 2.6444539941066553e-8,
+        "dualInputs": 288,
+        "dualUnique": 182
+      },
+      "core": {
+        "maxOriginalExcess": 4.863887070882811e-13,
+        "maxDualExcess": 6.157740983780968e-11,
+        "minOriginalDistance": 0.07041245609187004,
+        "minimumDualFaceArea": 6.63324579734104e-7,
+        "dualInputs": 288,
+        "dualUnique": 182
+      },
+      "minimumSourcePaddingM": 0.0029999979689307177,
+      "minimumCoreThicknessM": 0.007999997987303747
+    },
+    {
+      "variant": "female",
+      "tolerance": 1e-8,
+      "outer": {
+        "maxOriginalExcess": 4.863887070882811e-13,
+        "maxDualExcess": 5.219824572577636e-11,
+        "minOriginalDistance": 0.07041245609187004,
+        "minimumDualFaceArea": 2.6444539941066553e-8,
+        "dualInputs": 288,
+        "dualUnique": 182
+      },
+      "core": {
+        "maxOriginalExcess": 4.863887070882811e-13,
+        "maxDualExcess": 6.157740983780968e-11,
+        "minOriginalDistance": 0.07041245609187004,
+        "minimumDualFaceArea": 6.63324579734104e-7,
+        "dualInputs": 288,
+        "dualUnique": 182
+      },
+      "minimumSourcePaddingM": 0.0029999979689307177,
+      "minimumCoreThicknessM": 0.007999997987303747
+    },
+    {
+      "variant": "female",
+      "tolerance": 1e-7,
+      "outer": {
+        "maxOriginalExcess": 4.863887070882811e-13,
+        "maxDualExcess": 5.219824572577636e-11,
+        "minOriginalDistance": 0.07041245609187004,
+        "minimumDualFaceArea": 2.6444539941066553e-8,
+        "dualInputs": 288,
+        "dualUnique": 182
+      },
+      "core": {
+        "maxOriginalExcess": 4.863887070882811e-13,
+        "maxDualExcess": 6.157740983780968e-11,
+        "minOriginalDistance": 0.07041245609187004,
+        "minimumDualFaceArea": 6.63324579734104e-7,
+        "dualInputs": 288,
+        "dualUnique": 182
+      },
+      "minimumSourcePaddingM": 0.0029999979689307177,
+      "minimumCoreThicknessM": 0.007999997987303747
+    },
+    {
+      "variant": "male",
+      "tolerance": null,
+      "outer": {
+        "maxOriginalExcess": 4.687777943601645e-12,
+        "maxDualExcess": 0.6155201311209186,
+        "minOriginalDistance": 0.07506008367222014,
+        "minimumDualFaceArea": 8.838331999197865e-10,
+        "dualInputs": 252,
+        "dualUnique": 162
+      },
+      "core": {
+        "maxOriginalExcess": 4.687777943601645e-12,
+        "maxDualExcess": 4.127119824628726,
+        "minOriginalDistance": 0.07506008367222014,
+        "minimumDualFaceArea": 1.3020491232536358e-9,
+        "dualInputs": 252,
+        "dualUnique": 161
+      },
+      "minimumSourcePaddingM": 0.0029999999708461844,
+      "minimumCoreThicknessM": -0.2675815396476691
+    },
+    {
+      "variant": "male",
+      "tolerance": 1e-9,
+      "outer": {
+        "maxOriginalExcess": 4.687777943601645e-12,
+        "maxDualExcess": 4.0115999411227676e-10,
+        "minOriginalDistance": 0.07506008367222014,
+        "minimumDualFaceArea": 0.000040102505407781886,
+        "dualInputs": 252,
+        "dualUnique": 155
+      },
+      "core": {
+        "maxOriginalExcess": 4.687777943601645e-12,
+        "maxDualExcess": 4.67442085039238e-10,
+        "minOriginalDistance": 0.07506008367222014,
+        "minimumDualFaceArea": 0.0000058527557967745865,
+        "dualInputs": 252,
+        "dualUnique": 155
+      },
+      "minimumSourcePaddingM": 0.0029999999783790806,
+      "minimumCoreThicknessM": 0.007999999978679062
+    },
+    {
+      "variant": "male",
+      "tolerance": 1e-8,
+      "outer": {
+        "maxOriginalExcess": 4.687777943601645e-12,
+        "maxDualExcess": 4.0115999411227676e-10,
+        "minOriginalDistance": 0.07506008367222014,
+        "minimumDualFaceArea": 0.000040102505407781886,
+        "dualInputs": 252,
+        "dualUnique": 155
+      },
+      "core": {
+        "maxOriginalExcess": 4.687777943601645e-12,
+        "maxDualExcess": 4.67442085039238e-10,
+        "minOriginalDistance": 0.07506008367222014,
+        "minimumDualFaceArea": 0.0000058527557967745865,
+        "dualInputs": 252,
+        "dualUnique": 155
+      },
+      "minimumSourcePaddingM": 0.0029999999783790806,
+      "minimumCoreThicknessM": 0.007999999978679062
+    },
+    {
+      "variant": "male",
+      "tolerance": 1e-7,
+      "outer": {
+        "maxOriginalExcess": 4.687777943601645e-12,
+        "maxDualExcess": 4.0115999411227676e-10,
+        "minOriginalDistance": 0.07506008367222014,
+        "minimumDualFaceArea": 0.000040102505407781886,
+        "dualInputs": 252,
+        "dualUnique": 155
+      },
+      "core": {
+        "maxOriginalExcess": 4.687777943601645e-12,
+        "maxDualExcess": 4.67442085039238e-10,
+        "minOriginalDistance": 0.07506008367222014,
+        "minimumDualFaceArea": 0.0000058527557967745865,
+        "dualInputs": 252,
+        "dualUnique": 155
+      },
+      "minimumSourcePaddingM": 0.0029999999783790806,
+      "minimumCoreThicknessM": 0.007999999978679062
+    }
+  ]
+}
