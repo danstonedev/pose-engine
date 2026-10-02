@@ -33,4 +33,9 @@ jobs:
         run: npm run check
 
       - name: Unit tests (vitest)
-        run: npm test
+        run: npm test -- --exclude src/__tests__/handReachLatch.test.ts --reporter=dot
+
+      # Keep the original wall-clock calibration and 2x budget, but do not
+      # compete with expensive mesh-sweep workers on a shared CPU runner.
+      - name: Hand reach latch and isolated cost regression
+        run: npm test -- src/__tests__/handReachLatch.test.ts --reporter=dot

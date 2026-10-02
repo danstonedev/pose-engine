@@ -1,5 +1,5 @@
 import {armHeadContact} from './helpers/armHeadContact';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { Line3, Vector3, type Object3D, type SkinnedMesh } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -17,6 +17,10 @@ import {computeBalanceTimeline} from '../services/centerOfMass';
 import { bilateralFootSetupMs } from '../services/motionSupport';
 import { overheadDowelPlacement } from '../services/overheadDowel';
 import { withStandingStance } from '../services/stanceTransition';
+
+// This file can spend over a minute in synchronous rig sampling on CI. Give
+// Vitest's worker transport an event-loop turn between tests to report results.
+beforeEach(() => new Promise<void>(resolve => setTimeout(resolve, 0)));
 
 describe.each(['female','male','neutral'] as const)('%s overhead movement geometry', variant => {
   const cfg = BODY_VARIANTS[variant];
