@@ -14,6 +14,7 @@ export function solveHandContactPose(
   rest: JointAngleRestReference | null | undefined,
   constraints?: RomScenarioConstraints | null,
   elbowDirection?: THREE.Vector3,
+  minimumElbowY?: number,
 ): void {
   if (!rest || !solver.distalCtx) return;
   const { bones, canonicalKeys } = solver.ctx;
@@ -24,8 +25,7 @@ export function solveHandContactPose(
   const axes = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
   const point = new THREE.Vector3(), rotation = new THREE.Quaternion();
   const angularScale = .12;
-  let elbowTarget: THREE.Vector3 | undefined;
-  if (elbowDirection) {
+  const preferredElbow = () => {
     const shoulder = bones[2]!.getWorldPosition(new THREE.Vector3());
     const elbow = bones[1]!.getWorldPosition(new THREE.Vector3());
     const wrist = hand.getWorldPosition(new THREE.Vector3());
@@ -34,9 +34,9 @@ export function solveHandContactPose(
     const distance = Math.max(1e-8, direction.length());
     direction.divideScalar(distance);
     const along = Math.min(a, Math.max(-a, (a * a - b * b + distance * distance) / (2 * distance)));
-    const radial = elbowDirection.clone().addScaledVector(direction, -elbowDirection.dot(direction)).normalize();
-    elbowTarget = shoulder.addScaledVector(direction, along).addScaledVector(radial, Math.sqrt(Math.max(0, a * a - along * along)));
-  }
+    const radial = elbowDirection!.clone().addScaledVector(direction, -elbowDirection!.dot(direction)).normalize();
+    return shoulder.addScaledVector(direction, along).addScaledVector(radial, Math.sqrt(Math.max(0, a * a - along * along)));
+  };
   const residual = (): number[] => {
     root.updateWorldMatrix(true, true);
     hand.getWorldPosition(point).sub(position);
@@ -45,7 +45,12 @@ export function solveHandContactPose(
     const length = Math.hypot(rotation.x, rotation.y, rotation.z);
     const scale = length > 1e-10 ? -angularScale * 2 * Math.atan2(length, rotation.w) / length : -2 * angularScale;
     const result = [point.x, point.y, point.z, rotation.x * scale, rotation.y * scale, rotation.z * scale];
-    if (elbowTarget) result.push(...bones[1]!.getWorldPosition(new THREE.Vector3()).sub(elbowTarget).multiplyScalar(.25).toArray());
+    // A planted palm cannot be solved by folding the forearm through its
+    // support plane. Keep this inequality in the final palm refinement too.
+    if (minimumElbowY != null) result.push(Math.min(0, bones[1]!.getWorldPosition(new THREE.Vector3()).y - minimumElbowY));
+    // A bend guide follows the shoulder. Freezing its initial world-space
+    // point also constrains girdle translation and distorts shoulder motion.
+    if (elbowDirection) result.push(...bones[1]!.getWorldPosition(new THREE.Vector3()).sub(preferredElbow()).multiplyScalar(.25).toArray());
     return result;
   };
   const clamp = (index: number) => clampBoneToRom(bones[index]!, canonicalKeys[index], rest, constraints, true);
@@ -112,5 +117,5 @@ export function solveHandContactPose(
   root.updateWorldMatrix(true, true);
   // The pole chooses the elbow branch. Finish on the fixed palm constraint so
   // a small disagreement with the guide cannot drag the hand along the floor.
-  if (elbowDirection) solveHandContactPose(solver, position, orientation, rest, constraints);
+  if (elbowDirection) solveHandContactPose(solver, position, orientation, rest, constraints, undefined, minimumElbowY);
 }

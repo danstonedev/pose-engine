@@ -84,16 +84,54 @@ plank, with bounded palm orientation and a deterministic arm guide. The three
 self-contained floor assessments start in their authored setup pose; floor
 transfers are separate movements.
 
-The full 3,555-test app/engine run and isolated 19-test hand-latch run pass, including the
+At development checkpoint `82c9c5b`, the full 3,555-test app/engine run and isolated 19-test hand-latch run passed, including the
 unchanged continuity and parked-playback performance gates. New actual-rig tests
 check palm landmarks within 2 mm, forward fingers, elbow direction, patient wrist
 bounds, incoming contacts and agreement across playback rates. Twelve animations
 passed Blender import/export in `floor-support-motion-5`, following the earlier
 review's discovery of the standing-through-floor entrance. The prepared floor
-starts and six motion phases have been inspected on all three models. Typecheck
-reports zero errors/warnings. Both-host playback and renewed native qualification
-remain required before release. Skin pressure/compression and complete
-clinical endpoints are still open.
+starts and six motion phases were inspected on all three models. Typecheck
+reported zero errors/warnings. These results do not qualify subsequent edits.
+
+Subsequent simLAB catalog checks found elbow penetration in the low push-up and
+press-up positions. The earlier Blender render plane was also too low. The current
+candidate exports the engine's floor-reference height and uses it explicitly in
+review. Elbow guides now follow the moving shoulder; keeping a fixed world-space
+elbow point had constrained the girdle incorrectly. Blender authoring projects 3
+and 5 set upward/tucked bend guides. The unchanged palm and clinical gates plus a
+new elbow-clearance check pass in all 21 floor tests; 64 adjacent support tests
+and a clean typecheck also pass (`floor-elbow-regression-12.log`,
+`floor-elbow-check-12.log`). Rejected fits remain recorded in `floor-elbow-guide-*`.
+
+All twelve current clips pass bone/skin import and replay in
+`floor-support-motion-6/full-motion-review.blend`. Side/overhead phase review shows
+improved arms, but a full-vertex Blender audit still finds skin below the engine
+contact plane: palms/fingers about 30–41 mm and flexion-clearing feet/toes up to
+131 mm. That plane is the lowest rest contact-bone height, 15–20 mm above world
+zero; host floor alignment also needs reconciliation. The corrected region report
+is `skin-floor-clearance-2.json`; the first report misclassified named toe bones
+as fingers and is retained as invalid evidence. Stable bone anchors therefore do
+not establish skin contact. Generic push-up's standalone standing-to-floor setup,
+press-up extension, flexion-clearing heel contact, and loaded compression remain open.
+
+The new simLAB sampler comparison passes 9/9 on checkpoint `82c9c5b`; its arms
+match the shared engine. Full current playback qualification in both hosts is
+still pending. Fresh native trials of that checkpoint with the unqualified v17
+axis correction completed 7 of 8 changed floor contexts; none passed tracking.
+Male trunk push-up stopped at 0.169 s on the unchanged joint-speed gate. Four
+shoulder-clearing controls completed and passed tracking. This subset does not
+replace the historical 44/64 completion and 32/64 tracking baseline.
+
+The current elbow-guide candidate was also re-exported and tested natively
+(`blender-floor-native-3.json`, `blender-floor-native-4.json`). Of the eight changed
+floor contexts, four complete and one passes tracking: female extension clearing
+(pelvis 36.9 mm, joint 14.82 degrees, key-pose segment 12.33 degrees). Male trunk
+push-up now completes, but both trunk variants still fail tracking. All four
+flexion-clearing contexts now stop on the unchanged 1 mm self-contact residual
+gate. Four shoulder-clearing controls still complete and pass tracking. This
+mixed result is unqualified; it must not be promoted as an overall physics gain.
+The isolated 19-test hand-latch file also passes for this candidate, retaining
+the timing gate (`floor-elbow-hand-latch-12.log`).
 
 Next: qualify loaded palms and source/native tracking in the recovered floor movements, then the 20 remaining stops (hurdle 4, lunge 4, rotary 4, multisegmental flexion 2, rotation 4, legacy squat 2). Blender now contains timed native collider review scenes, including head/neck, but continuous skin coverage and posed joint seams remain open. The shared prone source also passes a neutral-model playback regression. Native neutral fixtures remain open; host rollout is tracked by the companion shipment and PRs.
 

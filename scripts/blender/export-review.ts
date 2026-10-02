@@ -20,6 +20,7 @@ import { sampleComposedMotion, authoredToTrajectoryTimeMap } from '../../src/ser
 import { resolveComposedMotion, type ComposedMotion } from '../../src/services/motionSequence';
 import { applyCustomPose, serializeCustomPose } from '../../src/services/poseRig';
 import { createStageTwistOverlay } from '../../src/services/stageTwistOverlay';
+import { captureFloorReference } from '../../src/services/rootMotion';
 
 // GLTFExporter uses this browser API to package buffers; these review materials
 // intentionally have no textures, so no browser canvas/image shim is needed.
@@ -71,6 +72,7 @@ for (const { variant, side, movement } of cases) {
   const skeleton = skin.skeleton;
   const rest = captureJointAngleRestReference(skeleton, cfg);
   const baselinePose = serializeCustomPose(skeleton, cfg, variant);
+  const floorY = captureFloorReference(skeleton, cfg).floorY;
   const twist = createStageTwistOverlay(); twist.reset(skeleton, cfg);
   const authored = customMotion ?? (movement === 'push-up' ? buildPushUp({ reps: 1 }) : floorReview ? BODY_ASSESSMENT_MOTIONS[movement](side) : UPPER_ASSESSMENT_MOTIONS['ue-pattern1'](side));
   const motion = resolveComposedMotion(authored, cfg);
@@ -112,7 +114,7 @@ for (const { variant, side, movement } of cases) {
   const glb = await new GLTFExporter().parseAsync(root, { binary: true, animations: [clip], onlyVisible: false }) as ArrayBuffer;
   writeFileSync(resolve(output, `${id}.glb`), Buffer.from(glb), { flag: 'wx' });
   const record = { id, variant, side, movement, file: `${id}.glb`, sourceModelSha256: hash(bytes), glbSha256: hash(new Uint8Array(glb)),
-    frames: recording.frames.length, durationMs, setupFrame: Math.round(setupMs / 1000 * manifest.fps),
+    frames: recording.frames.length, durationMs, floorY, setupFrame: Math.round(setupMs / 1000 * manifest.fps),
     holdFrame: 1 + Math.round((generalReview ? setupMs + (durationMs - setupMs) / 2 : map.toTrajectory(4100)) / 1000 * manifest.fps), expected };
   writeFileSync(resolve(output, `${id}.expected.json`), JSON.stringify(record), { flag: 'wx' });
   manifest.cases.push({ ...record, expected: `${id}.expected.json` });

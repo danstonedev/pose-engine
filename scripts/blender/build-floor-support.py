@@ -8,7 +8,9 @@ import sys
 from pathlib import Path
 from mathutils import Vector, Quaternion
 
-folder = Path(sys.argv[sys.argv.index('--') + 1]).resolve()
+args = sys.argv[sys.argv.index('--') + 1:]
+folder = Path(args[0]).resolve()
+elbow_up_m = float(args[1]) if len(args) > 1 else -.05
 manifest = json.loads((folder / 'manifest.json').read_text())
 project = folder / 'floor-support.blend'
 if project.exists():
@@ -27,7 +29,7 @@ def presentation(scene):
     scene.world.use_nodes = True
     scene.world.node_tree.nodes['Background'].inputs['Color'].default_value = (.14, .18, .21, 1)
     scene.world.node_tree.nodes['Background'].inputs['Strength'].default_value = .5
-    bpy.ops.mesh.primitive_plane_add(size=10, location=(0, 0, -.025))
+    bpy.ops.mesh.primitive_plane_add(size=10, location=(0, 0, case.get('floorY', -.025)))
     floor = bpy.context.object
     floor.name = 'Floor reference'
     material = bpy.data.materials.new('Floor')
@@ -86,7 +88,7 @@ for case in manifest['cases']:
         reach = wrist - points[0]
         if reach.length > .985 * (upper_length + lower_length):
             wrist = points[0] + reach.normalized() * .985 * (upper_length + lower_length)
-        pole_point = points[0] + bp((sign * .16, -.05, -.4))
+        pole_point = points[0] + bp((sign * .16, elbow_up_m, -.4))
         goal = bpy.data.objects.new(side + ' palm anchor', None)
         goal.empty_display_type, goal.empty_display_size = 'ARROWS', .065
         goal.location = wrist

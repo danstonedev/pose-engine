@@ -661,7 +661,7 @@ export function plantReleaseLengthMs(
 export interface ContactPlant {
   holdOrientation?: boolean | 'palm-down';
   /** Placement relative to the setup shoulder, in upper-arm lengths. */
-  palmSupport?: { outward: number; forward: number; elbowOutward: number; elbowBackward: number };
+  palmSupport?: { outward: number; forward: number; elbowOutward: number; elbowBackward: number; elbowUpward?: number };
   supportForward?: THREE.Vector3;
   targetOrientation?: THREE.Quaternion | null;
   /** Approach the authored layout during setup; an existing floor contact keeps
@@ -1250,9 +1250,10 @@ export function stepContactPlants(
       const pole = layout && fp.supportForward ? new THREE.Vector3()
         .crossVectors(new THREE.Vector3(0, 1, 0), fp.supportForward)
         .multiplyScalar(layout.elbowOutward * (fp.solver.footKey.startsWith('L_') ? 1 : -1))
-        .addScaledVector(fp.supportForward, -layout.elbowBackward) : undefined;
+        .addScaledVector(fp.supportForward, -layout.elbowBackward)
+        .add(new THREE.Vector3(0, layout.elbowUpward ?? 0, 0)) : undefined;
       solveHandContactPose(fp.solver, held, fp.targetOrientation, fp.rest ?? frame.rest, frame.constraints ?? fp.solver.constraints,
-        fp.palmApproach?.path ? undefined : pole);
+        fp.palmApproach?.path ? undefined : pole, layout && frame.floorY != null ? frame.floorY + .035 : undefined);
     }
     if (beforeApproach) {
       fp.solver.ctx.bones.forEach((bone, index) => bone.quaternion.copy(beforeApproach[index]!.clone().slerp(bone.quaternion, approachWeight)));

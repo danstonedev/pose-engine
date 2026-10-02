@@ -13,6 +13,7 @@ import { sampleComposedMotion, authoredToTrajectoryTimeMap, type RecordedFrame }
 import { sampleMotionChain } from '../services/movementChain';
 import { BODY_ASSESSMENT_MOTIONS } from '../services/assessmentBodyMotions';
 import { buildPushUp, buildGetDownToPlank } from '../services/movementPostures';
+import { captureFloorReference } from '../services/rootMotion';
 
 const point = (frame: RecordedFrame, key: string) => new THREE.Vector3().fromArray(frame.worldTracks![key]!);
 const ids = ['push-up', 'trunk-stability-push-up', 'extension-clearing', 'flexion-clearing'];
@@ -22,6 +23,7 @@ describe.each(['male', 'female', 'neutral'] as const)('%s Blender-authored floor
   let root: THREE.Object3D, skinned: THREE.SkinnedMesh;
   let baseline: ReturnType<typeof serializeCustomPose>, rest: ReturnType<typeof captureJointAngleRestReference>;
   const initialPosition = new THREE.Vector3(), initialQuaternion = new THREE.Quaternion();
+  let floorY: number;
   beforeAll(async () => {
     const bytes = readFileSync(new URL(`../../models/painmap3D_${variant}.runtime.glb`, import.meta.url));
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -31,6 +33,7 @@ describe.each(['male', 'female', 'neutral'] as const)('%s Blender-authored floor
     applyAnatomicPose(root, cfg); root.updateMatrixWorld(true);
     baseline = serializeCustomPose(skinned.skeleton, cfg, variant);
     rest = captureJointAngleRestReference(skinned.skeleton, cfg);
+    floorY = captureFloorReference(skinned.skeleton, cfg).floorY;
     initialPosition.copy(root.position); initialQuaternion.copy(root.quaternion);
   });
   // Browser calibration defaults to unclamped. Explicit supports must still
@@ -70,6 +73,7 @@ describe.each(['male', 'female', 'neutral'] as const)('%s Blender-authored floor
         expect(elbow.elbowFlexion).toBeGreaterThanOrEqual(-.5);
         expect(elbow.elbowFlexion).toBeLessThanOrEqual(150.5);
         const shoulder = point(frame, `${side}_UpperArm`), elbowPoint = point(frame, `${side}_Forearm`);
+        expect(elbowPoint.y - floorY, `${id} ${side} elbow floor clearance at ${frame.tMs}`).toBeGreaterThan(.02);
         expect(Math.abs(elbowPoint.x - shoulder.x), 'elbow does not flare out a full arm length').toBeLessThan(shoulder.distanceTo(elbowPoint) * .8);
       }
     }

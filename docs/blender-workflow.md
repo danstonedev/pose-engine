@@ -74,13 +74,36 @@ export failed the three push-up terminal checks; that evidence is retained.
 on all three push-up models. These are development checkpoints, not final
 acceptance of subsequent contact changes.
 
-The current prepared-start/contact candidate is
+The earlier prepared-start/contact checkpoint is
 `floor-support-motion-5/full-motion-review.blend`: all twelve imports and replay
 comparisons pass. Its `renders` folder covers six phases from the side and three
 supported phases overhead, across all bodies. The prepared floor starts were
 authored separately in `floor-assessment-start-1/floor-assessment-start.blend`.
 That fixes the earlier review's standing-through-floor entrance; it does not
 establish native loaded-contact stability or a completed clinical endpoint.
+
+The subsequent `floor-support-motion-6` project corrects the elbow guide to follow
+the shoulder and includes the engine's measured `floorY` in each exported case.
+All twelve import/replay comparisons pass. The renderer now requires this field;
+the old hard-coded plane at -25 mm hid contact defects. The engine's floor
+reference is a rest bone height, not a measured skin plane, and currently sits
+15–20 mm above world zero. Reconcile that datum with each host before accepting
+floor contact. Projects `floor-support-authoring-3` and `floor-support-authoring-5`
+retain the editable upward and tucked elbow guides; project 4's advanced palm
+candidate failed contact checks and was rejected.
+
+Measure the entire animated skin, including head/neck and fingers/toes:
+
+```powershell
+& 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe' --background --factory-startup --python-exit-code 1 --python pose-engine/scripts/blender/measure-floor-clearance.py -- ../blender-workspace/movement-review-new
+```
+
+This reports every evaluated vertex at every exported sample, with regions
+assigned by dominant skin weight. It measures geometric clearance, without
+claiming pressure or compression. `floor-support-motion-6/skin-floor-clearance-2.json`
+still records hand and lower-limb penetration; the first report's toe/finger
+classification was wrong and is preserved separately. A passing joint check
+does not supersede these skin failures.
 
 Generate phase images from any full-motion review (fresh output folder required):
 

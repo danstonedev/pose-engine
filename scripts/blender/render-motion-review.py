@@ -30,7 +30,9 @@ for case in manifest['cases']:
     if scene.world is None:
         scene.world = bpy.data.worlds.new(case['id'] + ' review world')
     scene.world.color = (.12, .14, .16)
-    bpy.ops.mesh.primitive_plane_add(size=20, location=(0, 0, -.025))
+    if 'floorY' not in case:
+        raise RuntimeError('Re-export with the measured engine floor before reviewing contact clearance')
+    bpy.ops.mesh.primitive_plane_add(size=20, location=(0, 0, case['floorY']))
     floor = bpy.context.object
     floor.name = 'Review support plane'
     material = bpy.data.materials.new(case['id'] + ' floor')
