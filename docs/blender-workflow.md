@@ -1,8 +1,26 @@
 # Blender movement workflow
 
+## Whole-body physics authoring
+
+The companion project `../blender-workspace/whole-body-foundation-v4/body-physics.blend`
+contains the native female/male collision models: 23 segments each, including
+head, both cervical segments and measured lumbar contact. Its 12 regional material controls export a
+profile that simMOVE's local physics editor and native verifier consume.
+See `../simmove/docs/blender-body-physics.md` for generation, import and the
+remaining continuous-surface/host-integration work. This enhances native physics
+authoring; Blender has not replaced the runtime solver.
+
+## Movement authoring
+
 Blender 5.2.2 LTS is now used for visual movement authoring and measured exchange
-with the engine. The initial project is in the implementation workspace at
-`../blender-workspace/movement-review.blend` (relative to this repository).
+with the engine. The latest improved-reach project is in the implementation
+workspace at `../blender-workspace/improved-lower-reach-v2/movement-review.blend`
+(relative to this repository). The initial project is preserved at
+`../blender-workspace/movement-review.blend` for comparison.
+
+The first resulting engine improvement raises the wrist 3.57–4.31 cm and the
+open hand's distal middle-finger joint 9.81–12.25 cm. The original hand target
+was more ambitious than the bounded fit; see [measurements and remaining work](lower-reach-followup.md).
 
 ## Open and use the project
 
@@ -88,10 +106,29 @@ bones through actual joint positions, with offsets preserving the original
 deformation frames. This fixes the authoring tool; it does not establish that
 the production rig is anatomically wrong or complete the lower-reach task.
 
-These results show that the existing incomplete reach survives Blender exchange
-faithfully at the checked samples. The next step is to use the controls to
-investigate shoulder, elbow and palm coordination, then test a candidate against
-the existing engine limits and actual surface clearance.
+The revised reach has also passed this exchange check on all six cases.
+`scripts/blender/fit-reach.ts` fits male-left Blender landmark displacements to
+shared bounded commands on all three bodies and both sides, scaling by arm length and
+penalizing refreshed torso-envelope penetration with rendered twist included.
+Its output is a candidate; the production sampler must still validate both
+sides, open hands/fists and the whole route before changing the recipe.
+
+The authored target JSON contains `variant: "male"`, `side: "L"`, and `baseline`
+and `candidate` maps from original bone names to engine-coordinate points in
+metres. It currently supports this one authoring scene. Example:
+
+```sh
+npx vite-node scripts/blender/fit-reach.ts ../blender-workspace/raised-reach-01/target.json fresh-fit.json
+npx vite-node scripts/characterize-lower-reach.ts fresh-validation.json fresh-fit.json 60
+```
+
+A fourth argument can name a previous fit to refine, and a fifth `hand-only`
+argument limits refinement to forearm rotation and wrist orientation. This was
+used for the final bilateral hand adjustment; every resulting route still went
+through the full 60 Hz validation.
+
+To render matching close-ups, use `scripts/blender/render-comparison.py` with
+`-- <before.blend> <after.blend> <fresh-output-directory>` in background Blender.
 
 API references: [Blender glTF import](https://docs.blender.org/api/main/bpy.ops.import_scene.html)
 and [Blender glTF export](https://docs.blender.org/api/main/bpy.ops.export_scene.html).

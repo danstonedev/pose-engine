@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import { MOVEMENT_TEMPLATES, buildSquat } from '../services/movementTemplates';
 import { MAX_KEYFRAME_MS, resolveComposedMotion } from '../services/motionSequence';
 import type { RomScenarioConstraints } from '../services/romConstraints';
+import { ROM_JOINT_ROWS } from '../services/romRegistry';
 import {
   FMS_POSITIONS,
   TOP_TIER_POSITIONS,
@@ -143,7 +144,9 @@ describe('assessment shoulders preserve calibrated overhead targets and girdle o
             expect(Math.abs(t.clampedDegrees)).toBeLessThanOrEqual(40);
           } else {
             expect(t.motion).toBe('protraction');
-            expect(Math.abs(t.clampedDegrees)).toBeLessThanOrEqual(15);
+            const range=ROM_JOINT_ROWS.find(row=>row.canonicalKey===t.joint)!.fields.find(field=>field.key==='protraction')!.range;
+            expect(t.clampedDegrees).toBeGreaterThanOrEqual(range.min);
+            expect(t.clampedDegrees).toBeLessThanOrEqual(range.max);
           }
         }
       }

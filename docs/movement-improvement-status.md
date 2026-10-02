@@ -7,6 +7,11 @@ This is the current work list. `improvement-roadmap.md` and the older entries in
 `outstanding-work.md` preserve earlier plans and measurements; their old OPEN
 labels are not a current inventory.
 
+Lower-reach follow-up: the Blender-derived lower reach now raises the wrist 3.57–4.31 cm
+on all bodies. All 12 sampled trajectories retain canonical/rendered torso/head
+clearance and shoulder capacity. This change passes 2,643 engine tests; host shipment is tracked separately;
+the opposite-scapular endpoint remains open. See [the measured change](lower-reach-followup.md#blender-derived-improvement--1-october-2026).
+
 ## Implementation in this change
 
 The standing-stance and overhead-dowel implementation passed 2,632 local engine
@@ -36,19 +41,39 @@ preserve the shoulder's complete orientation during an overhead squat.
 - simLAB's accessible goniometer changes shipped in #331. They are a host
   instrument improvement, separate from movement or clinical acceptance.
 
+## Whole-body physics setup — local follow-up
+
+Blender now has a shared body-material authoring bridge in simMOVE. One profile
+covers 12 regions, including the head and both cervical segments, and is consumed
+by native physics across core movement families. The native collision models
+can be reviewed in Blender, and exported profiles imported into the local
+physics editor. This is a native material authoring bridge; deployment is tracked in the host PR.
+
+Whole-body surface coverage and host integration take priority over more
+isolated endpoint fitting. The companion simMOVE foundation now gives all 23 body segments passive contact
+cells. Torso triangle clipping recovers the lumbar surface and retains shared
+neutral seam intersections. Native lumbar displacement is mapped back to the
+actual skin, including vertices with no waist-bone weight. Posed seam continuity
+and full surface coverage still require separate qualification.
+simLAB/kinematic playback parity, neutral-variant native support, finger contact,
+patient material calibration and actual hand/back contact remain open.
+See simMOVE's `docs/blender-body-physics.md` for the implemented scope.
+
 ## Remaining work and completion criteria
 
 Blender 5.2.2 is now integrated into the [movement authoring workflow](blender-workflow.md).
-Six reference clips pass measured import/export comparison; a male-left hand
-control and candidate exporter are available. Next: use that workspace to
-investigate the lower reach, then validate a candidate against the existing
-engine bounds and skin clearance. See [the focused audit plan](lower-reach-followup.md#next-implementation-step).
+Six revised reference clips pass measured import/export comparison. A male-left
+hand control produced the first bounded reach improvement, now checked across
+all bodies and both sides with rendered skin included. Next: calibrate the
+endpoint and investigate the remaining reach/rig limitations. See
+[the focused findings](lower-reach-followup.md).
 The independent-rig calibration item remains open; adding estimated bones alone
 does not close it.
 
 | Priority | Work | Confirmed remainder | Evidence needed to close |
 |---|---|---|---|
-| 1 | Lower hand-behind-back reach — started | The released recipe reaches the low back, not the opposite scapular landmark. Reciprocal fists remain separated. The fresh 12-context baseline retained sampled torso/head clearance and shoulder capacity; a 120-degree elbow candidate was rejected for torso-envelope penetration. See [measurements and next step](lower-reach-followup.md). | All supported bodies and both sides; calibrated endpoint and palm orientation; complete trajectory skin clearance; ROM/capacity compliance; sampled/live agreement. Record genuinely unreachable targets explicitly. |
+| 0 | Whole-body physics/contact setup — started locally | Shared Blender/native material profile covers head, both neck segments and all limb/trunk regions. All 23 native segments now have contact cells, with measured lumbar geometry and neutral torso seam coverage. Posed seam continuity and complete skin coverage remain open. | Continuous source-skin coverage, bounded intentional contact/compression, native model checks and shared live/sampled behavior. Material exchange alone does not close body realism. |
+| 1 | Lower hand-behind-back reach — improved locally | Blender-derived coordination raises the wrist 3.57–4.31 cm, with zero measured canonical/rendered torso/head envelope penetration at 60 Hz in 12 contexts. Deployment, opposite-scapular contact and reciprocal fist completion remain open. See [measurements](lower-reach-followup.md). | Calibrated endpoint/palm contact, clinical review and live-host agreement on all bodies/sides. Retain the existing ROM/capacity and clearance gates; record genuinely unreachable targets explicitly. |
 | 2 | Loaded palm contact | Chair assistance and assessment push-up/rotary-clearing still lack demonstrated flat-palm skin contact. Bird-dog support/release also needs continued surface validation. | Actual skin contact and no penetration through setup, loading, release and return, with patient bounds retained. Bone anchors alone are insufficient. |
 | 3 | In-place gait grounding | The September 29 studio review retained sliding, toe-floor and some hand/thigh warnings. Travel-gait clearance tests do not establish in-place contact validity. | Reproduce each warning on current source, distinguish frame-time-dependent diagnostics from geometric defects, then pass floor/clearance checks across body models and playback speeds. |
 | 4 | Restricted squat geometry | Default support was improved; limited ankle range and restricted-depth cases remain incompletely validated. | Capacity sweeps with achieved depth, sole contact, balance estimate and explicit refusal/residual reporting. Default-squat passes do not close this item. |
