@@ -1400,7 +1400,7 @@
           rootRestScale.copy(root.scale);
           composedRootQuat = [0, 0, 0, 1];
           composedRootTranslate = [0, 0, 0];
-          floorRef = skinned ? captureFloorReference(skinned.skeleton, variantCfg) : null;
+          floorRef = skinned ? captureFloorReference(skinned.skeleton, variantCfg, root) : null;
           footFrames = skinned ? captureFootFrames(skinned.skeleton, variantCfg, rest) : null;
           frameCamera();
 

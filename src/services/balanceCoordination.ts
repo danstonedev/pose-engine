@@ -424,7 +424,8 @@ export function balanceCoordination(
   root.scale.copy(restScale);
   applyCustomPose(skeleton, variantCfg, baselinePose);
   root.updateMatrixWorld(true);
-  const floorRef = captureFloorReference(skeleton, variantCfg);
+  const needsPelvisSurface = resolved.keyframes.some(frame => frame.groundingPosture === 'prone-supported');
+  const floorRef = captureFloorReference(skeleton, variantCfg, needsPelvisSurface ? root : undefined);
   const footFrames = footFramesForCurrentPose(captureFootFrames(skeleton, variantCfg, rest),
     resolved.startFrom === 'current' ? harness.currentPose : null,
     resolved.keyframes.flatMap(k => k.targets.map(t => t.joint)));

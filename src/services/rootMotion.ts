@@ -248,6 +248,8 @@ function contactBones(
  *  returns to under a PLANTED stance. Captured once at anatomic rest. */
 export interface FloorReference {
   restY: Record<string, number>;
+  /** Anterior pelvis skin point in the Hips bone's local frame, measured at rest. */
+  pronePelvisPoint?: [number, number, number];
   /** The ground-plane world-Y (the lowest foot contact's rest-Y) — the level a
    *  NON-foot contact (a hand in a push-up, a knee in quadruped) is grounded to,
    *  and the datum a seat height is measured up from. */
@@ -262,6 +264,7 @@ const _fp = new THREE.Vector3();
 export function captureFloorReference(
   skeleton: THREE.Skeleton,
   variantCfg: BodyVariantConfig,
+  skinRoot?: THREE.Object3D,
 ): FloorReference {
   const restY: Record<string, number> = {};
   for (const { key, bone } of contactBones(skeleton, variantCfg)) {
@@ -269,7 +272,41 @@ export function captureFloorReference(
   }
   const feet = Object.values(restY);
   const floorY = feet.length ? Math.min(...feet) : 0;
-  return { restY, floorY };
+  const reference: FloorReference = { restY, floorY };
+  const hips = boneByCanonicalKey(skeleton, variantCfg).get('Hips');
+  if (skinRoot && hips) {
+    skinRoot.updateWorldMatrix(true, true);
+    let anteriorZ = -Infinity;
+    skinRoot.traverse(object => {
+      const skin = object as THREE.SkinnedMesh;
+      if (!skin.isSkinnedMesh) return;
+      if (!skin.skeleton.bones.includes(hips)) return;
+      // Skin may be weighted to an unmapped pelvis helper below the Hips control.
+      const pelvicInfluence = skin.skeleton.bones.map(bone => {
+        let current: THREE.Object3D | null = bone;
+        while (current) {
+          const canonical = normalizeBoneNameForVariant(current.name, variantCfg.boneNameMap).canonical;
+          if (canonical) return canonical === 'Hips';
+          current = current.parent;
+        }
+        return false;
+      });
+      skin.skeleton.update();
+      const indices = skin.geometry.getAttribute('skinIndex');
+      const weights = skin.geometry.getAttribute('skinWeight');
+      const position = skin.geometry.getAttribute('position');
+      for (let i = 0; i < position.count; i++) {
+        let influence = 0;
+        for (let j = 0; j < 4; j++) if (pelvicInfluence[indices.getComponent(i, j)]) influence += weights.getComponent(i, j);
+        if (influence < .5) continue;
+        skin.getVertexPosition(i, _fp).applyMatrix4(skin.matrixWorld);
+        if (_fp.z <= anteriorZ) continue;
+        anteriorZ = _fp.z;
+        reference.pronePelvisPoint = hips.worldToLocal(_fp).toArray();
+      }
+    });
+  }
+  return reference;
 }
 
 /** One grounding contact: a bone that should meet a support plane at `targetY`.
@@ -279,6 +316,8 @@ export interface GroundContact {
   bone: string;
   targetY: number;
   mode?: 'vertical' | 'reach';
+  /** null requires measured geometry and refuses a bone-center fallback. */
+  localPoint?: [number, number, number] | null;
 }
 
 /** Height (m) the PELVIS BONE grounds to above the floor when seated — a normal
@@ -312,6 +351,8 @@ function boneByCanonicalKey(
  */
 export function groundingContactsFor(posture: string, floor: FloorReference): GroundContact[] {
   switch (posture) {
+    case 'prone-supported':
+      return [{ bone: 'Hips', targetY: floor.floorY, mode: 'vertical', localPoint: floor.pronePelvisPoint ?? null }];
     case 'sitting':
       return [
         { bone: 'Hips', targetY: floor.floorY + SEAT_HEIGHT_M, mode: 'vertical' },
@@ -389,7 +430,10 @@ export function pinContactsToFloor(
     if (c.mode === 'reach') continue;
     const bone = bones.get(c.bone);
     if (!bone || !Number.isFinite(c.targetY)) continue;
-    lift = Math.max(lift, c.targetY - bone.getWorldPosition(_fp).y);
+    if (c.localPoint === null) throw new Error(`Missing measured support surface for ${c.bone}`);
+    if (c.localPoint) _fp.fromArray(c.localPoint).applyMatrix4(bone.matrixWorld);
+    else bone.getWorldPosition(_fp);
+    lift = Math.max(lift, c.targetY - _fp.y);
   }
   if (!Number.isFinite(lift) || (liftOnly && lift <= 0)) return 0;
   root.position.y += lift;

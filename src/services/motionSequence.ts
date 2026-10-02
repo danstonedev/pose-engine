@@ -191,7 +191,7 @@ export const POSTURE_NODES: readonly PostureNode[] = [
  *  A superset of {@link PostureNode}: most grounding sets ARE a posture, but a few are
  *  transient sub-states of one — e.g. 'quadruped-hand-L' grounds only the left hand so
  *  the right arm can reach out in a bird-dog, without being its own posture-graph node. */
-export type GroundingPosture = PostureNode | 'quadruped-hand-L' | 'quadruped-hand-R';
+export type GroundingPosture = PostureNode | 'quadruped-hand-L' | 'quadruped-hand-R' | 'prone-supported';
 
 /** Every posture, for host capability discovery / tool enums. */
 export const SEMANTIC_POSTURES: readonly SemanticPosture[] = [
@@ -1360,6 +1360,7 @@ const HAND_PLANT_GROUNDING: readonly GroundingPosture[] = [
   ...HANDS_MAY_BEAR,
   'quadruped-hand-L',
   'quadruped-hand-R',
+  'prone-supported',
 ];
 
 /** Targets ADDED by {@link relaxedHands} (fresh per-keyframe clones), so the

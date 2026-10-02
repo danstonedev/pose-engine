@@ -1,6 +1,6 @@
 # Movement improvement status
 
-Reviewed 1 October 2026. Standing stance/dowel shipped in engine #166 as
+Reviewed 2 October 2026. Standing stance/dowel shipped in engine #166 as
 `e55a020`; its final cloud run passed 2,637 tests and a clean typecheck.
 Host release outcomes are recorded in the workspace's October 1 shipment report.
 This is the current work list. `improvement-roadmap.md` and the older entries in
@@ -12,7 +12,7 @@ on all bodies. All 12 sampled trajectories retain canonical/rendered torso/head
 clearance and shoulder capacity. This change passes 2,643 engine tests; host shipment is tracked separately;
 the opposite-scapular endpoint remains open. See [the measured change](lower-reach-followup.md#blender-derived-improvement--1-october-2026).
 
-## Implementation in this change
+## Standing stance and dowel shipment
 
 The standing-stance and overhead-dowel implementation passed 2,632 local engine
 tests, then all 2,637 final tests in cloud CI after additional coverage was
@@ -59,6 +59,12 @@ simLAB/kinematic playback parity, neutral-variant native support, finger contact
 patient material calibration and actual hand/back contact remain open.
 See simMOVE's `docs/blender-body-physics.md` for the implemented scope.
 
+## Contact qualification - 2 October 2026
+
+The contact qualification change resolves all six new foundation stops. The refreshed 64-context matrix has **44 numerical completions, 20 stops, 32 retained sampled tracking passes**, and zero installation/invariant errors. Only the two extension-clearing sources changed; 62 source routes are unchanged. A shared measured pelvis support point and combined humeral abduction/rotation improve prone setup. The eight recovered contexts do not meet the tracking diagnostic. Exact case evidence is in simMOVE's `docs/evidence/posed-contact-2026-10-02.json`.
+
+Next: qualify loaded palms and source/native tracking in the recovered floor movements, then the 20 remaining stops (hurdle 4, lunge 4, rotary 4, multisegmental flexion 2, rotation 4, legacy squat 2). Blender now contains timed native collider review scenes, including head/neck, but continuous skin coverage and posed joint seams remain open. The shared prone source also passes a neutral-model playback regression. Native neutral fixtures remain open; host rollout is tracked by the companion shipment and PRs.
+
 ## Remaining work and completion criteria
 
 Blender 5.2.2 is now integrated into the [movement authoring workflow](blender-workflow.md).
@@ -77,7 +83,7 @@ does not close it.
 | 2 | Loaded palm contact | Chair assistance and assessment push-up/rotary-clearing still lack demonstrated flat-palm skin contact. Bird-dog support/release also needs continued surface validation. | Actual skin contact and no penetration through setup, loading, release and return, with patient bounds retained. Bone anchors alone are insufficient. |
 | 3 | In-place gait grounding | The September 29 studio review retained sliding, toe-floor and some hand/thigh warnings. Travel-gait clearance tests do not establish in-place contact validity. | Reproduce each warning on current source, distinguish frame-time-dependent diagnostics from geometric defects, then pass floor/clearance checks across body models and playback speeds. |
 | 4 | Restricted squat geometry | Default support was improved; limited ankle range and restricted-depth cases remain incompletely validated. | Capacity sweeps with achieved depth, sole contact, balance estimate and explicit refusal/residual reporting. Default-squat passes do not close this item. |
-| 5 | Native physics tracking | The #162-era 41/64 numerical completions and 32/64 sampled tracking passes are historical. The companion foundation shipment refreshes all 64 contexts; its exact results belong in simMOVE docs/assessment-physics-results.md and the shipment evidence. | Keep the 64-case matrix current with source/fixture hashes; address loaded floor support and dynamic balance failures without loosening gates. Preserve completion, tracking and clinical acceptance as separate results. |
+| 5 | Native physics tracking | The October 2 follow-up has 44/64 numerical completions and 32/64 sampled tracking passes; all prior tracking passes remain. Twenty native stops and floor-motion tracking remain open. Exact source hashes and results are in simMOVE docs/assessment-physics-results.md. | Keep the 64-case matrix current with source/fixture hashes; address loaded floor support and dynamic balance failures without loosening gates. Preserve completion, tracking and clinical acceptance as separate results. |
 | 6 | Independent clavicle/scapula rig | Opt-in assets and controls exist. Calibrated landmarks, weights, patient SC/AC/GH bounds, whole-catalog coordination and scapulothoracic contact remain open. | Asset/measurement calibration and open/loaded-chain review before production promotion. |
 | 7 | SFMA breakout recipes | `movementScreen.ts` explicitly records 81 breakout contexts with no dedicated sources. Top-tier recipes are not breakout coverage. | Dedicated active/passive/load-specific recipes and accurate capability reporting, with per-context verification. |
 | 8 | Shared contact/deformation behavior | Contact, self-collision, compression and native physics remain dependent on host and playback path. A shared solver alone does not establish host parity. | A capability matrix and integration checks for simLAB, simMOVE, embedded playback and recordings; explicit unsupported cases. |

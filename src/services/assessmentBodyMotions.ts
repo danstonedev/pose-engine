@@ -104,12 +104,17 @@ function trunkPushUp(): ComposedMotion {
 }
 
 function extensionClearing(): ComposedMotion {
-  const setup = withTargets(standing(), [...arms(85, 135, 'shoulderAbduction'), ...leg('R', 0, 0, 20), ...leg('L', 0, 0, 20), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]);
+  // Ground the measured anterior pelvis and coordinate humeral abduction with
+  // external rotation so the folded forearms clear the floor at setup.
+  // A foot-height pin with dorsiflexed ankles left the trunk airborne
+  // and introduced a floor impact at the beginning of native playback.
+  // Palm orientation and the assessed endpoint still need separate qualification.
+  const setup = withTargets(standing(), [...arms(35, 100, 'shoulderAbduction'), target('R_UpperArm', 'shoulderRotation', -45), target('L_UpperArm', 'shoulderRotation', -45), ...leg('R', 0, 0, -45), ...leg('L', 0, 0, -45), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]);
   const chestUp = withTargets(setup, [...trunk(-20, -15), ...arms(140, 10), target('Neck', 'flexion', -10), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]);
   return motion('Spinal extension clearing · prone chest press', [
-    frame(setup, 1000, { posture: 'prone' }),
-    frame(chestUp, 1500, { posture: 'prone', holdMs: 1600 }),
-    frame(setup, 1300, { posture: 'prone' }),
+    frame(setup, 1000, { posture: 'prone', groundingPosture: 'prone-supported' }),
+    frame(chestUp, 1500, { posture: 'prone', groundingPosture: 'prone-supported', holdMs: 1600 }),
+    frame(setup, 1300, { posture: 'prone', groundingPosture: 'prone-supported' }),
   ], 'prone');
 }
 

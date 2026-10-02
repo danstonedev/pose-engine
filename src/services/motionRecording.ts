@@ -596,7 +596,8 @@ export function sampleComposedMotion(
   // closed-chain foot-rooted planting of the quasi-static planted set.
   applyCustomPose(skinned.skeleton, variantCfg, baselinePose);
   root.updateMatrixWorld(true);
-  const floorRef = captureFloorReference(skinned.skeleton, variantCfg);
+  const needsPelvisSurface = resolved.keyframes.some(frame => frame.groundingPosture === 'prone-supported');
+  const floorRef = captureFloorReference(skinned.skeleton, variantCfg, needsPelvisSurface ? root : undefined);
   let footFrames = footFramesForCurrentPose(
     captureFootFrames(skinned.skeleton, variantCfg, rest),
     resolved.startFrom === 'current' ? opts.currentPose : null,

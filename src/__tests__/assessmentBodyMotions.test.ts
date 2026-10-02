@@ -8,6 +8,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { BODY_ASSESSMENT_MOTIONS, BODY_ASSESSMENT_NOTES } from '../services/assessmentBodyMotions';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
+import { captureFloorReference } from '../services/rootMotion';
 import { applyAnatomicPose } from '../services/anatomicPose';
 import { applyCustomPose, serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference } from '../services/jointAngles';
@@ -47,8 +48,9 @@ describe('assessment-specific whole-body source definitions', () => {
           if (target.joint.endsWith('_Shoulder')) expect(id === 'sfma-overhead-deep-squat-legacy' ? ['protraction','upRotation','scapularTilt'] : ['protraction']).toContain(target.motion);
         }
         // Imported whole-body support seeds explicitly clear quiet arm axes;
-        // these body protocols still use only one nonzero humeral channel.
-        for (const side of ['L', 'R']) expect(frame.targets!.filter(t => t.joint === `${side}_UpperArm` && t.targetDegrees !== 0).length).toBeLessThanOrEqual(id === 'sfma-overhead-deep-squat-legacy' ? 3 : 1);
+        // extension clearing combines abduction and axial rotation; the other
+        // protocols retain their existing number of active humeral channels.
+        for (const side of ['L', 'R']) expect(frame.targets!.filter(t => t.joint === `${side}_UpperArm` && t.targetDegrees !== 0).length).toBeLessThanOrEqual(id === 'sfma-overhead-deep-squat-legacy' ? 3 : id === 'extension-clearing' ? 2 : 1);
       }
       const copy = BODY_ASSESSMENT_MOTIONS[id]!(side);
       frames[0]!.targets![0]!.targetDegrees = 999;
@@ -97,6 +99,33 @@ for (const variant of ['female', 'male'] as const) {
       });
       return { resolved, recording, phases };
     }
+
+    it('rests the prone pelvis skin on the support plane through extension and return', () => {
+      root.position.copy(initialPosition); root.quaternion.copy(initialQuaternion);
+      applyCustomPose(skinned.skeleton, cfg, baseline); root.updateMatrixWorld(true);
+      const floor = captureFloorReference(skinned.skeleton, cfg).floorY;
+      const { phases } = sample(BODY_ASSESSMENT_MOTIONS['extension-clearing']!('R'));
+      for (const frame of phases) {
+        root.position.copy(initialPosition).add(new THREE.Vector3().fromArray(frame.root.translateM));
+        root.quaternion.copy(initialQuaternion).multiply(new THREE.Quaternion().fromArray(frame.root.orientQuat));
+        applyCustomPose(skinned.skeleton, cfg, frame.pose); root.updateMatrixWorld(true); skinned.skeleton.update();
+        let minimum = Infinity;
+        root.traverse(object => {
+          const skin = object as THREE.SkinnedMesh;
+          if (!skin.isSkinnedMesh) return;
+          skin.skeleton.update();
+          const indices = skin.geometry.getAttribute('skinIndex'), weights = skin.geometry.getAttribute('skinWeight');
+          const pelvisBones = skin.skeleton.bones.map(bone => /(?:Hip|Pelvis)$/.test(bone.name));
+          for (let i = 0; i < indices.count; i++) {
+            let influence = 0;
+            for (let j = 0; j < 4; j++) if (pelvisBones[indices.getComponent(i, j)]) influence += weights.getComponent(i, j);
+            if (influence >= .5) minimum = Math.min(minimum, skin.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(skin.matrixWorld).y);
+          }
+        });
+        expect(Math.abs(minimum - floor), `pelvis skin at ${frame.tMs} ms`).toBeLessThan(.006);
+        expect(point(frame, 'Hips').y - floor).toBeGreaterThan(.08);
+      }
+    });
 
     function footSkin(frame: RecordedFrame) {
       root.position.copy(initialPosition).add(new THREE.Vector3().fromArray(frame.root.translateM));

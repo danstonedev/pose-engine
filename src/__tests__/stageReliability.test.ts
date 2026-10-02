@@ -183,9 +183,9 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     // …both from the floor reference their floor pin grounds on, captured at
     // anatomic rest (the sampler after the baseline pose, the stage at boot).
     expect(samplerSource).toMatch(
-      /applyCustomPose\(skinned\.skeleton, variantCfg, baselinePose\);\s*root\.updateMatrixWorld\(true\);\s*const floorRef = captureFloorReference\(skinned\.skeleton, variantCfg\);/,
+      /applyCustomPose\(skinned\.skeleton, variantCfg, baselinePose\);\s*root\.updateMatrixWorld\(true\);[\s\S]{0,250}const floorRef = captureFloorReference\(skinned\.skeleton, variantCfg, needsPelvisSurface \? root : undefined\);/,
     );
-    expect(stageSource).toMatch(/floorRef = skinned \? captureFloorReference\(skinned\.skeleton, variantCfg\) : null;/);
+    expect(stageSource).toMatch(/floorRef = skinned \? captureFloorReference\(skinned\.skeleton, variantCfg, root\) : null;/);
     // …and neither keeps a private copy of the window/capture logic.
     expect(stageSource).not.toMatch(/fp\.target\.y -= /);
     expect(samplerSource).not.toMatch(/fp\.target\.y -= /);
