@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "renders": [
+    {
+      "case": "male-shoulder-abduction-160",
+      "folder": "abduction-160",
+      "file": "matched-captures/male-right-back-1167ms.png",
+      "seconds": 1.1666666666666667,
+      "frame": 35.0,
+      "view": "Back",
+      "cameraLocation": [
+        0.0,
+        3.0,
+        1.7999999523162842
+      ],
+      "cameraTarget": [
+        0.0,
+        0.0,
+        1.649999976158142
+      ],
+      "orthoScale": 1.5,
+      "resolution": [
+        1200,
+        900
+      ],
+      "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+      "note": "Same camera/time across clips; baked production helpers retained. No movement acceptance."
+    },
+    {
+      "case": "male-shoulder-abduction-160",
+      "folder": "abduction-160",
+      "file": "matched-captures/male-right-side-1167ms.png",
+      "seconds": 1.1666666666666667,
+      "frame": 35.0,
+      "view": "Side",
+      "cameraLocation": [
+        3.0,
+        0.0,
+        1.7999999523162842
+      ],
+      "cameraTarget": [
+        0.0,
+        0.0,
+        1.649999976158142
+      ],
+      "orthoScale": 1.5,
+      "resolution": [
+        1200,
+        900
+      ],
+      "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+      "note": "Same camera/time across clips; baked production helpers retained. No movement acceptance."
+    },
+    {
+      "case": "male-shoulder-abduction-160",
+      "folder": "abduction-160",
+      "file": "matched-captures/male-right-back-2067ms.png",
+      "seconds": 2.066666666666667,
+      "frame": 62.00000000000001,
+      "view": "Back",
+      "cameraLocation": [
+        0.0,
+        3.0,
+        1.7999999523162842
+      ],
+      "cameraTarget": [
+        0.0,
+        0.0,
+        1.649999976158142
+      ],
+      "orthoScale": 1.5,
+      "resolution": [
+        1200,
+        900
+      ],
+      "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+      "note": "Same camera/time across clips; baked production helpers retained. No movement acceptance."
+    },
+    {
+      "case": "male-shoulder-abduction-160",
+      "folder": "abduction-160",
+      "file": "matched-captures/male-right-side-2067ms.png",
+      "seconds": 2.066666666666667,
+      "frame": 62.00000000000001,
+      "view": "Side",
+      "cameraLocation": [
+        3.0,
+        0.0,
+        1.7999999523162842
+      ],
+      "cameraTarget": [
+        0.0,
+        0.0,
+        1.649999976158142
+      ],
+      "orthoScale": 1.5,
+      "resolution": [
+        1200,
+        900
+      ],
+      "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+      "note": "Same camera/time across clips; baked production helpers retained. No movement acceptance."
+    },
+    {
+      "case": "male-shoulder-abduction-160",
+      "folder": "abduction-160",
+      "file": "matched-captures/male-right-back-3233ms.png",
+      "seconds": 3.2333333333333334,
+      "frame": 97.0,
+      "view": "Back",
+      "cameraLocation": [
+        0.0,
+        3.0,
+        1.7999999523162842
+      ],
+      "cameraTarget": [
+        0.0,
+        0.0,
+        1.649999976158142
+      ],
+      "orthoScale": 1.5,
+      "resolution": [
+        1200,
+        900
+      ],
+      "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+      "note": "Same camera/time across clips; baked production helpers retained. No movement acceptance."
+    },
+    {
+      "case": "male-shoulder-abduction-160",
+      "folder": "abduction-160",
+      "file": "matched-captures/male-right-side-3233ms.png",
+      "seconds": 3.2333333333333334,
+      "frame": 97.0,
+      "view": "Side",
+      "cameraLocation": [
+        3.0,
+        0.0,
+        1.7999999523162842
+      ],
+      "cameraTarget": [
+        0.0,
+        0.0,
+        1.649999976158142
+      ],
+      "orthoScale": 1.5,
+      "resolution": [
+        1200,
+        900
+      ],
+      "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+      "note": "Same camera/time across clips; baked production helpers retained. No movement acceptance."
+    }
+  ]
+}

@@ -1,0 +1,526 @@
+{
+  "before": {
+    "assessmentBodyMotions": "9965d0b91afee6848f42e8041938b557a01eddd11d87c3761795182d5afacde0",
+    "motionRecording": "43ed99569f681167c88af694445cd7ac799484b0fd4d000d876716190d5c4720",
+    "motionTrajectory": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8",
+    "footContact": "a7cc5a5505dcc1b81dba4b6ce175f3d17c0745e5fd216ad8784cdb90774883e5",
+    "handContactPose": "4b4c98f90213d66eea392a7c92032ce911f2b70df12d29b84373ed33a555c8ab",
+    "proneSkinSupport": "d0ff79c14bcd0efa6807dc9a9cb0cdf148dd4c2339fe2ad1f4aece9bce6bec96",
+    "poseRomClamp": "8290e81b943cd031a0864bce787509fe7a5cc74e1fbfaf7c0173e650aa6cfc9d",
+    "pressupPalmLayout": "be3f8a0b82b1b8f932fc8ad2d910c376b41954eb7285c8120fb775ee074dd9c3"
+  },
+  "poseModeClampEnabled": false,
+  "sampleHz": 30,
+  "scope": "Production engine versus currently served simMOVE public assets. Fresh rig/cache per asset; same unrestricted full source motion. Actual 101-bone replay includes twist. Support gaps are freshly measured by the actual skin controller, not full-skin Blender acceptance.",
+  "cases": [
+    {
+      "variant": "male",
+      "frames": 163,
+      "assets": [
+        {
+          "asset": "engine",
+          "sha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+          "bytes": 712200,
+          "elapsedMs": 2111.2717999999995,
+          "bones": 101,
+          "supportFailures": [],
+          "supportGapsM": {
+            "pelvis": {
+              "min": 0,
+              "max": 0
+            },
+            "torso": {
+              "min": 0.004175894356848786,
+              "max": 0.07283968326992901
+            },
+            "head": {
+              "min": 0.007303392027767433,
+              "max": 0.5353040310622839
+            },
+            "L_leg": {
+              "min": -0.00004571798586774922,
+              "max": 0.000001168339320151146
+            },
+            "R_leg": {
+              "min": -0.000015957216318446266,
+              "max": 0.00001955700745952249
+            },
+            "L_thighCalf": {
+              "min": -0.00004568290135470443,
+              "max": 0.0000017855167200597766
+            },
+            "R_thighCalf": {
+              "min": -0.000015957216318446266,
+              "max": 0.000049362834685165446
+            },
+            "L_envelope": {
+              "min": -0.000015634737752845407,
+              "max": 0.0015014030016231444
+            },
+            "R_envelope": {
+              "min": -0.000015957216318446266,
+              "max": 0.0015298208210076103
+            },
+            "L_kneeBand": {
+              "min": 0.005031793317898714,
+              "max": 0.014341562979172384
+            },
+            "R_kneeBand": {
+              "min": 0.00506961058792281,
+              "max": 0.01439642681571228
+            },
+            "L_toes": {
+              "min": -0.00004571798586774922,
+              "max": 0.000001168339320151146
+            },
+            "R_toes": {
+              "min": -9.910196821505401e-8,
+              "max": 0.00001955700745952249
+            }
+          }
+        },
+        {
+          "asset": "public",
+          "sha256": "f680204c88ac3dec0a5ad4fe3f787cefb1125d29dec991df1839ebb98b5ffe9a",
+          "bytes": 489172,
+          "elapsedMs": 2114.1679000000004,
+          "bones": 101,
+          "supportFailures": [],
+          "supportGapsM": {
+            "pelvis": {
+              "min": 0,
+              "max": 0
+            },
+            "torso": {
+              "min": 0.004209385245362449,
+              "max": 0.07280316176846555
+            },
+            "head": {
+              "min": 0.007336304550219219,
+              "max": 0.5352501773977378
+            },
+            "L_leg": {
+              "min": -0.000042268204029694,
+              "max": 0.000001153721140567665
+            },
+            "R_leg": {
+              "min": -7.309770591601428e-8,
+              "max": 0.000019704734851563876
+            },
+            "L_thighCalf": {
+              "min": -0.00002636266067779225,
+              "max": 0.000005025302186753566
+            },
+            "R_thighCalf": {
+              "min": -2.9458537817439456e-8,
+              "max": 0.00004992680573656649
+            },
+            "L_envelope": {
+              "min": 0.000010687850769575125,
+              "max": 0.001383705530755286
+            },
+            "R_envelope": {
+              "min": 0.000010367925234261444,
+              "max": 0.0013989612738895818
+            },
+            "L_kneeBand": {
+              "min": 0.004795291909768448,
+              "max": 0.014191221929857223
+            },
+            "R_kneeBand": {
+              "min": 0.00483375587256582,
+              "max": 0.01422005153108441
+            },
+            "L_toes": {
+              "min": -0.000042268204029694,
+              "max": 0.000001153721140567665
+            },
+            "R_toes": {
+              "min": -7.309770591601428e-8,
+              "max": 0.000019704734851563876
+            }
+          }
+        }
+      ],
+      "maxLocalBoneDeg": {
+        "value": 0.12832762191650743,
+        "tMs": 2500,
+        "key": "L_Hand"
+      },
+      "maxWorldBoneDeg": {
+        "value": 0.10719102485314959,
+        "tMs": 5333.333333333334,
+        "key": "CC_Base_R_Thumb2"
+      },
+      "maxBonePositionM": {
+        "value": 0.00031035979762649004,
+        "tMs": 5000,
+        "key": "CC_Base_L_ForearmTwist01"
+      },
+      "maxPalmPositionM": {
+        "value": 0.00011879615257235763,
+        "tMs": 5333.333333333334,
+        "key": "R"
+      },
+      "maxRootTranslationM": {
+        "value": 0.00005495452242057497,
+        "tMs": 4333.333333333334,
+        "key": "root"
+      },
+      "maxAngleDifferenceDeg": {
+        "value": 0.10418880711900869,
+        "tMs": 4833.333333333334,
+        "key": "R_Hand.wristFlexion"
+      },
+      "maxSupportGapDifferenceM": {
+        "value": 0.00025076525081677015,
+        "tMs": 2500,
+        "key": "L_envelope"
+      },
+      "sameAssetBytes": false
+    },
+    {
+      "variant": "female",
+      "frames": 163,
+      "assets": [
+        {
+          "asset": "engine",
+          "sha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+          "bytes": 712132,
+          "elapsedMs": 2008.1309,
+          "bones": 101,
+          "supportFailures": [],
+          "supportGapsM": {
+            "pelvis": {
+              "min": 0,
+              "max": 0
+            },
+            "torso": {
+              "min": 1.362496411666525e-7,
+              "max": 0.039008801926215496
+            },
+            "head": {
+              "min": 0.05220512846591746,
+              "max": 0.4731856134560664
+            },
+            "L_leg": {
+              "min": -0.0000369699377422289,
+              "max": 0.000015548156479472386
+            },
+            "R_leg": {
+              "min": -0.0000333519379310393,
+              "max": 0.00001554895664934719
+            },
+            "L_thighCalf": {
+              "min": -0.0000369699377422289,
+              "max": 0.00004808742503267793
+            },
+            "R_thighCalf": {
+              "min": -0.0000333519379310393,
+              "max": 0.00004953709205268719
+            },
+            "L_envelope": {
+              "min": -0.000033297744270674445,
+              "max": 0.00460840170994492
+            },
+            "R_envelope": {
+              "min": -0.0000333519379310393,
+              "max": 0.004613792550012444
+            },
+            "L_kneeBand": {
+              "min": 0.004372890350865494,
+              "max": 0.029753716857076395
+            },
+            "R_kneeBand": {
+              "min": 0.0043725302092637724,
+              "max": 0.029764195530269905
+            },
+            "L_toes": {
+              "min": -0.00003447988070943986,
+              "max": 0.000015548156479472386
+            },
+            "R_toes": {
+              "min": -8.12361461308142e-7,
+              "max": 0.00001554895664934719
+            }
+          }
+        },
+        {
+          "asset": "public",
+          "sha256": "cd945b0bd943b02aebcf2dfcba18a74ddb46d3b50528a118a6d6d269c507c6ff",
+          "bytes": 487908,
+          "elapsedMs": 2028.0740999999998,
+          "bones": 101,
+          "supportFailures": [],
+          "supportGapsM": {
+            "pelvis": {
+              "min": 0,
+              "max": 0
+            },
+            "torso": {
+              "min": 4.973596327423335e-7,
+              "max": 0.039006558180059825
+            },
+            "head": {
+              "min": 0.0522269828328664,
+              "max": 0.4731334546097695
+            },
+            "L_leg": {
+              "min": -0.00003734925813986267,
+              "max": 0.000015680902916717643
+            },
+            "R_leg": {
+              "min": -0.000037401328239400344,
+              "max": 0.000015682301541614097
+            },
+            "L_thighCalf": {
+              "min": -0.00003734925813986267,
+              "max": 0.00004852350256069615
+            },
+            "R_thighCalf": {
+              "min": -0.000037401328239400344,
+              "max": 0.000048526667507209353
+            },
+            "L_envelope": {
+              "min": -0.00003734925813986267,
+              "max": 0.004583708167552436
+            },
+            "R_envelope": {
+              "min": -0.000037401328239400344,
+              "max": 0.004589143818406458
+            },
+            "L_kneeBand": {
+              "min": 0.004094303454967571,
+              "max": 0.029841408008014977
+            },
+            "R_kneeBand": {
+              "min": 0.004094034871588825,
+              "max": 0.029851940804314248
+            },
+            "L_toes": {
+              "min": -0.000035054712307899805,
+              "max": 0.000015680902916717643
+            },
+            "R_toes": {
+              "min": -6.530500271384465e-7,
+              "max": 0.000015682301541614097
+            }
+          }
+        }
+      ],
+      "maxLocalBoneDeg": {
+        "value": 0.3263586239177722,
+        "tMs": 4666.666666666667,
+        "key": "R_Shoulder"
+      },
+      "maxWorldBoneDeg": {
+        "value": 0.3263586229573562,
+        "tMs": 4666.666666666667,
+        "key": "CC_Base_R_Clavicle"
+      },
+      "maxBonePositionM": {
+        "value": 0.00047829775507849396,
+        "tMs": 4666.666666666667,
+        "key": "CC_Base_R_Upperarm"
+      },
+      "maxPalmPositionM": {
+        "value": 0.00003419919054269491,
+        "tMs": 1333.3333333333335,
+        "key": "R"
+      },
+      "maxRootTranslationM": {
+        "value": 0.00003330591930633675,
+        "tMs": 2133.3333333333335,
+        "key": "root"
+      },
+      "maxAngleDifferenceDeg": {
+        "value": 0.3263586240005125,
+        "tMs": 4666.666666666667,
+        "key": "R_Shoulder.scapularTilt"
+      },
+      "maxSupportGapDifferenceM": {
+        "value": 0.000415013227056768,
+        "tMs": 4366.666666666667,
+        "key": "L_kneeBand"
+      },
+      "sameAssetBytes": false
+    },
+    {
+      "variant": "neutral",
+      "frames": 163,
+      "assets": [
+        {
+          "asset": "engine",
+          "sha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+          "bytes": 716300,
+          "elapsedMs": 1816.6870999999992,
+          "bones": 101,
+          "supportFailures": [],
+          "supportGapsM": {
+            "pelvis": {
+              "min": 0,
+              "max": 0
+            },
+            "torso": {
+              "min": -0.00002165040426310716,
+              "max": 0.05382787981317684
+            },
+            "head": {
+              "min": 0.012521570970736057,
+              "max": 0.4346241178499852
+            },
+            "L_leg": {
+              "min": -0.000014838485278265146,
+              "max": 0.000035607474717466725
+            },
+            "R_leg": {
+              "min": 4.011575826801117e-7,
+              "max": 0.0000023711756759053904
+            },
+            "L_thighCalf": {
+              "min": -0.000014838485278265146,
+              "max": 0.000035607474717466725
+            },
+            "R_thighCalf": {
+              "min": 4.011575826801117e-7,
+              "max": 0.0000059038027658969705
+            },
+            "L_envelope": {
+              "min": -0.000014838485278265146,
+              "max": 0.000035607474717466725
+            },
+            "R_envelope": {
+              "min": 4.011575826801117e-7,
+              "max": 0.0000059038027658969705
+            },
+            "L_kneeBand": {
+              "min": 0.002110646863917723,
+              "max": 0.005457539116837468
+            },
+            "R_kneeBand": {
+              "min": 0.002120576337658775,
+              "max": 0.005476070889725279
+            },
+            "L_toes": {
+              "min": -0.00001474364147091567,
+              "max": 0.00003611967499284052
+            },
+            "R_toes": {
+              "min": 6.018871334390052e-7,
+              "max": 0.0000023711756759053904
+            }
+          }
+        },
+        {
+          "asset": "public",
+          "sha256": "575e4df70fa4df6b907faf22140bc28dfb8c9138817016ceb4ed1de994a24c4a",
+          "bytes": 489340,
+          "elapsedMs": 1913.2283000000007,
+          "bones": 101,
+          "supportFailures": [],
+          "supportGapsM": {
+            "pelvis": {
+              "min": 0,
+              "max": 0
+            },
+            "torso": {
+              "min": -0.000015065486095922065,
+              "max": 0.053840979972289746
+            },
+            "head": {
+              "min": 0.012862344780076446,
+              "max": 0.4346346629389905
+            },
+            "L_leg": {
+              "min": -0.000009252677205931481,
+              "max": 0.000016081448442867297
+            },
+            "R_leg": {
+              "min": 6.538567315778065e-7,
+              "max": 0.000002519919084162381
+            },
+            "L_thighCalf": {
+              "min": -0.000009252677205931481,
+              "max": 0.000016081448442867297
+            },
+            "R_thighCalf": {
+              "min": 6.645288024575979e-7,
+              "max": 0.000005865585797015793
+            },
+            "L_envelope": {
+              "min": -0.000009252677205931481,
+              "max": 0.000016081448442867297
+            },
+            "R_envelope": {
+              "min": 6.645288024575979e-7,
+              "max": 0.000005865585797015793
+            },
+            "L_kneeBand": {
+              "min": 0.002225778208669704,
+              "max": 0.005550276239086091
+            },
+            "R_kneeBand": {
+              "min": 0.002235642305369004,
+              "max": 0.005568463920663541
+            },
+            "L_toes": {
+              "min": -0.000009187082953887593,
+              "max": 0.00001615664818392648
+            },
+            "R_toes": {
+              "min": 6.538567315778065e-7,
+              "max": 0.000002519919084162381
+            }
+          }
+        }
+      ],
+      "maxLocalBoneDeg": {
+        "value": 2.7828499528939887,
+        "tMs": 1133.3333333333335,
+        "key": "L_Forearm"
+      },
+      "maxWorldBoneDeg": {
+        "value": 2.6764829208826817,
+        "tMs": 4800,
+        "key": "CC_Base_L_Forearm"
+      },
+      "maxBonePositionM": {
+        "value": 0.003519449806985638,
+        "tMs": 0,
+        "key": "CC_Base_L_UpperarmTwist01"
+      },
+      "maxPalmPositionM": {
+        "value": 0.00012178519059196665,
+        "tMs": 1166.6666666666667,
+        "key": "R"
+      },
+      "maxRootTranslationM": {
+        "value": 0.00005258875162331145,
+        "tMs": 5100,
+        "key": "root"
+      },
+      "maxAngleDifferenceDeg": {
+        "value": 1.7215918889990616,
+        "tMs": 1166.6666666666667,
+        "key": "L_Shoulder.scapularTilt"
+      },
+      "maxSupportGapDifferenceM": {
+        "value": 0.0008948348770998621,
+        "tMs": 1033.3333333333335,
+        "key": "head"
+      },
+      "sameAssetBytes": false
+    }
+  ],
+  "after": {
+    "assessmentBodyMotions": "9965d0b91afee6848f42e8041938b557a01eddd11d87c3761795182d5afacde0",
+    "motionRecording": "43ed99569f681167c88af694445cd7ac799484b0fd4d000d876716190d5c4720",
+    "motionTrajectory": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8",
+    "footContact": "a7cc5a5505dcc1b81dba4b6ce175f3d17c0745e5fd216ad8784cdb90774883e5",
+    "handContactPose": "4b4c98f90213d66eea392a7c92032ce911f2b70df12d29b84373ed33a555c8ab",
+    "proneSkinSupport": "d0ff79c14bcd0efa6807dc9a9cb0cdf148dd4c2339fe2ad1f4aece9bce6bec96",
+    "poseRomClamp": "8290e81b943cd031a0864bce787509fe7a5cc74e1fbfaf7c0173e650aa6cfc9d",
+    "pressupPalmLayout": "be3f8a0b82b1b8f932fc8ad2d910c376b41954eb7285c8120fb775ee074dd9c3"
+  },
+  "sourceStable": true
+}
