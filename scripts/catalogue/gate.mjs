@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, readdirSync, realpathSync } from 'node:fs';
 import { resolve, relative, isAbsolute } from 'node:path';
+import { validateProgram } from './program.mjs';
 
 export const MASTER_PATH = 'docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html';
 export const HOST_SOURCE_DIRS = { simlab:['packages/ddx/src/movement','packages/ddx/src/lab'], simmove:['src','experiments/lower-body','scripts'] };
 export const digest = value => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex');
 export const sourceHash = bytes => digest(bytes.toString('utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n'));
+export const referenceIdentity = reference => digest({...reference,updatedAt:undefined});
 export const contextKey = context => JSON.stringify([context.id, context.variant, context.side]);
 export const jointKey = (context, joint, phase = 'all') => JSON.stringify([context.id, context.variant, context.side, phase, joint]);
 export const reviewKey = context => JSON.stringify([context.id, context.variant, context.side, '$review']);
@@ -76,7 +78,7 @@ export function checkRules(rules, metrics) {
   }
   return failures;
 }
-function stageReport(root, report, context, currentIdentity, failures) {
+export function stageReport(root, report, context, currentIdentity, failures) {
   if (!report || typeof report.path !== 'string' || !/^[a-f\d]{64}$/.test(report.sha256 ?? '')) { failures.push('invalid evidence reference'); return; }
   const path = resolve(root, report.path), rel = relative(root, path);
   if (!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(path)) { failures.push(`evidence outside repository or missing: ${report.path}`); return; }
@@ -98,6 +100,55 @@ function stageReport(root, report, context, currentIdentity, failures) {
   }
   if(report.stage==='blender' && !evidence.artifacts?.some(artifact=>artifact.kind==='editable-project'&&artifact.path.endsWith('.blend'))) failures.push('Blender review requires an editable .blend project');
 }
+export function artifactErrors(root, artifact) {
+  if (!root || !artifact || typeof artifact.path !== 'string' || !/^[a-f\d]{64}$/.test(artifact.sha256 ?? '')) return ['missing repository or invalid artifact reference'];
+  const path = resolve(root, artifact.path), rel = relative(root, path);
+  if (!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(path)) return [`missing or external artifact: ${artifact.path}`];
+  const realRel = relative(realpathSync(root), realpathSync(path));
+  if (realRel.startsWith('..') || isAbsolute(realRel) || digest(readFileSync(path)) !== artifact.sha256) return [`changed or escaped artifact: ${artifact.path}`];
+  return [];
+}
+function evidenceManifest(root, ref, label) {
+  const failures = artifactErrors(root, ref);
+  if (failures.length) return {failures,manifest:null};
+  try {return {failures,manifest:JSON.parse(readFileSync(resolve(root,ref.path),'utf8'))};}
+  catch {return {failures:[`${label} requires a structured JSON comparison manifest`],manifest:null};}
+}
+function comparisonArtifacts(root, manifest, failures) {
+  if (!Array.isArray(manifest.artifacts) || !manifest.artifacts.length) failures.push('Comparison requires retained underlying data or captures');
+  for (const artifact of manifest.artifacts ?? []) failures.push(...artifactErrors(root,artifact));
+}
+export function referenceComparisonErrors(root, criterion, reference, context) {
+  const failures = [];
+  for (const ref of criterion.evidence ?? []) {
+    const loaded=evidenceManifest(root,ref,'Reference comparison');failures.push(...loaded.failures);
+    const manifest=loaded.manifest;if(!manifest)continue;
+    if(manifest.kind!=='reference-comparison'||manifest.result!=='pass'||manifest.context!==contextKey(context)||manifest.identity!==context.identity||manifest.referenceId!==reference.id||manifest.referenceIdentity!==referenceIdentity(reference)||manifest.criterionId!==criterion.id||!manifest.reviewer?.trim()||!manifest.method?.trim()||!manifest.scope?.trim()) failures.push('Reference comparison is failed, stale, or belongs to a different reference/criterion/context');
+    if(!Array.isArray(manifest.claimIds)||criterion.claimIds.some(id=>!manifest.claimIds.includes(id))) failures.push('Reference comparison omits its supported claim IDs');
+    if(!manifest.comparison?.expected?.trim()||!manifest.comparison?.observed?.trim()||typeof manifest.comparison?.limitations!=='string') failures.push('Reference comparison must state expected/observed behavior and limitations');
+    if(manifest.method==='quantitative') {
+      if(!Array.isArray(manifest.measurements)||!manifest.measurements.length) failures.push('Quantitative comparison needs actual measurements and justified bounds');
+      for(const measured of manifest.measurements??[]) {
+        if(!measured?.metric?.trim()||!measured.units?.trim()||!measured.thresholdBasis?.trim()||!Number.isFinite(measured.value)||!Array.isArray(measured.claimIds)||!measured.claimIds.length||measured.claimIds.some(id=>!criterion.claimIds.includes(id))) {failures.push('Invalid quantitative measurement or unsupported threshold basis');continue;}
+        failures.push(...checkRules([{metric:measured.metric,min:measured.min,max:measured.max}],{[measured.metric]:measured.value}));
+      }
+    }
+    comparisonArtifacts(root,manifest,failures);
+  }
+  return failures;
+}
+export function defectClosureErrors(root, closure, defect, context) {
+  const loaded=evidenceManifest(root,closure.acceptanceEvidence,'Defect closure'),failures=loaded.failures,manifest=loaded.manifest;
+  if(!manifest)return failures;
+  if(manifest.kind!=='defect-closure'||manifest.result!=='pass'||manifest.defectId!==defect.id||manifest.context!==contextKey(context)||manifest.identity!==context.identity||!manifest.reviewer?.trim()||!manifest.scope?.trim()) failures.push('Defect closure is failed, stale or belongs to a different defect/context');
+  if(!Array.isArray(manifest.criteria)) failures.push('Defect closure requires explicit acceptance criteria');
+  for(const description of defect.acceptance) {
+    const criterion=manifest.criteria?.find(item=>item.description===description);
+    if(!criterion||criterion.result!=='pass'||!criterion.observed?.trim()||!Array.isArray(criterion.evidence)||!criterion.evidence.length) failures.push(`Defect closure has not verified criterion: ${description}`);
+    else for(const artifact of criterion.evidence)failures.push(...artifactErrors(root,artifact));
+  }
+  return failures;
+}
 export function evaluateCatalogue(data, tracking, { engineRoot, baselineDigest, freshObservations = {} } = {}) {
   const errors = [], changed = changedContexts(data);
   const baseline = data.enforcement?.baseline;
@@ -114,6 +165,18 @@ export function evaluateCatalogue(data, tracking, { engineRoot, baselineDigest, 
   const changedSet = new Set(changed.map(contextKey));
   // Reviewed contexts remain enforceable even if originally historical.
   const candidates = data.contexts.filter(context => changedSet.has(contextKey(context)) || tracking[reviewKey(context)]);
+  errors.push(...validateProgram(data, tracking, {
+    requiredContexts: candidates,
+    checkArtifact: artifact => artifactErrors(engineRoot, artifact),
+    checkComparison: (criterion, reference, context) => referenceComparisonErrors(engineRoot,criterion,reference,context),
+    checkClosure: (closure, defect, context) => defectClosureErrors(engineRoot,closure,defect,context),
+    checkReport: (report, context, currentIdentity) => {
+      const failures = [];
+      if (engineRoot) stageReport(engineRoot, report, context, currentIdentity, failures);
+      else failures.push('cannot verify review evidence without the engine repository');
+      return failures;
+    }
+  }));
   for (const context of candidates) {
     const key = contextKey(context), currentIdentity = identity(data, context), failures = [];
     const review = tracking[reviewKey(context)], stored = tracking[observationKey(context)], measured = freshObservations[key] ?? stored;

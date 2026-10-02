@@ -1,5 +1,11 @@
 # Movement development requirements
 
+Read `docs/unified-movement-development-prompt.md` before future movement work.
+Reconcile source findings and references in the existing master, check its work
+ownership before starting, and implement each shared correction once. Current
+reference comparison and defect-specific closure evidence are enforced alongside
+the existing whole-body and host review gates.
+
 Use `docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html` as the one master for all joints
 and all named motions. Read `docs/movement-catalogue-process.md` and
 `docs/movement-engineering-charter.md` before changing movement behavior.

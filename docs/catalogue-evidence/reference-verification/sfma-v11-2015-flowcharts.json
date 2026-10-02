@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:sfma-v11-2015-flowcharts",
+  "title": "Selective Functional Movement Assessment score sheet and flowcharts",
+  "primaryUrls": [
+    "https://www.functionalmovement.com/files/articles/463a_sfma-version11flowcharts-2015.pdf"
+  ],
+  "doi": null,
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Inspected official PDF parsed text for score sheet and breakout lists. Attempted top-tier page screenshot retrieval failed. Verified source identity and legacy task names only; full illustrated procedure remains unreviewed.",
+  "claims": [
+    {
+      "id": "ref:sfma-v11-2015-flowcharts:claim-1",
+      "description": "Legacy source lists cervical, upper-extremity, whole-body and overhead-squat top-tier procedures and regional breakouts.",
+      "kind": "protocol"
+    }
+  ],
+  "limitations": [
+    "PDF text extraction verified score names and breakout content; top-tier figure/procedure page screenshot retrieval failed.",
+    "Protocol supplies task/endpoint intent, not measured natural trajectories or simulated clinical score.",
+    "License/redistribution conditions for thisversion not verified.",
+    "Current arms-down squat must not silently replace legacy overhead identity."
+  ],
+  "license": {
+    "status": "unknown",
+    "name": null,
+    "scope": null,
+    "retentionConditions": "Do not assume public access permits dataset or media redistribution."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://www.functionalmovement.com/files/articles/463a_sfma-version11flowcharts-2015.pdf",
+        "pages": {
+          "pdfZeroBased": [
+            0,
+            1
+          ],
+          "printed": [
+            29,
+            30
+          ]
+        },
+        "section": "score sheet and top-tier procedure page"
+      },
+      {
+        "path": "simmove/docs/fms-sfma-movement-audit.md",
+        "sha256": "463589f8025513e4860ed8c6eaf6eb17d581a95ab42268a4251140361275d017",
+        "line": 82,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+      "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+      "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+      "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+      "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+      "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+      "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+      "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+      "screen:sfma-repo-legacy-v1/single-leg-stance/top-tier",
+      "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}

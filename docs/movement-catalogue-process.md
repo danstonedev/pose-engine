@@ -10,6 +10,62 @@ as are shoulder girdles, limbs, every digit and deformation helper. The initial
 baseline is **historical and unreviewed**, not an acceptance claim. No existing
 movement became Blender-reviewed or clinically qualified through this change.
 
+## Unified defects and reference data
+
+Read [the unified execution prompt](unified-movement-development-prompt.md).
+Catalogue schema 2 embeds `program` schema 1 in the same `catalogue-data` block.
+Its `sources`, `findings`, `defects`, `references`, `workUnits` and per-motion
+`coverage` records are the shared backlog, provenance and ownership ledger.
+Retained reports are supporting evidence; their old OPEN labels and numerical
+results must be reconciled against later source revisions. Pending sources and
+unmapped findings remain visible. Counts describe the recorded source set.
+
+The HTML displays defects, references and shared work for the selected body/side,
+with an editor for existing program records. Save the master to retain changes
+outside this browser. Conflicting browser drafts preserve the file's current
+record and require reconciliation. Refresh preserves the entire program and
+existing joint tracking. CI rejects orphan links, repeated imports, dropped
+coverage, conflicting active ownership and unsupported closure claims.
+
+New or changed reviewed contexts require `referenceAcceptance` in their current
+`$review` record: applicable verified reference IDs, a reviewer, limitations and
+passing criteria tied to exact supported claim IDs. ROM limits alone do not
+establish coordinated movement. Citation-only, assumed and unavailable data stay
+visible but cannot grant acceptance. Source verification establishes only the
+recorded reference claims; it does not qualify the production movement.
+
+Each comparison criterion retains a hashed JSON manifest with
+`kind: "reference-comparison"`, exact `context` and `identity`, `referenceId`,
+`referenceIdentity` (from the gate's `referenceIdentity(reference)`),
+`criterionId`, `claimIds`, `result`, `reviewer`, `method`, `scope`,
+`comparison: {expected, observed, limitations}` and retained `artifacts`.
+Quantitative manifests additionally retain `measurements` with metric, value,
+units, justified min/max bounds, threshold basis and supported claim IDs.
+The gate checks the values against those bounds. Qualitative claims require
+accountable scoped review and underlying captures or data.
+
+An applicable blocking defect prevents context acceptance until that exact scope
+has current closure. Each closure contains its context/identity, the existing
+required stage reports and hashed `acceptanceEvidence`. This JSON manifest has
+`kind: "defect-closure"`, `defectId`, context/identity, result, reviewer, scope and
+one passing `criteria` entry for every declared acceptance description, with an
+observed result and retained evidence. Generic stage reviews cannot close an
+unrelated defect. A family stays partial until every declared context is closed.
+
+Import findings by stable ID with the existing reconciliation tool:
+
+```powershell
+node scripts/catalogue/reconcile.mjs docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html INPUT.json preview
+node scripts/catalogue/reconcile.mjs docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html INPUT.json apply EXPECTED_MASTER_SHA256
+```
+
+Imports retain existing records and stop on differing input instead of overwriting
+reviewed work. The apply command checks the inspected file identity before writing.
+Source snapshots are immutable evidence with original file hashes and extraction
+selectors where only inspected portions were retained. Engine CI compares against
+the previous master to prevent silently dropping findings or rewriting provenance.
+Historical unchanged motions remain unreviewed; this migration grants no acceptance.
+
 ## What blocks delivery
 
 The shared engine CI, simLAB CI and both hosts' production build scripts run the

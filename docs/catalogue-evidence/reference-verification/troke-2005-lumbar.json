@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:troke-2005-lumbar",
+  "title": "A normative database of lumbar spine ranges of motion",
+  "primaryUrls": [
+    "https://pubmed.ncbi.nlm.nih.gov/16038855/"
+  ],
+  "doi": "10.1016/j.math.2004.10.004",
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Inspected primary PubMed abstract and bibliography, PMID16038855. Verified regional standing lumbar ROM population/task scope; publisher appendix graphs and per-segment trajectories remain unavailable here.",
+  "claims": [
+    {
+      "id": "ref:troke-2005-lumbar:claim-1",
+      "description": "Abstract reports age/sex-specific lumbar ROM in standing; it is not a vertebral coordination trajectory.",
+      "kind": "limit"
+    }
+  ],
+  "limitations": [
+    "Exact age-stratified graphs and frame mapping not retrieved.",
+    "Does not justify equal spine-bone shares or independent vertebral motion.",
+    "Cannot substitute for head-to-hips whole-body task trajectory."
+  ],
+  "license": {
+    "status": "unknown",
+    "name": null,
+    "scope": null,
+    "retentionConditions": "Do not assume public access permits dataset or media redistribution."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/16038855/",
+        "section": "Abstract; publisher appendix graphs not retained"
+      },
+      {
+        "path": "simmove/pose-engine/docs/movement-templates-reference.md",
+        "sha256": "157a8a07400e7f287fe40d488450f6ce99eabc702c59be88e3d6640c79fd961b",
+        "line": 65,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "exam:arom:lumbar-flexion",
+      "exam:arom:lumbar-extension",
+      "exam:arom:lumbar-sidebend",
+      "exam:arom:lumbar-rotation",
+      "library:lumbar-flexion-extension",
+      "engine-template:lumbar-flexion-extension"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}

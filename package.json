@@ -18,7 +18,7 @@
     "models:compress": "node scripts/compress-runtime-models.mjs",
     "models:verify": "node scripts/verify-runtime-models.mjs",
     "tune": "vite-node scripts/tune.ts",
-    "catalogue:check": "node --test scripts/catalogue/gate.node-test.mjs && node scripts/catalogue/run.mjs"
+    "catalogue:check": "node --test scripts/catalogue/gate.node-test.mjs scripts/catalogue/program.node-test.mjs scripts/catalogue/reconcile.node-test.mjs && node scripts/catalogue/run.mjs"
   },
   "peerDependencies": {
     "svelte": "^5.0.0",

@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:seth-2019-shoulder-muscles",
+  "title": "Muscle Contributions to Upper-Extremity Movement and Work From a Musculoskeletal Model of the Human Shoulder",
+  "primaryUrls": [
+    "https://www.frontiersin.org/journals/neurorobotics/articles/10.3389/fnbot.2019.00090/full"
+  ],
+  "doi": "10.3389/fnbot.2019.00090",
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Inspected primary publisher Discussion, task/figure explanations, Data Availability and Copyright. Verified task/model scope and modeled-versus-measured distinction; raw data and model were not imported.",
+  "claims": [
+    {
+      "id": "ref:seth-2019-shoulder-muscles:claim-1",
+      "description": "Study models shrugging and flexion/abduction with/without handheld load; musclework is modeled, not directlymeasured.",
+      "kind": "derived"
+    }
+  ],
+  "limitations": [
+    "Raw trajectories, EMG and model not imported; https://simtk.org/projects/thoracoscapular remains dataset/model access lead.",
+    "No current production rig, behind-back handcontact or nativeforce acceptance.",
+    "No direct measured muscle force claim."
+  ],
+  "license": {
+    "status": "verified-article",
+    "name": "CC BY",
+    "scope": "articleonly",
+    "retentionConditions": "Credit authors/copyright owner and original journal; separatelyverify dataset/model terms."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://www.frontiersin.org/journals/neurorobotics/articles/10.3389/fnbot.2019.00090/full",
+        "section": "Discussion; Figures2–4; DataAvailability; Copyright"
+      },
+      {
+        "path": "simmove/docs/archive/shoulder-visual-references.md",
+        "sha256": "bdc9887aa16b89d647dbe19995ed212210a03c460a70fd6ed01c3b3f41d9fa4a",
+        "line": 75,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "joint:shoulder-flexion",
+      "joint:shoulder-abduction",
+      "library:shoulder-flexion-elevation",
+      "library:shoulder-abduction-elevation",
+      "engine-template:shoulder-flexion-elevation",
+      "engine-template:shoulder-abduction-elevation"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}
