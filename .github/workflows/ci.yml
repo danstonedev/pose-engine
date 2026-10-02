@@ -38,7 +38,12 @@ jobs:
         run: npm run check
 
       - name: Unit tests (vitest)
-        run: npm test -- --exclude src/__tests__/handReachLatch.test.ts --reporter=dot
+        run: npm test -- --exclude src/__tests__/handReachLatch.test.ts --exclude src/__tests__/assessmentUpperMotions.test.ts --reporter=dot
+
+      # Preserve the 60 Hz skin sweep, geometry assertions and 60 s timeout.
+      # Run this mesh-heavy file without competition from the parallel suite.
+      - name: Shoulder assessment skin sweep (isolated)
+        run: npm test -- src/__tests__/assessmentUpperMotions.test.ts --reporter=dot
 
       # Keep the original wall-clock calibration and 2x budget, but do not
       # compete with expensive mesh-sweep workers on a shared CPU runner.
