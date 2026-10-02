@@ -248,6 +248,8 @@ function contactBones(
  *  returns to under a PLANTED stance. Captured once at anatomic rest. */
 export interface FloorReference {
   restY: Record<string, number>;
+  /** World X/Z points captured from this motion's supported setup pose. */
+  supportAnchorsXZ?: Record<string, [number, number]>;
   /** Anterior pelvis skin point in the Hips bone's local frame, measured at rest. */
   pronePelvisPoint?: [number, number, number];
   /** The ground-plane world-Y (the lowest foot contact's rest-Y) — the level a
@@ -318,6 +320,7 @@ export interface GroundContact {
   mode?: 'vertical' | 'reach';
   /** null requires measured geometry and refuses a bone-center fallback. */
   localPoint?: [number, number, number] | null;
+  targetXZ?: [number, number];
 }
 
 /** Height (m) the PELVIS BONE grounds to above the floor when seated — a normal
@@ -350,6 +353,24 @@ function boneByCanonicalKey(
  * plank) extend this table.
  */
 export function groundingContactsFor(posture: string, floor: FloorReference): GroundContact[] {
+  return groundingContactDefinitions(posture, floor).map(contact => {
+    const targetXZ = floor.supportAnchorsXZ?.[contact.bone];
+    return targetXZ && contact.mode !== 'reach' ? { ...contact, targetXZ } : contact;
+  });
+}
+
+/** Capture real setup geometry rather than assuming a mannequin limb length. */
+export function captureGroundSupportAnchors(skeleton: THREE.Skeleton, variantCfg: BodyVariantConfig, keys: readonly string[]): Record<string, [number, number]> {
+  const bones = boneByCanonicalKey(skeleton, variantCfg);
+  return Object.fromEntries(keys.map(key => {
+    const bone = bones.get(key);
+    if (!bone) throw new Error(`Missing ground support bone ${key}`);
+    const p = bone.getWorldPosition(new THREE.Vector3());
+    return [key, [p.x, p.z] as [number, number]];
+  }));
+}
+
+function groundingContactDefinitions(posture: string, floor: FloorReference): GroundContact[] {
   switch (posture) {
     case 'prone-supported':
       return [{ bone: 'Hips', targetY: floor.floorY, mode: 'vertical', localPoint: floor.pronePelvisPoint ?? null }];
@@ -426,6 +447,7 @@ export function pinContactsToFloor(
   root.updateMatrixWorld(true);
   const bones = boneByCanonicalKey(skeleton, variantCfg);
   let lift = -Infinity;
+  let shiftX = 0, shiftZ = 0, anchors = 0;
   for (const c of contacts) {
     if (c.mode === 'reach') continue;
     const bone = bones.get(c.bone);
@@ -434,9 +456,17 @@ export function pinContactsToFloor(
     if (c.localPoint) _fp.fromArray(c.localPoint).applyMatrix4(bone.matrixWorld);
     else bone.getWorldPosition(_fp);
     lift = Math.max(lift, c.targetY - _fp.y);
+    if (c.targetXZ) {
+      // Anchor the joint's horizontal position; a measured skin point may set Y.
+      bone.getWorldPosition(_fp);
+      shiftX += c.targetXZ[0] - _fp.x;
+      shiftZ += c.targetXZ[1] - _fp.z;
+      anchors++;
+    }
   }
   if (!Number.isFinite(lift) || (liftOnly && lift <= 0)) return 0;
   root.position.y += lift;
+  if (anchors) { root.position.x += shiftX / anchors; root.position.z += shiftZ / anchors; }
   root.updateMatrixWorld(true);
   return lift;
 }

@@ -359,6 +359,9 @@ export interface ComposedMotionModifiers extends QualitativeOverlayModifiers {
  *  the body travels over it (closed-chain ground truth). */
 export interface StanceContact {
   foot: string;
+  /** Keep a planted hand's orientation, so its palm does not pivot around a fixed wrist. */
+  holdOrientation?: boolean | 'palm-down';
+  palmSupport?: import('./footContact').ContactPlant['palmSupport'];
   fromMs?: number;
   toMs?: number;
   /** A repositioning step lands on the standing sole plane, easing down from
@@ -371,6 +374,11 @@ export interface StanceContact {
 
 /** A novel movement composed as timed keyframes over the command vocabulary. */
 export interface ComposedMotion {
+  /** Keep the declared knee/toe/pelvis supports fixed in the world after setup. */
+  fixedGroundSupports?: string[];
+  /** Self-contained assessment begins in its first authored support pose.
+   * Floor transfers are separate movements; no standing-to-floor interpolation. */
+  startAtSetup?: boolean;
   /** Limit inter-leg penetration during an authored gait deviation. */
   gaitLegClearance?: boolean;
   /** Freely swinging arms use shared post-contact, body-aware clearance. */
@@ -720,6 +728,8 @@ export interface ResolvedSequenceKeyframe {
 }
 
 export interface ResolvedComposedMotion {
+  fixedGroundSupports?: string[];
+  startAtSetup?: boolean;
   shoulderTrunkCompensation?: 'orientation';
   gaitLegClearance?: boolean;
   /** Freely swinging arms use shared post-contact, body-aware clearance. */
@@ -1972,6 +1982,8 @@ export function resolveComposedMotion(
   if (motion.gaitLegClearance) resolved.gaitLegClearance = true;
   if (motion.locomotorArmClearance) resolved.locomotorArmClearance = true;
   if (motion.footSupportSetup) resolved.footSupportSetup = true;
+  if (motion.fixedGroundSupports?.length) resolved.fixedGroundSupports = [...new Set(motion.fixedGroundSupports)];
+  if (motion.startAtSetup) resolved.startAtSetup = true;
   if (motion.shoulderTrunkCompensation) resolved.shoulderTrunkCompensation = motion.shoulderTrunkCompensation;
 
   // ── PHASE 14 — ARTIFACT RE-TIMING FROM RESOLVED KEYFRAME BOUNDARIES (SEAM-7,

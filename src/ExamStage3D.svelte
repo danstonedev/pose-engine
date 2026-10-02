@@ -582,6 +582,7 @@
       } = await import('./services/motionRecording');
       const {
         captureFloorReference,
+        captureGroundSupportAnchors,
         captureFootFrames,
         captureFootSetupFrames,
         orientFeetToSupportFrames,
@@ -612,7 +613,7 @@
         handReachReleasedAt,
         startPlantsWhereFeetLand,
       } = await import('./services/rootMotion');
-      const { buildFootPlant, stepContactPlants, buildHandPlant, settleHandReachLatches, solveHandReach } =
+      const { buildFootPlant, stepContactPlants, preparePalmSupportApproach, buildHandPlant, settleHandReachLatches, solveHandReach } =
         await import('./services/footContact');
       // Rig-facing composed derivations (the four trajectory pre-passes). Dynamic
       // like every other three-using service, so this component stays SSR-safe.
@@ -1947,7 +1948,7 @@
        *  can't serve an arc — by the last stance the body has yawed the full
        *  turn away from it; mirrors the sampler's per-plant rest). */
       function setComposedContacts(
-        contacts: { foot: string; fromMs?: number; toMs?: number; reuseInitialAnchor?: boolean; landOnFloor?: boolean }[] | undefined,
+        contacts: { foot: string; fromMs?: number; toMs?: number; reuseInitialAnchor?: boolean; landOnFloor?: boolean; holdOrientation?: boolean | 'palm-down'; palmSupport?: import('./services/footContact').ContactPlant['palmSupport'] }[] | undefined,
         headingDeg = 0,
         headingProfileMs?: { tMs: number; headingDeg: number }[],
       ): void {
@@ -1992,6 +1993,8 @@
               toMs: typeof c.toMs === 'number' ? c.toMs : Infinity,
               target: null,
               reuseInitialAnchor: c.reuseInitialAnchor === true,
+              holdOrientation: c.holdOrientation,
+              palmSupport: c.palmSupport,
               landOnFloor: c.landOnFloor === true,
               ...(rest ? { rest } : {}),
             });
@@ -2064,13 +2067,14 @@
         const solved = stepContactPlants(composedPlants, tMs, {
           // Fixed-base folds first place the root over the feet, then refine
           // both contacts. Their clamp frame includes that root and pelvis turn.
-          rest: composedUseFootRoot ? activeRestRef() : composedPlantRest ?? restRef,
+          rest: composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? activeRestRef() : composedPlantRest ?? restRef,
           hingeAxisRest: restRef,
-          ...(composedUseFootRoot ? { constraints: romConstraints, forceRomClamp: true } : {}),
+          ...(composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? { constraints: romConstraints, forceRomClamp: true } : {}),
           heelStrikeY: composedHeelStrikeY,
           captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,
           initialTargets: initialComposedPlantTargets,
           restY: floorRef?.restY,
+          floorY: floorRef?.floorY,
           trajectory: composedPlantsAtTouchdown ? null : trajectory,
         });
         if (solved) modelRoot.updateMatrixWorld(true);
@@ -2718,7 +2722,9 @@
         // ready pose (startFrom 'current'), so it plays where the person is standing
         // and never snaps to the origin. AI motions already start 'current'.
         let effectiveResolved = resolved;
-        if (resolved.startFrom === 'neutral') {
+        if (resolved.startAtSetup) {
+          resetRootToRest();
+        } else if (resolved.startFrom === 'neutral') {
           if (needsReadySettle()) {
             await playReadySettle(token);
             if (token !== composedSeq) return refusedResult('superseded');
@@ -2795,11 +2801,13 @@
         // offline sampler uses, so the recording matches the stage exactly. The
         // start knot is the live on-stage pose/root (cross-motion continuity);
         // interior keyframes are fly-throughs, holds + the end are stops.
-        const startPose = currentPose ?? baselinePoseRef ?? built.poses[0]!;
+        const startPose = resolved.startAtSetup ? built.poses[0]! : currentPose ?? baselinePoseRef ?? built.poses[0]!;
+        const startQuat = resolved.startAtSetup ? [...built.roots[0]!.quat] as [number, number, number, number] : [...composedRootQuat] as [number, number, number, number];
+        const startTranslate = resolved.startAtSetup ? [...built.roots[0]!.translateM] as [number, number, number] : [...composedRootTranslate] as [number, number, number];
         const { trajectory, settleAtMs } = buildComposedTrajectory(built, {
           startPose,
-          startQuat: [...composedRootQuat],
-          startTranslate: [...composedRootTranslate],
+          startQuat,
+          startTranslate,
           timeScale,
           reps: resolved.reps,
           // A travelling gait keeps a steady cadence — no ease-in whip / halt at the ends
@@ -2925,6 +2933,18 @@
         );
         // HAND PLANTS: build the arm IK chains for any grounding-posture reach
         // contacts (a plank's hands), so they stay planted as the chest lowers.
+        if (floorRef) {
+          delete floorRef.supportAnchorsXZ;
+          if (resolved.fixedGroundSupports?.length && skinnedRef && variantCfgRef) {
+            const setupAt = resolved.startAtSetup ? 0 : authoredToTrajectoryTimeMap(resolved, trajectory.totalMs).toTrajectory(resolved.keyframes[0]?.durationMs ?? 0);
+            if (resolved.startAtSetup) for (const plant of composedPlants) if (plant.palmSupport) plant.fromMs = 0;
+            preparePalmSupportApproach(composedPlants, setupAt, trajectory.totalMs, JSON.stringify([built, startPose, startQuat, startTranslate, timeScale, resolved.reps]),
+              tMs => poseComposedReachFrameAt(trajectory, tMs),
+              () => ({ rest: activeRestRef(), hingeAxisRest: restRef, constraints: romConstraints,
+                forceRomClamp: true, heelStrikeY: 0, initialTargets: initialComposedPlantTargets, floorY: floorRef!.floorY }),
+              () => { floorRef!.supportAnchorsXZ = captureGroundSupportAnchors(skinnedRef!.skeleton, variantCfgRef!, resolved.fixedGroundSupports!); }, !resolved.startAtSetup);
+          }
+        }
         setComposedHandPlants(built.roots);
         // CLOSED-CHAIN FOOT-ROOTED PLANTING: for a PLANTED, in-place, non-looping
         // motion with no declared contacts, re-root each planted frame at the stance

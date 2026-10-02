@@ -1,5 +1,93 @@
 # Blender movement workflow
 
+## Required for every movement — 2 October 2026
+
+Blender authoring and full-motion review are required for new and revised movements,
+including locomotion, floor transfers, screening motions, trunk, legs, arms and head.
+The requirement applies to the entire body. A numerical completion or low wrist
+tracking error does not establish a natural movement.
+
+1. Export the actual production motion and skin into a fresh review directory.
+2. Author coordinated movement in Blender. Establish stable support anchors and
+   elbow/knee bend directions; inspect body contact, tissue clearance and head/neck.
+3. Review setup, approach, hold, return and loop from multiple views on all three
+   body models and applicable sides. Keep the editable project and evidence.
+4. Transfer the result into the shared engine. Validate clinical/patient bounds,
+   bone and rendered-skin exchange, contact stability and motion continuity.
+5. Review the complete result in simMOVE and simLAB. Re-run affected native trials
+   and record source tracking separately from numerical completion.
+
+The floor-support work now has an actual Blender authoring project at
+`movement-realism-implementation/blender-workspace/floor-support-authoring-2/floor-support.blend`.
+It contains twelve editable scenes (four movements on three models), bilateral
+palm anchors and elbow guides, with stretching disabled. The normalized layout
+in `floorPalmSupports.ts` comes from these controls. The scenes currently author
+the middle pose. `floor-support-timing-1/floor-support-timing.blend` authors the
+one-second push-up approach on all three imported animations. Full-cycle and
+clinical validation are still required. Other
+movements must not be marked Blender-reviewed until their own evidence exists.
+
+Export floor references from a host with dependencies installed:
+
+```powershell
+node node_modules/vite-node/vite-node.mjs pose-engine/scripts/blender/export-review.ts ../blender-workspace/floor-review-new floor
+& 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe' --background --factory-startup --python-exit-code 1 --python pose-engine/scripts/blender/build-floor-support.py -- ../blender-workspace/floor-review-new
+```
+
+The exporter also accepts a `ComposedMotion` JSON file in place of `floor`, so
+any movement can use the same actual-rig export and measurement path. The floor
+control builder is specific to floor supports; author the appropriate support
+controls for other movements rather than reusing an unrelated pose.
+
+## Full animation review and exchange
+
+Use a fresh directory for each candidate. From the simMOVE host checkout:
+
+```powershell
+node node_modules/vite-node/vite-node.mjs pose-engine/scripts/blender/export-review.ts ../blender-workspace/movement-review-new path/to/movement.json
+& 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe' --background --factory-startup --python-exit-code 1 --python pose-engine/scripts/blender/build-motion-review.py -- ../blender-workspace/movement-review-new
+node node_modules/vite-node/vite-node.mjs pose-engine/scripts/blender/verify-roundtrip.ts ../blender-workspace/movement-review-new
+```
+
+Use `floor` instead of the JSON path to export the four current floor-support
+movements on all three models. For a sided movement, export and review the JSON
+for each applicable side. The manifest records source and asset hashes, sampled
+poses, rendered twist deformation, timing and bone/skin reference measurements.
+
+Open `full-motion-review.blend`, choose each body/movement scene, and play the
+whole timeline. Saved side, front, back and overhead cameras support inspection;
+markers identify setup, middle and return. The project retains full animations,
+not only the authoring pose. Preserve separate authoring scenes and record
+contacts, joint bends, skin clearance, head/neck and transitions seen in review.
+
+The import and replay comparison both use the unchanged 0.1 mm bone/skin gate.
+Imported sampled tracks are exported as active actions without integer-frame
+rebaking, preserving fractional terminal keys (for example 1.695 seconds).
+This avoids shifting the final pose during exchange. A passing comparison
+establishes interchange fidelity; movement acceptance still requires visual,
+contact, clinical and affected native checks in both consuming apps.
+
+Current reference evidence includes twelve full-animation scenes in
+`floor-support-motion-3/full-motion-review.blend`. Its original integer-frame
+export failed the three push-up terminal checks; that evidence is retained.
+`floor-support-timefix-1/roundtrip-results.json` verifies the corrected export
+on all three push-up models. These are development checkpoints, not final
+acceptance of subsequent contact changes.
+
+The current prepared-start/contact candidate is
+`floor-support-motion-5/full-motion-review.blend`: all twelve imports and replay
+comparisons pass. Its `renders` folder covers six phases from the side and three
+supported phases overhead, across all bodies. The prepared floor starts were
+authored separately in `floor-assessment-start-1/floor-assessment-start.blend`.
+That fixes the earlier review's standing-through-floor entrance; it does not
+establish native loaded-contact stability or a completed clinical endpoint.
+
+Generate phase images from any full-motion review (fresh output folder required):
+
+```powershell
+& 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe' --background --factory-startup --python-exit-code 1 --python pose-engine/scripts/blender/render-motion-review.py -- ../blender-workspace/movement-review-new
+```
+
 ## Whole-body physics authoring
 
 The companion project `../blender-workspace/whole-body-foundation-v5/body-physics.blend`

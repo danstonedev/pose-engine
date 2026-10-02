@@ -163,19 +163,19 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     expect(stageStep).toBeDefined();
     expect(samplerStep).toBeDefined();
     for (const field of [
-      'rest: composedUseFootRoot ? activeRestRef() : composedPlantRest ?? restRef,',
+      'rest: composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? activeRestRef() : composedPlantRest ?? restRef,',
       'hingeAxisRest: restRef,',
-      '...(composedUseFootRoot ? { constraints: romConstraints, forceRomClamp: true } : {}),',
+      '...(composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? { constraints: romConstraints, forceRomClamp: true } : {}),',
       'heelStrikeY: composedHeelStrikeY,',
       'captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,',
       'initialTargets: initialComposedPlantTargets,', 'restY: floorRef?.restY,',
       'trajectory: composedPlantsAtTouchdown ? null : trajectory,',
     ]) expect(stageStep).toContain(field);
     // The sampler supplies the equivalent dynamic frame, limits and timing.
-    expect(samplerStep).toMatch(/rest: useFootRoot \? rotateRestReferenceByPelvis\(\s*rotateRestReferenceByRoot\(rest, root\.quaternion\.clone\(\)\.multiply\(rootRestQuat\.clone\(\)\.invert\(\)\)\),\s*skinned\.skeleton, variantCfg,\s*\) : plantRest,/);
+    expect(samplerStep).toMatch(/rest: useFootRoot \|\| footPlants\.some\(plant => plant\.holdOrientation\) \? rotateRestReferenceByPelvis\(\s*rotateRestReferenceByRoot\(rest, root\.quaternion\.clone\(\)\.multiply\(rootRestQuat\.clone\(\)\.invert\(\)\)\),\s*skinned\.skeleton, variantCfg,\s*\) : plantRest,/);
     for (const field of [
       'hingeAxisRest: rest,',
-      '...(useFootRoot ? { constraints: opts.constraints ?? resolved.constraints, forceRomClamp: true } : {}),',
+      '...(useFootRoot || footPlants.some(plant => plant.holdOrientation) ? { constraints: opts.constraints ?? resolved.constraints, forceRomClamp: true } : {}),',
       'heelStrikeY,', 'captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,',
       'initialTargets: initialPlantTargets,', 'restY: floorRef.restY,',
       'trajectory: plantsAtTouchdown ? null : trajectory,',

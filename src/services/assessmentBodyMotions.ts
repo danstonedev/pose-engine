@@ -13,6 +13,8 @@ import type { ComposedMotion, SequenceKeyframe, SequenceTarget } from './motionS
 import { overheadSquatTargets } from './overheadSquat';
 import { stepIntoStandingStance } from './stanceTransition';
 import { buildBirdDog, buildPushUp } from './movementPostures';
+import { supportedBodyTargets } from './upperSupportRecipes';
+import { floorPalmSupports } from './floorPalmSupports';
 
 type Side = 'R' | 'L';
 const opposite = (side: Side): Side => side === 'R' ? 'L' : 'R';
@@ -95,12 +97,13 @@ function rotaryStability(side: Side): ComposedMotion {
 }
 
 function trunkPushUp(): ComposedMotion {
-  const reference = buildPushUp({ reps: 1 }), bottom = withTargets(reference.keyframes[1].targets ?? [], [...trunk(), ...arms(85, 135, 'shoulderAbduction'), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]), top = withTargets(reference.keyframes[2].targets ?? [], trunk());
-  return motion('Trunk stability push-up · whole-body press', [
-    frame(bottom, 1000, { posture: 'prone' }),
+  const reference = buildPushUp({ reps: 1 }), bottom = withTargets(reference.keyframes[1].targets ?? [], trunk()), top = withTargets(reference.keyframes[2].targets ?? [], trunk());
+  return { ...motion('Trunk stability push-up · whole-body press', [
+    frame(bottom, 1000, { root: { orient: { pitchDeg: 90 } }, groundingPosture: 'plank' }),
     frame(top, 1500, { root: { orient: { pitchDeg: 76 } }, groundingPosture: 'plank', holdMs: 1600 }),
-    frame(bottom, 1500, { posture: 'prone' }),
-  ], 'prone');
+    frame(bottom, 1500, { root: { orient: { pitchDeg: 90 } }, groundingPosture: 'plank' }),
+  ], 'prone'), startAtSetup: true, fixedGroundSupports: ['L_Toes', 'R_Toes'],
+  contacts: floorPalmSupports('trunk-push-up', 1000) };
 }
 
 function extensionClearing(): ComposedMotion {
@@ -111,29 +114,27 @@ function extensionClearing(): ComposedMotion {
   // Palm orientation and the assessed endpoint still need separate qualification.
   const setup = withTargets(standing(), [...arms(35, 100, 'shoulderAbduction'), target('R_UpperArm', 'shoulderRotation', -45), target('L_UpperArm', 'shoulderRotation', -45), ...leg('R', 0, 0, -45), ...leg('L', 0, 0, -45), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]);
   const chestUp = withTargets(setup, [...trunk(-20, -15), ...arms(140, 10), target('Neck', 'flexion', -10), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]);
-  return motion('Spinal extension clearing · prone chest press', [
+  return { ...motion('Spinal extension clearing · prone chest press', [
     frame(setup, 1000, { posture: 'prone', groundingPosture: 'prone-supported' }),
     frame(chestUp, 1500, { posture: 'prone', groundingPosture: 'prone-supported', holdMs: 1600 }),
     frame(setup, 1300, { posture: 'prone', groundingPosture: 'prone-supported' }),
-  ], 'prone');
+  ], 'prone'), startAtSetup: true, fixedGroundSupports: ['Hips'],
+  contacts: floorPalmSupports('press-up', 1000) };
 }
 
 function flexionClearing(): ComposedMotion {
-  // This screen folds the arms into a different support configuration from
-  // bird-dog. Retain its neutral forearm setup explicitly: inheriting the
-  // bird-dog pronation made the fully overhead solve replant the male hands
-  // and put the female elbows on the floor. Palm-surface validation for this
-  // clearing screen remains separate from the push-up/bird-dog recipes.
-  const setup = withTargets(buildBirdDog({ side: 'R' }).keyframes[0].targets ?? [], [
-    ...trunk(), target('L_Forearm', 'forearmRotation', 0), target('R_Forearm', 'forearmRotation', 0),
-  ]);
-  const back = withTargets(setup, [...leg('R', 120, 140, -45), ...leg('L', 120, 140, -45), ...arms(180, 5, 'shoulderAbduction'), ...trunk(20, 20), target('R_Hand', 'wristFlexion', -35), target('L_Hand', 'wristFlexion', -35)]);
+  // Rock the pelvis back over fixed knees and reach through the shoulders.
+  // Blender-authored palm anchors and elbow guides retain the support layout
+  // through the complete approach and return; the clinical knee cap still applies.
+  const setup = supportedBodyTargets(trunk(), 'quadruped', 0);
+  const back = withTargets(setup, [...leg('R', 120, 140, -45), ...leg('L', 120, 140, -45), ...arms(160, 5), ...trunk(20, 20), target('R_Hand', 'wristFlexion', -35), target('L_Hand', 'wristFlexion', -35)]);
   const root = { orient: { pitchDeg: 90 } };
-  return motion('Spinal flexion clearing · hips back and reach', [
+  return { ...motion('Spinal flexion clearing · hips back and reach', [
     frame(setup, 1000, { root, groundingPosture: 'quadruped' }),
     frame(back, 1600, { root: { orient: { pitchDeg: 70 } }, groundingPosture: 'quadruped', holdMs: 1800 }),
     frame(setup, 1400, { root, groundingPosture: 'quadruped' }),
-  ], 'quadruped');
+  ], 'quadruped'), startAtSetup: true, fixedGroundSupports: ['L_Leg', 'R_Leg'],
+  contacts: floorPalmSupports('rock-back', 1000) };
 }
 
 function multisegmentalFlexion(): ComposedMotion {

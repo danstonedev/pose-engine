@@ -9,7 +9,7 @@ const folder = process.argv[2] && resolve(process.argv[2]);
 if (!folder) throw Error('Provide the Blender review folder');
 const resultPath = resolve(folder, 'roundtrip-results.json');
 if (existsSync(resultPath)) throw Error('Do not overwrite existing evidence');
-const manifest = JSON.parse(readFileSync(resolve(folder, 'manifest.json'), 'utf8'));
+const manifest = JSON.parse(readFileSync(resolve(folder, 'manifest.json'), 'utf8').replace(/^\uFEFF/, ''));
 const results = [];
 const toleranceM = 0.0001;
 const gridSize = 0.005;
@@ -23,7 +23,7 @@ for (const entry of manifest.cases) {
     const action = mixer.clipAction(clip);
     action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play();
   }
-  const data = JSON.parse(readFileSync(resolve(folder, entry.expected), 'utf8'));
+  const data = JSON.parse(readFileSync(resolve(folder, entry.expected), 'utf8').replace(/^\uFEFF/, ''));
   const meshes: THREE.SkinnedMesh[] = [];
   const bones = new Map<string, THREE.Bone>();
   root.traverse(object => {

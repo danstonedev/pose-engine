@@ -59,9 +59,41 @@ simLAB/kinematic playback parity, neutral-variant native support, finger contact
 patient material calibration and actual hand/back contact remain open.
 See simMOVE's `docs/blender-body-physics.md` for the implemented scope.
 
-## Contact qualification - 2 October 2026
+## Last qualified contact baseline - 2 October 2026
 
 The contact qualification change resolves all six new foundation stops. The refreshed 64-context matrix has **44 numerical completions, 20 stops, 32 retained sampled tracking passes**, and zero installation/invariant errors. Only the two extension-clearing sources changed; 62 source routes are unchanged. A shared measured pelvis support point and combined humeral abduction/rotation improve prone setup. The eight recovered contexts do not meet the tracking diagnostic. Exact case evidence is in simMOVE's `docs/evidence/posed-contact-2026-10-02.json`.
+
+This is the `2465b6d` comparison baseline, not qualification of the newer floor
+motion development. PR #168 remains draft at the user's request to finish the
+remaining motion work before merging. A separate native left-arm axis correction
+regressed that frozen matrix to 40 completions / 24 stops and remains unqualified.
+
+## Current Blender movement work
+
+Blender is required for **every new or revised movement**, across the whole body,
+including head and neck. Keep editable authoring controls and full-animation
+review evidence on all production models and applicable sides. A motion without
+that evidence remains unreviewed; numerical completion is not movement acceptance.
+See [the required workflow and reusable tools](blender-workflow.md).
+
+Current development covers regular push-up, trunk-stability push-up, extension
+clearing and flexion clearing on male/female/neutral rigs. Blender projects author
+palm anchors, elbow guides, setup timing and prepared floor-assessment starts.
+The shared engine retains those contacts through the motion and across an incoming
+plank, with bounded palm orientation and a deterministic arm guide. The three
+self-contained floor assessments start in their authored setup pose; floor
+transfers are separate movements.
+
+The full 3,555-test app/engine run and isolated 19-test hand-latch run pass, including the
+unchanged continuity and parked-playback performance gates. New actual-rig tests
+check palm landmarks within 2 mm, forward fingers, elbow direction, patient wrist
+bounds, incoming contacts and agreement across playback rates. Twelve animations
+passed Blender import/export in `floor-support-motion-5`, following the earlier
+review's discovery of the standing-through-floor entrance. The prepared floor
+starts and six motion phases have been inspected on all three models. Typecheck
+reports zero errors/warnings. Both-host playback and renewed native qualification
+remain required before release. Skin pressure/compression and complete
+clinical endpoints are still open.
 
 Next: qualify loaded palms and source/native tracking in the recovered floor movements, then the 20 remaining stops (hurdle 4, lunge 4, rotary 4, multisegmental flexion 2, rotation 4, legacy squat 2). Blender now contains timed native collider review scenes, including head/neck, but continuous skin coverage and posed joint seams remain open. The shared prone source also passes a neutral-model playback regression. Native neutral fixtures remain open; host rollout is tracked by the companion shipment and PRs.
 

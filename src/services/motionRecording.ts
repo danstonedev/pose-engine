@@ -41,6 +41,7 @@ import {
 import {
   buildFootPlant,
   stepContactPlants,
+  preparePalmSupportApproach,
   buildHandPlant,
   settleHandReachLatches,
   solveHandReach,
@@ -59,6 +60,7 @@ import {
   applyVerticalCalibration,
   applyWeightedDescent,
   captureFloorReference,
+  captureGroundSupportAnchors,
   captureFootFrames,
   captureFootSetupFrames,
   orientFeetToSupportFrames,
@@ -450,6 +452,8 @@ export interface SampleComposedOptions {
     fromMs?: number;
     toMs?: number;
     reuseInitialAnchor?: boolean;
+    holdOrientation?: boolean | 'palm-down';
+    palmSupport?: import('./footContact').ContactPlant['palmSupport'];
     landOnFloor?: boolean;
   }[];
   /**
@@ -638,6 +642,8 @@ export function sampleComposedMotion(
         toMs: typeof c.toMs === 'number' ? c.toMs : Infinity,
         target: null,
         reuseInitialAnchor: c.reuseInitialAnchor === true,
+        holdOrientation: c.holdOrientation,
+        palmSupport: c.palmSupport,
         landOnFloor: c.landOnFloor === true,
       });
     }
@@ -730,6 +736,11 @@ export function sampleComposedMotion(
     !startNeutral && opts.currentRoot?.quat ? [...opts.currentRoot.quat] : [...QUAT_IDENTITY];
   let prevTranslate: [number, number, number] =
     !startNeutral && opts.currentRoot?.translateM ? [...opts.currentRoot.translateM] : [0, 0, 0];
+  if (resolved.startAtSetup && built.poses.length) {
+    prevPose = built.poses[0]!;
+    prevQuat = [...built.roots[0]!.quat];
+    prevTranslate = [...built.roots[0]!.translateM];
+  }
 
   // CONTINUOUS TRAJECTORY (services/motionTrajectory): one velocity-continuous
   // spline that FLOWS THROUGH the keyframe waypoints instead of the old
@@ -1129,6 +1140,21 @@ export function sampleComposedMotion(
     }
   };
 
+  if (resolved.fixedGroundSupports?.length) {
+    const setupAt = resolved.startAtSetup ? 0 : toTrajectory.toTrajectory(resolved.keyframes[0]?.durationMs ?? 0);
+    if (resolved.startAtSetup) for (const plant of footPlants) if (plant.palmSupport) plant.fromMs = 0;
+    preparePalmSupportApproach(footPlants, setupAt, totalMs, JSON.stringify([built, prevPose, prevQuat, prevTranslate, timeScale, resolved.reps]), poseReachFrameAt, () => ({
+      rest: rotateRestReferenceByPelvis(
+        rotateRestReferenceByRoot(rest, root.quaternion.clone().multiply(rootRestQuat.clone().invert())),
+        skinned.skeleton, variantCfg,
+      ),
+      hingeAxisRest: rest, constraints: opts.constraints ?? resolved.constraints, forceRomClamp: true,
+      heelStrikeY: 0, initialTargets: initialPlantTargets, floorY: floorRef.floorY,
+    }), () => {
+      floorRef.supportAnchorsXZ = captureGroundSupportAnchors(skinned.skeleton, variantCfg, resolved.fixedGroundSupports!);
+    }, !resolved.startAtSetup);
+  }
+
   /** Sample the rig at absolute time t and read back one frame. */
   const sampleAt = (tMs: number): RecordedFrame => {
     const sample = trajectory.sampleAt(tMs);
@@ -1351,16 +1377,17 @@ export function sampleComposedMotion(
         // A fixed-base fold rotates the root and articulates the pelvis. Clamp
         // its final contact correction in the same frame used for measurement;
         // the constant gait-heading frame would misread hip flexion by that tilt.
-        rest: useFootRoot ? rotateRestReferenceByPelvis(
+        rest: useFootRoot || footPlants.some(plant => plant.holdOrientation) ? rotateRestReferenceByPelvis(
           rotateRestReferenceByRoot(rest, root.quaternion.clone().multiply(rootRestQuat.clone().invert())),
           skinned.skeleton, variantCfg,
         ) : plantRest,
         hingeAxisRest: rest,
-        ...(useFootRoot ? { constraints: opts.constraints ?? resolved.constraints, forceRomClamp: true } : {}),
+        ...(useFootRoot || footPlants.some(plant => plant.holdOrientation) ? { constraints: opts.constraints ?? resolved.constraints, forceRomClamp: true } : {}),
         heelStrikeY,
         captureLiftY: plantsAtTouchdown ? vcalRaiseY : 0,
         initialTargets: initialPlantTargets,
         restY: floorRef.restY,
+        floorY: floorRef.floorY,
         trajectory: plantsAtTouchdown ? null : trajectory,
       });
     // IK can rotate a planted ankle after the root floor pin. Keep its toe
