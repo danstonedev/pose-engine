@@ -2,7 +2,7 @@
 
 ## Whole-body physics authoring
 
-The companion project `../blender-workspace/whole-body-foundation-v4/body-physics.blend`
+The companion project `../blender-workspace/whole-body-foundation-v5/body-physics.blend`
 contains the native female/male collision models: 23 segments each, including
 head, both cervical segments and measured lumbar contact. Its 12 regional material controls export a
 profile that simMOVE's local physics editor and native verifier consume.
