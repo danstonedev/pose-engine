@@ -1,5 +1,11 @@
 # Blender movement workflow
 
+All movement changes must use the [single master catalogue](MASTER-MOVEMENT-JOINT-CATALOGUE.html)
+and satisfy [the enforced catalogue process](movement-catalogue-process.md). Include
+all actual rig bones, the complete head-to-pelvis chain and all applicable bodies,
+sides and phases. Review the entire motion and retain current separate evidence.
+
+
 ## Whole-body physics authoring
 
 The companion project `../blender-workspace/whole-body-foundation-v5/body-physics.blend`
