@@ -60,6 +60,12 @@ Store current hashes, tool versions, commands/results, editable projects, matche
 
 ## Extend the existing development gates
 
+The user's 3 October 2026 merge threshold supersedes the full-qualification merge
+requirement below. Follow [incremental merge policy](catalogue-progress-policy.md):
+permit progress with existing issues still open, and block new or worsened failures
+against the base revision. Keep numeric bounds, source/evidence integrity and
+qualification requirements intact. Merging does not close or accept a context.
+
 Extend the current catalogue generator, sampler, validation gate, UI and regression coverage. Validate defect/reference/work links, scope applicability, reference completeness, reconciliation dispositions, evidence identities and preservation across regeneration. Require adequate reference support and resolved applicable release-blocking defects before accepting a new or changed context. Treat assumptions and missing evidence explicitly; do not let a prose note or status selection bypass a requirement.
 
 Preserve the historical unreviewed baseline without promoting its motions to accepted. Define migration behavior explicitly, keep legacy limitations visible, and ensure changed motions cannot inherit an exemption to avoid review. Close defects only for the verified context scope; partially corrected families retain their open contexts. Schema coverage tests should reject orphan links, dropped records, duplicated imports, unsupported closure claims and stale evidence.

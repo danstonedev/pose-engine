@@ -1,6 +1,6 @@
 # Movement-evoked pain responses
 
-PR candidate, 2 October 2026. This is an authored expression layer;
+Incremental implementation, 2 October 2026. This is an authored expression layer;
 channel weights, intensity bands and timings are animation choices. They are
 not validated conversions between facial activity and a patient's pain score.
 
@@ -214,8 +214,10 @@ public-model optimization quantizes positions, which would prevent the verified
 facial deltas from matching. The normal editor model pipeline remains intact.
 simLAB already imports these production models directly.
 
-The required engine and simLAB catalogue checks fail on 1,356 changed contexts
-that lack current reference/clinical acceptance. The same refreshed master is
-retained in the shared engine for both host pins; historical tracking and reviews
-are preserved. No acceptance was added, threshold changed or gate bypassed.
-The PRs remain drafts until the required catalogue review and CI pass.
+The user's 3 October [incremental merge policy](catalogue-progress-policy.md)
+compares qualification issues with the base revision. The same refreshed master
+is retained in the shared engine for both host pins. Historical records and
+numeric bounds are preserved; current samples replace nine observations made
+stale by shared source changes. Existing reference and clinical review gaps remain
+open. The policy request is retained alongside the verification record.
+Clinical qualification and native validation of these responses remain pending.
