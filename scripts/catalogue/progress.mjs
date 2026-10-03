@@ -24,10 +24,35 @@ export function loadComparisonBase(engineRoot, hostRoot) {
   const files = new Map();
   const evidenceRoot = { read(path) {
     if (!files.has(path)) files.set(path, git(engineRoot, ['show', `${engineRevision}:${path}`], true));
+    if (files.get(path) === null) throw Error(`Missing base artifact: ${path}`);
     return files.get(path);
   }};
   const master = parseMaster(evidenceRoot.read('docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html').toString('utf8'));
   const pin = JSON.parse(evidenceRoot.read('scripts/catalogue/baseline-pin.json').toString('utf8'));
+  // Reading each retained artifact in its own Git process is especially slow
+  // on Windows. Fetch their original blobs in one bounded batch.
+  const artifacts = new Set();
+  const collect = value => {
+    if (!value || typeof value !== 'object') return;
+    if (typeof value.path === 'string' && /^[a-f\d]{64}$/.test(value.sha256 ?? '') && !/[\r\n\0\\]/.test(value.path) && !value.path.startsWith('/') && !value.path.split('/').includes('..')) artifacts.add(value.path);
+    for (const child of Object.values(value)) if (typeof child === 'object') collect(child);
+  };
+  collect(master);
+  const paths = [...artifacts];
+  if (paths.length) {
+    const bytes = execFileSync('git', ['cat-file','--batch'], { cwd: engineRoot, input: paths.map(path => `${engineRevision}:${path}\n`).join(''), maxBuffer: 512 * 1024 * 1024, stdio: ['pipe','pipe','pipe'] });
+    let offset = 0;
+    for (const path of paths) {
+      const end = bytes.indexOf(10, offset), header = bytes.subarray(offset, end).toString('utf8');
+      if (end < 0) throw Error('Incomplete base evidence batch.');
+      offset = end + 1;
+      const object = header.match(/^\S+ (\S+) (\d+)$/);
+      if (!object) { files.set(path, null); continue; }
+      const size = Number(object[2]);
+      files.set(path, object[1] === 'blob' ? bytes.subarray(offset, offset + size) : null);
+      offset += size + 1;
+    }
+  }
   return { ...master, pin, revision, engineRevision, evidenceRoot };
 }
 function issue(context, message) {

@@ -12,7 +12,6 @@ it('measures the entire actual rig and rechecks all qualified trajectories', asy
   if(process.env.MOVEMENT_CATALOGUE_MODE==='check'){
     const current={data,tracking};
     const base=loadComparisonBase(root,process.env.MOVEMENT_CATALOGUE_HOST?resolve(root,'..'):undefined);
-    assertGate(evaluateProgress(current,base,{engineRoot:root,baselineDigest:pin.sha256}));
     const freshObservations:Record<string,unknown>={};
     for(const context of sampledContexts(current)) freshObservations[contextKey(context)]=await sampleContext(data,context,root);
     assertGate(evaluateProgress(current,base,{engineRoot:root,baselineDigest:pin.sha256,freshObservations}));

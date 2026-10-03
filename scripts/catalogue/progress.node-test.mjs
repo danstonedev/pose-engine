@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compareIssues, evaluateProgress, preservationErrors, sampledContexts } from './progress.mjs';
+import { compareIssues, evaluateProgress, preservationErrors, sampledContexts, loadComparisonBase } from './progress.mjs';
+import {execFileSync} from 'node:child_process';
+import {mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {resolve,relative,isAbsolute} from 'node:path';
 import { digest, identity, makeBaseline, observationKey, contextKey } from './gate.mjs';
 import { migrateProgram } from './reconcile.mjs';
 
@@ -59,4 +63,35 @@ test('baseline rewrite, dropped records and relaxed bounds cannot hide issues', 
   assert.match(preservationErrors(base,current).join('\n'),/relaxed/);
   delete current.tracking.joint;assert.match(preservationErrors(base,current).join('\n'),/dropped/);
   current.data.enforcement.baseline.sources={};assert.match(preservationErrors(base,current).join('\n'),/Frozen/);
+});
+test('trusted PR base and original artifact bytes survive candidate edits and multiple commits', () => {
+  const root=mkdtempSync(resolve(tmpdir(),'catalogue-progress-'));
+  const eventPath=process.env.GITHUB_EVENT_PATH,eventName=process.env.GITHUB_EVENT_NAME;
+  const git=args=>execFileSync('git',args,{cwd:root,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+  try {
+    delete process.env.GITHUB_EVENT_PATH;delete process.env.GITHUB_EVENT_NAME;
+    const base=fixture();
+    base.data.program.sources.push({id:'source',title:'Fixture',origin:'Test',status:'inspected',scope:'Synthetic only',snapshot:{path:'docs/source.txt',sha256:digest('original')}});
+    mkdirSync(resolve(root,'docs'),{recursive:true});mkdirSync(resolve(root,'scripts/catalogue'),{recursive:true});
+    const html=`<script id="catalogue-data" type="application/json">${JSON.stringify(base.data)}</script><script id="tracking-data" type="application/json">${JSON.stringify(base.tracking)}</script>`;
+    writeFileSync(resolve(root,'docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html'),html);
+    writeFileSync(resolve(root,'docs/source.txt'),'original');
+    writeFileSync(resolve(root,'scripts/catalogue/baseline-pin.json'),JSON.stringify({sha256:digest(base.data.enforcement.baseline)}));
+    git(['init']);git(['add','.']);git(['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-m','base']);
+    const revision=git(['rev-parse','HEAD']);git(['update-ref','refs/remotes/origin/main',revision]);
+    for (const text of ['candidate one','candidate two']) {
+      writeFileSync(resolve(root,'docs/source.txt'),text);git(['add','.']);git(['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-m',text]);
+    }
+    writeFileSync(resolve(root,'event.json'),JSON.stringify({pull_request:{base:{sha:revision}}}));
+    process.env.GITHUB_EVENT_PATH=resolve(root,'event.json');process.env.GITHUB_EVENT_NAME='pull_request';
+    const loaded=loadComparisonBase(root);
+    assert.equal(loaded.revision,revision);
+    assert.equal(loaded.evidenceRoot.read('docs/source.txt').toString(),'original');
+    assert.equal(evaluateProgress(base,loaded,{engineRoot:root,baselineDigest:loaded.pin.sha256}).pass,false,'candidate artifact corruption must block');
+    assert.throws(()=>loadComparisonBase(root,root),/no pose-engine gitlink/);
+  } finally {
+    if(eventPath===undefined)delete process.env.GITHUB_EVENT_PATH;else process.env.GITHUB_EVENT_PATH=eventPath;
+    if(eventName===undefined)delete process.env.GITHUB_EVENT_NAME;else process.env.GITHUB_EVENT_NAME=eventName;
+    const rel=relative(tmpdir(),root);assert.ok(rel&&!rel.startsWith('..')&&!isAbsolute(rel));rmSync(root,{recursive:true});
+  }
 });
