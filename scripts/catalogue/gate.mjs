@@ -155,6 +155,14 @@ export function defectClosureErrors(root, closure, defect, context) {
 }
 export function evaluateCatalogue(data, tracking, { engineRoot, baselineDigest, freshObservations = {}, reviewAll = false } = {}) {
   const errors = [], changed = changedContexts(data);
+  const phaseRecords = new Map();
+  for (const [phaseKey, record] of Object.entries(tracking)) {
+    let parts; try { parts = JSON.parse(phaseKey); } catch { continue; }
+    if (!Array.isArray(parts) || parts.length !== 5 || parts[3] === 'all') continue;
+    const key = JSON.stringify([parts[0], parts[1], parts[2], parts[4]]);
+    if (!phaseRecords.has(key)) phaseRecords.set(key, []);
+    phaseRecords.get(key).push({ phase: parts[3], record });
+  }
   const baseline = data.enforcement?.baseline;
   if (!baseline || digest(baseline) !== baselineDigest) errors.push('Frozen historical baseline is missing or was rewritten; refresh may not reset acceptance requirements');
   const allKeys = data.contexts.map(contextKey);
@@ -199,9 +207,8 @@ export function evaluateCatalogue(data, tracking, { engineRoot, baselineDigest, 
       if (record.requiredRole === 'contact' && !rules.some(rule => rule.metric === 'worldPositionExcursionM' && Number.isFinite(rule.max))) failures.push(`${bone.id}: support requires a world-position constraint over the reviewed window`);
       failures.push(...checkRules(rules, measured?.metrics?.[bone.id]).map(error => `${bone.id}: ${error}`));
       // Any phase record entered is also checked; full-motion coverage cannot hide phase failures.
-      for (const [phaseKey, phaseRecord] of Object.entries(tracking)) {
-        let parts; try { parts = JSON.parse(phaseKey); } catch { continue; }
-        if (parts.length !== 5 || parts[0] !== context.id || parts[1] !== context.variant || parts[2] !== context.side || parts[4] !== bone.id || parts[3] === 'all') continue;
+      for (const { phase, record: phaseRecord } of phaseRecords.get(JSON.stringify([context.id, context.variant, context.side, bone.id])) ?? []) {
+        const parts = [context.id, context.variant, context.side, phase, bone.id];
         if (phaseRecord.identity !== currentIdentity || phaseRecord.status !== 'verified' || !['driven','derived','held','contact','free','not-involved'].includes(phaseRecord.requiredRole) || !phaseRecord.note?.trim() || !phaseRecord.evidence?.trim()) failures.push(`${bone.id} phase ${parts[3]}: unresolved or stale`);
         if(phaseRecord.requiredRole==='derived' && (!bones.some(item=>item.id===phaseRecord.owner) || phaseRecord.owner===bone.id)) failures.push(`${bone.id} phase ${parts[3]}: missing controller owner`);
         if(phaseRecord.requiredRole!=='free' && !phaseRecord.rules?.length) failures.push(`${bone.id} phase ${parts[3]}: missing constraints`);

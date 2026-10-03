@@ -32,36 +32,48 @@ export function loadComparisonBase(engineRoot, hostRoot) {
 }
 function issue(context, message) {
   const numeric = message.match(/^(.*)=(-?[\d.]+(?:e[+-]?\d+)?) outside (-inf|-?[\d.]+(?:e[+-]?\d+)?)\.\.(inf|-?[\d.]+(?:e[+-]?\d+)?)$/i);
-  if (!numeric) return { key: JSON.stringify([context, message]), severity: 1, context, message };
+  if (!numeric) return { key: message, severity: 1, context, message };
   const value = Number(numeric[2]), min = numeric[3] === '-inf' ? -Infinity : Number(numeric[3]), max = numeric[4] === 'inf' ? Infinity : Number(numeric[4]);
-  return { key: JSON.stringify([context, numeric[1], numeric[3], numeric[4]]), severity: Math.max(min - value, value - max, 0), context, message };
+  return { key: JSON.stringify([numeric[1], numeric[3], numeric[4]]), severity: Math.max(min - value, value - max, 0), context, message };
 }
-function* issues(result) {
+function groupIssues(result) {
+  const groups = new Map();
+  const add = (context, messages) => {
+    if (!groups.has(context)) groups.set(context, []);
+    groups.get(context).push(...messages);
+  };
   for (const error of result.errors) {
     if (typeof error !== 'string') {
-      for (const message of error.failures) yield issue(error.context, message);
+      add(error.context, error.failures);
     } else {
       const scoped = error.match(/^Context (\[.*?\]): (.*)$/);
-      yield issue(scoped?.[1] ?? null, scoped?.[2] ?? error);
+      add(scoped?.[1] ?? null, [scoped?.[2] ?? error]);
     }
   }
+  return groups;
 }
 export function compareIssues(before, after) {
-  const previous = new Map(), current = new Map();
-  for (const [result, map] of [[before, previous], [after, current]]) for (const item of issues(result)) {
-    if (!map.has(item.key) || item.severity > map.get(item.key).severity) map.set(item.key, item);
-  }
+  // Compare one context at a time instead of retaining a second giant issue map.
+  const previousGroups = groupIssues(before), currentGroups = groupIssues(after);
   const errors = [];
   let remainingIssues = 0, improvedIssues = 0;
-  for (const item of current.values()) {
-    const old = previous.get(item.key);
-    // Structural, provenance and evidence-integrity failures require repair.
-    const corruptEvidence = /evidence hash differs|changed or escaped|outside repository|external (?:evidence )?artifact|invalid (?:evidence|artifact) reference/.test(item.message);
-    if (item.context === null || corruptEvidence || !old || item.severity > old.severity) errors.push(item.context === null ? item.message : { context: item.context, failures: [item.message] });
-    else { remainingIssues++; if (item.severity < old.severity) improvedIssues++; }
-    previous.delete(item.key);
+  for (const [context, messages] of currentGroups) {
+    const previous = new Map(), current = new Map();
+    for (const [values, map] of [[previousGroups.get(context) ?? [], previous], [messages, current]]) for (const message of values) {
+      const item = issue(context, message);
+      if (!map.has(item.key) || item.severity > map.get(item.key).severity) map.set(item.key, item);
+    }
+    for (const item of current.values()) {
+      const old = previous.get(item.key);
+      const corruptEvidence = /evidence hash differs|changed or escaped|outside repository|external (?:evidence )?artifact|invalid (?:evidence|artifact) reference/.test(item.message);
+      if (context === null || corruptEvidence || !old || item.severity > old.severity) errors.push(context === null ? item.message : { context, failures: [item.message] });
+      else { remainingIssues++; if (item.severity < old.severity) improvedIssues++; }
+      previous.delete(item.key);
+    }
+    improvedIssues += previous.size;
+    previousGroups.delete(context);
   }
-  improvedIssues += previous.size;
+  for (const [context, messages] of previousGroups) improvedIssues += new Set(messages.map(message => issue(context, message).key)).size;
   return { pass: errors.length === 0, errors, remainingIssues, improvedIssues };
 }
 export function preservationErrors(base, current) {
