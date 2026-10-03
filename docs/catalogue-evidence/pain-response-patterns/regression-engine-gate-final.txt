@@ -1,0 +1,758 @@
+
+> @vspx/pose-engine@0.1.0 catalogue:check
+> node --test scripts/catalogue/gate.node-test.mjs scripts/catalogue/progress.node-test.mjs scripts/catalogue/program.node-test.mjs scripts/catalogue/reconcile.node-test.mjs && node scripts/catalogue/run.mjs
+
+TAP version 13
+# Subtest: complete scoped fixture passes, historical motion remains explicitly unreviewed
+ok 1 - complete scoped fixture passes, historical motion remains explicitly unreviewed
+  ---
+  duration_ms: 16.1157
+  type: 'test'
+  ...
+# Subtest: new movement requires a context review
+ok 2 - new movement requires a context review
+  ---
+  duration_ms: 7.1623
+  type: 'test'
+  ...
+# Subtest: head cannot disappear from whole-body requirements
+ok 3 - head cannot disappear from whole-body requirements
+  ---
+  duration_ms: 10.6907
+  type: 'test'
+  ...
+# Subtest: twist helpers require roles too
+ok 4 - twist helpers require roles too
+  ---
+  duration_ms: 9.9862
+  type: 'test'
+  ...
+# Subtest: verified dropdown with evidence prose does not satisfy measurements
+ok 5 - verified dropdown with evidence prose does not satisfy measurements
+  ---
+  duration_ms: 9.4592
+  type: 'test'
+  ...
+# Subtest: held role requires a measured excursion ceiling
+ok 6 - held role requires a measured excursion ceiling
+  ---
+  duration_ms: 8.456
+  type: 'test'
+  ...
+# Subtest: derived role requires an identified controller owner
+ok 7 - derived role requires an identified controller owner
+  ---
+  duration_ms: 8.3108
+  type: 'test'
+  ...
+# Subtest: contact role requires positional bounds
+ok 8 - contact role requires positional bounds
+  ---
+  duration_ms: 7.9804
+  type: 'test'
+  ...
+# Subtest: observed trajectory must satisfy declared constraints
+ok 9 - observed trajectory must satisfy declared constraints
+  ---
+  duration_ms: 6.7201
+  type: 'test'
+  ...
+# Subtest: old-rig observations are rejected
+ok 10 - old-rig observations are rejected
+  ---
+  duration_ms: 6.8187
+  type: 'test'
+  ...
+# Subtest: incomplete samples are rejected
+ok 11 - incomplete samples are rejected
+  ---
+  duration_ms: 6.132
+  type: 'test'
+  ...
+# Subtest: nonfinite sampling rates are rejected
+ok 12 - nonfinite sampling rates are rejected
+  ---
+  duration_ms: 6.3849
+  type: 'test'
+  ...
+# Subtest: full spine segment coverage is mandatory
+ok 13 - full spine segment coverage is mandatory
+  ---
+  duration_ms: 7.0708
+  type: 'test'
+  ...
+# Subtest: refresh cannot rewrite the frozen historical baseline
+ok 14 - refresh cannot rewrite the frozen historical baseline
+  ---
+  duration_ms: 6.2576
+  type: 'test'
+  ...
+# Subtest: missing host evidence is rejected
+ok 15 - missing host evidence is rejected
+  ---
+  duration_ms: 5.6836
+  type: 'test'
+  ...
+# Subtest: native applicability cannot be omitted
+ok 16 - native applicability cannot be omitted
+  ---
+  duration_ms: 5.6716
+  type: 'test'
+  ...
+# Subtest: production gate requires reference comparison as well as motion evidence
+ok 17 - production gate requires reference comparison as well as motion evidence
+  ---
+  duration_ms: 7.8431
+  type: 'test'
+  ...
+# Subtest: rehashed reference evidence cannot claim a different context
+ok 18 - rehashed reference evidence cannot claim a different context
+  ---
+  duration_ms: 6.5882
+  type: 'test'
+  ...
+# Subtest: comparison evidence becomes stale when its scientific reference changes
+ok 19 - comparison evidence becomes stale when its scientific reference changes
+  ---
+  duration_ms: 6.895
+  type: 'test'
+  ...
+# Subtest: reference comparison requires retained underlying captures or data
+ok 20 - reference comparison requires retained underlying captures or data
+  ---
+  duration_ms: 6.3049
+  type: 'test'
+  ...
+# Subtest: quantitative comparisons evaluate measured values against justified bounds
+ok 21 - quantitative comparisons evaluate measured values against justified bounds
+  ---
+  duration_ms: 5.9822
+  type: 'test'
+  ...
+# Subtest: production gate rejects unresolved scoped blocking defects
+ok 22 - production gate rejects unresolved scoped blocking defects
+  ---
+  duration_ms: 8.9883
+  type: 'test'
+  ...
+# Subtest: hash-changed artifacts are rejected
+ok 23 - hash-changed artifacts are rejected
+  ---
+  duration_ms: 6.4899
+  type: 'test'
+  ...
+# Subtest: external evidence paths are rejected
+ok 24 - external evidence paths are rejected
+  ---
+  duration_ms: 7.7213
+  type: 'test'
+  ...
+# Subtest: phase failures cannot be hidden by full-motion approval
+ok 25 - phase failures cannot be hidden by full-motion approval
+  ---
+  duration_ms: 6.3822
+  type: 'test'
+  ...
+# Subtest: fresh CI observations override a passing stored summary
+ok 26 - fresh CI observations override a passing stored summary
+  ---
+  duration_ms: 6.9378
+  type: 'test'
+  ...
+# Subtest: bounds must be finite, meaningful and available in measured metrics
+ok 27 - bounds must be finite, meaningful and available in measured metrics
+  ---
+  duration_ms: 0.628
+  type: 'test'
+  ...
+# Subtest: text source identities survive Windows and Linux line endings
+ok 28 - text source identities survive Windows and Linux line endings
+  ---
+  duration_ms: 0.1823
+  type: 'test'
+  ...
+# Subtest: committed inventory contains every actual skin bone and detects source drift
+ok 29 - committed inventory contains every actual skin bone and detects source drift
+  ---
+  duration_ms: 288.5437
+  type: 'test'
+  ...
+# Subtest: valid program fixture accepts explicit source and reference comparisons without approving an open non-blocking defect
+ok 30 - valid program fixture accepts explicit source and reference comparisons without approving an open non-blocking defect
+  ---
+  duration_ms: 3.6074
+  type: 'test'
+  ...
+# Subtest: unregistered unsupported recipes retain accountable blocked mapping work
+ok 31 - unregistered unsupported recipes retain accountable blocked mapping work
+  ---
+  duration_ms: 1.335
+  type: 'test'
+  ...
+# Subtest: scope selectors preserve unavailable gaps and body/side applicability
+ok 32 - scope selectors preserve unavailable gaps and body/side applicability
+  ---
+  duration_ms: 0.2806
+  type: 'test'
+  ...
+# Subtest: historical untouched migration accepts explicit gaps without granting reference or defect acceptance
+ok 33 - historical untouched migration accepts explicit gaps without granting reference or defect acceptance
+  ---
+  duration_ms: 0.3363
+  type: 'test'
+  ...
+# Subtest: old schema is never silently promoted
+ok 34 - old schema is never silently promoted
+  ---
+  duration_ms: 0.436
+  type: 'test'
+  ...
+# Subtest: coverage cannot be dropped for a named motion
+ok 35 - coverage cannot be dropped for a named motion
+  ---
+  duration_ms: 0.2634
+  type: 'test'
+  ...
+# Subtest: coverage cannot retain an orphan motion
+ok 36 - coverage cannot retain an orphan motion
+  ---
+  duration_ms: 0.2066
+  type: 'test'
+  ...
+# Subtest: applicable defects must stay linked through coverage
+ok 37 - applicable defects must stay linked through coverage
+  ---
+  duration_ms: 0.8562
+  type: 'test'
+  ...
+# Subtest: applicable references must stay linked through coverage
+ok 38 - applicable references must stay linked through coverage
+  ---
+  duration_ms: 0.4562
+  type: 'test'
+  ...
+# Subtest: unknown imported source is rejected
+ok 39 - unknown imported source is rejected
+  ---
+  duration_ms: 0.4382
+  type: 'test'
+  ...
+# Subtest: uninspected source cannot claim imported findings
+ok 40 - uninspected source cannot claim imported findings
+  ---
+  duration_ms: 0.2318
+  type: 'test'
+  ...
+# Subtest: source snapshots need exact byte identities
+ok 41 - source snapshots need exact byte identities
+  ---
+  duration_ms: 0.1616
+  type: 'test'
+  ...
+# Subtest: modified retained sources are rejected by artifact reader
+ok 42 - modified retained sources are rejected by artifact reader
+  ---
+  duration_ms: 0.2068
+  type: 'test'
+  ...
+# Subtest: missing stable canonical record IDs are rejected
+ok 43 - missing stable canonical record IDs are rejected
+  ---
+  duration_ms: 0.1706
+  type: 'test'
+  ...
+# Subtest: duplicate canonical defect IDs are rejected
+ok 44 - duplicate canonical defect IDs are rejected
+  ---
+  duration_ms: 0.3481
+  type: 'test'
+  ...
+# Subtest: duplicate imports cannot accumulate under different finding IDs
+ok 45 - duplicate imports cannot accumulate under different finding IDs
+  ---
+  duration_ms: 0.1953
+  type: 'test'
+  ...
+# Subtest: reference imports cannot accumulate duplicate provenance under new IDs
+ok 46 - reference imports cannot accumulate duplicate provenance under new IDs
+  ---
+  duration_ms: 0.1716
+  type: 'test'
+  ...
+# Subtest: finding dispositions must be traceable rather than a loose resolved note
+ok 47 - finding dispositions must be traceable rather than a loose resolved note
+  ---
+  duration_ms: 0.2017
+  type: 'test'
+  ...
+# Subtest: linked findings require reciprocal canonical links
+ok 48 - linked findings require reciprocal canonical links
+  ---
+  duration_ms: 0.1673
+  type: 'test'
+  ...
+# Subtest: duplicates require a canonical finding
+ok 49 - duplicates require a canonical finding
+  ---
+  duration_ms: 0.1777
+  type: 'test'
+  ...
+# Subtest: supersession and duplicate graphs cannot cycle
+ok 50 - supersession and duplicate graphs cannot cycle
+  ---
+  duration_ms: 0.1883
+  type: 'test'
+  ...
+# Subtest: defect dependencies cannot self-link
+ok 51 - defect dependencies cannot self-link
+  ---
+  duration_ms: 0.1483
+  type: 'test'
+  ...
+# Subtest: scope cannot refer to a nonexistent rig joint
+ok 52 - scope cannot refer to a nonexistent rig joint
+  ---
+  duration_ms: 0.163
+  type: 'test'
+  ...
+# Subtest: scope body/side must match the declared production inventory
+ok 53 - scope body/side must match the declared production inventory
+  ---
+  duration_ms: 0.1512
+  type: 'test'
+  ...
+# Subtest: reference coverage cannot attach a different motion
+ok 54 - reference coverage cannot attach a different motion
+  ---
+  duration_ms: 0.2305
+  type: 'test'
+  ...
+# Subtest: citation-only references do not pass changed motion acceptance
+ok 55 - citation-only references do not pass changed motion acceptance
+  ---
+  duration_ms: 0.1784
+  type: 'test'
+  ...
+# Subtest: missing references are kept visible and cannot establish acceptance
+ok 56 - missing references are kept visible and cannot establish acceptance
+  ---
+  duration_ms: 0.1588
+  type: 'test'
+  ...
+# Subtest: verified references require retained verification evidence
+ok 57 - verified references require retained verification evidence
+  ---
+  duration_ms: 0.1806
+  type: 'test'
+  ...
+# Subtest: reference claims cannot extend anatomical scope
+ok 58 - reference claims cannot extend anatomical scope
+  ---
+  duration_ms: 0.1757
+  type: 'test'
+  ...
+# Subtest: assumed channels do not become verified comparisons
+ok 59 - assumed channels do not become verified comparisons
+  ---
+  duration_ms: 0.29
+  type: 'test'
+  ...
+# Subtest: ROM limits alone cannot support whole-motion coordination
+ok 60 - ROM limits alone cannot support whole-motion coordination
+  ---
+  duration_ms: 0.2231
+  type: 'test'
+  ...
+# Subtest: criterion claim IDs must exist in the cited reference
+ok 61 - criterion claim IDs must exist in the cited reference
+  ---
+  duration_ms: 0.173
+  type: 'test'
+  ...
+# Subtest: failed reference comparisons cannot accept a changed context
+ok 62 - failed reference comparisons cannot accept a changed context
+  ---
+  duration_ms: 0.8626
+  type: 'test'
+  ...
+# Subtest: reference comparison artifacts cannot be prose-only
+ok 63 - reference comparison artifacts cannot be prose-only
+  ---
+  duration_ms: 0.1655
+  type: 'test'
+  ...
+# Subtest: acceptance cannot bypass actual evidence readers
+ok 64 - acceptance cannot bypass actual evidence readers
+  ---
+  duration_ms: 0.1397
+  type: 'test'
+  ...
+# Subtest: arbitrary hashed artifacts cannot bypass scoped reference-comparison reader
+ok 65 - arbitrary hashed artifacts cannot bypass scoped reference-comparison reader
+  ---
+  duration_ms: 0.1307
+  type: 'test'
+  ...
+# Subtest: failed or stale scoped reference-comparison manifests are rejected
+ok 66 - failed or stale scoped reference-comparison manifests are rejected
+  ---
+  duration_ms: 0.1411
+  type: 'test'
+  ...
+# Subtest: review identity must be current
+ok 67 - review identity must be current
+  ---
+  duration_ms: 0.1273
+  type: 'test'
+  ...
+# Subtest: required contexts cannot name a retired body or motion
+ok 68 - required contexts cannot name a retired body or motion
+  ---
+  duration_ms: 0.1169
+  type: 'test'
+  ...
+# Subtest: retired contexts cannot leave orphan reviews hidden in tracking
+ok 69 - retired contexts cannot leave orphan reviews hidden in tracking
+  ---
+  duration_ms: 0.163
+  type: 'test'
+  ...
+# Subtest: retired bones cannot leave orphan records hidden in tracking
+ok 70 - retired bones cannot leave orphan records hidden in tracking
+  ---
+  duration_ms: 0.1651
+  type: 'test'
+  ...
+# Subtest: unresolved applicable blocking defects reject acceptance
+ok 71 - unresolved applicable blocking defects reject acceptance
+  ---
+  duration_ms: 0.1287
+  type: 'test'
+  ...
+# Subtest: closed status cannot omit actual affected contexts
+ok 72 - closed status cannot omit actual affected contexts
+  ---
+  duration_ms: 0.4558
+  type: 'test'
+  ...
+# Subtest: closed status without closures never passes
+ok 73 - closed status without closures never passes
+  ---
+  duration_ms: 0.1678
+  type: 'test'
+  ...
+# Subtest: stale closure identities remain rejected
+ok 74 - stale closure identities remain rejected
+  ---
+  duration_ms: 0.1784
+  type: 'test'
+  ...
+# Subtest: closures cannot claim unknown contexts
+ok 75 - closures cannot claim unknown contexts
+  ---
+  duration_ms: 0.1682
+  type: 'test'
+  ...
+# Subtest: closures cannot apply outside a defect body/side scope
+ok 76 - closures cannot apply outside a defect body/side scope
+  ---
+  duration_ms: 0.1728
+  type: 'test'
+  ...
+# Subtest: closure must prove every delivery stage
+ok 77 - closure must prove every delivery stage
+  ---
+  duration_ms: 0.1624
+  type: 'test'
+  ...
+# Subtest: forged stage evidence cannot close blocking defects
+ok 78 - forged stage evidence cannot close blocking defects
+  ---
+  duration_ms: 0.1947
+  type: 'test'
+  ...
+# Subtest: closure validation requires retained report reader
+ok 79 - closure validation requires retained report reader
+  ---
+  duration_ms: 0.1732
+  type: 'test'
+  ...
+# Subtest: generic stage reviews cannot substitute for defect-specific closure evidence
+ok 80 - generic stage reviews cannot substitute for defect-specific closure evidence
+  ---
+  duration_ms: 0.1934
+  type: 'test'
+  ...
+# Subtest: closure criterion-specific checker cannot be bypassed
+ok 81 - closure criterion-specific checker cannot be bypassed
+  ---
+  duration_ms: 0.1759
+  type: 'test'
+  ...
+# Subtest: criterion-specific closure evidence must identify this current trajectory
+ok 82 - criterion-specific closure evidence must identify this current trajectory
+  ---
+  duration_ms: 0.1779
+  type: 'test'
+  ...
+# Subtest: criterion-specific closure evidence must cover every declared acceptance criterion
+ok 83 - criterion-specific closure evidence must cover every declared acceptance criterion
+  ---
+  duration_ms: 0.2055
+  type: 'test'
+  ...
+# Subtest: passing stage manifests cannot hide a failed defect-specific criterion
+ok 84 - passing stage manifests cannot hide a failed defect-specific criterion
+  ---
+  duration_ms: 0.567
+  type: 'test'
+  ...
+# Subtest: native applicability is an explicit closure decision
+ok 85 - native applicability is an explicit closure decision
+  ---
+  duration_ms: 0.2136
+  type: 'test'
+  ...
+# Subtest: applicable native simulation requires a native report
+ok 86 - applicable native simulation requires a native report
+  ---
+  duration_ms: 0.1631
+  type: 'test'
+  ...
+# Subtest: duplicate closure imports cannot multiply evidence
+ok 87 - duplicate closure imports cannot multiply evidence
+  ---
+  duration_ms: 0.2004
+  type: 'test'
+  ...
+# Subtest: a current scoped closure accepts one context while other contexts stay partial and blocked
+ok 88 - a current scoped closure accepts one context while other contexts stay partial and blocked
+  ---
+  duration_ms: 0.2615
+  type: 'test'
+  ...
+# Subtest: full current closure closes the defect without accepting historical untouched reference gaps
+ok 89 - full current closure closes the defect without accepting historical untouched reference gaps
+  ---
+  duration_ms: 0.1907
+  type: 'test'
+  ...
+# Subtest: correction work cannot claim done with an open family
+ok 90 - correction work cannot claim done with an open family
+  ---
+  duration_ms: 0.1451
+  type: 'test'
+  ...
+# Subtest: one accountable owner remains consistent across correction and work unit
+ok 91 - one accountable owner remains consistent across correction and work unit
+  ---
+  duration_ms: 0.1221
+  type: 'test'
+  ...
+# Subtest: active workers cannot independently claim overlapping files
+ok 92 - active workers cannot independently claim overlapping files
+  ---
+  duration_ms: 0.3738
+  type: 'test'
+  ...
+# Subtest: path case or Windows slash cannot conceal overlapping work
+ok 93 - path case or Windows slash cannot conceal overlapping work
+  ---
+  duration_ms: 0.1838
+  type: 'test'
+  ...
+# Subtest: same defect cannot have duplicate independent correction owners
+ok 94 - same defect cannot have duplicate independent correction owners
+  ---
+  duration_ms: 0.1565
+  type: 'test'
+  ...
+# Subtest: explicit dependency does not allow two simultaneous solver changes
+ok 95 - explicit dependency does not allow two simultaneous solver changes
+  ---
+  duration_ms: 0.1664
+  type: 'test'
+  ...
+# Subtest: explicit sequential ownership avoids duplicate independent work
+ok 96 - explicit sequential ownership avoids duplicate independent work
+  ---
+  duration_ms: 0.1625
+  type: 'test'
+  ...
+# Subtest: external WIP with unknown file list remains visible without inventing a collision
+ok 97 - external WIP with unknown file list remains visible without inventing a collision
+  ---
+  duration_ms: 0.1616
+  type: 'test'
+  ...
+# Subtest: unmapped source findings prevent falsely reconciled scope
+ok 98 - unmapped source findings prevent falsely reconciled scope
+  ---
+  duration_ms: 0.1604
+  type: 'test'
+  ...
+# Subtest: malformed collection and nested arrays produce failures instead of throwing
+ok 99 - malformed collection and nested arrays produce failures instead of throwing
+  ---
+  duration_ms: 1.6861
+  type: 'test'
+  ...
+# Subtest: unexpected evidence checker exceptions become actionable failures
+ok 100 - unexpected evidence checker exceptions become actionable failures
+  ---
+  duration_ms: 0.4024
+  type: 'test'
+  ...
+# Subtest: asynchronous or malformed evidence readers cannot silently pass the pure gate
+ok 101 - asynchronous or malformed evidence readers cannot silently pass the pure gate
+  ---
+  duration_ms: 0.278
+  type: 'test'
+  ...
+# Subtest: existing gaps remain visible and allow progress without claiming acceptance
+ok 102 - existing gaps remain visible and allow progress without claiming acceptance
+  ---
+  duration_ms: 2.0097
+  type: 'test'
+  ...
+# Subtest: partial numerical improvement passes without changing its bound
+ok 103 - partial numerical improvement passes without changing its bound
+  ---
+  duration_ms: 0.1776
+  type: 'test'
+  ...
+# Subtest: worsened measurements block even when another issue was fixed
+ok 104 - worsened measurements block even when another issue was fixed
+  ---
+  duration_ms: 0.1488
+  type: 'test'
+  ...
+# Subtest: new failures cannot be offset by improvements elsewhere
+ok 105 - new failures cannot be offset by improvements elsewhere
+  ---
+  duration_ms: 0.2831
+  type: 'test'
+  ...
+# Subtest: negative and scientific notation metrics retain numerical severity
+ok 106 - negative and scientific notation metrics retain numerical severity
+  ---
+  duration_ms: 0.1899
+  type: 'test'
+  ...
+# Subtest: duplicate metric failures cannot hide the worse observation
+ok 107 - duplicate metric failures cannot hide the worse observation
+  ---
+  duration_ms: 0.1251
+  type: 'test'
+  ...
+# Subtest: corrupt retained context evidence remains blocking
+ok 108 - corrupt retained context evidence remains blocking
+  ---
+  duration_ms: 0.1373
+  type: 'test'
+  ...
+# Subtest: global integrity errors remain blocking, including previously malformed evidence
+ok 109 - global integrity errors remain blocking, including previously malformed evidence
+  ---
+  duration_ms: 0.1438
+  type: 'test'
+  ...
+# Subtest: shared source edits do not invent new qualification gaps on historical unreviewed contexts
+ok 110 - shared source edits do not invent new qualification gaps on historical unreviewed contexts
+  ---
+  duration_ms: 4.6623
+  type: 'test'
+  ...
+# Subtest: previously fresh observations becoming stale are a new failure
+ok 111 - previously fresh observations becoming stale are a new failure
+  ---
+  duration_ms: 1.2201
+  type: 'test'
+  ...
+# Subtest: new available context needs its own qualification
+ok 112 - new available context needs its own qualification
+  ---
+  duration_ms: 2.2111
+  type: 'test'
+  ...
+# Subtest: baseline rewrite, dropped records and relaxed bounds cannot hide issues
+ok 113 - baseline rewrite, dropped records and relaxed bounds cannot hide issues
+  ---
+  duration_ms: 0.6709
+  type: 'test'
+  ...
+# Subtest: trusted PR base and original artifact bytes survive candidate edits and multiple commits
+ok 114 - trusted PR base and original artifact bytes survive candidate edits and multiple commits
+  ---
+  duration_ms: 3885.7571
+  type: 'test'
+  ...
+# Subtest: migration creates explicit unknown coverage without granting acceptance
+ok 115 - migration creates explicit unknown coverage without granting acceptance
+  ---
+  duration_ms: 1.7064
+  type: 'test'
+  ...
+# Subtest: repeated reconciliation is idempotent and preserves edited records
+ok 116 - repeated reconciliation is idempotent and preserves edited records
+  ---
+  duration_ms: 0.9755
+  type: 'test'
+  ...
+# Subtest: duplicate source finding IDs cannot be imported
+ok 117 - duplicate source finding IDs cannot be imported
+  ---
+  duration_ms: 0.3956
+  type: 'test'
+  ...
+# Subtest: repeat imports preserve reviewed coverage when its reference links are unchanged
+ok 118 - repeat imports preserve reviewed coverage when its reference links are unchanged
+  ---
+  duration_ms: 0.8903
+  type: 'test'
+  ...
+# Subtest: coverage maps exact scopes and never promotes a citation to linked acceptance
+ok 119 - coverage maps exact scopes and never promotes a citation to linked acceptance
+  ---
+  duration_ms: 0.1911
+  type: 'test'
+  ...
+# Subtest: retention rejects removed records and rewritten source provenance
+ok 120 - retention rejects removed records and rewritten source provenance
+  ---
+  duration_ms: 0.3382
+  type: 'test'
+  ...
+# Subtest: tracking retention preserves reviews, observations and joint notes without freezing edits
+ok 121 - tracking retention preserves reviews, observations and joint notes without freezing edits
+  ---
+  duration_ms: 0.52
+  type: 'test'
+  ...
+# Subtest: previous-master retention prevents removing a historic review to restore exemption
+ok 122 - previous-master retention prevents removing a historic review to restore exemption
+  ---
+  duration_ms: 4.6609
+  type: 'test'
+  ...
+1..122
+# tests 122
+# suites 0
+# pass 122
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4092.6603
+Movement regression gate passed: 0 issues improved; 836818 existing qualification issues remain open. Merging grants no movement acceptance.
+
+ RUN  v3.2.7 C:/Users/danst/probonoEMR/movement-realism-implementation/pain-response-release/engine
+
+ ✓ src/__tests__/movementCatalogue.test.ts (1 test) 7017ms
+   ✓ measures the entire actual rig and rechecks all qualified trajectories  7016ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  13:55:22
+   Duration  8.51s (transform 306ms, setup 0ms, collect 489ms, tests 7.02s, environment 0ms, prepare 63ms)
+
