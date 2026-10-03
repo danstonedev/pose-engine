@@ -1,0 +1,1304 @@
+{
+  "blenderVersion": "5.2.2 LTS",
+  "sourceDigest": "ca52585f2f6339c614ec87deb7f197d5d4b3ab4abcfec44c2a334ce12d9f00e6",
+  "toleranceM": 0.0001,
+  "scope": "Bone and rendered-skin exchange. Movement quality remains a separate review.",
+  "cases": [
+    {
+      "id": "male-left-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.6050719248591086e-05,
+          "maxSkinErrorM": 1.4083103451412171e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.6598669596411723e-05,
+          "maxSkinErrorM": 1.2375859114399645e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.6050719248591086e-05,
+          "maxSkinErrorM": 1.4083103451412171e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.6598669596411723e-05,
+          "maxSkinErrorM": 1.2375859114399645e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.6050719248591086e-05,
+          "maxSkinErrorM": 1.4083103451412171e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.6598669596411723e-05,
+          "maxSkinErrorM": 1.2375859114399645e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.6050719248591086e-05,
+          "maxSkinErrorM": 1.4083103451412171e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.6598669596411723e-05,
+          "maxSkinErrorM": 1.2375859114399645e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.6050719248591086e-05,
+          "maxSkinErrorM": 1.4083103451412171e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.6598669596411723e-05,
+          "maxSkinErrorM": 1.2375859114399645e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.618931369301401e-05,
+          "maxSkinErrorM": 1.4268830454966519e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.6050719248591086e-05,
+          "maxSkinErrorM": 1.4083103451412171e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.6598669596411723e-05,
+          "maxSkinErrorM": 1.2375859114399645e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4605722636544711e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2694144970737398e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.4198421918997041e-05,
+          "maxSkinErrorM": 1.0069271411339287e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2694144970737398e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.4198421918997041e-05,
+          "maxSkinErrorM": 1.0069271411339287e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2694144970737398e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.4198421918997041e-05,
+          "maxSkinErrorM": 1.0069271411339287e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2694144970737398e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.4198421918997041e-05,
+          "maxSkinErrorM": 1.0069271411339287e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2694144970737398e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.4198421918997041e-05,
+          "maxSkinErrorM": 1.0069271411339287e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2472913113015238e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.4266101218699704e-05,
+          "maxSkinErrorM": 1.2694144970737398e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.4198421918997041e-05,
+          "maxSkinErrorM": 1.0069271411339287e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.4154440380622494e-05,
+          "maxSkinErrorM": 5.6782614592520986e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 3.164368240136498e-05,
+          "maxSkinErrorM": 4.441029886947945e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 3.038241894765635e-05,
+          "maxSkinErrorM": 3.6811030440730974e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 3.164368240136498e-05,
+          "maxSkinErrorM": 4.441029886947945e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 3.038241894765635e-05,
+          "maxSkinErrorM": 3.6811030440730974e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 3.164368240136498e-05,
+          "maxSkinErrorM": 4.441029886947945e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 3.038241894765635e-05,
+          "maxSkinErrorM": 3.6811030440730974e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 3.164368240136498e-05,
+          "maxSkinErrorM": 4.441029886947945e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 3.038241894765635e-05,
+          "maxSkinErrorM": 3.6811030440730974e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 3.164368240136498e-05,
+          "maxSkinErrorM": 4.441029886947945e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 3.038241894765635e-05,
+          "maxSkinErrorM": 3.6811030440730974e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 3.170370526820472e-05,
+          "maxSkinErrorM": 4.459511910681613e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 3.164368240136498e-05,
+          "maxSkinErrorM": 4.441029886947945e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 3.038241894765635e-05,
+          "maxSkinErrorM": 3.6811030440730974e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.977582006451717e-05,
+          "maxSkinErrorM": 4.563552010949934e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.3150899576430675e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 2.975509018825991e-05,
+          "maxSkinErrorM": 1.1423933756304905e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.3150899576430675e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 2.975509018825991e-05,
+          "maxSkinErrorM": 1.1423933756304905e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.3150899576430675e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 2.975509018825991e-05,
+          "maxSkinErrorM": 1.1423933756304905e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.3150899576430675e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 2.975509018825991e-05,
+          "maxSkinErrorM": 1.1423933756304905e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.3150899576430675e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 2.975509018825991e-05,
+          "maxSkinErrorM": 1.1423933756304905e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.313012126047397e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 2.9811336227080526e-05,
+          "maxSkinErrorM": 1.3150899576430675e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 2.975509018825991e-05,
+          "maxSkinErrorM": 1.1423933756304905e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 2.975779145712005e-05,
+          "maxSkinErrorM": 1.1725500371539965e-05
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-left-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 9.076049610066498e-06,
+          "maxSkinErrorM": 8.06995558377821e-06
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 9.902009417738429e-06,
+          "maxSkinErrorM": 6.641640084126266e-06
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-left-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 9.076049610066498e-06,
+          "maxSkinErrorM": 8.06995558377821e-06
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 9.902009417738429e-06,
+          "maxSkinErrorM": 6.641640084126266e-06
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-left-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 9.076049610066498e-06,
+          "maxSkinErrorM": 8.06995558377821e-06
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 9.902009417738429e-06,
+          "maxSkinErrorM": 6.641640084126266e-06
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-left-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 9.076049610066498e-06,
+          "maxSkinErrorM": 8.06995558377821e-06
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 9.902009417738429e-06,
+          "maxSkinErrorM": 6.641640084126266e-06
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-left-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 9.076049610066498e-06,
+          "maxSkinErrorM": 8.06995558377821e-06
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 9.902009417738429e-06,
+          "maxSkinErrorM": 6.641640084126266e-06
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-left-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 9.073036105000225e-06,
+          "maxSkinErrorM": 8.13124279375188e-06
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 9.076049610066498e-06,
+          "maxSkinErrorM": 8.06995558377821e-06
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 9.902009417738429e-06,
+          "maxSkinErrorM": 6.641640084126266e-06
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.2761102495285373e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-right-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.5459345377166755e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.3252754662290417e-05,
+          "maxSkinErrorM": 1.2939357475261204e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-right-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.5459345377166755e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.3252754662290417e-05,
+          "maxSkinErrorM": 1.2939357475261204e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-right-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.5459345377166755e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.3252754662290417e-05,
+          "maxSkinErrorM": 1.2939357475261204e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-right-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.5459345377166755e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.3252754662290417e-05,
+          "maxSkinErrorM": 1.2939357475261204e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-right-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.5459345377166755e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.3252754662290417e-05,
+          "maxSkinErrorM": 1.2939357475261204e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    },
+    {
+      "id": "neutral-right-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.56728237925563e-05
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 1.3224341912449722e-05,
+          "maxSkinErrorM": 1.5459345377166755e-05
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 1.3252754662290417e-05,
+          "maxSkinErrorM": 1.2939357475261204e-05
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 1.3129301423679022e-05,
+          "maxSkinErrorM": 4.436944436747581e-06
+        }
+      ],
+      "passed": true
+    }
+  ]
+}

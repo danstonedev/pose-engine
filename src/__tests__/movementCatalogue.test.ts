@@ -3,16 +3,18 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sampleContext } from '../../scripts/catalogue/sample.mjs';
-import { readMaster, changedContexts, contextKey, reviewKey, evaluateCatalogue, assertGate } from '../../scripts/catalogue/gate.mjs';
+import { readMaster, contextKey, assertGate } from '../../scripts/catalogue/gate.mjs';
+import { loadComparisonBase, evaluateProgress, sampledContexts } from '../../scripts/catalogue/progress.mjs';
 const root=fileURLToPath(new URL('../../',import.meta.url));
 it('measures the entire actual rig and rechecks all qualified trajectories', async()=>{
   const {data,tracking}=readMaster(root);
   const pin=JSON.parse(readFileSync(resolve(root,'scripts/catalogue/baseline-pin.json'),'utf8'));
   if(process.env.MOVEMENT_CATALOGUE_MODE==='check'){
-    assertGate(evaluateCatalogue(data,tracking,{engineRoot:root,baselineDigest:pin.sha256}));
-    const changed=new Set(changedContexts(data).map(contextKey)),freshObservations:Record<string,unknown>={};
-    for(const context of data.contexts) if(changed.has(contextKey(context)) || tracking[reviewKey(context)]) freshObservations[contextKey(context)]=await sampleContext(data,context,root);
-    assertGate(evaluateCatalogue(data,tracking,{engineRoot:root,baselineDigest:pin.sha256,freshObservations}));
+    const current={data,tracking};
+    const base=loadComparisonBase(root,process.env.MOVEMENT_CATALOGUE_HOST?resolve(root,'..'):undefined);
+    const freshObservations:Record<string,unknown>={};
+    for(const context of sampledContexts(current)) freshObservations[contextKey(context)]=await sampleContext(data,context,root);
+    assertGate(evaluateProgress(current,base,{engineRoot:root,baselineDigest:pin.sha256,freshObservations}));
   }else{
     const context=data.contexts.find((context:any)=>context.id==='joint:shoulder-flexion'&&context.variant==='male'&&context.side==='left');
     const measured=await sampleContext(data,context,root);

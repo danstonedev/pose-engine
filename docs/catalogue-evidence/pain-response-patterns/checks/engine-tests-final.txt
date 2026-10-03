@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 C:/Users/danst/probonoEMR/movement-realism-implementation/pain-response-release/engine
+
+ ✓ src/__tests__/painResponseLayer.test.ts (3 tests) 514ms
+ ✓ src/__tests__/painResponse.test.ts (10 tests) 607ms
+
+ Test Files  2 passed (2)
+      Tests  13 passed (13)
+   Start at  20:08:35
+   Duration  2.97s (transform 282ms, setup 0ms, collect 308ms, tests 1.12s, environment 0ms, prepare 154ms)

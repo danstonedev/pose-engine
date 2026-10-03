@@ -1,0 +1,42 @@
+{
+  "recordedAt": "2026-10-03T18:59:13.037Z",
+  "kind": "incremental-merge-verification",
+  "policy": "Compare with trusted base; new or worsened issues block; existing qualification gaps remain open.",
+  "engineRevision": "b639aa279ffad951e3069aafb75e3ec3b29473a3",
+  "baseRevision": "a12de5ac8794c51e89ee1b63bbb498a537921ac9",
+  "regressionResult": "pass",
+  "remainingQualificationIssues": 836818,
+  "qualificationIssuesClosed": 0,
+  "policyFixtureTests": 122,
+  "freshTrajectoryContexts": 9,
+  "sourceHashes": {
+    "scripts/catalogue/progress.mjs": "8f542949121d5648b733dfdabf3bece18630300f2461e48d81e8397dccaad863",
+    "scripts/catalogue/gate.mjs": "0530002aa030cbdc300b46f8f7d09a02e14cd728d71f2d4d7128663bd9f087bc",
+    "scripts/catalogue/check.mjs": "3bd03e87a03fb20baba0310a9c4a779ee865412ccc8547b191c89e978d7ee7e1",
+    "scripts/catalogue/run.mjs": "9411625c98642c1ecbc29415f6ca024bcf19e311d83e3609f709bbce0245c062",
+    "scripts/catalogue/progress.node-test.mjs": "6ac138293912bc4f6c4f420518cf6272ad7e999f167d3282aec4cc637a0d6a19",
+    "src/__tests__/movementCatalogue.test.ts": "f849d6cf050d9afaf8fc64e5d0833e4bbc59a70d6c9d837d4e7cd560de0db34f",
+    "docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html": "2c6c879c68c8845796c669eb047500e0e4dfe158b349149318cfc9af0eee4b39",
+    "scripts/catalogue/baseline-pin.json": "7b1c7a7bab79a5ad49f56f111d10aca738101a2756cf63270facc3d5db44adc8",
+    "docs/catalogue-progress-policy.md": "845fb63bc481a598ce0d3d820754d385c725965afdbb292ae1ba1921d8150305"
+  },
+  "retainedArtifacts": {
+    "regression-engine-gate-final.txt": "878f6b205d6688eb85097f771078626c6181ecf712ef462c482b5d2f726a120d",
+    "regression-simmove-gate-final.txt": "fb0a02c40611022133061dfecc7fd294c89785f785be322cf4f13e7dccfd97f4",
+    "regression-simlab-gate-final.txt": "d95ad9de35ff40b1d30dab4d239fda63720187dc14d301518be0b8c8f3ed8f4b",
+    "regression-engine-typecheck.txt": "f468f2ffad8eedf48bb761f5c3db0043b1d90042f055c98594ec967c02649dbb",
+    "regression-resample-shoulder.txt": "1ae18e3dfbda0a1bdf5f649d47e05ee916a2c3f6cffa19dd2306410c62205529",
+    "regression-resample-flexion.txt": "a57a97c881521a79c62c778a2f534b9d2364c754b074ef3a9466dc9766581f76",
+    "failed-comparator-attempt-engine.txt": "cd2f124574562917cf126bade98744e1fdca7bdd5beebbeee71c5b25dbf37abc",
+    "failed-comparator-attempt-simmove.txt": "9c7a16bf8d4d5ed0b41867e3f4bc53bd0537a8dde7ab866ff90ec93fd2542807",
+    "failed-comparator-attempt-simlab.txt": "56f864e861e3ad8e7dcd8a748cfb40798a1677b17cd3288580387bd35f2c96d4"
+  },
+  "clinicalApproval": null,
+  "nativeDynamicsApproval": null,
+  "priorImplementationEvidence": "verification.json",
+  "limitations": [
+    "Clinical/reference/whole-body qualification gaps remain open.",
+    "Pain-response Blender and browser evidence retains its original exact source scope.",
+    "Initial comparator runs hit Vitest RPC timeouts; context grouping, phase indexing, batched Git reads and removing duplicate work corrected the performance problem."
+  ]
+}

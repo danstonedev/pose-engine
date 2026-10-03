@@ -1,0 +1,11 @@
+User instructions retained from this session, 3 October 2026:
+
+"oh.... that shouldn't stop us from merging progress that's been made...."
+
+"i think the threshhold should be more... if something we've changed improves one of the previously known issues, then it gets through.... only new issues should be blocked"
+
+"try again"
+
+Scope: implement regression-based incremental merge checks and retry the existing
+pain response PRs through the normal protected merge path. Existing qualification
+gaps remain open. This record does not grant clinical or native acceptance.

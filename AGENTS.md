@@ -24,6 +24,12 @@ applicable and both hosts. Do not relabel stale force/deformation data as curren
 
 Run `npm run catalogue:check` and existing relevant checks. The same master must
 ship through both hosts' engine pins. Do not bypass build/CI gates, hide failures,
-loosen thresholds to pass, or claim numerical completion establishes clinical
+loosen numeric bounds to pass, or claim numerical completion establishes clinical
 or visual acceptance. Continue already authorized reversible work autonomously;
 commit/PR/merge only when the user's session authorizes those actions.
+
+The user's 3 October merge policy is documented in
+`docs/catalogue-progress-policy.md`: compare against the base, permit existing
+issues and measured improvements, and block new or worsened failures. Keep
+qualification gaps and the frozen historical baseline intact. This supersedes
+older instructions requiring full context qualification before incremental merges.

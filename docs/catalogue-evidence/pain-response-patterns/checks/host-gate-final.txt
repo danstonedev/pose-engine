@@ -1,0 +1,104 @@
+
+> @vspx/devpt-platform@0.1.0 catalogue:check
+> node --test scripts/movement-inventory/master-preservation.node-test.mjs && node scripts/movement-inventory/run.mjs check
+
+TAP version 13
+# Subtest: refresh preserves complete program, historical tracking, audit and frozen baseline while regenerating current identities
+ok 1 - refresh preserves complete program, historical tracking, audit and frozen baseline while regenerating current identities
+  ---
+  duration_ms: 17.0463
+  type: 'test'
+  ...
+# Subtest: new named motion gets one pending missing-reference coverage record while prior coverage and baseline remain intact
+ok 2 - new named motion gets one pending missing-reference coverage record while prior coverage and baseline remain intact
+  ---
+  duration_ms: 9.5049
+  type: 'test'
+  ...
+# Subtest: replacement metacharacters and script-like literals survive real template generation in every embedded collection
+ok 3 - replacement metacharacters and script-like literals survive real template generation in every embedded collection
+  ---
+  duration_ms: 5.8388
+  type: 'test'
+  ...
+# Subtest: legacy schema without a program migrates to explicit pending coverage without inventing findings or acceptance
+ok 4 - legacy schema without a program migrates to explicit pending coverage without inventing findings or acceptance
+  ---
+  duration_ms: 5.7481
+  type: 'test'
+  ...
+# Subtest: unknown program schema version rejects refresh and leaves the retained master unchanged
+ok 5 - unknown program schema version rejects refresh and leaves the retained master unchanged
+  ---
+  duration_ms: 3.9588
+  type: 'test'
+  ...
+# Subtest: malformed program collections reject refresh without dropping their original content
+ok 6 - malformed program collections reject refresh without dropping their original content
+  ---
+  duration_ms: 4.2427
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1108.7936
+
+ RUN  v3.2.6 C:/Users/danst/probonoEMR/movement-realism-implementation/pain-response-release/simlab
+
+ ❯ packages/ddx/src/__tests__/movementInventory.test.ts (1 test | 1 failed) 6034ms
+   × accounts for all named movements and every actual runtime skeleton joint in one master 6032ms
+     → Movement catalogue gate failed (1356 changed contexts)
+Context ["exam:arom:hip-flexion","male","left"]: reference review requires the same current context identity
+Context ["exam:arom:hip-flexion","male","left"]: missing referenceAcceptance; engine output is not its own motion reference
+Context ["exam:arom:hip-flexion","male","left"]: unresolved blocking defect defect:rendered-audit-clinical-coverage; obtain current scoped closure before accepting this context
+Context ["exam:arom:hip-flexion","male","right"]: reference review requires the same current context identity
+Context ["exam:arom:hip-flexion","male","right"]: missing referenceAcceptance; engine output is not its own motion reference
+Context ["exam:arom:hip-flexion","male","right"]: unresolved blocking defect defect:rendered-audit-clinical-coverage; obtain current scoped closure before accepting this context
+Context ["exam:arom:hip-flexion","female","left"]: reference review requires the same current context identity
+Context ["exam:arom:hip-flexion","female","left"]: missing referenceAcceptance; engine output is not its own motion reference
+Refresh the same master, define required joint roles, sample actual rigs and attach current evidence. Unreviewed motion is not approved.
+node.exe :
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/ddx/src/__tests__/movementInventory.test.ts > accounts for all named movements and every actual
+runtime skeleton joint in one master
+Error: Movement catalogue gate failed (1356 changed contexts)
+Context ["exam:arom:hip-flexion","male","left"]: reference review requires the same current context identity
+Context ["exam:arom:hip-flexion","male","left"]: missing referenceAcceptance; engine output is not its own motion
+reference
+Context ["exam:arom:hip-flexion","male","left"]: unresolved blocking defect defect:rendered-audit-clinical-coverage;
+obtain current scoped closure before accepting this context
+Context ["exam:arom:hip-flexion","male","right"]: reference review requires the same current context identity
+Context ["exam:arom:hip-flexion","male","right"]: missing referenceAcceptance; engine output is not its own motion
+reference
+Context ["exam:arom:hip-flexion","male","right"]: unresolved blocking defect defect:rendered-audit-clinical-coverage;
+obtain current scoped closure before accepting this context
+Context ["exam:arom:hip-flexion","female","left"]: reference review requires the same current context identity
+Context ["exam:arom:hip-flexion","female","left"]: missing referenceAcceptance; engine output is not its own motion
+reference
+Refresh the same master, define required joint roles, sample actual rigs and attach current evidence. Unreviewed
+motion is not approved.
+ ❯ assertGate pose-engine/scripts/catalogue/gate.mjs:251:9
+
+ ❯ inspectMaster scripts/movement-inventory/enforce.mjs:37:32
+ ❯ packages/ddx/src/__tests__/movementInventory.test.ts:67:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  20:26:22
+   Duration  13.41s (transform 3.86s, setup 0ms, collect 5.52s, tests 6.03s, environment 0ms, prepare 276ms)

@@ -1,0 +1,13 @@
+
+ RUN  v3.2.6 C:/Users/danst/probonoEMR/movement-realism-implementation/pain-response-release/simlab
+
+ ✓ packages/ddx/src/__tests__/props.rig.test.ts (430 tests | 428 skipped) 11184ms
+   ✓ live support and solid prop clearance > keeps visible painful hands clear of the plinth through every reaction pattern  9403ms
+   ✓ the camera frames each test square to its movement > offers a face close-up on either body without changing the pose, and can restore the test view  1685ms
+ ✓ packages/ddx/src/__tests__/lab.test.ts (17 tests | 11 skipped) 24ms
+ ✓ packages/ddx/src/__tests__/painResponses.test.ts (8 tests) 37ms
+
+ Test Files  3 passed (3)
+      Tests  16 passed | 439 skipped (455)
+   Start at  20:06:23
+   Duration  16.62s (transform 2.08s, setup 0ms, collect 3.34s, tests 11.25s, environment 1ms, prepare 298ms)
