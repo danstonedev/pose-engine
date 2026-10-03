@@ -1,0 +1,738 @@
+{
+  "version": 1,
+  "fps": 30,
+  "sourceDigest": "ca52585f2f6339c614ec87deb7f197d5d4b3ab4abcfec44c2a334ce12d9f00e6",
+  "sourceHashes": {
+    "pose-engine/src/services/painResponse.ts": "848b800f8ef60e4c628cd5828fe8dcd45654e7a863a0aaec0e07d516bf0464b6",
+    "pose-engine/src/services/painResponseLayer.ts": "ba3a45af66f79b57b0187089cef9e5fc4e1f5479fd8537d4142b5de68fe2ca73",
+    "pose-engine/src/assets/pain-face/male.json": "1f96bd7295cd959ec3fe6507da3da4ef21415288f0dc1c256b9214f4e1291181",
+    "pose-engine/src/assets/pain-face/female.json": "51ca34df2452dce193fbd478a2fe298a46b5502a302debcd41ebbc81bcc996d8",
+    "packages/ddx/src/lab/play.ts": "d5600a88cc51de37a3e5bab45bece1e9157c875a836fb23c02e4b6717fb6f807",
+    "packages/ddx/src/lab/settings.ts": "0120ce35f4c7b0a4686c033237b8383a03c64b13d2333cca4182baba7876c24b",
+    "packages/ddx/src/props/timing.ts": "db3336f92b1e52792be630e04326748e9d1ff2794bc0a8c5afc2fc7676912740",
+    "scripts/export-pain-review.ts": "755e32721d1e86a90f4df0dceaa07ab5b70ca56af245c032d735de5d776b8cfe"
+  },
+  "scope": "Authored hip PROM plus face/hand expression. No native force claim. Stage furniture/contact presentation is reviewed in browser separately.",
+  "cases": [
+    {
+      "id": "male-left-grimace-pain-8",
+      "variant": "male",
+      "side": "left",
+      "pattern": "grimace",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-left-grimace-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "9042f28062acca6571000a2715b52847645e1156bb41b960ff4e58b773981eb9",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-left-grimace-pain-8.expected.json"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "variant": "male",
+      "side": "left",
+      "pattern": "wince",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-left-wince-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "9edf0474bae2ec9b8aa883cb023c1f6ea6ad12a7de7a92e9e035d6bfad0f091a",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-left-wince-pain-8.expected.json"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "variant": "male",
+      "side": "left",
+      "pattern": "eye-squeeze",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-left-eye-squeeze-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "f06a2f4ae2ce5b3e50fe8f4295e7b502dad68a370e0d35eb34ff156986666e53",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-left-eye-squeeze-pain-8.expected.json"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "variant": "male",
+      "side": "left",
+      "pattern": "open-mouth",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-left-open-mouth-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "be9f3b48c3c959bb2b01c66c0b94d77535dafc1fe6f2a3b55fbc26f2ca8dc18b",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-left-open-mouth-pain-8.expected.json"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "variant": "male",
+      "side": "left",
+      "pattern": "raised-brow",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-left-raised-brow-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "268f899b31ff8422af42b2baf0a472b5337029103ab1fce1319495dd88f9d18a",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-left-raised-brow-pain-8.expected.json"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "variant": "male",
+      "side": "left",
+      "pattern": "quiet",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-left-quiet-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "d9770549472a69973619575e85604c054f3a3734d5378b2d69b0a35d3237a970",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-left-quiet-pain-8.expected.json"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "variant": "male",
+      "side": "right",
+      "pattern": "grimace",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-right-grimace-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "7089f509275625a6f431f5a97b31dadda22dc37022524f985197a44035f4c57d",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-right-grimace-pain-8.expected.json"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "variant": "male",
+      "side": "right",
+      "pattern": "wince",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-right-wince-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "9ed1bdfaccef48dd983c00fb1872d615237c59c0d0d7a008a5224f5bdf977975",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-right-wince-pain-8.expected.json"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "variant": "male",
+      "side": "right",
+      "pattern": "eye-squeeze",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-right-eye-squeeze-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "88b96ce8a538593c84183f2d46fbaad36ce31600ef6259ef12cac77d27332b32",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-right-eye-squeeze-pain-8.expected.json"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "variant": "male",
+      "side": "right",
+      "pattern": "open-mouth",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-right-open-mouth-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "bb5b2f625305cb33b7d192f60c29da2d7d7be610ee7f5b52a1422b77fef09a33",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-right-open-mouth-pain-8.expected.json"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "variant": "male",
+      "side": "right",
+      "pattern": "raised-brow",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-right-raised-brow-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "e4ab2921392958c950b58d4d7237dcd01e35070f539214f2718292c5c9d3a2ef",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-right-raised-brow-pain-8.expected.json"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "variant": "male",
+      "side": "right",
+      "pattern": "quiet",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "male-right-quiet-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "3f169d9f904bad719474c42eb98813fbc6b3010cb6e37784d465c6dacd2bb172",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "male-right-quiet-pain-8.expected.json"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "variant": "female",
+      "side": "left",
+      "pattern": "grimace",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-left-grimace-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "faa5c0a0c01a8c1f9fea1e955ae32333245e400f6697db667127ee12d49a4bc1",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-left-grimace-pain-8.expected.json"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "variant": "female",
+      "side": "left",
+      "pattern": "wince",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-left-wince-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "3106ffb7e8b3e4a62f80438fcf85ac6a1d175126089578d4ed526e48e61fd652",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-left-wince-pain-8.expected.json"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "variant": "female",
+      "side": "left",
+      "pattern": "eye-squeeze",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-left-eye-squeeze-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "41ec39a3735f598fa8f1cc04b3e90a6a85cd1f1189a2cb12b3ea915c387c232c",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-left-eye-squeeze-pain-8.expected.json"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "variant": "female",
+      "side": "left",
+      "pattern": "open-mouth",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-left-open-mouth-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "4382146e18dffd162508e2e7ec3e32e94a640cb2d13bd9ece51c9d010dff0a35",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-left-open-mouth-pain-8.expected.json"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "variant": "female",
+      "side": "left",
+      "pattern": "raised-brow",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-left-raised-brow-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "25a5a9b9d845fbd8423aee117e0a434b8115e824f42565318cc6934701b2ec27",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-left-raised-brow-pain-8.expected.json"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "variant": "female",
+      "side": "left",
+      "pattern": "quiet",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-left-quiet-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "97005e96a3a234c7171901cce7ffb1569838982ef340297a91983e8cdf4c65a6",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-left-quiet-pain-8.expected.json"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "variant": "female",
+      "side": "right",
+      "pattern": "grimace",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-right-grimace-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "6ff57c76b9235723d02640efb9b080cebb7bdb036a095cac99b6f3820d4c611f",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-right-grimace-pain-8.expected.json"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "variant": "female",
+      "side": "right",
+      "pattern": "wince",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-right-wince-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "3edfacb92de5c3d04390f0739ae244a27812f11db61920fc902ec88171690a1d",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-right-wince-pain-8.expected.json"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "variant": "female",
+      "side": "right",
+      "pattern": "eye-squeeze",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-right-eye-squeeze-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "672635cea8c08a6c2ea327174cef69f22a692c0aec04c7c5b615315adda666fa",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-right-eye-squeeze-pain-8.expected.json"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "variant": "female",
+      "side": "right",
+      "pattern": "open-mouth",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-right-open-mouth-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "35533365e72a98ccac0fa0dc5168729a8aed3064fb4a5d3cca1b2bf61219dba0",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-right-open-mouth-pain-8.expected.json"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "variant": "female",
+      "side": "right",
+      "pattern": "raised-brow",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-right-raised-brow-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "11b27eaa54d41795e7c2ecd957e86f153e542a87c383de2d515ffd7a56cedccf",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-right-raised-brow-pain-8.expected.json"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "variant": "female",
+      "side": "right",
+      "pattern": "quiet",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "female-right-quiet-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "da6997d1ea9d0dda0ed7b2dcd78a6fc7c3a5629948dcfd95c93e626af8d67560",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "female-right-quiet-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-left-grimace-pain-8",
+      "variant": "neutral",
+      "side": "left",
+      "pattern": "grimace",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-left-grimace-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "31632077f42f60c670d536469cdad646ad0a0234dda5085f412e2506170907f0",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-left-grimace-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-left-wince-pain-8",
+      "variant": "neutral",
+      "side": "left",
+      "pattern": "wince",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-left-wince-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "2aac80ebfd1e13b0114c583385688562df3206e8435f07bc467dff03a0eb6d07",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-left-wince-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-left-eye-squeeze-pain-8",
+      "variant": "neutral",
+      "side": "left",
+      "pattern": "eye-squeeze",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-left-eye-squeeze-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "d2fa0594906c65a32fc640739523f76826d1ddd4a12bfd84a95fb62e217527fb",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-left-eye-squeeze-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-left-open-mouth-pain-8",
+      "variant": "neutral",
+      "side": "left",
+      "pattern": "open-mouth",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-left-open-mouth-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "cd79219810ca2f62d8fcf0479b15b55362eb6eb9a1dfd074c5b417844af338c7",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-left-open-mouth-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-left-raised-brow-pain-8",
+      "variant": "neutral",
+      "side": "left",
+      "pattern": "raised-brow",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-left-raised-brow-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "0cdcceffcdc518e2364d022a11ca1e0872110dd6972541b751d104afbc7ad08f",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-left-raised-brow-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-left-quiet-pain-8",
+      "variant": "neutral",
+      "side": "left",
+      "pattern": "quiet",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-left-quiet-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "9ca2b0d33dc17fabfc47b7648ffbcd15a7c03667166ae80d857c51d66d3f2af2",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-left-quiet-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-right-grimace-pain-8",
+      "variant": "neutral",
+      "side": "right",
+      "pattern": "grimace",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-right-grimace-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "d8bfac04baaa4ae13ff587c1785db5c302ddf8d9efb1e297558f55885b75c006",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-right-grimace-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-right-wince-pain-8",
+      "variant": "neutral",
+      "side": "right",
+      "pattern": "wince",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-right-wince-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "a653789622bbde048e7429b204f02d715adc57eaa5a21c197523f7427a533086",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-right-wince-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-right-eye-squeeze-pain-8",
+      "variant": "neutral",
+      "side": "right",
+      "pattern": "eye-squeeze",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-right-eye-squeeze-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "7afefee3842ea81cbf13057f178510e198221c8456655f971fb6b8522acfe329",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-right-eye-squeeze-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-right-open-mouth-pain-8",
+      "variant": "neutral",
+      "side": "right",
+      "pattern": "open-mouth",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-right-open-mouth-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "e290dfe718c1d40f38bef7f33397e543bd020906ce6a1fda85655bf78e6d3b40",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-right-open-mouth-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-right-raised-brow-pain-8",
+      "variant": "neutral",
+      "side": "right",
+      "pattern": "raised-brow",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-right-raised-brow-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "f5db988893ea1a5682450374b8b46273d532d171160772244c9802b4cc205c90",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-right-raised-brow-pain-8.expected.json"
+    },
+    {
+      "id": "neutral-right-quiet-pain-8",
+      "variant": "neutral",
+      "side": "right",
+      "pattern": "quiet",
+      "movement": "simlab:exam:prom:hip-ir",
+      "file": "neutral-right-quiet-pain-8.glb",
+      "frames": 246,
+      "durationMs": 8150,
+      "holdFrame": 140,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "6a36817e94462a869709145ed3a51f573f5fafd73a7f713f7b378a6ba4eecfbc",
+      "window": {
+        "onsetMs": 4350,
+        "releaseMs": 6650
+      },
+      "intensity": 8,
+      "expression": 100,
+      "expected": "neutral-right-quiet-pain-8.expected.json"
+    }
+  ]
+}

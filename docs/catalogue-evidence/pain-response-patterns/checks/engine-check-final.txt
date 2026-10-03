@@ -1,0 +1,4 @@
+Loading svelte-check in workspace: c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\engine
+Getting Svelte diagnostics...
+
+svelte-check found 0 errors and 0 warnings

@@ -1,0 +1,871 @@
+20:13:26 | INFO: Data are loaded, start creating Blender stuff
+20:13:26 | INFO: Blender create Mesh node 0
+20:13:26 | INFO: Blender create Mesh node 1
+20:13:26 | INFO: Blender create Mesh node 2
+20:13:26 | INFO: Blender create Mesh node 3
+20:13:26 | INFO: Blender create Mesh node 4
+20:13:26 | INFO: Blender create Mesh node 5
+20:13:26 | INFO: glTF import finished in 0.20s
+INFO Draco is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_draco_bridge.dll
+INFO MeshOptimizer is available, use library at C:\Program Files\Blender Foundation\Blender 5.2\5.2\scripts\addons_core\io_scene_gltf2\bf_intern_meshopt_bridge.dll
+20:13:27 | INFO: Starting glTF 2.0 export
+20:13:27 | INFO: Extracting primitive: Mesh_0
+20:13:27 | INFO: Primitives created: 1
+20:13:27 | INFO: Extracting primitive: Mesh_1
+20:13:27 | INFO: Primitives created: 1
+20:13:27 | INFO: Extracting primitive: Mesh_2
+20:13:27 | INFO: Primitives created: 1
+20:13:27 | INFO: Extracting primitive: Mesh_3
+20:13:27 | INFO: Primitives created: 1
+20:13:27 | INFO: Extracting primitive: Mesh_4
+20:13:27 | INFO: Primitives created: 1
+20:13:27 | INFO: Extracting primitive: Mesh_5
+20:13:27 | INFO: Primitives created: 1
+20:13:28 | INFO: Finished glTF 2.0 export in 1.1639037132263184 s
+
+EXCHANGE {"id": "male-left-grimace-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.6050719248591086e-05, "maxSkinErrorM": 1.4083103451412171e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.6598669596411723e-05, "maxSkinErrorM": 1.2375859114399645e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:28 | INFO: Data are loaded, start creating Blender stuff
+20:13:28 | INFO: Blender create Mesh node 0
+20:13:28 | INFO: Blender create Mesh node 1
+20:13:28 | INFO: Blender create Mesh node 2
+20:13:28 | INFO: Blender create Mesh node 3
+20:13:28 | INFO: Blender create Mesh node 4
+20:13:28 | INFO: Blender create Mesh node 5
+20:13:28 | INFO: glTF import finished in 0.19s
+20:13:28 | INFO: Starting glTF 2.0 export
+20:13:28 | INFO: Extracting primitive: Mesh_0.001
+20:13:28 | INFO: Primitives created: 1
+20:13:28 | INFO: Extracting primitive: Mesh_1.001
+20:13:28 | INFO: Primitives created: 1
+20:13:28 | INFO: Extracting primitive: Mesh_2.001
+20:13:28 | INFO: Primitives created: 1
+20:13:28 | INFO: Extracting primitive: Mesh_3.001
+20:13:28 | INFO: Primitives created: 1
+20:13:28 | INFO: Extracting primitive: Mesh_4.001
+20:13:28 | INFO: Primitives created: 1
+20:13:28 | INFO: Extracting primitive: Mesh_5.001
+20:13:28 | INFO: Primitives created: 1
+20:13:29 | INFO: Finished glTF 2.0 export in 1.1267318725585938 s
+
+EXCHANGE {"id": "male-left-wince-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.6050719248591086e-05, "maxSkinErrorM": 1.4083103451412171e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.6598669596411723e-05, "maxSkinErrorM": 1.2375859114399645e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:29 | INFO: Data are loaded, start creating Blender stuff
+20:13:29 | INFO: Blender create Mesh node 0
+20:13:29 | INFO: Blender create Mesh node 1
+20:13:29 | INFO: Blender create Mesh node 2
+20:13:29 | INFO: Blender create Mesh node 3
+20:13:29 | INFO: Blender create Mesh node 4
+20:13:29 | INFO: Blender create Mesh node 5
+20:13:30 | INFO: glTF import finished in 0.20s
+20:13:30 | INFO: Starting glTF 2.0 export
+20:13:30 | INFO: Extracting primitive: Mesh_0.002
+20:13:30 | INFO: Primitives created: 1
+20:13:30 | INFO: Extracting primitive: Mesh_1.002
+20:13:30 | INFO: Primitives created: 1
+20:13:30 | INFO: Extracting primitive: Mesh_2.002
+20:13:30 | INFO: Primitives created: 1
+20:13:30 | INFO: Extracting primitive: Mesh_3.002
+20:13:30 | INFO: Primitives created: 1
+20:13:30 | INFO: Extracting primitive: Mesh_4.002
+20:13:30 | INFO: Primitives created: 1
+20:13:30 | INFO: Extracting primitive: Mesh_5.002
+20:13:30 | INFO: Primitives created: 1
+20:13:31 | INFO: Finished glTF 2.0 export in 1.0995149612426758 s
+
+EXCHANGE {"id": "male-left-eye-squeeze-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.6050719248591086e-05, "maxSkinErrorM": 1.4083103451412171e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.6598669596411723e-05, "maxSkinErrorM": 1.2375859114399645e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:31 | INFO: Data are loaded, start creating Blender stuff
+20:13:31 | INFO: Blender create Mesh node 0
+20:13:31 | INFO: Blender create Mesh node 1
+20:13:31 | INFO: Blender create Mesh node 2
+20:13:31 | INFO: Blender create Mesh node 3
+20:13:31 | INFO: Blender create Mesh node 4
+20:13:31 | INFO: Blender create Mesh node 5
+20:13:31 | INFO: glTF import finished in 0.24s
+20:13:31 | INFO: Starting glTF 2.0 export
+20:13:31 | INFO: Extracting primitive: Mesh_0.003
+20:13:31 | INFO: Primitives created: 1
+20:13:31 | INFO: Extracting primitive: Mesh_1.003
+20:13:31 | INFO: Primitives created: 1
+20:13:31 | INFO: Extracting primitive: Mesh_2.003
+20:13:31 | INFO: Primitives created: 1
+20:13:31 | INFO: Extracting primitive: Mesh_3.003
+20:13:31 | INFO: Primitives created: 1
+20:13:31 | INFO: Extracting primitive: Mesh_4.003
+20:13:31 | INFO: Primitives created: 1
+20:13:31 | INFO: Extracting primitive: Mesh_5.003
+20:13:31 | INFO: Primitives created: 1
+20:13:32 | INFO: Finished glTF 2.0 export in 1.0979382991790771 s
+
+EXCHANGE {"id": "male-left-open-mouth-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.6050719248591086e-05, "maxSkinErrorM": 1.4083103451412171e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.6598669596411723e-05, "maxSkinErrorM": 1.2375859114399645e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:32 | INFO: Data are loaded, start creating Blender stuff
+20:13:32 | INFO: Blender create Mesh node 0
+20:13:32 | INFO: Blender create Mesh node 1
+20:13:32 | INFO: Blender create Mesh node 2
+20:13:32 | INFO: Blender create Mesh node 3
+20:13:32 | INFO: Blender create Mesh node 4
+20:13:32 | INFO: Blender create Mesh node 5
+20:13:32 | INFO: glTF import finished in 0.25s
+20:13:33 | INFO: Starting glTF 2.0 export
+20:13:33 | INFO: Extracting primitive: Mesh_0.004
+20:13:33 | INFO: Primitives created: 1
+20:13:33 | INFO: Extracting primitive: Mesh_1.004
+20:13:33 | INFO: Primitives created: 1
+20:13:33 | INFO: Extracting primitive: Mesh_2.004
+20:13:33 | INFO: Primitives created: 1
+20:13:33 | INFO: Extracting primitive: Mesh_3.004
+20:13:33 | INFO: Primitives created: 1
+20:13:33 | INFO: Extracting primitive: Mesh_4.004
+20:13:33 | INFO: Primitives created: 1
+20:13:33 | INFO: Extracting primitive: Mesh_5.004
+20:13:33 | INFO: Primitives created: 1
+20:13:34 | INFO: Finished glTF 2.0 export in 1.109767198562622 s
+
+EXCHANGE {"id": "male-left-raised-brow-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.6050719248591086e-05, "maxSkinErrorM": 1.4083103451412171e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.6598669596411723e-05, "maxSkinErrorM": 1.2375859114399645e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:34 | INFO: Data are loaded, start creating Blender stuff
+20:13:34 | INFO: Blender create Mesh node 0
+20:13:34 | INFO: Blender create Mesh node 1
+20:13:34 | INFO: Blender create Mesh node 2
+20:13:34 | INFO: Blender create Mesh node 3
+20:13:34 | INFO: Blender create Mesh node 4
+20:13:34 | INFO: Blender create Mesh node 5
+20:13:34 | INFO: glTF import finished in 0.20s
+20:13:34 | INFO: Starting glTF 2.0 export
+20:13:34 | INFO: Extracting primitive: Mesh_0.005
+20:13:34 | INFO: Primitives created: 1
+20:13:34 | INFO: Extracting primitive: Mesh_1.005
+20:13:34 | INFO: Primitives created: 1
+20:13:34 | INFO: Extracting primitive: Mesh_2.005
+20:13:34 | INFO: Primitives created: 1
+20:13:34 | INFO: Extracting primitive: Mesh_3.005
+20:13:34 | INFO: Primitives created: 1
+20:13:34 | INFO: Extracting primitive: Mesh_4.005
+20:13:34 | INFO: Primitives created: 1
+20:13:34 | INFO: Extracting primitive: Mesh_5.005
+20:13:34 | INFO: Primitives created: 1
+20:13:35 | INFO: Finished glTF 2.0 export in 1.0880341529846191 s
+
+EXCHANGE {"id": "male-left-quiet-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.618931369301401e-05, "maxSkinErrorM": 1.4268830454966519e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.6050719248591086e-05, "maxSkinErrorM": 1.4083103451412171e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.6598669596411723e-05, "maxSkinErrorM": 1.2375859114399645e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4605722636544711e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:35 | INFO: Data are loaded, start creating Blender stuff
+20:13:35 | INFO: Blender create Mesh node 0
+20:13:35 | INFO: Blender create Mesh node 1
+20:13:35 | INFO: Blender create Mesh node 2
+20:13:35 | INFO: Blender create Mesh node 3
+20:13:35 | INFO: Blender create Mesh node 4
+20:13:35 | INFO: Blender create Mesh node 5
+20:13:35 | INFO: glTF import finished in 0.21s
+20:13:35 | INFO: Starting glTF 2.0 export
+20:13:36 | INFO: Extracting primitive: Mesh_0.006
+20:13:36 | INFO: Primitives created: 1
+20:13:36 | INFO: Extracting primitive: Mesh_1.006
+20:13:36 | INFO: Primitives created: 1
+20:13:36 | INFO: Extracting primitive: Mesh_2.006
+20:13:36 | INFO: Primitives created: 1
+20:13:36 | INFO: Extracting primitive: Mesh_3.006
+20:13:36 | INFO: Primitives created: 1
+20:13:36 | INFO: Extracting primitive: Mesh_4.006
+20:13:36 | INFO: Primitives created: 1
+20:13:36 | INFO: Extracting primitive: Mesh_5.006
+20:13:36 | INFO: Primitives created: 1
+20:13:37 | INFO: Finished glTF 2.0 export in 1.099334478378296 s
+
+EXCHANGE {"id": "male-right-grimace-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2694144970737398e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.4198421918997041e-05, "maxSkinErrorM": 1.0069271411339287e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:37 | INFO: Data are loaded, start creating Blender stuff
+20:13:37 | INFO: Blender create Mesh node 0
+20:13:37 | INFO: Blender create Mesh node 1
+20:13:37 | INFO: Blender create Mesh node 2
+20:13:37 | INFO: Blender create Mesh node 3
+20:13:37 | INFO: Blender create Mesh node 4
+20:13:37 | INFO: Blender create Mesh node 5
+20:13:37 | INFO: glTF import finished in 0.21s
+20:13:37 | INFO: Starting glTF 2.0 export
+20:13:37 | INFO: Extracting primitive: Mesh_0.007
+20:13:37 | INFO: Primitives created: 1
+20:13:37 | INFO: Extracting primitive: Mesh_1.007
+20:13:37 | INFO: Primitives created: 1
+20:13:37 | INFO: Extracting primitive: Mesh_2.007
+20:13:37 | INFO: Primitives created: 1
+20:13:37 | INFO: Extracting primitive: Mesh_3.007
+20:13:37 | INFO: Primitives created: 1
+20:13:37 | INFO: Extracting primitive: Mesh_4.007
+20:13:37 | INFO: Primitives created: 1
+20:13:37 | INFO: Extracting primitive: Mesh_5.007
+20:13:37 | INFO: Primitives created: 1
+20:13:38 | INFO: Finished glTF 2.0 export in 1.1333978176116943 s
+
+EXCHANGE {"id": "male-right-wince-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2694144970737398e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.4198421918997041e-05, "maxSkinErrorM": 1.0069271411339287e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:38 | INFO: Data are loaded, start creating Blender stuff
+20:13:38 | INFO: Blender create Mesh node 0
+20:13:38 | INFO: Blender create Mesh node 1
+20:13:38 | INFO: Blender create Mesh node 2
+20:13:38 | INFO: Blender create Mesh node 3
+20:13:38 | INFO: Blender create Mesh node 4
+20:13:38 | INFO: Blender create Mesh node 5
+20:13:38 | INFO: glTF import finished in 0.27s
+20:13:39 | INFO: Starting glTF 2.0 export
+20:13:39 | INFO: Extracting primitive: Mesh_0.008
+20:13:39 | INFO: Primitives created: 1
+20:13:39 | INFO: Extracting primitive: Mesh_1.008
+20:13:39 | INFO: Primitives created: 1
+20:13:39 | INFO: Extracting primitive: Mesh_2.008
+20:13:39 | INFO: Primitives created: 1
+20:13:39 | INFO: Extracting primitive: Mesh_3.008
+20:13:39 | INFO: Primitives created: 1
+20:13:39 | INFO: Extracting primitive: Mesh_4.008
+20:13:39 | INFO: Primitives created: 1
+20:13:39 | INFO: Extracting primitive: Mesh_5.008
+20:13:39 | INFO: Primitives created: 1
+20:13:40 | INFO: Finished glTF 2.0 export in 1.1054654121398926 s
+
+EXCHANGE {"id": "male-right-eye-squeeze-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2694144970737398e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.4198421918997041e-05, "maxSkinErrorM": 1.0069271411339287e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:40 | INFO: Data are loaded, start creating Blender stuff
+20:13:40 | INFO: Blender create Mesh node 0
+20:13:40 | INFO: Blender create Mesh node 1
+20:13:40 | INFO: Blender create Mesh node 2
+20:13:40 | INFO: Blender create Mesh node 3
+20:13:40 | INFO: Blender create Mesh node 4
+20:13:40 | INFO: Blender create Mesh node 5
+20:13:40 | INFO: glTF import finished in 0.27s
+20:13:40 | INFO: Starting glTF 2.0 export
+20:13:40 | INFO: Extracting primitive: Mesh_0.009
+20:13:40 | INFO: Primitives created: 1
+20:13:40 | INFO: Extracting primitive: Mesh_1.009
+20:13:40 | INFO: Primitives created: 1
+20:13:40 | INFO: Extracting primitive: Mesh_2.009
+20:13:40 | INFO: Primitives created: 1
+20:13:40 | INFO: Extracting primitive: Mesh_3.009
+20:13:40 | INFO: Primitives created: 1
+20:13:40 | INFO: Extracting primitive: Mesh_4.009
+20:13:40 | INFO: Primitives created: 1
+20:13:40 | INFO: Extracting primitive: Mesh_5.009
+20:13:40 | INFO: Primitives created: 1
+20:13:41 | INFO: Finished glTF 2.0 export in 1.1869196891784668 s
+
+EXCHANGE {"id": "male-right-open-mouth-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2694144970737398e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.4198421918997041e-05, "maxSkinErrorM": 1.0069271411339287e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:41 | INFO: Data are loaded, start creating Blender stuff
+20:13:41 | INFO: Blender create Mesh node 0
+20:13:41 | INFO: Blender create Mesh node 1
+20:13:41 | INFO: Blender create Mesh node 2
+20:13:41 | INFO: Blender create Mesh node 3
+20:13:41 | INFO: Blender create Mesh node 4
+20:13:41 | INFO: Blender create Mesh node 5
+20:13:41 | INFO: glTF import finished in 0.20s
+20:13:42 | INFO: Starting glTF 2.0 export
+20:13:42 | INFO: Extracting primitive: Mesh_0.010
+20:13:42 | INFO: Primitives created: 1
+20:13:42 | INFO: Extracting primitive: Mesh_1.010
+20:13:42 | INFO: Primitives created: 1
+20:13:42 | INFO: Extracting primitive: Mesh_2.010
+20:13:42 | INFO: Primitives created: 1
+20:13:42 | INFO: Extracting primitive: Mesh_3.010
+20:13:42 | INFO: Primitives created: 1
+20:13:42 | INFO: Extracting primitive: Mesh_4.010
+20:13:42 | INFO: Primitives created: 1
+20:13:42 | INFO: Extracting primitive: Mesh_5.010
+20:13:42 | INFO: Primitives created: 1
+20:13:43 | INFO: Finished glTF 2.0 export in 1.2028353214263916 s
+
+EXCHANGE {"id": "male-right-raised-brow-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2694144970737398e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.4198421918997041e-05, "maxSkinErrorM": 1.0069271411339287e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:43 | INFO: Data are loaded, start creating Blender stuff
+20:13:43 | INFO: Blender create Mesh node 0
+20:13:43 | INFO: Blender create Mesh node 1
+20:13:43 | INFO: Blender create Mesh node 2
+20:13:43 | INFO: Blender create Mesh node 3
+20:13:43 | INFO: Blender create Mesh node 4
+20:13:43 | INFO: Blender create Mesh node 5
+20:13:43 | INFO: glTF import finished in 0.21s
+20:13:43 | INFO: Starting glTF 2.0 export
+20:13:43 | INFO: Extracting primitive: Mesh_0.011
+20:13:43 | INFO: Primitives created: 1
+20:13:43 | INFO: Extracting primitive: Mesh_1.011
+20:13:43 | INFO: Primitives created: 1
+20:13:43 | INFO: Extracting primitive: Mesh_2.011
+20:13:43 | INFO: Primitives created: 1
+20:13:43 | INFO: Extracting primitive: Mesh_3.011
+20:13:43 | INFO: Primitives created: 1
+20:13:43 | INFO: Extracting primitive: Mesh_4.011
+20:13:43 | INFO: Primitives created: 1
+20:13:43 | INFO: Extracting primitive: Mesh_5.011
+20:13:43 | INFO: Primitives created: 1
+20:13:44 | INFO: Finished glTF 2.0 export in 1.1459197998046875 s
+
+EXCHANGE {"id": "male-right-quiet-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2472913113015238e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.4266101218699704e-05, "maxSkinErrorM": 1.2694144970737398e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.4198421918997041e-05, "maxSkinErrorM": 1.0069271411339287e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.4154440380622494e-05, "maxSkinErrorM": 5.6782614592520986e-06}], "passed": true}
+20:13:44 | INFO: Data are loaded, start creating Blender stuff
+20:13:44 | INFO: Blender create Mesh node 0
+20:13:44 | INFO: Blender create Mesh node 1
+20:13:44 | INFO: Blender create Mesh node 2
+20:13:44 | INFO: Blender create Mesh node 3
+20:13:44 | INFO: Blender create Mesh node 4
+20:13:44 | INFO: Blender create Mesh node 5
+20:13:45 | INFO: glTF import finished in 0.21s
+20:13:45 | INFO: Starting glTF 2.0 export
+20:13:45 | INFO: Extracting primitive: Mesh_0.012
+20:13:45 | INFO: Primitives created: 1
+20:13:45 | INFO: Extracting primitive: Mesh_1.012
+20:13:45 | INFO: Primitives created: 1
+20:13:45 | INFO: Extracting primitive: Mesh_2.012
+20:13:45 | INFO: Primitives created: 1
+20:13:45 | INFO: Extracting primitive: Mesh_3.012
+20:13:45 | INFO: Primitives created: 1
+20:13:45 | INFO: Extracting primitive: Mesh_4.012
+20:13:45 | INFO: Primitives created: 1
+20:13:45 | INFO: Extracting primitive: Mesh_5.012
+20:13:45 | INFO: Primitives created: 1
+20:13:46 | INFO: Finished glTF 2.0 export in 1.1256599426269531 s
+
+EXCHANGE {"id": "female-left-grimace-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 3.164368240136498e-05, "maxSkinErrorM": 4.441029886947945e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 3.038241894765635e-05, "maxSkinErrorM": 3.6811030440730974e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}], "passed": true}
+20:13:46 | INFO: Data are loaded, start creating Blender stuff
+20:13:46 | INFO: Blender create Mesh node 0
+20:13:46 | INFO: Blender create Mesh node 1
+20:13:46 | INFO: Blender create Mesh node 2
+20:13:46 | INFO: Blender create Mesh node 3
+20:13:46 | INFO: Blender create Mesh node 4
+20:13:46 | INFO: Blender create Mesh node 5
+20:13:46 | INFO: glTF import finished in 0.28s
+20:13:46 | INFO: Starting glTF 2.0 export
+20:13:46 | INFO: Extracting primitive: Mesh_0.013
+20:13:46 | INFO: Primitives created: 1
+20:13:46 | INFO: Extracting primitive: Mesh_1.013
+20:13:46 | INFO: Primitives created: 1
+20:13:46 | INFO: Extracting primitive: Mesh_2.013
+20:13:46 | INFO: Primitives created: 1
+20:13:46 | INFO: Extracting primitive: Mesh_3.013
+20:13:47 | INFO: Primitives created: 1
+20:13:47 | INFO: Extracting primitive: Mesh_4.013
+20:13:47 | INFO: Primitives created: 1
+20:13:47 | INFO: Extracting primitive: Mesh_5.013
+20:13:47 | INFO: Primitives created: 1
+20:13:47 | INFO: Finished glTF 2.0 export in 1.2022545337677002 s
+
+EXCHANGE {"id": "female-left-wince-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 3.164368240136498e-05, "maxSkinErrorM": 4.441029886947945e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 3.038241894765635e-05, "maxSkinErrorM": 3.6811030440730974e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}], "passed": true}
+20:13:47 | INFO: Data are loaded, start creating Blender stuff
+20:13:47 | INFO: Blender create Mesh node 0
+20:13:47 | INFO: Blender create Mesh node 1
+20:13:47 | INFO: Blender create Mesh node 2
+20:13:48 | INFO: Blender create Mesh node 3
+20:13:48 | INFO: Blender create Mesh node 4
+20:13:48 | INFO: Blender create Mesh node 5
+20:13:48 | INFO: glTF import finished in 0.30s
+20:13:48 | INFO: Starting glTF 2.0 export
+20:13:48 | INFO: Extracting primitive: Mesh_0.014
+20:13:48 | INFO: Primitives created: 1
+20:13:48 | INFO: Extracting primitive: Mesh_1.014
+20:13:48 | INFO: Primitives created: 1
+20:13:48 | INFO: Extracting primitive: Mesh_2.014
+20:13:48 | INFO: Primitives created: 1
+20:13:48 | INFO: Extracting primitive: Mesh_3.014
+20:13:48 | INFO: Primitives created: 1
+20:13:48 | INFO: Extracting primitive: Mesh_4.014
+20:13:48 | INFO: Primitives created: 1
+20:13:48 | INFO: Extracting primitive: Mesh_5.014
+20:13:48 | INFO: Primitives created: 1
+20:13:49 | INFO: Finished glTF 2.0 export in 1.1522035598754883 s
+
+EXCHANGE {"id": "female-left-eye-squeeze-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 3.164368240136498e-05, "maxSkinErrorM": 4.441029886947945e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 3.038241894765635e-05, "maxSkinErrorM": 3.6811030440730974e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}], "passed": true}
+20:13:49 | INFO: Data are loaded, start creating Blender stuff
+20:13:49 | INFO: Blender create Mesh node 0
+20:13:49 | INFO: Blender create Mesh node 1
+20:13:49 | INFO: Blender create Mesh node 2
+20:13:49 | INFO: Blender create Mesh node 3
+20:13:49 | INFO: Blender create Mesh node 4
+20:13:49 | INFO: Blender create Mesh node 5
+20:13:49 | INFO: glTF import finished in 0.22s
+20:13:49 | INFO: Starting glTF 2.0 export
+20:13:49 | INFO: Extracting primitive: Mesh_0.015
+20:13:50 | INFO: Primitives created: 1
+20:13:50 | INFO: Extracting primitive: Mesh_1.015
+20:13:50 | INFO: Primitives created: 1
+20:13:50 | INFO: Extracting primitive: Mesh_2.015
+20:13:50 | INFO: Primitives created: 1
+20:13:50 | INFO: Extracting primitive: Mesh_3.015
+20:13:50 | INFO: Primitives created: 1
+20:13:50 | INFO: Extracting primitive: Mesh_4.015
+20:13:50 | INFO: Primitives created: 1
+20:13:50 | INFO: Extracting primitive: Mesh_5.015
+20:13:50 | INFO: Primitives created: 1
+20:13:51 | INFO: Finished glTF 2.0 export in 1.1593332290649414 s
+
+EXCHANGE {"id": "female-left-open-mouth-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 3.164368240136498e-05, "maxSkinErrorM": 4.441029886947945e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 3.038241894765635e-05, "maxSkinErrorM": 3.6811030440730974e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}], "passed": true}
+20:13:51 | INFO: Data are loaded, start creating Blender stuff
+20:13:51 | INFO: Blender create Mesh node 0
+20:13:51 | INFO: Blender create Mesh node 1
+20:13:51 | INFO: Blender create Mesh node 2
+20:13:51 | INFO: Blender create Mesh node 3
+20:13:51 | INFO: Blender create Mesh node 4
+20:13:51 | INFO: Blender create Mesh node 5
+20:13:51 | INFO: glTF import finished in 0.24s
+20:13:51 | INFO: Starting glTF 2.0 export
+20:13:51 | INFO: Extracting primitive: Mesh_0.016
+20:13:51 | INFO: Primitives created: 1
+20:13:51 | INFO: Extracting primitive: Mesh_1.016
+20:13:51 | INFO: Primitives created: 1
+20:13:51 | INFO: Extracting primitive: Mesh_2.016
+20:13:51 | INFO: Primitives created: 1
+20:13:51 | INFO: Extracting primitive: Mesh_3.016
+20:13:51 | INFO: Primitives created: 1
+20:13:51 | INFO: Extracting primitive: Mesh_4.016
+20:13:51 | INFO: Primitives created: 1
+20:13:51 | INFO: Extracting primitive: Mesh_5.016
+20:13:51 | INFO: Primitives created: 1
+20:13:52 | INFO: Finished glTF 2.0 export in 1.1414499282836914 s
+
+EXCHANGE {"id": "female-left-raised-brow-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 3.164368240136498e-05, "maxSkinErrorM": 4.441029886947945e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 3.038241894765635e-05, "maxSkinErrorM": 3.6811030440730974e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}], "passed": true}
+20:13:52 | INFO: Data are loaded, start creating Blender stuff
+20:13:52 | INFO: Blender create Mesh node 0
+20:13:52 | INFO: Blender create Mesh node 1
+20:13:52 | INFO: Blender create Mesh node 2
+20:13:52 | INFO: Blender create Mesh node 3
+20:13:52 | INFO: Blender create Mesh node 4
+20:13:52 | INFO: Blender create Mesh node 5
+20:13:52 | INFO: glTF import finished in 0.23s
+20:13:53 | INFO: Starting glTF 2.0 export
+20:13:53 | INFO: Extracting primitive: Mesh_0.017
+20:13:53 | INFO: Primitives created: 1
+20:13:53 | INFO: Extracting primitive: Mesh_1.017
+20:13:53 | INFO: Primitives created: 1
+20:13:53 | INFO: Extracting primitive: Mesh_2.017
+20:13:53 | INFO: Primitives created: 1
+20:13:53 | INFO: Extracting primitive: Mesh_3.017
+20:13:53 | INFO: Primitives created: 1
+20:13:53 | INFO: Extracting primitive: Mesh_4.017
+20:13:53 | INFO: Primitives created: 1
+20:13:53 | INFO: Extracting primitive: Mesh_5.017
+20:13:53 | INFO: Primitives created: 1
+20:13:54 | INFO: Finished glTF 2.0 export in 1.179060697555542 s
+
+EXCHANGE {"id": "female-left-quiet-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 3.170370526820472e-05, "maxSkinErrorM": 4.459511910681613e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 3.164368240136498e-05, "maxSkinErrorM": 4.441029886947945e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 3.038241894765635e-05, "maxSkinErrorM": 3.6811030440730974e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.977582006451717e-05, "maxSkinErrorM": 4.563552010949934e-06}], "passed": true}
+20:13:54 | INFO: Data are loaded, start creating Blender stuff
+20:13:54 | INFO: Blender create Mesh node 0
+20:13:54 | INFO: Blender create Mesh node 1
+20:13:54 | INFO: Blender create Mesh node 2
+20:13:54 | INFO: Blender create Mesh node 3
+20:13:54 | INFO: Blender create Mesh node 4
+20:13:54 | INFO: Blender create Mesh node 5
+20:13:54 | INFO: glTF import finished in 0.24s
+20:13:54 | INFO: Starting glTF 2.0 export
+20:13:54 | INFO: Extracting primitive: Mesh_0.018
+20:13:54 | INFO: Primitives created: 1
+20:13:54 | INFO: Extracting primitive: Mesh_1.018
+20:13:54 | INFO: Primitives created: 1
+20:13:54 | INFO: Extracting primitive: Mesh_2.018
+20:13:54 | INFO: Primitives created: 1
+20:13:54 | INFO: Extracting primitive: Mesh_3.018
+20:13:54 | INFO: Primitives created: 1
+20:13:54 | INFO: Extracting primitive: Mesh_4.018
+20:13:54 | INFO: Primitives created: 1
+20:13:54 | INFO: Extracting primitive: Mesh_5.018
+20:13:55 | INFO: Primitives created: 1
+20:13:55 | INFO: Finished glTF 2.0 export in 1.1502103805541992 s
+
+EXCHANGE {"id": "female-right-grimace-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.3150899576430675e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 2.975509018825991e-05, "maxSkinErrorM": 1.1423933756304905e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}], "passed": true}
+20:13:55 | INFO: Data are loaded, start creating Blender stuff
+20:13:55 | INFO: Blender create Mesh node 0
+20:13:55 | INFO: Blender create Mesh node 1
+20:13:55 | INFO: Blender create Mesh node 2
+20:13:55 | INFO: Blender create Mesh node 3
+20:13:55 | INFO: Blender create Mesh node 4
+20:13:55 | INFO: Blender create Mesh node 5
+20:13:56 | INFO: glTF import finished in 0.32s
+20:13:56 | INFO: Starting glTF 2.0 export
+20:13:56 | INFO: Extracting primitive: Mesh_0.019
+20:13:56 | INFO: Primitives created: 1
+20:13:56 | INFO: Extracting primitive: Mesh_1.019
+20:13:56 | INFO: Primitives created: 1
+20:13:56 | INFO: Extracting primitive: Mesh_2.019
+20:13:56 | INFO: Primitives created: 1
+20:13:56 | INFO: Extracting primitive: Mesh_3.019
+20:13:56 | INFO: Primitives created: 1
+20:13:56 | INFO: Extracting primitive: Mesh_4.019
+20:13:56 | INFO: Primitives created: 1
+20:13:56 | INFO: Extracting primitive: Mesh_5.019
+20:13:56 | INFO: Primitives created: 1
+20:13:57 | INFO: Finished glTF 2.0 export in 1.198549747467041 s
+
+EXCHANGE {"id": "female-right-wince-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.3150899576430675e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 2.975509018825991e-05, "maxSkinErrorM": 1.1423933756304905e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}], "passed": true}
+20:13:57 | INFO: Data are loaded, start creating Blender stuff
+20:13:57 | INFO: Blender create Mesh node 0
+20:13:57 | INFO: Blender create Mesh node 1
+20:13:57 | INFO: Blender create Mesh node 2
+20:13:57 | INFO: Blender create Mesh node 3
+20:13:57 | INFO: Blender create Mesh node 4
+20:13:57 | INFO: Blender create Mesh node 5
+20:13:57 | INFO: glTF import finished in 0.24s
+20:13:57 | INFO: Starting glTF 2.0 export
+20:13:57 | INFO: Extracting primitive: Mesh_0.020
+20:13:57 | INFO: Primitives created: 1
+20:13:57 | INFO: Extracting primitive: Mesh_1.020
+20:13:58 | INFO: Primitives created: 1
+20:13:58 | INFO: Extracting primitive: Mesh_2.020
+20:13:58 | INFO: Primitives created: 1
+20:13:58 | INFO: Extracting primitive: Mesh_3.020
+20:13:58 | INFO: Primitives created: 1
+20:13:58 | INFO: Extracting primitive: Mesh_4.020
+20:13:58 | INFO: Primitives created: 1
+20:13:58 | INFO: Extracting primitive: Mesh_5.020
+20:13:58 | INFO: Primitives created: 1
+20:13:59 | INFO: Finished glTF 2.0 export in 1.291501522064209 s
+
+EXCHANGE {"id": "female-right-eye-squeeze-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.3150899576430675e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 2.975509018825991e-05, "maxSkinErrorM": 1.1423933756304905e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}], "passed": true}
+20:13:59 | INFO: Data are loaded, start creating Blender stuff
+20:13:59 | INFO: Blender create Mesh node 0
+20:13:59 | INFO: Blender create Mesh node 1
+20:13:59 | INFO: Blender create Mesh node 2
+20:13:59 | INFO: Blender create Mesh node 3
+20:13:59 | INFO: Blender create Mesh node 4
+20:13:59 | INFO: Blender create Mesh node 5
+20:13:59 | INFO: glTF import finished in 0.23s
+20:13:59 | INFO: Starting glTF 2.0 export
+20:13:59 | INFO: Extracting primitive: Mesh_0.021
+20:13:59 | INFO: Primitives created: 1
+20:13:59 | INFO: Extracting primitive: Mesh_1.021
+20:13:59 | INFO: Primitives created: 1
+20:13:59 | INFO: Extracting primitive: Mesh_2.021
+20:13:59 | INFO: Primitives created: 1
+20:13:59 | INFO: Extracting primitive: Mesh_3.021
+20:13:59 | INFO: Primitives created: 1
+20:13:59 | INFO: Extracting primitive: Mesh_4.021
+20:13:59 | INFO: Primitives created: 1
+20:13:59 | INFO: Extracting primitive: Mesh_5.021
+20:13:59 | INFO: Primitives created: 1
+20:14:00 | INFO: Finished glTF 2.0 export in 1.1184237003326416 s
+
+EXCHANGE {"id": "female-right-open-mouth-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.3150899576430675e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 2.975509018825991e-05, "maxSkinErrorM": 1.1423933756304905e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}], "passed": true}
+20:14:00 | INFO: Data are loaded, start creating Blender stuff
+20:14:00 | INFO: Blender create Mesh node 0
+20:14:00 | INFO: Blender create Mesh node 1
+20:14:00 | INFO: Blender create Mesh node 2
+20:14:00 | INFO: Blender create Mesh node 3
+20:14:00 | INFO: Blender create Mesh node 4
+20:14:00 | INFO: Blender create Mesh node 5
+20:14:00 | INFO: glTF import finished in 0.24s
+20:14:01 | INFO: Starting glTF 2.0 export
+20:14:01 | INFO: Extracting primitive: Mesh_0.022
+20:14:01 | INFO: Primitives created: 1
+20:14:01 | INFO: Extracting primitive: Mesh_1.022
+20:14:01 | INFO: Primitives created: 1
+20:14:01 | INFO: Extracting primitive: Mesh_2.022
+20:14:01 | INFO: Primitives created: 1
+20:14:01 | INFO: Extracting primitive: Mesh_3.022
+20:14:01 | INFO: Primitives created: 1
+20:14:01 | INFO: Extracting primitive: Mesh_4.022
+20:14:01 | INFO: Primitives created: 1
+20:14:01 | INFO: Extracting primitive: Mesh_5.022
+20:14:01 | INFO: Primitives created: 1
+20:14:02 | INFO: Finished glTF 2.0 export in 1.1503732204437256 s
+
+EXCHANGE {"id": "female-right-raised-brow-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.3150899576430675e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 2.975509018825991e-05, "maxSkinErrorM": 1.1423933756304905e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}], "passed": true}
+20:14:02 | INFO: Data are loaded, start creating Blender stuff
+20:14:02 | INFO: Blender create Mesh node 0
+20:14:02 | INFO: Blender create Mesh node 1
+20:14:02 | INFO: Blender create Mesh node 2
+20:14:02 | INFO: Blender create Mesh node 3
+20:14:02 | INFO: Blender create Mesh node 4
+20:14:02 | INFO: Blender create Mesh node 5
+20:14:02 | INFO: glTF import finished in 0.27s
+20:14:02 | INFO: Starting glTF 2.0 export
+20:14:02 | INFO: Extracting primitive: Mesh_0.023
+20:14:02 | INFO: Primitives created: 1
+20:14:02 | INFO: Extracting primitive: Mesh_1.023
+20:14:02 | INFO: Primitives created: 1
+20:14:02 | INFO: Extracting primitive: Mesh_2.023
+20:14:02 | INFO: Primitives created: 1
+20:14:02 | INFO: Extracting primitive: Mesh_3.023
+20:14:02 | INFO: Primitives created: 1
+20:14:02 | INFO: Extracting primitive: Mesh_4.023
+20:14:03 | INFO: Primitives created: 1
+20:14:03 | INFO: Extracting primitive: Mesh_5.023
+20:14:03 | INFO: Primitives created: 1
+20:14:03 | INFO: Finished glTF 2.0 export in 1.2284471988677979 s
+
+EXCHANGE {"id": "female-right-quiet-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.313012126047397e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 2.9811336227080526e-05, "maxSkinErrorM": 1.3150899576430675e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 2.975509018825991e-05, "maxSkinErrorM": 1.1423933756304905e-05}, {"timeSec": 8.15, "maxBoneErrorM": 2.975779145712005e-05, "maxSkinErrorM": 1.1725500371539965e-05}], "passed": true}
+20:14:03 | INFO: Data are loaded, start creating Blender stuff
+20:14:03 | INFO: Blender create Mesh node 0
+20:14:03 | INFO: Blender create Mesh node 1
+20:14:03 | INFO: Blender create Mesh node 2
+20:14:03 | INFO: Blender create Mesh node 3
+20:14:04 | INFO: Blender create Mesh node 4
+20:14:04 | INFO: Blender create Mesh node 5
+20:14:04 | INFO: glTF import finished in 0.22s
+20:14:04 | INFO: Starting glTF 2.0 export
+20:14:04 | INFO: Extracting primitive: Mesh_0.024
+20:14:04 | INFO: Primitives created: 1
+20:14:04 | INFO: Extracting primitive: Mesh_1.024
+20:14:04 | INFO: Primitives created: 1
+20:14:04 | INFO: Extracting primitive: Mesh_2.024
+20:14:04 | INFO: Primitives created: 1
+20:14:04 | INFO: Extracting primitive: Mesh_3.024
+20:14:04 | INFO: Primitives created: 1
+20:14:04 | INFO: Extracting primitive: Mesh_4.024
+20:14:04 | INFO: Primitives created: 1
+20:14:04 | INFO: Extracting primitive: Mesh_5.024
+20:14:04 | INFO: Primitives created: 1
+20:14:05 | INFO: Finished glTF 2.0 export in 0.8479170799255371 s
+
+EXCHANGE {"id": "neutral-left-grimace-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 9.076049610066498e-06, "maxSkinErrorM": 8.06995558377821e-06}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 9.902009417738429e-06, "maxSkinErrorM": 6.641640084126266e-06}, {"timeSec": 8.15, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:05 | INFO: Data are loaded, start creating Blender stuff
+20:14:05 | INFO: Blender create Mesh node 0
+20:14:05 | INFO: Blender create Mesh node 1
+20:14:05 | INFO: Blender create Mesh node 2
+20:14:05 | INFO: Blender create Mesh node 3
+20:14:05 | INFO: Blender create Mesh node 4
+20:14:05 | INFO: Blender create Mesh node 5
+20:14:05 | INFO: glTF import finished in 0.23s
+20:14:05 | INFO: Starting glTF 2.0 export
+20:14:05 | INFO: Extracting primitive: Mesh_0.025
+20:14:05 | INFO: Primitives created: 1
+20:14:05 | INFO: Extracting primitive: Mesh_1.025
+20:14:05 | INFO: Primitives created: 1
+20:14:05 | INFO: Extracting primitive: Mesh_2.025
+20:14:05 | INFO: Primitives created: 1
+20:14:05 | INFO: Extracting primitive: Mesh_3.025
+20:14:05 | INFO: Primitives created: 1
+20:14:05 | INFO: Extracting primitive: Mesh_4.025
+20:14:05 | INFO: Primitives created: 1
+20:14:05 | INFO: Extracting primitive: Mesh_5.025
+20:14:05 | INFO: Primitives created: 1
+20:14:06 | INFO: Finished glTF 2.0 export in 0.8301687240600586 s
+
+EXCHANGE {"id": "neutral-left-wince-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 9.076049610066498e-06, "maxSkinErrorM": 8.06995558377821e-06}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 9.902009417738429e-06, "maxSkinErrorM": 6.641640084126266e-06}, {"timeSec": 8.15, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:06 | INFO: Data are loaded, start creating Blender stuff
+20:14:06 | INFO: Blender create Mesh node 0
+20:14:06 | INFO: Blender create Mesh node 1
+20:14:06 | INFO: Blender create Mesh node 2
+20:14:06 | INFO: Blender create Mesh node 3
+20:14:06 | INFO: Blender create Mesh node 4
+20:14:06 | INFO: Blender create Mesh node 5
+20:14:06 | INFO: glTF import finished in 0.29s
+20:14:06 | INFO: Starting glTF 2.0 export
+20:14:06 | INFO: Extracting primitive: Mesh_0.026
+20:14:06 | INFO: Primitives created: 1
+20:14:06 | INFO: Extracting primitive: Mesh_1.026
+20:14:06 | INFO: Primitives created: 1
+20:14:06 | INFO: Extracting primitive: Mesh_2.026
+20:14:06 | INFO: Primitives created: 1
+20:14:06 | INFO: Extracting primitive: Mesh_3.026
+20:14:06 | INFO: Primitives created: 1
+20:14:06 | INFO: Extracting primitive: Mesh_4.026
+20:14:06 | INFO: Primitives created: 1
+20:14:06 | INFO: Extracting primitive: Mesh_5.026
+20:14:06 | INFO: Primitives created: 1
+20:14:07 | INFO: Finished glTF 2.0 export in 0.8339214324951172 s
+
+EXCHANGE {"id": "neutral-left-eye-squeeze-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 9.076049610066498e-06, "maxSkinErrorM": 8.06995558377821e-06}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 9.902009417738429e-06, "maxSkinErrorM": 6.641640084126266e-06}, {"timeSec": 8.15, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:07 | INFO: Data are loaded, start creating Blender stuff
+20:14:07 | INFO: Blender create Mesh node 0
+20:14:07 | INFO: Blender create Mesh node 1
+20:14:07 | INFO: Blender create Mesh node 2
+20:14:07 | INFO: Blender create Mesh node 3
+20:14:07 | INFO: Blender create Mesh node 4
+20:14:07 | INFO: Blender create Mesh node 5
+20:14:07 | INFO: glTF import finished in 0.23s
+20:14:07 | INFO: Starting glTF 2.0 export
+20:14:07 | INFO: Extracting primitive: Mesh_0.027
+20:14:08 | INFO: Primitives created: 1
+20:14:08 | INFO: Extracting primitive: Mesh_1.027
+20:14:08 | INFO: Primitives created: 1
+20:14:08 | INFO: Extracting primitive: Mesh_2.027
+20:14:08 | INFO: Primitives created: 1
+20:14:08 | INFO: Extracting primitive: Mesh_3.027
+20:14:08 | INFO: Primitives created: 1
+20:14:08 | INFO: Extracting primitive: Mesh_4.027
+20:14:08 | INFO: Primitives created: 1
+20:14:08 | INFO: Extracting primitive: Mesh_5.027
+20:14:08 | INFO: Primitives created: 1
+20:14:08 | INFO: Finished glTF 2.0 export in 0.8613781929016113 s
+
+EXCHANGE {"id": "neutral-left-open-mouth-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 9.076049610066498e-06, "maxSkinErrorM": 8.06995558377821e-06}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 9.902009417738429e-06, "maxSkinErrorM": 6.641640084126266e-06}, {"timeSec": 8.15, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:08 | INFO: Data are loaded, start creating Blender stuff
+20:14:08 | INFO: Blender create Mesh node 0
+20:14:08 | INFO: Blender create Mesh node 1
+20:14:08 | INFO: Blender create Mesh node 2
+20:14:08 | INFO: Blender create Mesh node 3
+20:14:08 | INFO: Blender create Mesh node 4
+20:14:08 | INFO: Blender create Mesh node 5
+20:14:09 | INFO: glTF import finished in 0.25s
+20:14:09 | INFO: Starting glTF 2.0 export
+20:14:09 | INFO: Extracting primitive: Mesh_0.028
+20:14:09 | INFO: Primitives created: 1
+20:14:09 | INFO: Extracting primitive: Mesh_1.028
+20:14:09 | INFO: Primitives created: 1
+20:14:09 | INFO: Extracting primitive: Mesh_2.028
+20:14:09 | INFO: Primitives created: 1
+20:14:09 | INFO: Extracting primitive: Mesh_3.028
+20:14:09 | INFO: Primitives created: 1
+20:14:09 | INFO: Extracting primitive: Mesh_4.028
+20:14:09 | INFO: Primitives created: 1
+20:14:09 | INFO: Extracting primitive: Mesh_5.028
+20:14:09 | INFO: Primitives created: 1
+20:14:10 | INFO: Finished glTF 2.0 export in 0.817124605178833 s
+
+EXCHANGE {"id": "neutral-left-raised-brow-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 9.076049610066498e-06, "maxSkinErrorM": 8.06995558377821e-06}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 9.902009417738429e-06, "maxSkinErrorM": 6.641640084126266e-06}, {"timeSec": 8.15, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:10 | INFO: Data are loaded, start creating Blender stuff
+20:14:10 | INFO: Blender create Mesh node 0
+20:14:10 | INFO: Blender create Mesh node 1
+20:14:10 | INFO: Blender create Mesh node 2
+20:14:10 | INFO: Blender create Mesh node 3
+20:14:10 | INFO: Blender create Mesh node 4
+20:14:10 | INFO: Blender create Mesh node 5
+20:14:10 | INFO: glTF import finished in 0.24s
+20:14:10 | INFO: Starting glTF 2.0 export
+20:14:10 | INFO: Extracting primitive: Mesh_0.029
+20:14:10 | INFO: Primitives created: 1
+20:14:10 | INFO: Extracting primitive: Mesh_1.029
+20:14:10 | INFO: Primitives created: 1
+20:14:10 | INFO: Extracting primitive: Mesh_2.029
+20:14:10 | INFO: Primitives created: 1
+20:14:10 | INFO: Extracting primitive: Mesh_3.029
+20:14:10 | INFO: Primitives created: 1
+20:14:10 | INFO: Extracting primitive: Mesh_4.029
+20:14:10 | INFO: Primitives created: 1
+20:14:10 | INFO: Extracting primitive: Mesh_5.029
+20:14:10 | INFO: Primitives created: 1
+20:14:11 | INFO: Finished glTF 2.0 export in 0.9100215435028076 s
+
+EXCHANGE {"id": "neutral-left-quiet-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 9.073036105000225e-06, "maxSkinErrorM": 8.13124279375188e-06}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 9.076049610066498e-06, "maxSkinErrorM": 8.06995558377821e-06}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 9.902009417738429e-06, "maxSkinErrorM": 6.641640084126266e-06}, {"timeSec": 8.15, "maxBoneErrorM": 1.2761102495285373e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:11 | INFO: Data are loaded, start creating Blender stuff
+20:14:11 | INFO: Blender create Mesh node 0
+20:14:11 | INFO: Blender create Mesh node 1
+20:14:11 | INFO: Blender create Mesh node 2
+20:14:11 | INFO: Blender create Mesh node 3
+20:14:11 | INFO: Blender create Mesh node 4
+20:14:11 | INFO: Blender create Mesh node 5
+20:14:11 | INFO: glTF import finished in 0.23s
+20:14:11 | INFO: Starting glTF 2.0 export
+20:14:11 | INFO: Extracting primitive: Mesh_0.030
+20:14:11 | INFO: Primitives created: 1
+20:14:11 | INFO: Extracting primitive: Mesh_1.030
+20:14:11 | INFO: Primitives created: 1
+20:14:11 | INFO: Extracting primitive: Mesh_2.030
+20:14:11 | INFO: Primitives created: 1
+20:14:11 | INFO: Extracting primitive: Mesh_3.030
+20:14:11 | INFO: Primitives created: 1
+20:14:11 | INFO: Extracting primitive: Mesh_4.030
+20:14:11 | INFO: Primitives created: 1
+20:14:11 | INFO: Extracting primitive: Mesh_5.030
+20:14:11 | INFO: Primitives created: 1
+20:14:12 | INFO: Finished glTF 2.0 export in 0.8218276500701904 s
+
+EXCHANGE {"id": "neutral-right-grimace-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.5459345377166755e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.3252754662290417e-05, "maxSkinErrorM": 1.2939357475261204e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:12 | INFO: Data are loaded, start creating Blender stuff
+20:14:12 | INFO: Blender create Mesh node 0
+20:14:12 | INFO: Blender create Mesh node 1
+20:14:12 | INFO: Blender create Mesh node 2
+20:14:12 | INFO: Blender create Mesh node 3
+20:14:12 | INFO: Blender create Mesh node 4
+20:14:12 | INFO: Blender create Mesh node 5
+20:14:12 | INFO: glTF import finished in 0.24s
+20:14:13 | INFO: Starting glTF 2.0 export
+20:14:13 | INFO: Extracting primitive: Mesh_0.031
+20:14:13 | INFO: Primitives created: 1
+20:14:13 | INFO: Extracting primitive: Mesh_1.031
+20:14:13 | INFO: Primitives created: 1
+20:14:13 | INFO: Extracting primitive: Mesh_2.031
+20:14:13 | INFO: Primitives created: 1
+20:14:13 | INFO: Extracting primitive: Mesh_3.031
+20:14:13 | INFO: Primitives created: 1
+20:14:13 | INFO: Extracting primitive: Mesh_4.031
+20:14:13 | INFO: Primitives created: 1
+20:14:13 | INFO: Extracting primitive: Mesh_5.031
+20:14:13 | INFO: Primitives created: 1
+20:14:13 | INFO: Finished glTF 2.0 export in 0.8309829235076904 s
+
+EXCHANGE {"id": "neutral-right-wince-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.5459345377166755e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.3252754662290417e-05, "maxSkinErrorM": 1.2939357475261204e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:13 | INFO: Data are loaded, start creating Blender stuff
+20:14:13 | INFO: Blender create Mesh node 0
+20:14:13 | INFO: Blender create Mesh node 1
+20:14:13 | INFO: Blender create Mesh node 2
+20:14:13 | INFO: Blender create Mesh node 3
+20:14:13 | INFO: Blender create Mesh node 4
+20:14:13 | INFO: Blender create Mesh node 5
+20:14:14 | INFO: glTF import finished in 0.24s
+20:14:14 | INFO: Starting glTF 2.0 export
+20:14:14 | INFO: Extracting primitive: Mesh_0.032
+20:14:14 | INFO: Primitives created: 1
+20:14:14 | INFO: Extracting primitive: Mesh_1.032
+20:14:14 | INFO: Primitives created: 1
+20:14:14 | INFO: Extracting primitive: Mesh_2.032
+20:14:14 | INFO: Primitives created: 1
+20:14:14 | INFO: Extracting primitive: Mesh_3.032
+20:14:14 | INFO: Primitives created: 1
+20:14:14 | INFO: Extracting primitive: Mesh_4.032
+20:14:14 | INFO: Primitives created: 1
+20:14:14 | INFO: Extracting primitive: Mesh_5.032
+20:14:14 | INFO: Primitives created: 1
+20:14:14 | INFO: Finished glTF 2.0 export in 0.7827036380767822 s
+
+EXCHANGE {"id": "neutral-right-eye-squeeze-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.5459345377166755e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.3252754662290417e-05, "maxSkinErrorM": 1.2939357475261204e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:15 | INFO: Data are loaded, start creating Blender stuff
+20:14:15 | INFO: Blender create Mesh node 0
+20:14:15 | INFO: Blender create Mesh node 1
+20:14:15 | INFO: Blender create Mesh node 2
+20:14:15 | INFO: Blender create Mesh node 3
+20:14:15 | INFO: Blender create Mesh node 4
+20:14:15 | INFO: Blender create Mesh node 5
+20:14:15 | INFO: glTF import finished in 0.27s
+20:14:15 | INFO: Starting glTF 2.0 export
+20:14:15 | INFO: Extracting primitive: Mesh_0.033
+20:14:15 | INFO: Primitives created: 1
+20:14:15 | INFO: Extracting primitive: Mesh_1.033
+20:14:15 | INFO: Primitives created: 1
+20:14:15 | INFO: Extracting primitive: Mesh_2.033
+20:14:15 | INFO: Primitives created: 1
+20:14:15 | INFO: Extracting primitive: Mesh_3.033
+20:14:15 | INFO: Primitives created: 1
+20:14:15 | INFO: Extracting primitive: Mesh_4.033
+20:14:15 | INFO: Primitives created: 1
+20:14:15 | INFO: Extracting primitive: Mesh_5.033
+20:14:15 | INFO: Primitives created: 1
+20:14:16 | INFO: Finished glTF 2.0 export in 0.8723375797271729 s
+
+EXCHANGE {"id": "neutral-right-open-mouth-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.5459345377166755e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.3252754662290417e-05, "maxSkinErrorM": 1.2939357475261204e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:16 | INFO: Data are loaded, start creating Blender stuff
+20:14:16 | INFO: Blender create Mesh node 0
+20:14:16 | INFO: Blender create Mesh node 1
+20:14:16 | INFO: Blender create Mesh node 2
+20:14:16 | INFO: Blender create Mesh node 3
+20:14:16 | INFO: Blender create Mesh node 4
+20:14:16 | INFO: Blender create Mesh node 5
+20:14:16 | INFO: glTF import finished in 0.26s
+20:14:16 | INFO: Starting glTF 2.0 export
+20:14:16 | INFO: Extracting primitive: Mesh_0.034
+20:14:16 | INFO: Primitives created: 1
+20:14:16 | INFO: Extracting primitive: Mesh_1.034
+20:14:16 | INFO: Primitives created: 1
+20:14:16 | INFO: Extracting primitive: Mesh_2.034
+20:14:16 | INFO: Primitives created: 1
+20:14:16 | INFO: Extracting primitive: Mesh_3.034
+20:14:16 | INFO: Primitives created: 1
+20:14:16 | INFO: Extracting primitive: Mesh_4.034
+20:14:16 | INFO: Primitives created: 1
+20:14:16 | INFO: Extracting primitive: Mesh_5.034
+20:14:16 | INFO: Primitives created: 1
+20:14:17 | INFO: Finished glTF 2.0 export in 0.9260058403015137 s
+
+EXCHANGE {"id": "neutral-right-raised-brow-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.5459345377166755e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.3252754662290417e-05, "maxSkinErrorM": 1.2939357475261204e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+20:14:17 | INFO: Data are loaded, start creating Blender stuff
+20:14:17 | INFO: Blender create Mesh node 0
+20:14:17 | INFO: Blender create Mesh node 1
+20:14:17 | INFO: Blender create Mesh node 2
+20:14:17 | INFO: Blender create Mesh node 3
+20:14:17 | INFO: Blender create Mesh node 4
+20:14:17 | INFO: Blender create Mesh node 5
+20:14:18 | INFO: glTF import finished in 0.34s
+20:14:18 | INFO: Starting glTF 2.0 export
+20:14:18 | INFO: Extracting primitive: Mesh_0.035
+20:14:18 | INFO: Primitives created: 1
+20:14:18 | INFO: Extracting primitive: Mesh_1.035
+20:14:18 | INFO: Primitives created: 1
+20:14:18 | INFO: Extracting primitive: Mesh_2.035
+20:14:18 | INFO: Primitives created: 1
+20:14:18 | INFO: Extracting primitive: Mesh_3.035
+20:14:18 | INFO: Primitives created: 1
+20:14:18 | INFO: Extracting primitive: Mesh_4.035
+20:14:18 | INFO: Primitives created: 1
+20:14:18 | INFO: Extracting primitive: Mesh_5.035
+20:14:18 | INFO: Primitives created: 1
+20:14:19 | INFO: Finished glTF 2.0 export in 1.0796546936035156 s
+
+EXCHANGE {"id": "neutral-right-quiet-pain-8", "checkpoints": [{"timeSec": 0, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}, {"timeSec": 4.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 4.633333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.56728237925563e-05}, {"timeSec": 5.333333333333334, "maxBoneErrorM": 1.3224341912449722e-05, "maxSkinErrorM": 1.5459345377166755e-05}, {"timeSec": 7.000000000000001, "maxBoneErrorM": 1.3252754662290417e-05, "maxSkinErrorM": 1.2939357475261204e-05}, {"timeSec": 8.15, "maxBoneErrorM": 1.3129301423679022e-05, "maxSkinErrorM": 4.436944436747581e-06}], "passed": true}
+Info: Saved as "full-motion-review.blend"
+FULL_MOTION_REVIEW_READY C:\Users\danst\probonoEMR\movement-realism-implementation\blender-workspace\pain-release-review-1\full-motion-review.blend
+Blender 5.2.2 LTS (hash d13f752e3b9c built 2026-09-15 01:37:04)
+
+Blender quit

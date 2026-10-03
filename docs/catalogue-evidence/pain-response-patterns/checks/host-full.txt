@@ -1,0 +1,10 @@
+
+ RUN  v3.2.6 C:/Users/danst/probonoEMR/movement-realism-implementation/pain-response-release/simlab
+
+ ✓ packages/ddx/src/__tests__/painResponses.test.ts (8 tests) 38ms
+ ✓ packages/ddx/src/__tests__/lab.test.ts (17 tests) 254ms
+
+ Test Files  2 passed (2)
+      Tests  25 passed (25)
+   Start at  20:20:24
+   Duration  5.32s (transform 1.97s, setup 0ms, collect 2.99s, tests 292ms, environment 0ms, prepare 188ms)

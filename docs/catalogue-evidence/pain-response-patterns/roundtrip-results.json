@@ -1,0 +1,1808 @@
+{
+  "at": "2026-10-03T01:15:26.258Z",
+  "expectedSource": "Engine reference",
+  "toleranceM": 0.0001,
+  "method": "Original bone-head and rendered skin samples compared with exported glTF replay in Three.js. Nearest-vertex search within neighboring 5 mm cells; any missing neighbor fails. Original vertex indices are not assumed to survive export.",
+  "cases": [
+    {
+      "id": "male-left-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014585879332095159,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397548286,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001458587933246225,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397554778,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014718149727095263,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001088993232370457,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014961606259082265,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000009059654410899091,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000014961606259082265,
+      "maxSkinErrorM": 0.00001109337397554778,
+      "passed": true
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014585879332095159,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397548286,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001458587933246225,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397554778,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014718149727095263,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001088993232370457,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014961606259082265,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000009059654410899091,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000014961606259082265,
+      "maxSkinErrorM": 0.00001109337397554778,
+      "passed": true
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014585879332095159,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397548286,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001458587933246225,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397554778,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014718149727095263,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001088993232370457,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014961606259082265,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000009059654410899091,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000014961606259082265,
+      "maxSkinErrorM": 0.00001109337397554778,
+      "passed": true
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014585879332095159,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397548286,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001458587933246225,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397554778,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014718149727095263,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001088993232370457,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014961606259082265,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000009059654410899091,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000014961606259082265,
+      "maxSkinErrorM": 0.00001109337397554778,
+      "passed": true
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014585879332095159,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397548286,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001458587933246225,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397554778,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014718149727095263,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001088993232370457,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014961606259082265,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000009059654410899091,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000014961606259082265,
+      "maxSkinErrorM": 0.00001109337397554778,
+      "passed": true
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014585879332095159,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397548286,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001458587933246225,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001109337397554778,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014718149727095263,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.00001088993232370457,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014961606259082265,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000009059654410899091,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014901196483297763,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000014961606259082265,
+      "maxSkinErrorM": 0.00001109337397554778,
+      "passed": true
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014340696963952507,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909492271,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001434069696458604,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909229718,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014340561741982813,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.00001182962201794853,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014207773449857288,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000009512130621524393,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.00001434069696458604,
+      "maxSkinErrorM": 0.00001182962201794853,
+      "passed": true
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014340696963952507,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909492271,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001434069696458604,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909229718,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014340561741982813,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.00001182962201794853,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014207773449857288,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000009512130621524393,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.00001434069696458604,
+      "maxSkinErrorM": 0.00001182962201794853,
+      "passed": true
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014340696963952507,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909492271,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001434069696458604,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909229718,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014340561741982813,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.00001182962201794853,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014207773449857288,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000009512130621524393,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.00001434069696458604,
+      "maxSkinErrorM": 0.00001182962201794853,
+      "passed": true
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014340696963952507,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909492271,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001434069696458604,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909229718,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014340561741982813,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.00001182962201794853,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014207773449857288,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000009512130621524393,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.00001434069696458604,
+      "maxSkinErrorM": 0.00001182962201794853,
+      "passed": true
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014340696963952507,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909492271,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001434069696458604,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909229718,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014340561741982813,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.00001182962201794853,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014207773449857288,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000009512130621524393,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.00001434069696458604,
+      "maxSkinErrorM": 0.00001182962201794853,
+      "passed": true
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391586658,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000014340696963952507,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909492271,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00001434069696458604,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011788615909229718,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000014340561741982813,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.00001182962201794853,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000014207773449857288,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000009512130621524393,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000014100493107463028,
+          "worstBone": "CC_Base_L_ToeBaseShareBone",
+          "maxSkinNearestVertexErrorM": 0.000005972894391416351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.00001434069696458604,
+      "maxSkinErrorM": 0.00001182962201794853,
+      "passed": true
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029624209676718394,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000029636866372299377,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004275000595084143,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00002963686637213559,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.000042750005950716315,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.00002957991043567252,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004267078017791994,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000028665791311394612,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.00003488445362113708,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029624209676266756,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029636866372299377,
+      "maxSkinErrorM": 0.00004275000595084143,
+      "passed": true
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029624209676718394,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000029636866372299377,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004275000595084143,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00002963686637213559,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.000042750005950716315,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.00002957991043567252,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004267078017791994,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000028665791311394612,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.00003488445362113708,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029624209676266756,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029636866372299377,
+      "maxSkinErrorM": 0.00004275000595084143,
+      "passed": true
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029624209676718394,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000029636866372299377,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004275000595084143,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00002963686637213559,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.000042750005950716315,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.00002957991043567252,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004267078017791994,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000028665791311394612,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.00003488445362113708,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029624209676266756,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029636866372299377,
+      "maxSkinErrorM": 0.00004275000595084143,
+      "passed": true
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029624209676718394,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000029636866372299377,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004275000595084143,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00002963686637213559,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.000042750005950716315,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.00002957991043567252,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004267078017791994,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000028665791311394612,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.00003488445362113708,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029624209676266756,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029636866372299377,
+      "maxSkinErrorM": 0.00004275000595084143,
+      "passed": true
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029624209676718394,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000029636866372299377,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004275000595084143,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00002963686637213559,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.000042750005950716315,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.00002957991043567252,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004267078017791994,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000028665791311394612,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.00003488445362113708,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029624209676266756,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029636866372299377,
+      "maxSkinErrorM": 0.00004275000595084143,
+      "passed": true
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029624209676718394,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000029636866372299377,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004275000595084143,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.00002963686637213559,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.000042750005950716315,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.00002957991043567252,
+          "worstBone": "CC_Base_L_CalfTwist02",
+          "maxSkinNearestVertexErrorM": 0.00004267078017791994,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000028665791311394612,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.00003488445362113708,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029624209676266756,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000004671076538125038,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029636866372299377,
+      "maxSkinErrorM": 0.00004275000595084143,
+      "passed": true
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00002972358405574765,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324397544,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000029723584055862213,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324354263,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000029727520764050333,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012981373785459419,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.00002971238306163742,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011893860752840929,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029727520764050333,
+      "maxSkinErrorM": 0.000013051321324397544,
+      "passed": true
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00002972358405574765,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324397544,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000029723584055862213,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324354263,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000029727520764050333,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012981373785459419,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.00002971238306163742,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011893860752840929,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029727520764050333,
+      "maxSkinErrorM": 0.000013051321324397544,
+      "passed": true
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00002972358405574765,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324397544,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000029723584055862213,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324354263,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000029727520764050333,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012981373785459419,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.00002971238306163742,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011893860752840929,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029727520764050333,
+      "maxSkinErrorM": 0.000013051321324397544,
+      "passed": true
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00002972358405574765,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324397544,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000029723584055862213,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324354263,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000029727520764050333,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012981373785459419,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.00002971238306163742,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011893860752840929,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029727520764050333,
+      "maxSkinErrorM": 0.000013051321324397544,
+      "passed": true
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00002972358405574765,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324397544,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000029723584055862213,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324354263,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000029727520764050333,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012981373785459419,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.00002971238306163742,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011893860752840929,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029727520764050333,
+      "maxSkinErrorM": 0.000013051321324397544,
+      "passed": true
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00002972358405574765,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324397544,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000029723584055862213,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000013051321324354263,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000029727520764050333,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012981373785459419,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.00002971238306163742,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000011893860752840929,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000029689736201716603,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000012115340862677336,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000029727520764050333,
+      "maxSkinErrorM": 0.000013051321324397544,
+      "passed": true
+    },
+    {
+      "id": "neutral-left-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000012402183199789166,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00000907495936192748,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007128188535180846,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000009074959361744658,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007960341599235308,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000009087850998031159,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000008009200694018539,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000010376749524186882,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000006893749981517472,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012402183198869956,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012402183199789166,
+      "maxSkinErrorM": 0.000008009200694018539,
+      "passed": true
+    },
+    {
+      "id": "neutral-left-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000012402183199789166,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00000907495936192748,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007128188535180846,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000009074959361744658,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007594284766650771,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000009087850998031159,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007089926185192664,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000010376749524186882,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000005697751041438177,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012402183198869956,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012402183199789166,
+      "maxSkinErrorM": 0.000007594284766650771,
+      "passed": true
+    },
+    {
+      "id": "neutral-left-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000012402183199789166,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00000907495936192748,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007128188535180846,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000009074959361744658,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007960341599235308,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000009087850998031159,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000008009200694018539,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000010376749524186882,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000006893749981517472,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012402183198869956,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012402183199789166,
+      "maxSkinErrorM": 0.000008009200694018539,
+      "passed": true
+    },
+    {
+      "id": "neutral-left-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000012402183199789166,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00000907495936192748,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007128188535180846,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000009074959361744658,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007692462140420384,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000009087850998031159,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007089926185192664,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000010376749524186882,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000005697751041438177,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012402183198869956,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012402183199789166,
+      "maxSkinErrorM": 0.000007692462140420384,
+      "passed": true
+    },
+    {
+      "id": "neutral-left-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000012402183199789166,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00000907495936192748,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007128188535180846,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000009074959361744658,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007128188535351367,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000009087850998031159,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007089926185192664,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000010376749524186882,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000005697751041438177,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012402183198869956,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012402183199789166,
+      "maxSkinErrorM": 0.000007128188535351367,
+      "passed": true
+    },
+    {
+      "id": "neutral-left-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000012402183199789166,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.00000907495936192748,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007128188535180846,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000009074959361744658,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007128188535351367,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000009087850998031159,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000007089926185192664,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000010376749524186882,
+          "worstBone": "CC_Base_L_MidToe1",
+          "maxSkinNearestVertexErrorM": 0.000005697751041438177,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012402183198869956,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012402183199789166,
+      "maxSkinErrorM": 0.000007128188535351367,
+      "passed": true
+    },
+    {
+      "id": "neutral-right-grimace-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.00001276206170770829,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000012816018926598282,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399762401,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000012816018926508185,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399815802,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000012815822487939569,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.00001328535026076135,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000012971181432848056,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000010658765553774567,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012762061708566838,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012971181432848056,
+      "maxSkinErrorM": 0.000013339392399815802,
+      "passed": true
+    },
+    {
+      "id": "neutral-right-wince-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.00001276206170770829,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000012816018926598282,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399762401,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000012816018926508185,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399815802,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000012815822487939569,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.00001328535026076135,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000012971181432848056,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000010658765553774567,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012762061708566838,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012971181432848056,
+      "maxSkinErrorM": 0.000013339392399815802,
+      "passed": true
+    },
+    {
+      "id": "neutral-right-eye-squeeze-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.00001276206170770829,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000012816018926598282,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399762401,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000012816018926508185,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399815802,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000012815822487939569,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.00001328535026076135,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000012971181432848056,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000010658765553774567,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012762061708566838,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012971181432848056,
+      "maxSkinErrorM": 0.000013339392399815802,
+      "passed": true
+    },
+    {
+      "id": "neutral-right-open-mouth-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.00001276206170770829,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000012816018926598282,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399762401,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000012816018926508185,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399815802,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000012815822487939569,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.00001328535026076135,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000012971181432848056,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000010658765553774567,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012762061708566838,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012971181432848056,
+      "maxSkinErrorM": 0.000013339392399815802,
+      "passed": true
+    },
+    {
+      "id": "neutral-right-raised-brow-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.00001276206170770829,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000012816018926598282,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399762401,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000012816018926508185,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399815802,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000012815822487939569,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.00001328535026076135,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000012971181432848056,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000010658765553774567,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012762061708566838,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012971181432848056,
+      "maxSkinErrorM": 0.000013339392399815802,
+      "passed": true
+    },
+    {
+      "id": "neutral-right-quiet-pain-8",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.00001276206170770829,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844020396,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.333333333333334,
+          "maxBoneErrorM": 0.000012816018926598282,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399762401,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 4.633333333333334,
+          "maxBoneErrorM": 0.000012816018926508185,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000013339392399815802,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 5.333333333333334,
+          "maxBoneErrorM": 0.000012815822487939569,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.00001328535026076135,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 7.000000000000001,
+          "maxBoneErrorM": 0.000012971181432848056,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000010658765553774567,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 8.15,
+          "maxBoneErrorM": 0.000012762061708566838,
+          "worstBone": "CC_Base_L_RingToe1",
+          "maxSkinNearestVertexErrorM": 0.000004664842844050788,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012971181432848056,
+      "maxSkinErrorM": 0.000013339392399815802,
+      "passed": true
+    }
+  ]
+}
