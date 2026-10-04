@@ -60,6 +60,8 @@
  * "I can't lift it past where it hangs".
  */
 import * as THREE from 'three';
+import { WRIST_JOINT_FRAME } from '../anatomy/wristJointFrame.mjs';
+import { FOREARM_JOINT_FRAME } from '../anatomy/forearmJointFrame.mjs';
 import { projectShoulderProxyLocal, shoulderProxyCapacity } from './shoulderRuntime';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import { POSE_SCHEMA_VERSION, type CustomPose } from '../types';
@@ -735,7 +737,7 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
     fromReport: (deg) => deg,
   };
   const elbow: SupportedMotionSpec = {
-    buildDelta: (deg) => ballFlexDelta(deg),
+    buildDelta: (deg) => ballFlexDelta(FOREARM_JOINT_FRAME.flexion.sign.L * deg),
     compose: 'rest',
     fromReport: (deg) => deg,
   };
@@ -941,9 +943,9 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   // RIGHT frame is flipped ~180°, so its sign inverts), deviation = X (no mirror),
   // proSup = Y (mirror R). NOTE proSup reads exact on the Hand bone but visually
   // spins the hand about a stationary forearm — a cosmetic caveat, grading is correct.
-  const wristFlexL: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
-  const wristFlexR: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(deg), compose: 'parent', fromReport: (deg) => deg };
-  const wristDev: SupportedMotionSpec = { buildDelta: (deg) => eulerXDelta(deg), compose: 'parent', fromReport: (deg) => deg };
+  const wristFlexL: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(WRIST_JOINT_FRAME.flexion.sign.L * deg), compose: 'parent', fromReport: (deg) => deg };
+  const wristFlexR: SupportedMotionSpec = { buildDelta: (deg) => eulerZDelta(WRIST_JOINT_FRAME.flexion.sign.R * deg), compose: 'parent', fromReport: (deg) => deg };
+  const wristDev: SupportedMotionSpec = { buildDelta: (deg) => eulerXDelta(WRIST_JOINT_FRAME.deviation.sign.L * deg), compose: 'parent', fromReport: (deg) => deg };
   const wristProSupL: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(-deg), compose: 'parent', fromReport: (deg) => deg };
   const wristProSupR: SupportedMotionSpec = { buildDelta: (deg) => eulerYDelta(deg), compose: 'parent', fromReport: (deg) => deg };
   // SHOULDER ROTATION (L/R_UpperArm): parent Y-euler — a rest-frame twist smears on
@@ -956,8 +958,8 @@ const SUPPORTED_MOTIONS: Record<string, Record<string, SupportedMotionSpec>> = (
   // Forearm pro/sup (v1.6): TRUE forearm rotation commanded on the Forearm bone
   // (radioulnar twist; the readout writes the total to both the elbow + wrist rows).
   // + = supination. Rest-frame twist; L +deg / R −deg.
-  const forearmRotL: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(deg), compose: 'rest', fromReport: (deg) => deg };
-  const forearmRotR: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(-deg), compose: 'rest', fromReport: (deg) => deg };
+  const forearmRotL: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(FOREARM_JOINT_FRAME.rotation.sign.L * deg), compose: 'rest', fromReport: (deg) => deg };
+  const forearmRotR: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(FOREARM_JOINT_FRAME.rotation.sign.R * deg), compose: 'rest', fromReport: (deg) => deg };
   // Knee rotation (v1.6): tibial int/ext rotation. Rest-frame twist; + = internal.
   // knee readout twistSign=−1 flips the pattern vs the forearm: L −deg / R +deg.
   const kneeRotL: SupportedMotionSpec = { buildDelta: (deg) => ballTwistDelta(-deg), compose: 'rest', fromReport: (deg) => deg };

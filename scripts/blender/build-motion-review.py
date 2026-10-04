@@ -3,6 +3,7 @@ Blender --background --factory-startup --python build-motion-review.py -- <folde
 """
 import bpy
 import json
+import math
 import sys
 from pathlib import Path
 from mathutils import Vector
@@ -40,7 +41,8 @@ for case in manifest['cases']:
     scene = bpy.data.scenes.new('Review ' + case['id'])
     bpy.context.window.scene = scene
     scene.unit_settings.system, scene.render.fps = 'METRIC', manifest['fps']
-    scene.frame_start, scene.frame_end = 0, case['frames'] - 1
+    scene.frame_start = 0
+    scene.frame_end = math.ceil(case['durationMs'] / 1000 * manifest['fps']) if 'sampleTimesSec' in case else case['frames'] - 1
     bpy.ops.import_scene.gltf(filepath=str(folder / case['file']), bone_heuristic='BLENDER', guess_original_bind_pose=True)
     rig = next(obj for obj in scene.objects if obj.type == 'ARMATURE')
     for obj in scene.objects:
@@ -50,7 +52,8 @@ for case in manifest['cases']:
     data = json.loads((folder / case['expected']).read_text(encoding='utf-8-sig'))
     measurements = []
     for expected in data['expected']:
-        scene.frame_set(expected['frame'] - 1)
+        frame = expected['timeSec'] * manifest['fps']
+        scene.frame_set(math.floor(frame), subframe=frame - math.floor(frame))
         bpy.context.view_layer.update()
         bone_error = max((engine_point(rig.matrix_world @ rig.pose.bones[name].matrix.translation) - Vector(point)).length
                          for name, point in expected['bones'].items())
@@ -70,9 +73,10 @@ for case in manifest['cases']:
         export_rest_position_armature=True, export_yup=True, export_skins=True,
         export_all_influences=True, export_cameras=False, export_lights=False)
     for label, frame in [('Setup', case.get('setupFrame', 0)), ('Middle review', case['holdFrame'] - 1), ('Return', scene.frame_end)]:
-        scene.timeline_markers.new(label, frame=frame)
+        scene.timeline_markers.new(label, frame=round(frame))
     # Multiple saved views include the entire moving body, including head/neck.
-    scene.frame_set(case['holdFrame'] - 1)
+    frame = case['holdFrame'] - 1
+    scene.frame_set(math.floor(frame), subframe=frame - math.floor(frame))
     bpy.context.view_layer.update()
     positions = [rig.matrix_world @ bone.matrix.translation for bone in rig.pose.bones]
     center = sum(positions, Vector()) / len(positions)

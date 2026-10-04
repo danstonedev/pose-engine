@@ -113,6 +113,66 @@ sources conservatively invalidate all available contexts. All three bodies and
 applicable sides remain separate requirements. Registry-only clips stay visibly
 unsupported; enabling one creates an acceptance requirement.
 
+### Incremental authored-playback delivery
+
+An explicit `enforcement.delivery` record may select **authored-playback delivery**
+without claiming clinical or native-physics qualification. This is a separate
+release decision; it never changes the frozen adoption baseline, reduces the
+shared-source impact count, closes a defect, or grants reference acceptance.
+The current incremental merge policy above governs merge eligibility; these records retain the earlier optional authored-delivery evidence format.
+An existing `$review` or defect closure remains subject to every original
+qualification requirement, including current reference and applicable native
+evidence. Delivery cannot downgrade such a claim.
+
+The delivery record has `version: 1`, `mode: "authored-playback"`,
+`qualification: "unqualified"`, and an `identity` equal to
+`digest(runtimeSources(data.hashes))`. It records `reviewer`, `scope`,
+`limitations`, `openDefectIds`, a hashed `regression` manifest, and explicit
+`contexts: [{context, identity, limitations, reports}]`. Every directly changed
+definition, changed rig, and newly available context must be included. Other
+contexts affected by shared source changes remain visibly unqualified; they
+are counted separately from unchanged historical contexts.
+
+Each delivery context still needs current complete actual-rig observations,
+roles for every bone, measured declared constraints, and separate passing
+Blender, round-trip, skin/contact, simLAB and simMOVE reports covering the full
+motion. Intended bone roles do not have to be labelled `verified` to deliver
+playback, but identity, role ownership, purpose, evidence and numerical checks
+remain required. The host gate freshly samples these delivery contexts and
+all explicitly qualified contexts. It does not resample the entire unqualified
+programme solely because a shared source file changed.
+
+For delivery only, a driven or derived bone without a justified numerical range
+may retain `constraintStatus: "unqualified"` and a specific `constraintReason`.
+This records unresolved anatomical intent; it grants no qualification. It does
+not exempt held/contact promises, remove an existing constraint, suppress a
+failing declared rule, or waive current measurements. Full qualification still
+requires the original measured constraints. Do not manufacture an excursion
+ceiling merely to satisfy the release schema.
+
+A positional support rule may constrain `worldHorizontalPositionExcursionM`
+when the declared promise is anchoring in the floor's X/Z plane. The bone may
+change height as the posed skin rolls or compresses. This does not establish
+vertical support; the separate skin/contact review remains mandatory.
+
+The regression manifest has `kind: "authored-playback-regression"`, the same
+shared-source `identity`, `result: "pass"`, `reviewer`, `scope`, `limitations`,
+the covered context keys, and hash-checked underlying `artifacts`. Its `checks`
+must include `clinical-patient-bounds`, `contact-continuity` and
+`shared-runtime-regression`, each with `result: "pass"`, a precise `scope`,
+an `observed` result and retained `evidence` references. Existing numerical
+limits are not changed by this policy. A known unreachable-patient discrepancy
+must remain in the limitations and linked open defects; it cannot be reported
+as a passing reachable-contact or identical-playback result.
+
+Native work is recorded as
+`native: {status: "deferred", reason, workUnitIds: [...]}` linked to existing
+open work units. Deferred physics is neither a pass nor a claim that physics
+does not apply. All applicable unresolved defects must remain linked, and
+reference gaps remain in the same programme. Current source, rig, dependency,
+artifact, ownership and retention checks are unchanged. Refreshing inventory
+alone never creates a delivery record or fills an acceptance assertion.
+
 ## Author and review a change
 
 1. Open the master. Locate the motion ID/body/side and inspect all bones, including

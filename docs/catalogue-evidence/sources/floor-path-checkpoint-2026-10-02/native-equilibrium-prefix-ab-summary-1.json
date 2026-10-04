@@ -1,0 +1,97 @@
+{
+  "at": "2026-10-02T22:37:56.584Z",
+  "scope": "Same immutable original sparse editor inputs,1ms integration,shared-arm representation and palm feedback ON in both runs. Only experimental gravity bias differs; source, gains, caps, contacts and gates are unchanged. Controllerv22 default reproduces previousv21 prefix tracking/palm history exactly.",
+  "results": [
+    {
+      "variant": "female",
+      "inputSha256": "417399039bce2044abb60224646573ad2f671ee99cc0186b743c918301976c18",
+      "identicalInitialState": true,
+      "defaultMatchesPriorV21Exactly": true,
+      "off": {
+        "report": "../remaining-batches/native-equilibrium-prefix-female-off-1.json",
+        "sha256": "361d695d72617880c0ef2b13d8fe5637f5a47ac1147adee01c4e7b3b83d545b1",
+        "endS": 0.6500000000000005,
+        "terminalFailure": null,
+        "maxJointTrackingErrorDeg": 21.952600051573135,
+        "maximumTangentialDriftM": {
+          "L": 0.004924904938810811,
+          "R": 0.004978612740177934
+        },
+        "zeroLoadSampleCount": {
+          "L": 5,
+          "R": 5
+        },
+        "estimator": null
+      },
+      "on": {
+        "report": "../remaining-batches/native-equilibrium-prefix-female-on-1.json",
+        "sha256": "da4dc6daaee333aabba82655c8e4815bc87479b4c5f9b3e5d272158dd12b63bd",
+        "endS": 0.6500000000000005,
+        "terminalFailure": null,
+        "maxJointTrackingErrorDeg": 9.850217554167953,
+        "maximumTangentialDriftM": {
+          "L": 0.013088973636150011,
+          "R": 0.01686865383810055
+        },
+        "zeroLoadSampleCount": {
+          "L": 16,
+          "R": 19
+        },
+        "estimator": {
+          "solves": 33,
+          "rejected": 9,
+          "totalWallSeconds": 23.596166900000007
+        }
+      }
+    },
+    {
+      "variant": "male",
+      "inputSha256": "a4b1013c87fb9164d87f024ea88bf0a8ed4c005dcc2d43055530784dd4f9acda",
+      "identicalInitialState": true,
+      "defaultMatchesPriorV21Exactly": true,
+      "off": {
+        "report": "../remaining-batches/native-equilibrium-prefix-male-off-1.json",
+        "sha256": "63561be640844c5316b6e1b5d0cd483768142bad3fd3d24747738aeba5028e0f",
+        "endS": 0.6500000000000005,
+        "terminalFailure": null,
+        "maxJointTrackingErrorDeg": 29.090832356380925,
+        "maximumTangentialDriftM": {
+          "L": 0.0018454753501942996,
+          "R": 0.0066951944045950005
+        },
+        "zeroLoadSampleCount": {
+          "L": 2,
+          "R": 7
+        },
+        "estimator": null
+      },
+      "on": {
+        "report": "../remaining-batches/native-equilibrium-prefix-male-on-1.json",
+        "sha256": "3475a36dcb0b2ae3703a515af9d12e62c35a0b9d9f092f230fa5742fe66fe923",
+        "endS": 0.6500000000000005,
+        "terminalFailure": null,
+        "maxJointTrackingErrorDeg": 6.895251761323233,
+        "maximumTangentialDriftM": {
+          "L": 0.02113610560253095,
+          "R": 0.03292585834870846
+        },
+        "zeroLoadSampleCount": {
+          "L": 27,
+          "R": 31
+        },
+        "estimator": {
+          "solves": 33,
+          "rejected": 9,
+          "totalWallSeconds": 19.34364429999999
+        }
+      }
+    }
+  ],
+  "verdict": "Both candidate prefixes remain unqualified. Angle tracking improves while planted-palm drift/load loss worsens. No full-cycle follow-up is justified until conflicting desired joint/world-palm trajectories are corrected.",
+  "newCause": [
+    "native-desired-palm-path-female-1.json",
+    "native-desired-palm-path-male-1.json"
+  ],
+  "staticDiagnostic": "native-rigid-equilibrium-summary-1.json",
+  "previousNativeSource": "native-controller-v21-retained-1"
+}

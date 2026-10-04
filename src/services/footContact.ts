@@ -21,15 +21,17 @@
 import * as THREE from 'three';
 import type { BodyVariantConfig } from '../anatomy/bodyVariants';
 import type { JointAngleRestReference } from './jointAngles';
-import type { RomScenarioConstraints } from './romConstraints';
+import { getEffectiveRomRange, getRomFieldConstraint, type RomScenarioConstraints } from './romConstraints';
 import {
   buildBoneByPoseKey,
   buildIKChainContext,
   solveIKChain,
   type IKChainContext,
 } from './poseRig';
-import { clampBoneToRom, inspectClinicalAngles } from './poseRomClamp';
+import { clampBoneToRom, clampMeasuredPatientHinge, inspectClinicalAngles } from './poseRomClamp';
 import { ARM_REACH_IK_ITERATIONS, solveArmChainWithRhythm } from './poseScapulohumeral';
+import { solveHandContactPose } from './handContactPose';
+import { fittedPalmNormal, handSupportSurfaceHeight } from './handSupportSurface';
 
 /** A prepared limb IK chain that pins one contact effector to a world target. */
 export interface FootPlantSolver {
@@ -45,6 +47,12 @@ export interface FootPlantSolver {
   /** Arm-only chain below the girdle. The full ctx includes the girdle so
    * trial solves, engagement and release save/restore every joint IK can move. */
   distalCtx?: IKChainContext;
+  /** Palm normal in hand-local coordinates, measured from the metacarpals. */
+  palmNormalLocal?: THREE.Vector3;
+  palmForwardLocal?: THREE.Vector3;
+  /** Evaluated skin height for an explicitly authored surface contact. */
+  palmSurfaceHeight?: (orientation: THREE.Quaternion) => number;
+  palmSurfaceNormal?: () => THREE.Vector3;
 }
 
 /** Parents of the foot up to the hip: Foot → Leg(knee) → UpLeg(hip). */
@@ -118,7 +126,8 @@ export function buildFootPlant(
   footKey: string,
   variantCfg: BodyVariantConfig,
 ): FootPlantSolver | null {
-  const foot = buildBoneByPoseKey(skinnedMesh.skeleton, variantCfg).get(footKey);
+  const byKey = buildBoneByPoseKey(skinnedMesh.skeleton, variantCfg);
+  const foot = byKey.get(footKey);
   if (!foot) return null;
   const { parents, hingeKey } = contactChainFor(footKey);
   const ctx = buildIKChainContext(skinnedMesh, foot, parents, variantCfg);
@@ -126,7 +135,27 @@ export function buildFootPlant(
   const distalCtx = /Hand$/.test(footKey)
     ? buildIKChainContext(skinnedMesh, foot, ARM_CHAIN_PARENTS - 1, variantCfg)
     : null;
-  return { ctx, footKey, kneeKey: hingeKey, ...(distalCtx ? { distalCtx } : {}) };
+  let palmNormalLocal: THREE.Vector3 | undefined, palmForwardLocal: THREE.Vector3 | undefined;
+  if (distalCtx) {
+    const side = footKey[0];
+    const middle = byKey.get(`${side}_Mid1`), index = byKey.get(`${side}_Index1`), pinky = byKey.get(`${side}_Pinky1`);
+    if (middle && index && pinky) {
+      const origin = foot.getWorldPosition(new THREE.Vector3());
+      palmNormalLocal = middle.getWorldPosition(new THREE.Vector3()).sub(origin)
+        .cross(index.getWorldPosition(new THREE.Vector3()).sub(pinky.getWorldPosition(new THREE.Vector3())))
+        .normalize().multiplyScalar(side === 'L' ? 1 : -1)
+        .applyQuaternion(foot.getWorldQuaternion(new THREE.Quaternion()).invert());
+      palmForwardLocal = middle.getWorldPosition(new THREE.Vector3()).sub(origin).normalize()
+        .applyQuaternion(foot.getWorldQuaternion(new THREE.Quaternion()).invert());
+    }
+  }
+  return { ctx, footKey, kneeKey: hingeKey, ...(distalCtx ? {
+    distalCtx, palmNormalLocal, palmForwardLocal,
+    palmSurfaceHeight: (orientation: THREE.Quaternion) => handSupportSurfaceHeight(skinnedMesh, foot, orientation),
+    ...(palmNormalLocal && palmForwardLocal ? {
+      palmSurfaceNormal: () => fittedPalmNormal(skinnedMesh, foot, palmNormalLocal!, palmForwardLocal!),
+    } : {}),
+  } : {}) };
 }
 
 /**
@@ -640,6 +669,27 @@ export function plantReleaseLengthMs(
  *  hold it for the motion being played — the state {@link stepContactPlants}
  *  steps. Build one per declared contact; the step owns every field after. */
 export interface ContactPlant {
+  holdOrientation?: boolean | 'palm-down';
+  /** Placement relative to the setup shoulder, in upper-arm lengths. */
+  palmSupport?: { outward: number; forward: number; elbowOutward: number; elbowBackward: number; elbowUpward?: number; surface?: 'skin';
+    /** An explicitly bilateral authored setup may reuse one bounded elbow branch.
+     * This is a setup seed only; inherited contacts and patient limits bypass it. */
+    bilateralSetupSeed?: boolean };
+  supportForward?: THREE.Vector3;
+  targetOrientation?: THREE.Quaternion | null;
+  /** Preparation-only geometric bend from the bounded authored arm pose. */
+  palmGuideBend?: number;
+  palmGuideDirection?: THREE.Vector3;
+  /** Exact repeated prepared inputs (not forces/contact evidence). */
+  palmRefinements?: Map<string, THREE.Quaternion[]>;
+  /** Approach the authored layout during setup; an existing floor contact keeps
+   * its incoming position and changes orientation continuously. */
+  palmApproach?: {
+    untilMs: number; seed: THREE.Quaternion[]; incomingOrientation?: THREE.Quaternion;
+    /** Optional explicit preparation posture objective; otherwise use the bounded guide seed. */
+    sourcePrior?: THREE.Quaternion[];
+    path?: { tMs: number; quats: THREE.Quaternion[] }[];
+  };
   solver: FootPlantSolver;
   /** Contact window, trajectory ms; ±Infinity = the whole motion. */
   fromMs: number;
@@ -690,6 +740,7 @@ export interface PlantRelease {
 
 /** The per-frame inputs {@link stepContactPlants} needs beyond the plants. */
 export interface ContactPlantFrame extends ContactPlantLimits {
+  floorY?: number;
   /** ROM-clamp rest frame for a plant without its own `rest` (heading-rotated
    *  for a rotated walk — see {@link solveFootPlant}). */
   rest: JointAngleRestReference | null | undefined;
@@ -1109,10 +1160,12 @@ export function stepContactPlants(
   plants: readonly ContactPlant[],
   tMs: number,
   frame: ContactPlantFrame,
+  /** Initialize active targets without changing the pose, for guide lookup. */
+  captureOnly = false,
 ): boolean {
   let moved = false;
   for (const fp of plants) {
-    if (inPlantWindow(fp, tMs)) continue;
+    if (captureOnly || inPlantWindow(fp, tMs)) continue;
     const since = tMs - fp.toMs;
     let w = 0;
     if (fp.target && since > 0) {
@@ -1146,10 +1199,45 @@ export function stepContactPlants(
     if (!inPlantWindow(fp, tMs)) continue;
     if (!fp.target) {
       const key = fp.solver.footKey;
+      fp.targetOrientation = fp.holdOrientation ? fp.solver.ctx.bones[0]!.getWorldQuaternion(new THREE.Quaternion()) : null;
+      if (fp.holdOrientation === 'palm-down' && fp.targetOrientation && fp.solver.palmNormalLocal) {
+        const normalLocal = fp.palmSupport?.surface === 'skin' ? fp.solver.palmSurfaceNormal?.() : fp.solver.palmNormalLocal;
+        if (!normalLocal) throw new Error('Missing measured palm support normal');
+        const normal = normalLocal.clone().applyQuaternion(fp.targetOrientation).normalize();
+        fp.targetOrientation.premultiply(new THREE.Quaternion().setFromUnitVectors(normal, new THREE.Vector3(0, -1, 0)));
+      }
       const first = fp.reuseInitialAnchor ? frame.initialTargets.get(key) : undefined;
       const at = fp.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
       fp.target = first?.clone() ?? at.clone();
       if (!first) fp.target.y -= frame.heelStrikeY + (frame.captureLiftY ?? 0);
+      if (fp.palmSupport && fp.solver.distalCtx && frame.rest) {
+        const humerus = fp.solver.distalCtx.bones[2]!, elbow = fp.solver.distalCtx.bones[1]!;
+        const shoulder = humerus.getWorldPosition(new THREE.Vector3());
+        const length = shoulder.distanceTo(elbow.getWorldPosition(new THREE.Vector3()));
+        // Root/pelvis-relative anatomic up points along the floor body's length.
+        const key = fp.solver.distalCtx.canonicalKeys[2]!;
+        const direction = frame.rest.worldDirs?.Spine_Lower;
+        const forward = direction ? new THREE.Vector3().fromArray(direction) : new THREE.Vector3(0, 0, 1);
+        forward.y = 0;
+        if (forward.lengthSq() < 1e-8) forward.set(0, 0, 1);
+        forward.normalize();
+        const outward = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), forward)
+          .multiplyScalar(key.startsWith('L_') ? 1 : -1);
+        fp.target.copy(shoulder).addScaledVector(outward, fp.palmSupport.outward * length).addScaledVector(forward, fp.palmSupport.forward * length);
+        fp.target.y = frame.floorY ?? at.y;
+        fp.supportForward = forward;
+        if (fp.targetOrientation && fp.solver.palmForwardLocal) {
+          const current = fp.solver.palmForwardLocal.clone().applyQuaternion(fp.targetOrientation);
+          current.y = 0;
+          if (current.lengthSq() > 1e-8) fp.targetOrientation.premultiply(new THREE.Quaternion().setFromUnitVectors(current.normalize(), forward));
+        }
+        if (fp.palmSupport.surface === 'skin') {
+          if (!fp.targetOrientation || !fp.solver.palmSurfaceHeight || frame.floorY == null) {
+            throw new Error('Skin support requires a measured hand, orientation and explicit support plane');
+          }
+          fp.target.y = frame.floorY + fp.solver.palmSurfaceHeight(fp.targetOrientation);
+        }
+      }
       // A forefoot taken just above the floor with its heel down is held on
       // the floor under it, reached from where it is drawn now.
       const onFloor = forefootSettle(fp.solver, fp.target.y, at.y, tMs, frame.restY);
@@ -1164,8 +1252,81 @@ export function stepContactPlants(
       }
       fp.release = null;
     }
+    if (captureOnly) continue;
     const held = heldPoint(fp, tMs);
-    solveFootPlant(fp.solver, held, fp.rest ?? frame.rest, frame.hingeAxisRest, frame);
+    const approachWeight = fp.palmApproach && fp.palmApproach.untilMs > 0 ? smooth01(tMs / fp.palmApproach.untilMs) : 1;
+    const beforeApproach = approachWeight < 1 ? fp.solver.ctx.bones.map(bone => bone.quaternion.clone()) : null;
+    let preparedSeed: readonly THREE.Quaternion[] | undefined;
+    if (fp.palmApproach) {
+      const path = fp.palmApproach.path;
+      let seed = fp.palmApproach.seed;
+      if (path?.length) {
+        let lo = 0, hi = path.length - 1;
+        while (lo < hi) {
+          const mid = Math.floor((lo + hi) / 2);
+          if (path[mid]!.tMs < tMs) lo = mid + 1; else hi = mid;
+        }
+        const end = path[lo]!, start = path[Math.max(0, lo - 1)]!;
+        const u = Math.max(0, Math.min(1, (tMs - start.tMs) / Math.max(1e-9, end.tMs - start.tMs)));
+        seed = start.quats.map((quat, index) => interpolatePalmQuaternion(quat, end.quats[index]!, u));
+      }
+      preparedSeed = seed;
+      fp.solver.ctx.bones.forEach((bone, index) => bone.quaternion.copy(seed[index]!));
+      fp.solver.ctx.bones.at(-1)!.updateWorldMatrix(true, true);
+    } else solveFootPlant(fp.solver, held, fp.rest ?? frame.rest, frame.hingeAxisRest, frame);
+    // Before an airborne palm reaches its support, approach the authored arm
+    // pose. Solving a fixed floor target while the shoulder is still descending
+    // makes an unreachable chain flip as that target first becomes reachable.
+    const airborneApproach = approachWeight < 1 && !fp.palmApproach?.incomingOrientation;
+    if (fp.targetOrientation && /Hand$/.test(fp.solver.footKey) && !airborneApproach) {
+      const layout = fp.palmSupport;
+      const pole = fp.palmGuideDirection ?? (layout && fp.supportForward ? new THREE.Vector3()
+        .crossVectors(new THREE.Vector3(0, 1, 0), fp.supportForward)
+        .multiplyScalar(layout.elbowOutward * (fp.solver.footKey.startsWith('L_') ? 1 : -1))
+        .addScaledVector(fp.supportForward, -layout.elbowBackward)
+        .add(new THREE.Vector3(0, layout.elbowUpward ?? 0, 0)) : undefined);
+      const activeRest = fp.rest ?? frame.rest, activeConstraints = frame.constraints ?? fp.solver.constraints;
+      const minimumElbowY = layout && frame.floorY != null ? frame.floorY + .035 : undefined;
+      let refinementKey: string | undefined;
+      // A defined path (including the empty preparation marker) uses the same
+      // pure palm projection; identical held inputs can reuse either solve.
+      if (fp.palmApproach?.path && !beforeApproach) {
+        const ancestor = fp.solver.ctx.bones.at(-1)!.parent!;
+        ancestor.updateWorldMatrix(true, false);
+        const chain: THREE.Object3D[] = [];
+        for (let bone: THREE.Object3D | null = fp.solver.ctx.bones[0]!; bone && bone !== ancestor; bone = bone.parent) chain.push(bone);
+        refinementKey = JSON.stringify([held.toArray(), fp.targetOrientation.toArray(), minimumElbowY,
+          activeRest, activeConstraints, fp.solver.ctx.canonicalKeys, fp.palmApproach.seed.map(quat => quat.toArray()),
+          fp.palmApproach.sourcePrior?.map(quat => quat.toArray()),
+          ancestor.matrixWorld.toArray(), chain.map(bone => [bone.position.toArray(), bone.quaternion.toArray(), bone.scale.toArray(), bone.matrixAutoUpdate, bone.matrix.toArray()])]);
+      }
+      const cachedRefinement = refinementKey && fp.palmRefinements?.get(refinementKey);
+      if (cachedRefinement) {
+        fp.solver.ctx.bones.forEach((bone, index) => bone.quaternion.copy(cachedRefinement[index]!));
+        fp.solver.ctx.bones.at(-1)!.updateWorldMatrix(true, true);
+      } else {
+        solveHandContactPose(fp.solver, held, fp.targetOrientation, activeRest, activeConstraints,
+          fp.palmApproach?.path ? undefined : pole, minimumElbowY,
+          fp.palmApproach?.path ? undefined : fp.palmGuideBend,
+          layout?.surface === 'skin' ? fp.palmApproach?.sourcePrior ?? preparedSeed
+            : fp.palmGuideBend != null && !fp.palmApproach?.path ? fp.palmApproach?.seed : undefined);
+        if (refinementKey) {
+          const cache = fp.palmRefinements ??= new Map<string, THREE.Quaternion[]>();
+          cache.set(refinementKey, fp.solver.ctx.bones.map(bone => bone.quaternion.clone()));
+          while (cache.size > 16) cache.delete(cache.keys().next().value!);
+        }
+      }
+    }
+    if (beforeApproach) {
+      fp.solver.ctx.bones.forEach((bone, index) => bone.quaternion.copy(beforeApproach[index]!.clone().slerp(bone.quaternion, approachWeight)));
+      fp.solver.ctx.bones.at(-1)!.updateWorldMatrix(true, true);
+      if (fp.palmApproach?.incomingOrientation && fp.targetOrientation) {
+        // A contact inherited from a preceding floor motion stays fixed while
+        // its palm and elbow settle into the next motion's authored layout.
+        const orientation = fp.palmApproach.incomingOrientation.clone().slerp(fp.targetOrientation, approachWeight);
+        solveHandContactPose(fp.solver, held, orientation, fp.rest ?? frame.rest, frame.constraints ?? fp.solver.constraints);
+      }
+    }
     const parent = fp.solver.ctx.bones[fp.solver.ctx.bones.length - 1]!.parent;
     if (parent) {
       parent.updateWorldMatrix(true, false);
@@ -1176,6 +1337,293 @@ export function stepContactPlants(
   return moved;
 }
 
+/** Prepare Blender-authored palms on the trajectory's clock, before playback.
+ * Read the setup pose once so neither the first rendered frame nor frame rate
+ * chooses a different anchor. Already grounded hands retain their incoming
+ * anchors; airborne hands approach the new layout throughout setup. */
+type PalmGuide = { tMs: number; quats: THREE.Quaternion[] }[];
+const palmGuideCache = new WeakMap<THREE.Bone, Map<string, PalmGuide>>();
+
+/** Preserve the exact authored/solved state at knots and throughout a held
+ * interval. Slerping equal, slightly nonunit rig quaternions can normalize them
+ * by a time-dependent amount, changing an otherwise identical solve input. */
+function interpolatePalmQuaternion(a: THREE.Quaternion, b: THREE.Quaternion, t: number): THREE.Quaternion {
+  if (t <= 0 || a.equals(b)) return a.clone();
+  if (t >= 1) return b.clone();
+  return a.clone().slerp(b, t);
+}
+
+/** Rig components may retain Float32 length error. Compare rotations rather
+ * than treating that length error as motion, including q versus itself. */
+function palmQuaternionAngle(a: THREE.Quaternion, b: THREE.Quaternion): number {
+  return a.equals(b) ? 0 : a.clone().normalize().angleTo(b.clone().normalize());
+}
+
+export function preparePalmSupportApproach(
+  plants: readonly ContactPlant[],
+  setupAt: number,
+  totalMs: number,
+  trajectoryKey: string,
+  poseAt: (tMs: number) => void,
+  frameAt: () => ContactPlantFrame,
+  captureSupports: (inherited: boolean) => void,
+  inheritContacts = true,
+  /** Exact authored spline knots, including hold boundaries, on this clock. */
+  guideKnotsMs: readonly number[] = [],
+): void {
+  const palms = plants.filter(plant => plant.palmSupport && plant.holdOrientation);
+  poseAt(0);
+  const floorY = frameAt().floorY;
+  const incoming = palms.map(plant => ({
+    position: plant.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3()),
+    orientation: plant.solver.ctx.bones[0]!.getWorldQuaternion(new THREE.Quaternion()),
+  }));
+  const inherited = inheritContacts && palms.length > 0 && floorY != null && incoming.every((palm, index) =>
+    Math.abs(palm.position.y - floorY) < .08 &&
+    (palms[index]!.solver.palmNormalLocal?.clone().applyQuaternion(palm.orientation).y ?? 0) < -.5);
+  if (!inherited) poseAt(setupAt);
+  captureSupports(inherited);
+  poseAt(setupAt);
+  // Record the authored FK state before contact correction. For a route that
+  // returns to this same body/arm state, its redundant contact branch should
+  // return too, rather than accumulating a different shoulder solution.
+  const sourceReference = palms.map(plant => {
+    const parent = plant.solver.ctx.bones.at(-1)!.parent!;
+    const shoulder = plant.solver.ctx.bones[2]!.getWorldPosition(new THREE.Vector3());
+    const elbow = plant.solver.ctx.bones[1]!.getWorldPosition(new THREE.Vector3());
+    return { quats: plant.solver.ctx.bones.map(bone => bone.quaternion.clone()),
+      worldQuats: plant.solver.ctx.bones.map(bone => bone.getWorldQuaternion(new THREE.Quaternion())),
+      worldPositions: plant.solver.ctx.bones.map(bone => bone.getWorldPosition(new THREE.Vector3())),
+      parentPosition: parent.getWorldPosition(new THREE.Vector3()), parentOrientation: parent.getWorldQuaternion(new THREE.Quaternion()),
+      segmentLength: Math.max(1e-6, shoulder.distanceTo(elbow)) };
+  });
+  // A cached guide already contains the bounded setup solution. Capture its
+  // target identity first; avoid solving both arms just to look it up.
+  stepContactPlants(palms, setupAt, frameAt(), true);
+  const setupFrame = frameAt();
+  const cacheKeys = palms.map((plant, index) => JSON.stringify([
+    trajectoryKey, setupAt, totalMs, guideKnotsMs, setupFrame.constraints, setupFrame.rest,
+    (inherited ? incoming[index]!.position : plant.target)?.toArray(), plant.targetOrientation?.toArray(), plant.palmSupport,
+    plant.solver.ctx.bones.map(bone => bone.position.toArray()), plant.solver.palmNormalLocal?.toArray(),
+  ]));
+  const cached = palms.map((plant, index) => palmGuideCache.get(plant.solver.ctx.bones[0]!)?.get(cacheKeys[index]!));
+  if (palms.length && cached.every(Boolean)) {
+    palms.forEach((plant, index) => {
+      if (inherited) plant.target = incoming[index]!.position.clone();
+      plant.palmApproach = { untilMs: setupAt, path: cached[index]!, seed: cached[index]![0]!.quats,
+        ...(inherited ? { incomingOrientation: incoming[index]!.orientation } : {}) };
+      plant.fromMs = 0;
+    });
+    poseAt(0);
+    return;
+  }
+  const sourceDistance = (plant: ContactPlant, index: number): number => {
+    const reference = sourceReference[index]!, parent = plant.solver.ctx.bones.at(-1)!.parent!;
+    const positionDistance = parent.getWorldPosition(new THREE.Vector3()).distanceTo(reference.parentPosition) / reference.segmentLength;
+    const parentAngle = palmQuaternionAngle(parent.getWorldQuaternion(new THREE.Quaternion()), reference.parentOrientation);
+    return Math.sqrt(positionDistance ** 2 + parentAngle ** 2
+      + plant.solver.ctx.bones.reduce((sum, bone, joint) => sum + palmQuaternionAngle(bone.quaternion, reference.quats[joint]!) ** 2, 0));
+  };
+  poseAt(totalMs);
+  const closedRoutes = palms.map((plant, index) => sourceDistance(plant, index) < 1e-5);
+  poseAt(setupAt);
+  const rawBend = (plant: ContactPlant): number => {
+    const shoulder = plant.solver.ctx.bones[2]!.getWorldPosition(new THREE.Vector3());
+    const elbow = plant.solver.ctx.bones[1]!.getWorldPosition(new THREE.Vector3());
+    const wrist = plant.solver.ctx.bones[0]!.getWorldPosition(new THREE.Vector3());
+    return Math.PI - shoulder.sub(elbow).angleTo(wrist.sub(elbow));
+  };
+  const boundedGuideBend = (plant: ContactPlant, requested: number): number => {
+    const frame = frameAt(), constraints = frame.constraints ?? plant.solver.constraints;
+    const key = plant.solver.kneeKey;
+    if (!getRomFieldConstraint(constraints, key, 'elbowFlexion')?.availableRange || !frame.rest) return requested;
+    const range = getEffectiveRomRange(constraints, key, 'elbowFlexion');
+    if (!range) return requested;
+    const forearm = plant.solver.ctx.bones[1]!, parent = plant.solver.ctx.bones[2]!;
+    const before = forearm.quaternion.clone();
+    const atLimit = (degrees: number) => {
+      forearm.quaternion.copy(before); forearm.updateWorldMatrix(false, true);
+      const limit = { ...constraints, [key]: { ...constraints?.[key], elbowFlexion: { availableRange: { min: degrees, max: degrees } } } };
+      clampMeasuredPatientHinge(parent, forearm, key, frame.rest!, limit);
+      return rawBend(plant);
+    };
+    try {
+      // Patient bounds use the chart's signed hinge frame. Project those exact
+      // bounds through the existing measured clamp before reading a geometric
+      // guide bend; carrying angle/rest bend make the two units nonidentical.
+      const minimum = atLimit(range.min), maximum = atLimit(range.max);
+      return THREE.MathUtils.clamp(requested, Math.min(minimum, maximum), Math.max(minimum, maximum));
+    } finally {
+      forearm.quaternion.copy(before); forearm.updateWorldMatrix(false, true);
+    }
+  };
+  const sourceSetupBends = palms.map(rawBend), sourceMinimumBends = [...sourceSetupBends];
+  const guideHz = 12;
+  const steps = Math.ceil(Math.max(0, totalMs - setupAt) * guideHz / 1000);
+  // A uniform guide grid alone starts leaving a held posture in the interval
+  // before its exact hold-end knot. Include the authored boundaries so support
+  // remains stationary through the full hold and starts moving at its end.
+  const guideTimes = [...new Set([
+    ...Array.from({ length: steps + 1 }, (_, step) => Math.min(totalMs, setupAt + step * 1000 / guideHz)),
+    ...guideKnotsMs.filter(time => Number.isFinite(time) && time >= setupAt && time <= totalMs),
+  ])].sort((a, b) => a - b);
+  if (palms.some(plant => plant.palmSupport?.surface === 'skin')) {
+    for (const tMs of guideTimes) {
+      poseAt(tMs);
+      palms.forEach((plant, index) => { sourceMinimumBends[index] = Math.min(sourceMinimumBends[index]!, rawBend(plant)); });
+    }
+    poseAt(setupAt);
+  }
+  const leftIndex = palms.findIndex(plant => plant.solver.footKey === 'L_Hand');
+  const rightIndex = palms.findIndex(plant => plant.solver.footKey === 'R_Hand');
+  const left = palms[leftIndex], right = palms[rightIndex], setupLimits = frameAt().constraints;
+  const noPatientLimits = (value: RomScenarioConstraints | null | undefined) => !value || Object.keys(value).length === 0;
+  const sameLayout = left && right && JSON.stringify(left.palmSupport) === JSON.stringify(right.palmSupport);
+  const mirroredSource = left && right && sourceReference[leftIndex]!.worldPositions.every((position, joint) => {
+    const reference = sourceReference[leftIndex]!;
+    const reflected = position.clone().sub(reference.parentPosition).applyQuaternion(reference.parentOrientation.clone().invert());
+    reflected.x = -reflected.x;
+    reflected.applyQuaternion(reference.parentOrientation).add(reference.parentPosition);
+    // Numerical source matching only, far below contact acceptance tolerances.
+    // An asymmetric authored chain must retain its individual setup branch.
+    return reflected.distanceTo(sourceReference[rightIndex]!.worldPositions[joint]!) < 1e-5;
+  });
+  const mirroredSetup = palms.length === 2 && left && right && sameLayout && mirroredSource && !inherited
+    && left.palmSupport?.surface === 'skin' && left.palmSupport.bilateralSetupSeed === true
+    && left.solver.ctx.bones.at(-1)!.parent === right.solver.ctx.bones.at(-1)!.parent
+    && left.solver.ctx.canonicalKeys.every((key, index) => typeof key === 'string' && key.replace(/^L_/, 'R_') === right.solver.ctx.canonicalKeys[index])
+    && noPatientLimits(setupLimits) && noPatientLimits(left.solver.constraints) && noPatientLimits(right.solver.constraints)
+    && right.targetOrientation;
+  if (mirroredSetup) {
+    stepContactPlants([left], setupAt, frameAt());
+    const referenceLeft = sourceReference[leftIndex]!, referenceRight = sourceReference[rightIndex]!;
+    const basis = referenceLeft.parentOrientation, inverseBasis = basis.clone().invert();
+    const solvedLeft = left.solver.ctx.bones.map(bone => bone.getWorldQuaternion(new THREE.Quaternion()));
+    for (let joint = right.solver.ctx.bones.length - 1; joint >= 0; joint--) {
+      // Reflect the solved delta in the common authored parent's sagittal plane.
+      // Each side keeps its own bind/rest frame. The hand keeps its measured
+      // target orientation because its rest axes need not be mirrored.
+      const delta = solvedLeft[joint]!.clone().multiply(referenceLeft.worldQuats[joint]!.clone().invert());
+      delta.premultiply(inverseBasis).multiply(basis).normalize();
+      delta.set(delta.x, -delta.y, -delta.z, delta.w);
+      delta.premultiply(basis).multiply(inverseBasis).normalize();
+      const world = joint === 0 ? right.targetOrientation!.clone()
+        : delta.multiply(referenceRight.worldQuats[joint]!).normalize();
+      const bone = right.solver.ctx.bones[joint]!;
+      bone.quaternion.copy(bone.parent!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(world));
+      bone.updateWorldMatrix(false, true);
+    }
+    // The branch was already selected by the bounded left solve. Refine the
+    // fixed right palm and ROM directly; running the pole selector again can
+    // choose a different branch despite a feasible mirrored setup.
+    right.palmApproach = { untilMs: setupAt, seed: right.solver.ctx.bones.map(bone => bone.quaternion.clone()), path: [] };
+    stepContactPlants([right], setupAt, frameAt());
+    delete right.palmApproach;
+  } else stepContactPlants(palms, setupAt, frameAt());
+  const supportedSetupBends = palms.map(rawBend);
+  palms.forEach(plant => {
+    if (plant.palmSupport?.surface !== 'skin') return;
+    const shoulder = plant.solver.ctx.bones[2]!.getWorldPosition(new THREE.Vector3());
+    const elbow = plant.solver.ctx.bones[1]!.getWorldPosition(new THREE.Vector3());
+    const direction = plant.target!.clone().sub(shoulder).normalize();
+    const radial = elbow.sub(shoulder); radial.addScaledVector(direction, -radial.dot(direction));
+    if (radial.lengthSq() > 1e-12) plant.palmGuideDirection = radial.normalize();
+  });
+  palms.forEach((plant, index) => {
+    if (inherited) plant.target = incoming[index]!.position.clone();
+    plant.palmApproach = { untilMs: setupAt, seed: plant.solver.ctx.bones.map(bone => bone.quaternion.clone()),
+      ...(inherited ? { incomingOrientation: incoming[index]!.orientation } : {}) };
+    plant.fromMs = 0;
+  });
+  // Solve the supported route on its own fixed clock, continuing the previous
+  // bounded arm solution. This keeps the elbow branch continuous without making
+  // playback depend on frame rate, seek order or the caller's previous frame.
+  // Playback interpolates this guide and refines the fixed palm pose at its
+  // exact time; the guide never replaces clinical/patient constraints.
+  const paths = palms.map(() => [] as { tMs: number; quats: THREE.Quaternion[] }[]);
+  const authoredSeeds = palms.map(plant => plant.palmApproach!.seed.map(quat => quat.clone()));
+  type SourceState = { quats: THREE.Quaternion[]; parentPosition: THREE.Vector3; parentOrientation: THREE.Quaternion };
+  const captureSource = (plant: ContactPlant): SourceState => {
+    const parent = plant.solver.ctx.bones.at(-1)!.parent!;
+    return { quats: plant.solver.ctx.bones.map(bone => bone.quaternion.clone()),
+      parentPosition: parent.getWorldPosition(new THREE.Vector3()), parentOrientation: parent.getWorldQuaternion(new THREE.Quaternion()) };
+  };
+  const stateDistanceSq = (a: SourceState, b: SourceState, index: number): number =>
+    a.parentPosition.distanceToSquared(b.parentPosition) / sourceReference[index]!.segmentLength ** 2
+    + palmQuaternionAngle(a.parentOrientation, b.parentOrientation) ** 2
+    + a.quats.reduce((sum, quat, joint) => sum + palmQuaternionAngle(quat, b.quats[joint]!) ** 2, 0);
+  const outbound = palms.map(() => [] as { state: SourceState; quats: THREE.Quaternion[] }[]);
+  // The guide only selects the redundant elbow/girdle posture. Twelve samples
+  // per second suffice; the exact-time solve below still enforces the palm pose.
+  const sourceExcursions = palms.map(() => 1e-8);
+  for (const tMs of palms.length ? guideTimes : []) {
+    poseAt(tMs);
+    palms.forEach((plant, index) => {
+      if (plant.palmSupport?.surface !== 'skin') return;
+      const sourceSpan = sourceSetupBends[index]! - sourceMinimumBends[index]!;
+      const progress = sourceSpan > 1e-6 ? Math.max(0, Math.min(1, (rawBend(plant) - sourceMinimumBends[index]!) / sourceSpan)) : 1;
+      // Start from the actual supported bend, not an unreachable FK setup
+      // angle. The authored trajectory supplies progress and the endpoint.
+      plant.palmGuideBend = boundedGuideBend(plant,
+        sourceMinimumBends[index]! + progress * (supportedSetupBends[index]! - sourceMinimumBends[index]!));
+    });
+    const sourceStates = palms.map(captureSource);
+    const advancing = palms.map(() => false);
+    palms.forEach((plant, index) => {
+      const distance = sourceDistance(plant, index);
+      const route = outbound[index]!;
+      advancing[index] = route.length === 0 || distance > sourceExcursions[index]! + 1e-6;
+      sourceExcursions[index] = Math.max(sourceExcursions[index]!, distance);
+      if (closedRoutes[index] && plant.palmSupport?.surface === 'skin' && !advancing[index] && route.length) {
+        // A repeated/reversed authored pose uses the same outbound contact
+        // branch. Re-solving the hold and return from accumulated redundant
+        // rotations lets the girdle jump even while the source is stationary.
+        // Match in source geometry, not elapsed time; exact palm/ROM projection
+        // still runs at the current body's position after interpolation.
+        let best = Infinity, seed = route[0]!.quats;
+        const repeated = route.find(knot => stateDistanceSq(sourceStates[index]!, knot.state, index) <= 1e-12);
+        if (repeated) { best = 0; seed = repeated.quats; }
+        for (let knot = 0; !repeated && knot < route.length; knot += 1) {
+          const a = route[Math.max(0, knot - 1)]!, b = route[knot]!;
+          const da = stateDistanceSq(sourceStates[index]!, a.state, index);
+          const db = stateDistanceSq(sourceStates[index]!, b.state, index);
+          const lengthSq = stateDistanceSq(a.state, b.state, index);
+          const u = lengthSq > 1e-12 ? Math.max(0, Math.min(1, (da + lengthSq - db) / (2 * lengthSq))) : 0;
+          const candidate = { parentPosition: a.state.parentPosition.clone().lerp(b.state.parentPosition, u),
+            parentOrientation: interpolatePalmQuaternion(a.state.parentOrientation, b.state.parentOrientation, u),
+            quats: a.state.quats.map((quat, joint) => interpolatePalmQuaternion(quat, b.state.quats[joint]!, u)) };
+          const residual = stateDistanceSq(sourceStates[index]!, candidate, index);
+          if (residual < best) { best = residual; seed = a.quats.map((quat, joint) => interpolatePalmQuaternion(quat, b.quats[joint]!, u)); }
+        }
+        plant.palmApproach!.seed = seed;
+        plant.palmApproach!.path = []; // Keep the selected branch; refine the fixed palm without a fresh pole solve.
+        return;
+      }
+      const authoredWeight = plant.palmSupport?.surface === 'skin' ? 0
+        : closedRoutes[index] ? 1 - .9 * smooth01(distance / sourceExcursions[index]!) : .1;
+      plant.palmApproach!.seed = plant.palmApproach!.seed.map((quat, joint) => interpolatePalmQuaternion(quat, authoredSeeds[index]![joint]!, authoredWeight));
+    });
+    stepContactPlants(palms, tMs, frameAt());
+    palms.forEach((plant, index) => {
+      const quats = plant.solver.ctx.bones.map(bone => bone.quaternion.clone());
+      paths[index]!.push({ tMs, quats });
+      if (advancing[index]) outbound[index]!.push({ state: sourceStates[index]!, quats });
+      delete plant.palmApproach!.path;
+      plant.palmApproach!.seed = quats.map(quat => quat.clone());
+    });
+  }
+  palms.forEach((plant, index) => {
+    plant.palmApproach!.path = paths[index]!;
+    plant.palmApproach!.seed = paths[index]![0]!.quats;
+    delete plant.palmApproach!.sourcePrior;
+    const bone = plant.solver.ctx.bones[0]!;
+    const cache = palmGuideCache.get(bone) ?? new Map<string, PalmGuide>();
+    cache.set(cacheKeys[index]!, paths[index]!);
+    while (cache.size > 4) cache.delete(cache.keys().next().value!);
+    palmGuideCache.set(bone, cache);
+  });
+  poseAt(0);
+}
 
 // ── Hand plant (Phase 3 Tier B) — the arm analog of the foot plant ───────────
 // Quadruped / plank / push-up rest on the HANDS. As the body lowers (elbows bend)

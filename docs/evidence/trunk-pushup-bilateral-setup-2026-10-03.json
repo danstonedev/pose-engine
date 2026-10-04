@@ -1,0 +1,1808 @@
+{
+  "version": 1,
+  "date": "2026-10-03",
+  "kind": "trunk-pushup-bilateral-setup-checkpoint",
+  "result": "visual-contact-improvement-native-tracking-worsened",
+  "scope": {
+    "motionIds": [
+      "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up"
+    ],
+    "bodies": [
+      "male",
+      "female",
+      "neutral"
+    ],
+    "sides": [],
+    "phases": [
+      "setup",
+      "motion",
+      "hold",
+      "return",
+      "loop"
+    ],
+    "paths": [
+      "shared-engine",
+      "simMOVE",
+      "simLAB"
+    ],
+    "joints": []
+  },
+  "previousCheckpoint": {
+    "path": "docs/evidence/trunk-pushup-skin-support-2026-10-03.json",
+    "sha256": "e6a5ae9a476c059a8198905c5e9890250979a615a4eb7f1699023ef77fbda794"
+  },
+  "implementation": "Opt-in trunk-only default setup seed. Reflect the feasible proximal world-rotation deltas relative to each side’s authored FK in a shared girdle-parent frame. Preserve the right palm target orientation and refine through the existing bounded contact/ROM solver without selecting another initial elbow pole. Later motion remains independently bounded.",
+  "eligibility": "Exactly matching bilateral skin-support layouts, actual mirrored authored setup geometry within 10 micrometres, canonical mapped proximal chain and shared parent; no inherited support or explicit patient constraints. The geometry check identifies matching inputs, not clinical acceptance.",
+  "preserved": "Authored poses, 90/76 degree pitch, timing, normalized palm layout, clinical and patient caps, actuator capacities, native contact/material/collision settings, skin/contact and exchange limits.",
+  "sources": [
+    {
+      "path": "src/services/assessmentBodyMotions.ts",
+      "sha256": "df9333f19ab242adf1e7999c7df5994d04ca9a69c8fa3ce11c3cacf2cefb4113"
+    },
+    {
+      "path": "src/services/floorPalmSupports.ts",
+      "sha256": "18cb3816ff7fadf26d48f84d875afa485df1c82dfa3f7ca715a979db30c1d1bd"
+    },
+    {
+      "path": "src/services/footContact.ts",
+      "sha256": "b62b5482c8f4ab26ce51d78a9ab5e710b96158748fd115d42c1a61f8276a4764"
+    },
+    {
+      "path": "src/services/plankSkinSupport.ts",
+      "sha256": "506557df2f85dc0d0b47c8873e75e09683a6a089d581d78132ac5476bdefb6a7"
+    },
+    {
+      "path": "src/services/motionSequence.ts",
+      "sha256": "a71d27caa7e76cdb334cc9f74e45e72661277d07b6720c36ccaa9ef5a72977f7"
+    },
+    {
+      "path": "src/services/motionRecording.ts",
+      "sha256": "0e558bbdc5bebc3fb7c4e56d8d729b324277c64a159b408c698442e383bd1c6f"
+    },
+    {
+      "path": "src/services/rootMotion.ts",
+      "sha256": "2eec6e99a04b0f92e914bf17843626ba22c0c849a01add3c78c4ebcefa986162"
+    },
+    {
+      "path": "src/__tests__/plankSkinSupport.test.ts",
+      "sha256": "d89c48e3c0744241f005dbb27a6b78d67417330a25208765b2e774c7455272df"
+    }
+  ],
+  "criteria": {
+    "skinToleranceM": 0.001,
+    "fixedPalmDriftToleranceM": 0.002,
+    "clinicalToleranceDeg": 0.05,
+    "intention": "Reduce default mirrored elbow/girdle asymmetry, preserve 76 degree top near-straight arms and whole-body clearance. Default-only numerical preference; patient constraints must be bypassed and no ROM caps change."
+  },
+  "blender": {
+    "version": "5.2.2 LTS",
+    "sourceDigest": "1b48fd491e44d9ad43e7893c12b1302320e1022c0202fbb3675c3269df9909bc",
+    "cases": [
+      {
+        "id": "male-trunk-bilateral-proposal",
+        "body": "male",
+        "treatment": "proposal",
+        "frames": 169,
+        "durationMs": 5600
+      },
+      {
+        "id": "female-trunk-bilateral-proposal",
+        "body": "female",
+        "treatment": "proposal",
+        "frames": 169,
+        "durationMs": 5600
+      },
+      {
+        "id": "neutral-trunk-bilateral-proposal",
+        "body": "neutral",
+        "treatment": "proposal",
+        "frames": 169,
+        "durationMs": 5600
+      },
+      {
+        "id": "male-trunk-bilateral-reference",
+        "body": "male",
+        "treatment": "reference",
+        "frames": 169,
+        "durationMs": 5600
+      },
+      {
+        "id": "female-trunk-bilateral-reference",
+        "body": "female",
+        "treatment": "reference",
+        "frames": 169,
+        "durationMs": 5600
+      },
+      {
+        "id": "neutral-trunk-bilateral-reference",
+        "body": "neutral",
+        "treatment": "reference",
+        "frames": 169,
+        "durationMs": 5600
+      }
+    ],
+    "exchange": [
+      {
+        "id": "male-trunk-bilateral-proposal",
+        "checkpoints": [
+          {
+            "timeSec": 0,
+            "maxBoneErrorM": 0.0000151743401709187,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000009488934105122343,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.0000000000000002,
+            "maxBoneErrorM": 0.000015179108281346251,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.00000952344767510234,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.7333333333333334,
+            "maxBoneErrorM": 0.00001515142775556879,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000008708133906679118,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 2.5,
+            "maxBoneErrorM": 0.000015131589544046012,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000005452727891506794,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.1,
+            "maxBoneErrorM": 0.000015121837816088307,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000005557833540283595,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.833333333333334,
+            "maxBoneErrorM": 0.000015115143997870912,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.00000789711264956872,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 5.6,
+            "maxBoneErrorM": 0.0000151743401709187,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000009488934104837364,
+            "skinPointsOutsideSearch": 0
+          }
+        ],
+        "maxBoneErrorM": 0.000015179108281346251,
+        "maxSkinErrorM": 0.00000952344767510234,
+        "passed": true
+      },
+      {
+        "id": "female-trunk-bilateral-proposal",
+        "checkpoints": [
+          {
+            "timeSec": 0,
+            "maxBoneErrorM": 0.000029712930858946313,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008825296569119392,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.0000000000000002,
+            "maxBoneErrorM": 0.000029733595727015815,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008830551069467275,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.7333333333333334,
+            "maxBoneErrorM": 0.000029724343068504976,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008818865699505434,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 2.5,
+            "maxBoneErrorM": 0.00002974758003711869,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008813251665812315,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.1,
+            "maxBoneErrorM": 0.000029715894230894034,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008804325617399662,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.833333333333334,
+            "maxBoneErrorM": 0.000029705510388719912,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008802777670038944,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 5.6,
+            "maxBoneErrorM": 0.000029712930858946313,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008825296569119392,
+            "skinPointsOutsideSearch": 0
+          }
+        ],
+        "maxBoneErrorM": 0.00002974758003711869,
+        "maxSkinErrorM": 0.000008830551069467275,
+        "passed": true
+      },
+      {
+        "id": "neutral-trunk-bilateral-proposal",
+        "checkpoints": [
+          {
+            "timeSec": 0,
+            "maxBoneErrorM": 0.000012396138997027297,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.00000922021238884062,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.0000000000000002,
+            "maxBoneErrorM": 0.000012395278420986386,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.000009234568242515706,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.7333333333333334,
+            "maxBoneErrorM": 0.000012411989893224809,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.0000072716903858080325,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 2.5,
+            "maxBoneErrorM": 0.000012425466764836325,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.000005731648047263201,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.1,
+            "maxBoneErrorM": 0.000012428264667354737,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.000005620612564333914,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.833333333333334,
+            "maxBoneErrorM": 0.000012433011318802057,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.0000066902406027072425,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 5.6,
+            "maxBoneErrorM": 0.000012396138997027297,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.00000922021238884062,
+            "skinPointsOutsideSearch": 0
+          }
+        ],
+        "maxBoneErrorM": 0.000012433011318802057,
+        "maxSkinErrorM": 0.000009234568242515706,
+        "passed": true
+      },
+      {
+        "id": "male-trunk-bilateral-reference",
+        "checkpoints": [
+          {
+            "timeSec": 0,
+            "maxBoneErrorM": 0.0000151743401709187,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000012398440661100814,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.0000000000000002,
+            "maxBoneErrorM": 0.000015179108281346251,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000012437375897877591,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.7333333333333334,
+            "maxBoneErrorM": 0.00001515142775556879,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.00001195538859724703,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 2.5,
+            "maxBoneErrorM": 0.000015131589544046012,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000005452727891506794,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.1,
+            "maxBoneErrorM": 0.000015121837816088307,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000005557833540283595,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.833333333333334,
+            "maxBoneErrorM": 0.000015115143997870912,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000011106056544517442,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 5.6,
+            "maxBoneErrorM": 0.0000151743401709187,
+            "worstBone": "CC_Base_L_MidToe1",
+            "maxSkinNearestVertexErrorM": 0.000012398440661167726,
+            "skinPointsOutsideSearch": 0
+          }
+        ],
+        "maxBoneErrorM": 0.000015179108281346251,
+        "maxSkinErrorM": 0.000012437375897877591,
+        "passed": true
+      },
+      {
+        "id": "female-trunk-bilateral-reference",
+        "checkpoints": [
+          {
+            "timeSec": 0,
+            "maxBoneErrorM": 0.000029712930858946313,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008825296569119392,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.0000000000000002,
+            "maxBoneErrorM": 0.000029733595727015815,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008830551069467275,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.7333333333333334,
+            "maxBoneErrorM": 0.000029724343068504976,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008818865699505434,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 2.5,
+            "maxBoneErrorM": 0.00002974758003711869,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008813251665812315,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.1,
+            "maxBoneErrorM": 0.000029715894230894034,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008804325617399662,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.833333333333334,
+            "maxBoneErrorM": 0.000029705510388719912,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008802777670038944,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 5.6,
+            "maxBoneErrorM": 0.000029712930858946313,
+            "worstBone": "CC_Base_L_KneeShareBone",
+            "maxSkinNearestVertexErrorM": 0.000008825296569119392,
+            "skinPointsOutsideSearch": 0
+          }
+        ],
+        "maxBoneErrorM": 0.00002974758003711869,
+        "maxSkinErrorM": 0.000008830551069467275,
+        "passed": true
+      },
+      {
+        "id": "neutral-trunk-bilateral-reference",
+        "checkpoints": [
+          {
+            "timeSec": 0,
+            "maxBoneErrorM": 0.000012396138997027297,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.00000922021238884062,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.0000000000000002,
+            "maxBoneErrorM": 0.000012395278420986386,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.000009234568242515706,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 1.7333333333333334,
+            "maxBoneErrorM": 0.000012411989893224809,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.0000072716903858080325,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 2.5,
+            "maxBoneErrorM": 0.000012425466764836325,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.000005731648047263201,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.1,
+            "maxBoneErrorM": 0.000012428264667354737,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.000005620612564333914,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 4.833333333333334,
+            "maxBoneErrorM": 0.000012433011318802057,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.000006696365470725044,
+            "skinPointsOutsideSearch": 0
+          },
+          {
+            "timeSec": 5.6,
+            "maxBoneErrorM": 0.000012396138997027297,
+            "worstBone": "CC_Base_L_ToeBase",
+            "maxSkinNearestVertexErrorM": 0.00000922021238884062,
+            "skinPointsOutsideSearch": 0
+          }
+        ],
+        "maxBoneErrorM": 0.000012433011318802057,
+        "maxSkinErrorM": 0.000009234568242515706,
+        "passed": true
+      }
+    ],
+    "skin": [
+      {
+        "id": "male-trunk-bilateral-proposal",
+        "body": "male",
+        "worst": {
+          "center head": {
+            "timeSec": 0,
+            "clearanceM": 0.0998858476284093
+          },
+          "center neck": {
+            "timeSec": 0,
+            "clearanceM": 0.19203915416155645
+          },
+          "torso/other": {
+            "timeSec": 0,
+            "clearanceM": 0.09258263505358608
+          },
+          "L thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.11096698296886115
+          },
+          "R thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.11096773484532263
+          },
+          "L forearm": {
+            "timeSec": 5.333333333333333,
+            "clearanceM": 0.006947472651170017
+          },
+          "L palm/fingers": {
+            "timeSec": 1.9333333333333333,
+            "clearanceM": -0.0002576463232344395
+          },
+          "L upper arm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.12057180404688506
+          },
+          "R forearm": {
+            "timeSec": 5.333333333333333,
+            "clearanceM": 0.0066630400564213765
+          },
+          "R palm/fingers": {
+            "timeSec": 1.9333333333333333,
+            "clearanceM": -0.00028344175493089097
+          },
+          "R upper arm": {
+            "timeSec": 5.333333333333333,
+            "clearanceM": 0.11267058558935661
+          },
+          "L calf": {
+            "timeSec": 0,
+            "clearanceM": 0.1716548396562505
+          },
+          "L foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.042683043866771575
+          },
+          "L toes": {
+            "timeSec": 2.3333333333333335,
+            "clearanceM": 0.0000030273703810479446
+          },
+          "R calf": {
+            "timeSec": 0,
+            "clearanceM": 0.1716550636743504
+          },
+          "R foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.042679008592333645
+          },
+          "R toes": {
+            "timeSec": 2.3333333333333335,
+            "clearanceM": -1.947046044392664e-7
+          }
+        }
+      },
+      {
+        "id": "female-trunk-bilateral-proposal",
+        "body": "female",
+        "worst": {
+          "center head": {
+            "timeSec": 0,
+            "clearanceM": 0.07454374005331772
+          },
+          "center neck": {
+            "timeSec": 0,
+            "clearanceM": 0.16029419864472785
+          },
+          "torso/other": {
+            "timeSec": 0,
+            "clearanceM": 0.05250234693496969
+          },
+          "L thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.09323307655548169
+          },
+          "R thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.09323323105063863
+          },
+          "L forearm": {
+            "timeSec": 0,
+            "clearanceM": 0.004455334272364747
+          },
+          "L palm/fingers": {
+            "timeSec": 4.866666666666666,
+            "clearanceM": -0.0006029832124063716
+          },
+          "L upper arm": {
+            "timeSec": 0,
+            "clearanceM": 0.10561104838544415
+          },
+          "R forearm": {
+            "timeSec": 0,
+            "clearanceM": 0.004267303242911441
+          },
+          "R palm/fingers": {
+            "timeSec": 4.866666666666666,
+            "clearanceM": -0.0007118496279794329
+          },
+          "R upper arm": {
+            "timeSec": 0,
+            "clearanceM": 0.10551108480129076
+          },
+          "L calf": {
+            "timeSec": 0,
+            "clearanceM": 0.15163647003749112
+          },
+          "L foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.033075879083398596
+          },
+          "L toes": {
+            "timeSec": 0,
+            "clearanceM": -0.00000909996157139048
+          },
+          "R calf": {
+            "timeSec": 0,
+            "clearanceM": 0.1516364880619488
+          },
+          "R foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.033080512269597295
+          },
+          "R toes": {
+            "timeSec": 2.066666666666667,
+            "clearanceM": -0.0000035005759932982272
+          }
+        }
+      },
+      {
+        "id": "neutral-trunk-bilateral-proposal",
+        "body": "neutral",
+        "worst": {
+          "center head": {
+            "timeSec": 0,
+            "clearanceM": 0.0746346686566765
+          },
+          "center neck": {
+            "timeSec": 0,
+            "clearanceM": 0.14447036109970265
+          },
+          "torso/other": {
+            "timeSec": 0,
+            "clearanceM": 0.07111520221258395
+          },
+          "L thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.08629501357726788
+          },
+          "R thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.08629559390722505
+          },
+          "L forearm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.010842355884440907
+          },
+          "L palm/fingers": {
+            "timeSec": 4.166666666666667,
+            "clearanceM": -0.00007779969651267038
+          },
+          "L upper arm": {
+            "timeSec": 0,
+            "clearanceM": 0.1474466551374819
+          },
+          "R forearm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.010837380219858583
+          },
+          "R palm/fingers": {
+            "timeSec": 4.166666666666667,
+            "clearanceM": -0.00009016173486031676
+          },
+          "R upper arm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.14744130127782493
+          },
+          "L calf": {
+            "timeSec": 0,
+            "clearanceM": 0.13126932797229615
+          },
+          "L foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.02659282377314076
+          },
+          "L toes": {
+            "timeSec": 2.3333333333333335,
+            "clearanceM": -0.000003024467256196317
+          },
+          "R calf": {
+            "timeSec": 0,
+            "clearanceM": 0.1312693345669408
+          },
+          "R foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.026593710839724505
+          },
+          "R toes": {
+            "timeSec": 2.3333333333333335,
+            "clearanceM": -0.000001859622810407302
+          }
+        }
+      },
+      {
+        "id": "male-trunk-bilateral-reference",
+        "body": "male",
+        "worst": {
+          "center head": {
+            "timeSec": 0,
+            "clearanceM": 0.0998858476284093
+          },
+          "center neck": {
+            "timeSec": 0,
+            "clearanceM": 0.19203915416155645
+          },
+          "torso/other": {
+            "timeSec": 0,
+            "clearanceM": 0.09258263505358608
+          },
+          "L thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.11096698296886115
+          },
+          "R thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.11096773484532263
+          },
+          "L forearm": {
+            "timeSec": 0,
+            "clearanceM": 0.007429580668668695
+          },
+          "L palm/fingers": {
+            "timeSec": 1.9333333333333333,
+            "clearanceM": -0.0002561236146050305
+          },
+          "L upper arm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.12333918180654119
+          },
+          "R forearm": {
+            "timeSec": 5.333333333333333,
+            "clearanceM": 0.008289251401785602
+          },
+          "R palm/fingers": {
+            "timeSec": 1.7666666666666666,
+            "clearanceM": -0.0002910117705337001
+          },
+          "R upper arm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.14660065682744558
+          },
+          "L calf": {
+            "timeSec": 0,
+            "clearanceM": 0.1716548396562505
+          },
+          "L foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.042683043866771575
+          },
+          "L toes": {
+            "timeSec": 2.3333333333333335,
+            "clearanceM": 0.0000030273703810479446
+          },
+          "R calf": {
+            "timeSec": 0,
+            "clearanceM": 0.1716550636743504
+          },
+          "R foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.042679008592333645
+          },
+          "R toes": {
+            "timeSec": 2.3333333333333335,
+            "clearanceM": -1.947046044392664e-7
+          }
+        }
+      },
+      {
+        "id": "female-trunk-bilateral-reference",
+        "body": "female",
+        "worst": {
+          "center head": {
+            "timeSec": 0,
+            "clearanceM": 0.07454374005331772
+          },
+          "center neck": {
+            "timeSec": 0,
+            "clearanceM": 0.16029419864472785
+          },
+          "torso/other": {
+            "timeSec": 0,
+            "clearanceM": 0.05250234693496969
+          },
+          "L thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.09323307655548169
+          },
+          "R thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.09323323105063863
+          },
+          "L forearm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.005235310477553323
+          },
+          "L palm/fingers": {
+            "timeSec": 1.7666666666666666,
+            "clearanceM": -0.0005920908709153849
+          },
+          "L upper arm": {
+            "timeSec": 0,
+            "clearanceM": 0.11173782490971282
+          },
+          "R forearm": {
+            "timeSec": 5.4,
+            "clearanceM": 0.005493015242654886
+          },
+          "R palm/fingers": {
+            "timeSec": 1.7333333333333334,
+            "clearanceM": -0.0006179088833881963
+          },
+          "R upper arm": {
+            "timeSec": 5.433333333333334,
+            "clearanceM": 0.12589663778704374
+          },
+          "L calf": {
+            "timeSec": 0,
+            "clearanceM": 0.15163647003749112
+          },
+          "L foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.033075879083398596
+          },
+          "L toes": {
+            "timeSec": 0,
+            "clearanceM": -0.00000909996157139048
+          },
+          "R calf": {
+            "timeSec": 0,
+            "clearanceM": 0.1516364880619488
+          },
+          "R foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.033080512269597295
+          },
+          "R toes": {
+            "timeSec": 2.066666666666667,
+            "clearanceM": -0.0000035005759932982272
+          }
+        }
+      },
+      {
+        "id": "neutral-trunk-bilateral-reference",
+        "body": "neutral",
+        "worst": {
+          "center head": {
+            "timeSec": 0,
+            "clearanceM": 0.0746346686566765
+          },
+          "center neck": {
+            "timeSec": 0,
+            "clearanceM": 0.14447036109970265
+          },
+          "torso/other": {
+            "timeSec": 0,
+            "clearanceM": 0.07111520221258395
+          },
+          "L thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.08629501357726788
+          },
+          "R thigh": {
+            "timeSec": 0,
+            "clearanceM": 0.08629559390722505
+          },
+          "L forearm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.010739441832601948
+          },
+          "L palm/fingers": {
+            "timeSec": 1.8,
+            "clearanceM": -0.00010769125798404389
+          },
+          "L upper arm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.14774569235047763
+          },
+          "R forearm": {
+            "timeSec": 5.5,
+            "clearanceM": 0.00967052563517945
+          },
+          "R palm/fingers": {
+            "timeSec": 4.733333333333333,
+            "clearanceM": -0.00012146002997326377
+          },
+          "R upper arm": {
+            "timeSec": 1.0333333333333334,
+            "clearanceM": 0.11504335487556733
+          },
+          "L calf": {
+            "timeSec": 0,
+            "clearanceM": 0.13126932797229615
+          },
+          "L foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.02659282377314076
+          },
+          "L toes": {
+            "timeSec": 2.3333333333333335,
+            "clearanceM": -0.000003024467256196317
+          },
+          "R calf": {
+            "timeSec": 0,
+            "clearanceM": 0.1312693345669408
+          },
+          "R foot": {
+            "timeSec": 2.5,
+            "clearanceM": 0.026593710839724505
+          },
+          "R toes": {
+            "timeSec": 2.3333333333333335,
+            "clearanceM": -0.000001859622810407302
+          }
+        }
+      }
+    ]
+  },
+  "integratedAgreement": {
+    "scope": "Integrated shared runtime versus exact retained three-body all101-bone proposal; existing exchange/contact/clinical bounds.",
+    "sourceStable": true,
+    "rows": [
+      {
+        "variant": "male",
+        "frames": 169,
+        "maxBoneM": 4.94597716851895e-13,
+        "maxLocalDeg": 0.0000034150945850063755,
+        "maxRootM": 0,
+        "worstSkinM": -0.00028013671327659084,
+        "maxPalmDriftM": 0.00013439429872397777,
+        "focusedBreaches": 0,
+        "bottomMirrorErrorMm": 0.0006971481702286021,
+        "pass": true
+      },
+      {
+        "variant": "female",
+        "frames": 169,
+        "maxBoneM": 1.3691558470670105e-13,
+        "maxLocalDeg": 0.000003818191820832845,
+        "maxRootM": 0,
+        "worstSkinM": -0.000712688262253236,
+        "maxPalmDriftM": 0.00004678160668770251,
+        "focusedBreaches": 0,
+        "bottomMirrorErrorMm": 0.12046488221029966,
+        "pass": true
+      },
+      {
+        "variant": "neutral",
+        "frames": 169,
+        "maxBoneM": 1.1546193020756032e-13,
+        "maxLocalDeg": 0.000003818191820832845,
+        "maxRootM": 0,
+        "worstSkinM": -0.00008745474483032312,
+        "maxPalmDriftM": 0.00005070569928575208,
+        "focusedBreaches": 0,
+        "bottomMirrorErrorMm": 0.00009851834559483986,
+        "pass": true
+      }
+    ],
+    "correctedDiagnostic": "Report1 angular formula omitted normalization of serialized quaternion lengths; report2 uses normalized dot products. Same retained samples; no runtime/tolerance changes."
+  },
+  "hosts": {
+    "scope": "Actual ExamStage compiled by the named host, current authoritative source, independent sampled rig. Breathing/sway OFF. Sparse setup/approach/peak/hold/return parity at .01deg/.1mm. Diagnostic camera and mount, not product UI, clinical or native acceptance.",
+    "runtimeStable": true,
+    "breathingAndSway": "off",
+    "cases": [
+      {
+        "host": "simmove",
+        "body": "male",
+        "pass": true,
+        "samples": [
+          {
+            "tMs": 0,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Mid1",
+              "differenceM": 8.903441835098303e-16
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1000,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Mid1",
+              "differenceM": 8.903441835098303e-16
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1750,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 1.7571033183989246e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 2500,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 3.8803366799617714e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 3300,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 3.8803366799617714e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4100,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 3.8803366799617714e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4850,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 7.876232805990984e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 5600,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Mid1",
+              "differenceM": 8.903441835098303e-16
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          }
+        ],
+        "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a"
+      },
+      {
+        "host": "simmove",
+        "body": "female",
+        "pass": true,
+        "samples": [
+          {
+            "tMs": 0,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1000,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1750,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 2500,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 3300,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4100,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4850,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 5600,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          }
+        ],
+        "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd"
+      },
+      {
+        "host": "simmove",
+        "body": "neutral",
+        "pass": true,
+        "samples": [
+          {
+            "tMs": 0,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1000,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1750,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 2500,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 3300,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4100,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4850,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 5600,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          }
+        ],
+        "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62"
+      },
+      {
+        "host": "simlab",
+        "body": "male",
+        "pass": true,
+        "samples": [
+          {
+            "tMs": 0,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Mid1",
+              "differenceM": 8.903441835098303e-16
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1000,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Mid1",
+              "differenceM": 8.903441835098303e-16
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1750,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 1.7571033183989246e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 2500,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 3.8803366799617714e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 3300,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 3.8803366799617714e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4100,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 3.8803366799617714e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4850,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Forearm",
+              "differenceM": 7.876232805990984e-14
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 5600,
+            "maxBoneDifference": {
+              "key": "L_Index2",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "R_Mid1",
+              "differenceM": 8.903441835098303e-16
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          }
+        ],
+        "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a"
+      },
+      {
+        "host": "simlab",
+        "body": "female",
+        "pass": true,
+        "samples": [
+          {
+            "tMs": 0,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1000,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1750,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 2500,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 3300,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4100,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4850,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 5600,
+            "maxBoneDifference": {
+              "key": "L_Leg",
+              "differenceDeg": 0.0000029575586669421963
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          }
+        ],
+        "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd"
+      },
+      {
+        "host": "simlab",
+        "body": "neutral",
+        "pass": true,
+        "samples": [
+          {
+            "tMs": 0,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1000,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 1750,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 2500,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 3300,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4100,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 4850,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          },
+          {
+            "tMs": 5600,
+            "maxBoneDifference": {
+              "key": "R_Mid2",
+              "differenceDeg": 0.0000034150945850063755
+            },
+            "maxTrackDifference": {
+              "key": "Hips",
+              "differenceM": 0
+            },
+            "rootDifferenceDeg": 0,
+            "rootDifferenceM": 0
+          }
+        ],
+        "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62"
+      }
+    ]
+  },
+  "native": {
+    "version": "3.13.0",
+    "routeScope": "Fresh actual male/female editor routes, 4.6 seconds each; excludes the offline 1-second setup hold.",
+    "cases": [
+      {
+        "context": {
+          "movement": "fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "variant": "female",
+          "side": "both"
+        },
+        "requestedDurationS": 4.6,
+        "calculatedSeconds": 4.599999999999871,
+        "finite": true,
+        "withinMotorCaps": true,
+        "noExternalWrench": true,
+        "terminalFailure": null,
+        "maximumJointTrackingErrorDeg": 50.573894850068136,
+        "maximumPelvisErrorM": 0.2893536430806134,
+        "maximumSegmentError": {
+          "timeS": 3.1,
+          "label": "Hold target (3.1 s)",
+          "body": "R_Hand",
+          "errorDeg": 61.75076610401269
+        },
+        "previous": {
+          "maximumJointTrackingErrorDeg": 34.8052186927823,
+          "maximumPelvisErrorM": 0.29144208799308846,
+          "maximumSegmentError": {
+            "timeS": 3.1,
+            "label": "Hold target (3.1 s)",
+            "body": "R_Hand",
+            "errorDeg": 59.800335859439514
+          }
+        },
+        "maximumJointErrorWorsened": true,
+        "physicalAcceptance": "unverified"
+      },
+      {
+        "context": {
+          "movement": "fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "variant": "male",
+          "side": "both"
+        },
+        "requestedDurationS": 4.6,
+        "calculatedSeconds": 4.599999999999871,
+        "finite": true,
+        "withinMotorCaps": true,
+        "noExternalWrench": true,
+        "terminalFailure": null,
+        "maximumJointTrackingErrorDeg": 65.76493856967986,
+        "maximumPelvisErrorM": 0.31650463749102686,
+        "maximumSegmentError": {
+          "timeS": 3.1,
+          "label": "Hold target (3.1 s)",
+          "body": "R_Hand",
+          "errorDeg": 64.31928907376171
+        },
+        "previous": {
+          "maximumJointTrackingErrorDeg": 55.42041057792141,
+          "maximumPelvisErrorM": 0.31706040910960354,
+          "maximumSegmentError": {
+            "timeS": 3.1,
+            "label": "Hold target (3.1 s)",
+            "body": "R_Hand",
+            "errorDeg": 63.492882497913754
+          }
+        },
+        "maximumJointErrorWorsened": true,
+        "physicalAcceptance": "unverified"
+      }
+    ],
+    "trackingPasses": 0,
+    "regressionDisposition": "Both maximum joint tracking errors worsened against the pre-seed checkpoint; candidate is not ready for merge. No numeric gate changed.",
+    "neutral": "No registered neutral native fixture."
+  },
+  "tests": {
+    "setupContactAndPatient": "18/18 pass, including explicit patient and asymmetric authored-setup bypasses. Loop local components agree to 12 decimal places; no established numeric gate changed.",
+    "typecheck": "1182 files, zero errors and warnings.",
+    "retainedFailures": "Initial exact-bitwise loop assertion exposed about 1e-16 arithmetic variation; first asymmetry fixture used the existing 90-degree setup and was corrected to 60 degrees. Old male 20 cm internal pelvis heuristic remains failed; no protocol approval."
+  },
+  "visualReview": {
+    "reviewer": "Codex root",
+    "scope": "All six overhead/side Blender comparison sheets viewed, full setup/press/hold/return including head, whole spine, pelvis and legs.",
+    "observed": "Initial/return bilateral elbow branches align within 0.121 mm. Supported whole-body press is improved. Remaining top asymmetry respects independent wrist bounds; a perfectly mirrored top would exceed the retained right wrist cap."
+  },
+  "remaining": [
+    "Native tracking and newly worsened maximum joint errors.",
+    "Low-plank setup is not qualified as an FMS prone-start protocol.",
+    "Neutral native fixture and complete patient/following-motion/clinical/reference qualification.",
+    "Generic exercise push-ups and entry transitions retain their previous support pathway.",
+    "Local development work only; no commit, merge or deployment claimed."
+  ],
+  "formalDefectsClosed": 0,
+  "artifacts": [
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/manifest.json",
+      "sha256": "c81091995bb3684e59711c725db130c643faf05fb26149f267b4fe1c64687e0a"
+    },
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/full-motion-review.blend",
+      "sha256": "91f54663eea8e20a98c616431e4404376603fccd53f1375df52d60058fa318f1"
+    },
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/roundtrip-results.json",
+      "sha256": "32ff554cbf3baa33e8c515882950af8cb0e1fe9ae45d9c784eff00fc01436428"
+    },
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/skin-floor-clearance-1.json",
+      "sha256": "d229ba6525b6593c1ea858340815aa395c7bf67931ef618d289e9594748563dc"
+    },
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/male-overhead-comparison.png",
+      "sha256": "359607a00cb2bc826280e74b96718be6bf4d90963924455b9904ae41392735b0"
+    },
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/male-side-comparison.png",
+      "sha256": "6a6e7b17c5267265f6ce570a54bc4363317b44071e0b9a8b9893d56670c24be6"
+    },
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/female-overhead-comparison.png",
+      "sha256": "eb25f8587b7051385c9d4e1ec4ae4bb7f07e8fb73c2f555e9991d7d4c932a88f"
+    },
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/female-side-comparison.png",
+      "sha256": "8d9ca9d91c0bc779a7bc6826d81be0d1a54f6780ce37b7fb7a872a1b03dcdaa0"
+    },
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/neutral-overhead-comparison.png",
+      "sha256": "66c70c149ae3e37d25e9d376407dcf02e871104e1ef6dfee7c27f68851219b16"
+    },
+    {
+      "path": "blender-workspace/halfway-trunkpushup-bilateral-proposal-1/neutral-side-comparison.png",
+      "sha256": "40dc2c74872569ad1199e487e054ba4fba929b7a733204ef0257665019cd67ce"
+    },
+    {
+      "path": "remaining-batches/halfway-trunkpushup-bilateral-proposal-summary-1.json",
+      "sha256": "5e5948b9af8684c8c94acb8a4c65d320e083fe8f3175baa266bf966600cc49b5"
+    },
+    {
+      "path": "remaining-batches/halfway-trunkpushup-integrated-seed-1.json",
+      "sha256": "60780e6a83e7e11ad5460d8e856e9c440b270b14d0abd28e9ddf067fd52351fd"
+    },
+    {
+      "path": "remaining-batches/halfway-trunkpushup-seed-integration-parity-2.json",
+      "sha256": "e704f0a4ce45bb5d02900086dc1971980dba4fcb35f72aaf5e2d42946be2dae0"
+    },
+    {
+      "path": "remaining-batches/halfway-trunkpushup-source-eligibility-1.json",
+      "sha256": "f63ad841b55caaf6653f8286ed3d0fa64d8f285d894e3a56f3ce171160fba70e"
+    },
+    {
+      "path": "remaining-batches/halfway-trunkpushup-hosts-2/results.json",
+      "sha256": "965db1cc49dc6e6b27e5ed1c17013a1452f5acdc867eaafbc6d30fe95fad6513"
+    },
+    {
+      "path": "remaining-batches/halfway-trunkpushup-native-inputs-2/export-results.json",
+      "sha256": "5be18b7d53b7a1d1a2cb84d2edbfd562d7510eea1741810ffddacc2492a08d84"
+    },
+    {
+      "path": "remaining-batches/halfway-trunkpushup-native-2.json",
+      "sha256": "8b7cbbf4c37adea93119a0c3d7dee23ab2aed8828ad36bd18202626d9e1fb471"
+    },
+    {
+      "path": "remaining-batches/halfway-plank-integrated-tests-4.log",
+      "sha256": "2d890b2bb4fc47b4ed877949ff87fa84547d7bfa964163e3aabfff77e6e4b036"
+    },
+    {
+      "path": "remaining-batches/halfway-plank-engine-check-3.log",
+      "sha256": "830cfb0dba6ef9feb238a5b81db031368758ec3ef8f7d7e3cb9b4b216e2514a8"
+    }
+  ]
+}

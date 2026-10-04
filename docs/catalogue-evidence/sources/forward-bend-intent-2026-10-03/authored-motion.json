@@ -1,0 +1,534 @@
+{
+  "name": "Multi-segmental flexion · straight-knee toe reach",
+  "startFrom": "neutral",
+  "stance": "planted",
+  "startPosture": "standing",
+  "endPosture": "standing",
+  "keyframes": [
+    {
+      "durationMs": 800,
+      "stance": "planted",
+      "targets": [
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Foot",
+          "motion": "ankleFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Foot",
+          "motion": "ankleFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Forearm",
+          "motion": "elbowFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Hand",
+          "motion": "wristFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Forearm",
+          "motion": "elbowFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "motion": "wristFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "flexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "flexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "rotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "rotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "lateralTilt",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "lateralTilt",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Neck",
+          "motion": "flexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipAbduction",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipRotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Toes",
+          "motion": "toeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipAbduction",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipRotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Toes",
+          "motion": "toeFlexion",
+          "targetDegrees": 0
+        }
+      ]
+    },
+    {
+      "durationMs": 900,
+      "stance": "planted",
+      "targets": [
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipAbduction",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipRotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Toes",
+          "motion": "toeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipAbduction",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipRotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Toes",
+          "motion": "toeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 35
+        },
+        {
+          "joint": "R_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Foot",
+          "motion": "ankleFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 35
+        },
+        {
+          "joint": "L_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Foot",
+          "motion": "ankleFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "flexion",
+          "targetDegrees": 15
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "flexion",
+          "targetDegrees": 10
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "rotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "rotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "lateralTilt",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "lateralTilt",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Neck",
+          "motion": "flexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 35
+        },
+        {
+          "joint": "R_Forearm",
+          "motion": "elbowFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Hand",
+          "motion": "wristFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 35
+        },
+        {
+          "joint": "L_Forearm",
+          "motion": "elbowFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "motion": "wristFlexion",
+          "targetDegrees": 0
+        }
+      ]
+    },
+    {
+      "durationMs": 1200,
+      "stance": "planted",
+      "targets": [
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipAbduction",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipRotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Toes",
+          "motion": "toeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipAbduction",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipRotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Toes",
+          "motion": "toeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 85
+        },
+        {
+          "joint": "R_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Foot",
+          "motion": "ankleFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 85
+        },
+        {
+          "joint": "L_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Foot",
+          "motion": "ankleFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "flexion",
+          "targetDegrees": 40
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "flexion",
+          "targetDegrees": 35
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "rotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "rotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "lateralTilt",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "lateralTilt",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Neck",
+          "motion": "flexion",
+          "targetDegrees": 20
+        },
+        {
+          "joint": "R_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 85
+        },
+        {
+          "joint": "R_Forearm",
+          "motion": "elbowFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Hand",
+          "motion": "wristFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 85
+        },
+        {
+          "joint": "L_Forearm",
+          "motion": "elbowFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "motion": "wristFlexion",
+          "targetDegrees": 0
+        }
+      ],
+      "holdMs": 1800
+    },
+    {
+      "durationMs": 1500,
+      "stance": "planted",
+      "targets": [
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Foot",
+          "motion": "ankleFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Foot",
+          "motion": "ankleFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Forearm",
+          "motion": "elbowFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Hand",
+          "motion": "wristFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Forearm",
+          "motion": "elbowFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "motion": "wristFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "flexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "flexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "rotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "rotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Lower",
+          "motion": "lateralTilt",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Spine_Upper",
+          "motion": "lateralTilt",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "Neck",
+          "motion": "flexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipAbduction",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipRotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Toes",
+          "motion": "toeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipAbduction",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipRotation",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Toes",
+          "motion": "toeFlexion",
+          "targetDegrees": 0
+        }
+      ]
+    }
+  ]
+}

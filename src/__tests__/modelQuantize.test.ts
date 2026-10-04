@@ -1,13 +1,9 @@
 /**
- * GLB QUANTIZATION IS MEASUREMENT-SAFE — the guarantee simMOVE's build-time model
- * shrink relies on. The shared `*.runtime.glb` are meshopt-only (body-chart keys
- * anatomy by faceIndex and needs byte-identical geometry, so it forbids quantize),
- * but simMOVE measures joints from the SKELETON and selects by raycasting handle
- * proxies — never the mesh. So simMOVE quantizes the mesh for a ~30% smaller
- * download. This test proves the property: quantizing (position 14-bit, normal
- * 10-bit, weight 8-bit) + re-meshopt leaves EVERY measured joint angle and bone
- * world position byte-identical (bones + inverse-bind matrices are untouched),
- * while the file shrinks materially. If someone makes the shrink lossy, this fails.
+ * Narrow skeletal quantization regression. Isolated joint measurements and
+ * bone positions survive this lossy mesh transform. This does NOT qualify
+ * skin-driven motion: changed positions/weights alter support corrections.
+ * Production hosts therefore retain the exact shared engine model bytes;
+ * simMOVE's optional quantization experiment excludes those assets.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -40,7 +36,7 @@ beforeAll(async () => {
     .registerDependencies({ 'meshopt.decoder': MODecoder, 'meshopt.encoder': MeshoptEncoder });
   await MeshoptEncoder.ready;
   const doc = await io.read(SRC);
-  // The SAME transform simMOVE's optimize-models.mjs applies.
+  // The same transform as the optional non-authoritative quantization experiment.
   await doc.transform(
     quantize({ quantizePosition: 14, quantizeNormal: 10, quantizeTexcoord: 12, quantizeWeight: 8, quantizeColor: 8 }),
   );
@@ -76,7 +72,7 @@ async function measure(bytes: Uint8Array): Promise<KinematicExport> {
   return exportKinematics(rec);
 }
 
-describe('quantized GLB is measurement-safe', () => {
+describe('mesh quantization preserves isolated skeletal measurements', () => {
   it('leaves every joint angle + bone world position byte-identical', async () => {
     const orig = await measure(originalBytes);
     const quant = await measure(quantizedBytes);

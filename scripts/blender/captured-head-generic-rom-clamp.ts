@@ -1,0 +1,1057 @@
+/**
+ * Range-of-motion clamp for pose-mode bone manipulations.
+ *
+ * Reads a bone's current quaternion, decomposes it into clinical angles
+ * via the same math `jointAngles.ts` uses for the readout, looks up
+ * per-joint ROM in `romRegistry.ts`, and — only when an angle is out of
+ * range — recomposes a clamped quaternion and writes it back. Hinges
+ * (elbow / knee) additionally lock abduction + rotation to zero so the
+ * forearm / shin can't swing sideways or twist along its long axis.
+ *
+ * The forward decomposition is shared with `jointAngles.ts`; the inverse
+ * (angles → quaternion) is the new piece, implemented per-strategy:
+ *
+ *   - Pelvis (world-frame Euler)            : Hips
+ *   - Body-frame Euler (parent-local Euler) : Spine_Mid, Head, Hands, Feet
+ *   - Ball joint (swing + twist)            : L/R UpperArm, L/R UpLeg
+ *   - Hinge (1-DOF flexion only)            : L/R Forearm, L/R Leg
+ *
+ * All clamps are relative to the captured `JointAngleRestReference` —
+ * "180° shoulder flexion" means 180° from the rig's anatomic baseline,
+ * the same convention the joint-angle readout panel uses.
+ */
+import * as THREE from 'three';
+import { projectShoulderProxyLocal, shoulderProxyCapacity } from "../../src/services/shoulderRuntime";
+import {
+  REST_DOWN_LOCAL,
+  ballJointAngles,
+  decomposeBodyDelta,
+  deltaFromRest,
+  isFingerJointKey,
+  type JointAngleRestReference,
+} from "../../src/services/jointAngles";
+import { effectiveRomRange, getRomFieldDefinition, type RomRangeDeg, type ThighSwing } from "../../src/services/romRegistry";
+import {
+  getEffectiveRomRange,
+  getRomFieldConstraint,
+  resolveAvailableRange,
+  normalizeRomConstraints,
+  type RomScenarioConstraints,
+} from "../../src/services/romConstraints";
+
+const DEG = 180 / Math.PI;
+const RAD = Math.PI / 180;
+const EPS = 1e-4;
+
+// ── Scratch (reused across calls; never recursive) ────────────────────
+const _qDelta = new THREE.Quaternion();
+const _qSwing = new THREE.Quaternion();
+const _qTwist = new THREE.Quaternion();
+const _qRest = new THREE.Quaternion();
+const _qParentWorld = new THREE.Quaternion();
+const _qBoneWorld = new THREE.Quaternion();
+const _qNewWorld = new THREE.Quaternion();
+const _qOut = new THREE.Quaternion();
+const _vSwung = new THREE.Vector3();
+const _euler = new THREE.Euler();
+
+// ── Strategy table ────────────────────────────────────────────────────
+
+interface BodyEulerStrategy {
+  kind: 'body-euler';
+  /** ROM field-key for flexion (X-axis). */
+  flexionField: string;
+  /** ROM field-key for abduction / lateral tilt (Z-axis). */
+  abductionField: string;
+  /** ROM field-key for rotation about Y-axis, or null to take
+   *  {@link BodyEulerStrategy.rotationRange} — which defaults to locking at 0. */
+  rotationField: string | null;
+  /** Bound for the Y-axis rotation when there is no registry FIELD for it.
+   *  Defaults to zero — most body-euler joints have no axial DOF of their own
+   *  and locking it is the point.
+   *
+   *  The HANDS are the exception, and it is not cosmetic. Their axial rotation
+   *  IS pro/sup, which the registry deliberately keys on the forearm because it
+   *  belongs to the forearm; `computeJointAngles` then reports the SUM of both
+   *  segments' twist into all four rows. So a hand legitimately carries half of
+   *  a ±90 motion, and zeroing it here silently deletes that half: drag pro/sup
+   *  to its limit, then touch the wrist's flexion ring, and the clamp on the
+   *  hand takes the reading from 90 back to 45 with nothing to explain it. */
+  rotationRange?: RomRangeDeg;
+  /** Mirror right-side joints so they share the left-side sign convention. */
+  mirror: boolean;
+  /** Sign mapping the raw swing decomposition's flexion into the joint's
+   *  CLINICAL flexion — the same convention the readout (`jointAngles.ts`)
+   *  and the ROM registry use. The ankle readout writes `-a.flexion`
+   *  (dorsi positive), so feet need `-1`; spine/head/hand map directly
+   *  (`+1`). Without this the registry's dorsi/plantar bounds clamp the
+   *  wrong pole (plantar stops at the dorsi limit and vice-versa). */
+  flexionSign?: 1 | -1;
+  /** Sign mapping the (mirror-applied) raw abduction into the joint's
+   *  CLINICAL frontal-plane value (e.g. ankle inversion). The ankle readout
+   *  writes `-abduction`, so feet need `-1`; everything else maps directly. */
+  abductionSign?: 1 | -1;
+  /** Which raw decomposition axis feeds the FLEXION field: 'x' (sagittal,
+   *  default) or 'z' (frontal). The wrist inherits the forearm's twisted
+   *  frame, so its flexion reads from local-Z and deviation from local-X —
+   *  the same axis swap the readout pins (flex=Z, dev=X). */
+  flexionAxis?: 'x' | 'z';
+  /** Which raw axis feeds the ABDUCTION/deviation field: 'z' (default) or 'x'.
+   *  Must differ from `flexionAxis`. */
+  abductionAxis?: 'x' | 'z';
+}
+
+interface BallJointStrategy {
+  kind: 'ball-joint';
+  flexionField: string;
+  abductionField: string;
+  rotationField: string;
+  mirror: boolean;
+  /** Sign that maps the swing-twist "anterior=positive" decomposition
+   *  into the joint's clinical flexion. Default +1. Some rig bindings
+   *  invert the long axis at rest, so anatomic forward swing reads as
+   *  -flex from the decomposition — `flexionSign: -1` corrects that.
+   *  Calibrated per joint via `__romDebug` against the live rig. */
+  flexionSign?: 1 | -1;
+}
+
+interface HingeStrategy {
+  kind: 'hinge';
+  /** ROM field-key for the hinge's primary DOF. */
+  flexionField: string;
+  /** Off-axis swing tolerance (medial-lateral wobble). Real elbows / knees
+   *  have a small carrying angle and slight valgus/varus play, so a hard
+   *  zero-lock looks robotic. */
+  abductionRange: RomRangeDeg;
+  /** Long-axis twist tolerance. Forearms pronate / supinate; knees have
+   *  some tibial rotation when flexed. */
+  rotationRange: RomRangeDeg;
+  /** Sign that maps swing-twist's "anterior = positive" convention into
+   *  the joint's clinical flexion. +1 for elbows (anatomic flex swings the
+   *  forearm forward); -1 for knees (anatomic flex swings the lower leg
+   *  posteriorly toward the butt). */
+  flexionSign: 1 | -1;
+}
+
+interface PelvisStrategy {
+  kind: 'pelvis';
+  flexionField: string;
+  abductionField: string;
+  rotationField: string;
+}
+
+type ClampStrategy =
+  | BodyEulerStrategy
+  | BallJointStrategy
+  | HingeStrategy
+  | PelvisStrategy;
+
+const STRATEGIES: Record<string, ClampStrategy> = {
+  Hips: {
+    kind: 'pelvis',
+    flexionField: 'anteriorTilt',
+    abductionField: 'lateralTilt',
+    rotationField: 'rotation',
+  },
+  // Thoracic (T-spine) + Cervical (C-spine) regional ROM. Keyed by the region
+  // CONTROL bone (Spine_Upper / Neck) — these are the canonical keys the
+  // readout reports the regional total under AND the registry rows. The region
+  // curve distributes the bend across two segments, so the clamp is applied to
+  // the control's target orientation (the regional total) before distribution.
+  // Body-euler shares the readout's parent-local frame, so the signs must match
+  // the readout (flexion = -a.flexion, lateralTilt = -a.abduction); the flexion
+  // range is asymmetric (thoracic -25/40, cervical -60/50) so the flip matters.
+  // LUMBAR. Same shape as Spine_Upper below and for the same reason: the
+  // readout writes `flexion: -a.flexion` and `lateralTilt: a.abduction * -1`
+  // for Spine_Lower exactly as it does for Spine_Upper (jointAngles.ts, the
+  // spine/neck loop drives both from one table), so the clamp needs the same
+  // two flips to land the registry range on the correct pole.
+  //
+  // Unlike its neighbours this is a SINGLE bone — bodyVariants calls it
+  // "Lumbar (Waist, single bone)" — so there is no region curve to distribute
+  // across and the control's own orientation IS the regional total.
+  //
+  // It had a ROM row (-25/60 flexion, ±25 lateral, ±10 rotation) and a live
+  // readout but no strategy, so `clampBoneToRom` returned false for it and the
+  // lumbar spine could be dragged to any angle at all.
+  Spine_Lower: {
+    kind: 'body-euler',
+    flexionField: 'flexion',
+    abductionField: 'lateralTilt',
+    rotationField: 'rotation',
+    mirror: false,
+    flexionSign: -1,
+    abductionSign: -1,
+  },
+  Spine_Upper: {
+    kind: 'body-euler',
+    flexionField: 'flexion',
+    abductionField: 'lateralTilt',
+    rotationField: 'rotation',
+    mirror: false,
+    flexionSign: -1,
+    abductionSign: -1,
+  },
+  Neck: {
+    kind: 'body-euler',
+    flexionField: 'flexion',
+    abductionField: 'lateralTilt',
+    rotationField: 'rotation',
+    mirror: false,
+    flexionSign: -1,
+    abductionSign: -1,
+  },
+  // SCAPULA (the clavicle bone). Parent-frame body-euler, matching how
+  // `movementCommand` already writes the girdle for authored shoulder
+  // elevation (girdleSplit / writeGirdle):
+  //   scapularTilt -> flexion (X), upRotation -> abduction (Z),
+  //   protraction  -> rotation (Y).
+  //
+  // MIRROR is measured, not assumed. Driving the engine's own writer at every
+  // angle from -30 to 140 gives a clean linear relation: the LEFT clavicle
+  // reads raw.abduction = +cmd, the RIGHT reads -cmd. So the right side needs
+  // the mirror to land the registry's asymmetric -5..60 upward-rotation bound
+  // on the correct pole; without it the right scapula is bounded by the
+  // DOWNWARD limit. The round-trip in scapulaRomClamp.test.ts drives that
+  // writer rather than re-deriving the convention, because re-deriving it is
+  // how you double-apply the handedness the writer already carries.
+  //
+  // PROTRACTION is the one axis this strategy shape cannot sign: `mirror` flips
+  // only the abduction source and there is no rotationSign. Harmless while the
+  // registry range is symmetric (-30..30) — the clamp bounds the same magnitude
+  // either way — but it is why protraction must not be given an asymmetric
+  // range without adding that sign first.
+  L_Shoulder: {
+    kind: 'body-euler',
+    flexionField: 'scapularTilt',
+    abductionField: 'upRotation',
+    rotationField: 'protraction',
+    mirror: false,
+  },
+  R_Shoulder: {
+    kind: 'body-euler',
+    flexionField: 'scapularTilt',
+    abductionField: 'upRotation',
+    rotationField: 'protraction',
+    mirror: true,
+  },
+  L_UpperArm: {
+    kind: 'ball-joint',
+    flexionField: 'shoulderFlexion',
+    abductionField: 'shoulderAbduction',
+    rotationField: 'shoulderRotation',
+    mirror: false,
+  },
+  R_UpperArm: {
+    kind: 'ball-joint',
+    flexionField: 'shoulderFlexion',
+    abductionField: 'shoulderAbduction',
+    rotationField: 'shoulderRotation',
+    mirror: true,
+  },
+  L_UpLeg: {
+    kind: 'ball-joint',
+    flexionField: 'hipFlexion',
+    abductionField: 'hipAbduction',
+    rotationField: 'hipRotation',
+    mirror: false,
+  },
+  R_UpLeg: {
+    kind: 'ball-joint',
+    flexionField: 'hipFlexion',
+    abductionField: 'hipAbduction',
+    rotationField: 'hipRotation',
+    mirror: true,
+  },
+  L_Forearm: {
+    kind: 'hinge',
+    flexionField: 'elbowFlexion',
+    abductionRange: { min: -10, max: 10 },
+    rotationRange: { min: -45, max: 45 },
+    flexionSign: 1,
+  },
+  R_Forearm: {
+    kind: 'hinge',
+    flexionField: 'elbowFlexion',
+    abductionRange: { min: -10, max: 10 },
+    rotationRange: { min: -45, max: 45 },
+    flexionSign: 1,
+  },
+  L_Leg: {
+    kind: 'hinge',
+    flexionField: 'kneeFlexion',
+    abductionRange: { min: -5, max: 5 },
+    rotationRange: { min: -15, max: 15 },
+    flexionSign: -1,
+  },
+  R_Leg: {
+    kind: 'hinge',
+    flexionField: 'kneeFlexion',
+    abductionRange: { min: -5, max: 5 },
+    rotationRange: { min: -15, max: 15 },
+    flexionSign: -1,
+  },
+  // Wrist inherits the forearm's twisted frame, so the readout reads flexion
+  // from local-Z (a.abduction) and radial/ulnar deviation from local-X
+  // (a.flexion) — the flexionAxis/abductionAxis swap. Without it the clamp
+  // constrained flex with the deviation range (±~25°) and vice-versa. Signs
+  // verified live in PoseLab (both wrists). The RIGHT hand's local frame is
+  // flipped ~180° about its long axis, so its FLEXION read inverts vs the left
+  // (flexionSign +1 vs -1); deviation maps identically on both (abductionSign
+  // -1 → radial +20 / ulnar -30). Each keeps the -70/+80 ext/flex bounds on the
+  // correct pole.
+  L_Hand: {
+    kind: 'body-euler',
+    flexionField: 'wristFlexion',
+    abductionField: 'wristDeviation',
+    rotationField: null,
+    // Half of the registry's ±90 pro/sup, because the coupled writer puts the
+    // other half on the forearm and the readout sums the two.
+    rotationRange: { min: -45, max: 45 },
+    mirror: false,
+    flexionAxis: 'z',
+    abductionAxis: 'x',
+    flexionSign: -1,
+    abductionSign: -1,
+  },
+  R_Hand: {
+    kind: 'body-euler',
+    flexionField: 'wristFlexion',
+    abductionField: 'wristDeviation',
+    rotationField: null,
+    // Half of the registry's ±90 pro/sup, because the coupled writer puts the
+    // other half on the forearm and the readout sums the two.
+    rotationRange: { min: -45, max: 45 },
+    mirror: false,
+    flexionAxis: 'z',
+    abductionAxis: 'x',
+    flexionSign: 1,
+    abductionSign: -1,
+  },
+  L_Foot: {
+    kind: 'body-euler',
+    flexionField: 'ankleFlexion',
+    abductionField: 'ankleInversion',
+    rotationField: null,
+    mirror: false,
+    // Readout writes ankleFlexion = -a.flexion (dorsi +) and
+    // ankleInversion = -abduction, so the clamp must flip both to land the
+    // registry's dorsi/plantar + inv/ev bounds on the correct pole.
+    flexionSign: -1,
+    abductionSign: -1,
+  },
+  R_Foot: {
+    kind: 'body-euler',
+    flexionField: 'ankleFlexion',
+    abductionField: 'ankleInversion',
+    rotationField: null,
+    mirror: true,
+    flexionSign: -1,
+    abductionSign: -1,
+  },
+
+  // FOREFOOT / great-toe MTP. BODY-EULER, not hinge — the choice is forced by
+  // the readout, not by anatomy. `computeJointAngles` measures the toes exactly
+  // as it measures the ankle, a parent-local `decomposeBodyDelta` off the bone's
+  // own delta-from-rest, and writes `toeFlexion: -a.flexion` (+ = extension).
+  // The `hinge` kind decomposes something else — a swing-twist in the canonical
+  // WORLD frame — which is right for knees and elbows because their readout is
+  // likewise geometric (the angle between parent and child world directions),
+  // and wrong here: it would bound a quantity the panel never displays.
+  //
+  // So this mirrors L_Foot / R_Foot exactly, `flexionSign: -1` and all, which
+  // lands the registry's -40 (flexion) / +70 (extension) on the correct poles.
+  //
+  // The registry gives the toes ONE field, so `lookupRange` returns the zero
+  // range for the other two axes and the clamp holds them at 0. That is the
+  // right model for an MTP and it matches the ankle's `rotationField: null`.
+  // `mirror` is inert while the frontal axis is locked at zero (it flips only
+  // the abduction source, and ±0 mirrors to ±0) — it is set to match the foot
+  // below it so the pair reads consistently if a frontal field is ever added.
+  L_Toes: {
+    kind: 'body-euler',
+    flexionField: 'toeFlexion',
+    abductionField: 'toeAbduction', // no registry field → locked at 0
+    rotationField: null, // locked at 0
+    mirror: false,
+    flexionSign: -1,
+  },
+  R_Toes: {
+    kind: 'body-euler',
+    flexionField: 'toeFlexion',
+    abductionField: 'toeAbduction',
+    rotationField: null,
+    mirror: true,
+    flexionSign: -1,
+  },
+};
+
+// ── Calibration toggle ────────────────────────────────────────────────
+
+/** Resolve whether ROM clamping should run right now. The browser default
+ *  is OFF (calibration mode); tests / SSR default to ON so the math is
+ *  exercised. Either side can be overridden by setting `__enableRomClamp`
+ *  or `__disableRomClamp` on the global. */
+function isClampActive(): boolean {
+  const g = globalThis as
+    | { __enableRomClamp?: boolean; __disableRomClamp?: boolean }
+    | undefined;
+  if (g && g.__enableRomClamp === true) return true;
+  if (g && g.__disableRomClamp === true) return false;
+  if (clampEnabledOverride !== null) return clampEnabledOverride;
+  // Default differs by context.
+  return typeof window === 'undefined';
+}
+
+/** Host-set clamp override — between the debug globals (which win, so a
+ *  console user can always intervene) and the context default. */
+let clampEnabledOverride: boolean | null = null;
+
+/** Programmatic clamp toggle for embedding hosts (e.g. a scenario ROM exam
+ *  that NEEDS the clamp on in the browser, where the calibration default is
+ *  OFF). Pass `null` to restore the context default. The `__enableRomClamp` /
+ *  `__disableRomClamp` debug globals still take precedence. */
+export function setRomClampEnabled(enabled: boolean | null): void {
+  clampEnabledOverride = enabled;
+}
+
+/** True if clamping is currently active (after applying overrides). The
+ *  console-side debug helpers surface this so users can verify the toggle
+ *  is reflecting their override. */
+export function isRomClampActive(): boolean {
+  return isClampActive();
+}
+
+// ── Public API ────────────────────────────────────────────────────────
+
+/** Clamp a bone's current quaternion into its joint's clinical ROM (and
+ *  for hinges, lock the off-axis DOFs). Returns true if the quaternion
+ *  was modified. Safe to call when no rest reference is available — it
+ *  will skip with `false`.
+ *
+ *  Calibration mode (default in browser): clamping is OFF until each
+ *  joint's orientation has been verified. Set `window.__enableRomClamp
+ *  = true` to turn it on. In a non-browser context (vitest) clamping
+ *  defaults to ON so unit tests still validate the math. The
+ *  `__disableRomClamp` flag remains supported as an explicit override
+ *  in either direction. */
+export function clampBoneToRom(
+  bone: THREE.Bone,
+  canonicalKey: string | null | undefined,
+  rest: JointAngleRestReference | null | undefined,
+  constraints?: RomScenarioConstraints | null,
+  /** Enforce this solve's explicit scenario bounds without changing the host's
+   *  global calibration-mode preference (which may be shared by other stages). */
+  force = false,
+  /** Closed-chain support uses the same normative band as planted commands. */
+  context: { weightBearing?: boolean } = {},
+): boolean {
+  if (!bone || !canonicalKey || !rest) return false;
+  if (!force && !isClampActive()) return false;
+  const strategy = STRATEGIES[canonicalKey];
+  if (!strategy) return false;
+
+  // The per-scenario constraint set is passed explicitly (no module-global
+  // "active scenario" store — that broke concurrent/preflight resolves). Stash
+  // it for the synchronous span of this clamp so `lookupRange` can intersect it
+  // with the normative range, and clear it in `finally` — there is no state
+  // that outlives one clamp call.
+  _clampConstraints = normalizeRomConstraints(constraints);
+  try {
+    switch (strategy.kind) {
+      case 'pelvis':
+        return clampPelvis(bone, canonicalKey, strategy, rest);
+      case 'body-euler':
+        return clampBodyEuler(bone, canonicalKey, strategy, rest, context.weightBearing);
+      case 'ball-joint':
+        if (!/^[LR]_UpperArm$/.test(canonicalKey)
+          || !shoulderProxyCapacity(constraints, canonicalKey[0] as 'L' | 'R').enforced)
+          return clampBallJoint(bone, canonicalKey, strategy, rest);
+        {
+          const before = bone.quaternion.clone();
+          const { budgetDeg } = shoulderProxyCapacity(constraints, canonicalKey[0] as 'L' | 'R');
+          // Alternate the two independently defined feasible sets. Patient ROM
+          // has final priority if their intersection is empty; the inspector
+          // then reports the unresolved capacity excess instead of compliance.
+          for (let pass = 0; pass < 16; pass++) {
+            clampBallJoint(bone, canonicalKey, strategy, rest);
+            const projected = projectShoulderProxyLocal(bone.quaternion, canonicalKey, rest, budgetDeg);
+            if (!projected || projected.angleTo(bone.quaternion) < 1e-8) break;
+            bone.quaternion.copy(projected); bone.updateMatrixWorld(true);
+          }
+          clampBallJoint(bone, canonicalKey, strategy, rest);
+          return before.angleTo(bone.quaternion) > 1e-8;
+        }
+      case 'hinge':
+        return clampHinge(bone, canonicalKey, strategy, rest);
+    }
+  } finally {
+    _clampConstraints = null;
+  }
+}
+
+/** Final shared projection after authored interpolation and contact IK. Only
+ * explicitly enabled shoulders are touched; legacy recordings remain exact. */
+export function enforceShoulderCapacities(bones: ReadonlyMap<string, THREE.Bone>, rest: JointAngleRestReference,
+  constraints?: RomScenarioConstraints | null): boolean {
+  let changed = false;
+  for (const side of ['L', 'R'] as const) {
+    if (!shoulderProxyCapacity(constraints, side).enforced) continue;
+    for (const suffix of ['Shoulder', 'UpperArm']) {
+      const key = `${side}_${suffix}`, bone = bones.get(key);
+      if (bone) changed = clampBoneToRom(bone, key, rest, constraints, true) || changed;
+    }
+  }
+  return changed;
+}
+
+/** The per-scenario ROM constraints for the clamp currently running — set at
+ *  `clampBoneToRom` entry, cleared in its `finally`. Only `lookupRange` reads
+ *  it, and only within one synchronous clamp; it never crosses a call. */
+let _clampConstraints: RomScenarioConstraints | null = null;
+
+/** True if the canonical key has a clamp strategy. Cheap lookup so callers
+ *  can skip the work entirely for unknown bones. */
+export function hasClampStrategy(canonicalKey: string | null | undefined): boolean {
+  return !!canonicalKey && canonicalKey in STRATEGIES;
+}
+
+/** True for the joints this module treats as 1-DOF hinges — knees and elbows.
+ *  Derived from the strategy table rather than re-listed, so a joint that
+ *  changes kind cannot leave a stale copy of that fact behind. */
+export function isHingeJoint(canonicalKey: string | null | undefined): boolean {
+  return !!canonicalKey && STRATEGIES[canonicalKey]?.kind === 'hinge';
+}
+
+/** The off-axis tolerances a hinge allows, in degrees, or null if the key is
+ *  not a hinge. These are PLAY — a real elbow has a carrying angle and a knee a
+ *  little varus/valgus, so a hard zero-lock looks robotic — and emphatically
+ *  not a range the user is meant to pose within. UI that offers a control for
+ *  one is offering a control with nothing behind it. */
+export function hingeOffAxisTolerance(
+  canonicalKey: string | null | undefined,
+): { abduction: RomRangeDeg; rotation: RomRangeDeg } | null {
+  const s = canonicalKey ? STRATEGIES[canonicalKey] : undefined;
+  if (!s || s.kind !== 'hinge') return null;
+  return { abduction: s.abductionRange, rotation: s.rotationRange };
+}
+
+/** How a joint's normative ROM is actually held:
+ *
+ *  - `clamp-strategy`  — a row in {@link STRATEGIES}; `clampBoneToRom` enforces it.
+ *  - `composite-finger-curl` — the digits. Their one clinical quantity,
+ *    `fingerFlexion`, is a signed sum across the MCP and PIP bones, which no
+ *    single-bone strategy can decompose; `stagePosingLayer.clampFingerCurl`
+ *    enforces it against `measureFingerFlexion` instead. `clampBoneToRom`
+ *    returns false for these keys and that is correct, not a gap.
+ *  - `none` — reported by the ROM panel, bounded by nothing.
+ */
+export type RomEnforcement = 'clamp-strategy' | 'composite-finger-curl' | 'none';
+
+/** Which mechanism bounds this joint — see {@link RomEnforcement}.
+ *
+ *  This exists so the invariant "every joint with a ROM row is bounded" can be
+ *  asserted in ONE place. Enforcement is split across two files by necessity,
+ *  and while it was only implicit the split read as coverage: `clampBoneToRom`
+ *  no-ops on an unknown key and `hasClampStrategy` is used as a silent guard, so
+ *  an unbounded joint looked exactly like a bounded one from every call site. */
+export function romEnforcementFor(canonicalKey: string | null | undefined): RomEnforcement {
+  if (hasClampStrategy(canonicalKey)) return 'clamp-strategy';
+  if (isFingerJointKey(canonicalKey)) return 'composite-finger-curl';
+  return 'none';
+}
+
+// ── Strategy implementations ──────────────────────────────────────────
+
+function clampBodyEuler(
+  bone: THREE.Bone,
+  canonicalKey: string,
+  strategy: BodyEulerStrategy,
+  rest: JointAngleRestReference,
+  weightBearing = false,
+): boolean {
+  const restArr = rest.localQuats[canonicalKey];
+  deltaFromRest(bone.quaternion, restArr, _qDelta);
+  const angles = decomposeBodyDelta(_qDelta);
+
+  const flexRange = lookupRange(canonicalKey, strategy.flexionField, undefined, weightBearing);
+  const abdRange = lookupRange(canonicalKey, strategy.abductionField);
+  const rotRange = strategy.rotationField
+    ? lookupRange(canonicalKey, strategy.rotationField)
+    : (strategy.rotationRange ?? ZERO_RANGE);
+
+  // Map the raw decomposition (X = flexion, Z = abduction) into each clinical
+  // field, then clamp, then invert exactly back to raw for recomposition. This
+  // is the precise inverse of the per-joint readout in jointAngles.ts:
+  //   - flexionAxis/abductionAxis pick which raw axis feeds each field. Most
+  //     joints map flexion←X, abduction←Z; the WRIST inherits the forearm's
+  //     twisted frame so flexion←Z, deviation←X.
+  //   - flexionSign/abductionSign bring each field into the readout's clinical
+  //     convention (feet/spine flip flexion; feet/spine flip the frontal axis).
+  //   - mirror flips ONLY the abduction-field source for right-side joints
+  //     (foot inversion, wrist deviation) — flexion is never mirrored, matching
+  //     the readout.
+  const fAxis = strategy.flexionAxis ?? 'x';
+  const aAxis = strategy.abductionAxis ?? 'z';
+  const pick = (ax: 'x' | 'z') => (ax === 'x' ? angles.flexion : angles.abduction);
+  const fSign = strategy.flexionSign ?? 1;
+  const aSign = strategy.abductionSign ?? 1;
+  const aMirror = strategy.mirror ? -1 : 1;
+
+  const clinFlex = fSign * pick(fAxis);
+  const clinAbd = aSign * aMirror * pick(aAxis);
+
+  const clampedFlex = clampValue(clinFlex, flexRange);
+  const clampedAbd = clampValue(clinAbd, abdRange);
+  const clampedRot = clampValue(angles.rotation, rotRange);
+
+  if (
+    approxEqual(clampedFlex, clinFlex) &&
+    approxEqual(clampedAbd, clinAbd) &&
+    approxEqual(clampedRot, angles.rotation)
+  ) {
+    return false;
+  }
+
+  // Invert back to raw X/Z components (fAxis ≠ aAxis, so each is set once).
+  const fRaw = clampedFlex * fSign;
+  const aRaw = clampedAbd * aSign * aMirror;
+  let rawX = 0;
+  let rawZ = 0;
+  if (fAxis === 'x') rawX = fRaw;
+  else rawZ = fRaw;
+  if (aAxis === 'x') rawX = aRaw;
+  else rawZ = aRaw;
+
+  recomposeBodyEuler(rawX, rawZ, clampedRot, _qDelta);
+  applyDeltaToLocal(bone, restArr, _qDelta);
+  return true;
+}
+
+/** The production arm's child lies along local +Y, while the canonical
+ * decomposition uses -Y. Synthetic/legacy rigs may use -Y already. Map
+ * shoulder twist to the command/registry convention before applying its
+ * asymmetric internal/external rotation limits; hips keep their convention. */
+const _ballRestAxis = new THREE.Vector3();
+const _ballRestWorld = new THREE.Quaternion();
+function ballRotationSign(key: string, rest: JointAngleRestReference): 1 | -1 {
+  if (!/^[LR]_UpperArm$/.test(key)) return 1;
+  const direction = rest.worldDirs?.[key], world = rest.worldQuats[key];
+  if (!direction || !world) return 1;
+  const localAxis = _ballRestAxis.fromArray(direction)
+    .applyQuaternion(_ballRestWorld.fromArray(world).invert());
+  return localAxis.dot(REST_DOWN_LOCAL) < 0 ? -1 : 1;
+}
+
+function clampBallJoint(
+  bone: THREE.Bone,
+  canonicalKey: string,
+  strategy: BallJointStrategy,
+  rest: JointAngleRestReference,
+): boolean {
+  const restWorldArr = rest.worldQuats[canonicalKey];
+  if (!restWorldArr) return false;
+  // Decompose in a world-aligned canonical frame so the rest long axis is
+  // (0,-1,0) and the body axes (anterior=-Z, lateral=±X) are consistent
+  // regardless of how the GLB binds the bone-local frame.
+  bone.updateWorldMatrix(true, false);
+  bone.getWorldQuaternion(_qBoneWorld);
+  computeCanonicalDelta(_qBoneWorld, restWorldArr, _qDelta);
+  const angles = ballJointAngles(_qDelta, REST_DOWN_LOCAL, strategy.mirror);
+
+  const flexSign = strategy.flexionSign ?? 1;
+  const anatomicFlex = angles.flexion * flexSign;
+
+  const flexRange = lookupRange(canonicalKey, strategy.flexionField);
+  const abdRange = lookupRange(canonicalKey, strategy.abductionField);
+
+  const clampedAnatomicFlex = clampValue(anatomicFlex, flexRange);
+  const clampedAbd = clampValue(angles.abduction, abdRange);
+  // A hip's rotation band follows where the (clamped) thigh points, as it does
+  // for a commanded hip (effectiveRomRange).
+  const rotRange = lookupRange(canonicalKey, strategy.rotationField, {
+    flexionDeg: clampedAnatomicFlex,
+    abductionDeg: clampedAbd,
+  });
+  const rotationSign = ballRotationSign(canonicalKey, rest);
+  const anatomicRotation = angles.rotation * rotationSign;
+  const clampedRot = clampValue(anatomicRotation, rotRange);
+
+  if (
+    approxEqual(clampedAnatomicFlex, anatomicFlex) &&
+    approxEqual(clampedAbd, angles.abduction) &&
+    approxEqual(clampedRot, anatomicRotation)
+  ) {
+    return false;
+  }
+
+  const flexOut = clampedAnatomicFlex * flexSign;
+  recomposeBallJoint(flexOut, clampedAbd, clampedRot * rotationSign, strategy.mirror, _qDelta);
+  writeCanonicalDeltaToBone(bone, restWorldArr, _qDelta);
+  return true;
+}
+
+function clampHinge(
+  bone: THREE.Bone,
+  canonicalKey: string,
+  strategy: HingeStrategy,
+  rest: JointAngleRestReference,
+): boolean {
+  // PARENT-LOCAL, not world. A hinge's clinical angle is the angle between the
+  // two segments it joins — knee flexion is thigh-to-shin, elbow flexion is
+  // humerus-to-forearm — and the readout computes exactly that, geometrically,
+  // from the parent and child world DIRECTIONS.
+  //
+  // This used to read `computeCanonicalDelta(boneWorld, rest.worldQuats)`, a
+  // WORLD-frame delta, which folds in every rotation of every ancestor. Rig-
+  // measured: hold a knee at a fixed local angle so true flexion is constant by
+  // construction, then sweep the hip 0→90°. The readout correctly reports 90.8°
+  // throughout; the clamp's number fell 90 → 0, tracking the hip one-for-one.
+  //
+  // So the clamp and the readout disagreed by the entire hip angle, and the
+  // clamp acted on its own number: flex a knee, then flex the hip under it, and
+  // the clamp decides the knee has passed its −15° hyperextension floor and
+  // rewrites the shin — straightening a knee the user had deliberately bent.
+  // "Full knee flexion, then another movement, and it snaps to full extension."
+  //
+  // The local delta-from-rest IS the parent-relative orientation, so this is
+  // both correct and immune to anything an ancestor does. `flexionSign` is
+  // unchanged: the decomposition's sign convention did not move, only its frame.
+  const restLocalArr = rest.localQuats[canonicalKey];
+  if (!restLocalArr) return false;
+  deltaFromRest(bone.quaternion, restLocalArr, _qDelta);
+  // Reuse ball-joint decomposition: flexion = swing toward anterior,
+  // abduction + rotation are the constrained off-axis DOFs.
+  const angles = ballJointAngles(_qDelta, REST_DOWN_LOCAL, false);
+
+  // Convert the swing-twist "anterior = positive" reading into the joint's
+  // clinical flexion (knee anatomic flex is posterior, so its sign is -1).
+  const anatomicFlex = angles.flexion * strategy.flexionSign;
+
+  const flexRange = lookupRange(canonicalKey, strategy.flexionField);
+  const clampedAnatomicFlex = clampValue(anatomicFlex, flexRange);
+  const clampedAbd = clampValue(angles.abduction, strategy.abductionRange);
+  const clampedRot = clampValue(angles.rotation, strategy.rotationRange);
+
+  if (
+    approxEqual(clampedAnatomicFlex, anatomicFlex) &&
+    approxEqual(clampedAbd, angles.abduction) &&
+    approxEqual(clampedRot, angles.rotation)
+  ) {
+    return false;
+  }
+
+  const flexOut = clampedAnatomicFlex * strategy.flexionSign;
+  recomposeBallJoint(flexOut, clampedAbd, clampedRot, false, _qDelta);
+  // Write back in the SAME frame it was read in. `deltaFromRest` /
+  // `applyDeltaToLocal` are the matched parent-local pair (the body-euler
+  // strategies already use them together); pairing either with the world-frame
+  // `writeCanonicalDeltaToBone` would re-introduce the ancestor term this
+  // strategy just removed.
+  applyDeltaToLocal(bone, restLocalArr, _qDelta);
+  return true;
+}
+
+function clampPelvis(
+  bone: THREE.Bone,
+  canonicalKey: string,
+  strategy: PelvisStrategy,
+  rest: JointAngleRestReference,
+): boolean {
+  bone.updateWorldMatrix(true, false);
+  bone.getWorldQuaternion(_qBoneWorld);
+  deltaFromRest(_qBoneWorld, rest.pelvisWorldQuat, _qDelta);
+  const angles = decomposeBodyDelta(_qDelta);
+
+  const flexRange = lookupRange(canonicalKey, strategy.flexionField);
+  const abdRange = lookupRange(canonicalKey, strategy.abductionField);
+  const rotRange = lookupRange(canonicalKey, strategy.rotationField);
+
+  const clampedFlex = clampValue(angles.flexion, flexRange);
+  const clampedAbd = clampValue(angles.abduction, abdRange);
+  const clampedRot = clampValue(angles.rotation, rotRange);
+
+  if (
+    approxEqual(clampedFlex, angles.flexion) &&
+    approxEqual(clampedAbd, angles.abduction) &&
+    approxEqual(clampedRot, angles.rotation)
+  ) {
+    return false;
+  }
+
+  recomposeBodyEuler(clampedFlex, clampedAbd, clampedRot, _qDelta);
+  // newWorld = delta · restWorld
+  const r = rest.pelvisWorldQuat;
+  _qRest.set(r[0], r[1], r[2], r[3]);
+  _qNewWorld.copy(_qDelta).multiply(_qRest);
+  // newLocal = parentWorld⁻¹ · newWorld (or = newWorld when parent is the
+  // scene root with identity rotation, the common case for Hips).
+  if (bone.parent) {
+    bone.parent.getWorldQuaternion(_qParentWorld);
+    bone.quaternion.copy(_qParentWorld.invert()).multiply(_qNewWorld);
+  } else {
+    bone.quaternion.copy(_qNewWorld);
+  }
+  return true;
+}
+
+// ── Recomposition helpers (the new math) ──────────────────────────────
+
+/** Inverse of `decomposeBodyDelta`. Given clinical (flex, abd, rot)
+ *  degrees, build the body-frame Euler delta quaternion. */
+function recomposeBodyEuler(
+  flexionDeg: number,
+  abductionDeg: number,
+  rotationDeg: number,
+  out: THREE.Quaternion,
+): void {
+  // Forward (jointAngles.ts:268-275):
+  //   euler = setFromQuaternion(delta, 'YXZ')
+  //   flexion   = -euler.x · DEG
+  //   abduction =  euler.z · DEG
+  //   rotation  = -euler.y · DEG
+  // Inverse: solve euler components, build the YXZ Euler, recompose quat.
+  _euler.set(-flexionDeg * RAD, -rotationDeg * RAD, abductionDeg * RAD, 'YXZ');
+  out.setFromEuler(_euler);
+}
+
+/** Inverse of `ballJointAngles`. Given clinical (flex, abd, rot) degrees
+ *  for a long-axis-down bone, build the parent-local delta quaternion.
+ *  `mirror` matches the forward convention for right-side bones. */
+function recomposeBallJoint(
+  flexionDeg: number,
+  abductionDeg: number,
+  rotationDeg: number,
+  mirror: boolean,
+  out: THREE.Quaternion,
+): void {
+  // Undo right-side mirroring on the inputs so the math runs in left-side
+  // space (forward decomp flips abduction + rotation when mirror=true).
+  let abd = abductionDeg;
+  let rot = rotationDeg;
+  if (mirror) {
+    abd = -abd;
+    rot = -rot;
+  }
+
+  // Forward (jointAngles.ts:299-301):
+  //   flexionRad   = atan2(-swung.z, -swung.y)
+  //   abductionRad = atan2( swung.x, hypot(swung.y, swung.z))
+  // Inverse: pick a unit vector consistent with both, then recompose swing.
+  const flexRad = flexionDeg * RAD;
+  const abdRad = abd * RAD;
+  const cosAbd = Math.cos(abdRad);
+  // |swung| = 1 since swing is a rotation of the unit longAxis.
+  _vSwung.set(Math.sin(abdRad), -Math.cos(flexRad) * cosAbd, -Math.sin(flexRad) * cosAbd);
+  _qSwing.setFromUnitVectors(REST_DOWN_LOCAL, _vSwung);
+
+  // Twist about REST_DOWN_LOCAL by `rot` degrees. signedAngleAboutAxis
+  // returns the signed rotation about the axis, so reversing is straight
+  // axis-angle.
+  _qTwist.setFromAxisAngle(REST_DOWN_LOCAL, rot * RAD);
+
+  // delta = swing · twist (forward: q = swing * twist).
+  out.copy(_qSwing).multiply(_qTwist);
+}
+
+// ── Misc helpers ──────────────────────────────────────────────────────
+
+const ZERO_RANGE: RomRangeDeg = { min: 0, max: 0 };
+
+function lookupRange(canonicalKey: string, fieldKey: string, thigh?: ThighSwing, weightBearing = false): RomRangeDeg {
+  const field = getRomFieldDefinition(canonicalKey, fieldKey);
+  if (weightBearing && field?.weightBearingMax != null) {
+    return resolveAvailableRange(effectiveRomRange(field, { weightBearing: true }),
+      getRomFieldConstraint(_clampConstraints, canonicalKey, fieldKey));
+  }
+  // Effective = normative ∩ the clamp's scenario constraint (romConstraints.ts),
+  // so a case-authored restriction ("this elbow stops at 95°") clamps here
+  // exactly like a normative limit does. `_clampConstraints` is the set passed
+  // into this clamp call (null when the caller has no per-patient overrides).
+  // `thigh` places a hip rotation's band (effectiveRomRange).
+  const effective = getEffectiveRomRange(_clampConstraints, canonicalKey, fieldKey, thigh);
+  if (effective) return effective;
+  const def = getRomFieldDefinition(canonicalKey, fieldKey);
+  return def ? def.range : ZERO_RANGE;
+}
+
+function clampValue(value: number, range: RomRangeDeg): number {
+  if (!Number.isFinite(value)) return 0;
+  if (value < range.min) return range.min;
+  if (value > range.max) return range.max;
+  return value;
+}
+
+function approxEqual(a: number, b: number): boolean {
+  return Math.abs(a - b) < EPS;
+}
+
+/** Set bone.quaternion to (delta · rest), matching the forward convention
+ *  `delta = current · rest⁻¹`. Used by the body-Euler strategies, which
+ *  still operate in the bone's parent-local frame. */
+function applyDeltaToLocal(
+  bone: THREE.Bone,
+  restArr: [number, number, number, number] | undefined,
+  delta: THREE.Quaternion,
+): void {
+  if (!restArr) {
+    bone.quaternion.copy(delta);
+    return;
+  }
+  _qRest.set(restArr[0], restArr[1], restArr[2], restArr[3]);
+  _qOut.copy(delta).multiply(_qRest);
+  bone.quaternion.copy(_qOut);
+}
+
+/** Compute the rotation from rest to current expressed in a canonical
+ *  world-aligned frame: `delta = restWorld⁻¹ · currentWorld`. With this
+ *  framing, the bone's rest long axis sits at the canonical `(0,-1,0)`
+ *  for every bone in the rig, so the swing-twist decomposition uses one
+ *  axis convention regardless of how the GLB binds the bone-local frame. */
+function computeCanonicalDelta(
+  currentWorld: THREE.Quaternion,
+  restWorldArr: [number, number, number, number],
+  out: THREE.Quaternion,
+): void {
+  _qRest.set(restWorldArr[0], restWorldArr[1], restWorldArr[2], restWorldArr[3]).invert();
+  out.copy(_qRest).multiply(currentWorld);
+}
+
+/** Inverse of `computeCanonicalDelta`: given a clamped delta in the
+ *  canonical frame, produce the new bone-local quaternion. The new world
+ *  quat is `restWorld · delta`; convert through the parent's current
+ *  world transform to get back to bone-local. */
+function writeCanonicalDeltaToBone(
+  bone: THREE.Bone,
+  restWorldArr: [number, number, number, number],
+  deltaCanonical: THREE.Quaternion,
+): void {
+  _qRest.set(restWorldArr[0], restWorldArr[1], restWorldArr[2], restWorldArr[3]);
+  _qNewWorld.copy(_qRest).multiply(deltaCanonical);
+  if (bone.parent) {
+    bone.parent.getWorldQuaternion(_qParentWorld);
+    bone.quaternion.copy(_qParentWorld.invert()).multiply(_qNewWorld);
+  } else {
+    bone.quaternion.copy(_qNewWorld);
+  }
+}
+
+export type { JointAngleRestReference };
+
+// ── Diagnostic / introspection ────────────────────────────────────────
+
+export interface ClinicalAnglesReport {
+  /** Strategy class the joint goes through. */
+  strategy: 'pelvis' | 'body-euler' | 'ball-joint' | 'hinge';
+  /** Raw decomposition output in the swing-twist convention (anterior =
+   *  positive flexion across all joints). For hinges this is what the
+   *  internal decomposition reads BEFORE the flexionSign remap. */
+  raw: { flexion: number; abduction: number; rotation: number };
+  /** Flexion in the joint's clinical convention (after `flexionSign`).
+   *  For hinges the knee is `-raw.flexion`; for everything else this
+   *  equals `raw.flexion`. */
+  anatomicFlexion: number;
+  /** Rotation in the command/registry convention, after the production arm's
+   * local-axis sign is accounted for. `raw.rotation` stays unmodified. */
+  anatomicRotation: number;
+  /** ROM ranges the clamp would apply for each axis (or `null` for an
+   *  axis the joint type doesn't expose). */
+  ranges: {
+    flexion: RomRangeDeg | null;
+    abduction: RomRangeDeg | null;
+    rotation: RomRangeDeg | null;
+  };
+}
+
+/** Decompose a bone's current quaternion into clinical angles using the
+ *  same math the clamp would apply, but without writing back. Returns
+ *  null when the canonical key has no clamp strategy. Useful for
+ *  console-driven verification of every joint's orientation. Optional patient
+ *  constraints affect the reported ranges without changing any bone or state. */
+export function inspectClinicalAngles(
+  bone: THREE.Bone,
+  canonicalKey: string | null | undefined,
+  rest: JointAngleRestReference | null | undefined,
+  constraints?: RomScenarioConstraints | null,
+): ClinicalAnglesReport | null {
+  if (!bone || !canonicalKey || !rest) return null;
+  const strategy = STRATEGIES[canonicalKey];
+  if (!strategy) return null;
+
+  // Inspection is read-only and must use the same patient bounds as the solve.
+  // Keep this local instead of changing the clamp's temporary constraint state.
+  const rangeFor = (field: string, thigh?: ThighSwing) =>
+    getEffectiveRomRange(constraints, canonicalKey, field, thigh) ?? ZERO_RANGE;
+
+  let raw: { flexion: number; abduction: number; rotation: number };
+  let anatomicFlexion: number;
+  let flexRange: RomRangeDeg | null = null;
+  let abdRange: RomRangeDeg | null = null;
+  let rotRange: RomRangeDeg | null = null;
+
+  if (strategy.kind === 'pelvis') {
+    bone.updateWorldMatrix(true, false);
+    bone.getWorldQuaternion(_qBoneWorld);
+    deltaFromRest(_qBoneWorld, rest.pelvisWorldQuat, _qDelta);
+    const a = decomposeBodyDelta(_qDelta);
+    raw = { flexion: a.flexion, abduction: a.abduction, rotation: a.rotation };
+    anatomicFlexion = a.flexion;
+    flexRange = rangeFor(strategy.flexionField);
+    abdRange = rangeFor(strategy.abductionField);
+    rotRange = rangeFor(strategy.rotationField);
+  } else if (strategy.kind === 'body-euler') {
+    deltaFromRest(bone.quaternion, rest.localQuats[canonicalKey], _qDelta);
+    const a = decomposeBodyDelta(_qDelta);
+    // Use the same field-axis mapping as the clamp. Wrist flexion comes from
+    // local Z and deviation from local X; keep raw.flexion before its sign.
+    const pick = (axis: 'x' | 'z') => axis === 'x' ? a.flexion : a.abduction;
+    const flex = pick(strategy.flexionAxis ?? 'x');
+    let abd = pick(strategy.abductionAxis ?? 'z');
+    if (strategy.mirror) abd = -abd;
+    abd *= strategy.abductionSign ?? 1;
+    raw = { flexion: flex, abduction: abd, rotation: a.rotation };
+    anatomicFlexion = (strategy.flexionSign ?? 1) * flex;
+    flexRange = rangeFor(strategy.flexionField);
+    abdRange = rangeFor(strategy.abductionField);
+    rotRange = strategy.rotationField
+      ? rangeFor(strategy.rotationField)
+      : (strategy.rotationRange ?? null);
+  } else if (strategy.kind === 'ball-joint') {
+    const restWorldArr = rest.worldQuats[canonicalKey];
+    if (!restWorldArr) return null;
+    bone.updateWorldMatrix(true, false);
+    bone.getWorldQuaternion(_qBoneWorld);
+    computeCanonicalDelta(_qBoneWorld, restWorldArr, _qDelta);
+    const a = ballJointAngles(_qDelta, REST_DOWN_LOCAL, strategy.mirror);
+    raw = { flexion: a.flexion, abduction: a.abduction, rotation: a.rotation };
+    anatomicFlexion = a.flexion * (strategy.flexionSign ?? 1);
+    flexRange = rangeFor(strategy.flexionField);
+    abdRange = rangeFor(strategy.abductionField);
+    // The band the clamp would use: for a hip, where the clamped thigh points.
+    rotRange = rangeFor(strategy.rotationField, {
+      flexionDeg: Math.max(flexRange.min, Math.min(flexRange.max, anatomicFlexion)),
+      abductionDeg: Math.max(abdRange.min, Math.min(abdRange.max, a.abduction)),
+    });
+  } else {
+    // hinge — PARENT-LOCAL, mirroring `clampHinge`. This is the console's
+    // window onto the clamp (`__romDebug`), so reading it in a different frame
+    // than the clamp acts in would make it report numbers the clamp never sees.
+    const restLocalArr = rest.localQuats[canonicalKey];
+    if (!restLocalArr) return null;
+    deltaFromRest(bone.quaternion, restLocalArr, _qDelta);
+    const a = ballJointAngles(_qDelta, REST_DOWN_LOCAL, false);
+    raw = { flexion: a.flexion, abduction: a.abduction, rotation: a.rotation };
+    anatomicFlexion = a.flexion * strategy.flexionSign;
+    flexRange = rangeFor(strategy.flexionField);
+    abdRange = strategy.abductionRange;
+    rotRange = strategy.rotationRange;
+  }
+
+  const anatomicRotation = raw.rotation * (strategy.kind === 'ball-joint' ? ballRotationSign(canonicalKey, rest) : 1);
+  return { strategy: strategy.kind, raw, anatomicFlexion, anatomicRotation, ranges: { flexion: flexRange, abduction: abdRange, rotation: rotRange } };
+}
+
+/** All canonical keys with a clamp strategy, in a stable order. */
+export function listClampedJoints(): string[] {
+  return Object.keys(STRATEGIES);
+}

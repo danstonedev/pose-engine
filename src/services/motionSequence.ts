@@ -72,6 +72,7 @@ import {
   validateComposedShape,
 } from './motionResolvePhases';
 import { gaitFaultWindows } from './gaitFaultPhases';
+import { pressupPatientRangeRefusal } from './pressupPatientSupport';
 
 // ── Composed-motion types (structural — hosts mirror these shapes) ──────────
 
@@ -191,7 +192,7 @@ export const POSTURE_NODES: readonly PostureNode[] = [
  *  A superset of {@link PostureNode}: most grounding sets ARE a posture, but a few are
  *  transient sub-states of one — e.g. 'quadruped-hand-L' grounds only the left hand so
  *  the right arm can reach out in a bird-dog, without being its own posture-graph node. */
-export type GroundingPosture = PostureNode | 'quadruped-hand-L' | 'quadruped-hand-R';
+export type GroundingPosture = PostureNode | 'quadruped-hand-L' | 'quadruped-hand-R' | 'prone-supported';
 
 /** Every posture, for host capability discovery / tool enums. */
 export const SEMANTIC_POSTURES: readonly SemanticPosture[] = [
@@ -359,6 +360,9 @@ export interface ComposedMotionModifiers extends QualitativeOverlayModifiers {
  *  the body travels over it (closed-chain ground truth). */
 export interface StanceContact {
   foot: string;
+  /** Keep a planted hand's orientation, so its palm does not pivot around a fixed wrist. */
+  holdOrientation?: boolean | 'palm-down';
+  palmSupport?: import('./footContact').ContactPlant['palmSupport'];
   fromMs?: number;
   toMs?: number;
   /** A repositioning step lands on the standing sole plane, easing down from
@@ -371,6 +375,25 @@ export interface StanceContact {
 
 /** A novel movement composed as timed keyframes over the command vocabulary. */
 export interface ComposedMotion {
+  /** Explicit horizontal support plane, world Y in metres. Omit to preserve
+   * legacy rest-bone grounding. Does not alter standing foot rest heights. */
+  supportPlaneY?: number;
+  /** Coordinate torso clearance and resting leg skin with pelvis support.
+   * Requires a prepared, continuously prone-supported motion and explicit plane. */
+  proneSkinSupport?: boolean;
+  /** Fit prepared bilateral kneeling placement from knee and dorsal-foot skin.
+   * Requires continuous quadruped support and an explicit horizontal plane. */
+  kneelingSkinSupport?: boolean;
+  /** Ground foot/toe skin during a continuously planted plank. */
+  plankSkinSupport?: boolean;
+  /** Fit one bilateral palm layout before a prepared press-up starts. The
+   * contacts remain fixed throughout playback; requires prone skin support. */
+  pronePalmAnchorFit?: boolean;
+  /** Keep the declared knee/toe/pelvis supports fixed in the world after setup. */
+  fixedGroundSupports?: string[];
+  /** Self-contained assessment begins in its first authored support pose.
+   * Floor transfers are separate movements; no standing-to-floor interpolation. */
+  startAtSetup?: boolean;
   /** Limit inter-leg penetration during an authored gait deviation. */
   gaitLegClearance?: boolean;
   /** Freely swinging arms use shared post-contact, body-aware clearance. */
@@ -720,6 +743,14 @@ export interface ResolvedSequenceKeyframe {
 }
 
 export interface ResolvedComposedMotion {
+  /** Finite world-Y support plane; absent preserves the captured rest datum. */
+  supportPlaneY?: number;
+  proneSkinSupport?: boolean;
+  kneelingSkinSupport?: boolean;
+  plankSkinSupport?: boolean;
+  pronePalmAnchorFit?: boolean;
+  fixedGroundSupports?: string[];
+  startAtSetup?: boolean;
   shoulderTrunkCompensation?: 'orientation';
   gaitLegClearance?: boolean;
   /** Freely swinging arms use shared post-contact, body-aware clearance. */
@@ -1360,6 +1391,7 @@ const HAND_PLANT_GROUNDING: readonly GroundingPosture[] = [
   ...HANDS_MAY_BEAR,
   'quadruped-hand-L',
   'quadruped-hand-R',
+  'prone-supported',
 ];
 
 /** Targets ADDED by {@link relaxedHands} (fresh per-keyframe clones), so the
@@ -1964,14 +1996,42 @@ export function resolveComposedMotion(
     derivedSchedule,
     gaitNotes,
   });
-  if (opts?.constraints && (motion.locomotorArmClearance || motion.footSupportSetup || motion.gaitLegClearance || motion.shoulderCapacity === 'enforce-proxy'
+  // Grounding blends measure two alternative root offsets. A joint-adjusting
+  // support solve is only valid in one continuous, prepared prone posture.
+  if (motion.proneSkinSupport && (!motion.startAtSetup || !isFiniteNum(motion.supportPlaneY)
+    || resolved.keyframes.some(frame => frame.groundingPosture !== 'prone-supported' || frame.stance !== 'planted')))
+    return refuse(motion, 'prone-skin-support-requires-prepared-planted-prone-plane');
+  if (motion.kneelingSkinSupport && (!motion.startAtSetup || !isFiniteNum(motion.supportPlaneY)
+    || motion.proneSkinSupport
+    || resolved.keyframes.some(frame => frame.groundingPosture !== 'quadruped' || frame.stance !== 'planted')))
+    return refuse(motion, 'kneeling-skin-support-requires-prepared-planted-quadruped-plane');
+  if (motion.plankSkinSupport && (!isFiniteNum(motion.supportPlaneY)
+    || motion.proneSkinSupport || motion.kneelingSkinSupport
+    || resolved.keyframes.some(frame => frame.groundingPosture !== 'plank' || frame.stance !== 'planted')))
+    return refuse(motion, 'plank-skin-support-requires-continuous-planted-plank-plane');
+  if (motion.pronePalmAnchorFit && (!motion.proneSkinSupport || ![2, 3].includes(resolved.keyframes.length)
+    || resolved.loop || resolved.reps !== 1
+    || resolved.modifiers?.timeScale != null && resolved.modifiers.timeScale !== 1
+    || ['L_Hand', 'R_Hand'].some(foot => !motion.contacts?.some(contact => contact.foot === foot
+      && contact.holdOrientation === 'palm-down' && contact.palmSupport?.surface === 'skin'))))
+    return refuse(motion, 'prone-palm-fit-requires-setup-extension-with-optional-return-and-bilateral-skin-palms');
+  if (opts?.constraints && (motion.proneSkinSupport || motion.kneelingSkinSupport || motion.plankSkinSupport || motion.locomotorArmClearance || motion.footSupportSetup || motion.gaitLegClearance || motion.shoulderCapacity === 'enforce-proxy'
     || ['L', 'R'].some(side => opts!.constraints![`${side}_UpperArm`]?.girdleProxyElevation)))
     resolved.constraints = structuredClone(opts.constraints);
   if (motion.shoulderCapacity) resolved.shoulderCapacity = motion.shoulderCapacity;
   if (motion.gaitLegClearance) resolved.gaitLegClearance = true;
   if (motion.locomotorArmClearance) resolved.locomotorArmClearance = true;
   if (motion.footSupportSetup) resolved.footSupportSetup = true;
+  if (motion.fixedGroundSupports?.length) resolved.fixedGroundSupports = [...new Set(motion.fixedGroundSupports)];
+  if (motion.startAtSetup) resolved.startAtSetup = true;
+  if (motion.proneSkinSupport) resolved.proneSkinSupport = true;
+  if (motion.kneelingSkinSupport) resolved.kneelingSkinSupport = true;
+  if (motion.plankSkinSupport) resolved.plankSkinSupport = true;
+  if (motion.pronePalmAnchorFit) resolved.pronePalmAnchorFit = true;
+  if (typeof motion.supportPlaneY === 'number' && Number.isFinite(motion.supportPlaneY)) resolved.supportPlaneY = motion.supportPlaneY;
   if (motion.shoulderTrunkCompensation) resolved.shoulderTrunkCompensation = motion.shoulderTrunkCompensation;
+  const patientSupportRefusal = pressupPatientRangeRefusal(resolved, opts?.constraints);
+  if (patientSupportRefusal) return refuse(motion, patientSupportRefusal);
 
   // ── PHASE 14 — ARTIFACT RE-TIMING FROM RESOLVED KEYFRAME BOUNDARIES (SEAM-7,
   // part 2): the ms-authored artifacts (`contacts`, `gaitStanceWindowsMs`,

@@ -1,0 +1,3987 @@
+{
+  "sourceBefore": "85b4273bd0aa43d63b2ae0df8e2e967fc0a5bf37af497d75b0d06acda92a7154",
+  "scriptSha256": "fedaaae8f7e21fd1a60e4ff3819be4ea5e1f0e47643c57c1b0d23c016182e393",
+  "sampleHz": 60,
+  "globalRomClamp": false,
+  "controllerHashes": {
+    "handContactPose": "dddfb60c0067f8b0bc167cb08e8581a5ccf61d92b870886860f1ea2a8bfa4661",
+    "footContact": "221ddac8eee5fa6b36e1d52ee8cec84547ea20a2f7ffb15bb690f7d1fe126b25",
+    "poseRomClamp": "f96f6e9c02122999575b9e46aea62d41bd6a512c71e1863e184169274c30aaaa",
+    "motionRecording": "e1c1cb070cd3a7953c74fa9d6a3c366941ec57b11940fc9bd0892173f0d61fe9",
+    "motionTrajectory": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8"
+  },
+  "solverRuns": [
+    {
+      "variant": "neutral",
+      "deltaDeg": 0,
+      "scope": "Actual solver invocations; exact cached poses do not trigger a new solve. Numerical stops and residuals are not movement/contact acceptance.",
+      "solves": [
+        {
+          "tMs": 0,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 12,
+            "objectiveCost": 8.568432313339721e-11,
+            "positionErrorM": 0.000006049248773171221,
+            "orientationErrorRadians": 0.00005777341116815299,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 8.465725606697781e-11,
+              "positionErrorM": 0.000006049248773171221,
+              "orientationErrorRadians": 0.00005777341116815299
+            }
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 9,
+            "objectiveCost": 1.832414203500991e-11,
+            "positionErrorM": 0.000001935864586203711,
+            "orientationErrorRadians": 0.000031717707509544754,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 1.823415845864576e-11,
+              "positionErrorM": 0.000001935864586211056,
+              "orientationErrorRadians": 0.000031717707508866904
+            }
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.738331761701204e-11,
+            "positionErrorM": 0.000006049248773171221,
+            "orientationErrorRadians": 0.00005777341116815299,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 8.465725606697781e-11,
+              "positionErrorM": 0.000006049248773171221,
+              "orientationErrorRadians": 0.00005777341116815299
+            }
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.8567466119765605e-11,
+            "positionErrorM": 0.000001935864586203711,
+            "orientationErrorRadians": 0.000031717707509544754,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 1.823415845864576e-11,
+              "positionErrorM": 0.000001935864586211056,
+              "orientationErrorRadians": 0.000031717707508866904
+            }
+          }
+        },
+        {
+          "tMs": 83.33333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725606697781e-11,
+            "positionErrorM": 0.000006049248773171221,
+            "orientationErrorRadians": 0.00005777341116815299
+          }
+        },
+        {
+          "tMs": 83.33333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.8234158459236524e-11,
+            "positionErrorM": 0.000001935864586203711,
+            "orientationErrorRadians": 0.000031717707509544754
+          }
+        },
+        {
+          "tMs": 1083.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 3.9704794665838154e-7,
+            "positionErrorM": 0.00009314788192247259,
+            "orientationErrorRadians": 0.00005375910357915575,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 8.718143114238652e-9,
+              "positionErrorM": 0.00009314787447111708,
+              "orientationErrorRadians": 0.0000537591050115557
+            }
+          }
+        },
+        {
+          "tMs": 1083.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 2.002130474866207e-7,
+            "positionErrorM": 0.00007730452597989122,
+            "orientationErrorRadians": 0.00006429765393004305,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 6.035522048508746e-9,
+              "positionErrorM": 0.00007730452597989122,
+              "orientationErrorRadians": 0.00006429765393004305
+            }
+          }
+        },
+        {
+          "tMs": 1166.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 5.81868303876568e-7,
+            "positionErrorM": 0.0001306963220934897,
+            "orientationErrorRadians": 0.00006534112831771813,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.962125575506164e-11,
+              "positionErrorM": 6.029974909379978e-7,
+              "orientationErrorRadians": 0.0000042806812179078375
+            }
+          }
+        },
+        {
+          "tMs": 1166.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 1.8634392460924264e-7,
+            "positionErrorM": 0.0000870779181041956,
+            "orientationErrorRadians": 0.00007029941894800458,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 7.653728740944744e-9,
+              "positionErrorM": 0.0000870779181041956,
+              "orientationErrorRadians": 0.00007029941894800458
+            }
+          }
+        },
+        {
+          "tMs": 1250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 2.026880635147464e-7,
+            "positionErrorM": 0.000024570990832077105,
+            "orientationErrorRadians": 0.00009900027295507058
+          }
+        },
+        {
+          "tMs": 1250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 2.082880300129097e-7,
+            "positionErrorM": 0.000025730393229432817,
+            "orientationErrorRadians": 0.00012958048533887704
+          }
+        },
+        {
+          "tMs": 1333.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000002174966779486433,
+            "positionErrorM": 0.00009681409922966143,
+            "orientationErrorRadians": 0.0011007811969191957,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.2244467098897245e-10,
+              "positionErrorM": 0.000002371241651726145,
+              "orientationErrorRadians": 0.0000321358049527102
+            }
+          }
+        },
+        {
+          "tMs": 1333.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000001668471529305124,
+            "positionErrorM": 0.00012802290406920143,
+            "orientationErrorRadians": 0.00019126286255924746,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 8.710989968414596e-11,
+              "positionErrorM": 7.278164718306553e-7,
+              "orientationErrorRadians": 0.000006012289224827593
+            }
+          }
+        },
+        {
+          "tMs": 1416.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.000002123578403342156,
+            "positionErrorM": 0.00005429914619101133,
+            "orientationErrorRadians": 0.0011182353948675616,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.473177001359315e-10,
+              "positionErrorM": 0.000002925982542580176,
+              "orientationErrorRadians": 0.00004120757999871463
+            }
+          }
+        },
+        {
+          "tMs": 1416.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.0000017161212894254037,
+            "positionErrorM": 0.00007512418277201514,
+            "orientationErrorRadians": 0.00022497842293259379,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 6.372503024482087e-9,
+              "positionErrorM": 0.0000751241827721089,
+              "orientationErrorRadians": 0.0002249784229322004
+            }
+          }
+        },
+        {
+          "tMs": 1500,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000002521844717576715,
+            "positionErrorM": 0.00010772124939873896,
+            "orientationErrorRadians": 0.00016672703546684935,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.5921804178947674e-11,
+              "positionErrorM": 4.2847673305823245e-7,
+              "orientationErrorRadians": 0.000002474132633675376
+            }
+          }
+        },
+        {
+          "tMs": 1500,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000003175462040338363,
+            "positionErrorM": 0.00018015739439268633,
+            "orientationErrorRadians": 0.0003284853065683721,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 1.0039052128733728e-10,
+              "positionErrorM": 6.236599818171725e-7,
+              "orientationErrorRadians": 0.000002766081738486497
+            }
+          }
+        },
+        {
+          "tMs": 1583.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000004068601242299556,
+            "positionErrorM": 0.0001663522263129888,
+            "orientationErrorRadians": 0.00024402175569686045,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 1.1575273434822208e-10,
+              "positionErrorM": 7.465767268883252e-7,
+              "orientationErrorRadians": 0.000004073259969612018
+            }
+          }
+        },
+        {
+          "tMs": 1583.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000006102508255114061,
+            "positionErrorM": 0.0002478863059383793,
+            "orientationErrorRadians": 0.0004438386670586837,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 1.834894986544191e-10,
+              "positionErrorM": 8.762675764310148e-7,
+              "orientationErrorRadians": 0.0000042669840526047054
+            }
+          }
+        },
+        {
+          "tMs": 1666.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000006132954175551761,
+            "positionErrorM": 0.0001902607767447731,
+            "orientationErrorRadians": 0.0003670652855883559,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 2.004267657130181e-10,
+              "positionErrorM": 0.0000010490111290231838,
+              "orientationErrorRadians": 0.0000068800201383478444
+            }
+          }
+        },
+        {
+          "tMs": 1666.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000009634151503653172,
+            "positionErrorM": 0.00025863026390397163,
+            "orientationErrorRadians": 0.0005579335792028476,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 2.8099049599005104e-10,
+              "positionErrorM": 0.0000011951755847846335,
+              "orientationErrorRadians": 0.000007668480986187897
+            }
+          }
+        },
+        {
+          "tMs": 1750,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007925745249547118,
+            "positionErrorM": 0.00019340666060130445,
+            "orientationErrorRadians": 0.00048261438977281827,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 2.8460499602695486e-10,
+              "positionErrorM": 0.000001302179142969464,
+              "orientationErrorRadians": 0.000009751216133920225
+            }
+          }
+        },
+        {
+          "tMs": 1750,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000012481530480920856,
+            "positionErrorM": 0.00023507272189517573,
+            "orientationErrorRadians": 0.0006622784031122841,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 3.7231951018134524e-10,
+              "positionErrorM": 0.000001432605098307839,
+              "orientationErrorRadians": 0.000011372196086736602
+            }
+          }
+        },
+        {
+          "tMs": 1833.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.00000889769339402046,
+            "positionErrorM": 0.00019249439956403762,
+            "orientationErrorRadians": 0.0005717731344735309,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 3.529805085703283e-10,
+              "positionErrorM": 0.0000015128285375180064,
+              "orientationErrorRadians": 0.000011865751973928701
+            }
+          }
+        },
+        {
+          "tMs": 1833.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000013714285768550958,
+            "positionErrorM": 0.00020958048653925282,
+            "orientationErrorRadians": 0.0007419680815372782,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.244428820395961e-10,
+              "positionErrorM": 0.0000015528629617147637,
+              "orientationErrorRadians": 0.000013932447356686225
+            }
+          }
+        },
+        {
+          "tMs": 1916.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000009008403488855733,
+            "positionErrorM": 0.00019580008863457105,
+            "orientationErrorRadians": 0.0006264899529815155,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.158565416237168e-10,
+              "positionErrorM": 0.000001762392839994562,
+              "orientationErrorRadians": 0.000013119671668047996
+            }
+          }
+        },
+        {
+          "tMs": 1916.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000013154076494349734,
+            "positionErrorM": 0.00019876531212630196,
+            "orientationErrorRadians": 0.0007882893619529593,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.307114957283819e-10,
+              "positionErrorM": 0.0000015991736345219071,
+              "orientationErrorRadians": 0.000014991007282649008
+            }
+          }
+        },
+        {
+          "tMs": 2000,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000008583102954181034,
+            "positionErrorM": 0.00020478944257749416,
+            "orientationErrorRadians": 0.0006462205999322945,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 5.092540159454022e-10,
+              "positionErrorM": 0.0000021797234403593283,
+              "orientationErrorRadians": 0.000013828799599892922
+            }
+          }
+        },
+        {
+          "tMs": 2000,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000011372023850614442,
+            "positionErrorM": 0.00019560828404662352,
+            "orientationErrorRadians": 0.0007929469196946417,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.283205528958827e-10,
+              "positionErrorM": 0.0000017098872780869985,
+              "orientationErrorRadians": 0.000015000111391298187
+            }
+          }
+        },
+        {
+          "tMs": 2083.3333333333335,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.00000792813802081354,
+            "positionErrorM": 0.00021863600624180818,
+            "orientationErrorRadians": 0.0006340057325878592,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.617099817119978e-10,
+              "positionErrorM": 0.0000028342664695760852,
+              "orientationErrorRadians": 0.000014187413551227729
+            }
+          }
+        },
+        {
+          "tMs": 2083.3333333333335,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000009307426478383828,
+            "positionErrorM": 0.00019430597785996838,
+            "orientationErrorRadians": 0.0007566948942017588,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.663755194235108e-10,
+              "positionErrorM": 0.000002057085430651958,
+              "orientationErrorRadians": 0.00001462133587088108
+            }
+          }
+        },
+        {
+          "tMs": 2166.6666666666665,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007069546662500658,
+            "positionErrorM": 0.0002328866608655122,
+            "orientationErrorRadians": 0.0005879635685441329,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 8.597811446743582e-10,
+              "positionErrorM": 0.000003655443398933016,
+              "orientationErrorRadians": 0.000014032692260483265
+            }
+          }
+        },
+        {
+          "tMs": 2166.6666666666665,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.0000074577889752904894,
+            "positionErrorM": 0.00019671827814614885,
+            "orientationErrorRadians": 0.0006900076151371033,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 5.588615640585546e-10,
+              "positionErrorM": 0.000002653329634935592,
+              "orientationErrorRadians": 0.00001401871443592038
+            }
+          }
+        },
+        {
+          "tMs": 2250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000005785216558963034,
+            "positionErrorM": 0.00023377768159209186,
+            "orientationErrorRadians": 0.0005129180824411157,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 9.78598899802164e-10,
+              "positionErrorM": 0.000004304206919097972,
+              "orientationErrorRadians": 0.000012902183751999466
+            }
+          }
+        },
+        {
+          "tMs": 2250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000005722064377029097,
+            "positionErrorM": 0.00019747750255487875,
+            "orientationErrorRadians": 0.000593355721699962,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.546645221732424e-10,
+              "positionErrorM": 0.0000032890715063914463,
+              "orientationErrorRadians": 0.000012858152754875361
+            }
+          }
+        },
+        {
+          "tMs": 2333.3333333333335,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.000003968395770666401,
+            "positionErrorM": 0.00020822809718113055,
+            "orientationErrorRadians": 0.000411857137639173,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 8.538162691864576e-10,
+              "positionErrorM": 0.000004310606608113499,
+              "orientationErrorRadians": 0.000010512177556613538
+            }
+          }
+        },
+        {
+          "tMs": 2333.3333333333335,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.000003815293445533194,
+            "positionErrorM": 0.00017964241319893922,
+            "orientationErrorRadians": 0.00047100422073183447,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.084499092165969e-10,
+              "positionErrorM": 0.000003479232177771268,
+              "orientationErrorRadians": 0.000010638949165969512
+            }
+          }
+        },
+        {
+          "tMs": 2416.6666666666665,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.0000018899164450490302,
+            "positionErrorM": 0.00014885028746950576,
+            "orientationErrorRadians": 0.00028312479873016333,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.621958214382147e-10,
+              "positionErrorM": 0.0000032981178195587044,
+              "orientationErrorRadians": 0.0000069721159854192275
+            }
+          }
+        },
+        {
+          "tMs": 2416.6666666666665,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.000001804939637817472,
+            "positionErrorM": 0.00013082428545996226,
+            "orientationErrorRadians": 0.0003208778777516572,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 3.4633021082789254e-10,
+              "positionErrorM": 0.0000027638487966391576,
+              "orientationErrorRadians": 0.000007207121281426381
+            }
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.976048525856254e-7,
+            "positionErrorM": 0.000056024896018298116,
+            "orientationErrorRadians": 0.00012297010488784903,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 3.356540686285367e-9,
+              "positionErrorM": 0.000056024896018298116,
+              "orientationErrorRadians": 0.00012297010488784903
+            }
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.905441685051178e-7,
+            "positionErrorM": 0.00004946572035005907,
+            "orientationErrorRadians": 0.00013786512245406206,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 2.720555294395787e-9,
+              "positionErrorM": 0.00004946572035005907,
+              "orientationErrorRadians": 0.00013786512245406206
+            }
+          }
+        },
+        {
+          "tMs": 2583.3333333333335,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 3.356540686285367e-9,
+            "positionErrorM": 0.000056024896018298116,
+            "orientationErrorRadians": 0.00012297010488784903
+          }
+        },
+        {
+          "tMs": 2583.3333333333335,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 2.720555294395787e-9,
+            "positionErrorM": 0.00004946572035005907,
+            "orientationErrorRadians": 0.00013786512245406206
+          }
+        },
+        {
+          "tMs": 4166.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 4.029982948179382e-8,
+            "positionErrorM": 0.000028965674507868014,
+            "orientationErrorRadians": 0.000026846987796355623
+          }
+        },
+        {
+          "tMs": 4166.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 3.701471654090021e-8,
+            "positionErrorM": 0.00002727804963520558,
+            "orientationErrorRadians": 0.000026220675887268357
+          }
+        },
+        {
+          "tMs": 4250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000001370559528350382,
+            "positionErrorM": 0.00016311984849242268,
+            "orientationErrorRadians": 0.00016705799446624362
+          }
+        },
+        {
+          "tMs": 4250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.0000012387556050747162,
+            "positionErrorM": 0.00015181713274721359,
+            "orientationErrorRadians": 0.00016545462970491033
+          }
+        },
+        {
+          "tMs": 4333.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000006086596098444491,
+            "positionErrorM": 0.000322173783316658,
+            "orientationErrorRadians": 0.00038315735369106674
+          }
+        },
+        {
+          "tMs": 4333.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.00000544216499078844,
+            "positionErrorM": 0.0002963015704141454,
+            "orientationErrorRadians": 0.00038069804526389295
+          }
+        },
+        {
+          "tMs": 4416.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000011429088541943722,
+            "positionErrorM": 0.00040502857545046277,
+            "orientationErrorRadians": 0.0005529703758959513
+          }
+        },
+        {
+          "tMs": 4416.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.00001006190926692852,
+            "positionErrorM": 0.0003673331801968354,
+            "orientationErrorRadians": 0.0005448367005924092
+          }
+        },
+        {
+          "tMs": 4500,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.000015093099513466568,
+            "positionErrorM": 0.0004186537315115114,
+            "orientationErrorRadians": 0.0006572570639322154
+          }
+        },
+        {
+          "tMs": 4500,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.00001310452252148065,
+            "positionErrorM": 0.00037346063119258837,
+            "orientationErrorRadians": 0.0006451422897106593
+          }
+        },
+        {
+          "tMs": 4583.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.00001631043983388673,
+            "positionErrorM": 0.0003838701865265156,
+            "orientationErrorRadians": 0.0006940353041067598
+          }
+        },
+        {
+          "tMs": 4583.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.000013952666805178154,
+            "positionErrorM": 0.000336891444832313,
+            "orientationErrorRadians": 0.0006784047469735626
+          }
+        },
+        {
+          "tMs": 4666.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 15,
+            "objectiveCost": 0.000015540919714152225,
+            "positionErrorM": 0.00032997831578144546,
+            "orientationErrorRadians": 0.0006580958730689248
+          }
+        },
+        {
+          "tMs": 4666.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.000013099262708988582,
+            "positionErrorM": 0.000285552343253429,
+            "orientationErrorRadians": 0.0006541034754951812
+          }
+        },
+        {
+          "tMs": 4750,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000013767974885772841,
+            "positionErrorM": 0.00027614394858770384,
+            "orientationErrorRadians": 0.0005735974830815099
+          }
+        },
+        {
+          "tMs": 4750,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000011609810106786215,
+            "positionErrorM": 0.00023892865554128156,
+            "orientationErrorRadians": 0.0005999933124125433
+          }
+        },
+        {
+          "tMs": 4833.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000011467897258797865,
+            "positionErrorM": 0.00022742298867782,
+            "orientationErrorRadians": 0.0004568204917385623
+          }
+        },
+        {
+          "tMs": 4833.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000009786734580037703,
+            "positionErrorM": 0.00019918330661504102,
+            "orientationErrorRadians": 0.0005284641491768185
+          }
+        },
+        {
+          "tMs": 4916.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000009079107034740999,
+            "positionErrorM": 0.0001851419490661174,
+            "orientationErrorRadians": 0.00033047563245614805
+          }
+        },
+        {
+          "tMs": 4916.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007881012715289001,
+            "positionErrorM": 0.00016600609599791433,
+            "orientationErrorRadians": 0.0004509757280927235
+          }
+        },
+        {
+          "tMs": 5000,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000006820437761687299,
+            "positionErrorM": 0.00014910172782392836,
+            "orientationErrorRadians": 0.00021748610427355135
+          }
+        },
+        {
+          "tMs": 5000,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000006005091126804631,
+            "positionErrorM": 0.00013769459396524434,
+            "orientationErrorRadians": 0.00037063816889085926
+          }
+        },
+        {
+          "tMs": 5083.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000004341503021777869,
+            "positionErrorM": 0.00011403566767106447,
+            "orientationErrorRadians": 0.00017685552874594908
+          }
+        },
+        {
+          "tMs": 5083.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.0000038434551061288194,
+            "positionErrorM": 0.00010569752305512547,
+            "orientationErrorRadians": 0.00027241486689524934
+          }
+        },
+        {
+          "tMs": 5166.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.0000023150120491055774,
+            "positionErrorM": 0.00007895503749048717,
+            "orientationErrorRadians": 0.00013108652155842016
+          }
+        },
+        {
+          "tMs": 5166.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 15,
+            "objectiveCost": 0.0000020555877231023685,
+            "positionErrorM": 0.00008258045589228841,
+            "orientationErrorRadians": 0.00033674447298083775
+          }
+        },
+        {
+          "tMs": 5250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.96813141782702e-7,
+            "positionErrorM": 0.000027905384771230266,
+            "orientationErrorRadians": 0.00005744973962567557
+          }
+        },
+        {
+          "tMs": 5250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.5956672936914456e-7,
+            "positionErrorM": 0.000025994427698836,
+            "orientationErrorRadians": 0.00005797597776811438
+          }
+        },
+        {
+          "tMs": 5333.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 2.3243248312425212e-8,
+            "positionErrorM": 0.000008396461696552848,
+            "orientationErrorRadians": 0.000042734407654630214
+          }
+        },
+        {
+          "tMs": 5333.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.2913007708614757e-8,
+            "positionErrorM": 0.00000901766178981579,
+            "orientationErrorRadians": 0.000055857336501984816
+          }
+        },
+        {
+          "tMs": 5400,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725606697781e-11,
+            "positionErrorM": 0.000006049248773171221,
+            "orientationErrorRadians": 0.00005777341116815299
+          }
+        },
+        {
+          "tMs": 5400,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.8234158459236524e-11,
+            "positionErrorM": 0.000001935864586203711,
+            "orientationErrorRadians": 0.000031717707509544754
+          }
+        },
+        {
+          "tMs": 1000,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.823415845864576e-11,
+            "positionErrorM": 0.000001935864586211056,
+            "orientationErrorRadians": 0.000031717707508866904
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 3.356540686285367e-9,
+            "positionErrorM": 0.000056024896018298116,
+            "orientationErrorRadians": 0.00012297010488784903
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 2.720555294395787e-9,
+            "positionErrorM": 0.00004946572035005907,
+            "orientationErrorRadians": 0.00013786512245406206
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725606697781e-11,
+            "positionErrorM": 0.000006049248773171221,
+            "orientationErrorRadians": 0.00005777341116815299
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.8234158459236524e-11,
+            "positionErrorM": 0.000001935864586203711,
+            "orientationErrorRadians": 0.000031717707509544754
+          }
+        },
+        {
+          "tMs": 1100,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 2,
+            "objectiveCost": 8.279548169566861e-9,
+            "positionErrorM": 0.000005739554370801446,
+            "orientationErrorRadians": 0.000002737118075483052
+          }
+        },
+        {
+          "tMs": 1100,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 1,
+            "objectiveCost": 5.143898426532415e-9,
+            "positionErrorM": 0.000005189069448697096,
+            "orientationErrorRadians": 0.000012156613023103539
+          }
+        },
+        {
+          "tMs": 1133.33333333333,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 9.246894856434141e-8,
+            "positionErrorM": 0.00001933129876259217,
+            "orientationErrorRadians": 0.00001776620647238253
+          }
+        },
+        {
+          "tMs": 1133.33333333333,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 5.4419438890456766e-8,
+            "positionErrorM": 0.000010889435487518578,
+            "orientationErrorRadians": 0.00001616039933814606
+          }
+        }
+      ]
+    },
+    {
+      "variant": "neutral",
+      "deltaDeg": -5e-8,
+      "scope": "Actual solver invocations; exact cached poses do not trigger a new solve. Numerical stops and residuals are not movement/contact acceptance.",
+      "solves": [
+        {
+          "tMs": 0,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 12,
+            "objectiveCost": 8.568432308521642e-11,
+            "positionErrorM": 0.0000060492487635933335,
+            "orientationErrorRadians": 0.000057773411212586786,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 8.465725602503201e-11,
+              "positionErrorM": 0.0000060492487635933335,
+              "orientationErrorRadians": 0.000057773411212586786
+            }
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 9,
+            "objectiveCost": 1.8324142049398184e-11,
+            "positionErrorM": 0.0000019358645881723808,
+            "orientationErrorRadians": 0.000031717707516609435,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 1.823415847331205e-11,
+              "positionErrorM": 0.0000019358645881723808,
+              "orientationErrorRadians": 0.000031717707516609435
+            }
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.738331756292765e-11,
+            "positionErrorM": 0.0000060492487635933335,
+            "orientationErrorRadians": 0.000057773411212586786,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 8.465725602503201e-11,
+              "positionErrorM": 0.0000060492487635933335,
+              "orientationErrorRadians": 0.000057773411212586786
+            }
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.856746613464299e-11,
+            "positionErrorM": 0.0000019358645881723808,
+            "orientationErrorRadians": 0.000031717707516609435,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 1.823415847331205e-11,
+              "positionErrorM": 0.0000019358645881723808,
+              "orientationErrorRadians": 0.000031717707516609435
+            }
+          }
+        },
+        {
+          "tMs": 83.33333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725602503201e-11,
+            "positionErrorM": 0.0000060492487635933335,
+            "orientationErrorRadians": 0.000057773411212586786
+          }
+        },
+        {
+          "tMs": 83.33333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.823415847331205e-11,
+            "positionErrorM": 0.0000019358645881723808,
+            "orientationErrorRadians": 0.000031717707516609435
+          }
+        },
+        {
+          "tMs": 1083.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 3.970479465970575e-7,
+            "positionErrorM": 0.00009314788191405102,
+            "orientationErrorRadians": 0.00005375910358748393,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 8.718143112727492e-9,
+              "positionErrorM": 0.00009314787446293356,
+              "orientationErrorRadians": 0.00005375910502020519
+            }
+          }
+        },
+        {
+          "tMs": 1083.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 2.0021304748716743e-7,
+            "positionErrorM": 0.00007730452598150265,
+            "orientationErrorRadians": 0.00006429765392806354,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 6.035522048761366e-9,
+              "positionErrorM": 0.0000773045259815429,
+              "orientationErrorRadians": 0.00006429765392856231
+            }
+          }
+        },
+        {
+          "tMs": 1166.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 5.818683038315504e-7,
+            "positionErrorM": 0.0001306963220855475,
+            "orientationErrorRadians": 0.00006534112832016033,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.962125574534763e-11,
+              "positionErrorM": 6.02997490773481e-7,
+              "orientationErrorRadians": 0.000004280681217210165
+            }
+          }
+        },
+        {
+          "tMs": 1166.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 1.8634392461140962e-7,
+            "positionErrorM": 0.00008707791810514716,
+            "orientationErrorRadians": 0.00007029941894856114,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 7.653728741111593e-9,
+              "positionErrorM": 0.00008707791810514716,
+              "orientationErrorRadians": 0.00007029941894856114
+            }
+          }
+        },
+        {
+          "tMs": 1250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 2.0268806352225363e-7,
+            "positionErrorM": 0.000024570990832810232,
+            "orientationErrorRadians": 0.00009900027296288276
+          }
+        },
+        {
+          "tMs": 1250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 2.08288030015793e-7,
+            "positionErrorM": 0.00002573039322957084,
+            "orientationErrorRadians": 0.000129580485340669
+          }
+        },
+        {
+          "tMs": 1333.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.0000021749667781936147,
+            "positionErrorM": 0.00009681409914744085,
+            "orientationErrorRadians": 0.0011007811962524736,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.224446704521499e-10,
+              "positionErrorM": 0.0000023712416503784513,
+              "orientationErrorRadians": 0.00003213580493268882
+            }
+          }
+        },
+        {
+          "tMs": 1333.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000001668471528432628,
+            "positionErrorM": 0.00012802290395485237,
+            "orientationErrorRadians": 0.00019126286257614114,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 8.710989955793771e-11,
+              "positionErrorM": 7.278164712347724e-7,
+              "orientationErrorRadians": 0.0000060122892201131995
+            }
+          }
+        },
+        {
+          "tMs": 1416.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.000002123578402029428,
+            "positionErrorM": 0.00005429914618854758,
+            "orientationErrorRadians": 0.0011182353935693288,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.473176988884933e-10,
+              "positionErrorM": 0.0000029259825398442846,
+              "orientationErrorRadians": 0.000041207579958467285
+            }
+          }
+        },
+        {
+          "tMs": 1416.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000001716121289582205,
+            "positionErrorM": 0.0000751241828677375,
+            "orientationErrorRadians": 0.0002249784230242587,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 6.372503039446609e-9,
+              "positionErrorM": 0.0000751241828677375,
+              "orientationErrorRadians": 0.0002249784230242587
+            }
+          }
+        },
+        {
+          "tMs": 1500,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.0000025218447187293173,
+            "positionErrorM": 0.0001077212495658916,
+            "orientationErrorRadians": 0.00016672703554224396,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.592180428763143e-11,
+              "positionErrorM": 4.2847673357969626e-7,
+              "orientationErrorRadians": 0.0000024741326323388047
+            }
+          }
+        },
+        {
+          "tMs": 1500,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000003175462044327854,
+            "positionErrorM": 0.0001801573946340105,
+            "orientationErrorRadians": 0.00032848530673368917,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 1.0039052148400795e-10,
+              "positionErrorM": 6.236599822361829e-7,
+              "orientationErrorRadians": 0.0000027660817375978035
+            }
+          }
+        },
+        {
+          "tMs": 1583.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000004068601247410365,
+            "positionErrorM": 0.00016635222647287914,
+            "orientationErrorRadians": 0.00024402175593751937,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 1.1575273454426348e-10,
+              "positionErrorM": 7.465767275361765e-7,
+              "orientationErrorRadians": 0.000004073259971595918
+            }
+          }
+        },
+        {
+          "tMs": 1583.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000006102508264789684,
+            "positionErrorM": 0.00024788630615508057,
+            "orientationErrorRadians": 0.0004438386672998765,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 1.8348949892073783e-10,
+              "positionErrorM": 8.762675771336624e-7,
+              "orientationErrorRadians": 0.000004266984052689647
+            }
+          }
+        },
+        {
+          "tMs": 1666.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000006132954184557418,
+            "positionErrorM": 0.00019026077685371166,
+            "orientationErrorRadians": 0.00036706528589717775,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 2.0042676597052725e-10,
+              "positionErrorM": 0.0000010490111297410203,
+              "orientationErrorRadians": 0.000006880020144912992
+            }
+          }
+        },
+        {
+          "tMs": 1666.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.0000096341515189323,
+            "positionErrorM": 0.0002586302640417633,
+            "orientationErrorRadians": 0.000557933579515272,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 2.809904963086846e-10,
+              "positionErrorM": 0.0000011951755854954887,
+              "orientationErrorRadians": 0.000007668480989796844
+            }
+          }
+        },
+        {
+          "tMs": 1750,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.00000792574526094243,
+            "positionErrorM": 0.00019340666066182185,
+            "orientationErrorRadians": 0.0004826143901332654,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 2.8460499631095957e-10,
+              "positionErrorM": 0.0000013021791436541718,
+              "orientationErrorRadians": 0.000009751216141627717
+            }
+          }
+        },
+        {
+          "tMs": 1750,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000012481530499520568,
+            "positionErrorM": 0.00023507272195547063,
+            "orientationErrorRadians": 0.000662278403489455,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 3.723195105265402e-10,
+              "positionErrorM": 0.000001432605099054613,
+              "orientationErrorRadians": 0.000011372196093971151
+            }
+          }
+        },
+        {
+          "tMs": 1833.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000008897693405690137,
+            "positionErrorM": 0.00019249439960425843,
+            "orientationErrorRadians": 0.0005717731348686721,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 3.529805088372536e-10,
+              "positionErrorM": 0.0000015128285381419182,
+              "orientationErrorRadians": 0.000011865751980187131
+            }
+          }
+        },
+        {
+          "tMs": 1833.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.00001371428578712602,
+            "positionErrorM": 0.00020958048657291744,
+            "orientationErrorRadians": 0.0007419680819630676,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.244428823404527e-10,
+              "positionErrorM": 0.000001552862962506769,
+              "orientationErrorRadians": 0.000013932447364316066
+            }
+          }
+        },
+        {
+          "tMs": 1916.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000009008403499137076,
+            "positionErrorM": 0.00019580008867811906,
+            "orientationErrorRadians": 0.0006264899533859549,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.158565418916931e-10,
+              "positionErrorM": 0.000001762392840535639,
+              "orientationErrorRadians": 0.000013119671675326788
+            }
+          }
+        },
+        {
+          "tMs": 1916.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000013154076509893822,
+            "positionErrorM": 0.00019876531217999366,
+            "orientationErrorRadians": 0.000788289362395427,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.3071149594251145e-10,
+              "positionErrorM": 0.0000015991736349508554,
+              "orientationErrorRadians": 0.000014991007288780425
+            }
+          }
+        },
+        {
+          "tMs": 2000,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000008583102962772943,
+            "positionErrorM": 0.00020478944264456183,
+            "orientationErrorRadians": 0.0006462206004340852,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 5.092540164153796e-10,
+              "positionErrorM": 0.0000021797234418421797,
+              "orientationErrorRadians": 0.00001382879960663359
+            }
+          }
+        },
+        {
+          "tMs": 2000,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.0000113720238619584,
+            "positionErrorM": 0.0001956082841141682,
+            "orientationErrorRadians": 0.0007929469201059063,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.283205530922546e-10,
+              "positionErrorM": 0.0000017098872785829191,
+              "orientationErrorRadians": 0.000015000111397382797
+            }
+          }
+        },
+        {
+          "tMs": 2083.3333333333335,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007928138028456021,
+            "positionErrorM": 0.00021863600636985665,
+            "orientationErrorRadians": 0.0006340057326649839,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.617099825254445e-10,
+              "positionErrorM": 0.0000028342664723461727,
+              "orientationErrorRadians": 0.000014187413557915365
+            }
+          }
+        },
+        {
+          "tMs": 2083.3333333333335,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000009307426486661614,
+            "positionErrorM": 0.00019430597795202733,
+            "orientationErrorRadians": 0.0007566948946405415,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.663755198023132e-10,
+              "positionErrorM": 0.000002057085431852866,
+              "orientationErrorRadians": 0.000014621335877545848
+            }
+          }
+        },
+        {
+          "tMs": 2166.6666666666665,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007069546669776259,
+            "positionErrorM": 0.0002328866610106401,
+            "orientationErrorRadians": 0.0005879635687927871,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 8.597811460780364e-10,
+              "positionErrorM": 0.0000036554434035094376,
+              "orientationErrorRadians": 0.000014032692266976213
+            }
+          }
+        },
+        {
+          "tMs": 2166.6666666666665,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007457788982174104,
+            "positionErrorM": 0.00019671827827227512,
+            "orientationErrorRadians": 0.0006900076153778129,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 5.588615648339087e-10,
+              "positionErrorM": 0.000002653329637792654,
+              "orientationErrorRadians": 0.000014018714441740255
+            }
+          }
+        },
+        {
+          "tMs": 2250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000005785216565527649,
+            "positionErrorM": 0.00023377768174066667,
+            "orientationErrorRadians": 0.000512918082793076,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 9.785989015694885e-10,
+              "positionErrorM": 0.000004304206924583504,
+              "orientationErrorRadians": 0.000012902183755759945
+            }
+          }
+        },
+        {
+          "tMs": 2250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000005722064383047086,
+            "positionErrorM": 0.0001974775026852107,
+            "orientationErrorRadians": 0.0005933557219633342,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.546645233222734e-10,
+              "positionErrorM": 0.000003289071510753737,
+              "orientationErrorRadians": 0.00001285815275891093
+            }
+          }
+        },
+        {
+          "tMs": 2333.3333333333335,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.0000039683957756271555,
+            "positionErrorM": 0.0002082280973348114,
+            "orientationErrorRadians": 0.00041185713778897875,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 8.538162706870875e-10,
+              "positionErrorM": 0.0000043106066129540044,
+              "orientationErrorRadians": 0.000010512177558302424
+            }
+          }
+        },
+        {
+          "tMs": 2333.3333333333335,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.000003815293450116834,
+            "positionErrorM": 0.00017964241334864924,
+            "orientationErrorRadians": 0.00047100422089142355,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.084499104268184e-10,
+              "positionErrorM": 0.0000034792321827737008,
+              "orientationErrorRadians": 0.00001063894916831047
+            }
+          }
+        },
+        {
+          "tMs": 2416.6666666666665,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.0000018899164476768439,
+            "positionErrorM": 0.00014885028757668345,
+            "orientationErrorRadians": 0.00028312479890071766,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.6219582223975633e-10,
+              "positionErrorM": 0.0000032981178232998435,
+              "orientationErrorRadians": 0.00000697211598554914
+            }
+          }
+        },
+        {
+          "tMs": 2416.6666666666665,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.0000018049396402573793,
+            "positionErrorM": 0.00013082428557040508,
+            "orientationErrorRadians": 0.0003208778779209852,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 3.4633021154231164e-10,
+              "positionErrorM": 0.0000027638488005709524,
+              "orientationErrorRadians": 0.000007207121281944961
+            }
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.9760485310187095e-7,
+            "positionErrorM": 0.00005602489606648101,
+            "orientationErrorRadians": 0.00012297010498186803,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 3.356540692017503e-9,
+              "positionErrorM": 0.00005602489606648101,
+              "orientationErrorRadians": 0.00012297010498194685
+            }
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.905441689703253e-7,
+            "positionErrorM": 0.00004946572040025989,
+            "orientationErrorRadians": 0.00013786512254440952,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 2.7205552997209524e-9,
+              "positionErrorM": 0.00004946572040025989,
+              "orientationErrorRadians": 0.00013786512254440952
+            }
+          }
+        },
+        {
+          "tMs": 2583.3333333333335,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 3.356540692017224e-9,
+            "positionErrorM": 0.00005602489606648101,
+            "orientationErrorRadians": 0.00012297010498186803
+          }
+        },
+        {
+          "tMs": 2583.3333333333335,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 2.7205552997209524e-9,
+            "positionErrorM": 0.00004946572040025989,
+            "orientationErrorRadians": 0.00013786512254440952
+          }
+        },
+        {
+          "tMs": 4166.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 4.0299829490279517e-8,
+            "positionErrorM": 0.00002896567451864859,
+            "orientationErrorRadians": 0.00002684698777778401
+          }
+        },
+        {
+          "tMs": 4166.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 3.701471655304101e-8,
+            "positionErrorM": 0.00002727804964919931,
+            "orientationErrorRadians": 0.00002622067585799748
+          }
+        },
+        {
+          "tMs": 4250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.0000013705595287500881,
+            "positionErrorM": 0.00016311984856550373,
+            "orientationErrorRadians": 0.00016705799432468365
+          }
+        },
+        {
+          "tMs": 4250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.0000012387556055716203,
+            "positionErrorM": 0.00015181713283702868,
+            "orientationErrorRadians": 0.00016545462955386145
+          }
+        },
+        {
+          "tMs": 4333.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000006086596100492215,
+            "positionErrorM": 0.00032217378345507467,
+            "orientationErrorRadians": 0.0003831573531498629
+          }
+        },
+        {
+          "tMs": 4333.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000005442164993109221,
+            "positionErrorM": 0.00029630157061323343,
+            "orientationErrorRadians": 0.00038069804493259725
+          }
+        },
+        {
+          "tMs": 4416.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000011429088546215323,
+            "positionErrorM": 0.00040502857569608514,
+            "orientationErrorRadians": 0.0005529703756282994
+          }
+        },
+        {
+          "tMs": 4416.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.00001006190927102955,
+            "positionErrorM": 0.0003673331804214595,
+            "orientationErrorRadians": 0.0005448367003808799
+          }
+        },
+        {
+          "tMs": 4500,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.00001509309951842472,
+            "positionErrorM": 0.00041865373175648777,
+            "orientationErrorRadians": 0.0006572570637403858
+          }
+        },
+        {
+          "tMs": 4500,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000013104522525609593,
+            "positionErrorM": 0.0003734606314037824,
+            "orientationErrorRadians": 0.0006451422895251796
+          }
+        },
+        {
+          "tMs": 4583.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.000016310439837041135,
+            "positionErrorM": 0.000383870186699049,
+            "orientationErrorRadians": 0.0006940353040145916
+          }
+        },
+        {
+          "tMs": 4583.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.00001395266680737464,
+            "positionErrorM": 0.00033689144497174334,
+            "orientationErrorRadians": 0.0006784047468237342
+          }
+        },
+        {
+          "tMs": 4666.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 15,
+            "objectiveCost": 0.00001554091971512176,
+            "positionErrorM": 0.00032997831587741177,
+            "orientationErrorRadians": 0.0006580958730333359
+          }
+        },
+        {
+          "tMs": 4666.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.00001309926270933329,
+            "positionErrorM": 0.00028555234332523966,
+            "orientationErrorRadians": 0.0006541034753562952
+          }
+        },
+        {
+          "tMs": 4750,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000013767974883967477,
+            "positionErrorM": 0.0002761439486176023,
+            "orientationErrorRadians": 0.0005735974829997438
+          }
+        },
+        {
+          "tMs": 4750,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.00001160981010469406,
+            "positionErrorM": 0.0002389286555544319,
+            "orientationErrorRadians": 0.000599993312218047
+          }
+        },
+        {
+          "tMs": 4833.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000011467897255289617,
+            "positionErrorM": 0.00022742298866708903,
+            "orientationErrorRadians": 0.00045682049162058374
+          }
+        },
+        {
+          "tMs": 4833.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000009786734576602438,
+            "positionErrorM": 0.00019918330659484957,
+            "orientationErrorRadians": 0.0005284641489508126
+          }
+        },
+        {
+          "tMs": 4916.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.00000907910703073188,
+            "positionErrorM": 0.00018514194903571554,
+            "orientationErrorRadians": 0.0003304756323401452
+          }
+        },
+        {
+          "tMs": 4916.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007881012711525256,
+            "positionErrorM": 0.00016600609596055706,
+            "orientationErrorRadians": 0.0004509757278987991
+          }
+        },
+        {
+          "tMs": 5000,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000006820437757988976,
+            "positionErrorM": 0.0001491017277856123,
+            "orientationErrorRadians": 0.00021748610418436244
+          }
+        },
+        {
+          "tMs": 5000,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000006005091123405956,
+            "positionErrorM": 0.00013769459392595142,
+            "orientationErrorRadians": 0.00037063816872951345
+          }
+        },
+        {
+          "tMs": 5083.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000004341503018768924,
+            "positionErrorM": 0.00011403566761874737,
+            "orientationErrorRadians": 0.00017685552831076123
+          }
+        },
+        {
+          "tMs": 5083.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000003843455103460013,
+            "positionErrorM": 0.00010569752301299012,
+            "orientationErrorRadians": 0.0002724148667789815
+          }
+        },
+        {
+          "tMs": 5166.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.000002315012047219385,
+            "positionErrorM": 0.00007895503745900193,
+            "orientationErrorRadians": 0.00013108652150688375
+          }
+        },
+        {
+          "tMs": 5166.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 15,
+            "objectiveCost": 0.000002055587721357083,
+            "positionErrorM": 0.00008258045584509167,
+            "orientationErrorRadians": 0.0003367444726042339
+          }
+        },
+        {
+          "tMs": 5250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.968131414472929e-7,
+            "positionErrorM": 0.000027905384755408917,
+            "orientationErrorRadians": 0.000057449739589717104
+          }
+        },
+        {
+          "tMs": 5250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.595667290758368e-7,
+            "positionErrorM": 0.000025994427684639462,
+            "orientationErrorRadians": 0.00005797597773613045
+          }
+        },
+        {
+          "tMs": 5333.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 2.324324829853049e-8,
+            "positionErrorM": 0.000008396461694174866,
+            "orientationErrorRadians": 0.00004273440765469047
+          }
+        },
+        {
+          "tMs": 5333.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.2913007695545284e-8,
+            "positionErrorM": 0.000009017661787462045,
+            "orientationErrorRadians": 0.00005585733649600879
+          }
+        },
+        {
+          "tMs": 5400,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725602503201e-11,
+            "positionErrorM": 0.0000060492487635933335,
+            "orientationErrorRadians": 0.000057773411212586786
+          }
+        },
+        {
+          "tMs": 5400,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.823415847331205e-11,
+            "positionErrorM": 0.0000019358645881723808,
+            "orientationErrorRadians": 0.000031717707516609435
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 3.356540692017224e-9,
+            "positionErrorM": 0.00005602489606648101,
+            "orientationErrorRadians": 0.00012297010498186803
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 2.7205552997209524e-9,
+            "positionErrorM": 0.00004946572040025989,
+            "orientationErrorRadians": 0.00013786512254440952
+          }
+        },
+        {
+          "tMs": 4100,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 3.356540692017503e-9,
+            "positionErrorM": 0.00005602489606648101,
+            "orientationErrorRadians": 0.00012297010498194685
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725602503201e-11,
+            "positionErrorM": 0.0000060492487635933335,
+            "orientationErrorRadians": 0.000057773411212586786
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.823415847331205e-11,
+            "positionErrorM": 0.0000019358645881723808,
+            "orientationErrorRadians": 0.000031717707516609435
+          }
+        },
+        {
+          "tMs": 1100,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 2,
+            "objectiveCost": 8.279548169659057e-9,
+            "positionErrorM": 0.000005739554370948452,
+            "orientationErrorRadians": 0.000002737118075176035
+          }
+        },
+        {
+          "tMs": 1100,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 1,
+            "objectiveCost": 5.143898426525194e-9,
+            "positionErrorM": 0.0000051890694486264945,
+            "orientationErrorRadians": 0.000012156613021960974
+          }
+        },
+        {
+          "tMs": 1133.33333333333,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 9.246894856504033e-8,
+            "positionErrorM": 0.000019331298762669882,
+            "orientationErrorRadians": 0.000017766206473274146
+          }
+        },
+        {
+          "tMs": 1133.33333333333,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 5.44194388904367e-8,
+            "positionErrorM": 0.000010889435487509295,
+            "orientationErrorRadians": 0.000016160399338738622
+          }
+        }
+      ]
+    },
+    {
+      "variant": "neutral",
+      "deltaDeg": 5e-8,
+      "scope": "Actual solver invocations; exact cached poses do not trigger a new solve. Numerical stops and residuals are not movement/contact acceptance.",
+      "solves": [
+        {
+          "tMs": 0,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 12,
+            "objectiveCost": 8.56843232716896e-11,
+            "positionErrorM": 0.000006049248777948391,
+            "orientationErrorRadians": 0.000057773411215497096,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 8.465725620424847e-11,
+              "positionErrorM": 0.000006049248777935257,
+              "orientationErrorRadians": 0.00005777341121601296
+            }
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 9,
+            "objectiveCost": 1.8324142039833672e-11,
+            "positionErrorM": 0.0000019358645869186407,
+            "orientationErrorRadians": 0.000031717707511577063,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 1.8234158463860994e-11,
+              "positionErrorM": 0.0000019358645869186407,
+              "orientationErrorRadians": 0.000031717707511577063
+            }
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.738331775695032e-11,
+            "positionErrorM": 0.000006049248777948391,
+            "orientationErrorRadians": 0.000057773411215497096,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 8.465725620424847e-11,
+              "positionErrorM": 0.000006049248777935257,
+              "orientationErrorRadians": 0.00005777341121601296
+            }
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.8567466124807933e-11,
+            "positionErrorM": 0.0000019358645869186407,
+            "orientationErrorRadians": 0.000031717707511577063,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 1.8234158463860994e-11,
+              "positionErrorM": 0.0000019358645869186407,
+              "orientationErrorRadians": 0.000031717707511577063
+            }
+          }
+        },
+        {
+          "tMs": 83.33333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725620354903e-11,
+            "positionErrorM": 0.000006049248777948391,
+            "orientationErrorRadians": 0.000057773411215497096
+          }
+        },
+        {
+          "tMs": 83.33333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.8234158463860994e-11,
+            "positionErrorM": 0.0000019358645869186407,
+            "orientationErrorRadians": 0.000031717707511577063
+          }
+        },
+        {
+          "tMs": 1083.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 3.970479466633247e-7,
+            "positionErrorM": 0.00009314788192180789,
+            "orientationErrorRadians": 0.000053759103579818704,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 8.718143114204109e-9,
+              "positionErrorM": 0.00009314787447091637,
+              "orientationErrorRadians": 0.000053759105013397214
+            }
+          }
+        },
+        {
+          "tMs": 1083.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 2.0021304748680503e-7,
+            "positionErrorM": 0.00007730452598066614,
+            "orientationErrorRadians": 0.00006429765393009879,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 6.035522048628658e-9,
+              "positionErrorM": 0.00007730452598066614,
+              "orientationErrorRadians": 0.00006429765393009879
+            }
+          }
+        },
+        {
+          "tMs": 1166.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 5.818683038863497e-7,
+            "positionErrorM": 0.00013069632209338034,
+            "orientationErrorRadians": 0.00006534112832037124,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.962125575429682e-11,
+              "positionErrorM": 6.029974911838417e-7,
+              "orientationErrorRadians": 0.00000428068121792589
+            }
+          }
+        },
+        {
+          "tMs": 1166.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 1.8634392460987167e-7,
+            "positionErrorM": 0.00008707791810449444,
+            "orientationErrorRadians": 0.00007029941894771368,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 7.653728740996203e-9,
+              "positionErrorM": 0.00008707791810449444,
+              "orientationErrorRadians": 0.00007029941894771368
+            }
+          }
+        },
+        {
+          "tMs": 1250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 2.0268806351282348e-7,
+            "positionErrorM": 0.000024570990832140155,
+            "orientationErrorRadians": 0.00009900027295315484
+          }
+        },
+        {
+          "tMs": 1250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 2.0828803001367354e-7,
+            "positionErrorM": 0.000025730393229422378,
+            "orientationErrorRadians": 0.0001295804853391751
+          }
+        },
+        {
+          "tMs": 1333.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.0000021749667807268742,
+            "positionErrorM": 0.00009681409930823873,
+            "orientationErrorRadians": 0.0011007811974067148,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.224446713333642e-10,
+              "positionErrorM": 0.0000023712416522633563,
+              "orientationErrorRadians": 0.00003213580496579003
+            }
+          }
+        },
+        {
+          "tMs": 1333.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000001668471530165954,
+            "positionErrorM": 0.0001280229041840573,
+            "orientationErrorRadians": 0.00019126286254163101,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 8.710989981142809e-11,
+              "positionErrorM": 7.278164722977164e-7,
+              "orientationErrorRadians": 0.00000601228922813888
+            }
+          }
+        },
+        {
+          "tMs": 1416.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.000002123578404656207,
+            "positionErrorM": 0.00005429914619268437,
+            "orientationErrorRadians": 0.0011182353961385828,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.473177013518776e-10,
+              "positionErrorM": 0.0000029259825453396582,
+              "orientationErrorRadians": 0.00004120758003836795
+            }
+          }
+        },
+        {
+          "tMs": 1416.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.0000017161212892726019,
+            "positionErrorM": 0.00007512418267753173,
+            "orientationErrorRadians": 0.00022497842284257706,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 6.372503009690678e-9,
+              "positionErrorM": 0.00007512418267752982,
+              "orientationErrorRadians": 0.0002249784228425224
+            }
+          }
+        },
+        {
+          "tMs": 1500,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.0000025218447164141294,
+            "positionErrorM": 0.00010772124922949813,
+            "orientationErrorRadians": 0.00016672703539123796,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.592180406923704e-11,
+              "positionErrorM": 4.284767326863049e-7,
+              "orientationErrorRadians": 0.000002474132632267335
+            }
+          }
+        },
+        {
+          "tMs": 1500,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000003175462036399278,
+            "positionErrorM": 0.00018015739415591645,
+            "orientationErrorRadians": 0.0003284853064060591,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 1.0039052109399649e-10,
+              "positionErrorM": 6.236599811853528e-7,
+              "orientationErrorRadians": 0.000002766081739699864
+            }
+          }
+        },
+        {
+          "tMs": 1583.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000004068601237117695,
+            "positionErrorM": 0.0001663522261497937,
+            "orientationErrorRadians": 0.00024402175545457867,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 1.1575273414972411e-10,
+              "positionErrorM": 7.465767262852232e-7,
+              "orientationErrorRadians": 0.0000040732599674697405
+            }
+          }
+        },
+        {
+          "tMs": 1583.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000006102508245558223,
+            "positionErrorM": 0.0002478863057267425,
+            "orientationErrorRadians": 0.0004438386668206687,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 1.8348949839223608e-10,
+              "positionErrorM": 8.762675758967989e-7,
+              "orientationErrorRadians": 0.00000426698405184578
+            }
+          }
+        },
+        {
+          "tMs": 1666.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.0000061329541664057275,
+            "positionErrorM": 0.00019026077663285577,
+            "orientationErrorRadians": 0.00036706528527475675,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 2.0042676545226458e-10,
+              "positionErrorM": 0.0000010490111282728795,
+              "orientationErrorRadians": 0.000006880020133568492
+            }
+          }
+        },
+        {
+          "tMs": 1666.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000009634151488564077,
+            "positionErrorM": 0.00025863026377013565,
+            "orientationErrorRadians": 0.0005579335788928464,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 2.8099049567492035e-10,
+              "positionErrorM": 0.0000011951755839587994,
+              "orientationErrorRadians": 0.000007668480981402647
+            }
+          }
+        },
+        {
+          "tMs": 1750,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007925745237965908,
+            "positionErrorM": 0.00019340666053870796,
+            "orientationErrorRadians": 0.00048261438940867005,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 2.8460499573939757e-10,
+              "positionErrorM": 0.0000013021791421515034,
+              "orientationErrorRadians": 0.000009751216127357017
+            }
+          }
+        },
+        {
+          "tMs": 1750,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.00001248153046253984,
+            "positionErrorM": 0.0002350727218368996,
+            "orientationErrorRadians": 0.0006622784027390409,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 3.723195098391139e-10,
+              "positionErrorM": 0.0000014326050976637789,
+              "orientationErrorRadians": 0.00001137219607955919
+            }
+          }
+        },
+        {
+          "tMs": 1833.3333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.00000889769338215379,
+            "positionErrorM": 0.00019249439952271008,
+            "orientationErrorRadians": 0.0005717731340729254,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 3.5298050829927194e-10,
+              "positionErrorM": 0.0000015128285369652789,
+              "orientationErrorRadians": 0.000011865751965886959
+            }
+          }
+        },
+        {
+          "tMs": 1833.3333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000013714285750201065,
+            "positionErrorM": 0.00020958048650715787,
+            "orientationErrorRadians": 0.0007419680811152347,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.2444288174356065e-10,
+              "positionErrorM": 0.0000015528629612848404,
+              "orientationErrorRadians": 0.000013932447348767369
+            }
+          }
+        },
+        {
+          "tMs": 1916.6666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000009008403478409357,
+            "positionErrorM": 0.00019580008859081742,
+            "orientationErrorRadians": 0.0006264899525708904,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.15856541353361e-10,
+              "positionErrorM": 0.000001762392839069073,
+              "orientationErrorRadians": 0.000013119671662402287
+            }
+          }
+        },
+        {
+          "tMs": 1916.6666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000013154076479005102,
+            "positionErrorM": 0.00019876531207421128,
+            "orientationErrorRadians": 0.0007882893615136711,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.307114955191582e-10,
+              "positionErrorM": 0.0000015991736343652924,
+              "orientationErrorRadians": 0.000014991007276304248
+            }
+          }
+        },
+        {
+          "tMs": 2000,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000008583102945462434,
+            "positionErrorM": 0.00020478944250431418,
+            "orientationErrorRadians": 0.0006462205995847836,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 5.092540155304644e-10,
+              "positionErrorM": 0.0000021797234391115937,
+              "orientationErrorRadians": 0.000013828799592642017
+            }
+          }
+        },
+        {
+          "tMs": 2000,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.00001137202383941346,
+            "positionErrorM": 0.000195608283979707,
+            "orientationErrorRadians": 0.0007929469192856733,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.283205527001366e-10,
+              "positionErrorM": 0.0000017098872778859925,
+              "orientationErrorRadians": 0.000015000111385650678
+            }
+          }
+        },
+        {
+          "tMs": 2083.3333333333335,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007928138013077845,
+            "positionErrorM": 0.0002186360061381368,
+            "orientationErrorRadians": 0.0006340057321902034,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.617099808858627e-10,
+              "positionErrorM": 0.0000028342664666582965,
+              "orientationErrorRadians": 0.000014187413543739863
+            }
+          }
+        },
+        {
+          "tMs": 2083.3333333333335,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000009307426470191638,
+            "positionErrorM": 0.00019430597781474105,
+            "orientationErrorRadians": 0.0007566948939031539,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.663755191356972e-10,
+              "positionErrorM": 0.000002057085429553873,
+              "orientationErrorRadians": 0.00001462133586705309
+            }
+          }
+        },
+        {
+          "tMs": 2166.6666666666665,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007069546655158003,
+            "positionErrorM": 0.00023288666072554914,
+            "orientationErrorRadians": 0.0005879635682573455,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 8.597811432844311e-10,
+              "positionErrorM": 0.0000036554433945982287,
+              "orientationErrorRadians": 0.00001403269225425653
+            }
+          }
+        },
+        {
+          "tMs": 2166.6666666666665,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000007457788968462578,
+            "positionErrorM": 0.00019671827805020604,
+            "orientationErrorRadians": 0.0006900076147663648,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 5.588615632818108e-10,
+              "positionErrorM": 0.0000026533296323619384,
+              "orientationErrorRadians": 0.000014018714431329684
+            }
+          }
+        },
+        {
+          "tMs": 2250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000005785216552340769,
+            "positionErrorM": 0.00023377768142390733,
+            "orientationErrorRadians": 0.0005129180822689943,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 9.785988980412872e-10,
+              "positionErrorM": 0.0000043042069137326015,
+              "orientationErrorRadians": 0.000012902183747320718
+            }
+          }
+        },
+        {
+          "tMs": 2250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000005722064371050309,
+            "positionErrorM": 0.00019747750241681065,
+            "orientationErrorRadians": 0.000593355721378331,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.54664520956975e-10,
+              "positionErrorM": 0.0000032890715022065186,
+              "orientationErrorRadians": 0.000012858152750878282
+            }
+          }
+        },
+        {
+          "tMs": 2333.3333333333335,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.0000039683957656623406,
+            "positionErrorM": 0.00020822809703197647,
+            "orientationErrorRadians": 0.0004118571374596689,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 8.538162676665162e-10,
+              "positionErrorM": 0.000004310606602629705,
+              "orientationErrorRadians": 0.00001051217755550548
+            }
+          }
+        },
+        {
+          "tMs": 2333.3333333333335,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.000003815293440973639,
+            "positionErrorM": 0.000179642413053277,
+            "orientationErrorRadians": 0.00047100422052239176,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 6.084499079967832e-10,
+              "positionErrorM": 0.000003479232173047524,
+              "orientationErrorRadians": 0.000010638949164658509
+            }
+          }
+        },
+        {
+          "tMs": 2416.6666666666665,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.000001889916442398868,
+            "positionErrorM": 0.00014885028735191956,
+            "orientationErrorRadians": 0.00028312479861549984,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 4.621958206225115e-10,
+              "positionErrorM": 0.0000032981178156548502,
+              "orientationErrorRadians": 0.000006972115985330803
+            }
+          }
+        },
+        {
+          "tMs": 2416.6666666666665,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.0000018049396353895083,
+            "positionErrorM": 0.0001308242853409259,
+            "orientationErrorRadians": 0.0003208778776374548,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 1,
+              "objectiveCost": 3.4633021011212184e-10,
+              "positionErrorM": 0.000002763848792718281,
+              "orientationErrorRadians": 0.000007207121280229686
+            }
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.976048520654076e-7,
+            "positionErrorM": 0.00005602489596841814,
+            "orientationErrorRadians": 0.0001229701047913425,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 3.3565406803539103e-9,
+              "positionErrorM": 0.00005602489596840892,
+              "orientationErrorRadians": 0.00012297010479145492
+            }
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.905441680421988e-7,
+            "positionErrorM": 0.00004946572030312595,
+            "orientationErrorRadians": 0.00013786512236620905,
+            "refinement": {
+              "stopReason": "residual-tolerance",
+              "iterations": 0,
+              "objectiveCost": 2.720555289403804e-9,
+              "positionErrorM": 0.00004946572030312595,
+              "orientationErrorRadians": 0.00013786512236620905
+            }
+          }
+        },
+        {
+          "tMs": 2583.3333333333335,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 3.356540680354545e-9,
+            "positionErrorM": 0.00005602489596841814,
+            "orientationErrorRadians": 0.0001229701047913425
+          }
+        },
+        {
+          "tMs": 2583.3333333333335,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 2.720555289403804e-9,
+            "positionErrorM": 0.00004946572030312595,
+            "orientationErrorRadians": 0.00013786512236620905
+          }
+        },
+        {
+          "tMs": 4166.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 4.029982947301607e-8,
+            "positionErrorM": 0.000028965674496767668,
+            "orientationErrorRadians": 0.000026846987817422996
+          }
+        },
+        {
+          "tMs": 4166.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 3.7014716528726336e-8,
+            "positionErrorM": 0.000027278049621129727,
+            "orientationErrorRadians": 0.000026220675917416455
+          }
+        },
+        {
+          "tMs": 4250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.0000013705595279392694,
+            "positionErrorM": 0.0001631198484108914,
+            "orientationErrorRadians": 0.00016705799459019275
+          }
+        },
+        {
+          "tMs": 4250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000001238755604578072,
+            "positionErrorM": 0.00015181713266181952,
+            "orientationErrorRadians": 0.00016545462990318714
+          }
+        },
+        {
+          "tMs": 4333.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000006086596096354494,
+            "positionErrorM": 0.0003221737831335435,
+            "orientationErrorRadians": 0.00038315735408120714
+          }
+        },
+        {
+          "tMs": 4333.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000005442164988487287,
+            "positionErrorM": 0.00029630157021008836,
+            "orientationErrorRadians": 0.0003806980455808494
+          }
+        },
+        {
+          "tMs": 4416.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000011429088537595114,
+            "positionErrorM": 0.000405028575201955,
+            "orientationErrorRadians": 0.0005529703761648007
+          }
+        },
+        {
+          "tMs": 4416.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.00001006190926286207,
+            "positionErrorM": 0.0003673331799731463,
+            "orientationErrorRadians": 0.0005448367008032947
+          }
+        },
+        {
+          "tMs": 4500,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.000015093099508422789,
+            "positionErrorM": 0.0004186537312647205,
+            "orientationErrorRadians": 0.0006572570641258638
+          }
+        },
+        {
+          "tMs": 4500,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000013104522517386288,
+            "positionErrorM": 0.0003734606309820241,
+            "orientationErrorRadians": 0.0006451422898960083
+          }
+        },
+        {
+          "tMs": 4583.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.0000163104398306669,
+            "positionErrorM": 0.0003838701863533988,
+            "orientationErrorRadians": 0.0006940353041989661
+          }
+        },
+        {
+          "tMs": 4583.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.00001395266680300841,
+            "positionErrorM": 0.00033689144469306544,
+            "orientationErrorRadians": 0.0006784047471257842
+          }
+        },
+        {
+          "tMs": 4666.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 15,
+            "objectiveCost": 0.000015540919713157182,
+            "positionErrorM": 0.0003299783156853462,
+            "orientationErrorRadians": 0.0006580958731078553
+          }
+        },
+        {
+          "tMs": 4666.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 14,
+            "objectiveCost": 0.000013099262708651861,
+            "positionErrorM": 0.0002855523431825561,
+            "orientationErrorRadians": 0.0006541034756352321
+          }
+        },
+        {
+          "tMs": 4750,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000013767974887580758,
+            "positionErrorM": 0.0002761439485582509,
+            "orientationErrorRadians": 0.0005735974831643203
+          }
+        },
+        {
+          "tMs": 4750,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000011609810108876998,
+            "positionErrorM": 0.0002389286555282188,
+            "orientationErrorRadians": 0.0005999933126049629
+          }
+        },
+        {
+          "tMs": 4833.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 0.000011467897262320326,
+            "positionErrorM": 0.00022742298868928918,
+            "orientationErrorRadians": 0.00045682049185965937
+          }
+        },
+        {
+          "tMs": 4833.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 11,
+            "objectiveCost": 0.000009786734583467662,
+            "positionErrorM": 0.0001991833066352387,
+            "orientationErrorRadians": 0.0005284641493998794
+          }
+        },
+        {
+          "tMs": 4916.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000009079107038766782,
+            "positionErrorM": 0.0001851419490970558,
+            "orientationErrorRadians": 0.00033047563257676695
+          }
+        },
+        {
+          "tMs": 4916.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.00000788101271904679,
+            "positionErrorM": 0.00016600609603297447,
+            "orientationErrorRadians": 0.00045097572830205636
+          }
+        },
+        {
+          "tMs": 5000,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000006820437765399391,
+            "positionErrorM": 0.00014910172786099235,
+            "orientationErrorRadians": 0.00021748610435289148
+          }
+        },
+        {
+          "tMs": 5000,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.0000060050911301992655,
+            "positionErrorM": 0.0001376945940080791,
+            "orientationErrorRadians": 0.00037063816907081704
+          }
+        },
+        {
+          "tMs": 5083.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000004341503024795122,
+            "positionErrorM": 0.000114035667723768,
+            "orientationErrorRadians": 0.00017685552918666938
+          }
+        },
+        {
+          "tMs": 5083.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 10,
+            "objectiveCost": 0.000003843455108795756,
+            "positionErrorM": 0.00010569752308903597,
+            "orientationErrorRadians": 0.0002724148670330037
+          }
+        },
+        {
+          "tMs": 5166.666666666667,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 0.0000023150120509958415,
+            "positionErrorM": 0.00007895503752300531,
+            "orientationErrorRadians": 0.00013108652160694536
+          }
+        },
+        {
+          "tMs": 5166.666666666667,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 15,
+            "objectiveCost": 0.000002055587724852941,
+            "positionErrorM": 0.00008258045594074547,
+            "orientationErrorRadians": 0.0003367444733782521
+          }
+        },
+        {
+          "tMs": 5250,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.968131421182719e-7,
+            "positionErrorM": 0.00002790538478675739,
+            "orientationErrorRadians": 0.000057449739658724424
+          }
+        },
+        {
+          "tMs": 5250,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.59566729662353e-7,
+            "positionErrorM": 0.000025994427713103804,
+            "orientationErrorRadians": 0.00005797597780149344
+          }
+        },
+        {
+          "tMs": 5333.333333333333,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 2.3243248326417942e-8,
+            "positionErrorM": 0.000008396461699008729,
+            "orientationErrorRadians": 0.000042734407654277076
+          }
+        },
+        {
+          "tMs": 5333.333333333333,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 8,
+            "objectiveCost": 2.2913007721668938e-8,
+            "positionErrorM": 0.000009017661792304273,
+            "orientationErrorRadians": 0.00005585733650618995
+          }
+        },
+        {
+          "tMs": 5400,
+          "key": "L_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725620354903e-11,
+            "positionErrorM": 0.000006049248777948391,
+            "orientationErrorRadians": 0.000057773411215497096
+          }
+        },
+        {
+          "tMs": 5400,
+          "key": "R_Hand",
+          "invocation": "guide preparation",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.8234158463860994e-11,
+            "positionErrorM": 0.0000019358645869186407,
+            "orientationErrorRadians": 0.000031717707511577063
+          }
+        },
+        {
+          "tMs": 1000,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725620424847e-11,
+            "positionErrorM": 0.000006049248777935257,
+            "orientationErrorRadians": 0.00005777341121601296
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 3.356540680354545e-9,
+            "positionErrorM": 0.00005602489596841814,
+            "orientationErrorRadians": 0.0001229701047913425
+          }
+        },
+        {
+          "tMs": 2500,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 2.720555289403804e-9,
+            "positionErrorM": 0.00004946572030312595,
+            "orientationErrorRadians": 0.00013786512236620905
+          }
+        },
+        {
+          "tMs": 4100,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 3.3565406803539103e-9,
+            "positionErrorM": 0.00005602489596840892,
+            "orientationErrorRadians": 0.00012297010479145492
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 8.465725620354903e-11,
+            "positionErrorM": 0.000006049248777948391,
+            "orientationErrorRadians": 0.000057773411215497096
+          }
+        },
+        {
+          "tMs": 0,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 0,
+            "objectiveCost": 1.8234158463860994e-11,
+            "positionErrorM": 0.0000019358645869186407,
+            "orientationErrorRadians": 0.000031717707511577063
+          }
+        },
+        {
+          "tMs": 1100,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 2,
+            "objectiveCost": 8.279548169587028e-9,
+            "positionErrorM": 0.000005739554370868583,
+            "orientationErrorRadians": 0.000002737118074490419
+          }
+        },
+        {
+          "tMs": 1100,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "residual-tolerance",
+            "iterations": 1,
+            "objectiveCost": 5.143898426530893e-9,
+            "positionErrorM": 0.000005189069448772011,
+            "orientationErrorRadians": 0.000012156613023157234
+          }
+        },
+        {
+          "tMs": 1133.33333333333,
+          "key": "L_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 12,
+            "objectiveCost": 9.24689485645581e-8,
+            "positionErrorM": 0.00001933129876249907,
+            "orientationErrorRadians": 0.000017766206472953154
+          }
+        },
+        {
+          "tMs": 1133.33333333333,
+          "key": "R_Hand",
+          "invocation": "final playback refinement",
+          "result": {
+            "stopReason": "search-stalled",
+            "iterations": 7,
+            "objectiveCost": 5.441943889043248e-8,
+            "positionErrorM": 0.000010889435487477887,
+            "orientationErrorRadians": 0.00001616039933795696
+          }
+        }
+      ]
+    }
+  ],
+  "sampling": "witness-only",
+  "witnessTimeMs": 0,
+  "witnessTimesMs": [
+    0,
+    83.3333333333333,
+    1100,
+    1133.33333333333
+  ],
+  "witnessHand": "L_Hand",
+  "scope": "Fresh rig for each run; all authored elbow target angles perturbed by ±5e-8 degrees under the unrestricted default scenario. This tests sensitivity, not attainable contact or movement acceptance.",
+  "tolerances": {
+    "rotationRadians": 0.00017453292519943296,
+    "rotationDegrees": 0.01,
+    "trackedPositionM": 0.0001,
+    "provenance": "Existing browser stage parity checks; stricter than floorPalmSupports rotational tolerance"
+  },
+  "cases": [
+    {
+      "variant": "neutral",
+      "deltaDeg": -5e-8,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "frames": 4,
+      "elapsedMs": 2276.1389,
+      "maximumRotation": {
+        "radians": 5.960464477539063e-8,
+        "degrees": 0.0000034150945850063755,
+        "key": "R_Mid2",
+        "tMs": 0
+      },
+      "maximumPosition": {
+        "meters": 1.5471536514191964e-12,
+        "key": "L_UpperArm",
+        "tMs": 1100
+      },
+      "patientViolations": [],
+      "firstDifferenceFailure": null,
+      "guide": {
+        "maximumRotation": {
+          "radians": 4.2146848510894035e-8,
+          "degrees": 0.0000024148365394514667,
+          "key": "L_UpperArm",
+          "tMs": 0
+        },
+        "firstDifferenceFailure": null
+      },
+      "passed": true
+    },
+    {
+      "variant": "neutral",
+      "deltaDeg": 5e-8,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "frames": 4,
+      "elapsedMs": 2132.833199999999,
+      "maximumRotation": {
+        "radians": 5.960464477539063e-8,
+        "degrees": 0.0000034150945850063755,
+        "key": "R_Mid2",
+        "tMs": 0
+      },
+      "maximumPosition": {
+        "meters": 1.5651582430577128e-12,
+        "key": "L_UpperArm",
+        "tMs": 0
+      },
+      "patientViolations": [],
+      "firstDifferenceFailure": null,
+      "guide": {
+        "maximumRotation": {
+          "radians": 4.2146848510894035e-8,
+          "degrees": 0.0000024148365394514667,
+          "key": "R_Hand",
+          "tMs": 1250
+        },
+        "firstDifferenceFailure": null
+      },
+      "passed": true
+    }
+  ],
+  "sourceAfter": "85b4273bd0aa43d63b2ae0df8e2e967fc0a5bf37af497d75b0d06acda92a7154",
+  "sourceStable": true,
+  "passed": true
+}

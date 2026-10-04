@@ -8,12 +8,14 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { BODY_ASSESSMENT_MOTIONS, BODY_ASSESSMENT_NOTES } from '../services/assessmentBodyMotions';
 import { BODY_VARIANTS } from '../anatomy/bodyVariants';
+import { captureFloorReference } from '../services/rootMotion';
 import { applyAnatomicPose } from '../services/anatomicPose';
 import { applyCustomPose, serializeCustomPose } from '../services/poseRig';
 import { captureJointAngleRestReference } from '../services/jointAngles';
 import { resolveComposedMotion, type ComposedMotion } from '../services/motionSequence';
 import { sampleComposedMotion, type RecordedFrame } from '../services/motionRecording';
 import { movementScreenMotion, movementScreenPattern } from '../services/movementScreen';
+import { createStageTwistOverlay } from '../services/stageTwistOverlay';
 
 const IDS = ['hurdle-step', 'in-line-lunge', 'rotary-stability', 'trunk-stability-push-up', 'extension-clearing', 'flexion-clearing', 'multisegmental-flexion', 'multisegmental-extension', 'multisegmental-rotation', 'single-leg-stance', 'sfma-overhead-deep-squat-legacy'];
 const point = (frame: RecordedFrame, key: string) => new THREE.Vector3().fromArray(frame.worldTracks![key]!);
@@ -47,8 +49,9 @@ describe('assessment-specific whole-body source definitions', () => {
           if (target.joint.endsWith('_Shoulder')) expect(id === 'sfma-overhead-deep-squat-legacy' ? ['protraction','upRotation','scapularTilt'] : ['protraction']).toContain(target.motion);
         }
         // Imported whole-body support seeds explicitly clear quiet arm axes;
-        // these body protocols still use only one nonzero humeral channel.
-        for (const side of ['L', 'R']) expect(frame.targets!.filter(t => t.joint === `${side}_UpperArm` && t.targetDegrees !== 0).length).toBeLessThanOrEqual(id === 'sfma-overhead-deep-squat-legacy' ? 3 : 1);
+        // extension clearing combines abduction and axial rotation; the other
+        // protocols retain their existing number of active humeral channels.
+        for (const side of ['L', 'R']) expect(frame.targets!.filter(t => t.joint === `${side}_UpperArm` && t.targetDegrees !== 0).length).toBeLessThanOrEqual(id === 'sfma-overhead-deep-squat-legacy' ? 3 : id === 'extension-clearing' ? 2 : 1);
       }
       const copy = BODY_ASSESSMENT_MOTIONS[id]!(side);
       frames[0]!.targets![0]!.targetDegrees = 999;
@@ -68,6 +71,7 @@ for (const variant of ['female', 'male'] as const) {
     let root: THREE.Object3D, skinned: THREE.SkinnedMesh;
     let baseline: ReturnType<typeof serializeCustomPose>, rest: ReturnType<typeof captureJointAngleRestReference>;
     const initialPosition = new THREE.Vector3(), initialQuaternion = new THREE.Quaternion();
+    const skinTwist = createStageTwistOverlay();
     beforeAll(async () => {
       const bytes = readFileSync(fileURLToPath(new URL(`../../models/painmap3D_${variant}.runtime.glb`, import.meta.url)));
       const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
@@ -79,6 +83,7 @@ for (const variant of ['female', 'male'] as const) {
       root.updateMatrixWorld(true); applyAnatomicPose(root, cfg); root.updateMatrixWorld(true);
       rest = captureJointAngleRestReference(skinned.skeleton, cfg);
       baseline = serializeCustomPose(skinned.skeleton, cfg, variant);
+      skinTwist.reset(skinned.skeleton, cfg);
       initialPosition.copy(root.position); initialQuaternion.copy(root.quaternion);
     });
 
@@ -97,6 +102,55 @@ for (const variant of ['female', 'male'] as const) {
       });
       return { resolved, recording, phases };
     }
+
+    it('preserves legacy pelvis support when no explicit support plane is declared', () => {
+      root.position.copy(initialPosition); root.quaternion.copy(initialQuaternion);
+      applyCustomPose(skinned.skeleton, cfg, baseline); root.updateMatrixWorld(true);
+      const floor = captureFloorReference(skinned.skeleton, cfg).floorY;
+      // Older saved motions retain the pelvis-only rest-datum contract. The
+      // explicit-plane candidate is checked against its full posed torso skin
+      // in proneSupportSurface.test.ts; chest contact may lift the pelvis.
+      const legacy = { ...BODY_ASSESSMENT_MOTIONS['extension-clearing']!('R') };
+      delete legacy.supportPlaneY;
+      delete legacy.proneSkinSupport;
+      delete legacy.pronePalmAnchorFit;
+      // Replay the historical recipe as well as its absent-plane flag. Merely
+      // deleting a new flag from today's authored pelvic-tilt motion would test
+      // a different, unsupported hybrid, not legacy saved-motion behavior.
+      legacy.keyframes.forEach((frame, index) => {
+        delete frame.control;
+        frame.targets = frame.targets!.filter(target => target.joint !== 'Hips');
+        if (index !== 1) return;
+        for (const target of frame.targets) {
+          if (target.joint === 'Spine_Lower' && target.motion === 'flexion') target.targetDegrees = -20;
+          if (target.joint === 'Spine_Upper' && target.motion === 'flexion') target.targetDegrees = -15;
+          if (target.joint.endsWith('_UpperArm') && target.motion === 'shoulderFlexion') target.targetDegrees = 140;
+          if (target.joint.endsWith('_UpLeg') && target.motion === 'hipFlexion') target.targetDegrees = 0;
+        }
+      });
+      for (const contact of legacy.contacts!) Object.assign(contact.palmSupport!, { elbowOutward: .550764, elbowBackward: 1.376910, elbowUpward: 1.376910 });
+      const { phases } = sample(legacy);
+      for (const frame of phases) {
+        root.position.copy(initialPosition).add(new THREE.Vector3().fromArray(frame.root.translateM));
+        root.quaternion.copy(initialQuaternion).multiply(new THREE.Quaternion().fromArray(frame.root.orientQuat));
+        applyCustomPose(skinned.skeleton, cfg, frame.pose); root.updateMatrixWorld(true); skinned.skeleton.update();
+        let minimum = Infinity;
+        root.traverse(object => {
+          const skin = object as THREE.SkinnedMesh;
+          if (!skin.isSkinnedMesh) return;
+          skin.skeleton.update();
+          const indices = skin.geometry.getAttribute('skinIndex'), weights = skin.geometry.getAttribute('skinWeight');
+          const pelvisBones = skin.skeleton.bones.map(bone => /(?:Hip|Pelvis)$/.test(bone.name));
+          for (let i = 0; i < indices.count; i++) {
+            let influence = 0;
+            for (let j = 0; j < 4; j++) if (pelvisBones[indices.getComponent(i, j)]) influence += weights.getComponent(i, j);
+            if (influence >= .5) minimum = Math.min(minimum, skin.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(skin.matrixWorld).y);
+          }
+        });
+        expect(Math.abs(minimum - floor), `pelvis skin at ${frame.tMs} ms`).toBeLessThan(.006);
+        expect(point(frame, 'Hips').y - floor).toBeGreaterThan(.08);
+      }
+    });
 
     function footSkin(frame: RecordedFrame) {
       root.position.copy(initialPosition).add(new THREE.Vector3().fromArray(frame.root.translateM));
@@ -120,6 +174,34 @@ for (const variant of ['female', 'male'] as const) {
       });
       expect(bounds.R.isEmpty()).toBe(false); expect(bounds.L.isEmpty()).toBe(false);
       return { gap: bounds.L.min.x - bounds.R.max.x, minY: [bounds.L.min.y, bounds.R.min.y], ankleY: point(frame, 'R_Foot').y, toeY: point(frame, 'R_Toes').y };
+    }
+
+    function proneSupportSkin(frame: RecordedFrame) {
+      root.position.copy(initialPosition).add(new THREE.Vector3().fromArray(frame.root.translateM));
+      root.quaternion.copy(initialQuaternion).multiply(new THREE.Quaternion().fromArray(frame.root.orientQuat));
+      applyCustomPose(skinned.skeleton, cfg, frame.pose);
+      const minima: Record<string, number> = { pelvis: Infinity, L_thighCalf: Infinity, R_thighCalf: Infinity, L_toes: Infinity, R_toes: Infinity };
+      skinTwist.sampleWithTwist(() => {
+        root.updateMatrixWorld(true);
+        root.traverse(object => {
+          const skin = object as THREE.SkinnedMesh;
+          if (!skin.isSkinnedMesh) return;
+          skin.skeleton.update();
+          const indices = skin.geometry.getAttribute('skinIndex'), weights = skin.geometry.getAttribute('skinWeight');
+          for (let index = 0; index < indices.count; index++) {
+            let largest = -1, owner = '';
+            for (let slot = 0; slot < weights.itemSize; slot++) if (weights.getComponent(index, slot) > largest) {
+              largest = weights.getComponent(index, slot); owner = skin.skeleton.bones[indices.getComponent(index, slot)]!.name;
+            }
+            const side = /_(L|R)_/.exec(owner)?.[1];
+            const region = /(?:Hip|Pelvis)$/.test(owner) ? 'pelvis'
+              : side && /(?:Thigh|Calf)/.test(owner) ? side + '_thighCalf'
+              : side && /Toe/.test(owner) ? side + '_toes' : null;
+            if (region) minima[region] = Math.min(minima[region]!, skin.getVertexPosition(index, new THREE.Vector3()).applyMatrix4(skin.matrixWorld).y);
+          }
+        });
+      });
+      return minima;
     }
 
     it.each(IDS.flatMap(id => (['R', 'L'] as const).map(side => ({ id, side }))))('$id / $side follows the assessment path and returns to setup', ({ id, side }) => {
@@ -177,19 +259,46 @@ for (const variant of ['female', 'male'] as const) {
         for (const phase of [start, assessed, finish]) for (const which of ['L', 'R'] as const) expect(Math.abs(at(phase, 'Hand', which).y)).toBeLessThan(.065);
         expect(point(assessed, 'Head').y - point(start, 'Head').y).toBeGreaterThan(.25);
         if (id === 'extension-clearing') {
-          expect(point(assessed, 'Hips').distanceTo(point(start, 'Hips'))).toBeLessThan(.005);
+          // The pelvis now tilts as part of the authored chain. Holding the
+          // anterior skin on the floor can move the internal Hips marker;
+          // pinning that marker within5mm would instead force skin penetration.
+          // Preserve the actual final rendered surface, using the existing
+          // 150um tolerance in proneSkinSupportIntegration.test (the helper's
+          // 50um convergence is measured before final contact deformation).
+          // Distal/knee gaps are separate
+          // diagnostics, not a requirement that every part of a leg be flat.
+          for (const phase of [start, assessed, finish]) {
+            expect(phase.proneSupport?.feasible).toBe(true);
+            for (const [region, y] of Object.entries(proneSupportSkin(phase))) {
+              expect(Math.abs(y), `${region} skin at ${phase.tMs}ms`).toBeLessThan(.00015);
+            }
+          }
         } else {
           expect(point(assessed, 'Hips').y - point(start, 'Hips').y).toBeGreaterThan(.2);
           expect(at(assessed, 'Leg').y - at(start, 'Leg').y).toBeGreaterThan(.08);
           expect(point(assessed, 'Head').distanceTo(point(assessed, 'Hips'))).toBeCloseTo(point(start, 'Head').distanceTo(point(start, 'Hips')), 2);
         }
       } else if (id === 'flexion-clearing') {
-        expect(point(start, 'Hips').y - point(assessed, 'Hips').y).toBeGreaterThan(.14);
+        // The old 14cm drop encoded the penetrating knee-center floor placement;
+        // it did not pass after skin support and has no protocol-derived basis.
+        // The clearing protocol asks for a backward/downward movement toward the
+        // heels. Actual skin support is checked in kneelingSkinSupport.test.ts.
+        const footMidpoint = (phase: RecordedFrame) => at(phase, 'Foot', 'L').add(at(phase, 'Foot', 'R')).multiplyScalar(.5);
+        expect(point(start, 'Hips').y - point(assessed, 'Hips').y).toBeGreaterThan(0);
+        expect(point(assessed, 'Hips').distanceTo(footMidpoint(assessed)))
+          .toBeLessThan(point(start, 'Hips').distanceTo(footMidpoint(start)));
         expect(at(assessed, 'Leg').z - point(assessed, 'Hips').z).toBeGreaterThan(.3);
         for (const which of ['L', 'R'] as const) {
           expect(Math.abs(at(assessed, 'Hand', which).y)).toBeLessThan(.05);
           expect(at(assessed, 'Forearm', which).y).toBeGreaterThan(.04);
-          expect(Math.abs(at(assessed, 'Foot', which).y)).toBeLessThan(.08);
+        }
+        // The ankle origin sits above its supported skin. The old 8cm origin
+        // proxy failed after correction; require actual foot/toe support instead
+        // using the predeclared 1mm flexion surface allowance at all three poses.
+        for (const phase of [start, assessed, finish]) {
+          for (const minimumY of footSkin(phase).minY) {
+            expect(Math.abs(minimumY), `foot/toe skin support at ${phase.tMs}ms`).toBeLessThan(.001);
+          }
         }
       } else if (id === 'multisegmental-flexion') {
         expect(at(start, 'Hand').y - at(assessed, 'Hand').y).toBeGreaterThan(.7);

@@ -1,0 +1,1399 @@
+{
+  "schema": "native-extension-development-checkpoint/1",
+  "at": "2026-10-03T00:56:11.982Z",
+  "masterCheckpoint": 7,
+  "scriptSha256": "1e6b9285a132b9b72484233db24c66acd6c10ed99e7b41265f720acadcfd2ea9",
+  "scope": "Retained development evidence only. Native dynamics remain experimental and unqualified. This immutable source predates the later clinical-cone numerical production change; no forces/deformation may be attached to changed playback. Source compatibility, finite-step numerical parity, native contact and visible skin are separate claims. User has narrowed shipment to visible authored playback/app quality; further native experiments are on hold.",
+  "source": {
+    "manifest": {
+      "path": "../remaining-batches/native-current-dense-extension-inputs-2/dense-export-manifest.json",
+      "sha256": "af20da1027f321b5242b26da07c037ecdf2bbb819c6ca17db21758e487ad4bf0"
+    },
+    "nativeManifest": {
+      "path": "../remaining-batches/native-current-recorded-extension-60hz-1/dense-export-manifest.json",
+      "sha256": "52fc6005825302f0cd7f80366b4a10970d3120851b88ecab9fec48e30ea6294d"
+    },
+    "sampleHz": 60,
+    "framesPerBody": 325,
+    "durationS": 5.4,
+    "bodies": [
+      "female",
+      "male"
+    ],
+    "romClamp": "off",
+    "retargeted": true,
+    "sourceChangedForNative": false,
+    "globalInitializationLiftOnly": true
+  },
+  "sourceCompatibility": {
+    "evidence": {
+      "path": "../remaining-batches/native-current-recorded-extension-audit-1.json",
+      "sha256": "bfeab39554653a22852439728465a26458cc06273c22513ae448319e1b18010c"
+    },
+    "scope": "Read-only native FK at every 1ms, actual source reconstruction at every captured sample, and secant velocity/corner comparison. No dynamic integration, contact force or movement acceptance. Full60Hz source is an authored development candidate; fitted native joints remain a representation approximation.",
+    "cases": [
+      {
+        "variant": "female",
+        "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+        "recordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+        "hashes": {
+          "route": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+          "binding": "fe71a387440c59ccef220b5560c8bf3ffb6ebf2e12ec8d55f93d717c7eb92d2a",
+          "settings": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65"
+        },
+        "sourceFrames": 325,
+        "nativeWaypoints": 325,
+        "initialLiftM": 0.004284636594948028,
+        "maximum": {
+          "maximumSnapshotToActualSourceBoneErrorM": {
+            "value": 1.1559513988303132e-7,
+            "timeS": 0,
+            "body": "R_Toes"
+          },
+          "maximumSecantCornerJumpRadS": {
+            "value": 1.0802061830364758,
+            "timeS": 5.183333333333334,
+            "joint": "L_Forearm_flexion",
+            "left": 0.8596670269095283,
+            "right": -0.2205391561269473
+          },
+          "maximumPhaseStopAdjacentVelocityRadS": {
+            "value": 0.23585639766554284,
+            "timeS": 2.5,
+            "joint": "R_Forearm_flexion",
+            "left": -0.23585639766554284,
+            "right": -0.0002285864675444174
+          },
+          "maximumDesiredJointVelocityRadS": {
+            "value": 3.005888378651342,
+            "timeS": 4.667,
+            "joint": "R_Forearm_flexion"
+          },
+          "LMaximumFittedWristErrorM": {
+            "value": 0.00003102908476341953,
+            "timeS": 4.325
+          },
+          "LMaximumFittedTangentialErrorM": {
+            "value": 0.00003008702378761566,
+            "timeS": 4.325
+          },
+          "RMaximumFittedWristErrorM": {
+            "value": 0.000030307491389709847,
+            "timeS": 4.592
+          },
+          "RMaximumFittedTangentialErrorM": {
+            "value": 0.00002704943192178163,
+            "timeS": 4.325
+          },
+          "maximumActualSourceBoneAngularSpeedRadS": {
+            "value": 3.0096273111140914,
+            "timeS": 4.683333333333334,
+            "bone": "CC_Base_R_Forearm"
+          }
+        },
+        "interpolation": "Recorded linear joint/world-position interpolation, shortest-arc slerp and piecewise secant velocities; zero velocity at declared phase stops. Continuous values, potentially discontinuous velocities; approximation to the fingerprinted sampled source, not a C1 trajectory.",
+        "complete": true
+      },
+      {
+        "variant": "male",
+        "inputSha256": "f93ecba3043d6a88eecb88472961d91d4a4dd8de74bd0068b87a8a5decd96158",
+        "recordingSha256": "076d201d96f1e48bce25c773966063b5fdeef3901624c934f33ad2409ba2b8b5",
+        "hashes": {
+          "route": "9d51affe19cc86141ae925fd8c5825a4a8c696e72372aa813c459f4d02f25287",
+          "binding": "026e55f7f79b8cf4ca5e81b6028ae3628c13bed425764264968d39045ed1f4d3",
+          "settings": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65"
+        },
+        "sourceFrames": 325,
+        "nativeWaypoints": 325,
+        "initialLiftM": 0.004482124187640287,
+        "maximum": {
+          "maximumSnapshotToActualSourceBoneErrorM": {
+            "value": 2.5931305369825544e-7,
+            "timeS": 0,
+            "body": "R_Toes"
+          },
+          "maximumSecantCornerJumpRadS": {
+            "value": 1.3104750259124995,
+            "timeS": 5.25,
+            "joint": "L_UpperArm_flexion",
+            "left": 1.637079716282168,
+            "right": 0.3266046903696685
+          },
+          "maximumPhaseStopAdjacentVelocityRadS": {
+            "value": 0.3800138511559167,
+            "timeS": 2.5,
+            "joint": "L_UpperArm_axial_rotation",
+            "left": 0.3800138511559167,
+            "right": 0.0043125100296369625
+          },
+          "maximumDesiredJointVelocityRadS": {
+            "value": 3.0603210279590227,
+            "timeS": 4.667,
+            "joint": "R_Forearm_flexion"
+          },
+          "LMaximumFittedWristErrorM": {
+            "value": 0.00003535691248095059,
+            "timeS": 4.508
+          },
+          "LMaximumFittedTangentialErrorM": {
+            "value": 0.00003107517736563696,
+            "timeS": 4.325
+          },
+          "RMaximumFittedWristErrorM": {
+            "value": 0.00003329185192030212,
+            "timeS": 4.592
+          },
+          "RMaximumFittedTangentialErrorM": {
+            "value": 0.00003124115264720318,
+            "timeS": 4.325
+          },
+          "maximumActualSourceBoneAngularSpeedRadS": {
+            "value": 3.062905776626752,
+            "timeS": 4.683333333333334,
+            "bone": "CC_Base_R_Forearm"
+          }
+        },
+        "interpolation": "Recorded linear joint/world-position interpolation, shortest-arc slerp and piecewise secant velocities; zero velocity at declared phase stops. Continuous values, potentially discontinuous velocities; approximation to the fingerprinted sampled source, not a C1 trajectory.",
+        "complete": true
+      }
+    ]
+  },
+  "feedforwardComparison": {
+    "evidence": {
+      "path": "../remaining-batches/native-current-recorded-feedforward-summary-1.json",
+      "sha256": "76eb8cac84e4b6558b8704beba3db713d73ce7a01189e3b758a4cbbd6974465e"
+    },
+    "pairedIdentityChecks": [
+      {
+        "variant": "female",
+        "off": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\remaining-batches\\native-current-recorded-prefix-female-1.json",
+        "on": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\remaining-batches\\native-current-recorded-prefix-female-equilibrium-1.json",
+        "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+        "identicalInitialQpos": true,
+        "identicalSourceHashes": true,
+        "onlyConditionChanged": "equilibriumBias",
+        "unchangedMotorCapsContactAndSource": true
+      },
+      {
+        "variant": "male",
+        "off": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\remaining-batches\\native-current-recorded-prefix-male-1.json",
+        "on": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\remaining-batches\\native-current-recorded-prefix-male-equilibrium-1.json",
+        "inputSha256": "f93ecba3043d6a88eecb88472961d91d4a4dd8de74bd0068b87a8a5decd96158",
+        "identicalInitialQpos": true,
+        "identicalSourceHashes": true,
+        "onlyConditionChanged": "equilibriumBias",
+        "unchangedMotorCapsContactAndSource": true
+      }
+    ],
+    "cases": [
+      {
+        "variant": "female",
+        "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+        "recordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+        "conditions": {
+          "preset": "reference",
+          "assisted": false,
+          "topology": "articulated",
+          "contact": {
+            "model": "deformable-v1",
+            "selfCollision": true
+          },
+          "armRepresentation": {
+            "kind": "shared-arm-v1"
+          },
+          "palmSupport": "first-loaded-v1"
+        },
+        "hashes": {
+          "route": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+          "binding": "fe71a387440c59ccef220b5560c8bf3ffb6ebf2e12ec8d55f93d717c7eb92d2a",
+          "settings": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65"
+        },
+        "finalTimeS": 1.649999999999929,
+        "clockComplete": true,
+        "nativeFailure": null,
+        "maximumTracking": {
+          "timeS": 1.649999999999929,
+          "joint": "R_Shoulder_scapular_tilt",
+          "signedErrorDeg": 11.772972083638354
+        },
+        "initialLiftM": 0.004284636594948028,
+        "palms": {
+          "L": {
+            "maximumTangentialDriftM": 0.0021020258921837075,
+            "maximumAnchor3DDriftM": 0.003954017965702433,
+            "maximumSourceWristErrorM": 0.00734871810571779,
+            "zeroLoadSampleCount": 166,
+            "below1NSampleCount": 168,
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            },
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 6.238185164273134,
+              "worldPositionM": [
+                0.2468618663769575,
+                0.0007851268861739778,
+                1.6096478462466153
+              ],
+              "sourceMaterialPointM": [
+                0.24686176103363772,
+                -0.003498545191049616,
+                1.6096483776297443
+              ],
+              "sourceMaterialPointOffsetM": 0.004283672111477528,
+              "sourceWristErrorM": 0.00428407228976776,
+              "sourceOrientationErrorDeg": 0.004227143599770292,
+              "initialNativeMaterialPointOffsetM": 4.228388472693467e-18
+            }
+          },
+          "R": {
+            "maximumTangentialDriftM": 0.0021990395317025295,
+            "maximumAnchor3DDriftM": 0.003964977903165658,
+            "maximumSourceWristErrorM": 0.007192657532343149,
+            "zeroLoadSampleCount": 156,
+            "below1NSampleCount": 156,
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            },
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 6.000939989343781,
+              "worldPositionM": [
+                -0.24689942865053874,
+                0.0007901751005139154,
+                1.6095414390366416
+              ],
+              "sourceMaterialPointM": [
+                -0.2469001382956581,
+                -0.0034929260038387526,
+                1.6095417772876677
+              ],
+              "sourceMaterialPointOffsetM": 0.004283101176497818,
+              "sourceWristErrorM": 0.004284043259327985,
+              "sourceOrientationErrorDeg": 0.004502164020587311,
+              "initialNativeMaterialPointOffsetM": 1.8431436932253575e-18
+            }
+          }
+        },
+        "physicalAcceptance": "unverified"
+      },
+      {
+        "variant": "female",
+        "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+        "recordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+        "conditions": {
+          "preset": "reference",
+          "assisted": false,
+          "topology": "articulated",
+          "contact": {
+            "model": "deformable-v1",
+            "selfCollision": true
+          },
+          "armRepresentation": {
+            "kind": "shared-arm-v1"
+          },
+          "palmSupport": "first-loaded-v1",
+          "equilibriumBias": "rigid-equilibrium-v1"
+        },
+        "hashes": {
+          "route": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+          "binding": "fe71a387440c59ccef220b5560c8bf3ffb6ebf2e12ec8d55f93d717c7eb92d2a",
+          "settings": "75abbf97eb55f4aa8305beba59cc7fb249e315e8888453e750887c21d0b5dfb4"
+        },
+        "finalTimeS": 1.649999999999929,
+        "clockComplete": true,
+        "nativeFailure": null,
+        "maximumTracking": {
+          "timeS": 1.4749999999999484,
+          "joint": "R_Forearm_flexion",
+          "signedErrorDeg": 8.671090075410218
+        },
+        "initialLiftM": 0.004284636594948028,
+        "palms": {
+          "L": {
+            "maximumTangentialDriftM": 0.003918533898664473,
+            "maximumAnchor3DDriftM": 0.004210216275096552,
+            "maximumSourceWristErrorM": 0.00427601232301432,
+            "zeroLoadSampleCount": 4,
+            "below1NSampleCount": 4,
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            },
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 6.238185164273134,
+              "worldPositionM": [
+                0.2468618663769575,
+                0.0007851268861739778,
+                1.6096478462466153
+              ],
+              "sourceMaterialPointM": [
+                0.24686176103363772,
+                -0.003498545191049616,
+                1.6096483776297443
+              ],
+              "sourceMaterialPointOffsetM": 0.004283672111477528,
+              "sourceWristErrorM": 0.00428407228976776,
+              "sourceOrientationErrorDeg": 0.004227143599770292,
+              "initialNativeMaterialPointOffsetM": 4.228388472693467e-18
+            }
+          },
+          "R": {
+            "maximumTangentialDriftM": 0.004427850285599249,
+            "maximumAnchor3DDriftM": 0.004789364789093586,
+            "maximumSourceWristErrorM": 0.0042744624736032666,
+            "zeroLoadSampleCount": 5,
+            "below1NSampleCount": 5,
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            },
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 6.000939989343781,
+              "worldPositionM": [
+                -0.24689942865053874,
+                0.0007901751005139154,
+                1.6095414390366416
+              ],
+              "sourceMaterialPointM": [
+                -0.2469001382956581,
+                -0.0034929260038387526,
+                1.6095417772876677
+              ],
+              "sourceMaterialPointOffsetM": 0.004283101176497818,
+              "sourceWristErrorM": 0.004284043259327985,
+              "sourceOrientationErrorDeg": 0.004502164020587311,
+              "initialNativeMaterialPointOffsetM": 1.8431436932253575e-18
+            }
+          }
+        },
+        "physicalAcceptance": "unverified"
+      },
+      {
+        "variant": "male",
+        "inputSha256": "f93ecba3043d6a88eecb88472961d91d4a4dd8de74bd0068b87a8a5decd96158",
+        "recordingSha256": "076d201d96f1e48bce25c773966063b5fdeef3901624c934f33ad2409ba2b8b5",
+        "conditions": {
+          "preset": "reference",
+          "assisted": false,
+          "topology": "articulated",
+          "contact": {
+            "model": "deformable-v1",
+            "selfCollision": true
+          },
+          "armRepresentation": {
+            "kind": "shared-arm-v1"
+          },
+          "palmSupport": "first-loaded-v1"
+        },
+        "hashes": {
+          "route": "9d51affe19cc86141ae925fd8c5825a4a8c696e72372aa813c459f4d02f25287",
+          "binding": "026e55f7f79b8cf4ca5e81b6028ae3628c13bed425764264968d39045ed1f4d3",
+          "settings": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65"
+        },
+        "finalTimeS": 1.649999999999929,
+        "clockComplete": true,
+        "nativeFailure": null,
+        "maximumTracking": {
+          "timeS": 1.649999999999929,
+          "joint": "L_Shoulder_protraction",
+          "signedErrorDeg": -14.261804956817013
+        },
+        "initialLiftM": 0.004482124187640287,
+        "palms": {
+          "L": {
+            "maximumTangentialDriftM": 0.0036149026448704298,
+            "maximumAnchor3DDriftM": 0.003821228798890731,
+            "maximumSourceWristErrorM": 0.004468276855978986,
+            "zeroLoadSampleCount": 6,
+            "below1NSampleCount": 6,
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            },
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 7.363076382895247,
+              "worldPositionM": [
+                0.2931317138926855,
+                0.0007393475645528296,
+                1.7324721395330873
+              ],
+              "sourceMaterialPointM": [
+                0.2931305819857367,
+                -0.0037424377742252962,
+                1.7324724121489943
+              ],
+              "sourceMaterialPointOffsetM": 0.004481785490004997,
+              "sourceWristErrorM": 0.004481915018977676,
+              "sourceOrientationErrorDeg": 0.002444463538779715,
+              "initialNativeMaterialPointOffsetM": 5.551157474611588e-17
+            }
+          },
+          "R": {
+            "maximumTangentialDriftM": 0.004612212381819224,
+            "maximumAnchor3DDriftM": 0.0046762301083880355,
+            "maximumSourceWristErrorM": 0.004467144263849828,
+            "zeroLoadSampleCount": 6,
+            "below1NSampleCount": 6,
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            },
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 6.98347521024902,
+              "worldPositionM": [
+                -0.29315356083519706,
+                0.0007467063600639715,
+                1.732425698729741
+              ],
+              "sourceMaterialPointM": [
+                -0.29315343330272997,
+                -0.0037338977770327575,
+                1.7324261726245749
+              ],
+              "sourceMaterialPointOffsetM": 0.004480604163972663,
+              "sourceWristErrorM": 0.0044817000404049475,
+              "sourceOrientationErrorDeg": 0.004445248392129063,
+              "initialNativeMaterialPointOffsetM": 1.3877787807814457e-17
+            }
+          }
+        },
+        "physicalAcceptance": "unverified"
+      },
+      {
+        "variant": "male",
+        "inputSha256": "f93ecba3043d6a88eecb88472961d91d4a4dd8de74bd0068b87a8a5decd96158",
+        "recordingSha256": "076d201d96f1e48bce25c773966063b5fdeef3901624c934f33ad2409ba2b8b5",
+        "conditions": {
+          "preset": "reference",
+          "assisted": false,
+          "topology": "articulated",
+          "contact": {
+            "model": "deformable-v1",
+            "selfCollision": true
+          },
+          "armRepresentation": {
+            "kind": "shared-arm-v1"
+          },
+          "palmSupport": "first-loaded-v1",
+          "equilibriumBias": "rigid-equilibrium-v1"
+        },
+        "hashes": {
+          "route": "9d51affe19cc86141ae925fd8c5825a4a8c696e72372aa813c459f4d02f25287",
+          "binding": "026e55f7f79b8cf4ca5e81b6028ae3628c13bed425764264968d39045ed1f4d3",
+          "settings": "75abbf97eb55f4aa8305beba59cc7fb249e315e8888453e750887c21d0b5dfb4"
+        },
+        "finalTimeS": 1.649999999999929,
+        "clockComplete": true,
+        "nativeFailure": null,
+        "maximumTracking": {
+          "timeS": 1.3889999999999578,
+          "joint": "R_Forearm_flexion",
+          "signedErrorDeg": 9.608958288221116
+        },
+        "initialLiftM": 0.004482124187640287,
+        "palms": {
+          "L": {
+            "maximumTangentialDriftM": 0.004595540350649532,
+            "maximumAnchor3DDriftM": 0.005017586077894901,
+            "maximumSourceWristErrorM": 0.004457505817296255,
+            "zeroLoadSampleCount": 5,
+            "below1NSampleCount": 5,
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            },
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 7.363076382895247,
+              "worldPositionM": [
+                0.2931317138926855,
+                0.0007393475645528296,
+                1.7324721395330873
+              ],
+              "sourceMaterialPointM": [
+                0.2931305819857367,
+                -0.0037424377742252962,
+                1.7324724121489943
+              ],
+              "sourceMaterialPointOffsetM": 0.004481785490004997,
+              "sourceWristErrorM": 0.004481915018977676,
+              "sourceOrientationErrorDeg": 0.002444463538779715,
+              "initialNativeMaterialPointOffsetM": 5.551157474611588e-17
+            }
+          },
+          "R": {
+            "maximumTangentialDriftM": 0.009950388815572237,
+            "maximumAnchor3DDriftM": 0.010034699561374056,
+            "maximumSourceWristErrorM": 0.007763157182968364,
+            "zeroLoadSampleCount": 15,
+            "below1NSampleCount": 15,
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            },
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 6.98347521024902,
+              "worldPositionM": [
+                -0.29315356083519706,
+                0.0007467063600639715,
+                1.732425698729741
+              ],
+              "sourceMaterialPointM": [
+                -0.29315343330272997,
+                -0.0037338977770327575,
+                1.7324261726245749
+              ],
+              "sourceMaterialPointOffsetM": 0.004480604163972663,
+              "sourceWristErrorM": 0.0044817000404049475,
+              "sourceOrientationErrorDeg": 0.004445248392129063,
+              "initialNativeMaterialPointOffsetM": 1.3877787807814457e-17
+            }
+          }
+        },
+        "physicalAcceptance": "unverified"
+      }
+    ],
+    "conclusion": "Both OFF/ON prefixes reach 1.65 s. ON reduces peak tracking error and load-loss samples but increases slip; all four fail continuous loaded stationary-palm requirements. No promotion."
+  },
+  "passiveResponse": {
+    "evidence": {
+      "path": "../remaining-batches/native-current-compliant-response-1.json",
+      "sha256": "f7023e8ccf4039b1b8fbf26731107a5efc996ad1849272261601d2266df19c33"
+    },
+    "scope": "Offline native discrete inverse-response and independent one-step parity on captured current source/native geometry and velocity. Full skeletal and passive-surface DOFs retained. Prefixes did not store every motor control, so the frozen-state baseline explicitly uses zero motor commands plus unchanged custom passive knee forces; this is not replay of the historical controller effort. No optimized torques are dispatched, no contact forces imposed, and no movement or controller acceptance.",
+    "acceptedProbeCount": 15,
+    "totalProbeCount": 15,
+    "degreesOfFreedom": 190,
+    "passiveSurfaceDegreesOfFreedom": 126,
+    "maximumAccelerationError": 2.608547333693423e-8,
+    "maximumConstraintForceError": 5.52560415201242e-8,
+    "maximumIntegratedPositionError": 2.6085904270001237e-14,
+    "gates": {
+      "maximumForwardInverseGeneralizedForce": 0.0001,
+      "maximumLinearSolveResidual": 1e-7,
+      "maximumAccelerationError": 0.001,
+      "maximumConstraintForceError": 0.001,
+      "maximumIntegratedPositionError": 1e-8
+    },
+    "subsequentApiCorrection": {
+      "contracts": {
+        "path": "../remaining-batches/native-compliant-response-contracts-2.log",
+        "sha256": "f0395c152ef085eff867ba8bb76a7999830556183133a56d55b09eb1adb67104"
+      },
+      "passed": 3,
+      "total": 3,
+      "changes": [
+        "Clone complete forwarded MjData for inverse, preserving equality/mocap/activation/plugin/user state.",
+        "Assert direct scalar hinge, fixed unit-gain/no-bias unit-gear motor columns and finite capped perturbations.",
+        "Candidate inverse mode applies full generalized equilibrium correction; it never directly sets real accelerations or forces."
+      ],
+      "qualification": "The 15-probe report is retained for its archived default-state packet version. New helper has three focused contracts including equality on/off, moved mocap, unchanged state and candidate-equilibrium correction. No new full-cycle physical qualification."
+    }
+  },
+  "coupled": [
+    {
+      "number": 1,
+      "evidence": {
+        "path": "../remaining-batches/native-current-coupled-prefix-female-1.json",
+        "sha256": "d06272f69d8276c6fec2cdd9b34e40a65982520cdecf2f267172a9a18bab508c"
+      },
+      "script": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-1/experiment-native-coupled-palms.mjs",
+        "sha256": "a3944066bafd3ada6f4ccd9d6409f668c75982b9eb3b43d04f765af6ee301287"
+      },
+      "responsePacket": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-1/native-compliant-response-packet.mjs",
+        "sha256": "e37a33c0838751fa79332173baca6e9b103e5befc0b0fd58e962c2def39f15bf"
+      },
+      "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+      "sourceRecordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+      "routeSha256": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+      "settingsSha256": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65",
+      "sourceHashesStable": true,
+      "finalTimeS": 1.1279999999999866,
+      "dispatchedSteps": 1128,
+      "allocationCount": 1,
+      "error": "Coupled allocation rejected before native integration",
+      "interpretation": "Rejected at the strict 1 N force boundary: measured 0.9999999999703334 N. No physical gate was relaxed; subsequent prediction reserved its existing numerical error bound.",
+      "lastAttempt": {
+        "status": "solved",
+        "iterations": 25,
+        "boundResidual": 0,
+        "accelerationError": 1.1668244814799777e-8,
+        "forceError": 1.730313670122996e-10,
+        "predictedModeChanges": [],
+        "actualModeChanges": [],
+        "measuredPalms": {
+          "L": {
+            "loadN": 0.9999999999703334,
+            "pointM": [
+              0.2468645226393208,
+              0.001082448715422405,
+              1.6096907564351142
+            ],
+            "driftM": 0.00030041406450827815
+          },
+          "R": {
+            "loadN": 4.5948519160052,
+            "pointM": [
+              -0.24689831787690433,
+              0.0010014916054173935,
+              1.609588967102491
+            ],
+            "driftM": 0.00021659828278652974
+          }
+        },
+        "accepted": false
+      },
+      "nominalRejectedPalms": {
+        "L": {
+          "loadN": 0.7522367028840639,
+          "pointM": [
+            0.24686601489631704,
+            0.001083881514454644,
+            1.6096914668343896
+          ],
+          "driftM": 0.0003019508135603719
+        },
+        "R": {
+          "loadN": 4.593139749298832,
+          "pointM": [
+            -0.24689835356010262,
+            0.0010015032958264336,
+            1.609588939785998
+          ],
+          "driftM": 0.00021660351599848244
+        }
+      },
+      "physicalAcceptance": "unverified"
+    },
+    {
+      "number": 2,
+      "evidence": {
+        "path": "../remaining-batches/native-current-coupled-prefix-female-2.json",
+        "sha256": "d8f98f2cdad6204c3ed214a968999313c4ef05884606e6086fd8f38a2a83c20e"
+      },
+      "script": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-2/experiment-native-coupled-palms.mjs",
+        "sha256": "95a694c9eebbf281894bd056be2da365c77cdf0d6bb9ae6415efdde7401acc73"
+      },
+      "responsePacket": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-1/native-compliant-response-packet.mjs",
+        "sha256": "e37a33c0838751fa79332173baca6e9b103e5befc0b0fd58e962c2def39f15bf"
+      },
+      "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+      "sourceRecordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+      "routeSha256": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+      "settingsSha256": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65",
+      "sourceHashesStable": true,
+      "finalTimeS": 1.1289999999999865,
+      "dispatchedSteps": 1129,
+      "allocationCount": 2,
+      "error": "Required palm has no loaded native edge in observed mode: L",
+      "interpretation": "Rejected when the current nominal mode had no loaded left-palm constraint.",
+      "lastAttempt": {
+        "status": "solved",
+        "iterations": 25,
+        "boundResidual": 0,
+        "accelerationError": 1.1715245995524981e-8,
+        "forceError": 1.737419097480597e-10,
+        "predictedModeChanges": [],
+        "actualModeChanges": [],
+        "measuredPalms": {
+          "L": {
+            "loadN": 1.0009999999702197,
+            "pointM": [
+              0.24686451661634246,
+              0.0010824429325147489,
+              1.6096907535678533
+            ],
+            "driftM": 0.00030040787838591634
+          },
+          "R": {
+            "loadN": 4.594858826498912,
+            "pointM": [
+              -0.24689831773288298,
+              0.0010014915582332654,
+              1.6095889672127432
+            ],
+            "driftM": 0.0002165982616842558
+          }
+        },
+        "accepted": true
+      },
+      "nominalRejectedPalms": {
+        "L": {
+          "loadN": 0.7522367028840639,
+          "pointM": [
+            0.24686601489631704,
+            0.001083881514454644,
+            1.6096914668343896
+          ],
+          "driftM": 0.0003019508135603719
+        },
+        "R": {
+          "loadN": 4.593139749298832,
+          "pointM": [
+            -0.24689835356010262,
+            0.0010015032958264336,
+            1.609588939785998
+          ],
+          "driftM": 0.00021660351599848244
+        }
+      },
+      "physicalAcceptance": "unverified"
+    },
+    {
+      "number": 3,
+      "evidence": {
+        "path": "../remaining-batches/native-current-coupled-prefix-female-3.json",
+        "sha256": "89a0b5be51b9e9a094487cff092cbee688b8309fdf6c6f0a47bb1e1158c51b9c"
+      },
+      "script": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-3/experiment-native-coupled-palms.mjs",
+        "sha256": "e4f85684db51ddeda3e26ec3add76aace2d37851db0a61065e6b7e4fb3b95617"
+      },
+      "responsePacket": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-1/native-compliant-response-packet.mjs",
+        "sha256": "e37a33c0838751fa79332173baca6e9b103e5befc0b0fd58e962c2def39f15bf"
+      },
+      "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+      "sourceRecordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+      "routeSha256": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+      "settingsSha256": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65",
+      "sourceHashesStable": true,
+      "finalTimeS": 1.1289999999999865,
+      "dispatchedSteps": 1129,
+      "allocationCount": 2,
+      "error": "Required palm has no loaded native edge in observed mode: L",
+      "interpretation": "Using the last accepted torque as linearization still left no loaded palm constraint.",
+      "lastAttempt": {
+        "status": "solved",
+        "iterations": 25,
+        "boundResidual": 0,
+        "accelerationError": 1.2886111677712364e-8,
+        "forceError": 1.6842083283563625e-10,
+        "predictedModeChanges": [],
+        "actualModeChanges": [],
+        "measuredPalms": {
+          "L": {
+            "loadN": 1.0009999999171726,
+            "pointM": [
+              0.24686451661634212,
+              0.0010824429325157758,
+              1.609690753567854
+            ],
+            "driftM": 0.00030040787838702494
+          },
+          "R": {
+            "loadN": 4.594858826488904,
+            "pointM": [
+              -0.2468983177328834,
+              0.0010014915582337199,
+              1.6095889672127426
+            ],
+            "driftM": 0.0002165982616845509
+          }
+        },
+        "accepted": true
+      },
+      "nominalRejectedPalms": {
+        "L": {
+          "loadN": 0.7522367028840639,
+          "pointM": [
+            0.24686601489631704,
+            0.001083881514454644,
+            1.6096914668343896
+          ],
+          "driftM": 0.0003019508135603719
+        },
+        "R": {
+          "loadN": 4.593139749298832,
+          "pointM": [
+            -0.24689835356010262,
+            0.0010015032958264336,
+            1.609588939785998
+          ],
+          "driftM": 0.00021660351599848244
+        }
+      },
+      "physicalAcceptance": "unverified"
+    },
+    {
+      "number": 4,
+      "evidence": {
+        "path": "../remaining-batches/native-current-coupled-prefix-female-4.json",
+        "sha256": "e60ea02d615cc73b6d970ecc08b93d0b425f91980a766c07778968c45b92308e"
+      },
+      "script": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-4/experiment-native-coupled-palms.mjs",
+        "sha256": "96534b3f04041ce458aaf6df8f7781bddcfe57e23fa058ee90573671e317a4e9"
+      },
+      "responsePacket": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-4/native-compliant-response-packet.mjs",
+        "sha256": "164c1cf64937ec0156a4295108db49560df2ad74720142e8ee34f7ded228857a"
+      },
+      "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+      "sourceRecordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+      "routeSha256": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+      "settingsSha256": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65",
+      "sourceHashesStable": true,
+      "finalTimeS": 1.1289999999999865,
+      "dispatchedSteps": 1129,
+      "allocationCount": 2,
+      "error": "Required palm has no eligible native floor contact: L",
+      "interpretation": "Candidate inverse mode cannot activate an absent eligible contact. Found pre-step load could coexist with post-step geometric separation.",
+      "lastAttempt": {
+        "status": "solved",
+        "iterations": 25,
+        "boundResidual": 0,
+        "accelerationError": 1.2886111677712364e-8,
+        "forceError": 1.6842083283563625e-10,
+        "predictedModeChanges": [],
+        "actualModeChanges": [],
+        "measuredPalms": {
+          "L": {
+            "loadN": 1.0009999999171726,
+            "pointM": [
+              0.24686451661634212,
+              0.0010824429325157758,
+              1.609690753567854
+            ],
+            "driftM": 0.00030040787838702494
+          },
+          "R": {
+            "loadN": 4.594858826488904,
+            "pointM": [
+              -0.2468983177328834,
+              0.0010014915582337199,
+              1.6095889672127426
+            ],
+            "driftM": 0.0002165982616845509
+          }
+        },
+        "accepted": true
+      },
+      "nominalRejectedPalms": {
+        "L": {
+          "loadN": 0.7522367028840639,
+          "pointM": [
+            0.24686601489631704,
+            0.001083881514454644,
+            1.6096914668343896
+          ],
+          "driftM": 0.0003019508135603719
+        },
+        "R": {
+          "loadN": 4.593139749298832,
+          "pointM": [
+            -0.24689835356010262,
+            0.0010015032958264336,
+            1.609588939785998
+          ],
+          "driftM": 0.00021660351599848244
+        }
+      },
+      "physicalAcceptance": "unverified"
+    },
+    {
+      "number": 5,
+      "evidence": {
+        "path": "../remaining-batches/native-current-coupled-prefix-female-5.json",
+        "sha256": "368ef36ea146105aa743c822e2e0a7ecd4994578f70de9bba0dfd32be54cc457"
+      },
+      "script": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-5/experiment-native-coupled-palms.mjs",
+        "sha256": "e3f505a611e43ed033fb1f59447724911b4a5e6c104dd26895a7a615e2917c82"
+      },
+      "responsePacket": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-4/native-compliant-response-packet.mjs",
+        "sha256": "164c1cf64937ec0156a4295108db49560df2ad74720142e8ee34f7ded228857a"
+      },
+      "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+      "sourceRecordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+      "routeSha256": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+      "settingsSha256": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65",
+      "sourceHashesStable": true,
+      "finalTimeS": 0,
+      "dispatchedSteps": 0,
+      "allocationCount": 1,
+      "error": "Coupled allocation rejected before native integration",
+      "interpretation": "Harness defect, not a native capacity result: assumed an infinite-plane geom but actual floor is a box. Empty geom pairs and an incorrectly strict zero-gap criterion rejected at setup.",
+      "lastAttempt": {
+        "status": "iteration-limit",
+        "iterations": 300,
+        "boundResidual": 5.858617725469881,
+        "accelerationError": 253.6387178427516,
+        "forceError": 3990.0709120093293,
+        "predictedModeChanges": [
+          3,
+          4,
+          7,
+          10,
+          13,
+          14,
+          16,
+          17,
+          19,
+          22,
+          25,
+          27,
+          29,
+          30,
+          32,
+          35,
+          36,
+          39,
+          41,
+          42,
+          44,
+          47,
+          48,
+          52,
+          57,
+          58,
+          59,
+          61,
+          64,
+          70,
+          73,
+          76,
+          80
+        ],
+        "actualModeChanges": [
+          2,
+          3,
+          4,
+          5,
+          7,
+          8,
+          9,
+          10,
+          11,
+          13,
+          14,
+          15,
+          16,
+          17,
+          19,
+          20,
+          21,
+          22,
+          23,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          47,
+          48,
+          49,
+          52,
+          57,
+          61,
+          62,
+          63,
+          64,
+          65,
+          73,
+          74,
+          76,
+          77,
+          78,
+          80
+        ],
+        "measuredPalms": {
+          "L": {
+            "loadN": 33.67111839150678,
+            "minimumCollisionGapM": null,
+            "pointM": [
+              0.2467736453890666,
+              0.0005980831181705698,
+              1.609592391738476
+            ],
+            "driftM": 0.00021411099067149272
+          },
+          "R": {
+            "loadN": 30.833893633174036,
+            "minimumCollisionGapM": null,
+            "pointM": [
+              -0.24680494792298677,
+              0.0006205585037158505,
+              1.60954003446726
+            ],
+            "driftM": 0.00019416068243404758
+          }
+        },
+        "accepted": false
+      },
+      "nominalRejectedPalms": {
+        "L": {
+          "loadN": 7.916001108558836,
+          "minimumCollisionGapM": null,
+          "pointM": [
+            0.24686196160586849,
+            0.0007707856803966413,
+            1.609644621733431
+          ],
+          "driftM": 0.000014699548869565335
+        },
+        "R": {
+          "loadN": 7.851409885938813,
+          "minimumCollisionGapM": null,
+          "pointM": [
+            -0.24689967006313995,
+            0.0007750639120584595,
+            1.6095386954704352
+          ],
+          "driftM": 0.0000153601253936764
+        }
+      },
+      "physicalAcceptance": "unverified"
+    },
+    {
+      "number": 6,
+      "evidence": {
+        "path": "../remaining-batches/native-current-coupled-prefix-female-6.json",
+        "sha256": "00031ea06ad39eeba6d2f53c1815297a9e5ee77dd064074eb816afe90b1e4cfb"
+      },
+      "script": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-6/experiment-native-coupled-palms.mjs",
+        "sha256": "1ef1931a0186320c5ffc3a245cc0fcd083b2a786058376981149a8e496521917"
+      },
+      "responsePacket": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-4/native-compliant-response-packet.mjs",
+        "sha256": "164c1cf64937ec0156a4295108db49560df2ad74720142e8ee34f7ded228857a"
+      },
+      "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+      "sourceRecordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+      "routeSha256": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+      "settingsSha256": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65",
+      "sourceHashesStable": true,
+      "finalTimeS": 0,
+      "dispatchedSteps": 0,
+      "allocationCount": 1,
+      "error": "Coupled allocation rejected before native integration",
+      "interpretation": "Harness criterion defect, not a native capacity result: literal collider gap zero ignored the unchanged native contact inclusion margin. Retained setup rejection.",
+      "lastAttempt": {
+        "status": "iteration-limit",
+        "iterations": 300,
+        "boundResidual": 5.858617725469881,
+        "accelerationError": 253.6387178427516,
+        "forceError": 3990.0709120093293,
+        "predictedModeChanges": [
+          3,
+          4,
+          7,
+          10,
+          13,
+          14,
+          16,
+          17,
+          19,
+          22,
+          25,
+          27,
+          29,
+          30,
+          32,
+          35,
+          36,
+          39,
+          41,
+          42,
+          44,
+          47,
+          48,
+          52,
+          57,
+          58,
+          59,
+          61,
+          64,
+          70,
+          73,
+          76,
+          80
+        ],
+        "actualModeChanges": [
+          2,
+          3,
+          4,
+          5,
+          7,
+          8,
+          9,
+          10,
+          11,
+          13,
+          14,
+          15,
+          16,
+          17,
+          19,
+          20,
+          21,
+          22,
+          23,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          47,
+          48,
+          49,
+          52,
+          57,
+          61,
+          62,
+          63,
+          64,
+          65,
+          73,
+          74,
+          76,
+          77,
+          78,
+          80
+        ],
+        "measuredPalms": {
+          "L": {
+            "loadN": 33.67111839150678,
+            "minimumCollisionGapM": 0.0016061221035833446,
+            "pointM": [
+              0.2467736453890666,
+              0.0005980831181705698,
+              1.609592391738476
+            ],
+            "driftM": 0.00021411099067149272
+          },
+          "R": {
+            "loadN": 30.833893633174036,
+            "minimumCollisionGapM": 0.0016151709542816211,
+            "pointM": [
+              -0.24680494792298677,
+              0.0006205585037158505,
+              1.60954003446726
+            ],
+            "driftM": 0.00019416068243404758
+          }
+        },
+        "accepted": false
+      },
+      "nominalRejectedPalms": {
+        "L": {
+          "loadN": 7.916001108558836,
+          "minimumCollisionGapM": 0.0016065709036513845,
+          "pointM": [
+            0.24686196160586849,
+            0.0007707856803966413,
+            1.609644621733431
+          ],
+          "driftM": 0.000014699548869565335
+        },
+        "R": {
+          "loadN": 7.851409885938813,
+          "minimumCollisionGapM": 0.0016155424250637073,
+          "pointM": [
+            -0.24689967006313995,
+            0.0007750639120584595,
+            1.6095386954704352
+          ],
+          "driftM": 0.0000153601253936764
+        }
+      },
+      "physicalAcceptance": "unverified"
+    },
+    {
+      "number": 7,
+      "evidence": {
+        "path": "../remaining-batches/native-current-coupled-prefix-female-7.json",
+        "sha256": "cc172d3696da3d150a31fb79342fe11deea487a1a407802aea644be09c86eb1b"
+      },
+      "script": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-7/experiment-native-coupled-palms.mjs",
+        "sha256": "354be0c66b9591b34e29fd5aeaf5e2bcee61d53b515814c451285871ef551c08"
+      },
+      "responsePacket": {
+        "path": "../remaining-batches/native-coupled-experiment-sources-4/native-compliant-response-packet.mjs",
+        "sha256": "164c1cf64937ec0156a4295108db49560df2ad74720142e8ee34f7ded228857a"
+      },
+      "inputSha256": "8639a6916acecf82128db32b68f621355358dff216e9b176013056264424f2b4",
+      "sourceRecordingSha256": "818ddf6116e39c018769eff6a7dace7aa2a62d3b285c59dfdc9333d2d3ddfbbf",
+      "routeSha256": "403b7190043b031b6df3385ec1b0b7e49e5c9188b9dab381c0951b655ad96a41",
+      "settingsSha256": "e524e3a6979f5fb5934ace44b1d06d0b5fb0b6e6fa1b992454ae412717e51d65",
+      "sourceHashesStable": true,
+      "finalTimeS": 1.1289999999999865,
+      "dispatchedSteps": 1129,
+      "allocationCount": 2,
+      "error": "Coupled allocation rejected before native integration",
+      "interpretation": "Correct native inclusion margin and independent post-step collision check. Bounded QP failed convergence/response parity at 1.129 s and was rejected before dispatch. This does not prove infeasibility.",
+      "lastAttempt": {
+        "status": "iteration-limit",
+        "iterations": 300,
+        "boundResidual": 0.0017031507309888533,
+        "accelerationError": 0.07881141906987965,
+        "forceError": 1.1566741225238528,
+        "predictedModeChanges": [
+          54,
+          55,
+          57
+        ],
+        "actualModeChanges": [
+          54,
+          55
+        ],
+        "measuredPalms": {
+          "L": {
+            "loadN": 1.9256488073175508,
+            "minimumEligibilityGapM": null,
+            "eligibleAfterStep": false,
+            "minimumCollisionGapM": 0.0019001281590271986,
+            "pointM": [
+              0.24685970734323331,
+              0.0010810013429804304,
+              1.6096905039836618
+            ],
+            "driftM": 0.0002989415296459531
+          },
+          "R": {
+            "loadN": 4.1850858614160895,
+            "minimumEligibilityGapM": -7.742583436887163e-7,
+            "eligibleAfterStep": true,
+            "minimumCollisionGapM": 0.00189915338703292,
+            "pointM": [
+              -0.24689763041191068,
+              0.0010099330767206205,
+              1.6095896029390127
+            ],
+            "driftM": 0.00022498125090824543
+          }
+        },
+        "accepted": false
+      },
+      "nominalRejectedPalms": {
+        "L": {
+          "loadN": 0.7169100118433406,
+          "minimumEligibilityGapM": null,
+          "eligibleAfterStep": false,
+          "minimumCollisionGapM": 0.0019012861313881524,
+          "pointM": [
+            0.2468635854458806,
+            0.0010902769815877358,
+            1.6096904120891795
+          ],
+          "driftM": 0.00030810937486904107
+        },
+        "R": {
+          "loadN": 4.160806696460602,
+          "minimumEligibilityGapM": -7.739094488915486e-7,
+          "eligibleAfterStep": true,
+          "minimumCollisionGapM": 0.001899153735983053,
+          "pointM": [
+            -0.2468981834973069,
+            0.001010095378011104,
+            1.609589265961545
+          ],
+          "driftM": 0.00022506419885606378
+        }
+      },
+      "physicalAcceptance": "unverified"
+    }
+  ],
+  "currentDiagnostic": {
+    "evidence": {
+      "path": "../remaining-batches/native-current-coupled-prefix-female-7.json",
+      "sha256": "cc172d3696da3d150a31fb79342fe11deea487a1a407802aea644be09c86eb1b"
+    },
+    "outcome": "rejected-before-dispatch",
+    "firstFailureTimeS": 1.1289999999999865,
+    "nativeIntegrationAndCaps": "unchanged",
+    "productionDefaultChanged": false,
+    "visibleSkinContactQualified": false,
+    "observations": [
+      "At the last rejected step, left pre-integration load is 1.92565 N, but post-step collider gap is 1.900128 mm and no longer inside the unchanged native inclusion margin.",
+      "QP iteration-limit and force/acceleration prediction errors exceed the declared gates. This is an unconverged local allocation, not a capacity or global infeasibility proof.",
+      "Initial native lift remains 4.285 mm female / 4.482 mm male. Native loaded margin contact does not establish visible skin contact."
+    ],
+    "nextActionIfResumed": "First retain and independently solve the rejected local allocation/problem and its contact-mode transition. Determine whether numerical allocation, delayed one-step intervention or physical authority causes failure before any new controller design. Retain original source targets and all caps; render that trial with its own passive-cell deformation and measure visible palm/body clearance before claiming contact."
+  },
+  "implementationBoundary": {
+    "offlineOnly": [
+      "scripts/native-compliant-response-packet.mjs",
+      "scripts/experiment-native-coupled-palms.mjs",
+      "scripts/diagnose-native-compliant-response.mjs"
+    ],
+    "existingOptInExperiments": [
+      "experiments/lower-body/native-equilibrium-bias.mjs",
+      "experiments/lower-body/equilibrium-force-allocation.mjs",
+      "experiments/lower-body/palm-support-controller.mjs"
+    ],
+    "pipelineCorrectness": "Recorded source-bound trajectory/identity propagation, original-world-target mismatch accounting, exact asset/binding/seed identity and shared coordinate conventions are distinct pipeline correctness work. Their own contracts do not qualify the experimental controllers."
+  },
+  "remaining": [
+    "Full-cycle native loaded-palm stability.",
+    "Achieved clinical/native tracking and original-world-pose error across complete motion.",
+    "Actual replay skin/deformation floor clearance with trial-specific state and initial fit.",
+    "Matched-source timestep/repeatability checks after a valid candidate.",
+    "Fresh identity after any source change; historical 64-context failures remain open."
+  ]
+}

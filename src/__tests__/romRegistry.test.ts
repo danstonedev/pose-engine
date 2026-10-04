@@ -58,6 +58,33 @@ describe('romRegistry', () => {
     expect(state.valuePercent).toBeCloseTo(state.zeroPercent, 2);
   });
 
+  it('shows a measured float-roundoff endpoint as near its limit without changing the measurement or strict classification', () => {
+    const lumbar = getRomFieldDefinition('Spine_Lower', 'flexion')!;
+    const thoracic = getRomFieldDefinition('Spine_Upper', 'flexion')!;
+    // Actual male/female/neutral press-up readbacks from the dense 60Hz audit.
+    for (const [field, value] of [[lumbar, -25.000000554730438], [thoracic, -25.0000015346007],
+      [lumbar, -25.000000260036597]] as const) {
+      expect(getRomFieldState(value, field)).toMatchObject({ value, status: 'near-limit', limitSide: 'min' });
+      expect(classifyRomValue(value, field).status).toBe('outside');
+    }
+    const upperReadback = lumbar.range.max + 0.0000015;
+    expect(getRomFieldState(upperReadback, lumbar)).toMatchObject({ value: upperReadback, status: 'near-limit', limitSide: 'max' });
+    expect(classifyRomValue(upperReadback, lumbar).status).toBe('outside');
+  });
+
+  it('keeps real excursions outside even when their displayed integer equals the boundary', () => {
+    const lumbar = getRomFieldDefinition('Spine_Lower', 'flexion')!;
+    for (const excess of [0.0001, 0.049, 0.1]) {
+      for (const value of [lumbar.range.min - excess, lumbar.range.max + excess]) {
+        const state = getRomFieldState(value, lumbar);
+        expect(state.value).toBe(value);
+        expect(state.status).toBe('outside');
+        expect(state.outOfRangeByDeg).toBeCloseTo(excess, 9);
+      }
+    }
+    expect(lumbar.range).toEqual({ min: -25, max: 60 });
+  });
+
   it('formats signed values with clinical direction labels', () => {
     const wrist = getRomFieldDefinition('L_Hand', 'wristDeviation');
     expect(wrist).toBeDefined();

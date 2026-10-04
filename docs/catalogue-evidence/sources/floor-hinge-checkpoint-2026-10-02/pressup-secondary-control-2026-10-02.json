@@ -1,0 +1,142 @@
+{
+  "date": "2026-10-02",
+  "scope": "Supporting evidence for the existing master contact-conditioning work unit. No new catalogue, movement approval or physical simulation claim.",
+  "production": {
+    "hierarchyPromoted": false,
+    "authoredRawPriorCandidate21": "Restored the preceding bounded prepared-branch posture policy after demonstrated default/performance regression. Frozen failed candidate and exports preserved.",
+    "retained": "Exact guarded calculation graph, consistent numerical model, continuous contact projection, explicit solve diagnostics, exact input cache invalidation.",
+    "followup": "Shared local-versus-measured hinge ownership is under correction by support_api_review. Do not qualify these historical projector probes as the corrected runtime."
+  },
+  "findings": [
+    {
+      "id": "hierarchy-v2-full-neutral-rejected",
+      "evidence": "pressup-hierarchical-sensitivity-1.json",
+      "maximumPlaybackRotationDeg": 22.175494374183195,
+      "maximumPlaybackWorldTrackDifferenceM": 0.06470800991260824,
+      "patientBounds": "No reported explicit patient violations; this is not generic clinical/skin acceptance.",
+      "scope": "325 frames and regenerated guide on the neutral severe-patient scenario."
+    },
+    {
+      "id": "first-setup-continuous-amplification",
+      "evidence": "pressup-hierarchical-setup-trace-1.json",
+      "explanation": "First t0 invocation remains stable. Second t0 invocation amplifies <=2.6e-9 degree input rotation to .01325 degree paired hand/forearm rotation, then playback amplifies to22.18 degrees. Primary DLS/NNLS methods, fractions and damping sequence are identical across perturbations. No layout branch; endpoint layout is explicitly infeasible under the patient elbow interval."
+    },
+    {
+      "id": "active-projection-tangent-rejected",
+      "evidence": "pressup-hierarchical-tangent-1.json",
+      "explanation": "Finite-probe I-DP rows eliminate the entire secondary null space; zero accepted secondary movement. No production correction."
+    },
+    {
+      "id": "nonlinear-primary-retraction-scoped",
+      "evidence": [
+        "pressup-hierarchical-retraction-1.json",
+        "pressup-hierarchical-retraction-2.json"
+      ],
+      "maximumSavedSetupSensitivityDeg": 2.18e-8,
+      "unreachableWristM": 0.02657,
+      "elbowPlaneDeficitM": 0.0051,
+      "explanation": "Actual primary residual and plane guard preserved.323 nested primary corrections per patient outer+refinement solve make the prototype unsuitable for runtime. Default contact remains valid but bend remains about145.44 degrees."
+    },
+    {
+      "id": "exact-paired-twist-scoped",
+      "evidence": [
+        "pressup-hierarchical-gauge-1.json",
+        "pressup-hierarchical-gauge-analytic-1.json",
+        "pressup-hierarchical-gauge-canonical-1.json"
+      ],
+      "explanation": "Direct forearm-to-hand axial rotation with inverse hand rotation preserves hand position/orientation and elbow position before projection. Accepted projected trials retain actual primary components within1e-12. Analytic scalar posture derivative minimizes the original geodesic prior cost. Saved patient setup sensitivity is below.01degree; copied playback with already different priors remains rejected. Between-iteration canonicalization reaches.0000144degree sensitivity but2601 projected evaluations and is not a runtime candidate.",
+      "limitations": [
+        "Changes forearm skin distribution; fresh rendered skin review required.",
+        "The historical local and measured hinge projection ownership conflict is unresolved in these snapshots.",
+        "The gauge cannot change elbow position/bend; whole-arm posture remains a separate task."
+      ]
+    },
+    {
+      "id": "neutral-default-blender-export",
+      "project": "blender-workspace/pressup-hierarchical-review-1/full-motion-review.blend",
+      "evidence": "pressup-hierarchical-review-continuity-1.json",
+      "scope": "325 frames, actual skin and twist, browser clamp OFF, experimental solver snapshot/hash.8 import checkpoints; root performed scoped visual inspection. Source not accepted.",
+      "initialToReturnMaxWorldBoneDifferenceM": 4.182844783950181e-13,
+      "setupToReturnMaxWorldBoneDifferenceM": 2.423624193058157e-8,
+      "maxAdjacentLocalRotationDeg": 3.697511253163778
+    }
+  ],
+  "acceptanceUnchanged": {
+    "conditioningRotationDegrees": 0.01,
+    "conditioningWorldPointM": 0.0001,
+    "contactGates": "Existing gates retained; no infeasible target relabeled successful.",
+    "patientTimedRegressionSeconds": 5
+  },
+  "evidence": [
+    {
+      "path": "remaining-batches/pressup-hierarchical-sensitivity-1.json",
+      "sha256": "afb806f3e9ab433160ae11d454cc7238dac3260084f883494811e299604a3728",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-setup-1.json",
+      "sha256": "1b86a4109a075af37028492526211e6d2bb91eb136c09c52e46fc83d26637fb4",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-setup-inputs-1.json",
+      "sha256": "5ade7a413e19f980f6511b6f1697682c8cda19a1bc9539aff63f52bb3b24b024",
+      "sourceStable": null
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-setup-trace-1.json",
+      "sha256": "3be6be6f8d7f9ab166b234727eeaab0f6c25e55b22059418ede4679a78a380ee",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-tangent-1.json",
+      "sha256": "327a641e427b83d0c25a9054300de1bad0392427d77e629a0af72fad20d0bb40",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-retraction-1.json",
+      "sha256": "d4fc064f1619a7be9365a6727b555a034086989d93fb4fe6099f4af16cbe7b22",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-retraction-2.json",
+      "sha256": "313507596181e629e4e56a9863ecb8f25547b0ee77d77258bd4964f988e0e921",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-gauge-1.json",
+      "sha256": "b4e80234c00d2bb78451b66582d70db270b5d22ab860ad3e07fcd97ae16b5232",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-gauge-2.json",
+      "sha256": "f84fc7104f3900525d3009fd3fbb5e8917f292390b9478dc495da239e61dfc38",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-gauge-3.json",
+      "sha256": "bb2d84b8c2bab34c28210f7b46f3522c855169e4bc634b3cfa3b4206cc4438e7",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-gauge-fast-1.json",
+      "sha256": "9f13cf1aa1f6984ca5ed27cfbd1fba9a83b7305c303328f0c527947da51a1bb6",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-gauge-analytic-1.json",
+      "sha256": "374ae48b1b05a27eca26b3a0a6ce296159ccb64287240acf90ef4b4033f0066c",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-gauge-canonical-1.json",
+      "sha256": "be8a8f356eed2af57a62358c0831a30f94cb832eac0f95011e6d26589792b0f3",
+      "sourceStable": true
+    },
+    {
+      "path": "remaining-batches/pressup-hierarchical-review-continuity-1.json",
+      "sha256": "2135f2920fbbf8ff65ddec293b0399eab0faa5b4c607ec47286200072e03d04a",
+      "sourceStable": null
+    }
+  ]
+}

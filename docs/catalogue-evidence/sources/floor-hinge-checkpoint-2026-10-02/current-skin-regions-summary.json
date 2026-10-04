@@ -1,0 +1,1952 @@
+{
+  "scope": "Sparse setup/ascent/hold/return actual visible skin, all three production rigs, shared sampler, global ROM clamp OFF and production twist. Largest skin-weight bone is a reporting label, not a region exclusion. No floor fitting, physics, contact acceptance or full-cycle qualification.",
+  "scriptSha256": "5a1f57553c33541f1a5c86043e7e9224892e2c0e6353f94401bb22909db469ef",
+  "stableSources": true,
+  "rawReport": {
+    "path": "remaining-batches/pressup-current-skin-regions-1.json",
+    "sha256": "68da9af773d95588fcff4ed061d1f7c16a6f7ce0df455bbae2e72d794cd72dfc"
+  },
+  "sourceHashesBefore": {
+    "models/painmap3D_female.runtime.glb": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+    "models/painmap3D_female.shoulder-v2.glb": "0b7dc2a09396219ee1e8584f160aa87eee77f5e5ffb30d88e8ea0f1bba18ff76",
+    "models/painmap3D_male.runtime.glb": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+    "models/painmap3D_male.shoulder-v2.glb": "3851d2b9e279dcbc5e6cba49926f987e60c69c141d62396a1c2848d291f2fd7c",
+    "models/painmap3D_neutral.runtime.glb": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+    "models/painmap3D_neutral.shoulder-v2.glb": "8d9122bad38e5e266d9ed0303a8c98a06feb80e8e1f9e57d6316c3fd70718561",
+    "models/runtime-models.baseline.json": "50554a407db53f24ad0ecd477e6a7cd226b1f002cf8e599e3c9c64e86ad20a30",
+    "models/shoulder-v2.manifest.json": "aef71bd1055367cfec5f66fb9aa50869a0119821ad348ac4e6e20db31ebdc82d",
+    "src/ExamStage3D.svelte": "2ce95cbdd70e1f13e40046a0ce3604c5aef69929d0f0690eb50765d16bad02e3",
+    "src/IndependentShoulderLab.svelte": "0f69f2f8a7489fdfba68cb05d4ef5b4a830b4acf45bbe4143df188dac2ea24fc",
+    "src/JointAnglesPanel.svelte": "d6cdfb3fc4f5adcf8bcd6bb9f310dbfe65474bb4003439f642f918a11d484cb0",
+    "src/ObservationViewer.svelte": "f3a52c5ee3ebe3bc0216d6bc720d5c06ecb8d00052b1b5e4f37acca15adee11f",
+    "src/PoseViewer.svelte": "af5dcca64e9ddee2f01ca77d7819cee89b294edb28c2236286ff8e2588fdb1ae",
+    "src/anatomy/bodyVariants.ts": "57b6018f732ae4da88ddeb1ae2ed1067791fa7072b80c09b198f300d0a978d30",
+    "src/anatomy/forearmJointFrame.d.mts": "ce8354b464977e4c191746562eb58262c8a42276dc04d097ec1fd32052cf3738",
+    "src/anatomy/forearmJointFrame.mjs": "21bb2ec51f390db9af2e1975330ee123e199f9ae92fd97f5d5ac4aa0f2e1dbbd",
+    "src/anatomy/scapularGirdleProxy.d.mts": "f10663470c070987cb75f1850fd71d49c5c69a2953157ccf4c33367f5294cdad",
+    "src/anatomy/scapularGirdleProxy.mjs": "f7d48524d8ce77cd08ccd1ca753254abb697edf2697da293a7507ad2bf91e6ca",
+    "src/anatomy/shoulderComplexFrame.d.mts": "d26d7e38192fd8ddbef7ead29a236b516f9ae24b668654f43d0ce9190743ed57",
+    "src/anatomy/shoulderComplexFrame.mjs": "27fb916f490059abc7813aa02c0ed42b67e2899b05939ebf183eb738959bb888",
+    "src/anatomy/shoulderRigAssets.ts": "54772633744a5922995888502a480d7646af74ef348c09a5f50510afba281586",
+    "src/anatomy/upperArmJointFrame.d.mts": "d916b11c825ec79538a2efdb89c4b8b7da957a8127c78ea8eea1085cf3e9aece",
+    "src/anatomy/upperArmJointFrame.mjs": "094a701ac449282eb75c9135248003269b0d94fa37eb8995923538b3179781f9",
+    "src/anatomy/wristJointFrame.d.mts": "57eeec319e0edd5ab7a21b5da57820dc1c6a63dcdd76f5f8ac98a2e147977fee",
+    "src/anatomy/wristJointFrame.mjs": "d241efc1dffec491e137d72027c27caad75baa40a7ce60574c9989a9b839d3ae",
+    "src/assets/pain-face/female.json": "c1dcbefe71d2ae8ef1ecf56c9d05166544ae54d063c0911b3ff8bd5ff1796de9",
+    "src/assets/pain-face/male.json": "8db7d6641b40c678a7ec5986c4f28d8d4461fc51c87faf1e89be92fa3fd57c1c",
+    "src/index.ts": "167d9abfb6889cae6e3f787f0dadf435e017b6456e0246d3803ff6f26a43b2bb",
+    "src/services/anatomicPose.ts": "6c94e140af45a742247c014ed672c920798902dc6aefcaa36dd2e6bdfd4ad5b3",
+    "src/services/anatomicalPlanes.ts": "a7db54716d7ab8e2fb54aecf11260b6f0f2386bd485246f50e6216bfb72bac8a",
+    "src/services/armTorsoContact.ts": "6f00995049586915906fdbb3e4b5450d82565a12a23e9d7220f4f531bdc70eb9",
+    "src/services/assessmentBodyMotions.ts": "9965d0b91afee6848f42e8041938b557a01eddd11d87c3761795182d5afacde0",
+    "src/services/assessmentUpperMotions.ts": "21ccf87a915bebacee55416de6ca474f099a0253377ac4d7aa07a263bd18cd3f",
+    "src/services/balanceCoordination.ts": "c70c7415f4d2166ae4f1b9679c7db7124eb63216f432122f75a9745ca74f30a4",
+    "src/services/cameraGlide.ts": "85be5f5a40774846b5a168891cb92cdc449829f9583be92e5bc663bb84552732",
+    "src/services/cameraTween.ts": "5197f18edecd2b2a402d4450ccfad95751674ba3a7b0ba36c8b583dcee0f6c8e",
+    "src/services/centerOfMass.ts": "1c5187d1e8547e4f56282144034ebbf905647b313f29afdd269ac4d75d121799",
+    "src/services/clinicalCameraControls.ts": "fc995f757dfae34646e832ac5903d83ef0a2198ac4c4dff1529aab086f088b19",
+    "src/services/clinicalCameraLabels.ts": "ddc6ec9e7faf2a10405e41c038399d421b94e030c154369fa85b3e34f9295502",
+    "src/services/coordinationSpecs.ts": "4cd0ad8f8a2e4470cec63ede709a2e20228111e5ec306cf02c2c1c78c3be222f",
+    "src/services/debug.ts": "75afd51f86bf1c878c20a9cd1308d5f9cde8d9afdfd8a2526ce6322a3cefec41",
+    "src/services/eyeGaze.ts": "04ac7f3a53c8f88112bac2887ce2893528c725589656b7fa2b0d6e76c414d8e7",
+    "src/services/floorPalmSupports.ts": "55d0e3395143505e300cd5ef28b3305ca551c393eed30495371fb0336e774cf3",
+    "src/services/followThroughStroke.ts": "bb9084c490d8b745c831e0b5e70e276acd6f87969908dc635a0519a172dcd91c",
+    "src/services/footContact.ts": "221ddac8eee5fa6b36e1d52ee8cec84547ea20a2f7ffb15bb690f7d1fe126b25",
+    "src/services/functionalRecipes.ts": "591370e7df55c77b0f0eed722f3d5127bdb30165870e3e1d3ce7c2a0b468a5e6",
+    "src/services/gaitBiomechCheck.ts": "af99ac940a59cd00477233462c212ffc1131df60c85c963dd6a3dfe16bb21584",
+    "src/services/gaitConstants.ts": "9f0b79271b334483e28508f4c3d4735d51627864862d2a8824a44eb98a2335ef",
+    "src/services/gaitEnrichment.ts": "d89d13b36e94164771ab9da9cda4b3fec347576f297f2b81763ff3fc8e9880bd",
+    "src/services/gaitFaultPhases.ts": "9993bd8812b33330cf61b4b243dc6e272ff377c8ea1613a20107a2671a8c6d3c",
+    "src/services/gaitLegClearance.ts": "8a09d4459f70eeaca6c0e54cdf74c29a03285b0f0b43ece4ff181e6bd8221fff",
+    "src/services/gaitModifiers.ts": "fd1286827cf03aeda25e26f78065b7ec683119da5fa74d7eb665200f99bd1a3e",
+    "src/services/gaitTuning.ts": "9d9aa0ff123ff245c55b70aee601a832f84d8c842bb49e78e8e8aafdf3d155c6",
+    "src/services/handContactCalculationGraph.ts": "8673610553f754fea8ebba29c328e5aeb2b87f90dcd6eb3fe2689cd326ac4f4a",
+    "src/services/handContactPose.ts": "dddfb60c0067f8b0bc167cb08e8581a5ccf61d92b870886860f1ea2a8bfa4661",
+    "src/services/handSupportSurface.ts": "bc0bcd3daaacf4bd27756e0c42a3cfcd0b44a497f411fa08780a79592f5cba9b",
+    "src/services/healthySignature.ts": "1da984cadf14604566ef7f3b0631ef13d95e33e273df3266fd355bb3bf3f88bc",
+    "src/services/idleSupport.ts": "4cb647082c0d8f05ddcc4fb58a390ca037e65056e826e1665b089d8663d10d0b",
+    "src/services/independentShoulderRig.ts": "a43e0310d67d3e200c68289b59b7811354fe871dca24281a0c7f75bd37da9d6e",
+    "src/services/jointAngles.ts": "5bb7618b768b1f4916df479174a2e9ec826d12de086dbb3623e18ae87efc0c39",
+    "src/services/keyframeTimeMap.ts": "af6b4e44e52e1c87eb24af410e4b50eacea63e726285fa000ec39188e1c26547",
+    "src/services/limbAxisModel.ts": "8d1ab0ef4f7c0593ba5abcfa1aaec443aaff7a4a532c93870007f2a3833412d9",
+    "src/services/limbClearance.ts": "2a3fd9174dd1f8f7f161e7567e9ba4620e65025c6299cb738e18eadbb3c2eda7",
+    "src/services/liveliness.ts": "010b16e15faaf11faf986f26034d0d58aa8e20dc67749a9463ef1fd0499c14c1",
+    "src/services/locomotorArmClearance.ts": "f9c595dd332c0ab4128be7596441dcc75032178a6ee08572c508fdc9dbb7e4d4",
+    "src/services/locomotorArmSwing.ts": "a800f5c0c182ea22a8e953f355edf76818e41c80e15168e04e281f738a078489",
+    "src/services/motionCommand.ts": "d2a4c463feda1c9d00a1898802fba9c87e3ea931b216f30ea2ddf028cfec80cf",
+    "src/services/motionConstants.ts": "0e029c5e7bda8eb2ffa4dc5a3de5249066549a09297336da15a04a2d3abfbbac",
+    "src/services/motionObjective.ts": "2e8d55b4e1b5aa1816c6e28dc2bf93fb8a21d6650103241215dc88bbc3c09063",
+    "src/services/motionPrescription.ts": "3e86ccd538a23a8b33229b3167bf2e023fff56a2aab699ab1c2e8f97bf689e55",
+    "src/services/motionRecording.ts": "e1c1cb070cd3a7953c74fa9d6a3c366941ec57b11940fc9bd0892173f0d61fe9",
+    "src/services/motionResolvePhases.ts": "c7528c2d2b6f681509e1106cb315e8b27173a41be2da9f8a73ad1229797b524a",
+    "src/services/motionRigInputKey.ts": "c12b7ca2a6f051b8daaacfe6bac38633d54bb4eb34422d5437a4960f4fa0b744",
+    "src/services/motionSequence.ts": "7b053da07a87de4fd5dac1b4c9a85234d5ba05879a8f32f91d88292a02a51d08",
+    "src/services/motionStagger.ts": "4c6605dd960517d58bc132da71da64af8354b17ac1cb8723bb00d793195064a3",
+    "src/services/motionSupport.ts": "04b1e3194892ac4884a3c3931e47dc5e580f96f851c01b8419febdb157e97a2b",
+    "src/services/motionTrajectory.ts": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8",
+    "src/services/movementChain.ts": "5e8305ef2a3d805d78ddf5d118221052502d89710854248508a00c72aecb7bf1",
+    "src/services/movementClipSampling.ts": "4ab9723d6002c3e08b407e892c76362c21857eeff1b8fd117efbc08fda8bf151",
+    "src/services/movementClips.ts": "c90556561be355df88b08cf62d84757ad44f9772d25636fe842be127cf0235ae",
+    "src/services/movementCommand.ts": "0a3fe6f7e569db963415f5568e537d5969ec133565b5b5a81cf352b746fcdbb8",
+    "src/services/movementControl.ts": "e32f0bef90c93394317882996a760eab680f6c56d46f903a1afb23baf6ea0180",
+    "src/services/movementCoordination.ts": "a0c803957dbcffa091b314457c509dc68967e6c02dcb21c25a91f585fe330aa5",
+    "src/services/movementDirection.ts": "e98f5ecf85e3ee22d2d6ea99ce76b7629a0e70feb1376351a2cb4c40d0ad4004",
+    "src/services/movementFaults.ts": "41ca414225e887d36b0fdda6c1fe9a6ecc27cd974a8b9811dee7e6402bbf6c29",
+    "src/services/movementLocomotion.ts": "0844b9f701c80911779418c4aa7efdb35c2796542b4d72cf38e3bac361c04d83",
+    "src/services/movementPostures.ts": "4c81ed72573a53f4877d8d31118ff40ed82a85fbbfb685b2e186cffef8bf92a6",
+    "src/services/movementScreen.ts": "ef5eae04e39601e6975874ed13ec805e29a9aedbc9ca0a716e795272268fd0bd",
+    "src/services/movementSignature.ts": "1b743a56ff7b59667b9890df68ffbe64420c72a5ddd1a1f9e6cf413d117e7339",
+    "src/services/movementTemplateMotion.ts": "7536346e57b8af3020a0869aa28993f71c76d967d51554e230570b900f779684",
+    "src/services/movementTemplates.data.ts": "a71d91349e3b7b2fbe7117d71b3bea86c7dd0a5a8633b453c7d21e319b6fa643",
+    "src/services/movementTemplates.ts": "65761eb6b896af697092bb278d5cda16771d923156037f100199a11bc3c3f1cc",
+    "src/services/normativeGait.ts": "06639b2c46f501c52560b629238d44ac33cc865ddbee9628568f734fc94ba627",
+    "src/services/normativeRun.ts": "167086f8a24e22a8c79121e0fa078993ddf3a54536952c512ef0946f90315abf",
+    "src/services/orbitViewer.ts": "108996cf244f72ca7b766d7e780c4f6859fd50b04b6164e5d28a9f1cec21342b",
+    "src/services/overheadDowel.ts": "0dce17df35023811209a234c000fc018de326c0ced29810fbab79e3d968eb691",
+    "src/services/overheadSquat.ts": "006568cf1ca943688103ed5114d540f85002c47740bdbad2d2f6818fc21ce778",
+    "src/services/painResponse.ts": "82894a9b32034832336b83fa007fa10c4e9dd20305e103690fee8f7e99ac6a5b",
+    "src/services/painResponseLayer.ts": "f2e5032bb7f364bb17094b8d1dc413bb38ee5ad80bdec878d3733facd7aae8a6",
+    "src/services/policySearch.ts": "1e432b7b9bdf8feaf1627142982f8aa7cadbbcde31036ae6d94648c6e7f428f4",
+    "src/services/poseAnimationSampling.ts": "6417867db202a7464eef95e2e0c7472e5d7bfaf302802ac6749acadd705c63b6",
+    "src/services/poseClickDeselect.ts": "84bc4992a83a0893094c3361fbff12ab5f12af8220039e5bdae94b464f3e8d15",
+    "src/services/poseFingerRomClamp.ts": "e16f35eaa74347ee1fc32dca4bf1f8d9a76f6cb1ea70ca7d36346e2f6f56b77f",
+    "src/services/poseGizmoHelpers.ts": "17a4fed3638b187cb2f9b987eb008e5f478e270f0fd7806daf0ffc411723824f",
+    "src/services/poseGoniometerHelpers.ts": "b1ff9572f79f87742c2a4abca1b263ae4f81ef891acc4414e38f58f0a241464a",
+    "src/services/poseProSupRomClamp.ts": "0d84768ee346649474aedb13fea8fc19815212198ba0ccb63b64fe2561e1535b",
+    "src/services/poseRegionCurveRomClamp.ts": "3b7e390f727ca6af2a22a2f10e53bdacfda6263e4691510058aeb7e0c2fc2f46",
+    "src/services/poseRig.ts": "072907ecd8ee4081d2b5ec749bf2120556f62eb0c9604f215971191a70ca796d",
+    "src/services/poseRomClamp.ts": "f96f6e9c02122999575b9e46aea62d41bd6a512c71e1863e184169274c30aaaa",
+    "src/services/poseRotateRings.ts": "b61635402335d3774c25b99693a863c2717d8a249ada29893fbe9e7b7d07bfe0",
+    "src/services/poseScapulohumeral.ts": "7fe5bf618b9e6b34498a8ffbc200de6e1ede6f90631a02273505a9f0a3bfc829",
+    "src/services/poseSubtreeRomClamp.ts": "79300a45659bc2525299432f50ca13620b4b61ca10428b629ca3c9449aba1234",
+    "src/services/posedGeometry.ts": "baa508a59e1caf682cac037adc8488286fdd41948dd7f1b8423efb95a0d0bb6a",
+    "src/services/posturePlan.ts": "fcd80ec8a42eceb2d80a2a54991874a18302f057a69432b25be9cf771cc0447c",
+    "src/services/pressupPalmLayout.ts": "c9254cd4085c3c08f090bf69dbaad629a1310d21abd3b9a1578775d2058b7811",
+    "src/services/proneSkinSupport.ts": "975f729b7521854033b8af7474c0bdca46501b6c1ebd1a57ae6ff1c4c7d1de97",
+    "src/services/readyTransition.ts": "1bc1e41839500dd538efc6a9813290c0275fc305102e56093bbaeacf1c3cd1bc",
+    "src/services/romConstraints.ts": "7bc9e4f07eea3b7a78d19f16c44c84955518dabe3ab60d0f758bf9e438fefb0d",
+    "src/services/romRegistry.ts": "10919c56e409fef40ab91b8659da2969071bc15cc61662908e30aa35617af8c9",
+    "src/services/rootMotion.ts": "1907dd8b9044238f2da51d49909b3b96165339e492433812f3c144dc0cc629d7",
+    "src/services/sceneBoot.ts": "f6d8aa3b5fc8e6980d3bf9180f3a1952dbc91049b2695ca1bf04344a21435bdd",
+    "src/services/sectionCap.ts": "1d01239a8836c7ac01cd4cf4406b52c6df98df2bc0f67b47f4bbe2340948f3cc",
+    "src/services/shoulderComplex.ts": "9d928a39faa8689c6f7c3ce2960ed500c7f4174fe5af5e2fa5b3b5bf9944c5bf",
+    "src/services/shoulderRuntime.ts": "5cfe4fde45488972e6ffcb33e790038a1cd67c593c7d6a9944de7b07ee58855d",
+    "src/services/skinContact.ts": "f0e074feaefe19e0a5e1a592961b6576dbda198f5a988e17e3b0ccd05bb266bc",
+    "src/services/stageBreath.ts": "bcfe864906b96ae6fb46be12ee1d24e3913c8585ad423ae0db73a8573c1dfec7",
+    "src/services/stageClipBlend.ts": "397b1f8be0385e234dcab9eb7d8aeaa3d064352013e8cdc2e3846082cf1adf5e",
+    "src/services/stageComposedDerivations.ts": "6a9e70b8be22b8e81f8f0a41fe9ed0dd8ef7cde155a474ec753a3378934a1296",
+    "src/services/stageDiagnostics.ts": "796f9766b3ecc4e1dbcdd3498590943ff9fda466cb4e091236e7e322103c9510",
+    "src/services/stageDriver.ts": "ea38aa53535789e879f07cd17ee00ae96605525adf9d5724e4d539d09fd434e2",
+    "src/services/stageEyeGaze.ts": "d17c2d0af6e16c1c7528cc2246f8662f798e6546f8fe51fa511fee2e6f8c9d3c",
+    "src/services/stageIdleOverlay.ts": "5ccf9888cb033245ad2548e38b644a6168fc0928542e5364623a5a020af75c00",
+    "src/services/stageMotionLiveliness.ts": "f57f0ce113cf7e2353d6d8359bac533e1cde1ecbea94206d95b56fd21f91f36d",
+    "src/services/stagePosingLayer.ts": "cd74d564053a17fa4224a650b2b653428a6635643ba8ee1a02f9b943d296367e",
+    "src/services/stageRecordingTap.ts": "a451b1baf57506a7367404e63c3cee13ddd901413e9d11c8ddb045609016e25d",
+    "src/services/stageSceneLayer.ts": "f3db9124009729b5c2dccad88861d1973169158ac1012a95706fc8a024b350e5",
+    "src/services/stageTwistOverlay.ts": "e570e9c6da76feca4fdcf53c547581d7fb318660f5a57294e5edad4715c8a056",
+    "src/services/stanceTransition.ts": "eee9e79360aeea4b8497bcb23be8fb680dff73eee4a52f3a2f35adfad0b40517",
+    "src/services/twistRig.ts": "a4bb9ec5296309f8a5098b9115f7ea6564ce2b574997866cee45784dd9ac023d",
+    "src/services/upperSupportRecipes.ts": "9dc8b771cb6c4a8f9c18bc411ce21c988f7bf2994409e740216951005fef21fd",
+    "src/services/validityGate.ts": "ecaa4b51b29daafd4b31f3b6eca5f27d5cbd57619dcd5bd612220408f72ac6c0",
+    "src/services/webglLifecycle.ts": "0c248fe7fb123f62782dfc91e9e758ddf32a7dbad7f7d6f7b10f1546d4e5858d",
+    "src/types.ts": "ed254f4963ac29cb9560c08b2befc2516f5f2ff3f271ed9575b033b2f38fc5cb"
+  },
+  "sourceHashesAfter": {
+    "models/painmap3D_female.runtime.glb": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+    "models/painmap3D_female.shoulder-v2.glb": "0b7dc2a09396219ee1e8584f160aa87eee77f5e5ffb30d88e8ea0f1bba18ff76",
+    "models/painmap3D_male.runtime.glb": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+    "models/painmap3D_male.shoulder-v2.glb": "3851d2b9e279dcbc5e6cba49926f987e60c69c141d62396a1c2848d291f2fd7c",
+    "models/painmap3D_neutral.runtime.glb": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+    "models/painmap3D_neutral.shoulder-v2.glb": "8d9122bad38e5e266d9ed0303a8c98a06feb80e8e1f9e57d6316c3fd70718561",
+    "models/runtime-models.baseline.json": "50554a407db53f24ad0ecd477e6a7cd226b1f002cf8e599e3c9c64e86ad20a30",
+    "models/shoulder-v2.manifest.json": "aef71bd1055367cfec5f66fb9aa50869a0119821ad348ac4e6e20db31ebdc82d",
+    "src/ExamStage3D.svelte": "2ce95cbdd70e1f13e40046a0ce3604c5aef69929d0f0690eb50765d16bad02e3",
+    "src/IndependentShoulderLab.svelte": "0f69f2f8a7489fdfba68cb05d4ef5b4a830b4acf45bbe4143df188dac2ea24fc",
+    "src/JointAnglesPanel.svelte": "d6cdfb3fc4f5adcf8bcd6bb9f310dbfe65474bb4003439f642f918a11d484cb0",
+    "src/ObservationViewer.svelte": "f3a52c5ee3ebe3bc0216d6bc720d5c06ecb8d00052b1b5e4f37acca15adee11f",
+    "src/PoseViewer.svelte": "af5dcca64e9ddee2f01ca77d7819cee89b294edb28c2236286ff8e2588fdb1ae",
+    "src/anatomy/bodyVariants.ts": "57b6018f732ae4da88ddeb1ae2ed1067791fa7072b80c09b198f300d0a978d30",
+    "src/anatomy/forearmJointFrame.d.mts": "ce8354b464977e4c191746562eb58262c8a42276dc04d097ec1fd32052cf3738",
+    "src/anatomy/forearmJointFrame.mjs": "21bb2ec51f390db9af2e1975330ee123e199f9ae92fd97f5d5ac4aa0f2e1dbbd",
+    "src/anatomy/scapularGirdleProxy.d.mts": "f10663470c070987cb75f1850fd71d49c5c69a2953157ccf4c33367f5294cdad",
+    "src/anatomy/scapularGirdleProxy.mjs": "f7d48524d8ce77cd08ccd1ca753254abb697edf2697da293a7507ad2bf91e6ca",
+    "src/anatomy/shoulderComplexFrame.d.mts": "d26d7e38192fd8ddbef7ead29a236b516f9ae24b668654f43d0ce9190743ed57",
+    "src/anatomy/shoulderComplexFrame.mjs": "27fb916f490059abc7813aa02c0ed42b67e2899b05939ebf183eb738959bb888",
+    "src/anatomy/shoulderRigAssets.ts": "54772633744a5922995888502a480d7646af74ef348c09a5f50510afba281586",
+    "src/anatomy/upperArmJointFrame.d.mts": "d916b11c825ec79538a2efdb89c4b8b7da957a8127c78ea8eea1085cf3e9aece",
+    "src/anatomy/upperArmJointFrame.mjs": "094a701ac449282eb75c9135248003269b0d94fa37eb8995923538b3179781f9",
+    "src/anatomy/wristJointFrame.d.mts": "57eeec319e0edd5ab7a21b5da57820dc1c6a63dcdd76f5f8ac98a2e147977fee",
+    "src/anatomy/wristJointFrame.mjs": "d241efc1dffec491e137d72027c27caad75baa40a7ce60574c9989a9b839d3ae",
+    "src/assets/pain-face/female.json": "c1dcbefe71d2ae8ef1ecf56c9d05166544ae54d063c0911b3ff8bd5ff1796de9",
+    "src/assets/pain-face/male.json": "8db7d6641b40c678a7ec5986c4f28d8d4461fc51c87faf1e89be92fa3fd57c1c",
+    "src/index.ts": "167d9abfb6889cae6e3f787f0dadf435e017b6456e0246d3803ff6f26a43b2bb",
+    "src/services/anatomicPose.ts": "6c94e140af45a742247c014ed672c920798902dc6aefcaa36dd2e6bdfd4ad5b3",
+    "src/services/anatomicalPlanes.ts": "a7db54716d7ab8e2fb54aecf11260b6f0f2386bd485246f50e6216bfb72bac8a",
+    "src/services/armTorsoContact.ts": "6f00995049586915906fdbb3e4b5450d82565a12a23e9d7220f4f531bdc70eb9",
+    "src/services/assessmentBodyMotions.ts": "9965d0b91afee6848f42e8041938b557a01eddd11d87c3761795182d5afacde0",
+    "src/services/assessmentUpperMotions.ts": "21ccf87a915bebacee55416de6ca474f099a0253377ac4d7aa07a263bd18cd3f",
+    "src/services/balanceCoordination.ts": "c70c7415f4d2166ae4f1b9679c7db7124eb63216f432122f75a9745ca74f30a4",
+    "src/services/cameraGlide.ts": "85be5f5a40774846b5a168891cb92cdc449829f9583be92e5bc663bb84552732",
+    "src/services/cameraTween.ts": "5197f18edecd2b2a402d4450ccfad95751674ba3a7b0ba36c8b583dcee0f6c8e",
+    "src/services/centerOfMass.ts": "1c5187d1e8547e4f56282144034ebbf905647b313f29afdd269ac4d75d121799",
+    "src/services/clinicalCameraControls.ts": "fc995f757dfae34646e832ac5903d83ef0a2198ac4c4dff1529aab086f088b19",
+    "src/services/clinicalCameraLabels.ts": "ddc6ec9e7faf2a10405e41c038399d421b94e030c154369fa85b3e34f9295502",
+    "src/services/coordinationSpecs.ts": "4cd0ad8f8a2e4470cec63ede709a2e20228111e5ec306cf02c2c1c78c3be222f",
+    "src/services/debug.ts": "75afd51f86bf1c878c20a9cd1308d5f9cde8d9afdfd8a2526ce6322a3cefec41",
+    "src/services/eyeGaze.ts": "04ac7f3a53c8f88112bac2887ce2893528c725589656b7fa2b0d6e76c414d8e7",
+    "src/services/floorPalmSupports.ts": "55d0e3395143505e300cd5ef28b3305ca551c393eed30495371fb0336e774cf3",
+    "src/services/followThroughStroke.ts": "bb9084c490d8b745c831e0b5e70e276acd6f87969908dc635a0519a172dcd91c",
+    "src/services/footContact.ts": "221ddac8eee5fa6b36e1d52ee8cec84547ea20a2f7ffb15bb690f7d1fe126b25",
+    "src/services/functionalRecipes.ts": "591370e7df55c77b0f0eed722f3d5127bdb30165870e3e1d3ce7c2a0b468a5e6",
+    "src/services/gaitBiomechCheck.ts": "af99ac940a59cd00477233462c212ffc1131df60c85c963dd6a3dfe16bb21584",
+    "src/services/gaitConstants.ts": "9f0b79271b334483e28508f4c3d4735d51627864862d2a8824a44eb98a2335ef",
+    "src/services/gaitEnrichment.ts": "d89d13b36e94164771ab9da9cda4b3fec347576f297f2b81763ff3fc8e9880bd",
+    "src/services/gaitFaultPhases.ts": "9993bd8812b33330cf61b4b243dc6e272ff377c8ea1613a20107a2671a8c6d3c",
+    "src/services/gaitLegClearance.ts": "8a09d4459f70eeaca6c0e54cdf74c29a03285b0f0b43ece4ff181e6bd8221fff",
+    "src/services/gaitModifiers.ts": "fd1286827cf03aeda25e26f78065b7ec683119da5fa74d7eb665200f99bd1a3e",
+    "src/services/gaitTuning.ts": "9d9aa0ff123ff245c55b70aee601a832f84d8c842bb49e78e8e8aafdf3d155c6",
+    "src/services/handContactCalculationGraph.ts": "8673610553f754fea8ebba29c328e5aeb2b87f90dcd6eb3fe2689cd326ac4f4a",
+    "src/services/handContactPose.ts": "dddfb60c0067f8b0bc167cb08e8581a5ccf61d92b870886860f1ea2a8bfa4661",
+    "src/services/handSupportSurface.ts": "bc0bcd3daaacf4bd27756e0c42a3cfcd0b44a497f411fa08780a79592f5cba9b",
+    "src/services/healthySignature.ts": "1da984cadf14604566ef7f3b0631ef13d95e33e273df3266fd355bb3bf3f88bc",
+    "src/services/idleSupport.ts": "4cb647082c0d8f05ddcc4fb58a390ca037e65056e826e1665b089d8663d10d0b",
+    "src/services/independentShoulderRig.ts": "a43e0310d67d3e200c68289b59b7811354fe871dca24281a0c7f75bd37da9d6e",
+    "src/services/jointAngles.ts": "5bb7618b768b1f4916df479174a2e9ec826d12de086dbb3623e18ae87efc0c39",
+    "src/services/keyframeTimeMap.ts": "af6b4e44e52e1c87eb24af410e4b50eacea63e726285fa000ec39188e1c26547",
+    "src/services/limbAxisModel.ts": "8d1ab0ef4f7c0593ba5abcfa1aaec443aaff7a4a532c93870007f2a3833412d9",
+    "src/services/limbClearance.ts": "2a3fd9174dd1f8f7f161e7567e9ba4620e65025c6299cb738e18eadbb3c2eda7",
+    "src/services/liveliness.ts": "010b16e15faaf11faf986f26034d0d58aa8e20dc67749a9463ef1fd0499c14c1",
+    "src/services/locomotorArmClearance.ts": "f9c595dd332c0ab4128be7596441dcc75032178a6ee08572c508fdc9dbb7e4d4",
+    "src/services/locomotorArmSwing.ts": "a800f5c0c182ea22a8e953f355edf76818e41c80e15168e04e281f738a078489",
+    "src/services/motionCommand.ts": "d2a4c463feda1c9d00a1898802fba9c87e3ea931b216f30ea2ddf028cfec80cf",
+    "src/services/motionConstants.ts": "0e029c5e7bda8eb2ffa4dc5a3de5249066549a09297336da15a04a2d3abfbbac",
+    "src/services/motionObjective.ts": "2e8d55b4e1b5aa1816c6e28dc2bf93fb8a21d6650103241215dc88bbc3c09063",
+    "src/services/motionPrescription.ts": "3e86ccd538a23a8b33229b3167bf2e023fff56a2aab699ab1c2e8f97bf689e55",
+    "src/services/motionRecording.ts": "e1c1cb070cd3a7953c74fa9d6a3c366941ec57b11940fc9bd0892173f0d61fe9",
+    "src/services/motionResolvePhases.ts": "c7528c2d2b6f681509e1106cb315e8b27173a41be2da9f8a73ad1229797b524a",
+    "src/services/motionRigInputKey.ts": "c12b7ca2a6f051b8daaacfe6bac38633d54bb4eb34422d5437a4960f4fa0b744",
+    "src/services/motionSequence.ts": "7b053da07a87de4fd5dac1b4c9a85234d5ba05879a8f32f91d88292a02a51d08",
+    "src/services/motionStagger.ts": "4c6605dd960517d58bc132da71da64af8354b17ac1cb8723bb00d793195064a3",
+    "src/services/motionSupport.ts": "04b1e3194892ac4884a3c3931e47dc5e580f96f851c01b8419febdb157e97a2b",
+    "src/services/motionTrajectory.ts": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8",
+    "src/services/movementChain.ts": "5e8305ef2a3d805d78ddf5d118221052502d89710854248508a00c72aecb7bf1",
+    "src/services/movementClipSampling.ts": "4ab9723d6002c3e08b407e892c76362c21857eeff1b8fd117efbc08fda8bf151",
+    "src/services/movementClips.ts": "c90556561be355df88b08cf62d84757ad44f9772d25636fe842be127cf0235ae",
+    "src/services/movementCommand.ts": "0a3fe6f7e569db963415f5568e537d5969ec133565b5b5a81cf352b746fcdbb8",
+    "src/services/movementControl.ts": "e32f0bef90c93394317882996a760eab680f6c56d46f903a1afb23baf6ea0180",
+    "src/services/movementCoordination.ts": "a0c803957dbcffa091b314457c509dc68967e6c02dcb21c25a91f585fe330aa5",
+    "src/services/movementDirection.ts": "e98f5ecf85e3ee22d2d6ea99ce76b7629a0e70feb1376351a2cb4c40d0ad4004",
+    "src/services/movementFaults.ts": "41ca414225e887d36b0fdda6c1fe9a6ecc27cd974a8b9811dee7e6402bbf6c29",
+    "src/services/movementLocomotion.ts": "0844b9f701c80911779418c4aa7efdb35c2796542b4d72cf38e3bac361c04d83",
+    "src/services/movementPostures.ts": "4c81ed72573a53f4877d8d31118ff40ed82a85fbbfb685b2e186cffef8bf92a6",
+    "src/services/movementScreen.ts": "ef5eae04e39601e6975874ed13ec805e29a9aedbc9ca0a716e795272268fd0bd",
+    "src/services/movementSignature.ts": "1b743a56ff7b59667b9890df68ffbe64420c72a5ddd1a1f9e6cf413d117e7339",
+    "src/services/movementTemplateMotion.ts": "7536346e57b8af3020a0869aa28993f71c76d967d51554e230570b900f779684",
+    "src/services/movementTemplates.data.ts": "a71d91349e3b7b2fbe7117d71b3bea86c7dd0a5a8633b453c7d21e319b6fa643",
+    "src/services/movementTemplates.ts": "65761eb6b896af697092bb278d5cda16771d923156037f100199a11bc3c3f1cc",
+    "src/services/normativeGait.ts": "06639b2c46f501c52560b629238d44ac33cc865ddbee9628568f734fc94ba627",
+    "src/services/normativeRun.ts": "167086f8a24e22a8c79121e0fa078993ddf3a54536952c512ef0946f90315abf",
+    "src/services/orbitViewer.ts": "108996cf244f72ca7b766d7e780c4f6859fd50b04b6164e5d28a9f1cec21342b",
+    "src/services/overheadDowel.ts": "0dce17df35023811209a234c000fc018de326c0ced29810fbab79e3d968eb691",
+    "src/services/overheadSquat.ts": "006568cf1ca943688103ed5114d540f85002c47740bdbad2d2f6818fc21ce778",
+    "src/services/painResponse.ts": "82894a9b32034832336b83fa007fa10c4e9dd20305e103690fee8f7e99ac6a5b",
+    "src/services/painResponseLayer.ts": "f2e5032bb7f364bb17094b8d1dc413bb38ee5ad80bdec878d3733facd7aae8a6",
+    "src/services/policySearch.ts": "1e432b7b9bdf8feaf1627142982f8aa7cadbbcde31036ae6d94648c6e7f428f4",
+    "src/services/poseAnimationSampling.ts": "6417867db202a7464eef95e2e0c7472e5d7bfaf302802ac6749acadd705c63b6",
+    "src/services/poseClickDeselect.ts": "84bc4992a83a0893094c3361fbff12ab5f12af8220039e5bdae94b464f3e8d15",
+    "src/services/poseFingerRomClamp.ts": "e16f35eaa74347ee1fc32dca4bf1f8d9a76f6cb1ea70ca7d36346e2f6f56b77f",
+    "src/services/poseGizmoHelpers.ts": "17a4fed3638b187cb2f9b987eb008e5f478e270f0fd7806daf0ffc411723824f",
+    "src/services/poseGoniometerHelpers.ts": "b1ff9572f79f87742c2a4abca1b263ae4f81ef891acc4414e38f58f0a241464a",
+    "src/services/poseProSupRomClamp.ts": "0d84768ee346649474aedb13fea8fc19815212198ba0ccb63b64fe2561e1535b",
+    "src/services/poseRegionCurveRomClamp.ts": "3b7e390f727ca6af2a22a2f10e53bdacfda6263e4691510058aeb7e0c2fc2f46",
+    "src/services/poseRig.ts": "072907ecd8ee4081d2b5ec749bf2120556f62eb0c9604f215971191a70ca796d",
+    "src/services/poseRomClamp.ts": "f96f6e9c02122999575b9e46aea62d41bd6a512c71e1863e184169274c30aaaa",
+    "src/services/poseRotateRings.ts": "b61635402335d3774c25b99693a863c2717d8a249ada29893fbe9e7b7d07bfe0",
+    "src/services/poseScapulohumeral.ts": "7fe5bf618b9e6b34498a8ffbc200de6e1ede6f90631a02273505a9f0a3bfc829",
+    "src/services/poseSubtreeRomClamp.ts": "79300a45659bc2525299432f50ca13620b4b61ca10428b629ca3c9449aba1234",
+    "src/services/posedGeometry.ts": "baa508a59e1caf682cac037adc8488286fdd41948dd7f1b8423efb95a0d0bb6a",
+    "src/services/posturePlan.ts": "fcd80ec8a42eceb2d80a2a54991874a18302f057a69432b25be9cf771cc0447c",
+    "src/services/pressupPalmLayout.ts": "c9254cd4085c3c08f090bf69dbaad629a1310d21abd3b9a1578775d2058b7811",
+    "src/services/proneSkinSupport.ts": "975f729b7521854033b8af7474c0bdca46501b6c1ebd1a57ae6ff1c4c7d1de97",
+    "src/services/readyTransition.ts": "1bc1e41839500dd538efc6a9813290c0275fc305102e56093bbaeacf1c3cd1bc",
+    "src/services/romConstraints.ts": "7bc9e4f07eea3b7a78d19f16c44c84955518dabe3ab60d0f758bf9e438fefb0d",
+    "src/services/romRegistry.ts": "10919c56e409fef40ab91b8659da2969071bc15cc61662908e30aa35617af8c9",
+    "src/services/rootMotion.ts": "1907dd8b9044238f2da51d49909b3b96165339e492433812f3c144dc0cc629d7",
+    "src/services/sceneBoot.ts": "f6d8aa3b5fc8e6980d3bf9180f3a1952dbc91049b2695ca1bf04344a21435bdd",
+    "src/services/sectionCap.ts": "1d01239a8836c7ac01cd4cf4406b52c6df98df2bc0f67b47f4bbe2340948f3cc",
+    "src/services/shoulderComplex.ts": "9d928a39faa8689c6f7c3ce2960ed500c7f4174fe5af5e2fa5b3b5bf9944c5bf",
+    "src/services/shoulderRuntime.ts": "5cfe4fde45488972e6ffcb33e790038a1cd67c593c7d6a9944de7b07ee58855d",
+    "src/services/skinContact.ts": "f0e074feaefe19e0a5e1a592961b6576dbda198f5a988e17e3b0ccd05bb266bc",
+    "src/services/stageBreath.ts": "bcfe864906b96ae6fb46be12ee1d24e3913c8585ad423ae0db73a8573c1dfec7",
+    "src/services/stageClipBlend.ts": "397b1f8be0385e234dcab9eb7d8aeaa3d064352013e8cdc2e3846082cf1adf5e",
+    "src/services/stageComposedDerivations.ts": "6a9e70b8be22b8e81f8f0a41fe9ed0dd8ef7cde155a474ec753a3378934a1296",
+    "src/services/stageDiagnostics.ts": "796f9766b3ecc4e1dbcdd3498590943ff9fda466cb4e091236e7e322103c9510",
+    "src/services/stageDriver.ts": "ea38aa53535789e879f07cd17ee00ae96605525adf9d5724e4d539d09fd434e2",
+    "src/services/stageEyeGaze.ts": "d17c2d0af6e16c1c7528cc2246f8662f798e6546f8fe51fa511fee2e6f8c9d3c",
+    "src/services/stageIdleOverlay.ts": "5ccf9888cb033245ad2548e38b644a6168fc0928542e5364623a5a020af75c00",
+    "src/services/stageMotionLiveliness.ts": "f57f0ce113cf7e2353d6d8359bac533e1cde1ecbea94206d95b56fd21f91f36d",
+    "src/services/stagePosingLayer.ts": "cd74d564053a17fa4224a650b2b653428a6635643ba8ee1a02f9b943d296367e",
+    "src/services/stageRecordingTap.ts": "a451b1baf57506a7367404e63c3cee13ddd901413e9d11c8ddb045609016e25d",
+    "src/services/stageSceneLayer.ts": "f3db9124009729b5c2dccad88861d1973169158ac1012a95706fc8a024b350e5",
+    "src/services/stageTwistOverlay.ts": "e570e9c6da76feca4fdcf53c547581d7fb318660f5a57294e5edad4715c8a056",
+    "src/services/stanceTransition.ts": "eee9e79360aeea4b8497bcb23be8fb680dff73eee4a52f3a2f35adfad0b40517",
+    "src/services/twistRig.ts": "a4bb9ec5296309f8a5098b9115f7ea6564ce2b574997866cee45784dd9ac023d",
+    "src/services/upperSupportRecipes.ts": "9dc8b771cb6c4a8f9c18bc411ce21c988f7bf2994409e740216951005fef21fd",
+    "src/services/validityGate.ts": "ecaa4b51b29daafd4b31f3b6eca5f27d5cbd57619dcd5bd612220408f72ac6c0",
+    "src/services/webglLifecycle.ts": "0c248fe7fb123f62782dfc91e9e758ddf32a7dbad7f7d6f7b10f1546d4e5858d",
+    "src/types.ts": "ed254f4963ac29cb9560c08b2befc2516f5f2ff3f271ed9575b033b2f38fc5cb"
+  },
+  "cases": [
+    {
+      "variant": "male",
+      "modelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "boneCount": 101,
+      "meshes": [
+        {
+          "name": "CC_Base_Body_1",
+          "vertices": 4354
+        },
+        {
+          "name": "CC_Base_Body_2",
+          "vertices": 2060
+        },
+        {
+          "name": "CC_Base_Body_3",
+          "vertices": 4738
+        },
+        {
+          "name": "CC_Base_Body_4",
+          "vertices": 2590
+        },
+        {
+          "name": "CC_Base_Body_5",
+          "vertices": 1112
+        },
+        {
+          "name": "CC_Base_Body_6",
+          "vertices": 748
+        }
+      ],
+      "floorY": 0,
+      "frames": [
+        {
+          "tMs": 0,
+          "minimum": {
+            "meshIndex": 2,
+            "meshName": "CC_Base_Body_3",
+            "vertex": 686,
+            "owner": "CC_Base_L_Hand",
+            "positionM": [
+              0.2846583473242363,
+              -0.00004954941636024779,
+              1.6970312860409025
+            ],
+            "clearanceM": -0.00004954941636024779
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.294482875450087,
+                  0.06563590117273935,
+                  1.548534118035268
+                ],
+                "clearanceM": 0.06563590117273935
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2377,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2714654324996651,
+                  0.009611101863696958,
+                  1.6527572553241006
+                ],
+                "clearanceM": 0.009611101863696958
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.30874643438244875,
+                  0.035796766026471694,
+                  1.5483355516813682
+                ],
+                "clearanceM": 0.035796766026471694
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 4667,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.2698008460413114,
+                  0.00841933382754198,
+                  1.6563059106658922
+                ],
+                "clearanceM": 0.00841933382754198
+              }
+            }
+          },
+          "elbows": [
+            135.3702862757783,
+            138.92864267181272
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 1000,
+          "minimum": {
+            "meshIndex": 2,
+            "meshName": "CC_Base_Body_3",
+            "vertex": 686,
+            "owner": "CC_Base_L_Hand",
+            "positionM": [
+              0.2846583473242363,
+              -0.00004954941636024779,
+              1.6970312860409025
+            ],
+            "clearanceM": -0.00004954941636024779
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.294482875450087,
+                  0.06563590117273935,
+                  1.548534118035268
+                ],
+                "clearanceM": 0.06563590117273935
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2377,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2714654324996651,
+                  0.009611101863696958,
+                  1.6527572553241006
+                ],
+                "clearanceM": 0.009611101863696958
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.30874643438244886,
+                  0.03579676602647171,
+                  1.5483355516813684
+                ],
+                "clearanceM": 0.03579676602647171
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 4667,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.26980084604131127,
+                  0.008419333827541772,
+                  1.6563059106658926
+                ],
+                "clearanceM": 0.008419333827541772
+              }
+            }
+          },
+          "elbows": [
+            135.3702862757783,
+            138.92864267181275
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 1600,
+          "minimum": {
+            "meshIndex": 2,
+            "meshName": "CC_Base_Body_3",
+            "vertex": 686,
+            "owner": "CC_Base_L_Hand",
+            "positionM": [
+              0.28465049866160347,
+              -0.0000604455917581348,
+              1.6969724134142365
+            ],
+            "clearanceM": -0.0000604455917581348
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2957691446402699,
+                  0.07065090438793585,
+                  1.550473968271436
+                ],
+                "clearanceM": 0.07065090438793585
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2377,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2714752546746113,
+                  0.009991639140489186,
+                  1.65202506083726
+                ],
+                "clearanceM": 0.009991639140489186
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.30528484849773496,
+                  0.04898903705308991,
+                  1.5482258972670275
+                ],
+                "clearanceM": 0.04898903705308991
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 4667,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.269531766700754,
+                  0.009068308720935433,
+                  1.6543878941310097
+                ],
+                "clearanceM": 0.009068308720935433
+              }
+            }
+          },
+          "elbows": [
+            107.82563786023654,
+            111.73283741617944
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 2500,
+          "minimum": {
+            "meshIndex": 4,
+            "meshName": "CC_Base_Body_5",
+            "vertex": 54,
+            "owner": "CC_Base_L_BigToe1",
+            "positionM": [
+              0.06054747224395378,
+              -0.0000868768447996604,
+              -0.135685107281941
+            ],
+            "clearanceM": -0.0000868768447996604
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 172,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.24972949328079477,
+                  0.10982624486949549,
+                  1.5683144046581263
+                ],
+                "clearanceM": 0.10982624486949549
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2378,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.26419630239376163,
+                  0.013011211293898386,
+                  1.6478757366903745
+                ],
+                "clearanceM": 0.013011211293898386
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.26513586387156407,
+                  0.10460256392410881,
+                  1.5639330492843642
+                ],
+                "clearanceM": 0.10460256392410881
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3127,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.26349050381498035,
+                  0.012434596151186708,
+                  1.648619388001475
+                ],
+                "clearanceM": 0.012434596151186708
+              }
+            }
+          },
+          "elbows": [
+            10.967239547278979,
+            10.976729880350051
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 4100,
+          "minimum": {
+            "meshIndex": 4,
+            "meshName": "CC_Base_Body_5",
+            "vertex": 54,
+            "owner": "CC_Base_L_BigToe1",
+            "positionM": [
+              0.06054747224395378,
+              -0.0000868768447996604,
+              -0.135685107281941
+            ],
+            "clearanceM": -0.0000868768447996604
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 172,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.24972949328079477,
+                  0.10982624486949563,
+                  1.5683144046581263
+                ],
+                "clearanceM": 0.10982624486949563
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2378,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.26419630239376163,
+                  0.013011211293898428,
+                  1.6478757366903745
+                ],
+                "clearanceM": 0.013011211293898428
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.26513586387156407,
+                  0.10460256392410881,
+                  1.5639330492843642
+                ],
+                "clearanceM": 0.10460256392410881
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3127,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.26349050381498035,
+                  0.012434596151186708,
+                  1.648619388001475
+                ],
+                "clearanceM": 0.012434596151186708
+              }
+            }
+          },
+          "elbows": [
+            10.967239547278979,
+            10.976729880350051
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 5400,
+          "minimum": {
+            "meshIndex": 2,
+            "meshName": "CC_Base_Body_3",
+            "vertex": 686,
+            "owner": "CC_Base_L_Hand",
+            "positionM": [
+              0.2846583473242363,
+              -0.00004954941636024779,
+              1.6970312860409025
+            ],
+            "clearanceM": -0.00004954941636024779
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.294482875450087,
+                  0.06563590117273935,
+                  1.548534118035268
+                ],
+                "clearanceM": 0.06563590117273935
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2377,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2714654324996651,
+                  0.009611101863696958,
+                  1.6527572553241006
+                ],
+                "clearanceM": 0.009611101863696958
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.30874643438244886,
+                  0.03579676602647171,
+                  1.5483355516813684
+                ],
+                "clearanceM": 0.03579676602647171
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 4667,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.26980084604131127,
+                  0.008419333827541772,
+                  1.6563059106658926
+                ],
+                "clearanceM": 0.008419333827541772
+              }
+            }
+          },
+          "elbows": [
+            135.3702862757783,
+            138.92864267181275
+          ],
+          "supportFeasible": true
+        }
+      ]
+    },
+    {
+      "variant": "female",
+      "modelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "boneCount": 101,
+      "meshes": [
+        {
+          "name": "CC_Base_Body_1",
+          "vertices": 4354
+        },
+        {
+          "name": "CC_Base_Body_2",
+          "vertices": 2060
+        },
+        {
+          "name": "CC_Base_Body_3",
+          "vertices": 4738
+        },
+        {
+          "name": "CC_Base_Body_4",
+          "vertices": 2590
+        },
+        {
+          "name": "CC_Base_Body_5",
+          "vertices": 1112
+        },
+        {
+          "name": "CC_Base_Body_6",
+          "vertices": 748
+        }
+      ],
+      "floorY": 0,
+      "frames": [
+        {
+          "tMs": 0,
+          "minimum": {
+            "meshIndex": 1,
+            "meshName": "CC_Base_Body_2",
+            "vertex": 804,
+            "owner": "CC_Base_Pelvis",
+            "positionM": [
+              0.02915039886178961,
+              8.002989104749503e-10,
+              1.08697649936648
+            ],
+            "clearanceM": 8.002989104749503e-10
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2685546451547769,
+                  0.041104035790527405,
+                  1.4658706319488977
+                ],
+                "clearanceM": 0.041104035790527405
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2378,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2294913444490856,
+                  0.006347950365794733,
+                  1.562471056868515
+                ],
+                "clearanceM": 0.006347950365794733
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.27670641608449786,
+                  0.017274259372911577,
+                  1.4686464007648004
+                ],
+                "clearanceM": 0.017274259372911577
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3127,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.22786490376826193,
+                  0.006463640669188517,
+                  1.5644290040485103
+                ],
+                "clearanceM": 0.006463640669188517
+              }
+            }
+          },
+          "elbows": [
+            133.7533057480778,
+            138.65863248203544
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 1000,
+          "minimum": {
+            "meshIndex": 1,
+            "meshName": "CC_Base_Body_2",
+            "vertex": 804,
+            "owner": "CC_Base_Pelvis",
+            "positionM": [
+              0.02915039886178961,
+              8.002989104749503e-10,
+              1.08697649936648
+            ],
+            "clearanceM": 8.002989104749503e-10
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2685546451547769,
+                  0.041104035790527405,
+                  1.4658706319488977
+                ],
+                "clearanceM": 0.041104035790527405
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2378,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2294913444490856,
+                  0.006347950365794733,
+                  1.562471056868515
+                ],
+                "clearanceM": 0.006347950365794733
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.276706416084498,
+                  0.017274259372911535,
+                  1.4686464007648004
+                ],
+                "clearanceM": 0.017274259372911535
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3127,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.2278649037682618,
+                  0.006463640669188531,
+                  1.5644290040485103
+                ],
+                "clearanceM": 0.006463640669188531
+              }
+            }
+          },
+          "elbows": [
+            133.7533057480778,
+            138.65863248203547
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 1600,
+          "minimum": {
+            "meshIndex": 3,
+            "meshName": "CC_Base_Body_4",
+            "vertex": 1058,
+            "owner": "CC_Base_L_BigToe1",
+            "positionM": [
+              0.06084809092157651,
+              -0.000035384264294183176,
+              -0.1162860546664147
+            ],
+            "clearanceM": -0.000035384264294183176
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.26277163385120356,
+                  0.0499308519022297,
+                  1.4656330158720876
+                ],
+                "clearanceM": 0.0499308519022297
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2378,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.22882942359218197,
+                  0.006970976415261884,
+                  1.5614662190938713
+                ],
+                "clearanceM": 0.006970976415261884
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.2700069297131152,
+                  0.03370664603244182,
+                  1.4656326629535028
+                ],
+                "clearanceM": 0.03370664603244182
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3127,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.22783909822212803,
+                  0.006894119145816974,
+                  1.5627426399456166
+                ],
+                "clearanceM": 0.006894119145816974
+              }
+            }
+          },
+          "elbows": [
+            107.8924600309048,
+            112.42711920904483
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 2500,
+          "minimum": {
+            "meshIndex": 2,
+            "meshName": "CC_Base_Body_3",
+            "vertex": 4695,
+            "owner": "CC_Base_R_Hand",
+            "positionM": [
+              -0.24022340215753493,
+              -0.00007295978580280915,
+              1.5837150842072338
+            ],
+            "clearanceM": -0.00007295978580280915
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2310117469896064,
+                  0.09207528803179897,
+                  1.4804160287886088
+                ],
+                "clearanceM": 0.09207528803179897
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2379,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.22358906771515183,
+                  0.008661927512769688,
+                  1.5588473272987085
+                ],
+                "clearanceM": 0.008661927512769688
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.23184438593569526,
+                  0.08647497518067009,
+                  1.4762663825492393
+                ],
+                "clearanceM": 0.08647497518067009
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3128,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.2229767335190555,
+                  0.008484491108053355,
+                  1.5596620363617664
+                ],
+                "clearanceM": 0.008484491108053355
+              }
+            }
+          },
+          "elbows": [
+            11.50728208943115,
+            11.471432152850221
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 4100,
+          "minimum": {
+            "meshIndex": 2,
+            "meshName": "CC_Base_Body_3",
+            "vertex": 4695,
+            "owner": "CC_Base_R_Hand",
+            "positionM": [
+              -0.24022340215753496,
+              -0.00007295978580262874,
+              1.5837150842072334
+            ],
+            "clearanceM": -0.00007295978580262874
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2310117469896064,
+                  0.09207528803179897,
+                  1.4804160287886088
+                ],
+                "clearanceM": 0.09207528803179897
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2379,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.22358906771515183,
+                  0.008661927512769688,
+                  1.5588473272987085
+                ],
+                "clearanceM": 0.008661927512769688
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.23184438593569526,
+                  0.08647497518066997,
+                  1.4762663825492395
+                ],
+                "clearanceM": 0.08647497518066997
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3128,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.2229767335190555,
+                  0.00848449110805341,
+                  1.5596620363617664
+                ],
+                "clearanceM": 0.00848449110805341
+              }
+            }
+          },
+          "elbows": [
+            11.50728208943115,
+            11.471432152850179
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 5400,
+          "minimum": {
+            "meshIndex": 1,
+            "meshName": "CC_Base_Body_2",
+            "vertex": 804,
+            "owner": "CC_Base_Pelvis",
+            "positionM": [
+              0.02915039886178961,
+              8.002989104749503e-10,
+              1.08697649936648
+            ],
+            "clearanceM": 8.002989104749503e-10
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2685546451547769,
+                  0.041104035790527405,
+                  1.4658706319488977
+                ],
+                "clearanceM": 0.041104035790527405
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2378,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2294913444490856,
+                  0.006347950365794733,
+                  1.562471056868515
+                ],
+                "clearanceM": 0.006347950365794733
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.276706416084498,
+                  0.017274259372911535,
+                  1.4686464007648004
+                ],
+                "clearanceM": 0.017274259372911535
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3127,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.2278649037682618,
+                  0.006463640669188531,
+                  1.5644290040485103
+                ],
+                "clearanceM": 0.006463640669188531
+              }
+            }
+          },
+          "elbows": [
+            133.7533057480778,
+            138.65863248203547
+          ],
+          "supportFeasible": true
+        }
+      ]
+    },
+    {
+      "variant": "neutral",
+      "modelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "boneCount": 101,
+      "meshes": [
+        {
+          "name": "CC_Base_Body_1",
+          "vertices": 4354
+        },
+        {
+          "name": "CC_Base_Body_2",
+          "vertices": 2060
+        },
+        {
+          "name": "CC_Base_Body_3",
+          "vertices": 4738
+        },
+        {
+          "name": "CC_Base_Body_4",
+          "vertices": 2590
+        },
+        {
+          "name": "CC_Base_Body_5",
+          "vertices": 1112
+        },
+        {
+          "name": "CC_Base_Body_6",
+          "vertices": 748
+        }
+      ],
+      "floorY": 0,
+      "frames": [
+        {
+          "tMs": 0,
+          "minimum": {
+            "meshIndex": 1,
+            "meshName": "CC_Base_Body_2",
+            "vertex": 944,
+            "owner": "CC_Base_Spine01",
+            "positionM": [
+              5.5818974672646377e-8,
+              -0.000021652323676915608,
+              1.11023952432275
+            ],
+            "clearanceM": -0.000021652323676915608
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2324929404714635,
+                  0.04692356447191951,
+                  1.3107921257790578
+                ],
+                "clearanceM": 0.04692356447191951
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2377,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2106373397657022,
+                  0.010541328039985337,
+                  1.396590643838063
+                ],
+                "clearanceM": 0.010541328039985337
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.24197260336465531,
+                  0.02661019654683261,
+                  1.3118596184550007
+                ],
+                "clearanceM": 0.02661019654683261
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 4667,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.20942949919847595,
+                  0.010074040001990331,
+                  1.3986481955352126
+                ],
+                "clearanceM": 0.010074040001990331
+              }
+            }
+          },
+          "elbows": [
+            134.99455910900429,
+            141.1924867380735
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 1000,
+          "minimum": {
+            "meshIndex": 1,
+            "meshName": "CC_Base_Body_2",
+            "vertex": 944,
+            "owner": "CC_Base_Spine01",
+            "positionM": [
+              5.5818974672646377e-8,
+              -0.000021652323676915608,
+              1.11023952432275
+            ],
+            "clearanceM": -0.000021652323676915608
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2324929404714635,
+                  0.04692356447191951,
+                  1.3107921257790578
+                ],
+                "clearanceM": 0.04692356447191951
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2377,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2106373397657022,
+                  0.010541328039985337,
+                  1.396590643838063
+                ],
+                "clearanceM": 0.010541328039985337
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.24197260336465531,
+                  0.02661019654683261,
+                  1.3118596184550007
+                ],
+                "clearanceM": 0.02661019654683261
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 4667,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.20942949919847595,
+                  0.010074040001990331,
+                  1.3986481955352126
+                ],
+                "clearanceM": 0.010074040001990331
+              }
+            }
+          },
+          "elbows": [
+            134.99455910900429,
+            141.1924867380735
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 1600,
+          "minimum": {
+            "meshIndex": 1,
+            "meshName": "CC_Base_Body_2",
+            "vertex": 2022,
+            "owner": "CC_Base_Pelvis",
+            "positionM": [
+              5.403379738118678e-8,
+              -0.000011828114755585428,
+              0.9135118365859332
+            ],
+            "clearanceM": -0.000011828114755585428
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 90,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.24137500970437395,
+                  0.05231814823643277,
+                  1.3163547675130607
+                ],
+                "clearanceM": 0.05231814823643277
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2377,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2103475558767474,
+                  0.01089837644184835,
+                  1.3958521339772132
+                ],
+                "clearanceM": 0.01089837644184835
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2428,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.2486670884358298,
+                  0.03736593854238984,
+                  1.3165065438437977
+                ],
+                "clearanceM": 0.03736593854238984
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 4667,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.20952033086001134,
+                  0.010404947303532683,
+                  1.3973031514819545
+                ],
+                "clearanceM": 0.010404947303532683
+              }
+            }
+          },
+          "elbows": [
+            108.54259107749125,
+            114.52434334452097
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 2500,
+          "minimum": {
+            "meshIndex": 4,
+            "meshName": "CC_Base_Body_5",
+            "vertex": 54,
+            "owner": "CC_Base_L_BigToe1",
+            "positionM": [
+              0.0514037496667143,
+              -0.00005746754924638997,
+              -0.10048564564021424
+            ],
+            "clearanceM": -0.00005746754924638997
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.20390679505170026,
+                  0.08887222785865641,
+                  1.327641756588917
+                ],
+                "clearanceM": 0.08887222785865641
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2378,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.20561364922848216,
+                  0.013033750197439242,
+                  1.3923381020626813
+                ],
+                "clearanceM": 0.013033750197439242
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.2048844448925338,
+                  0.0846764085323488,
+                  1.3242436103905875
+                ],
+                "clearanceM": 0.0846764085323488
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3127,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.20511012280289628,
+                  0.01266915183218903,
+                  1.3928929713874127
+                ],
+                "clearanceM": 0.01266915183218903
+              }
+            }
+          },
+          "elbows": [
+            10.971806839264548,
+            10.954881279407997
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 4100,
+          "minimum": {
+            "meshIndex": 4,
+            "meshName": "CC_Base_Body_5",
+            "vertex": 54,
+            "owner": "CC_Base_L_BigToe1",
+            "positionM": [
+              0.0514037496667143,
+              -0.00005746754924638997,
+              -0.10048564564021424
+            ],
+            "clearanceM": -0.00005746754924638997
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2039067950517001,
+                  0.08887222785865653,
+                  1.327641756588917
+                ],
+                "clearanceM": 0.08887222785865653
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2378,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2056136492284822,
+                  0.013033750197439326,
+                  1.392338102062681
+                ],
+                "clearanceM": 0.013033750197439326
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.2048844448925338,
+                  0.0846764085323488,
+                  1.3242436103905875
+                ],
+                "clearanceM": 0.0846764085323488
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 3127,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.20511012280289634,
+                  0.01266915183218903,
+                  1.3928929713874127
+                ],
+                "clearanceM": 0.01266915183218903
+              }
+            }
+          },
+          "elbows": [
+            10.971806839264547,
+            10.954881279407944
+          ],
+          "supportFeasible": true
+        },
+        {
+          "tMs": 5400,
+          "minimum": {
+            "meshIndex": 1,
+            "meshName": "CC_Base_Body_2",
+            "vertex": 944,
+            "owner": "CC_Base_Spine01",
+            "positionM": [
+              5.5818974672646377e-8,
+              -0.000021652323676915608,
+              1.11023952432275
+            ],
+            "clearanceM": -0.000021652323676915608
+          },
+          "forearms": {
+            "CC_Base_L_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 85,
+                "owner": "CC_Base_L_ForearmTwist01",
+                "positionM": [
+                  0.2324929404714635,
+                  0.04692356447191951,
+                  1.3107921257790578
+                ],
+                "clearanceM": 0.04692356447191951
+              }
+            },
+            "CC_Base_L_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2377,
+                "owner": "CC_Base_L_ForearmTwist02",
+                "positionM": [
+                  0.2106373397657022,
+                  0.010541328039985337,
+                  1.396590643838063
+                ],
+                "clearanceM": 0.010541328039985337
+              }
+            },
+            "CC_Base_R_ForearmTwist01": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 2423,
+                "owner": "CC_Base_R_ForearmTwist01",
+                "positionM": [
+                  -0.24197260336465531,
+                  0.02661019654683261,
+                  1.3118596184550007
+                ],
+                "clearanceM": 0.02661019654683261
+              }
+            },
+            "CC_Base_R_ForearmTwist02": {
+              "vertices": 135,
+              "belowFloor": 0,
+              "minimum": {
+                "meshIndex": 2,
+                "meshName": "CC_Base_Body_3",
+                "vertex": 4667,
+                "owner": "CC_Base_R_ForearmTwist02",
+                "positionM": [
+                  -0.20942949919847595,
+                  0.010074040001990331,
+                  1.3986481955352126
+                ],
+                "clearanceM": 0.010074040001990331
+              }
+            }
+          },
+          "elbows": [
+            134.99455910900429,
+            141.1924867380735
+          ],
+          "supportFeasible": true
+        }
+      ]
+    }
+  ],
+  "qualification": "No full-cycle skin, native, clinical or both-host acceptance. Historical candidate21 forearm penetration is not reproduced in these current-source sparse samples."
+}

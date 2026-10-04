@@ -1,0 +1,25 @@
+# Planning review and incorporated refinements
+
+Two synthetic reviewers independently examined the emerging architecture, anatomy, experiment and delivery specifications on 2 October 2026. One emphasized methods and clinical claim boundaries; the other emphasized runtime integration and evidence integrity. This was a review of planning documents and inspected code, not an executed physiology experiment or human clinical signoff.
+
+The integrator incorporated the following substantive refinements. This record describes changes to the plan; movement work and acceptance continue to belong in the [existing master](../MASTER-MOVEMENT-JOINT-CATALOGUE.html).
+
+| Review finding | Incorporated refinement | Specification |
+| --- | --- | --- |
+| New interfaces were required to pass before they could be implemented | Permit a bounded interface prototype; gate physiological interpretation and shared delivery on its demonstrated checks. Checkpoint restoration is required only if enabled. | [Architecture](02-system-architecture.md) |
+| Controller IDs could reveal hidden lesion or plant parameters | Declare an immutable controller knowledge allowlist. Preserve the same prior knowledge for acute comparisons and keep undisclosed plant changes outside controller lookups. | [Architecture](02-system-architecture.md), [experiments](04-validation-and-experiments.md) |
+| Existing native feedback could mask experimental actuation | Add a mutually exclusive per-step strategy for selected coordinates. Replace their existing feedback and report reserve, support and external actuation separately. | [Architecture](02-system-architecture.md) |
+| A broad task-input exception could admit perfect state | Allow declared schedules and static assumptions, while computing state-dependent control terms from permitted observations or estimates. Keep privileged controllers as labeled diagnostics. | [Architecture](02-system-architecture.md) |
+| Torque and muscle comparisons could change policy and capacity simultaneously | Verify torque realization separately, version the allocator, report the feasible envelope and freeze high-level demand for matched comparisons. | [Experiments](04-validation-and-experiments.md), [roadmap](05-delivery-roadmap.md) |
+| Validation data could become tuning data after a failed result | Retire any holdout used for tuning to development evidence; use untouched data for a new independent validation or label reassessment nonindependent. | [Experiments](04-validation-and-experiments.md) |
+| Requiring an impairment effect could encourage fabricated deficits | Separate evidence of sensor consumption from effect direction. Predeclare hypotheses and preserve null, improved and adverse outcomes. | [Entry point](README.md), [experiments](04-validation-and-experiments.md), [roadmap](05-delivery-roadmap.md) |
+| Input identity alone did not authenticate stored replay | Require immutable result IDs, output/chunk hashes, schema/units, matched monotonic streams, completeness and rejection of superseded responses. | [Roadmap](05-delivery-roadmap.md), [templates](07-working-protocols.md) |
+| Source capture could combine concurrently changed files | Compare selected hashes and repository state before and after inspection, record times and limited scope, and refuse a detected mixed capture. | [Capture tool](capture-current-state.mjs), [source snapshot](current-state-snapshot.json) |
+
+The research review also narrowed model selection: the simplified MyoSuite elbow is an engineering control sandbox; OpenCap's cited upper-body actuation cannot establish elbow muscle recruitment; regional datasets require channel-level provenance and file-specific reuse terms. The [source review](01-research-and-sources.md) documents these boundaries.
+
+Remaining decisions are intentional entry conditions: selecting and qualifying the exact supported elbow fixture, inspecting candidate raw archives and model licenses, sourcing the required mechanical and clinical validation channels, and verifying full-body anatomy releases. Those investigations are the first implementation preparation in [increment 0](05-delivery-roadmap.md#increment-0-research-and-task-definition). Their absence limits physiological and clinical claims; it does not prevent authorized interface prototyping and further research.
+
+Package integrity is checked separately by [validate-plan.mjs](validate-plan.mjs). A passing local check verifies document links, source metadata and the selected audit structure only. It does not establish that any remote download is licensed, any movement is accepted, or any neural mechanism is biologically accurate.
+
+A later source-hash check detected concurrent changes to four underlying movement governance inputs while the planning documents remained unchanged. The failed report was retained, the updated versioned execution prompt and catalogue process were reread, and the plan now explicitly reuses the existing program schema and reference/closure manifests. A new audit records the refreshed selected inputs; the previous snapshots remain historical evidence.

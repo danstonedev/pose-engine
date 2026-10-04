@@ -1,0 +1,223 @@
+{
+  "createdAtUtc": "2026-10-03T00:55:58.482Z",
+  "scope": "Offline performance investigation only; no runtime ports. Final release timeout review supersedes treating generic Vitest default as product latency contract.",
+  "sources": {
+    "pressup-current-cone-profile-2.json": "4e72bc677e6518cc33aa48d5ddb064fc8fe4d4cf39376845c4a036536ff2637c",
+    "pressup-bind-input-full-1.json": "8c52c5e04316734fbfab35356d61b4eeda493a8506a5729d6683cb39a9c6bf09",
+    "pressup-linearization-full-1.json": "93299dce6f782f80547a7fc2cff22c338283fbeb2fe9ab934fff9b25e588952c"
+  },
+  "currentProfile": {
+    "sourceStable": true,
+    "globalRomClamp": false,
+    "runs": [
+      {
+        "label": "default",
+        "costs": {
+          "layout/lower-factory": {
+            "calls": 1,
+            "inclusiveMs": 17.426800000000185
+          },
+          "layout/guide/lower-solve": {
+            "calls": 141,
+            "inclusiveMs": 554.1965999999975,
+            "reused": 107,
+            "iterations": 256
+          },
+          "layout/guide/hand": {
+            "calls": 76,
+            "inclusiveMs": 660.5042999999991,
+            "iterations": 741,
+            "stops": {
+              "residual-tolerance": 52,
+              "search-stalled": 64
+            }
+          },
+          "layout/guide": {
+            "calls": 1,
+            "inclusiveMs": 1352.7737
+          },
+          "layout/lower-solve": {
+            "calls": 5,
+            "inclusiveMs": 10.055699999999888,
+            "reused": 5,
+            "iterations": 0
+          },
+          "layout/hand": {
+            "calls": 4,
+            "inclusiveMs": 1.5321999999996478,
+            "iterations": 0,
+            "stops": {
+              "residual-tolerance": 4
+            }
+          },
+          "layout": {
+            "calls": 1,
+            "inclusiveMs": 1418.8155
+          },
+          "playback/lower-factory": {
+            "calls": 1,
+            "inclusiveMs": 15.293900000000122
+          },
+          "playback/guide/lower-solve": {
+            "calls": 4,
+            "inclusiveMs": 24.456999999999425,
+            "reused": 3,
+            "iterations": 8
+          },
+          "playback/guide": {
+            "calls": 1,
+            "inclusiveMs": 70.61769999999979
+          },
+          "playback/lower-solve": {
+            "calls": 163,
+            "inclusiveMs": 897.5270999999998,
+            "reused": 79,
+            "iterations": 632
+          },
+          "playback/hand": {
+            "calls": 178,
+            "inclusiveMs": 145.0704000000037,
+            "iterations": 176,
+            "stops": {
+              "residual-tolerance": 173,
+              "search-stalled": 5
+            }
+          }
+        },
+        "elapsedMs": 2731.4170000000004,
+        "frames": 163
+      },
+      {
+        "label": "patient",
+        "costs": {
+          "layout": {
+            "calls": 1,
+            "inclusiveMs": 2.0278999999991356
+          },
+          "playback/lower-factory": {
+            "calls": 1,
+            "inclusiveMs": 12.313400000000001
+          },
+          "playback/guide/lower-solve": {
+            "calls": 141,
+            "inclusiveMs": 536.3519000000015,
+            "reused": 107,
+            "iterations": 256
+          },
+          "playback/guide/hand": {
+            "calls": 76,
+            "inclusiveMs": 1678.0018999999947,
+            "iterations": 2282,
+            "stops": {
+              "iteration-limit": 18,
+              "search-stalled": 85,
+              "residual-tolerance": 13
+            }
+          },
+          "playback/guide": {
+            "calls": 1,
+            "inclusiveMs": 2287.4217
+          },
+          "playback/lower-solve": {
+            "calls": 163,
+            "inclusiveMs": 864.8606000000045,
+            "reused": 85,
+            "iterations": 585
+          },
+          "playback/hand": {
+            "calls": 182,
+            "inclusiveMs": 1673.8944000000056,
+            "iterations": 2428,
+            "stops": {
+              "search-stalled": 90,
+              "residual-tolerance": 68,
+              "iteration-limit": 24
+            }
+          }
+        },
+        "elapsedMs": 5017.2705000000005,
+        "frames": 163
+      },
+      {
+        "label": "patient-repeat",
+        "costs": {
+          "layout": {
+            "calls": 1,
+            "inclusiveMs": 1.9592999999986205
+          },
+          "playback/lower-factory": {
+            "calls": 1,
+            "inclusiveMs": 5.192000000000917
+          },
+          "playback/guide/lower-solve": {
+            "calls": 4,
+            "inclusiveMs": 16.10820000000058,
+            "reused": 3,
+            "iterations": 8
+          },
+          "playback/guide": {
+            "calls": 1,
+            "inclusiveMs": 27.327399999998306
+          },
+          "playback/lower-solve": {
+            "calls": 163,
+            "inclusiveMs": 929.2479999999814,
+            "reused": 79,
+            "iterations": 632
+          },
+          "playback/hand": {
+            "calls": 184,
+            "inclusiveMs": 1766.0250000000015,
+            "iterations": 2466,
+            "stops": {
+              "search-stalled": 92,
+              "residual-tolerance": 68,
+              "iteration-limit": 24
+            }
+          }
+        },
+        "elapsedMs": 2906.5524000000005,
+        "frames": 163
+      }
+    ],
+    "totalMs": 10655.2399
+  },
+  "bindInputCandidate": {
+    "sourceStable": true,
+    "passed": true,
+    "pairedVertexReads": 44714418,
+    "frames": 978,
+    "originalMs": 7847.078699996429,
+    "candidateMs": 7370.809899996875,
+    "relativeReduction": 0.060693771301130295,
+    "verdict": "Not promoted: modest measured benefit does not justify generic mutation-contract expansion. Original vertex arithmetic and values match exactly in all observed reads; unversioned typed-array mutation remains outside candidate cache contract."
+  },
+  "linearizationCandidate": {
+    "sourceStable": true,
+    "passed": true,
+    "calls": 1537,
+    "frames": 978,
+    "originalMs": 12500.692900000007,
+    "candidateMs": 11943.333899999958,
+    "relativeReduction": 0.04458624849507731,
+    "statistics": {
+      "built": 15173,
+      "reused": 3757
+    },
+    "verdict": "Not promoted for release: all101 bone locals/worlds and solver results byte-identical, but only a small timing benefit. Per-invocation prototype retained."
+  },
+  "timeoutAudit": {
+    "file": "simmove/pose-engine/src/__tests__/floorPalmSupports.test.ts",
+    "line": 143,
+    "explicitTimeout": false,
+    "explicitPerformanceAssertion": false,
+    "defaultFrameworkTimeoutMs": 5000,
+    "recordingsPerBody": 3,
+    "framesPerRecording": 163,
+    "framesPerBody": 489,
+    "bodies": 3,
+    "purpose": "Unrestricted control plus restrictive patient bounds on initial and repeated cached complete recording; every patient wrist/elbow value within .01degrees. No product latency definition.",
+    "configuration": "vitest.config.ts sets globals/environment/include only.",
+    "recommendation": "A documented explicit offline integration timeout may be calibrated using measured runtime and CI headroom while preserving all numerical assertions/frame coverage. Measure real browser startup/playback separately."
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-02",
+  "scope": "Bounded release correction: generic reach retains its pre-existing engineering hinge deviation policy; reviewed numerical floor contact retains clinical deviation and coherent measured flexion. No registry or physical contact gate changes.",
+  "runtimeSha256": "a6bb25b8ed663ea5bbe8d4377c858ad6edbf09b6fa78fc8f4297b59c021886f8",
+  "policy": {
+    "genericDefault": "Historical symmetric engineering deviation and original clamp composition; actual mirrored readout retained. Inspector explicitly declares legacy-engineering.",
+    "explicitPatientDeviation": "Always uses clinical mirrored units and the available patient band.",
+    "numericalContact": "clinicalHingeDeviation or continuousProjection opts into the corrected intersection. Dedicated clampContactHingeToRom remains corrected and unchanged.",
+    "knownDebt": "Generic unrestricted elbow deviation can reach -10 degrees while the normative registry lower bound is -5 degrees. Historical behavior is preserved for this bounded shipment, not declared clinically qualified. Catalogue-wide generic migration remains a follow-up."
+  },
+  "attribution": {
+    "artifact": {
+      "path": "remaining-batches/generic-arm-clamp-scope-3.json",
+      "sha256": "2d99260752d2f7b40f00cbd01a3aa4e05b4b95855cc09473f59fc57af9bc6a02"
+    },
+    "sourceStable": true,
+    "floorHandSolverCalls": 0,
+    "lowerBackErrorMm": {
+      "male": {
+        "correctedGeneric": 149.1274518071488,
+        "historicalGeneric": 124.6540803099602
+      },
+      "female": {
+        "correctedGeneric": 192.65618040394529,
+        "historicalGeneric": 169.52204213822782
+      }
+    },
+    "maleCrossBodyMm": {
+      "correctedGeneric": 34.6227063341986,
+      "historicalClampAndInspection": 0.000005200879933589062
+    },
+    "historicalDeviationDegrees": -10
+  },
+  "regressions": {
+    "artifact": {
+      "path": "remaining-batches/generic-hinge-scope-tests-2.log",
+      "sha256": "6f238f28a686030dd1389bc6ef7d8de4c42e516fdfe4177e947a453ed0ca84a9"
+    },
+    "passed": 104,
+    "failed": 0,
+    "scope": [
+      "armReachAccuracy",
+      "hingeClinicalFrame",
+      "measuredHingeRom",
+      "handContactGirdle",
+      "boundedPalmClinicalCone",
+      "preparedPalmRefinement"
+    ],
+    "testChanges": "Recovery ratio is skipped only when already inside the existing 1 mm solved band; the absolute endpoint and continuity gates remain. Corrected-floor tests explicitly request clinical deviation inspection. New generic policy tests retain accurate mirrored values and explicit patient exceptions."
+  },
+  "approvedDefault": {
+    "artifact": {
+      "path": "remaining-batches/floor-generic-scope-parity-1.json",
+      "sha256": "6880e08a8fa287aeb0da4b54bda49c5a390f809a4f639173a4f15965d82cda86"
+    },
+    "sourceStable": true,
+    "globalRomClamp": false,
+    "exactAll": true,
+    "cases": [
+      {
+        "variant": "male",
+        "frames": 325,
+        "beforeSha256": "0b6ec59ce058fb1e7afe4440ce21a6372d4c77160463eec30442d9c221de640e",
+        "afterSha256": "0b6ec59ce058fb1e7afe4440ce21a6372d4c77160463eec30442d9c221de640e",
+        "exact": true,
+        "assetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "firstDifferentFrame": -1
+      },
+      {
+        "variant": "female",
+        "frames": 325,
+        "beforeSha256": "2044bf8f5af408c2c3442bda303df94382f490ef91ddac0c4872ccf86ce2ea73",
+        "afterSha256": "2044bf8f5af408c2c3442bda303df94382f490ef91ddac0c4872ccf86ce2ea73",
+        "exact": true,
+        "assetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "firstDifferentFrame": -1
+      },
+      {
+        "variant": "neutral",
+        "frames": 325,
+        "beforeSha256": "5400110f6867727827732208e2268d718358e0a1d79451fa473dde2ddb34ce05",
+        "afterSha256": "5400110f6867727827732208e2268d718358e0a1d79451fa473dde2ddb34ce05",
+        "exact": true,
+        "assetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+        "firstDifferentFrame": -1
+      }
+    ],
+    "scope": "Approved default extension-clearing, 60 Hz all three actual bodies, browser ROM mode off; byte equality of every serialized frame including pose, root, world tracks, clinical readouts and support/layout results before versus after generic hinge policy scope correction."
+  },
+  "typecheck": {
+    "artifact": {
+      "path": "remaining-batches/generic-hinge-scope-typecheck-1.log",
+      "sha256": "6948977d29a7b0a8ad00e327c5ff9f0dc16d7ff71abadbbd6d4feee6f818f9f6"
+    },
+    "errors": 0,
+    "warnings": 0,
+    "limitation": "Log also contains Vite Git safe-directory warnings; svelte-check completed with exit 0."
+  },
+  "runtimeFiles": [
+    "src/services/poseRomClamp.ts"
+  ],
+  "testFiles": [
+    "src/__tests__/armReachAccuracy.test.ts",
+    "src/__tests__/hingeClinicalFrame.test.ts",
+    "src/__tests__/handContactGirdle.test.ts"
+  ]
+}

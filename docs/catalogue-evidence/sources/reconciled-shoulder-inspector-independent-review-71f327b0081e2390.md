@@ -1,0 +1,15 @@
+# Independent shoulder-inspector review
+
+29 September 2026. Reviewed the additive `shoulderComplex.ts` API and its documentation/tests in `pose-engine-shoulder`, before commit. No reviewer production changes were made.
+
+The frame composition and conventions are coherent. Current and reference long-axis directions are transformed into their corresponding live parent frames before comparison. The orientation delta is current relative arm orientation times inverse reference relative arm orientation. Removing the shortest directional swing leaves signed twist about the reference long axis. The anterior-zero plane mirrors outward by side; twist intentionally does not use a clinical left/right sign flip. Exact antiparallel axes invalidate twist because their swing axis is ambiguous.
+
+The numerical guards and normalized-vector `atan2` elevation are appropriate. Availability is correctly separated from the engineering budget result. The capability label and documentation explicitly deny independent GH/SC/AC/ST anatomy, any recipe/controller change, or completion of the shoulder audit. Comparing this directional excursion to a legacy projected angle cannot establish a command shortfall.
+
+Independent verification adds 1,000 deterministic analytic poses with arbitrary reference/current parent orientations, arbitrary calibrated arm orientation, both sides, random planes, elevations below 179.8 degrees and twists in approximately +/-179.9 degrees. Maximum recovery error was `6.59383658785373e-12` degrees. The [reproducible probe](shoulder-inspector-independent-review.mjs) runs with `node --experimental-strip-types shoulder-inspector-independent-review.mjs` from this folder. This is a numerical convention check, not a biological validation.
+
+One concrete malformed-data issue was reported to the integrator: sparse arrays such as `Array(3)` pass `value.every(Number.isFinite)` because holes are skipped. The pre-fix function returned NaN measurements, `valid` flags true and status `complete` with no diagnostic. Sparse quaternions have the same risk. Dense indexed validation or densification is required to satisfy the documented finite nullable-data contract; regression tests should cover both vector and quaternion holes. The integrator owns that correction and its final test record.
+
+The integrator corrected both validators using `Array.from(value).every(Number.isFinite)` and added sparse-vector/quaternion regression coverage. Independent rerun confirms a sparse current direction returns `unavailable`, null elevations/capacity, and an explicit `non-finite-input` diagnostic. A sparse current girdle quaternion returns `partial`, preserves the valid thorax measurement, and returns null proxy elevation/capacity with the diagnostic. Neither output contains a non-finite number. The 1,000-pose analytic probe also retains its identical maximum error after the correction. Reviewed service SHA-256: `f1d611625c6222c0bd562671b2370edd49528a8a2b761ecb9e7ef0cb6a8ee756`.
+
+No open blocking findings remain in this additive measurement API. Integration and enforcement of the measured shoulder capacity remain explicitly outside it.

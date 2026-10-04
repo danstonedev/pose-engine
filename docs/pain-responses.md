@@ -1,5 +1,6 @@
 # Movement-evoked pain responses
 
+Local implementation, 2 October 2026. This is an authored expression layer;
 Incremental implementation, 2 October 2026. This is an authored expression layer;
 channel weights, intensity bands and timings are animation choices. They are
 not validated conversions between facial activity and a patient's pain score.

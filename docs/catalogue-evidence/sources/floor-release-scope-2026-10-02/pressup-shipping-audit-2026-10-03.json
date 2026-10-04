@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "auditCompletedAtUtc": "2026-10-03T00:44:01Z",
+  "scope": "Read-only local Git state, explicit-repository live GitHub PR/main/protection queries, and checked-out/main workflow comparison. No Git mutations, commits, PR edits or gate-policy changes.",
+  "repos": {
+    "engine": {
+      "path": "simmove/pose-engine",
+      "branch": "codex/prone-surface-support",
+      "head": "274ad55a3a84df593c12c24852ec80bc744d3d13",
+      "upstream": "origin/codex/prone-surface-support",
+      "upstreamAheadBehind": [0, 0],
+      "liveMain": "a12de5ac8794c51e89ee1b63bbb498a537921ac9",
+      "mainAheadBehind": [5, 5],
+      "pr": {
+        "url": "https://github.com/danstonedev/pose-engine/pull/168",
+        "state": "OPEN",
+        "isDraft": true,
+        "mergeable": "CONFLICTING",
+        "mergeStateStatus": "DIRTY",
+        "head": "274ad55a3a84df593c12c24852ec80bc744d3d13",
+        "reportedBaseOid": "845ff94816304447dbc06bbba73ecb388f11abce",
+        "checks": [
+          { "name": "Type-check + unit", "conclusion": "SUCCESS", "completedAt": "2026-10-02T09:13:07Z" },
+          { "name": "CodeRabbit", "conclusion": "SUCCESS" }
+        ],
+        "limitation": "Checks cover the pushed head, not the large current uncommitted implementation. Reported PR base OID is not the independently queried current main."
+      },
+      "requiredCheck": "Type-check + unit",
+      "strictUpToDateBase": true,
+      "enforceAdmins": true,
+      "trackedModifiedCountAtRead": 31,
+      "branchMainOverlappingPaths": ["AGENTS.md", "docs/blender-workflow.md", "docs/movement-improvement-status.md"],
+      "untrackedPathsAlreadyTrackedOnMainCount": 248
+    },
+    "simmove": {
+      "path": "simmove",
+      "branch": "codex/posed-contact-qualification",
+      "head": "82f04b8c6f94b08e88f742cecc7de9ca1b207a2f",
+      "upstream": null,
+      "liveMain": "2e8fe67e87b82d13a5337dc59b7046cbdb50c475",
+      "mainAheadBehind": [0, 4],
+      "prForCurrentBranch": null,
+      "committedEnginePin": "845ff94816304447dbc06bbba73ecb388f11abce",
+      "mainEnginePin": "a12de5ac8794c51e89ee1b63bbb498a537921ac9",
+      "workingEngineHead": "274ad55a3a84df593c12c24852ec80bc744d3d13",
+      "workingEngineDirty": true,
+      "requiredCheck": "Check, tests and production build",
+      "strictUpToDateBase": true,
+      "enforceAdmins": true
+    },
+    "simlab": {
+      "path": "simlab",
+      "branch": "codex/prone-surface-support",
+      "head": "f4557a4dbbe1ae76ff567ef014fb0fc146f71783",
+      "upstream": null,
+      "liveMain": "d523d759873f45dfbbdde6244a99e5e43b1e6377",
+      "mainAheadBehind": [0, 4],
+      "prForCurrentBranch": null,
+      "committedEnginePin": "845ff94816304447dbc06bbba73ecb388f11abce",
+      "mainEnginePin": "a12de5ac8794c51e89ee1b63bbb498a537921ac9",
+      "workingEngineHead": "274ad55a3a84df593c12c24852ec80bc744d3d13",
+      "workingEngineDirty": true,
+      "requiredCheck": "Required / CI",
+      "activeRulesetId": 23896015,
+      "strictUpToDateBase": false,
+      "requiredCiChildren": ["Build mission-shell", "Typecheck + tests", "Browser tests chromium-1", "Browser tests chromium-2", "Browser tests users"]
+    }
+  },
+  "hazards": [
+    "The engine PR has actual merge conflicts and its green checks are stale relative to the worktree.",
+    "New catalogue enforcement/unification commits are already on all three mains. Current local package scripts include copied catalogue checks but current branch workflows omit main's added enforcement steps. Preserve main's workflow updates, including the engine isolated shoulder skin sweep.",
+    "Many currently untracked engine catalogue files are tracked on main. Both hosts also contain untracked paths tracked on main. A direct merge may stop at untracked-file overwrite or later create add/add conflicts. Preserve the current master tracking data while reconciling main.",
+    "Concurrent pain-response runtime, face assets, UI, tests and evidence are present. Preserve them and resolve scope with their owner; do not silently include or discard them in this motion shipment.",
+    "Numerous retained copied solver diagnostics are untracked. Stage reviewed runtime/tests and reproducible evidence deliberately; do not use blanket git add.",
+    "Both host committed gitlinks remain at the prior foundation. Dirty working submodule content is not reproduced by a clean clone or CI checkout.",
+    "Both host pin-check workflows require a pin on engine main with zero commits behind. A feature-branch engine SHA does not satisfy the contract.",
+    "The full-catalogue shipment scope question remains pending. Shared-runtime changes have catalogue implications; the audit does not authorize bypass, rebaseline or unsupported closure.",
+    "Host main merges trigger production deployment. Current local/browser evidence must be tied to the final merged engine and host inputs before those merges."
+  ],
+  "requiredOrder": [
+    "Preserve and reconcile all dirty/concurrent files; integrate current main into the engine and both host branches without overwriting the existing master or unrelated work.",
+    "Resolve the engine conflicts and preserve current catalogue/workflow enforcement. Resolve the pending shipment scope.",
+    "Freeze final source; pass unchanged patient performance, contact/clinical/patient, Blender ROM-off exchange/skin/visual, both-host and applicable native gates; reconcile exact evidence and open defects into the same master.",
+    "Commit and push the scoped engine implementation/evidence; rerun PR168 checks against current main; mark ready and merge only when qualified.",
+    "Pin both hosts to the actual resulting engine main commit, include reviewed host changes and exact-model preservation, and rerun catalogue/typecheck/tests/build/browser/native and exact-pin checks.",
+    "Create the currently absent host PRs, pass their required checks and merge. Re-pin and recheck if engine main moves before a host merge. Verify resulting deployments."
+  ],
+  "limitations": [
+    "This is a point-in-time integration audit, not movement acceptance.",
+    "No new validation or native simulation was run by this audit.",
+    "Local counts may change as authorized agents continue working; full dirty-path inventories are intentionally omitted."
+  ]
+}

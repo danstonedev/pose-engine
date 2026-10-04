@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "createdAt": "2026-10-03T22:55:38.586Z",
+  "kind": "reference-retention-property-verification",
+  "defectId": "defect:reference-media-reference-retention",
+  "reviewer": "Codex source-retention integration",
+  "result": "own-criteria-verified",
+  "exactAcceptance": [
+    "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+  ],
+  "scope": "Shared simMOVE reference-media contract and actual editing component; all supported image/video provenance records can bind named movement/body/side/phase. Browser flow checked on male/female/neutral contexts with synthetic nonpatient source; generic image/video contract, route and project-library JSON verified by focused tests.",
+  "supportedClaims": [
+    "Exported route/project JSON preserves source hash, original observations, fitting options, exact named context and reviewer declaration without embedding media bytes.",
+    "An explicit permitted-source companion retains original media bytes and metadata outside one browser; a fresh browser can restore it without detector inference or silently applying a new pose.",
+    "Wrong raw file, altered companion, mismatched context and corrupt local identity are rejected before replacement or attachment.",
+    "Permission remains an unverified user declaration. Undeclared media cannot be exported as a companion. Legacy route records remain readable and require exact source reattachment."
+  ],
+  "sourceIdentities": {
+    "ReferenceMedia.svelte": "b9066bd73dc6d69cb62676968b21c974e3b5a6836c57d8152366053d6cfd38f0",
+    "reference-media-contract.mjs": "9501c468efb848c1117a77780203ec99425797006e438bb9a8d9342d34bf8691",
+    "reference-media-store.mjs": "b6f5996ce18496f409afd0e6d4f11f4da2dae8ee27e2b56a4903c22ac853cada"
+  },
+  "browser": {
+    "path": "remaining-batches/halfway-reference-retention-browser-3/results.json",
+    "sha256": "105127e89a72896bb300aca5d9fddde0bbebf3645412b25d0a1b3d75be0aa01f",
+    "sourceStable": true,
+    "bodies": [
+      "male",
+      "female",
+      "neutral"
+    ],
+    "exportAndFreshReattachmentCases": 3,
+    "corruptIdentityCases": 3,
+    "exactBytesPreserved": true
+  },
+  "test": {
+    "path": "remaining-batches/halfway-reference-retention-tests-2.log",
+    "sha256": "8e3d606c3a75c506c4f6d5fa05fd51330a8ce676f5c08805396fdb6ad1f15712",
+    "passed": 69,
+    "files": 4
+  },
+  "typecheck": {
+    "path": "remaining-batches/halfway-reference-retention-check-1.log",
+    "sha256": "2d7b8e6c005f7c2f57c097503800d5830e4f1c1df731dfbd9d8d04f7b901df8f",
+    "files": 795,
+    "errors": 0,
+    "warnings": 0
+  },
+  "screenshots": [
+    {
+      "path": "remaining-batches/halfway-reference-retention-browser-3/male-export.png",
+      "sha256": "05f703e9bece9b1e26ae30a82688e3492038d8dc33074ebbdf60ffca9ab58077"
+    },
+    {
+      "path": "remaining-batches/halfway-reference-retention-browser-3/female-reattach.png",
+      "sha256": "1084fe6bb279feafe82360526c4d72370c4d1aba5e4e5ea83e48c2ed205cdc61"
+    },
+    {
+      "path": "remaining-batches/halfway-reference-retention-browser-3/neutral-reattach.png",
+      "sha256": "1084fe6bb279feafe82360526c4d72370c4d1aba5e4e5ea83e48c2ed205cdc61"
+    }
+  ],
+  "source": [
+    {
+      "path": "simmove/src/editing/ReferenceMedia.svelte",
+      "sha256": "b9066bd73dc6d69cb62676968b21c974e3b5a6836c57d8152366053d6cfd38f0"
+    },
+    {
+      "path": "simmove/src/editing/reference-media-contract.mjs",
+      "sha256": "9501c468efb848c1117a77780203ec99425797006e438bb9a8d9342d34bf8691"
+    },
+    {
+      "path": "simmove/src/editing/reference-media-store.mjs",
+      "sha256": "b6f5996ce18496f409afd0e6d4f11f4da2dae8ee27e2b56a4903c22ac853cada"
+    },
+    {
+      "path": "simmove/src/editing/reference-media-retention.test.ts",
+      "sha256": "736ee026a2197bdf57406e5d7bf7ddaa1621490b1a2471a4ab9ab749104d9cf5"
+    }
+  ],
+  "limits": [
+    "This verifies access, retention and binding of source evidence, not its anatomical truth, measurement accuracy, suitability or license approval.",
+    "No existing motion receives clinical/reference qualification, Blender approval or native-dynamics acceptance from this feature. Movement and physics inputs are unchanged.",
+    "Existing catalogue closure gate requires unrelated whole-movement qualification. This property evidence is retained separately; the defect is not formally closed and the frozen milestone receives no closure count.",
+    "One media companion holds one source observation contract; a route may retain several contracts for frames from the same source. Users must explicitly retain/export their necessary companions.",
+    "Local source feature verified, not yet committed, merged or deployed."
+  ]
+}

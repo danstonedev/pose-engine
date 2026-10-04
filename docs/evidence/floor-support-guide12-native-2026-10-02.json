@@ -1,0 +1,299 @@
+﻿{
+    "at":  "2026-10-02T08:36:16.9648058Z",
+    "scope":  "Twelve unique native contexts from the current elbow-guide candidate with unqualified v17 axis correction; not a replacement 64-case qualification",
+    "gates":  {
+                  "jointDeg":  15,
+                  "pelvisM":  0.05,
+                  "segmentDeg":  15
+              },
+    "sourceReports":  [
+                          "blender-floor-native-3.json",
+                          "blender-floor-native-4.json"
+                      ],
+    "cases":  [
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+                                      "variant":  "female",
+                                      "side":  "L"
+                                  },
+                      "source":  "blender-floor-native-3.json",
+                      "hashes":  {
+                                     "routeSha256":  "8abdaa3c72735b7f1aed234f1597e2873221da10ee87bdec126de22429927ff5",
+                                     "bindingSha256":  "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  false,
+                      "maximumPelvisErrorM":  0.29458219173387523,
+                      "maximumJointTrackingErrorDeg":  33.16813401027576,
+                      "maximumSegmentErrorDeg":  23.807625432838705,
+                      "trackingPassed":  false,
+                      "terminalFailure":  {
+                                              "kind":  "physics-gate-failed",
+                                              "time":  4.385,
+                                              "checks":  [
+                                                             {
+                                                                 "id":  "native-self-contact-residual",
+                                                                 "observed":  0.0011954196378355453,
+                                                                 "maximum":  0.001
+                                                             }
+                                                         ],
+                                              "scope":  "Native integration stopped immediately after this measured timestep; later physical samples do not exist"
+                                          }
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+                                      "variant":  "female",
+                                      "side":  "R"
+                                  },
+                      "source":  "blender-floor-native-3.json",
+                      "hashes":  {
+                                     "routeSha256":  "6698e5f962b142ca24cce04d616f9a34ad2312706e9bf5bfa0119d010bb694ec",
+                                     "bindingSha256":  "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  false,
+                      "maximumPelvisErrorM":  0.29458219173387523,
+                      "maximumJointTrackingErrorDeg":  33.16813401027576,
+                      "maximumSegmentErrorDeg":  23.807625432838705,
+                      "trackingPassed":  false,
+                      "terminalFailure":  {
+                                              "kind":  "physics-gate-failed",
+                                              "time":  4.385,
+                                              "checks":  [
+                                                             {
+                                                                 "id":  "native-self-contact-residual",
+                                                                 "observed":  0.0011954196378355453,
+                                                                 "maximum":  0.001
+                                                             }
+                                                         ],
+                                              "scope":  "Native integration stopped immediately after this measured timestep; later physical samples do not exist"
+                                          }
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+                                      "variant":  "male",
+                                      "side":  "L"
+                                  },
+                      "source":  "blender-floor-native-3.json",
+                      "hashes":  {
+                                     "routeSha256":  "420d1a7ad0bf3e9e57f3a79f57ce425cda5645a2832f6e3f942217b3d913df55",
+                                     "bindingSha256":  "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  false,
+                      "maximumPelvisErrorM":  0.2557061788779629,
+                      "maximumJointTrackingErrorDeg":  22.050526041877653,
+                      "maximumSegmentErrorDeg":  21.481202948979853,
+                      "trackingPassed":  false,
+                      "terminalFailure":  {
+                                              "kind":  "physics-gate-failed",
+                                              "time":  4.336,
+                                              "checks":  [
+                                                             {
+                                                                 "id":  "native-self-contact-residual",
+                                                                 "observed":  0.0010853575627987246,
+                                                                 "maximum":  0.001
+                                                             }
+                                                         ],
+                                              "scope":  "Native integration stopped immediately after this measured timestep; later physical samples do not exist"
+                                          }
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+                                      "variant":  "male",
+                                      "side":  "R"
+                                  },
+                      "source":  "blender-floor-native-3.json",
+                      "hashes":  {
+                                     "routeSha256":  "9f948f61d86765aa2b2a5f0ceebda3c8c07fac842b5679c0289f8164dcd66d7c",
+                                     "bindingSha256":  "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  false,
+                      "maximumPelvisErrorM":  0.2557061788779629,
+                      "maximumJointTrackingErrorDeg":  22.050526041877653,
+                      "maximumSegmentErrorDeg":  21.481202948979853,
+                      "trackingPassed":  false,
+                      "terminalFailure":  {
+                                              "kind":  "physics-gate-failed",
+                                              "time":  4.336,
+                                              "checks":  [
+                                                             {
+                                                                 "id":  "native-self-contact-residual",
+                                                                 "observed":  0.0010853575627987246,
+                                                                 "maximum":  0.001
+                                                             }
+                                                         ],
+                                              "scope":  "Native integration stopped immediately after this measured timestep; later physical samples do not exist"
+                                          }
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+                                      "variant":  "female",
+                                      "side":  "L"
+                                  },
+                      "source":  "blender-floor-native-3.json",
+                      "hashes":  {
+                                     "routeSha256":  "50c000e31990f783dc83632fce47ad59d526f3d03851fab5047e7979fce3551b",
+                                     "bindingSha256":  "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  true,
+                      "maximumPelvisErrorM":  0.0071855687313076245,
+                      "maximumJointTrackingErrorDeg":  4.523398465206171,
+                      "maximumSegmentErrorDeg":  10.10291416371474,
+                      "trackingPassed":  true,
+                      "terminalFailure":  null
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+                                      "variant":  "female",
+                                      "side":  "R"
+                                  },
+                      "source":  "blender-floor-native-3.json",
+                      "hashes":  {
+                                     "routeSha256":  "cb1768323b6055df9710c535fd576728f0869717e776ab970db82270db7dc7a5",
+                                     "bindingSha256":  "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  true,
+                      "maximumPelvisErrorM":  0.007204447938040457,
+                      "maximumJointTrackingErrorDeg":  3.5438502049206604,
+                      "maximumSegmentErrorDeg":  8.406112528189116,
+                      "trackingPassed":  true,
+                      "terminalFailure":  null
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+                                      "variant":  "male",
+                                      "side":  "L"
+                                  },
+                      "source":  "blender-floor-native-3.json",
+                      "hashes":  {
+                                     "routeSha256":  "ecbd965bb199291268782c9a7d6a411fd811b5c57bdad9ab735a863dbd8f5222",
+                                     "bindingSha256":  "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  true,
+                      "maximumPelvisErrorM":  0.007660666284139317,
+                      "maximumJointTrackingErrorDeg":  5.796838478869947,
+                      "maximumSegmentErrorDeg":  12.930909891470264,
+                      "trackingPassed":  true,
+                      "terminalFailure":  null
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+                                      "variant":  "male",
+                                      "side":  "R"
+                                  },
+                      "source":  "blender-floor-native-3.json",
+                      "hashes":  {
+                                     "routeSha256":  "ea2e29c0ffef25e338935360fa8656cac30f8c0522502dcf90bc7d4952e4179f",
+                                     "bindingSha256":  "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  true,
+                      "maximumPelvisErrorM":  0.00768596029599818,
+                      "maximumJointTrackingErrorDeg":  4.55113615325921,
+                      "maximumSegmentErrorDeg":  11.227861218089366,
+                      "trackingPassed":  true,
+                      "terminalFailure":  null
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+                                      "variant":  "female",
+                                      "side":  "both"
+                                  },
+                      "source":  "blender-floor-native-4.json",
+                      "hashes":  {
+                                     "routeSha256":  "e653cc78fefea4ac61ae67f21a083da649c0f6f4a3c2ccb68651a4cd7d18ef64",
+                                     "bindingSha256":  "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  true,
+                      "maximumPelvisErrorM":  0.03686797721835657,
+                      "maximumJointTrackingErrorDeg":  14.819468805227045,
+                      "maximumSegmentErrorDeg":  12.32722915625815,
+                      "trackingPassed":  true,
+                      "terminalFailure":  null
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+                                      "variant":  "male",
+                                      "side":  "both"
+                                  },
+                      "source":  "blender-floor-native-4.json",
+                      "hashes":  {
+                                     "routeSha256":  "bc42344e3fdc11c4694b2b0d9ce88e346513ba93d88a5341e8fb5221b8c06b0d",
+                                     "bindingSha256":  "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  true,
+                      "maximumPelvisErrorM":  0.04435144998252635,
+                      "maximumJointTrackingErrorDeg":  21.070361062256346,
+                      "maximumSegmentErrorDeg":  10.315002558599975,
+                      "trackingPassed":  false,
+                      "terminalFailure":  null
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+                                      "variant":  "female",
+                                      "side":  "both"
+                                  },
+                      "source":  "blender-floor-native-4.json",
+                      "hashes":  {
+                                     "routeSha256":  "7c24ffb49bf151c2b729d2a324f2813d6de4583fe6bf3d409c61bc5aa6490e0c",
+                                     "bindingSha256":  "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  true,
+                      "maximumPelvisErrorM":  0.2951205221861453,
+                      "maximumJointTrackingErrorDeg":  51.735189955915494,
+                      "maximumSegmentErrorDeg":  53.96730248063243,
+                      "trackingPassed":  false,
+                      "terminalFailure":  null
+                  },
+                  {
+                      "context":  {
+                                      "movement":  "fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+                                      "variant":  "male",
+                                      "side":  "both"
+                                  },
+                      "source":  "blender-floor-native-4.json",
+                      "hashes":  {
+                                     "routeSha256":  "2bc18a92e5316bd3b8b21bb3a2a33ce7670abd1f5350cae9fcf30445b7c7120a",
+                                     "bindingSha256":  "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+                                     "settingsSha256":  "2d6ccb918931fdd58cf64e0ad6e3a29340fa34cf39dd44f6cea1d8d39b2e0e1e",
+                                     "controllerVersion":  "authored-pelvis-support-torque-v17"
+                                 },
+                      "completed":  true,
+                      "maximumPelvisErrorM":  0.3180616324095524,
+                      "maximumJointTrackingErrorDeg":  39.57735988102652,
+                      "maximumSegmentErrorDeg":  45.35628211966023,
+                      "trackingPassed":  false,
+                      "terminalFailure":  null
+                  }
+              ]
+}

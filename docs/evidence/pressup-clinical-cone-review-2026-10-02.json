@@ -1,0 +1,534 @@
+{
+  "at": "2026-10-03T00:49:15.960Z",
+  "result": "unqualified",
+  "scope": "Default extension-clearing after integration of conditional paired twist and clinical-coordinate directions. Three actual production bodies, 975 frames at60Hz, ROM clamp OFF and production twist. Separately scoped restricted-patient host checks retain their failure. No native loaded-contact, reference-based clinical or full temporal visual acceptance.",
+  "blenderVersion": "5.2.2 LTS",
+  "sourceDigest": "b1c9b22f7bff368d1aeb8ba07675e9ab23b34f03868c54d50775673088b6a46d",
+  "visualFindings": [
+    "The eight listed stills show low supported setup, raised head/chest during extension, and lowering during return; pelvis, thighs and distal legs remain near the support plane.",
+    "Both upper and lower spine, cervical/head, pelvic and lower-limb contributions are measured in the retained whole-body source. No physiological distribution is inferred from the authored targets.",
+    "Elbows flare and shoulder/elbow skin creases remain visible, including left/right differences. Stills do not establish complete temporal smoothness or clinical approval."
+  ],
+  "skin": [
+    {
+      "variant": "male",
+      "frames": 325,
+      "worst": [
+        "L palm/fingers",
+        {
+          "timeSec": 5.083333333333333,
+          "clearanceM": -0.00015203136411592877
+        }
+      ],
+      "forearms": {
+        "L forearm": {
+          "timeSec": 5.166666666666667,
+          "clearanceM": 0.0095148595805358
+        },
+        "R forearm": {
+          "timeSec": 5.333333333333333,
+          "clearanceM": 0.008392764482624743
+        }
+      }
+    },
+    {
+      "variant": "female",
+      "frames": 325,
+      "worst": [
+        "L palm/fingers",
+        {
+          "timeSec": 4.566666666666666,
+          "clearanceM": -0.00017951726142875768
+        }
+      ],
+      "forearms": {
+        "L forearm": {
+          "timeSec": 0,
+          "clearanceM": 0.006345752591772905
+        },
+        "R forearm": {
+          "timeSec": 0,
+          "clearanceM": 0.006462694938305452
+        }
+      }
+    },
+    {
+      "variant": "neutral",
+      "frames": 325,
+      "worst": [
+        "L palm/fingers",
+        {
+          "timeSec": 5.166666666666667,
+          "clearanceM": -0.00007512853718917578
+        }
+      ],
+      "forearms": {
+        "L forearm": {
+          "timeSec": 1.1333333333333333,
+          "clearanceM": 0.010515508785231595
+        },
+        "R forearm": {
+          "timeSec": 5.166666666666667,
+          "clearanceM": 0.009992719578531317
+        }
+      }
+    }
+  ],
+  "continuity": [
+    {
+      "variant": "male",
+      "frames": 325,
+      "boneCount": 101,
+      "wristDriftM": {
+        "L": 0.00009664268687415727,
+        "R": 0.00008895022233050478
+      },
+      "maximumAdjacentBoneRotation": {
+        "bone": "CC_Base_R_Forearm",
+        "fromMs": 4666.666666666667,
+        "toMs": 4683.333333333333,
+        "radians": 0.051044877618551254,
+        "degrees": 2.9246560533047834
+      },
+      "maximumAdjacentBoneTranslation": {
+        "bone": "CC_Base_L_Eye",
+        "fromMs": 4750,
+        "toMs": 4766.666666666667,
+        "distanceM": 0.015249658356128239
+      },
+      "seamWorstPosition": {
+        "bone": "CC_Base_BoneRoot",
+        "distanceM": 0,
+        "localAngleDeg": 0
+      },
+      "seamWorstLocalRotation": {
+        "bone": "CC_Base_BoneRoot",
+        "distanceM": 0,
+        "localAngleDeg": 0
+      }
+    },
+    {
+      "variant": "female",
+      "frames": 325,
+      "boneCount": 101,
+      "wristDriftM": {
+        "L": 0.00010248722288156319,
+        "R": 0.00006404016346546326
+      },
+      "maximumAdjacentBoneRotation": {
+        "bone": "CC_Base_R_Forearm",
+        "fromMs": 4666.666666666667,
+        "toMs": 4683.333333333333,
+        "radians": 0.05014948546886444,
+        "degrees": 2.873353862118583
+      },
+      "maximumAdjacentBoneTranslation": {
+        "bone": "CC_Base_R_Eye",
+        "fromMs": 4750,
+        "toMs": 4766.666666666667,
+        "distanceM": 0.01342553613832411
+      },
+      "seamWorstPosition": {
+        "bone": "CC_Base_BoneRoot",
+        "distanceM": 0,
+        "localAngleDeg": 0
+      },
+      "seamWorstLocalRotation": {
+        "bone": "CC_Base_BoneRoot",
+        "distanceM": 0,
+        "localAngleDeg": 0
+      }
+    },
+    {
+      "variant": "neutral",
+      "frames": 325,
+      "boneCount": 101,
+      "wristDriftM": {
+        "L": 0.00009604300437934177,
+        "R": 0.00008649618753603674
+      },
+      "maximumAdjacentBoneRotation": {
+        "bone": "CC_Base_R_Forearm",
+        "fromMs": 4666.666666666667,
+        "toMs": 4683.333333333333,
+        "radians": 0.05236382782459259,
+        "degrees": 3.0002263334988624
+      },
+      "maximumAdjacentBoneTranslation": {
+        "bone": "CC_Base_R_Eye",
+        "fromMs": 4750,
+        "toMs": 4766.666666666667,
+        "distanceM": 0.01229122941191195
+      },
+      "seamWorstPosition": {
+        "bone": "CC_Base_BoneRoot",
+        "distanceM": 0,
+        "localAngleDeg": 0
+      },
+      "seamWorstLocalRotation": {
+        "bone": "CC_Base_BoneRoot",
+        "distanceM": 0,
+        "localAngleDeg": 0
+      }
+    }
+  ],
+  "clinical": {
+    "scope": "All 975 source poses at60Hz. Existing registry limits, unchanged0.05deg numerical tolerance. World-track replay and five all-bone/render-twist skin checkpoints perbody compared with exported input. Not force, native tracking or experimental approval.",
+    "pass": true,
+    "sourceStable": true,
+    "runtimeStable": true,
+    "sourceDigestBefore": "b1c9b22f7bff368d1aeb8ba07675e9ab23b34f03868c54d50775673088b6a46d",
+    "sourceDigestAfter": "b1c9b22f7bff368d1aeb8ba07675e9ab23b34f03868c54d50775673088b6a46d",
+    "runtimeDigestBefore": "18139986fd116f412d415f6830eeab7ce41f37981e4de84bebb04f06d968bd3d",
+    "runtimeDigestAfter": "18139986fd116f412d415f6830eeab7ce41f37981e4de84bebb04f06d968bd3d",
+    "limitation": "Default modeled-angle and exchange checks only; this is not reference-based coordinated-motion or patient acceptance.",
+    "cases": [
+      {
+        "variant": "male",
+        "frames": 325,
+        "violations": [],
+        "missingFields": [],
+        "maxTrackResidualM": 0,
+        "maxExportBoneResidualM": 0,
+        "maxExportSkinResidualM": 0
+      },
+      {
+        "variant": "female",
+        "frames": 325,
+        "violations": [],
+        "missingFields": [],
+        "maxTrackResidualM": 0,
+        "maxExportBoneResidualM": 0,
+        "maxExportSkinResidualM": 0
+      },
+      {
+        "variant": "neutral",
+        "frames": 325,
+        "violations": [],
+        "missingFields": [],
+        "maxTrackResidualM": 0,
+        "maxExportBoneResidualM": 0,
+        "maxExportSkinResidualM": 0
+      }
+    ]
+  },
+  "hosts": {
+    "runtimeStable": true,
+    "sharedRuntimeMatches": true,
+    "passed": 16,
+    "total": 18,
+    "cases": [
+      {
+        "host": "simmove",
+        "variant": "male",
+        "scenario": "default",
+        "pass": true,
+        "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a"
+      },
+      {
+        "host": "simmove",
+        "variant": "male",
+        "scenario": "patient-feasible",
+        "pass": true,
+        "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simmove",
+        "variant": "male",
+        "scenario": "patient",
+        "pass": false,
+        "failure": "AssertionError [ERR_ASSERTION]: simmove/male/true bone parity at1800: {\"key\":\"R_Forearm\",\"differenceDeg\":0.2680804538504692}",
+        "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simmove",
+        "variant": "female",
+        "scenario": "default",
+        "pass": true,
+        "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd"
+      },
+      {
+        "host": "simmove",
+        "variant": "female",
+        "scenario": "patient-feasible",
+        "pass": true,
+        "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simmove",
+        "variant": "female",
+        "scenario": "patient",
+        "pass": true,
+        "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simmove",
+        "variant": "neutral",
+        "scenario": "default",
+        "pass": true,
+        "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62"
+      },
+      {
+        "host": "simmove",
+        "variant": "neutral",
+        "scenario": "patient-feasible",
+        "pass": true,
+        "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simmove",
+        "variant": "neutral",
+        "scenario": "patient",
+        "pass": true,
+        "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simlab",
+        "variant": "male",
+        "scenario": "default",
+        "pass": true,
+        "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a"
+      },
+      {
+        "host": "simlab",
+        "variant": "male",
+        "scenario": "patient-feasible",
+        "pass": true,
+        "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simlab",
+        "variant": "male",
+        "scenario": "patient",
+        "pass": false,
+        "failure": "AssertionError [ERR_ASSERTION]: simlab/male/true bone parity at1800: {\"key\":\"R_Forearm\",\"differenceDeg\":0.2680804538504692}",
+        "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simlab",
+        "variant": "female",
+        "scenario": "default",
+        "pass": true,
+        "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd"
+      },
+      {
+        "host": "simlab",
+        "variant": "female",
+        "scenario": "patient-feasible",
+        "pass": true,
+        "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simlab",
+        "variant": "female",
+        "scenario": "patient",
+        "pass": true,
+        "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simlab",
+        "variant": "neutral",
+        "scenario": "default",
+        "pass": true,
+        "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62"
+      },
+      {
+        "host": "simlab",
+        "variant": "neutral",
+        "scenario": "patient-feasible",
+        "pass": true,
+        "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+        "patientBoundViolations": []
+      },
+      {
+        "host": "simlab",
+        "variant": "neutral",
+        "scenario": "patient",
+        "pass": true,
+        "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+        "patientBoundViolations": []
+      }
+    ],
+    "limitation": "Male restricted case fails in both hosts at1800ms: R_Forearm difference0.26808045385deg. The other16cases pass. Neutral simLAB is additional shared-stage component coverage; its product selector offers male/female."
+  },
+  "productControls": {
+    "scope": "Actual host UI default authored route; saved movement files isolated, no acceptance/signoff fabricated. simMOVE Screen exposes male/female; neutral covered in the stage API parity report.",
+    "cases": [
+      {
+        "host": "simmove",
+        "variant": "male",
+        "errors": [],
+        "samples": [
+          {
+            "control": "Hold position",
+            "elapsedMs": 15376,
+            "notes": [],
+            "source": []
+          },
+          {
+            "control": "Movement",
+            "elapsedMs": 8972,
+            "notes": [],
+            "source": []
+          }
+        ],
+        "pass": true
+      },
+      {
+        "host": "simmove",
+        "variant": "female",
+        "errors": [],
+        "samples": [
+          {
+            "control": "Hold position",
+            "elapsedMs": 15293,
+            "notes": [],
+            "source": []
+          },
+          {
+            "control": "Movement",
+            "elapsedMs": 8685,
+            "notes": [],
+            "source": []
+          }
+        ],
+        "pass": true
+      },
+      {
+        "host": "simlab",
+        "variant": "male",
+        "errors": [],
+        "samples": [
+          {
+            "phase": "setup",
+            "tMs": 0,
+            "durationMs": 4400
+          },
+          {
+            "phase": "assessed",
+            "tMs": 1518,
+            "durationMs": 4400
+          },
+          {
+            "phase": "return",
+            "tMs": 4389,
+            "durationMs": 4400
+          }
+        ],
+        "controls": {
+          "loop": "false",
+          "rate": 0.5,
+          "durationMs": 4400
+        },
+        "pass": true
+      },
+      {
+        "host": "simlab",
+        "variant": "female",
+        "errors": [],
+        "samples": [
+          {
+            "phase": "setup",
+            "tMs": 0,
+            "durationMs": 4400
+          },
+          {
+            "phase": "assessed",
+            "tMs": 1518,
+            "durationMs": 4400
+          },
+          {
+            "phase": "return",
+            "tMs": 4389,
+            "durationMs": 4400
+          }
+        ],
+        "controls": {
+          "loop": "false",
+          "rate": 0.5,
+          "durationMs": 4400
+        },
+        "pass": true
+      }
+    ],
+    "limitation": "Four default male/female product-control cases. The controls harness has no independent source snapshot; use alongside the matching source-stable stage report, not as a complete identity/acceptance gate."
+  },
+  "artifacts": [
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/manifest.json",
+      "sha256": "ca53ab662c33b9ba37e365e44a387019a42799ac8ba9a2599d80261cfea7593f"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/full-motion-review.blend",
+      "sha256": "dbaf6a1723a532e5e69e4651fa9b3786a07d72de6948737f02acea3cf3d4bb35"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/skin-floor-clearance.json",
+      "sha256": "7fcd8a739650d8d5cccefc5012ceca8571478ea84fd6599adc24aa3fb8979b88"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/continuity-review/continuity.json",
+      "sha256": "51771ef22ffae6a926926c2c1a5f94716cd4581742f9aaf8b140597b39bdebc6"
+    },
+    {
+      "path": "remaining-batches/pressup-clinical-cone-clinical-1.json",
+      "sha256": "4af841143cb171f971853461cb7e8ca15d48be288000c79522f30b14bb3bf035"
+    },
+    {
+      "path": "remaining-batches/pressup-clinical-cone-host-parity-1/results.json",
+      "sha256": "765156e09d130c605c5f8e2549d0b1800e1f4ed5f09db49c0f07763db6157de5"
+    },
+    {
+      "path": "remaining-batches/pressup-clinical-cone-host-controls-1/results.json",
+      "sha256": "db7d90e683b4c91e5ebcde7b8193c7daf426bc8af5749cf2ba36e216a41451f8"
+    },
+    {
+      "path": "remaining-batches/pressup-clinical-cone-roundtrip-1.log",
+      "sha256": "8a54696cb88b0099b81fbbae66dfc1773bfb029a9a54883efa99232356ac4cf0"
+    }
+  ],
+  "inspectedImages": [
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/renders/male-pressup-clinical-cone-motion-1-setup-overhead.png",
+      "sha256": "98948b041a069be43f67c587d5ea9c1bf169369d5fefb0e7d077f59a4f8b3c3a"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/renders/female-pressup-clinical-cone-motion-1-middle-side.png",
+      "sha256": "4a8e669e70033d55a55021b0ae205fb42d46b77928bbcccbff8ba61b0ce6cb7c"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/renders/neutral-pressup-clinical-cone-motion-1-setup-side.png",
+      "sha256": "f101862f174ec8af82ff721a98c3e171f9aeaadc7a3f95bd40125db8cc1d375d"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/continuity-review/male-descent-side.png",
+      "sha256": "18a4af8a884044bfad533940fce0251fa6d4ff26739d057dbbbbace96d0334b5"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/continuity-review/female-fastest-bone-after-overhead.png",
+      "sha256": "a19bb9e0aa713dd6cea2775f41ecc7a7d2b7f5cc4788be467aafb18e294dcf66"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/renders/male-pressup-clinical-cone-motion-1-middle-side.png",
+      "sha256": "a0dbfe802f7cd5e3747a384fdfec0f2a07860961081c73f0344eb621a5029f27"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/renders/neutral-pressup-clinical-cone-motion-1-middle-side.png",
+      "sha256": "c4a1f5f6094ffa7a714123e26171f6c0313e203d4175fc7c9304fe4182b4d2b0"
+    },
+    {
+      "path": "blender-workspace/pressup-clinical-cone-review-1/renders/female-pressup-clinical-cone-motion-1-setup-side.png",
+      "sha256": "274abde23e3dc61904dce1e37ed7f58ea321acbf475bf704de5527fce4ed129d"
+    }
+  ]
+}

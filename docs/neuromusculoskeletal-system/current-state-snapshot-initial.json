@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "kind": "selected-source-planning-audit",
+  "capturedAt": "2026-10-02T19:11:23.389Z",
+  "clientDate": "2026-10-02",
+  "timeZone": "America/Chicago",
+  "repositories": [
+    {
+      "label": "engine",
+      "path": "movement-realism-implementation/simmove/pose-engine",
+      "head": {
+        "available": true,
+        "value": "274ad55a3a84df593c12c24852ec80bc744d3d13"
+      },
+      "branch": {
+        "available": true,
+        "value": "codex/prone-surface-support"
+      },
+      "status": {
+        "available": true,
+        "value": "M AGENTS.md\n M docs/blender-workflow.md\n M docs/movement-improvement-status.md\n M package.json\n M scripts/blender/export-review.ts\n M scripts/blender/measure-floor-clearance.py\n M src/ExamStage3D.svelte\n M src/__tests__/assessmentBodyMotions.test.ts\n M src/__tests__/floorPalmSupports.test.ts\n M src/__tests__/motionTrajectory.test.ts\n M src/__tests__/romRegistry.test.ts\n M src/__tests__/stageReliability.test.ts\n M src/services/assessmentBodyMotions.ts\n M src/services/balanceCoordination.ts\n M src/services/floorPalmSupports.ts\n M src/services/footContact.ts\n M src/services/handContactPose.ts\n M src/services/jointAngles.ts\n M src/services/motionRecording.ts\n M src/services/motionSequence.ts\n M src/services/motionTrajectory.ts\n M src/services/movementCommand.ts\n M src/services/poseRomClamp.ts\n M src/services/posedGeometry.ts\n M src/services/romRegistry.ts\n M src/services/rootMotion.ts\n M src/services/shoulderComplex.ts\n?? .gitattributes\n?? docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html\n?? docs/evidence/floor-plane-diagnostic-2026-10-02.json\n?? docs/evidence/pressup-surface-2026-10-02.json\n?? docs/movement-catalogue-process.md\n?? docs/movement-engineering-charter.md\n?? docs/movement-pipeline-audit-2026-10-02.md\n?? docs/neuromusculoskeletal-system/\n?? scripts/blender/audit-motion-continuity.py\n?? scripts/blender/audit-patient-held-inputs.ts\n?? scripts/blender/audit-pressup-arm-frames.ts\n?? scripts/blender/audit-pressup-chain.ts\n?? scripts/blender/audit-pressup-clinical-dense.ts\n?? scripts/blender/audit-pressup-heading.ts\n?? scripts/blender/audit-prone-fk-scan.ts\n?? scripts/blender/author-palm-surface-support.py\n?? scripts/blender/author-pressup-whole-chain.py\n?? scripts/blender/author-prone-thigh-rest.py\n?? scripts/blender/author-sparse-pressup-controls.py\n?? scripts/blender/check-pressup-guide-continuity.ts\n?? scripts/blender/check-pressup-palm-layout.ts\n?? scripts/blender/check-prone-lower-chain-probe.ts\n?? scripts/blender/check-whole-chain-proposal.ts\n?? scripts/blender/derive-palm-support-plane.py\n?? scripts/blender/export-assessment-json.ts\n?? scripts/blender/export-sparse-pressup-probe.ts\n?? scripts/blender/probe-pressup-endpoints.ts\n?? scripts/blender/probe-prone-knee-toe-support.py\n?? scripts/blender/probe-prone-patient-order.ts\n?? scripts/blender/profile-patient-support-paths.ts\n?? scripts/blender/profile-prepared-patient.ts\n?? scripts/blender/render-prone-thigh-authoring.py\n?? scripts/blender/render-whole-chain-proposal.py\n?? scripts/blender/test-measure-floor-clearance.py\n?? scripts/blender/verify-palm-support-plane.ts\n?? scripts/catalogue/\n?? src/__tests__/hingeClinicalFrame.test.ts\n?? src/__tests__/measuredPatientHip.test.ts\n?? src/__tests__/movementCatalogue.test.ts\n?? src/__tests__/posedVertexReader.test.ts\n?? src/__tests__/preparedPalmRefinement.test.ts\n?? src/__tests__/pressUpSurfaceContact.test.ts\n?? src/__tests__/pressupPalmLayoutScope.test.ts\n?? src/__tests__/proneScreenControls.test.ts\n?? src/__tests__/proneSkinSupport.test.ts\n?? src/__tests__/proneSkinSupportIntegration.test.ts\n?? src/__tests__/proneSupportRecordingContract.test.ts\n?? src/__tests__/proneSupportSurface.test.ts\n?? src/__tests__/supportPlane.test.ts\n?? src/anatomy/forearmJointFrame.d.mts\n?? src/anatomy/forearmJointFrame.mjs\n?? src/anatomy/scapularGirdleProxy.d.mts\n?? src/anatomy/scapularGirdleProxy.mjs\n?? src/anatomy/shoulderComplexFrame.d.mts\n?? src/anatomy/shoulderComplexFrame.mjs\n?? src/anatomy/upperArmJointFrame.d.mts\n?? src/anatomy/upperArmJointFrame.mjs\n?? src/anatomy/wristJointFrame.d.mts\n?? src/anatomy/wristJointFrame.mjs\n?? src/services/handSupportSurface.ts\n?? src/services/pressupPalmLayout.ts\n?? src/services/proneSkinSupport.ts"
+      }
+    },
+    {
+      "label": "simMOVE",
+      "path": "movement-realism-implementation/simmove",
+      "head": {
+        "available": true,
+        "value": "82f04b8c6f94b08e88f742cecc7de9ca1b207a2f"
+      },
+      "branch": {
+        "available": true,
+        "value": "codex/posed-contact-qualification"
+      },
+      "status": {
+        "available": true,
+        "value": "M docs/assessment-physics-results.md\n M docs/blender-body-physics.md\n M experiments/lower-body/authored-anatomy.mjs\n M experiments/lower-body/authored-anatomy.node-test.mjs\n M experiments/lower-body/authored-controller-identity.mjs\n M experiments/lower-body/authored-movement-route.mjs\n M experiments/lower-body/authored-pose-retarget.mjs\n M experiments/lower-body/authored-pose-retarget.node-test.mjs\n M experiments/lower-body/authored-route-packet.mjs\n M experiments/lower-body/deformable-contact.mjs\n M experiments/lower-body/model.mjs\n M experiments/lower-body/physics-worker.mjs\n M package.json\n M pose-engine\n M scripts/blender/build-body-physics.py\n M scripts/blender/export-body-physics.mjs\n M scripts/verify-core-physics.mjs\n M src/MotionStage.svelte\n M src/screen/ScreenPage.svelte\n?? docs/evidence/posed-contact-2026-10-02.json\n?? experiments/lower-body/palm-support-controller.mjs\n?? experiments/lower-body/scapular-girdle-conformance.test.ts\n?? experiments/lower-body/shared-arm-feasibility.mjs\n?? experiments/lower-body/shared-arm-feasibility.node-test.mjs\n?? experiments/lower-body/wrist-conformance.test.ts\n?? scripts/blender/build-posed-contact.py\n?? scripts/blender/create-material-candidate.py\n?? scripts/blender/inspect-posed-contact.mjs\n?? scripts/blender/review-distributed-pronation.py\n?? scripts/compare-native-arm-command-identities.ts\n?? scripts/export-arm-probe-review.ts\n?? scripts/inspect-distributed-pronation.ts\n?? scripts/inspect-floor-palm-fit.ts\n?? scripts/inspect-native-girdle-conformance.ts\n?? scripts/inspect-native-girdle-tracking.mjs\n?? scripts/inspect-native-shared-arm.mjs\n?? scripts/inspect-native-wrist-conformance.ts\n?? scripts/native-arm-command-before-audit.ts\n?? scripts/probe-shared-arm-cycle.ts\n?? scripts/probe-shared-arm-support.ts\n?? scripts/shared-arm-source-prototype.ts\n?? src/__tests__/composedMotionImport.test.ts\n?? src/composedMotionImport.ts\n?? src/screen/floor-camera.test.ts\n?? src/screen/floor-camera.ts"
+      },
+      "committedEngineGitlink": {
+        "available": true,
+        "value": "160000 commit 845ff94816304447dbc06bbba73ecb388f11abce\tpose-engine"
+      }
+    },
+    {
+      "label": "simLAB",
+      "path": "movement-realism-implementation/simlab",
+      "head": {
+        "available": true,
+        "value": "f4557a4dbbe1ae76ff567ef014fb0fc146f71783"
+      },
+      "branch": {
+        "available": true,
+        "value": "codex/prone-surface-support"
+      },
+      "status": {
+        "available": true,
+        "value": "M apps/mission-shell/package.json\n M package.json\n M packages/ddx/src/movement/screen.ts\n M pose-engine\n?? packages/ddx/src/__tests__/floorScreenContacts.test.ts\n?? packages/ddx/src/__tests__/movementInventory.test.ts\n?? scripts/movement-inventory/"
+      },
+      "committedEngineGitlink": {
+        "available": true,
+        "value": "160000 commit 845ff94816304447dbc06bbba73ecb388f11abce\tpose-engine"
+      }
+    },
+    {
+      "label": "available SimPACS snapshot",
+      "path": "audit-sources/simpacs",
+      "head": {
+        "available": false,
+        "reason": "fatal: detected dubious ownership in repository at 'C:/Users/danst/probonoEMR/audit-sources/simpacs'\n'C:/Users/danst/probonoEMR/audit-sources/simpacs' is owned by:\n\tSTONE-DPT/danst (S-1-5-21-187712232-3769120780-2933416535-1001)\nbut the current user is:\n\tSTONE-DPT/CodexSandboxOffline (S-1-5-21-187712232-3769120780-2933416535-1003)\nTo add an exception for this directory, call:\n\n\tgit config --global --add safe.directory C:/Users/danst/probonoEMR/audit-sources/simpacs"
+      },
+      "branch": {
+        "available": false,
+        "reason": "fatal: detected dubious ownership in repository at 'C:/Users/danst/probonoEMR/audit-sources/simpacs'\n'C:/Users/danst/probonoEMR/audit-sources/simpacs' is owned by:\n\tSTONE-DPT/danst (S-1-5-21-187712232-3769120780-2933416535-1001)\nbut the current user is:\n\tSTONE-DPT/CodexSandboxOffline (S-1-5-21-187712232-3769120780-2933416535-1003)\nTo add an exception for this directory, call:\n\n\tgit config --global --add safe.directory C:/Users/danst/probonoEMR/audit-sources/simpacs"
+      },
+      "status": {
+        "available": false,
+        "reason": "fatal: detected dubious ownership in repository at 'C:/Users/danst/probonoEMR/audit-sources/simpacs'\n'C:/Users/danst/probonoEMR/audit-sources/simpacs' is owned by:\n\tSTONE-DPT/danst (S-1-5-21-187712232-3769120780-2933416535-1001)\nbut the current user is:\n\tSTONE-DPT/CodexSandboxOffline (S-1-5-21-187712232-3769120780-2933416535-1003)\nTo add an exception for this directory, call:\n\n\tgit config --global --add safe.directory C:/Users/danst/probonoEMR/audit-sources/simpacs"
+      }
+    }
+  ],
+  "tools": {
+    "node": "v22.19.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "mujocoDeclaredVersion": "3.13.0",
+    "blender": {
+      "available": true,
+      "value": "Blender 5.2.2 LTS\n\tbuild date: 2026-09-15\n\tbuild time: 01:37:04\n\tbuild commit date: 2026-09-14\n\tbuild commit time: 15:14\n\tbuild hash: d13f752e3b9c\n\tbuild branch: blender-v5.2-release"
+    }
+  },
+  "files": [
+    {
+      "path": "movement-realism-implementation/AGENTS.md",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 4664,
+      "sha256": "62cc4861c16bb12e1d2a9d5c2ab47b8585eb8336034be5b1f24fc28b6a526566"
+    },
+    {
+      "path": "movement-realism-implementation/UNIFIED-MOVEMENT-DEVELOPMENT-PROMPT.md",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 14018,
+      "sha256": "dad4c061b811a50d5e4ab960e6c805588d333e45a14924f0e4884035187e139d"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/pose-engine/AGENTS.md",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 2305,
+      "sha256": "6557892dbd83357e51490a97e52e03429ec858455e2e90922d2d67ba526a2d2b"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/pose-engine/docs/movement-engineering-charter.md",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 15491,
+      "sha256": "686cbb3471e6fcb3edc5dbca2d895f93cfc2e208581ceeb1160eb28cb01176ae"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/pose-engine/docs/movement-catalogue-process.md",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 6478,
+      "sha256": "3f17cd9977416d0cb569f78eb29cbd5c94cee701dfa463d887069f0db3a6f224"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/pose-engine/docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 21613076,
+      "sha256": "776cd0f8bb3ac711d6c518b2d7aa41418a06092c9d8ebd253648c40c91277c82"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/pose-engine/docs/movement-pipeline-audit-2026-10-02.md",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 13226,
+      "sha256": "e6ea697e5549a690cb9f4071b304876602c87542e7201e505363059bc98b3ae7"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/pose-engine/docs/blender-workflow.md",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 22734,
+      "sha256": "056a62d102ca688bf598607c34c09de9506ae8855755d23b5216ad2e41d22a54"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/pose-engine/src/anatomy/bodyVariants.ts",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 24820,
+      "sha256": "57b6018f732ae4da88ddeb1ae2ed1067791fa7072b80c09b198f300d0a978d30"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/pose-engine/src/services/movementFaults.ts",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 15606,
+      "sha256": "41ca414225e887d36b0fdda6c1fe9a6ecc27cd974a8b9811dee7e6402bbf6c29"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/pose-engine/src/services/romConstraints.ts",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 8575,
+      "sha256": "7bc9e4f07eea3b7a78d19f16c44c84955518dabe3ab60d0f758bf9e438fefb0d"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/package.json",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 1697,
+      "sha256": "d2f9951236adf33a0a444022ec39a2b7ba53ed6782a6ea600a280ac87e456db5"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/package-lock.json",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 145053,
+      "sha256": "80e4151eba322d5b3fe4d033c22a176f1c8ca8636719d41de5b19e26c0f2a9b0"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/experiments/lower-body/model.mjs",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 84636,
+      "sha256": "2388b9da6f48a76519082b041bce4539aadcfae46b81f0c31cc150b72c1f8a50"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/experiments/lower-body/authored-task-controller.mjs",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 19819,
+      "sha256": "8883263f1ff07b27ad5faf50046ebab4e27299c330d7b6bce773c3592a07881f"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/experiments/lower-body/authored-route-packet.mjs",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 11980,
+      "sha256": "11f33a51a7652abd8331f151ef94a6b5e4a66af73ef678333c3e1bf5ace308fc"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/experiments/lower-body/physics-worker.mjs",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 3532,
+      "sha256": "3c73fb98b2e3c464a749a2b2fb69d3b96406a23ddeef83cb41d9a673cbfb297e"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/experiments/lower-body/EXPERIMENT-RUNNER.md",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 7113,
+      "sha256": "0e018684215efbd1f55624a6f04ef00c4bd6aeffa7db4df00fffec6fbbda8ea1"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/experiments/upper-body/model.mjs",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 32391,
+      "sha256": "bd559272e520ac4fead57d2d807243678367b5c7e184733429f4c603711ebb50"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/experiments/upper-body/task-space-control.mjs",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 7130,
+      "sha256": "4182ace0a6e5a96a916c9309630525d8f2547fdc50a8e2be7f0651c23e84d43d"
+    },
+    {
+      "path": "movement-realism-implementation/simmove/src/editing/EditingWorkspace.svelte",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 103788,
+      "sha256": "3bbe3b3e7d98d06e806f85d2dbb3ef0bded55c8eee5cb1ba87dcb0a1da4534c0"
+    },
+    {
+      "path": "movement-realism-implementation/simlab/scripts/movement-inventory/run.mjs",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 637,
+      "sha256": "1875e54ee9f4298890d51332359302b92c0f8b1a5a9ac4c6bb86b6804d45f158"
+    },
+    {
+      "path": "movement-realism-implementation/simlab/packages/ddx/src/movement/sampler.ts",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 20213,
+      "sha256": "eb390ce3c1bcfc2e5fa6ee87fc75d9a8f65efd376ddac788cd463a9137cb19a6"
+    },
+    {
+      "path": "movement-realism-implementation/simlab/packages/ddx/src/movement/builderSteps.ts",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 28698,
+      "sha256": "33452eedb124b764c7bdca939e9f5128e9a52949bf5c0e0f9d38adfe5fdd3191"
+    },
+    {
+      "path": "movement-realism-implementation/simlab/packages/ddx/src/data/examBuilder.ts",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 30994,
+      "sha256": "977e54cbc7bbb7252c1fe4040041fff69303c6dd8fb2c03515e49e81847c9a62"
+    },
+    {
+      "path": "movement-realism-implementation/simlab/packages/ddx/src/props/nerves.ts",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 4007,
+      "sha256": "39d046ceb462b0ab84399a46aa030deee1cf74d85873d4555b0a7eedd01b7361"
+    },
+    {
+      "path": "movement-realism-implementation/simlab/apps/painmap/src/lib/simulation/neuroanatomy.ts",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 21763,
+      "sha256": "3a51296b78fe29b2e0e691c4173031a401eed94546c1a1be38083e191a90aa2d"
+    },
+    {
+      "path": "audit-sources/simpacs/ATTRIBUTION.md",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 1883,
+      "sha256": "f1d7ff4ded670a4d539fdb47116477dcb06ddbfc6963dd472253a1b30d09b180"
+    },
+    {
+      "path": "audit-sources/simpacs/src/lib/anatomy/anatomyLayers.ts",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 7544,
+      "sha256": "1b7ac2f0d4ee867dafc2a9eb6edfce2700ae59580b3fe2e2b337a8d84a099aee"
+    },
+    {
+      "path": "audit-sources/simpacs/static/models/upper-limb.rigged.meta.json",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 2944,
+      "sha256": "3f2dc211ce10e288a9e0f09faa325acac7e2cbc78f40d6fac9367036650de402"
+    },
+    {
+      "path": "audit-sources/simpacs/tools/blender/rig_elbow.py",
+      "available": true,
+      "hashMode": "raw-bytes",
+      "bytes": 22347,
+      "sha256": "038c2a9b579a58e30b9579edcdc6067278a1796ebe169d3e74a17ee665578ac5"
+    }
+  ],
+  "limitations": [
+    "Selected source files only; not a complete import graph, installed package or binary manifest.",
+    "Raw inspection hashes do not replace the canonical catalogue context identities or experiment fingerprints.",
+    "Dirty repository status is captured; Git HEAD alone does not identify inspected development code.",
+    "A version command is not scene review, simulator execution, acceptance or production verification.",
+    "The available SimPACS source snapshot does not establish current deployed anatomy coverage."
+  ]
+}

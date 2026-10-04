@@ -1,0 +1,101 @@
+{
+  "sourceBefore": "73abd014222d2b5a167dab5c46659a51d82bdb036e58b191e726773548072892",
+  "scriptSha256": "dc7579bc66f0dae91cb757c246bde53743a2aae6b2b7e12d71012dcf76d4ec38",
+  "sampleHz": 60,
+  "globalRomClamp": false,
+  "sampling": "dense",
+  "witnessTimeMs": 4516.666666666667,
+  "witnessHand": "L_Hand",
+  "scope": "Fresh rig for each run; all authored elbow target angles perturbed by ±5e-8 degrees under the existing restrictive-patient scenario. This tests sensitivity, not attainable contact or movement acceptance.",
+  "tolerances": {
+    "rotationRadians": 0.00017453292519943296,
+    "rotationDegrees": 0.01,
+    "trackedPositionM": 0.0001,
+    "provenance": "Existing browser stage parity checks; stricter than floorPalmSupports rotational tolerance"
+  },
+  "cases": [
+    {
+      "variant": "neutral",
+      "deltaDeg": -5e-8,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "frames": 325,
+      "elapsedMs": 14130.098300000001,
+      "maximumRotation": {
+        "radians": 0.10395972498061953,
+        "degrees": 5.956453480730254,
+        "key": "L_Hand",
+        "tMs": 2166.666666666667
+      },
+      "maximumPosition": {
+        "meters": 0.005674745867648324,
+        "key": "L_Forearm",
+        "tMs": 1883.3333333333335
+      },
+      "patientViolations": [],
+      "firstDifferenceFailure": {
+        "metric": "rotation",
+        "key": "L_Forearm",
+        "tMs": 1033.3333333333335,
+        "radians": 0.0005025937158641171
+      },
+      "guide": {
+        "maximumRotation": {
+          "radians": 0.11091391295068902,
+          "degrees": 6.354899101355884,
+          "key": "L_Hand",
+          "tMs": 2166.6666666666665
+        },
+        "firstDifferenceFailure": {
+          "radians": 0.002080348232947701,
+          "degrees": 0.1191951736654019,
+          "key": "L_Hand",
+          "tMs": 1166.6666666666667
+        }
+      },
+      "passed": false
+    },
+    {
+      "variant": "neutral",
+      "deltaDeg": 5e-8,
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "frames": 325,
+      "elapsedMs": 14559.762999999995,
+      "maximumRotation": {
+        "radians": 0.0858903435579514,
+        "degrees": 4.921154186799274,
+        "key": "L_Hand",
+        "tMs": 2000.0000000000002
+      },
+      "maximumPosition": {
+        "meters": 0.00552137140819618,
+        "key": "L_Forearm",
+        "tMs": 1883.3333333333335
+      },
+      "patientViolations": [],
+      "firstDifferenceFailure": {
+        "metric": "rotation",
+        "key": "L_Forearm",
+        "tMs": 1100,
+        "radians": 0.0003394853801558051
+      },
+      "guide": {
+        "maximumRotation": {
+          "radians": 0.08556256224327913,
+          "degrees": 4.902373700865303,
+          "key": "L_Hand",
+          "tMs": 2000
+        },
+        "firstDifferenceFailure": {
+          "radians": 0.0016566435272277022,
+          "degrees": 0.09491868226781341,
+          "key": "L_Hand",
+          "tMs": 1166.6666666666667
+        }
+      },
+      "passed": false
+    }
+  ],
+  "sourceAfter": "73abd014222d2b5a167dab5c46659a51d82bdb036e58b191e726773548072892",
+  "sourceStable": true,
+  "passed": false
+}

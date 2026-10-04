@@ -1,0 +1,332 @@
+{
+  "kind": "historical-reference-record-snapshot",
+  "masterSha256": "ed9a51828026bad0c80ec3dc84ceb0d36d1031ffb82ab4f9dc3e405f35766081",
+  "references": [
+    {
+      "id": "ref:zawadka-2020-squat",
+      "type": "research-kinematics",
+      "title": "How Are Squat Timing and Kinematics in The Sagittal Plane Related to Squat Depth?",
+      "status": "verified",
+      "provenance": {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/32874102/",
+        "doi": null,
+        "locator": "https://pubmed.ncbi.nlm.nih.gov/32874102/ — bibliography and abstract; simmove/pose-engine/docs/movement-templates-reference.md:63",
+        "edition": "J Sports Sci Med. 2020;19(3):500–507; PMID 32874102; PMCID PMC7429430",
+        "license": "Unknown; Do not assume public access permits dataset or media redistribution.",
+        "accessedAt": "2026-10-02"
+      },
+      "scope": {
+        "motionIds": [
+          "engine-template:squat",
+          "library:squat",
+          "exercises:squat"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "claims": [
+        {
+          "id": "ref:zawadka-2020-squat:claim-1",
+          "description": "Primary record identifies Zawadka et al., not Kim; study relates sagittal kinematics and normalized descent timing to bodyweight squat depth.",
+          "kind": "observed",
+          "joints": [],
+          "phases": [],
+          "limitations": "Template sheet attribution is wrong; preserve original claim and correct provenance separately. Exact numerical table support for current changed template values is unverified. Study task does not validate FMS overhead/dowel squat or legacy SFMA setup. PMC page encountered reCAPTCHA; journal direct fetch unavailable; PubMed abstract verified. License and raw trajectories not verified or retained. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance."
+        }
+      ],
+      "conditions": {
+        "task": "unloaded maximal-depth bodyweight squat; arms forward",
+        "population": "60 participants: 20 female, 40 male",
+        "bodyDimensions": null,
+        "laterality": null,
+        "load": "bodyweight",
+        "speed": null,
+        "equipment": "optical motion capture",
+        "units": "degrees and descent phase percent",
+        "coordinateSystem": "sagittal angular ROM; exact joint-frame reconciliation not extracted",
+        "sampling": "descent normalized 0–100%; raw sample rate not extracted",
+        "uncertainty": "Not extracted or independently verified unless specified.",
+        "applicability": "Candidate task/citation relevance only; complete body/side/phase/joint/path mapping remains unreviewed."
+      },
+      "limitations": "Template sheet attribution is wrong; preserve original claim and correct provenance separately. Exact numerical table support for current changed template values is unverified. Study task does not validate FMS overhead/dowel squat or legacy SFMA setup. PMC page encountered reCAPTCHA; journal direct fetch unavailable; PubMed abstract verified. License and raw trajectories not verified or retained. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance.",
+      "verification": {
+        "method": "Checked primary PubMed bibliographic record and indexed abstract, PMID32874102, against the repository citation. PMC direct access produced a browser check and journal direct access failed. Exact numerical tables and source trajectories were not verified.",
+        "evidence": [
+          {
+            "path": "docs/catalogue-evidence/reference-verification/zawadka-2020-squat.json",
+            "sha256": "d261afc11caa6aa4ec0d6742b3ea3ec5dc3471e985bd07300211bdd9fce8eb7f"
+          }
+        ]
+      },
+      "gaps": [
+        {
+          "id": "reference-gap:squat-attribution",
+          "owner": "catalogue-reference-coordinator",
+          "status": "open",
+          "reason": "Sheet attributes PMC7429430 to Kim2020; primary record identifies Zawadka2020.",
+          "nextAction": "Correct citation identity and independently verify numerical table claims against exact task before altering targets."
+        }
+      ]
+    },
+    {
+      "id": "ref:namdari-2012-adl",
+      "type": "research-functional-rom",
+      "title": "Defining functional shoulder range of motion for activities of daily living",
+      "status": "verified",
+      "provenance": {
+        "url": "https://www.sciencedirect.com/science/article/pii/S1058274611003867",
+        "doi": "10.1016/j.jse.2011.07.032",
+        "locator": "https://www.sciencedirect.com/science/article/pii/S1058274611003867 — Results; Table II; Discussion; simmove/pose-engine/src/services/movementTemplates.data.ts:177",
+        "edition": "J Shoulder Elbow Surg. 2012;21(9):1177–1183",
+        "license": "Unknown; Do not assume public access permits dataset or media redistribution.",
+        "accessedAt": "2026-10-02"
+      },
+      "scope": {
+        "motionIds": [
+          "library:shoulder-flexion-elevation",
+          "library:shoulder-abduction-elevation",
+          "engine-template:shoulder-flexion-elevation",
+          "engine-template:shoulder-abduction-elevation"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "claims": [
+        {
+          "id": "ref:namdari-2012-adl:claim-1",
+          "description": "Published daily-task study supports aggregate functional shoulder ROM context, not an isolated-elevation trajectory or clinical ROM ceiling.",
+          "kind": "observed",
+          "joints": [],
+          "phases": [],
+          "limitations": "Study requirement summaries cannot validate scapular/glenohumeral partition, fingers, trunk or force. Full methods/cohort and Table II per-task figures have not been retained or reconciled to engine axes. No licensed raw trajectory is imported. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance."
+        }
+      ],
+      "conditions": {
+        "task": "ten ADL tasks selected from ASES/PSS/SST outcome measures",
+        "population": null,
+        "bodyDimensions": null,
+        "laterality": null,
+        "load": null,
+        "speed": null,
+        "equipment": null,
+        "units": "degrees",
+        "coordinateSystem": "shoulder task-plane definitions need exact mapping",
+        "sampling": null,
+        "uncertainty": "Not extracted or independently verified unless specified.",
+        "applicability": "Candidate task/citation relevance only; complete body/side/phase/joint/path mapping remains unreviewed."
+      },
+      "limitations": "Study requirement summaries cannot validate scapular/glenohumeral partition, fingers, trunk or force. Full methods/cohort and Table II per-task figures have not been retained or reconciled to engine axes. No licensed raw trajectory is imported. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance.",
+      "verification": {
+        "method": "Inspected primary publisher Results/Discussion and bibliographic DOI. Verified aggregate ADL task context only. Full methods, individual task table values and raw trajectories were not retained or reconciled to engine axes.",
+        "evidence": [
+          {
+            "path": "docs/catalogue-evidence/reference-verification/namdari-2012-adl.json",
+            "sha256": "a2526d3c46a86fef0c496fb5663c7595511e69822bc0bc72fff1f490a115cf26"
+          }
+        ]
+      },
+      "gaps": [
+        {
+          "id": "reference-gap:shoulder-matched-trajectories",
+          "owner": "catalogue-reference-coordinator",
+          "status": "open",
+          "reason": "Verified papers constrain claimscope but no reference-matched complete shoulder flexion/abduction/reach trajectory is imported.",
+          "nextAction": "Choose matched task/load/coordinate definitions; acquire lawful raw data or scoped protocol/clinician criteria and declare proxy unsupported channels."
+        }
+      ]
+    },
+    {
+      "id": "ref:inman-1944-unspecified",
+      "type": "citation-lead",
+      "title": "Inman 1944 shoulder mechanics (incomplete repository citation)",
+      "status": "citation-only",
+      "provenance": {
+        "url": null,
+        "doi": null,
+        "locator": "simmove/pose-engine/src/services/movementTemplates.data.ts:177",
+        "edition": "Unspecified; see limitations.",
+        "license": "Unknown; Do not assume public access permits dataset or media redistribution.",
+        "accessedAt": "2026-10-02"
+      },
+      "scope": {
+        "motionIds": [
+          "library:shoulder-flexion-elevation",
+          "library:shoulder-abduction-elevation",
+          "engine-template:shoulder-flexion-elevation",
+          "engine-template:shoulder-abduction-elevation"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "claims": [
+        {
+          "id": "ref:inman-1944-unspecified:claim-1",
+          "description": "Repository source is a citation or authoring lead. No independently verified movement claim is established by this record.",
+          "kind": "assumed",
+          "joints": [],
+          "phases": [],
+          "limitations": "Exact title/publication/pages/version and original task observations not verified. Cannot justify a fixed setting phase, universal 2:1 split or proxy-axis substitution. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance."
+        }
+      ],
+      "conditions": {
+        "task": null,
+        "population": null,
+        "bodyDimensions": null,
+        "laterality": null,
+        "load": null,
+        "speed": null,
+        "equipment": null,
+        "units": null,
+        "coordinateSystem": null,
+        "sampling": null,
+        "uncertainty": "Not extracted or independently verified unless specified.",
+        "applicability": "Candidate task/citation relevance only; complete body/side/phase/joint/path mapping remains unreviewed."
+      },
+      "limitations": "Exact title/publication/pages/version and original task observations not verified. Cannot justify a fixed setting phase, universal 2:1 split or proxy-axis substitution. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance.",
+      "verification": {
+        "method": "Repository citation/provenance inspection only; source claims are not independently verified.",
+        "evidence": []
+      },
+      "gaps": []
+    },
+    {
+      "id": "ref:mcquade-smidt-1998-dynamic",
+      "type": "research-shoulder-coordination",
+      "title": "Dynamic scapulohumeral rhythm: the effects of external resistance during elevation of the arm in the scapular plane",
+      "status": "verified",
+      "provenance": {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/9475136/",
+        "doi": "10.2519/jospt.1998.27.2.125",
+        "locator": "https://pubmed.ncbi.nlm.nih.gov/9475136/ — Abstract; simmove/pose-engine/src/services/movementTemplates.data.ts:177",
+        "edition": "J Orthop Sports Phys Ther. 1998;27(2):125–133",
+        "license": "Unknown; Do not assume public access permits dataset or media redistribution.",
+        "accessedAt": "2026-10-02"
+      },
+      "scope": {
+        "motionIds": [
+          "library:shoulder-flexion-elevation",
+          "library:shoulder-abduction-elevation",
+          "engine-template:shoulder-flexion-elevation",
+          "engine-template:shoulder-abduction-elevation"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "claims": [
+        {
+          "id": "ref:mcquade-smidt-1998-dynamic:claim-1",
+          "description": "Abstract supports phase/load dependence during scapular-plane elevation, so a constant universal ratio is insufficient.",
+          "kind": "limit",
+          "joints": [],
+          "phases": [],
+          "limitations": "Abstract-only verification; matched flexion/abduction/behind-back trajectories not imported. No SC/AC independence, production proxy validity or load-specific force acceptance is established. Exact tolerances and primary per-frame data unavailable in this seed. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance."
+        }
+      ],
+      "conditions": {
+        "task": "dynamic elevation in scapular plane",
+        "population": "25 normal subjects",
+        "bodyDimensions": null,
+        "laterality": null,
+        "load": "passive unloaded; active limb weight; maximal external resistance",
+        "speed": null,
+        "equipment": "electromagnetic tracking",
+        "units": "degrees; glenohumeral/scapular relationship",
+        "coordinateSystem": "Cardan angles",
+        "sampling": "not extracted",
+        "uncertainty": "Not extracted or independently verified unless specified.",
+        "applicability": "Candidate task/citation relevance only; complete body/side/phase/joint/path mapping remains unreviewed."
+      },
+      "limitations": "Abstract-only verification; matched flexion/abduction/behind-back trajectories not imported. No SC/AC independence, production proxy validity or load-specific force acceptance is established. Exact tolerances and primary per-frame data unavailable in this seed. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance.",
+      "verification": {
+        "method": "Inspected primary PubMed abstract and bibliographic record, PMID9475136. Verified phase/load dependence for the described scapular-plane experiment; full trajectories and model correspondence were not verified.",
+        "evidence": [
+          {
+            "path": "docs/catalogue-evidence/reference-verification/mcquade-smidt-1998-dynamic.json",
+            "sha256": "4d1a7e91feb4febd301303f408ea8ab89fe9673dc8efbad32d6a814bc60ce8e7"
+          }
+        ]
+      },
+      "gaps": [
+        {
+          "id": "reference-gap:shoulder-matched-trajectories",
+          "owner": "catalogue-reference-coordinator",
+          "status": "open",
+          "reason": "Verified papers constrain claimscope but no reference-matched complete shoulder flexion/abduction/reach trajectory is imported.",
+          "nextAction": "Choose matched task/load/coordinate definitions; acquire lawful raw data or scoped protocol/clinician criteria and declare proxy unsupported channels."
+        }
+      ]
+    },
+    {
+      "id": "ref:schenkman-1990-sts",
+      "type": "research-whole-body-task",
+      "title": "Whole-body movements during rising to standing from sitting",
+      "status": "verified",
+      "provenance": {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/2217543/",
+        "doi": "10.1093/ptj/70.10.638",
+        "locator": "https://pubmed.ncbi.nlm.nih.gov/2217543/ — Abstract verified through primary search index; direct fetch incomplete; simmove/pose-engine/docs/movement-templates-reference.md:45",
+        "edition": "Phys Ther.1990;70(10):638–648;discussion648–651",
+        "license": "Unknown; Do not assume public access permits dataset or media redistribution.",
+        "accessedAt": "2026-10-02"
+      },
+      "scope": {
+        "motionIds": [
+          "library:sit-to-stand",
+          "engine-template:sit-to-stand"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "claims": [
+        {
+          "id": "ref:schenkman-1990-sts:claim-1",
+          "description": "Abstract describes four chair-rise phases: momentum generation, seat-off transfer, extension and stabilization.",
+          "kind": "observed",
+          "joints": [],
+          "phases": [],
+          "limitations": "Exact chair height, speed, kinetics and numerical lumbar/hip values not reconciled. Abstract does not directly establish sheet’s12-degree lumbar target or a universal hip-to-spine ratio. No current body-variant matching or trajectory import. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance."
+        }
+      ],
+      "conditions": {
+        "task": "controlled chair rise",
+        "population": "nine healthy individuals",
+        "bodyDimensions": null,
+        "laterality": null,
+        "load": null,
+        "speed": null,
+        "equipment": "chair; experimental apparatus not extracted",
+        "units": null,
+        "coordinateSystem": null,
+        "sampling": null,
+        "uncertainty": "Not extracted or independently verified unless specified.",
+        "applicability": "Candidate task/citation relevance only; complete body/side/phase/joint/path mapping remains unreviewed."
+      },
+      "limitations": "Exact chair height, speed, kinetics and numerical lumbar/hip values not reconciled. Abstract does not directly establish sheet’s12-degree lumbar target or a universal hip-to-spine ratio. No current body-variant matching or trajectory import. Source verification is separate from applicability to a production body, complete trajectory, clinical approval and delivered motion acceptance.",
+      "verification": {
+        "method": "Inspected primary PubMed indexed abstract and bibliography, PMID2217543. Direct open returned incomplete content. Verified four chair-rise phase descriptions; no numerical spinal targets or raw kinematics verified.",
+        "evidence": [
+          {
+            "path": "docs/catalogue-evidence/reference-verification/schenkman-1990-sts.json",
+            "sha256": "a7f28586e38436d4b093bfc90b4066a837b0c7d08aef18896e961f96783c4b96"
+          }
+        ]
+      },
+      "gaps": []
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "editedAt": "2026-10-02T22:59:02.876Z",
+  "before": {
+    "src/services/painResponseLayer.ts": "008917687962846d51bdf0e1468e064d83f2763f469f3ea21d8367ad0e6d92e7",
+    "src/__tests__/painResponseLayer.test.ts": "2cd13b3f934e725c8b987d2c8e8df0232a737391c56e86f3d7a73961cfc5fa62",
+    "src/services/handContactPose.ts": "5e34370ade481c0694966759f856265443e847d208f0d615ec935065618bc0bc"
+  },
+  "after": {
+    "src/services/painResponseLayer.ts": "f2e5032bb7f364bb17094b8d1dc413bb38ee5ad80bdec878d3733facd7aae8a6",
+    "src/__tests__/painResponseLayer.test.ts": "5a2eacd48083d9c63772d5cf5fdf5a6237e85cc20558ae8a0d21574751a44914",
+    "src/services/handContactPose.ts": "53e0282ddc8e3d44456854860f8452f7e497896bbffc0443f4a52e6d95aee466"
+  },
+  "scope": "Type-only pain-layer dependency contract and exact private graph wrapper; hand numerical core unchanged except internal function name.",
+  "finishedAt": "2026-10-02T22:59:45.517Z",
+  "verifiedAt": "2026-10-02T23:04:39.680Z",
+  "unchangedNumericalCore": true,
+  "final": {
+    "src/services/painResponseLayer.ts": "f2e5032bb7f364bb17094b8d1dc413bb38ee5ad80bdec878d3733facd7aae8a6",
+    "src/__tests__/painResponseLayer.test.ts": "9044a09be4ee49c65b1ae56dd542b2090441e5cebdf276d19f40696f6739cbfc",
+    "src/services/handContactPose.ts": "53e0282ddc8e3d44456854860f8452f7e497896bbffc0443f4a52e6d95aee466"
+  },
+  "changedDuringVerification": true
+}

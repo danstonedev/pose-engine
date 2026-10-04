@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-03",
+  "userQuestion": "Is sway/breathing still turned on and affecting testing?",
+  "scope": "Live-only motion overlay exclusion from public capture and manual recording start/stop snapshots. No authored motion, clinical limit, solver, breathing appearance or phase changes.",
+  "finding": "Continuous recording lifts the motion overlay before sampling. Public snapshots previously lifted idle and eye overlays only, retaining the current breathing/sway trunk rotation.",
+  "correction": "sampleClean temporarily lifts owned motion deltas, reads the driven pose, and restores exact rendered quaternions and ownership in finally without advancing clocks.",
+  "witnesses": [
+    {
+      "path": "remaining-batches/public-capture-liveliness-2/results.json",
+      "sha256": "ef63ec9b4a960888a92f3a3fa34c2efd29163265b3121cbe3989135fa1e1d47f",
+      "source": {
+        "src/ExamStage3D.svelte": "d8ecd2b0b9e88cdc2f9002622380dd1c059962693400f6a32288b9f6818db81d",
+        "src/services/stageMotionLiveliness.ts": "f57f0ce113cf7e2353d6d8359bac533e1cde1ecbea94206d95b56fd21f91f36d",
+        "src/services/stageIdleOverlay.ts": "5ccf9888cb033245ad2548e38b644a6168fc0928542e5364623a5a020af75c00"
+      },
+      "cases": [
+        {
+          "amount": 0,
+          "errors": [],
+          "breathExpansionM": 0,
+          "differences": [
+            {
+              "key": "Spine_Lower",
+              "publicVsTapDeg": 0,
+              "stopVsTapDeg": 0,
+              "renderedVsTapDeg": 0,
+              "renderedBeforeAfterDeg": 0,
+              "publicEqualsRendered": true
+            },
+            {
+              "key": "Spine_Upper",
+              "publicVsTapDeg": 0,
+              "stopVsTapDeg": 0,
+              "renderedVsTapDeg": 0,
+              "renderedBeforeAfterDeg": 0,
+              "publicEqualsRendered": true
+            }
+          ],
+          "renderedExactlyPreserved": true
+        },
+        {
+          "amount": 0.4,
+          "errors": [],
+          "breathExpansionM": 0.0019808594325329562,
+          "differences": [
+            {
+              "key": "Spine_Lower",
+              "publicVsTapDeg": 0.3790525628397179,
+              "stopVsTapDeg": 0.3790525628397179,
+              "renderedVsTapDeg": 0.3790525628397179,
+              "renderedBeforeAfterDeg": 0,
+              "publicEqualsRendered": true
+            },
+            {
+              "key": "Spine_Upper",
+              "publicVsTapDeg": 0.20947268787773604,
+              "stopVsTapDeg": 0.20947268787773604,
+              "renderedVsTapDeg": 0.20947268787773604,
+              "renderedBeforeAfterDeg": 0,
+              "publicEqualsRendered": true
+            }
+          ],
+          "renderedExactlyPreserved": true
+        }
+      ]
+    },
+    {
+      "path": "remaining-batches/public-capture-liveliness-3/results.json",
+      "sha256": "51c0dc6252803cd4de12b4750578ec0bb359926f6c50f4310f1e1231ffaf0148",
+      "source": {
+        "src/ExamStage3D.svelte": "0aa948bd0ec522dcb51796f95bf85235ee7fffefc29bf814e5926144b824210f",
+        "src/services/stageMotionLiveliness.ts": "cf8cd023d1aee855a9558d51822bfc5f33e0d8160674f9a4e4c81472a2356eb8",
+        "src/services/stageIdleOverlay.ts": "5ccf9888cb033245ad2548e38b644a6168fc0928542e5364623a5a020af75c00"
+      },
+      "cases": [
+        {
+          "amount": 0,
+          "errors": [],
+          "breathExpansionM": 0,
+          "differences": [
+            {
+              "key": "Spine_Lower",
+              "publicVsTapDeg": 0,
+              "stopVsTapDeg": 0,
+              "renderedVsTapDeg": 0,
+              "renderedBeforeAfterDeg": 0,
+              "publicEqualsRendered": true
+            },
+            {
+              "key": "Spine_Upper",
+              "publicVsTapDeg": 0,
+              "stopVsTapDeg": 0,
+              "renderedVsTapDeg": 0,
+              "renderedBeforeAfterDeg": 0,
+              "publicEqualsRendered": true
+            }
+          ],
+          "renderedExactlyPreserved": true
+        },
+        {
+          "amount": 0.4,
+          "errors": [],
+          "breathExpansionM": 0.001975692113151369,
+          "differences": [
+            {
+              "key": "Spine_Lower",
+              "publicVsTapDeg": 0,
+              "stopVsTapDeg": 0,
+              "renderedVsTapDeg": 0.3783547480848562,
+              "renderedBeforeAfterDeg": 0,
+              "publicEqualsRendered": false
+            },
+            {
+              "key": "Spine_Upper",
+              "publicVsTapDeg": 0,
+              "stopVsTapDeg": 0,
+              "renderedVsTapDeg": 0.20663066222579307,
+              "renderedBeforeAfterDeg": 0.0000017075472925031877,
+              "publicEqualsRendered": false
+            }
+          ],
+          "renderedExactlyPreserved": true
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "path": "remaining-batches/public-capture-liveliness-tests-1.log",
+    "sha256": "d2089047a9f571ee104f4a520d73b0007217c9ccd7ebe3bf85be2f1ffaf9a492",
+    "passed": 32,
+    "coverage": "Male/female/neutral actual rigs; nested and failed reads; driver-overwritten pose ownership; rendered local/world transforms; breath and onset clock preservation; existing idle and motion hold regressions."
+  },
+  "limitations": [
+    "Browser witness uses one male held-arm command at a matched clock with liveliness 0 and 0.4; it is not a complete movement catalogue review.",
+    "Offline motion samplers and Blender exports do not apply these live overlays, so this defect does not explain their independent contact or solver failures.",
+    "Local correction verified; no commit, PR update or merge is claimed."
+  ]
+}

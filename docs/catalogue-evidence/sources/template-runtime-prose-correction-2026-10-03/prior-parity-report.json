@@ -1,0 +1,17 @@
+{
+  "templates": 25,
+  "definitionSha256": "ead1590564d8a5bf36d5fb78e463f26e05648b5db7c16f662851ddfc1d439b5f",
+  "executableDefinitionsIdentical": true,
+  "sourceAfter": [
+    {
+      "path": "src/services/movementTemplates.ts",
+      "sha256": "a3bdcee2fc3989f951c6bbdb5596a767c707aa01fc47cd2d99b96334edc153e3"
+    },
+    {
+      "path": "src/services/movementTemplates.data.ts",
+      "sha256": "a1c8c1a39a71f7c592467fe671eb1264c9e5df29c966a52eb68debbab2e1172a"
+    }
+  ],
+  "plannerProseChanged": true,
+  "reviewScope": "Reference/planner prose only; no target, contact, timing, runtime clamp, or clinical approval change."
+}

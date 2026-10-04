@@ -1,0 +1,67 @@
+﻿{
+    "beforeDigest":  "d66807195075e5348efcce11b3e11b9c502c93888ba1f35e82aaad81fbc2eecc",
+    "afterDigest":  "143dfb0d1b45c5832568cc3c0c6e55e26db2928a1853d4d70b54ca96eac3c782",
+    "cases":  [
+                  {
+                      "id":  "male-push-up",
+                      "identicalGlb":  true,
+                      "frames":  71
+                  },
+                  {
+                      "id":  "male-trunk-stability-push-up",
+                      "identicalGlb":  true,
+                      "frames":  169
+                  },
+                  {
+                      "id":  "male-extension-clearing",
+                      "identicalGlb":  true,
+                      "frames":  163
+                  },
+                  {
+                      "id":  "male-flexion-clearing",
+                      "identicalGlb":  true,
+                      "frames":  175
+                  },
+                  {
+                      "id":  "female-push-up",
+                      "identicalGlb":  true,
+                      "frames":  71
+                  },
+                  {
+                      "id":  "female-trunk-stability-push-up",
+                      "identicalGlb":  true,
+                      "frames":  169
+                  },
+                  {
+                      "id":  "female-extension-clearing",
+                      "identicalGlb":  true,
+                      "frames":  163
+                  },
+                  {
+                      "id":  "female-flexion-clearing",
+                      "identicalGlb":  true,
+                      "frames":  175
+                  },
+                  {
+                      "id":  "neutral-push-up",
+                      "identicalGlb":  true,
+                      "frames":  71
+                  },
+                  {
+                      "id":  "neutral-trunk-stability-push-up",
+                      "identicalGlb":  true,
+                      "frames":  169
+                  },
+                  {
+                      "id":  "neutral-extension-clearing",
+                      "identicalGlb":  true,
+                      "frames":  163
+                  },
+                  {
+                      "id":  "neutral-flexion-clearing",
+                      "identicalGlb":  true,
+                      "frames":  175
+                  }
+              ],
+    "allIdentical":  true
+}

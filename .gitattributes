@@ -1,3 +1,4 @@
 docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html text eol=lf
 scripts/catalogue/*.json text eol=lf
 docs/catalogue-evidence/** -text
+docs/evidence/** -text

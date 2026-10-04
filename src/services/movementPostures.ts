@@ -21,6 +21,7 @@
 import * as THREE from 'three';
 import { chairRisePhases, functionalControl, functionalTargets, squatPhases } from './functionalRecipes';
 import { supportedBodyControl, supportedBodyTargets } from './upperSupportRecipes';
+import { floorPalmSupports } from './floorPalmSupports';
 import type {
   ComposedMotion,
   PostureNode,
@@ -407,6 +408,8 @@ export function buildPushUp(opts: { reps?: number } = {}): ComposedMotion {
   return {
     name: reps > 1 ? `push-up ×${reps}` : 'push-up',
     controlId: 'supported-push-up',
+    fixedGroundSupports: ['L_Toes', 'R_Toes'],
+    contacts: floorPalmSupports('push-up', 1000),
     shoulderCapacity: 'enforce-proxy',
     startFrom: 'current',
     stance: 'planted',
@@ -414,8 +417,9 @@ export function buildPushUp(opts: { reps?: number } = {}): ComposedMotion {
     endPosture: 'plank',
     ...(reps > 1 ? { reps } : {}),
     keyframes: [
-      // Establish the hand supports before changing the shoulder origins.
-      { durationMs: 350, holdMs: 200, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_TOP_PITCH } }, targets: top(), control: supportedBodyControl('push-up/top', 'plank') },
+      // One-second approach authored in floor-support-timing-1. Establish the
+      // hand supports before lowering; inherited contacts remain planted.
+      { durationMs: 1000, holdMs: 200, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_TOP_PITCH } }, targets: top(), control: supportedBodyControl('push-up/top', 'plank') },
       // Lower: flatten the body; the chest descends toward the floor.
       { durationMs: 550, holdMs: 120, stance: 'planted', groundingPosture: 'plank', root: { orient: { pitchDeg: PLANK_LOW_PITCH } }, targets: supportedBodyTargets([...plankLimbs(90, 90), ...palms(-25)], 'plank', -6), control: supportedBodyControl('push-up/lower', 'plank') },
       // Press back up to the top.

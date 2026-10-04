@@ -1,0 +1,948 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-02",
+  "scope": "Seven retained male severe-patient browser checkpoints; all captured expected/live poses continued after the original parity failure. No production source, clinical limits or acceptance thresholds changed. Current user-approved default motion is preserved.",
+  "decision": "Initial-prior experiment rejected: it improves parity but materially changes the approved default. Current severe-patient mismatch is retained as an unsupported-case delivery difference, not physical motion approval. Acceptance policy remains with the parent release review.",
+  "sourceIdentity": {
+    "hostRuntimeStable": true,
+    "handSolverSha256": "44e3cc6e91a85484e32ac46e2dc364f9eb56d2edce4b9cb9f8ca62d16217fc36",
+    "assetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+    "poseModeClampEnabled": false,
+    "geometryScriptSha256": "bae04bfcb54f3a207df8e894ea48f46b23dba05a04c9e9339f0f7966ed5089f8",
+    "summaryScriptSha256": "55dc04f6947072e60b1beb16f2fed29ed9287e7d8b272eaec213007b383bb56d"
+  },
+  "replay": {
+    "qualified": true,
+    "reconstructedBones": 101,
+    "capturedMappedLocals": 55,
+    "capturedBoneWorldWitnessesPerFrame": 16,
+    "maximumWorldWitnessErrorM": 0,
+    "scope": "All public captured expected/actual male severe-patient poses replayed without solving on the actual asset with production twist overlay. Full skeleton is reconstructed from the 55 captured mapped locals plus asset baseline and production twist. Sixteen captured bone world points qualify replay; CoM is not a bone and is retained only in the original browser differences. Skin positions are reconstructed rendered skin, not independent native physics or live deformation measurements. Original acceptance gates unchanged.",
+    "regionMembership": "handSkin: >=0.5 combined Hand+digit weight; palmSkin: dominant Hand bone; all skins also compared vertex-for-vertex.",
+    "floorY": 0
+  },
+  "currentBrowserMatrix": {
+    "path": "remaining-batches/pressup-clinical-cone-host-parity-1/results.json",
+    "sha256": "765156e09d130c605c5f8e2549d0b1800e1f4ed5f09db49c0f07763db6157de5",
+    "runtimeStable": true,
+    "total": 18,
+    "passed": 16,
+    "failures": [
+      {
+        "host": "simmove",
+        "variant": "male",
+        "scenario": "patient",
+        "failure": "AssertionError [ERR_ASSERTION]: simmove/male/true bone parity at1800: {\"key\":\"R_Forearm\",\"differenceDeg\":0.2680804538504692}"
+      },
+      {
+        "host": "simlab",
+        "variant": "male",
+        "scenario": "patient",
+        "failure": "AssertionError [ERR_ASSERTION]: simlab/male/true bone parity at1800: {\"key\":\"R_Forearm\",\"differenceDeg\":0.2680804538504692}"
+      }
+    ]
+  },
+  "existingParityGates": {
+    "localRotationDegrees": 0.01,
+    "worldTrackM": 0.0001,
+    "status": "Unchanged; failed checkpoints remain failed."
+  },
+  "clinicalScope": "Both expected and actual six explicit patient fields checked at every checkpoint: bilateral elbow flexion, wrist flexion, locked knee flexion. This is not an all-field clinical requalification.",
+  "phases": [
+    {
+      "tMs": 0,
+      "maximumLocalRotation": {
+        "key": "R_Forearm",
+        "differenceDeg": 0.000013872179782028061
+      },
+      "maximumBoneOriginDifferenceMm": 0.000034177028709519884,
+      "maximumSkinDifferenceMm": 0.00003639121148076159,
+      "maximumHandSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.000021929165199389632
+      },
+      "maximumPalmSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.00001486876478154712
+      },
+      "expectedHandSkinFloorMinimumMm": {
+        "L": -176.23259584998482,
+        "R": -180.6406974065637
+      },
+      "actualHandSkinFloorMinimumMm": {
+        "L": -176.23259584998482,
+        "R": -180.64067746300756
+      },
+      "expectedPalmSkinFloorMinimumMm": {
+        "L": -175.21296831070373,
+        "R": -176.3125624904152
+      },
+      "actualPalmSkinFloorMinimumMm": {
+        "L": -175.21296831070373,
+        "R": -176.31255292868877
+      },
+      "rootDifferenceM": 0,
+      "measuredPatientFields": [
+        {
+          "joint": "L_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 75.00000000000001,
+          "actualDegrees": 75.00000000000001,
+          "strictMaximumOverageDegrees": 1.4210854715202004e-14
+        },
+        {
+          "joint": "L_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000028745,
+          "actualDegrees": -35.00000000028745,
+          "strictMaximumOverageDegrees": 2.8745006375174853e-10
+        },
+        {
+          "joint": "L_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": -9.940158158579232e-16,
+          "actualDegrees": -9.940158158579232e-16,
+          "strictMaximumOverageDegrees": 9.940158158579232e-16
+        },
+        {
+          "joint": "R_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 74.99999999999999,
+          "actualDegrees": 75,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "R_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.000000000268436,
+          "actualDegrees": -35.00000000026844,
+          "strictMaximumOverageDegrees": 2.6844304557016585e-10
+        },
+        {
+          "joint": "R_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": -5.964255491193846e-16,
+          "actualDegrees": -5.964255491193846e-16,
+          "strictMaximumOverageDegrees": 5.964255491193846e-16
+        }
+      ],
+      "patientViolationsAtExistingPointZeroFiveDegreeTolerance": [],
+      "lowerSupportFeasible": false,
+      "endpointReached": false,
+      "unsupportedReasons": [
+        "L leg support is restricted by patient range",
+        "R leg support is restricted by patient range",
+        "L_thighCalf support residual",
+        "R_thighCalf support residual",
+        "L_toes support residual",
+        "R_toes support residual",
+        "L_leg below pelvis support",
+        "R_leg below pelvis support",
+        "patient-elbow-range-excludes-extension-endpoint:L_Forearm:35..75"
+      ]
+    },
+    {
+      "tMs": 1000,
+      "maximumLocalRotation": {
+        "key": "L_Index2",
+        "differenceDeg": 0.0000029575586669421963
+      },
+      "maximumBoneOriginDifferenceMm": 0.0000017808509058550502,
+      "maximumSkinDifferenceMm": 0.0000019920763759797964,
+      "maximumHandSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.0000017821604108411097
+      },
+      "maximumPalmSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.0000017909738562592877
+      },
+      "expectedHandSkinFloorMinimumMm": {
+        "L": -176.2337547952275,
+        "R": -180.6418193352015
+      },
+      "actualHandSkinFloorMinimumMm": {
+        "L": -176.2337547952275,
+        "R": -180.6418189225136
+      },
+      "expectedPalmSkinFloorMinimumMm": {
+        "L": -175.21349010970087,
+        "R": -176.31307389307275
+      },
+      "actualPalmSkinFloorMinimumMm": {
+        "L": -175.21349010970087,
+        "R": -176.31307375500242
+      },
+      "rootDifferenceM": 0,
+      "measuredPatientFields": [
+        {
+          "joint": "L_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 75,
+          "actualDegrees": 75,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.000000000287436,
+          "actualDegrees": -35.000000000287436,
+          "strictMaximumOverageDegrees": 2.8743585289703333e-10
+        },
+        {
+          "joint": "L_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": -9.940158158579232e-16,
+          "actualDegrees": -9.940158158579232e-16,
+          "strictMaximumOverageDegrees": 9.940158158579232e-16
+        },
+        {
+          "joint": "R_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 75.00000000000001,
+          "actualDegrees": 75,
+          "strictMaximumOverageDegrees": 1.4210854715202004e-14
+        },
+        {
+          "joint": "R_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000026845,
+          "actualDegrees": -35.00000000026846,
+          "strictMaximumOverageDegrees": 2.6845725642488105e-10
+        },
+        {
+          "joint": "R_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": -5.964255491193846e-16,
+          "actualDegrees": -5.964255491193846e-16,
+          "strictMaximumOverageDegrees": 5.964255491193846e-16
+        }
+      ],
+      "patientViolationsAtExistingPointZeroFiveDegreeTolerance": [],
+      "lowerSupportFeasible": false,
+      "endpointReached": false,
+      "unsupportedReasons": [
+        "L leg support is restricted by patient range",
+        "R leg support is restricted by patient range",
+        "L_thighCalf support residual",
+        "R_thighCalf support residual",
+        "L_toes support residual",
+        "R_toes support residual",
+        "L_leg below pelvis support",
+        "R_leg below pelvis support",
+        "patient-elbow-range-excludes-extension-endpoint:L_Forearm:35..75"
+      ]
+    },
+    {
+      "tMs": 1800,
+      "maximumLocalRotation": {
+        "key": "R_Forearm",
+        "differenceDeg": 0.2680804538504692
+      },
+      "maximumBoneOriginDifferenceMm": 0.057311654932225474,
+      "maximumSkinDifferenceMm": 0.14662180677129608,
+      "maximumHandSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.02802506576984831
+      },
+      "maximumPalmSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.023574350393945495
+      },
+      "expectedHandSkinFloorMinimumMm": {
+        "L": -0.07380760978341339,
+        "R": -0.06660918755672929
+      },
+      "actualHandSkinFloorMinimumMm": {
+        "L": -0.07380760978341339,
+        "R": -0.06677686850556364
+      },
+      "expectedPalmSkinFloorMinimumMm": {
+        "L": -0.07380760978341339,
+        "R": -0.06660918755672929
+      },
+      "actualPalmSkinFloorMinimumMm": {
+        "L": -0.07380760978341339,
+        "R": -0.06677686850556364
+      },
+      "rootDifferenceM": 0,
+      "measuredPatientFields": [
+        {
+          "joint": "L_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 72.77658913666893,
+          "actualDegrees": 72.77658913666893,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000029116,
+          "actualDegrees": -35.00000000029116,
+          "strictMaximumOverageDegrees": 2.9115909683241625e-10
+        },
+        {
+          "joint": "L_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": 1.988108474483044e-15,
+          "actualDegrees": 1.988108474483044e-15,
+          "strictMaximumOverageDegrees": 1.988108474483044e-15
+        },
+        {
+          "joint": "R_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 74.26702053743442,
+          "actualDegrees": 74.27356399918824,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "R_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000026806,
+          "actualDegrees": -35.00000000026806,
+          "strictMaximumOverageDegrees": 2.680593524928554e-10
+        },
+        {
+          "joint": "R_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": 0,
+          "actualDegrees": 0,
+          "strictMaximumOverageDegrees": 0
+        }
+      ],
+      "patientViolationsAtExistingPointZeroFiveDegreeTolerance": [],
+      "lowerSupportFeasible": false,
+      "endpointReached": false,
+      "unsupportedReasons": [
+        "L leg support is restricted by patient range",
+        "R leg support is restricted by patient range",
+        "L_thighCalf support residual",
+        "R_thighCalf support residual",
+        "L_toes support residual",
+        "R_toes support residual",
+        "L_leg below pelvis support",
+        "R_leg below pelvis support",
+        "patient-elbow-range-excludes-extension-endpoint:L_Forearm:35..75"
+      ]
+    },
+    {
+      "tMs": 2500,
+      "maximumLocalRotation": {
+        "key": "R_UpperArm",
+        "differenceDeg": 0.0016083128614309869
+      },
+      "maximumBoneOriginDifferenceMm": 0.003368243846748302,
+      "maximumSkinDifferenceMm": 0.003942280558288314,
+      "maximumHandSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.00033565972903290076
+      },
+      "maximumPalmSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.00029899263112449244
+      },
+      "expectedHandSkinFloorMinimumMm": {
+        "L": -0.29356685119119597,
+        "R": -0.7567752367489966
+      },
+      "actualHandSkinFloorMinimumMm": {
+        "L": -0.29356685119119597,
+        "R": -0.7567909427064201
+      },
+      "expectedPalmSkinFloorMinimumMm": {
+        "L": -0.29356685119119597,
+        "R": -0.7567752367489966
+      },
+      "actualPalmSkinFloorMinimumMm": {
+        "L": -0.29356685119119597,
+        "R": -0.7567909427064201
+      },
+      "rootDifferenceM": 0,
+      "measuredPatientFields": [
+        {
+          "joint": "L_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 49.0347991717366,
+          "actualDegrees": 49.0347991717366,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000026201,
+          "actualDegrees": -35.00000000026201,
+          "strictMaximumOverageDegrees": 2.6201263381153694e-10
+        },
+        {
+          "joint": "L_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": 1.3926179960380643e-15,
+          "actualDegrees": 1.3926179960380643e-15,
+          "strictMaximumOverageDegrees": 1.3926179960380643e-15
+        },
+        {
+          "joint": "R_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 50.69109701337431,
+          "actualDegrees": 50.69109949886964,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "R_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.000000000259355,
+          "actualDegrees": -35.000000000259355,
+          "strictMaximumOverageDegrees": 2.5935520397979417e-10
+        },
+        {
+          "joint": "R_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": -2.3865666770080654e-15,
+          "actualDegrees": -2.3865666770080654e-15,
+          "strictMaximumOverageDegrees": 2.3865666770080654e-15
+        }
+      ],
+      "patientViolationsAtExistingPointZeroFiveDegreeTolerance": [],
+      "lowerSupportFeasible": false,
+      "endpointReached": false,
+      "unsupportedReasons": [
+        "L leg support is restricted by patient range",
+        "R leg support is restricted by patient range",
+        "L_thighCalf support residual",
+        "R_thighCalf support residual",
+        "L_toes support residual",
+        "R_toes support residual",
+        "L_leg below pelvis support",
+        "R_leg below pelvis support",
+        "patient-elbow-range-excludes-extension-endpoint:L_Forearm:35..75"
+      ]
+    },
+    {
+      "tMs": 4100,
+      "maximumLocalRotation": {
+        "key": "R_UpperArm",
+        "differenceDeg": 0.0007165353503100645
+      },
+      "maximumBoneOriginDifferenceMm": 0.0013545891209754035,
+      "maximumSkinDifferenceMm": 0.0015925112547645441,
+      "maximumHandSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.0001376206755187501
+      },
+      "maximumPalmSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.0001228002738770027
+      },
+      "expectedHandSkinFloorMinimumMm": {
+        "L": -0.24723919553326645,
+        "R": -0.7451585752167311
+      },
+      "actualHandSkinFloorMinimumMm": {
+        "L": -0.24723919553326645,
+        "R": -0.7451636796553807
+      },
+      "expectedPalmSkinFloorMinimumMm": {
+        "L": -0.24723919553326645,
+        "R": -0.7451585752167311
+      },
+      "actualPalmSkinFloorMinimumMm": {
+        "L": -0.24723919553326645,
+        "R": -0.7451636796553807
+      },
+      "rootDifferenceM": 0,
+      "measuredPatientFields": [
+        {
+          "joint": "L_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 49.16534579002022,
+          "actualDegrees": 49.16534579002022,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000026113,
+          "actualDegrees": -35.00000000026113,
+          "strictMaximumOverageDegrees": 2.611315608191944e-10
+        },
+        {
+          "joint": "L_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": 1.3926179960380643e-15,
+          "actualDegrees": 1.3926179960380643e-15,
+          "strictMaximumOverageDegrees": 1.3926179960380643e-15
+        },
+        {
+          "joint": "R_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 50.82768695203219,
+          "actualDegrees": 50.82769777446942,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "R_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000025958,
+          "actualDegrees": -35.00000000025957,
+          "strictMaximumOverageDegrees": 2.595825776552374e-10
+        },
+        {
+          "joint": "R_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": -2.3865666770080654e-15,
+          "actualDegrees": -2.3865666770080654e-15,
+          "strictMaximumOverageDegrees": 2.3865666770080654e-15
+        }
+      ],
+      "patientViolationsAtExistingPointZeroFiveDegreeTolerance": [],
+      "lowerSupportFeasible": false,
+      "endpointReached": false,
+      "unsupportedReasons": [
+        "L leg support is restricted by patient range",
+        "R leg support is restricted by patient range",
+        "L_thighCalf support residual",
+        "R_thighCalf support residual",
+        "L_toes support residual",
+        "R_toes support residual",
+        "L_leg below pelvis support",
+        "R_leg below pelvis support",
+        "patient-elbow-range-excludes-extension-endpoint:L_Forearm:35..75"
+      ]
+    },
+    {
+      "tMs": 4800,
+      "maximumLocalRotation": {
+        "key": "R_UpperArm",
+        "differenceDeg": 0.043606345411683234
+      },
+      "maximumBoneOriginDifferenceMm": 0.1332236403918441,
+      "maximumSkinDifferenceMm": 0.14514855903777943,
+      "maximumHandSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.01787349266894045
+      },
+      "maximumPalmSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.010892104819042153
+      },
+      "expectedHandSkinFloorMinimumMm": {
+        "L": -0.22769906708054732,
+        "R": -0.9414933494402838
+      },
+      "actualHandSkinFloorMinimumMm": {
+        "L": -0.22769906708054732,
+        "R": -0.9482540838215009
+      },
+      "expectedPalmSkinFloorMinimumMm": {
+        "L": -0.22769906708054732,
+        "R": -0.9414933494402838
+      },
+      "actualPalmSkinFloorMinimumMm": {
+        "L": -0.22769906708054732,
+        "R": -0.9482540838215009
+      },
+      "rootDifferenceM": 0,
+      "measuredPatientFields": [
+        {
+          "joint": "L_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 74.99999999555955,
+          "actualDegrees": 74.99999999555955,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000027253,
+          "actualDegrees": -35.00000000027253,
+          "strictMaximumOverageDegrees": 2.7252866630078643e-10
+        },
+        {
+          "joint": "L_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": 2.386652410217823e-15,
+          "actualDegrees": 2.386652410217823e-15,
+          "strictMaximumOverageDegrees": 2.386652410217823e-15
+        },
+        {
+          "joint": "R_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 75,
+          "actualDegrees": 75,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "R_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000025885,
+          "actualDegrees": -35.00000000025885,
+          "strictMaximumOverageDegrees": 2.588507186374045e-10
+        },
+        {
+          "joint": "R_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": -1.3926724468379553e-15,
+          "actualDegrees": -1.3926724468379553e-15,
+          "strictMaximumOverageDegrees": 1.3926724468379553e-15
+        }
+      ],
+      "patientViolationsAtExistingPointZeroFiveDegreeTolerance": [],
+      "lowerSupportFeasible": false,
+      "endpointReached": false,
+      "unsupportedReasons": [
+        "L leg support is restricted by patient range",
+        "R leg support is restricted by patient range",
+        "L_thighCalf support residual",
+        "R_thighCalf support residual",
+        "L_toes support residual",
+        "R_toes support residual",
+        "L_leg below pelvis support",
+        "R_leg below pelvis support",
+        "patient-elbow-range-excludes-extension-endpoint:L_Forearm:35..75"
+      ]
+    },
+    {
+      "tMs": 5400,
+      "maximumLocalRotation": {
+        "key": "L_Index2",
+        "differenceDeg": 0.0000029575586669421963
+      },
+      "maximumBoneOriginDifferenceMm": 0.0000017808509058550502,
+      "maximumSkinDifferenceMm": 0.0000019920763759797964,
+      "maximumHandSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.0000017821604108411097
+      },
+      "maximumPalmSkinDifferenceMm": {
+        "L": 0,
+        "R": 0.0000017909738562592877
+      },
+      "expectedHandSkinFloorMinimumMm": {
+        "L": -176.2337547952275,
+        "R": -180.6418193352015
+      },
+      "actualHandSkinFloorMinimumMm": {
+        "L": -176.2337547952275,
+        "R": -180.6418189225136
+      },
+      "expectedPalmSkinFloorMinimumMm": {
+        "L": -175.21349010970087,
+        "R": -176.31307389307275
+      },
+      "actualPalmSkinFloorMinimumMm": {
+        "L": -175.21349010970087,
+        "R": -176.31307375500242
+      },
+      "rootDifferenceM": 0,
+      "measuredPatientFields": [
+        {
+          "joint": "L_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 75,
+          "actualDegrees": 75,
+          "strictMaximumOverageDegrees": 0
+        },
+        {
+          "joint": "L_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.000000000287436,
+          "actualDegrees": -35.000000000287436,
+          "strictMaximumOverageDegrees": 2.8743585289703333e-10
+        },
+        {
+          "joint": "L_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": -9.940158158579232e-16,
+          "actualDegrees": -9.940158158579232e-16,
+          "strictMaximumOverageDegrees": 9.940158158579232e-16
+        },
+        {
+          "joint": "R_Forearm",
+          "field": "elbowFlexion",
+          "rangeDegrees": {
+            "min": 35,
+            "max": 75
+          },
+          "expectedDegrees": 75.00000000000001,
+          "actualDegrees": 75,
+          "strictMaximumOverageDegrees": 1.4210854715202004e-14
+        },
+        {
+          "joint": "R_Hand",
+          "field": "wristFlexion",
+          "rangeDegrees": {
+            "min": -35,
+            "max": 35
+          },
+          "expectedDegrees": -35.00000000026845,
+          "actualDegrees": -35.00000000026846,
+          "strictMaximumOverageDegrees": 2.6845725642488105e-10
+        },
+        {
+          "joint": "R_Leg",
+          "field": "kneeFlexion",
+          "rangeDegrees": {
+            "min": 0,
+            "max": 0
+          },
+          "expectedDegrees": -5.964255491193846e-16,
+          "actualDegrees": -5.964255491193846e-16,
+          "strictMaximumOverageDegrees": 5.964255491193846e-16
+        }
+      ],
+      "patientViolationsAtExistingPointZeroFiveDegreeTolerance": [],
+      "lowerSupportFeasible": false,
+      "endpointReached": false,
+      "unsupportedReasons": [
+        "L leg support is restricted by patient range",
+        "R leg support is restricted by patient range",
+        "L_thighCalf support residual",
+        "R_thighCalf support residual",
+        "L_toes support residual",
+        "R_toes support residual",
+        "L_leg below pelvis support",
+        "R_leg below pelvis support",
+        "patient-elbow-range-excludes-extension-endpoint:L_Forearm:35..75"
+      ]
+    }
+  ],
+  "findings": [
+    "At 1800 ms the local forearm rotation difference is 0.26808 degrees, while maximum actual skin displacement is 0.146622 mm and right hand skin displacement is 0.028025 mm.",
+    "At 4800 ms the maximum tracked/bone origin difference is 0.133224 mm, above the existing 0.1 mm parity criterion; maximum skin displacement is 0.145149 mm. This remains a recorded failure.",
+    "All six explicit patient fields remain within the existing 0.05-degree checking tolerance; strict numerical overages are separately recorded.",
+    "Absolute support is invalid in both paths: setup/return right hand skin is about 180.64 mm below world-zero, and lower support is explicitly infeasible throughout. Tiny between-path displacement does not validate that patient motion.",
+    "No new solver experiment or visible default-motion change follows this report."
+  ],
+  "rejectedInitialPriorExperiment": {
+    "promoted": false,
+    "policyChange": "Supply the initial projected arm pose as a posture prior to formerly no-prior solves on the guarded calculation graph.",
+    "experimentalSolverSha256": "54fa148ba4abb6363e65a612ebab55009085d385f0c088828e6603228b04ec1a",
+    "browserMatrix": {
+      "path": "remaining-batches/pressup-initial-prior-host-matrix-1/results.json",
+      "sha256": "386a816b42cbf72b50b7cf90d662c2b1e2b1c4175872f49e80e6390807f67a05",
+      "runtimeStable": true,
+      "passed": 9,
+      "total": 9,
+      "scope": "simMOVE only, all three bodies and default/feasible/severe patient scenarios; process-local module override."
+    },
+    "defaultComparison": {
+      "path": "remaining-batches/pressup-initial-prior-default-change-1.json",
+      "sha256": "771b6c75f254bd4b222e256f20a5aba7f96bfc39883191e35cde6b55c5414d86",
+      "sourceStable": true,
+      "cases": [
+        {
+          "variant": "male",
+          "maximumLocalRotation": {
+            "radians": 0.47609191491226177,
+            "degrees": 27.2780573847741,
+            "key": "L_UpperArm",
+            "tMs": 0
+          },
+          "maximumWorldTrackDifferenceMm": 46.8072556346598,
+          "positionWitness": {
+            "meters": 0.0468072556346598,
+            "key": "L_UpperArm",
+            "tMs": 0
+          }
+        },
+        {
+          "variant": "female",
+          "maximumLocalRotation": {
+            "radians": 0.26768491337899014,
+            "degrees": 15.337215775941159,
+            "key": "L_Shoulder",
+            "tMs": 2500
+          },
+          "maximumWorldTrackDifferenceMm": 45.29128953776353,
+          "positionWitness": {
+            "meters": 0.045291289537763534,
+            "key": "L_Forearm",
+            "tMs": 0
+          }
+        },
+        {
+          "variant": "neutral",
+          "maximumLocalRotation": {
+            "radians": 0.36484756797613155,
+            "degrees": 20.90422581064475,
+            "key": "L_UpperArm",
+            "tMs": 0
+          },
+          "maximumWorldTrackDifferenceMm": 30.611635362253484,
+          "positionWitness": {
+            "meters": 0.030611635362253482,
+            "key": "L_UpperArm",
+            "tMs": 0
+          }
+        }
+      ]
+    },
+    "rejectionReason": "Default local rotations move 15–27 degrees and body landmarks 31–47 mm. The user requested the approved appearance remain stable."
+  },
+  "artifacts": [
+    {
+      "path": "remaining-batches/pressup-clinical-cone-host-geometry-1/results.json",
+      "sha256": "88d7a4a431f6e49abff2ebd3184f3b07a7e5fa4f0660217804031d83b198519f"
+    },
+    {
+      "path": "remaining-batches/pressup-clinical-cone-patient-geometry-2.json",
+      "sha256": "9970c5053a17bc20b8b487e5f8bf983a730d3e65cb23d2bb2eb1d30e342c5c71"
+    }
+  ]
+}

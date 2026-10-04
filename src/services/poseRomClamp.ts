@@ -28,6 +28,9 @@ import {
   decomposeBodyDelta,
   deltaFromRest,
   isFingerJointKey,
+  localAxisTowardBodyLeft,
+  measureHingeFlexion,
+  measureHingeFlexionFromCurrentMatrices,
   type JointAngleRestReference,
 } from './jointAngles';
 import { effectiveRomRange, getRomFieldDefinition, type RomRangeDeg, type ThighSwing } from './romRegistry';
@@ -119,6 +122,8 @@ interface HingeStrategy {
   kind: 'hinge';
   /** ROM field-key for the hinge's primary DOF. */
   flexionField: string;
+  /** Registry deviation field, measured with the readout's side convention. */
+  abductionField: string;
   /** Off-axis swing tolerance (medial-lateral wobble). Real elbows / knees
    *  have a small carrying angle and slight valgus/varus play, so a hard
    *  zero-lock looks robotic. */
@@ -266,6 +271,7 @@ const STRATEGIES: Record<string, ClampStrategy> = {
   L_Forearm: {
     kind: 'hinge',
     flexionField: 'elbowFlexion',
+    abductionField: 'elbowDeviation',
     abductionRange: { min: -10, max: 10 },
     rotationRange: { min: -45, max: 45 },
     flexionSign: 1,
@@ -273,6 +279,7 @@ const STRATEGIES: Record<string, ClampStrategy> = {
   R_Forearm: {
     kind: 'hinge',
     flexionField: 'elbowFlexion',
+    abductionField: 'elbowDeviation',
     abductionRange: { min: -10, max: 10 },
     rotationRange: { min: -45, max: 45 },
     flexionSign: 1,
@@ -280,6 +287,7 @@ const STRATEGIES: Record<string, ClampStrategy> = {
   L_Leg: {
     kind: 'hinge',
     flexionField: 'kneeFlexion',
+    abductionField: 'kneeDeviation',
     abductionRange: { min: -5, max: 5 },
     rotationRange: { min: -15, max: 15 },
     flexionSign: -1,
@@ -287,6 +295,7 @@ const STRATEGIES: Record<string, ClampStrategy> = {
   R_Leg: {
     kind: 'hinge',
     flexionField: 'kneeFlexion',
+    abductionField: 'kneeDeviation',
     abductionRange: { min: -5, max: 5 },
     rotationRange: { min: -15, max: 15 },
     flexionSign: -1,
@@ -444,7 +453,16 @@ export function clampBoneToRom(
    *  global calibration-mode preference (which may be shared by other stages). */
   force = false,
   /** Closed-chain support uses the same normative band as planted commands. */
-  context: { weightBearing?: boolean } = {},
+  context: {
+    weightBearing?: boolean;
+    /** Numerical contact solvers need continuous bound projection. The ordinary
+     * interactive clamp retains its small reconstruction dead band. */
+    continuousProjection?: boolean;
+    /** Reviewed contact paths intersect engineering hinge play with clinical
+     * deviation. Generic manipulation retains its historical play unless an
+     * explicit patient deviation range is present. */
+    clinicalHingeDeviation?: boolean;
+  } = {},
 ): boolean {
   if (!bone || !canonicalKey || !rest) return false;
   if (!force && !isClampActive()) return false;
@@ -460,13 +478,13 @@ export function clampBoneToRom(
   try {
     switch (strategy.kind) {
       case 'pelvis':
-        return clampPelvis(bone, canonicalKey, strategy, rest);
+        return clampPelvis(bone, canonicalKey, strategy, rest, context.continuousProjection);
       case 'body-euler':
-        return clampBodyEuler(bone, canonicalKey, strategy, rest, context.weightBearing);
+        return clampBodyEuler(bone, canonicalKey, strategy, rest, context.weightBearing, context.continuousProjection);
       case 'ball-joint':
         if (!/^[LR]_UpperArm$/.test(canonicalKey)
           || !shoulderProxyCapacity(constraints, canonicalKey[0] as 'L' | 'R').enforced)
-          return clampBallJoint(bone, canonicalKey, strategy, rest);
+          return clampBallJoint(bone, canonicalKey, strategy, rest, context.continuousProjection);
         {
           const before = bone.quaternion.clone();
           const { budgetDeg } = shoulderProxyCapacity(constraints, canonicalKey[0] as 'L' | 'R');
@@ -474,16 +492,16 @@ export function clampBoneToRom(
           // has final priority if their intersection is empty; the inspector
           // then reports the unresolved capacity excess instead of compliance.
           for (let pass = 0; pass < 16; pass++) {
-            clampBallJoint(bone, canonicalKey, strategy, rest);
+            clampBallJoint(bone, canonicalKey, strategy, rest, context.continuousProjection);
             const projected = projectShoulderProxyLocal(bone.quaternion, canonicalKey, rest, budgetDeg);
             if (!projected || projected.angleTo(bone.quaternion) < 1e-8) break;
             bone.quaternion.copy(projected); bone.updateMatrixWorld(true);
           }
-          clampBallJoint(bone, canonicalKey, strategy, rest);
+          clampBallJoint(bone, canonicalKey, strategy, rest, context.continuousProjection);
           return before.angleTo(bone.quaternion) > 1e-8;
         }
       case 'hinge':
-        return clampHinge(bone, canonicalKey, strategy, rest);
+        return clampHinge(bone, canonicalKey, strategy, rest, context.continuousProjection, context.clinicalHingeDeviation);
     }
   } finally {
     _clampConstraints = null;
@@ -521,6 +539,189 @@ export function hasClampStrategy(canonicalKey: string | null | undefined): boole
  *  changes kind cannot leave a stale copy of that fact behind. */
 export function isHingeJoint(canonicalKey: string | null | undefined): boolean {
   return !!canonicalKey && STRATEGIES[canonicalKey]?.kind === 'hinge';
+}
+
+/** Opt-in contact-solver projection in the chart's actual hinge units. The
+ * legacy local swing clamp includes the rig's small rest bend differently
+ * from geometric flexion. An explicit patient limit must constrain the
+ * geometric readout, including when a contact target cannot be reached.
+ * No explicit hinge range means exact identity for existing motion. */
+export function clampMeasuredPatientHinge(
+  parent: THREE.Bone,
+  bone: THREE.Bone,
+  canonicalKey: string,
+  rest: JointAngleRestReference,
+  constraints?: RomScenarioConstraints | null,
+  /** Keep numerical contact projection continuous at the explicit patient
+   * boundary; ordinary interactive callers retain their reconstruction band. */
+  context: { continuousProjection?: boolean } = {},
+): boolean {
+  const strategy = STRATEGIES[canonicalKey];
+  if (!strategy || strategy.kind !== 'hinge'
+    || !getRomFieldConstraint(constraints, canonicalKey, strategy.flexionField)?.availableRange) return false;
+  return clampMeasuredHingeToRom(parent, bone, canonicalKey, rest, constraints, context);
+}
+
+/** Explicit contact projection in the geometric units displayed by the chart.
+ * Apply the registry range intersected with any patient range. The local swing
+ * clamp alone can leave an elbow beyond 150 degrees because its rest-relative
+ * decomposition omits the rig's small anatomical bend. Interactive and legacy
+ * patient-only callers retain their existing projection policy. */
+export function clampMeasuredHingeToRom(
+  parent: THREE.Bone,
+  bone: THREE.Bone,
+  canonicalKey: string,
+  rest: JointAngleRestReference,
+  constraints?: RomScenarioConstraints | null,
+  context: { continuousProjection?: boolean } = {},
+): boolean {
+  const strategy = STRATEGIES[canonicalKey];
+  if (!strategy || strategy.kind !== 'hinge') return false;
+  const range = getEffectiveRomRange(constraints, canonicalKey, strategy.flexionField);
+  if (!range || !bone.parent) return false;
+  // Float32 authored/rest rotations can be slightly nonunit. Measuring before
+  // normalizing, then normalizing only after the correction, changes the angle
+  // being corrected. The numerical path projects onto a unit rotation first.
+  const normalized = !!context.continuousProjection && bone.quaternion.length() !== 1;
+  if (normalized) bone.quaternion.normalize();
+  parent.updateWorldMatrix(true, true);
+  const measured = measureHingeFlexion(parent, bone, canonicalKey, rest);
+  if (measured == null) return normalized;
+  const target = Math.max(range.min, Math.min(range.max, measured));
+  if (context.continuousProjection ? target === measured : Math.abs(target - measured) < 1e-7) return normalized;
+  const storedAxis = rest.hingeAxes?.[canonicalKey];
+  const axis = storedAxis ? new THREE.Vector3().fromArray(storedAxis) : localAxisTowardBodyLeft(rest.worldQuats[canonicalKey]);
+  if (!storedAxis && rest.localQuats[canonicalKey]) axis.applyQuaternion(new THREE.Quaternion().fromArray(rest.localQuats[canonicalKey]));
+  // The readout axis belongs to the anatomical parent, which may be above
+  // helper bones. Express that same world axis in this bone's direct parent.
+  axis.applyQuaternion(parent.getWorldQuaternion(new THREE.Quaternion()))
+    .applyQuaternion(bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize();
+  const sign = canonicalKey.endsWith('_Forearm') ? -1 : 1;
+  bone.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, (target - measured) * sign * RAD)).normalize();
+  bone.updateWorldMatrix(false, true);
+  return true;
+}
+
+/** Contact-only hinge projection with one owner for each measured channel.
+ * Geometric flexion is solved in the chart's units. Local deviation and twist
+ * retain the existing bounds, and stay fixed throughout that scalar solve.
+ * Do not precede/follow this with the legacy local-flexion projector: its
+ * rest-relative flexion coordinate differs from the geometric one.
+ */
+export function clampContactHingeToRom(
+  parent: THREE.Bone,
+  bone: THREE.Bone,
+  canonicalKey: string,
+  rest: JointAngleRestReference,
+  constraints?: RomScenarioConstraints | null,
+  context?: { currentMatrixReadback?: boolean },
+): boolean {
+  const strategy = STRATEGIES[canonicalKey], restLocal = rest.localQuats[canonicalKey];
+  if (!strategy || strategy.kind !== 'hinge' || !restLocal || !bone.parent) return false;
+  const range = getEffectiveRomRange(constraints, canonicalKey, strategy.flexionField);
+  if (!range) return false;
+  const original = bone.quaternion.clone();
+  bone.quaternion.normalize();
+  parent.updateWorldMatrix(true, true);
+  // The private standard contact graph can read these freshly updated matrices
+  // directly. Custom/live graphs keep their original world accessor behavior.
+  const measure = context?.currentMatrixReadback ? measureHingeFlexionFromCurrentMatrices : measureHingeFlexion;
+  const geometric = measure(parent, bone, canonicalKey, rest);
+  if (geometric == null) { bone.quaternion.copy(original); return false; }
+  deltaFromRest(bone.quaternion, restLocal, _qDelta);
+  const mirror = canonicalKey.startsWith('R_');
+  const local = ballJointAngles(_qDelta, REST_DOWN_LOCAL, mirror);
+  const deviation = clampValue(local.abduction, hingeDeviationRange(canonicalKey, strategy, constraints));
+  const rotation = clampValue(local.rotation, strategy.rotationRange);
+  const target = clampValue(geometric, range);
+  if (deviation === local.abduction && rotation === local.rotation && target === geometric)
+    return !original.equals(bone.quaternion);
+
+  // The readout uses the captured Float32 rest quaternion without normalizing
+  // it. Invert its exact swing-direction calculation, while keeping the posed
+  // bone unit length. If n=|rest|², Vector3.applyQuaternion(n^.5 * swing) gives
+  // (1-n)*down + n*rotatedDown. Solve its magnitude along the requested chart
+  // direction before constructing a unit swing. This avoids repeatedly walking
+  // off a deviation bound merely because the reference is slightly nonunit.
+  const restNormSq = restLocal.reduce((sum, value) => sum + value * value, 0);
+  if (!(restNormSq > 0) || !Number.isFinite(restNormSq)) { bone.quaternion.copy(original); return false; }
+  const restUnit = new THREE.Quaternion().fromArray(restLocal).normalize();
+  const offset = 1 - restNormSq;
+  const abd = (mirror ? -deviation : deviation) * RAD;
+  const twist = (mirror ? -rotation : rotation) * RAD;
+  const evaluate = (flexion: number): number | null => {
+    const flex = flexion * strategy.flexionSign * RAD;
+    _vSwung.set(Math.sin(abd), -Math.cos(flex) * Math.cos(abd), -Math.sin(flex) * Math.cos(abd));
+    const dot = -_vSwung.y;
+    const discriminant = restNormSq * restNormSq - offset * offset * (1 - dot * dot);
+    if (discriminant < 0) return null;
+    const magnitude = offset * dot + Math.sqrt(discriminant);
+    _vSwung.multiplyScalar(magnitude).addScaledVector(REST_DOWN_LOCAL, -offset).divideScalar(restNormSq).normalize();
+    _qSwing.setFromUnitVectors(REST_DOWN_LOCAL, _vSwung);
+    _qTwist.setFromAxisAngle(REST_DOWN_LOCAL, twist);
+    bone.quaternion.copy(_qSwing).multiply(_qTwist).multiply(restUnit).normalize();
+    bone.updateWorldMatrix(false, true);
+    const measured = measure(parent, bone, canonicalKey, rest);
+    return measured == null ? null : measured - target;
+  };
+  // Only one scalar remains. A secant solve starts with the anatomical
+  // near-unit slope and then uses measured slopes; it never alternates two
+  // incompatible flexion projectors or changes an off-axis target.
+  let value = local.flexion * strategy.flexionSign;
+  let error = evaluate(value);
+  if (error == null || !Number.isFinite(error)) { bone.quaternion.copy(original); bone.updateWorldMatrix(false, true); return false; }
+  let bestError = Math.abs(error), best = bone.quaternion.clone();
+  let previousValue = value, previousError = error;
+  for (let iteration = 0; iteration < 8 && error !== 0; iteration++) {
+    const slope = iteration && value !== previousValue ? (error - previousError) / (value - previousValue) : 1;
+    if (!Number.isFinite(slope) || Math.abs(slope) < 1e-12) break;
+    const nextValue = value - error / slope;
+    if (nextValue === value) break;
+    const nextError = evaluate(nextValue);
+    if (nextError == null || !Number.isFinite(nextError)) break;
+    if (Math.abs(nextError) < bestError) { bestError = Math.abs(nextError); best.copy(bone.quaternion); }
+    previousValue = value; previousError = error; value = nextValue; error = nextError;
+  }
+  bone.quaternion.copy(best); bone.updateWorldMatrix(false, true);
+  return !original.equals(bone.quaternion);
+}
+
+/** Project an explicit patient hip-flexion limit in the same parent-local
+ * swing/twist frame as computeJointAngles. Command-space hip composition can
+ * differ slightly from this readout on the bound rig. Preserve measured
+ * abduction and rotation; unrestricted and already-valid poses remain exact. */
+export function clampMeasuredPatientHip(
+  bone: THREE.Bone,
+  canonicalKey: string,
+  rest: JointAngleRestReference,
+  constraints?: RomScenarioConstraints | null,
+): boolean {
+  if (!/^[LR]_UpLeg$/.test(canonicalKey)
+    || !getRomFieldConstraint(constraints, canonicalKey, 'hipFlexion')?.availableRange) return false;
+  const restLocal = rest.localQuats[canonicalKey];
+  const range = getEffectiveRomRange(constraints, canonicalKey, 'hipFlexion');
+  if (!restLocal || !range) return false;
+  deltaFromRest(bone.quaternion, restLocal, _qDelta);
+  const mirror = canonicalKey.startsWith('R_');
+  const measured = ballJointAngles(_qDelta, REST_DOWN_LOCAL, mirror);
+  const flexion = -measured.flexion;
+  const target = THREE.MathUtils.clamp(flexion, range.min, range.max);
+  if (Math.abs(target - flexion) < 1e-7) return false;
+  let composedFlexion = -target, composedAbduction = measured.abduction, composedRotation = measured.rotation;
+  // Float32 rest quaternions are not exactly unit. Correct the inverse's tiny
+  // residual using the actual readout, retaining its current frame convention.
+  for (let i = 0; i < 3; i++) {
+    recomposeBallJoint(composedFlexion, composedAbduction, composedRotation, mirror, _qDelta);
+    applyDeltaToLocal(bone, restLocal, _qDelta);
+    deltaFromRest(bone.quaternion, restLocal, _qDelta);
+    const actual = ballJointAngles(_qDelta, REST_DOWN_LOCAL, mirror);
+    const error = [-target - actual.flexion, measured.abduction - actual.abduction,
+      THREE.MathUtils.euclideanModulo(measured.rotation - actual.rotation + 180, 360) - 180];
+    if (Math.max(...error.map(Math.abs)) < 1e-9) break;
+    composedFlexion += error[0]!; composedAbduction += error[1]!; composedRotation += error[2]!;
+  }
+  bone.updateWorldMatrix(false, true);
+  return true;
 }
 
 /** The off-axis tolerances a hinge allows, in degrees, or null if the key is
@@ -569,6 +770,7 @@ function clampBodyEuler(
   strategy: BodyEulerStrategy,
   rest: JointAngleRestReference,
   weightBearing = false,
+  continuousProjection = false,
 ): boolean {
   const restArr = rest.localQuats[canonicalKey];
   deltaFromRest(bone.quaternion, restArr, _qDelta);
@@ -606,9 +808,9 @@ function clampBodyEuler(
   const clampedRot = clampValue(angles.rotation, rotRange);
 
   if (
-    approxEqual(clampedFlex, clinFlex) &&
-    approxEqual(clampedAbd, clinAbd) &&
-    approxEqual(clampedRot, angles.rotation)
+    approxEqual(clampedFlex, clinFlex, continuousProjection) &&
+    approxEqual(clampedAbd, clinAbd, continuousProjection) &&
+    approxEqual(clampedRot, angles.rotation, continuousProjection)
   ) {
     return false;
   }
@@ -648,6 +850,7 @@ function clampBallJoint(
   canonicalKey: string,
   strategy: BallJointStrategy,
   rest: JointAngleRestReference,
+  continuousProjection = false,
 ): boolean {
   const restWorldArr = rest.worldQuats[canonicalKey];
   if (!restWorldArr) return false;
@@ -678,9 +881,9 @@ function clampBallJoint(
   const clampedRot = clampValue(anatomicRotation, rotRange);
 
   if (
-    approxEqual(clampedAnatomicFlex, anatomicFlex) &&
-    approxEqual(clampedAbd, angles.abduction) &&
-    approxEqual(clampedRot, anatomicRotation)
+    approxEqual(clampedAnatomicFlex, anatomicFlex, continuousProjection) &&
+    approxEqual(clampedAbd, angles.abduction, continuousProjection) &&
+    approxEqual(clampedRot, anatomicRotation, continuousProjection)
   ) {
     return false;
   }
@@ -691,11 +894,35 @@ function clampBallJoint(
   return true;
 }
 
+/** Preserve engineering play wherever it intersects actual clinical ROM.
+ * An explicit patient minimum can exclude that play entirely. In that case
+ * the nearest patient-valid endpoint wins; inspection exposes the remaining
+ * engineering excess instead of posing outside the patient's available ROM. */
+function hingeDeviationRange(canonicalKey: string, strategy: HingeStrategy,
+  constraints?: RomScenarioConstraints | null): RomRangeDeg {
+  const clinical = getEffectiveRomRange(constraints, canonicalKey, strategy.abductionField);
+  if (!clinical) return strategy.abductionRange;
+  return {
+    min: clampValue(strategy.abductionRange.min, clinical),
+    max: clampValue(strategy.abductionRange.max, clinical),
+  };
+}
+
+/** Generic reach historically permits symmetric engineering play. Keep that
+ * policy local to generic manipulation until its full catalogue is reviewed;
+ * contact projection and explicit patient deviation always use clinical units. */
+function usesClinicalHingeDeviation(canonicalKey: string, strategy: HingeStrategy,
+  constraints?: RomScenarioConstraints | null, requested = false): boolean {
+  return requested || !!getRomFieldConstraint(constraints, canonicalKey, strategy.abductionField)?.availableRange;
+}
+
 function clampHinge(
   bone: THREE.Bone,
   canonicalKey: string,
   strategy: HingeStrategy,
   rest: JointAngleRestReference,
+  continuousProjection = false,
+  clinicalHingeDeviation = false,
 ): boolean {
   // PARENT-LOCAL, not world. A hinge's clinical angle is the angle between the
   // two segments it joins — knee flexion is thigh-to-shin, elbow flexion is
@@ -722,7 +949,9 @@ function clampHinge(
   deltaFromRest(bone.quaternion, restLocalArr, _qDelta);
   // Reuse ball-joint decomposition: flexion = swing toward anterior,
   // abduction + rotation are the constrained off-axis DOFs.
-  const angles = ballJointAngles(_qDelta, REST_DOWN_LOCAL, false);
+  const clinicalDeviation = usesClinicalHingeDeviation(canonicalKey, strategy, _clampConstraints, clinicalHingeDeviation || continuousProjection);
+  const mirror = clinicalDeviation && canonicalKey.startsWith('R_');
+  const angles = ballJointAngles(_qDelta, REST_DOWN_LOCAL, mirror);
 
   // Convert the swing-twist "anterior = positive" reading into the joint's
   // clinical flexion (knee anatomic flex is posterior, so its sign is -1).
@@ -730,19 +959,20 @@ function clampHinge(
 
   const flexRange = lookupRange(canonicalKey, strategy.flexionField);
   const clampedAnatomicFlex = clampValue(anatomicFlex, flexRange);
-  const clampedAbd = clampValue(angles.abduction, strategy.abductionRange);
+  const clampedAbd = clampValue(angles.abduction, clinicalDeviation
+    ? hingeDeviationRange(canonicalKey, strategy, _clampConstraints) : strategy.abductionRange);
   const clampedRot = clampValue(angles.rotation, strategy.rotationRange);
 
   if (
-    approxEqual(clampedAnatomicFlex, anatomicFlex) &&
-    approxEqual(clampedAbd, angles.abduction) &&
-    approxEqual(clampedRot, angles.rotation)
+    approxEqual(clampedAnatomicFlex, anatomicFlex, continuousProjection) &&
+    approxEqual(clampedAbd, angles.abduction, continuousProjection) &&
+    approxEqual(clampedRot, angles.rotation, continuousProjection)
   ) {
     return false;
   }
 
   const flexOut = clampedAnatomicFlex * strategy.flexionSign;
-  recomposeBallJoint(flexOut, clampedAbd, clampedRot, false, _qDelta);
+  recomposeBallJoint(flexOut, clampedAbd, clampedRot, mirror, _qDelta);
   // Write back in the SAME frame it was read in. `deltaFromRest` /
   // `applyDeltaToLocal` are the matched parent-local pair (the body-euler
   // strategies already use them together); pairing either with the world-frame
@@ -757,6 +987,7 @@ function clampPelvis(
   canonicalKey: string,
   strategy: PelvisStrategy,
   rest: JointAngleRestReference,
+  continuousProjection = false,
 ): boolean {
   bone.updateWorldMatrix(true, false);
   bone.getWorldQuaternion(_qBoneWorld);
@@ -772,9 +1003,9 @@ function clampPelvis(
   const clampedRot = clampValue(angles.rotation, rotRange);
 
   if (
-    approxEqual(clampedFlex, angles.flexion) &&
-    approxEqual(clampedAbd, angles.abduction) &&
-    approxEqual(clampedRot, angles.rotation)
+    approxEqual(clampedFlex, angles.flexion, continuousProjection) &&
+    approxEqual(clampedAbd, angles.abduction, continuousProjection) &&
+    approxEqual(clampedRot, angles.rotation, continuousProjection)
   ) {
     return false;
   }
@@ -882,8 +1113,8 @@ function clampValue(value: number, range: RomRangeDeg): number {
   return value;
 }
 
-function approxEqual(a: number, b: number): boolean {
-  return Math.abs(a - b) < EPS;
+function approxEqual(a: number, b: number, continuousProjection = false): boolean {
+  return continuousProjection ? a === b : Math.abs(a - b) < EPS;
 }
 
 /** Set bone.quaternion to (delta · rest), matching the forward convention
@@ -954,6 +1185,12 @@ export interface ClinicalAnglesReport {
   /** Rotation in the command/registry convention, after the production arm's
    * local-axis sign is accounted for. `raw.rotation` stays unmodified. */
   anatomicRotation: number;
+  /** Hinges retain the narrower engineering play when feasible. If a valid
+   * patient minimum excludes it, report this residual separately from ROM. */
+  engineeringResidual?: { abductionDeg: number };
+  /** Which deviation policy the generic inspector is reporting. Clinical
+   * angle values remain mirrored even when the legacy engineering band is used. */
+  hingeDeviationPolicy?: 'clinical' | 'legacy-engineering';
   /** ROM ranges the clamp would apply for each axis (or `null` for an
    *  axis the joint type doesn't expose). */
   ranges: {
@@ -973,6 +1210,7 @@ export function inspectClinicalAngles(
   canonicalKey: string | null | undefined,
   rest: JointAngleRestReference | null | undefined,
   constraints?: RomScenarioConstraints | null,
+  context: { clinicalHingeDeviation?: boolean; continuousProjection?: boolean } = {},
 ): ClinicalAnglesReport | null {
   if (!bone || !canonicalKey || !rest) return null;
   const strategy = STRATEGIES[canonicalKey];
@@ -1039,16 +1277,21 @@ export function inspectClinicalAngles(
     const restLocalArr = rest.localQuats[canonicalKey];
     if (!restLocalArr) return null;
     deltaFromRest(bone.quaternion, restLocalArr, _qDelta);
-    const a = ballJointAngles(_qDelta, REST_DOWN_LOCAL, false);
+    const a = ballJointAngles(_qDelta, REST_DOWN_LOCAL, canonicalKey.startsWith('R_'));
     raw = { flexion: a.flexion, abduction: a.abduction, rotation: a.rotation };
     anatomicFlexion = a.flexion * strategy.flexionSign;
     flexRange = rangeFor(strategy.flexionField);
-    abdRange = strategy.abductionRange;
+    abdRange = usesClinicalHingeDeviation(canonicalKey, strategy, constraints,
+      context.clinicalHingeDeviation || context.continuousProjection)
+      ? hingeDeviationRange(canonicalKey, strategy, constraints) : strategy.abductionRange;
     rotRange = strategy.rotationRange;
   }
 
   const anatomicRotation = raw.rotation * (strategy.kind === 'ball-joint' ? ballRotationSign(canonicalKey, rest) : 1);
-  return { strategy: strategy.kind, raw, anatomicFlexion, anatomicRotation, ranges: { flexion: flexRange, abduction: abdRange, rotation: rotRange } };
+  return { strategy: strategy.kind, raw, anatomicFlexion, anatomicRotation, ranges: { flexion: flexRange, abduction: abdRange, rotation: rotRange },
+    ...(strategy.kind === 'hinge' ? { engineeringResidual: { abductionDeg: Math.max(strategy.abductionRange.min - raw.abduction, raw.abduction - strategy.abductionRange.max, 0) },
+      hingeDeviationPolicy: usesClinicalHingeDeviation(canonicalKey, strategy, constraints,
+        context.clinicalHingeDeviation || context.continuousProjection) ? 'clinical' : 'legacy-engineering' } : {}) };
 }
 
 /** All canonical keys with a clamp strategy, in a stable order. */

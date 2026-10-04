@@ -116,7 +116,13 @@ for (const variant of ['male', 'female', 'neutral'] as const) describe(`${varian
         for (const side of supported) {
           // Engineering orientation envelope, not a claim of flat skin contact.
           expect(normal(side).y, `${motion.name} ${side} at ${f.tMs}`).toBeLessThan(-Math.cos(Math.PI / 6));
-          expect(f.angles[`${side}_Forearm`]!.forearmRotation!).toBeLessThan(-40);
+          if (motion.contacts?.some(contact => contact.holdOrientation)) {
+            // A bounded palm-pose solve distributes orientation across the
+            // girdle, shoulder, forearm and wrist. Check the actual palm plane
+            // more strictly, instead of requiring one joint to supply 40 deg.
+            expect(normal(side).y).toBeLessThan(-.995);
+            expect(Math.abs(f.angles[`${side}_Forearm`]!.forearmRotation!)).toBeLessThanOrEqual(90.01);
+          } else expect(f.angles[`${side}_Forearm`]!.forearmRotation!).toBeLessThan(-40);
         }
       }
     }
