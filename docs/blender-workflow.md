@@ -285,6 +285,11 @@ Generate phase images from any full-motion review (fresh output folder required)
 ```powershell
 & 'C:/Program Files/Blender Foundation/Blender 5.2/blender.exe' --background --factory-startup --python-exit-code 1 --python pose-engine/scripts/blender/render-motion-review.py -- ../blender-workspace/movement-review-new
 ```
+All movement changes must use the [single master catalogue](MASTER-MOVEMENT-JOINT-CATALOGUE.html)
+and satisfy [the enforced catalogue process](movement-catalogue-process.md). Include
+all actual rig bones, the complete head-to-pelvis chain and all applicable bodies,
+sides and phases. Review the entire motion and retain current separate evidence.
+
 
 ## Whole-body physics authoring
 

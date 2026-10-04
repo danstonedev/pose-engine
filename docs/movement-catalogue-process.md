@@ -68,6 +68,13 @@ Historical unchanged motions remain unreviewed; this migration grants no accepta
 
 ## What blocks delivery
 
+The user's 3 October [incremental merge policy](catalogue-progress-policy.md)
+supersedes full qualification as a prerequisite for incremental delivery. The
+gate compares the candidate with the base revision and blocks new or worsened
+issues. Existing gaps remain unqualified. Structural integrity, retained records,
+source freshness and numeric bounds remain enforced. The requirements below
+describe qualification, which is separate from eligibility to merge progress.
+
 The shared engine CI, simLAB CI and both hosts' production build scripts run the
 catalogue gate. It rejects missing files, stale source/rig hashes, newly omitted
 runtime/native input files, incomplete actual skeleton inventories and mismatches between the
@@ -75,8 +82,7 @@ master and the live simLAB registries. Native model/controller inputs, all engin
 are included in freshness checks. Source hashes normalize Windows/Linux line
 endings; binary rig and evidence hashes identify exact bytes.
 
-The default policy requires full qualification for new or changed available
-contexts and for every explicit `$review` claim. Its requirements remain:
+Full qualification for an available context requires:
 
 - A deliberate driven, derived, held, contact, free or not-involved role for every
   actual bone. Derived roles name their owning bone; stabilization and support
@@ -92,7 +98,8 @@ contexts and for every explicit `$review` claim. Its requirements remain:
   cover setup, transitions, hold, return and loop, retain hash-checked artifacts,
   and identify the reviewer and tool version. Blender requires an editable project.
 
-CI resamples reviewed trajectories and compares constraints to fresh measurements;
+CI resamples every retained observed or reviewed trajectory and compares its
+failures against the base using fresh measurements;
 it does not trust a manually edited measured summary. A status dropdown, prose
 evidence reference or successful inventory generation alone cannot pass this gate.
 The sampler measures skeletal motion, not skin clearance or clinical quality.
@@ -112,7 +119,7 @@ An explicit `enforcement.delivery` record may select **authored-playback deliver
 without claiming clinical or native-physics qualification. This is a separate
 release decision; it never changes the frozen adoption baseline, reduces the
 shared-source impact count, closes a defect, or grants reference acceptance.
-The default qualification policy still applies when this record is absent.
+The current incremental merge policy above governs merge eligibility; these records retain the earlier optional authored-delivery evidence format.
 An existing `$review` or defect closure remains subject to every original
 qualification requirement, including current reference and applicable native
 evidence. Delivery cannot downgrade such a claim.

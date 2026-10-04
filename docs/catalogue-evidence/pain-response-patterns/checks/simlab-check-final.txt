@@ -1,0 +1,74 @@
+Loading svelte-check in workspace: c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell
+Getting Svelte diagnostics...
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\Encounter.svelte:105:32
+Warn: This reference only captures the initial value of `seed`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+  // once at mount; later prop changes must not rewrite a live conversation.
+  let history = $state<Turn[]>(seed ? [...seed] : []);
+  let voiceView = $state<Turn[]>([]);
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\Encounter.svelte:105:43
+Warn: This reference only captures the initial value of `seed`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+  // once at mount; later prop changes must not rewrite a live conversation.
+  let history = $state<Turn[]>(seed ? [...seed] : []);
+  let voiceView = $state<Turn[]>([]);
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\EmrChart.svelte:97:7
+Warn: This reference only captures the initial value of `prefill`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+  });
+  if (prefill) {
+    for (const [id, v] of Object.entries(prefill)) {
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\EmrChart.svelte:98:42
+Warn: This reference only captures the initial value of `prefill`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+  if (prefill) {
+    for (const [id, v] of Object.entries(prefill)) {
+      const cur = values[id];
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\EmrChart.svelte:106:24
+Warn: This reference only captures the initial value of `template`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+  let open = $state<Record<string, boolean>>(
+    Object.fromEntries(template.sections.map((s) => [s.id, !s.collapsed])),
+  );
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\lib\ekg\EkgStrip.svelte:174:3
+Warn: `<canvas>` cannot have role 'img'
+https://svelte.dev/e/a11y_no_interactive_element_to_noninteractive_role (svelte)
+  </div>
+  <canvas bind:this={canvas} style:height={`${height}px`} role="img" aria-label={EKG_ARIA_LABEL}></canvas>
+</figure>
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\Reflection.svelte:12:36
+Warn: This reference only captures the initial value of `prompts`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+  let { prompts, busy, onSubmit }: Props = $props();
+  let responses = $state<string[]>(prompts.map(() => ''));
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\lib\ExamChannel.svelte:90:29
+Warn: This reference only captures the initial value of `seed`. Did you mean to reference it inside a closure instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+  // its own history from mount; later prop changes must not rewrite it.
+  let history: Turn[] = [...seed];
+  let input = $state('');
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\MovementObserve.svelte:92:46
+Warn: This reference only captures the initial value of `config`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+  // A minus typed on a full keyboard is still honored (it flips the toggle).
+  let magnitudes = $state<(number | null)[]>(config.targets.map(() => null));
+  let signs = $state<(1 | -1)[]>(config.targets.map(() => 1));
+
+c:\Users\danst\probonoEMR\movement-realism-implementation\pain-response-release\simlab\apps\mission-shell\src\MovementObserve.svelte:93:34
+Warn: This reference only captures the initial value of `config`. Did you mean to reference it inside a derived instead?
+https://svelte.dev/e/state_referenced_locally (svelte)
+  let magnitudes = $state<(number | null)[]>(config.targets.map(() => null));
+  let signs = $state<(1 | -1)[]>(config.targets.map(() => 1));
+  const readings = $derived(
+
+====================================
+svelte-check found 0 errors and 10 warnings in 6 files

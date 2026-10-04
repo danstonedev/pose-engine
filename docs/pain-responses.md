@@ -1,6 +1,7 @@
 # Movement-evoked pain responses
 
 Local implementation, 2 October 2026. This is an authored expression layer;
+Incremental implementation, 2 October 2026. This is an authored expression layer;
 channel weights, intensity bands and timings are animation choices. They are
 not validated conversions between facial activity and a patient's pain score.
 
@@ -188,3 +189,36 @@ trajectory. No previous force result is attached to that changed trajectory.
 Support-specific shifts, rubbing, unloading and neutral facial retargeting
 remain disabled. Full-cycle authored visual/exchange checks do not establish
 clinical acceptance or native dynamics.
+
+## Scoped release candidate
+
+The release candidate was rebuilt from the current main branches of pose-engine,
+simMOVE and simLAB, with only the pain-response implementation and its review
+tools. The retained record is
+`docs/catalogue-evidence/pain-response-patterns/verification.json`. It records
+the source hashes, base revisions, test results, browser checks and limitations.
+Its sibling `editable-blender-review.zip` contains both editable Blender projects;
+extract the archive to open `full-motion-review.blend` or
+`pain-visual-review.blend`. The import and replay reports, render index, ten
+comparison sheets and browser captures are retained alongside it. Historical
+workspace reviews above describe earlier checkpoints, not this release candidate.
+
+The fresh review covers 36 full-cycle hip PROM clips: six patterns, three actual
+production bodies and both sides. It includes setup, onset, peak, hold, recovery
+and return. Numerical replay uses the existing 0.1 mm tolerance and includes
+morph-deformed skin before skinning. Browser and real-rig contact checks cover
+the host presentation separately; the Blender exchange does not contain the
+examiner or plinth.
+
+simMOVE's pain preview imports the exact runtime GLBs directly. Its normal
+public-model optimization quantizes positions, which would prevent the verified
+facial deltas from matching. The normal editor model pipeline remains intact.
+simLAB already imports these production models directly.
+
+The user's 3 October [incremental merge policy](catalogue-progress-policy.md)
+compares qualification issues with the base revision. The same refreshed master
+is retained in the shared engine for both host pins. Historical records and
+numeric bounds are preserved; current samples replace nine observations made
+stale by shared source changes. Existing reference and clinical review gaps remain
+open. The policy request is retained alongside the verification record.
+Clinical qualification and native validation of these responses remain pending.

@@ -1,0 +1,16 @@
+
+> simmove@0.1.0 catalogue:check
+> node pose-engine/scripts/catalogue/run.mjs simmove
+
+Movement regression gate passed: 0 issues improved; 836818 existing qualification issues remain open. Merging grants no movement acceptance.
+
+ RUN  v3.2.7 C:/Users/danst/probonoEMR/movement-realism-implementation/pain-response-release/simmove/pose-engine
+
+ ✓ src/__tests__/movementCatalogue.test.ts (1 test) 9416ms
+   ✓ measures the entire actual rig and rechecks all qualified trajectories  9414ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  13:56:49
+   Duration  11.10s (transform 463ms, setup 0ms, collect 767ms, tests 9.42s, environment 0ms, prepare 98ms)
+

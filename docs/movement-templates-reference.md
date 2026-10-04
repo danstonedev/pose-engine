@@ -2,6 +2,19 @@
 
 # Movement Template Reference — SME Verification Sheet
 
+> Historical authoring and reference provenance. Use the
+> [master movement-joint catalogue](MASTER-MOVEMENT-JOINT-CATALOGUE.html) for
+> current references, defects, work ownership and acceptance; record corrections
+> and clinician reviews there. Original values, citations and review instructions
+> below are retained as provenance. Their validation claims require scoped
+> verification. Reconciliation remains partial; unsigned reviews stay unsigned.
+
+**Purpose.** The composed-motion planner (simMOVE / simLAB) now anchors on a small
+library of clinician-authored reference templates for core clinical movements
+(`pose-engine/src/services/movementTemplates.ts`). Each template encodes the three
+things that make a movement recognizable — **peak joint angles**, **phase timing**,
+and **coordination** — so the language model starts from an authored clinical
+pattern instead of guessing joint angles from scratch.
 ## Reference audit — 3 October 2026
 
 **Scope.** Correct the squat citation and distinguish the claims supported by the squat, functional-shoulder and chair-rise papers from authoring assumptions. Runtime targets, timing, contact behavior and tolerances were not changed. The original sheet is retained verbatim in [the correction evidence](catalogue-evidence/sources/template-reference-correction-2026-10-03/original-movement-templates-reference.md); its unsupported statements remain traceable below.

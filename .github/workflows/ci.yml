@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -29,11 +31,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Enforce master movement catalogue
+        run: npm run catalogue:check
+
       - name: Type-check (svelte-check)
         run: npm run check
 
       - name: Unit tests (vitest)
-        run: npm test -- --exclude src/__tests__/handReachLatch.test.ts --reporter=dot
+        run: npm test -- --exclude src/__tests__/handReachLatch.test.ts --exclude src/__tests__/assessmentUpperMotions.test.ts --reporter=dot
+
+      # Preserve the 60 Hz skin sweep, geometry assertions and 60 s timeout.
+      # Run this mesh-heavy file without competition from the parallel suite.
+      - name: Shoulder assessment skin sweep (isolated)
+        run: npm test -- src/__tests__/assessmentUpperMotions.test.ts --reporter=dot
 
       # Keep the original wall-clock calibration and 2x budget, but do not
       # compete with expensive mesh-sweep workers on a shared CPU runner.

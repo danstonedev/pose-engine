@@ -78,13 +78,21 @@ export function checkRules(rules, metrics) {
   }
   return failures;
 }
+function evidenceBytes(root, path) {
+  // A Git-backed reader compares base evidence against its original bytes.
+  if (typeof root === 'object') {
+    if (!path || isAbsolute(path) || path.includes('\\') || path.split('/').includes('..')) throw Error('external evidence');
+    return root.read(path);
+  }
+  const target = resolve(root, path), rel = relative(realpathSync(root), realpathSync(target));
+  if (!rel || rel.startsWith('..') || isAbsolute(rel)) throw Error('external evidence');
+  return readFileSync(target);
+}
 export function stageReport(root, report, context, currentIdentity, failures) {
   if (!report || typeof report.path !== 'string' || !/^[a-f\d]{64}$/.test(report.sha256 ?? '')) { failures.push('invalid evidence reference'); return; }
-  const path = resolve(root, report.path), rel = relative(root, path);
-  if (!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(path)) { failures.push(`evidence outside repository or missing: ${report.path}`); return; }
-  const resolvedRelative = relative(realpathSync(root), realpathSync(path));
-  if (resolvedRelative.startsWith('..') || isAbsolute(resolvedRelative)) { failures.push(`evidence escapes repository through a link: ${report.path}`); return; }
-  const bytes = readFileSync(path);
+  let bytes;
+  try { bytes = evidenceBytes(root, report.path); }
+  catch { failures.push(`evidence outside repository or missing: ${report.path}`); return; }
   if (digest(bytes) !== report.sha256) { failures.push(`evidence hash differs: ${report.path}`); return; }
   let evidence;
   try { evidence = JSON.parse(bytes); } catch { failures.push(`evidence must be a structured review manifest: ${report.path}`); return; }
@@ -93,10 +101,8 @@ export function stageReport(root, report, context, currentIdentity, failures) {
   if(!Array.isArray(evidence.artifacts) || !evidence.artifacts.length) failures.push(`${report.stage} evidence requires retained artifacts`);
   for(const artifact of evidence.artifacts??[]) {
     if(typeof artifact.path!=='string' || !/^[a-f\d]{64}$/.test(artifact.sha256??'') || !artifact.kind?.trim()) { failures.push('invalid evidence artifact');continue; }
-    const target=resolve(root,artifact.path),rel=relative(root,target);
-    if(!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(target)) { failures.push(`missing or external evidence artifact: ${artifact.path}`);continue; }
-    const realRel=relative(realpathSync(root),realpathSync(target));
-    if(realRel.startsWith('..') || isAbsolute(realRel) || digest(readFileSync(target))!==artifact.sha256) failures.push(`changed or escaped evidence artifact: ${artifact.path}`);
+    try { if (digest(evidenceBytes(root,artifact.path))!==artifact.sha256) failures.push(`changed or escaped evidence artifact: ${artifact.path}`); }
+    catch { failures.push(`missing or external evidence artifact: ${artifact.path}`); }
   }
   if(report.stage==='blender' && !evidence.artifacts?.some(artifact=>artifact.kind==='editable-project'&&artifact.path.endsWith('.blend'))) failures.push('Blender review requires an editable .blend project');
 }
@@ -178,16 +184,14 @@ function hasSupportPositionBound(rules) {
 }
 export function artifactErrors(root, artifact) {
   if (!root || !artifact || typeof artifact.path !== 'string' || !/^[a-f\d]{64}$/.test(artifact.sha256 ?? '')) return ['missing repository or invalid artifact reference'];
-  const path = resolve(root, artifact.path), rel = relative(root, path);
-  if (!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(path)) return [`missing or external artifact: ${artifact.path}`];
-  const realRel = relative(realpathSync(root), realpathSync(path));
-  if (realRel.startsWith('..') || isAbsolute(realRel) || digest(readFileSync(path)) !== artifact.sha256) return [`changed or escaped artifact: ${artifact.path}`];
+  try { if (digest(evidenceBytes(root,artifact.path))!==artifact.sha256) return [`changed or escaped artifact: ${artifact.path}`]; }
+  catch { return [`missing or external artifact: ${artifact.path}`]; }
   return [];
 }
 function evidenceManifest(root, ref, label) {
   const failures = artifactErrors(root, ref);
   if (failures.length) return {failures,manifest:null};
-  try {return {failures,manifest:JSON.parse(readFileSync(resolve(root,ref.path),'utf8'))};}
+  try {return {failures,manifest:JSON.parse(evidenceBytes(root,ref.path).toString('utf8'))};}
   catch {return {failures:[`${label} requires a structured JSON comparison manifest`],manifest:null};}
 }
 function comparisonArtifacts(root, manifest, failures) {
@@ -225,8 +229,16 @@ export function defectClosureErrors(root, closure, defect, context) {
   }
   return failures;
 }
-export function evaluateCatalogue(data, tracking, { engineRoot, baselineDigest, freshObservations = {} } = {}) {
+export function evaluateCatalogue(data, tracking, { engineRoot, baselineDigest, freshObservations = {}, reviewAll = false } = {}) {
   const errors = [], changed = changedContexts(data);
+  const phaseRecords = new Map();
+  for (const [phaseKey, record] of Object.entries(tracking)) {
+    let parts; try { parts = JSON.parse(phaseKey); } catch { continue; }
+    if (!Array.isArray(parts) || parts.length !== 5 || parts[3] === 'all') continue;
+    const key = JSON.stringify([parts[0], parts[1], parts[2], parts[4]]);
+    if (!phaseRecords.has(key)) phaseRecords.set(key, []);
+    phaseRecords.get(key).push({ phase: parts[3], record });
+  }
   const baseline = data.enforcement?.baseline;
   if (!baseline || digest(baseline) !== baselineDigest) errors.push('Frozen historical baseline is missing or was rewritten; refresh may not reset acceptance requirements');
   const allKeys = data.contexts.map(contextKey);
@@ -242,7 +254,7 @@ export function evaluateCatalogue(data, tracking, { engineRoot, baselineDigest, 
   const delivery = data.enforcement?.delivery;
   if (delivery !== undefined) errors.push(...deliveryErrors(data, delivery, engineRoot));
   // Delivery eligibility never replaces an explicit qualification or closure.
-  const candidates = requiredContexts(data, tracking);
+  const candidates = reviewAll ? data.contexts.filter(context => context.available !== false) : requiredContexts(data, tracking);
   const qualified = delivery === undefined ? candidates : candidates.filter(context => tracking[reviewKey(context)]);
   errors.push(...validateProgram(data, tracking, {
     requiredContexts: qualified,
@@ -276,9 +288,8 @@ export function evaluateCatalogue(data, tracking, { engineRoot, baselineDigest, 
       if (record.requiredRole === 'contact' && !hasSupportPositionBound(rules)) failures.push(`${bone.id}: support requires a world-position constraint over the reviewed window`);
       failures.push(...checkRules(rules, measured?.metrics?.[bone.id]).map(error => `${bone.id}: ${error}`));
       // Any phase record entered is also checked; full-motion coverage cannot hide phase failures.
-      for (const [phaseKey, phaseRecord] of Object.entries(tracking)) {
-        let parts; try { parts = JSON.parse(phaseKey); } catch { continue; }
-        if (parts.length !== 5 || parts[0] !== context.id || parts[1] !== context.variant || parts[2] !== context.side || parts[4] !== bone.id || parts[3] === 'all') continue;
+      for (const { phase, record: phaseRecord } of phaseRecords.get(JSON.stringify([context.id, context.variant, context.side, bone.id])) ?? []) {
+        const parts = [context.id, context.variant, context.side, phase, bone.id];
         if (phaseRecord.identity !== currentIdentity || !delivering && phaseRecord.status !== 'verified' || !['driven','derived','held','contact','free','not-involved'].includes(phaseRecord.requiredRole) || !phaseRecord.note?.trim() || !phaseRecord.evidence?.trim()) failures.push(`${bone.id} phase ${parts[3]}: unresolved or stale`);
         if(phaseRecord.requiredRole==='derived' && (!bones.some(item=>item.id===phaseRecord.owner) || phaseRecord.owner===bone.id)) failures.push(`${bone.id} phase ${parts[3]}: missing controller owner`);
         if(phaseRecord.requiredRole!=='free' && !phaseRecord.rules?.length && !hasDeferredConstraint(phaseRecord, delivering)) failures.push(`${bone.id} phase ${parts[3]}: missing constraints`);

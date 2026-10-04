@@ -1,0 +1,2886 @@
+{
+  "sourceDigest": "ca52585f2f6339c614ec87deb7f197d5d4b3ab4abcfec44c2a334ce12d9f00e6",
+  "blenderVersion": "5.2.2 LTS",
+  "renders": [
+    {
+      "id": "male-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-left-grimace-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-left-grimace-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-left-grimace-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-left-grimace-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-left-grimace-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-left-grimace-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-left-grimace-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-left-grimace-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-left-grimace-pain-8-return-body.png"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-left-wince-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-left-wince-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-left-wince-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-left-wince-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-left-wince-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-left-wince-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-left-wince-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-left-wince-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-left-wince-pain-8-return-body.png"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-left-eye-squeeze-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-left-eye-squeeze-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-left-eye-squeeze-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-left-eye-squeeze-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-left-eye-squeeze-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-left-eye-squeeze-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-left-eye-squeeze-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-left-eye-squeeze-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-left-eye-squeeze-pain-8-return-body.png"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-left-open-mouth-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-left-open-mouth-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-left-open-mouth-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-left-open-mouth-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-left-open-mouth-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-left-open-mouth-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-left-open-mouth-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-left-open-mouth-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-left-open-mouth-pain-8-return-body.png"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-left-raised-brow-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-left-raised-brow-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-left-raised-brow-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-left-raised-brow-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-left-raised-brow-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-left-raised-brow-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-left-raised-brow-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-left-raised-brow-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-left-raised-brow-pain-8-return-body.png"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-left-quiet-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-left-quiet-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-left-quiet-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-left-quiet-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-left-quiet-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-left-quiet-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-left-quiet-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-left-quiet-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-left-quiet-pain-8-return-body.png"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-right-grimace-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-right-grimace-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-right-grimace-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-right-grimace-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-right-grimace-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-right-grimace-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-right-grimace-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-right-grimace-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "male",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-right-grimace-pain-8-return-body.png"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-right-wince-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-right-wince-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-right-wince-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-right-wince-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-right-wince-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-right-wince-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-right-wince-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-right-wince-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "male",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-right-wince-pain-8-return-body.png"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-right-eye-squeeze-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-right-eye-squeeze-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-right-eye-squeeze-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-right-eye-squeeze-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-right-eye-squeeze-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-right-eye-squeeze-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-right-eye-squeeze-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-right-eye-squeeze-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "male",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-right-eye-squeeze-pain-8-return-body.png"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-right-open-mouth-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-right-open-mouth-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-right-open-mouth-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-right-open-mouth-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-right-open-mouth-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-right-open-mouth-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-right-open-mouth-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-right-open-mouth-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "male",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-right-open-mouth-pain-8-return-body.png"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-right-raised-brow-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-right-raised-brow-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-right-raised-brow-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-right-raised-brow-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-right-raised-brow-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-right-raised-brow-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-right-raised-brow-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-right-raised-brow-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "male",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-right-raised-brow-pain-8-return-body.png"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "male-right-quiet-pain-8-setup-body.png"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "male-right-quiet-pain-8-setup-face.png"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "male-right-quiet-pain-8-onset-body.png"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "male-right-quiet-pain-8-peak-body.png"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "male-right-quiet-pain-8-peak-face.png"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "male-right-quiet-pain-8-sustained-body.png"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "male-right-quiet-pain-8-sustained-face.png"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "male-right-quiet-pain-8-recovery-body.png"
+    },
+    {
+      "id": "male-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "male",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "male-right-quiet-pain-8-return-body.png"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-left-grimace-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-left-grimace-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-left-grimace-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-left-grimace-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-left-grimace-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-left-grimace-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-left-grimace-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-left-grimace-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-left-grimace-pain-8-return-body.png"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-left-wince-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-left-wince-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-left-wince-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-left-wince-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-left-wince-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-left-wince-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-left-wince-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-left-wince-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-left-wince-pain-8-return-body.png"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-left-eye-squeeze-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-left-eye-squeeze-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-left-eye-squeeze-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-left-eye-squeeze-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-left-eye-squeeze-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-left-eye-squeeze-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-left-eye-squeeze-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-left-eye-squeeze-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-left-eye-squeeze-pain-8-return-body.png"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-left-open-mouth-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-left-open-mouth-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-left-open-mouth-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-left-open-mouth-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-left-open-mouth-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-left-open-mouth-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-left-open-mouth-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-left-open-mouth-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-left-open-mouth-pain-8-return-body.png"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-left-raised-brow-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-left-raised-brow-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-left-raised-brow-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-left-raised-brow-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-left-raised-brow-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-left-raised-brow-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-left-raised-brow-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-left-raised-brow-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-left-raised-brow-pain-8-return-body.png"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-left-quiet-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-left-quiet-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-left-quiet-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-left-quiet-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-left-quiet-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-left-quiet-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-left-quiet-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-left-quiet-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-left-quiet-pain-8-return-body.png"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-right-grimace-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-right-grimace-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-right-grimace-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-right-grimace-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-right-grimace-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-right-grimace-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-right-grimace-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-right-grimace-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "female",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-right-grimace-pain-8-return-body.png"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-right-wince-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-right-wince-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-right-wince-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-right-wince-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-right-wince-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-right-wince-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-right-wince-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-right-wince-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "female",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-right-wince-pain-8-return-body.png"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-right-eye-squeeze-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-right-eye-squeeze-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-right-eye-squeeze-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-right-eye-squeeze-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-right-eye-squeeze-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-right-eye-squeeze-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-right-eye-squeeze-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-right-eye-squeeze-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "female",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-right-eye-squeeze-pain-8-return-body.png"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-right-open-mouth-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-right-open-mouth-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-right-open-mouth-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-right-open-mouth-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-right-open-mouth-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-right-open-mouth-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-right-open-mouth-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-right-open-mouth-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "female",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-right-open-mouth-pain-8-return-body.png"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-right-raised-brow-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-right-raised-brow-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-right-raised-brow-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-right-raised-brow-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-right-raised-brow-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-right-raised-brow-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-right-raised-brow-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-right-raised-brow-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "female",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-right-raised-brow-pain-8-return-body.png"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "female-right-quiet-pain-8-setup-body.png"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "face",
+      "file": "female-right-quiet-pain-8-setup-face.png"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "female-right-quiet-pain-8-onset-body.png"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "female-right-quiet-pain-8-peak-body.png"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "face",
+      "file": "female-right-quiet-pain-8-peak-face.png"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "female-right-quiet-pain-8-sustained-body.png"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "face",
+      "file": "female-right-quiet-pain-8-sustained-face.png"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "female-right-quiet-pain-8-recovery-body.png"
+    },
+    {
+      "id": "female-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "female",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "female-right-quiet-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-left-grimace-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-left-grimace-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-left-grimace-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-left-grimace-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-left-grimace-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-left-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-left-grimace-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-left-wince-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-left-wince-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-left-wince-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-left-wince-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-left-wince-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-left-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-left-wince-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-left-eye-squeeze-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-left-eye-squeeze-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-left-eye-squeeze-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-left-eye-squeeze-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-left-eye-squeeze-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-left-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-left-eye-squeeze-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-left-open-mouth-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-left-open-mouth-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-left-open-mouth-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-left-open-mouth-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-left-open-mouth-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-left-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-left-open-mouth-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-left-raised-brow-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-left-raised-brow-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-left-raised-brow-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-left-raised-brow-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-left-raised-brow-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-left-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-left-raised-brow-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "left",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-left-quiet-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "left",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-left-quiet-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "left",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-left-quiet-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "left",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-left-quiet-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "left",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-left-quiet-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-left-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "left",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-left-quiet-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-right-grimace-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-right-grimace-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-right-grimace-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-right-grimace-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-right-grimace-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-right-grimace-pain-8",
+      "pattern": "grimace",
+      "body": "neutral",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-right-grimace-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-right-wince-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-right-wince-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-right-wince-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-right-wince-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-right-wince-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-right-wince-pain-8",
+      "pattern": "wince",
+      "body": "neutral",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-right-wince-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-right-eye-squeeze-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-right-eye-squeeze-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-right-eye-squeeze-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-right-eye-squeeze-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-right-eye-squeeze-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-right-eye-squeeze-pain-8",
+      "pattern": "eye-squeeze",
+      "body": "neutral",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-right-eye-squeeze-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-right-open-mouth-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-right-open-mouth-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-right-open-mouth-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-right-open-mouth-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-right-open-mouth-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-right-open-mouth-pain-8",
+      "pattern": "open-mouth",
+      "body": "neutral",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-right-open-mouth-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-right-raised-brow-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-right-raised-brow-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-right-raised-brow-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-right-raised-brow-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-right-raised-brow-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-right-raised-brow-pain-8",
+      "pattern": "raised-brow",
+      "body": "neutral",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-right-raised-brow-pain-8-return-body.png"
+    },
+    {
+      "id": "neutral-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "right",
+      "phase": "setup",
+      "timeMs": 0,
+      "view": "body",
+      "file": "neutral-right-quiet-pain-8-setup-body.png"
+    },
+    {
+      "id": "neutral-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "right",
+      "phase": "onset",
+      "timeMs": 4350,
+      "view": "body",
+      "file": "neutral-right-quiet-pain-8-onset-body.png"
+    },
+    {
+      "id": "neutral-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "right",
+      "phase": "peak",
+      "timeMs": 4650,
+      "view": "body",
+      "file": "neutral-right-quiet-pain-8-peak-body.png"
+    },
+    {
+      "id": "neutral-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "right",
+      "phase": "sustained",
+      "timeMs": 5350,
+      "view": "body",
+      "file": "neutral-right-quiet-pain-8-sustained-body.png"
+    },
+    {
+      "id": "neutral-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "right",
+      "phase": "recovery",
+      "timeMs": 7000,
+      "view": "body",
+      "file": "neutral-right-quiet-pain-8-recovery-body.png"
+    },
+    {
+      "id": "neutral-right-quiet-pain-8",
+      "pattern": "quiet",
+      "body": "neutral",
+      "side": "right",
+      "phase": "return",
+      "timeMs": 8150,
+      "view": "body",
+      "file": "neutral-right-quiet-pain-8-return-body.png"
+    }
+  ]
+}

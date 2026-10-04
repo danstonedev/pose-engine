@@ -2,6 +2,13 @@
 
 # Movement improvement status
 
+> Historical status and source findings. Use the
+> [master movement-joint catalogue](MASTER-MOVEMENT-JOINT-CATALOGUE.html) for
+> current defects, reference coverage, work ownership and acceptance. Record
+> updates there. Dates, work-list labels and measurements below describe their
+> original checkpoints; this document remains supporting historical evidence.
+> Reconciliation is partial; the master retains pending sources and open gaps.
+
 Reviewed 2 October 2026. Standing stance/dowel shipped in engine #166 as
 `e55a020`; its final cloud run passed 2,637 tests and a clean typecheck.
 Host release outcomes are recorded in the workspace's October 1 shipment report.

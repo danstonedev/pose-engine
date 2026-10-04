@@ -1,0 +1,26 @@
+
+> simmove@0.1.0 catalogue:check
+> node pose-engine/scripts/catalogue/run.mjs simmove
+
+node.exe : Movement catalogue gate failed (1356 changed contexts)
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Movement catalo...anged contexts):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+Context ["exam:arom:hip-flexion","male","left"]: reference review requires the same current context identity
+Context ["exam:arom:hip-flexion","male","left"]: missing referenceAcceptance; engine output is not its own motion
+reference
+Context ["exam:arom:hip-flexion","male","left"]: unresolved blocking defect defect:rendered-audit-clinical-coverage;
+obtain current scoped closure before accepting this context
+Context ["exam:arom:hip-flexion","male","right"]: reference review requires the same current context identity
+Context ["exam:arom:hip-flexion","male","right"]: missing referenceAcceptance; engine output is not its own motion
+reference
+Context ["exam:arom:hip-flexion","male","right"]: unresolved blocking defect defect:rendered-audit-clinical-coverage;
+obtain current scoped closure before accepting this context
+Context ["exam:arom:hip-flexion","female","left"]: reference review requires the same current context identity
+Context ["exam:arom:hip-flexion","female","left"]: missing referenceAcceptance; engine output is not its own motion
+reference
+Refresh the same master, define required joint roles, sample actual rigs and attach current evidence. Unreviewed
+motion is not approved.
