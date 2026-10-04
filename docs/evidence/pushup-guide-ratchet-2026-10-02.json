@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-02",
+  "scope": "Two legacy male120Hz upper-arm one-frame angular-speed ratchets only. No production movement, physical/contact/clinical limit or historical fixture changed.",
+  "policy": "User requested appropriate strictness while preserving approved motion; root authorized using the existing NOT_MET measured4-significant-figure ledger and existing1% allowance for these two newly attributed results only.",
+  "oldFixture": {
+    "L_UpperArm": 0.110228,
+    "R_UpperArm": 0.110623
+  },
+  "ledger": {
+    "L_UpperArm": 0.2317,
+    "R_UpperArm": 0.2518
+  },
+  "attribution": {
+    "reason": "buildPushUp now declares explicit floorPalmSupports. Its prepared12Hz contact guide changes the angular-speed profile compared with the historical unplanted fixture.",
+    "counterfactual": [
+      {
+        "explicitPalms": true,
+        "hz": 120,
+        "measure": {
+          "arm": {
+            "L_UpperArm": {
+              "peak": 3.7467150237144615,
+              "pop": 0.23172465974550585
+            },
+            "R_UpperArm": {
+              "peak": 0.9690559581698839,
+              "pop": 0.2517651864001795
+            },
+            "L_Forearm": {
+              "peak": 1.5194274084109052,
+              "pop": 0.3252153691146137
+            },
+            "R_Forearm": {
+              "peak": 1.3349231511367723,
+              "pop": 0.1606389941085365
+            }
+          },
+          "hands": {
+            "L_Hand": {
+              "accel": 1.0262663528417078,
+              "depth": 0.00009647133019268644,
+              "lowSlide": 0.004889066544635802
+            },
+            "R_Hand": {
+              "accel": 1.0146794650072488,
+              "depth": 0.00009942483952398579,
+              "lowSlide": 0.003592804582097345
+            }
+          },
+          "comAccel": 0.6278603129273816,
+          "seamJerk": 0.12
+        }
+      },
+      {
+        "explicitPalms": false,
+        "hz": 120,
+        "measure": {
+          "arm": {
+            "L_UpperArm": {
+              "peak": 2.4344537195706346,
+              "pop": 0.06125698260802981
+            },
+            "R_UpperArm": {
+              "peak": 2.434399908221279,
+              "pop": 0.061274164061640324
+            },
+            "L_Forearm": {
+              "peak": 5.362981316630197,
+              "pop": 0.10796694424659314
+            },
+            "R_Forearm": {
+              "peak": 5.362680152048173,
+              "pop": 0.10800519283179266
+            }
+          },
+          "hands": {
+            "L_Hand": {
+              "accel": 1.4146109855107045,
+              "depth": 0.027582543949995673,
+              "lowSlide": 0.06582300010556984
+            },
+            "R_Hand": {
+              "accel": 1.414552792386898,
+              "depth": 0.027581244356020766,
+              "lowSlide": 0.06582088598854446
+            }
+          },
+          "comAccel": 0.616685698631158,
+          "seamJerk": 0.17
+        }
+      }
+    ],
+    "evidence": {
+      "path": "remaining-batches/pushup-contact-policy-1.json",
+      "sha256": "2583795ee4d4a0ebbab5e786b5b5695c34b1aeae803ed367ae377afcd03247a2",
+      "sourceStable": true
+    },
+    "measurementScope": "Hand depth/lowSlide are wrist landmark metrics from the existing test, not independently measured skin or force."
+  },
+  "rateEvidence": {
+    "path": "remaining-batches/pushup-pop-rates-2.json",
+    "sha256": "75d6ba28245bab62c9b91bc17c0d7b34f1ea989b5328d2aa1c282719a14d92ed",
+    "sourceStable": true,
+    "cases": [
+      {
+        "hz": 120,
+        "bone": "L_UpperArm",
+        "frames": 837,
+        "globalPopDeg": 0.23172465974550585,
+        "globalAt": 6508.333333333334,
+        "bandPopDeg": 0.14741674143129319,
+        "at": 4083.3333333333335
+      },
+      {
+        "hz": 120,
+        "bone": "R_UpperArm",
+        "frames": 837,
+        "globalPopDeg": 0.25177009969893593,
+        "globalAt": 4083.3333333333335,
+        "bandPopDeg": 0.25177009969893593,
+        "at": 4083.3333333333335
+      },
+      {
+        "hz": 240,
+        "bone": "L_UpperArm",
+        "frames": 1672,
+        "globalPopDeg": 0.060020305521013895,
+        "globalAt": 1591.6666666666667,
+        "bandPopDeg": 0.006991228427138174,
+        "at": 4062.5
+      },
+      {
+        "hz": 240,
+        "bone": "R_UpperArm",
+        "frames": 1672,
+        "globalPopDeg": 0.07250056883103478,
+        "globalAt": 4845.833333333333,
+        "bandPopDeg": 0.0009007578356258414,
+        "at": 4004.1666666666665
+      },
+      {
+        "hz": 480,
+        "bone": "L_UpperArm",
+        "frames": 3342,
+        "globalPopDeg": 0.06396632498462196,
+        "globalAt": 6810.416666666667,
+        "bandPopDeg": 0.0177057080650104,
+        "at": 4008.3333333333335
+      },
+      {
+        "hz": 480,
+        "bone": "R_UpperArm",
+        "frames": 3342,
+        "globalPopDeg": 0.07685856853344802,
+        "globalAt": 4843.75,
+        "bandPopDeg": 0.00048713927535583637,
+        "at": 4002.0833333333335
+      }
+    ],
+    "interpretation": "The120Hz4083.333ms event is not a persistent fixed-angle snap when sampled at240/480Hz. Angular-speed corners and smaller rate-sensitive peaks remain; this is not a claim of continuous acceleration or physical acceptance.",
+    "invalidEarlierArtifact": "pushup-pop-rates-1.json requested sampleHz240/480 but the public option caps120; it is not independent multi-rate evidence. Report2 uses explicit frameTimesMs."
+  },
+  "followUp": "Improve prepared guide angular-speed smoothness through future authored/contact trajectory work without sacrificing stable palms. Keep this limitation in the canonical master.",
+  "scriptSha256": "41b189c96d8788fa7beed24d3ee23c966a74d4151d90c793c2493792d200f83a"
+}

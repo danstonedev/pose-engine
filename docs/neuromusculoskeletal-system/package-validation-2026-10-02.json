@@ -1,0 +1,13 @@
+{
+  "kind": "planning-package-integrity",
+  "executedAt": "2026-10-02T19:22:45.766Z",
+  "passed": true,
+  "documents": 10,
+  "sourceEntries": 30,
+  "inspectedSourceFiles": 31,
+  "checkedLocalLinks": 113,
+  "currentSourceHashComparison": "executed",
+  "scope": "Local document, research metadata and selected audit integrity only; no remote verification, simulation or clinical acceptance.",
+  "errors": [],
+  "warnings": []
+}

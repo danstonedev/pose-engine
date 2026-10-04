@@ -1,0 +1,13 @@
+{
+  "kind": "planning-integrity-negative-checks",
+  "executedAt": "2026-10-02T19:23:26.458Z",
+  "passed": true,
+  "checks": [
+    "Duplicate source ID rejected",
+    "Verified license without evidence rejected",
+    "Stale selected source hash rejected",
+    "Missing local document link rejected",
+    "Unregistered source ID rejected"
+  ],
+  "scope": "Manual in-memory corruption probes of planning-package checks; no simulation or physiological testing."
+}

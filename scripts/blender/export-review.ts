@@ -1,5 +1,5 @@
 /** Export production reach playback, including rendered twist, for Blender review.
- * npx vite-node scripts/blender/export-review.ts <new-output-directory>
+ * npx vite-node scripts/blender/export-review.ts <new-output-directory> [motion.json|floor] [Hz] [--rom-clamp on|off|context-default]
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -20,7 +20,8 @@ import { sampleComposedMotion, authoredToTrajectoryTimeMap } from '../../src/ser
 import { resolveComposedMotion, type ComposedMotion } from '../../src/services/motionSequence';
 import { applyCustomPose, serializeCustomPose } from '../../src/services/poseRig';
 import { createStageTwistOverlay } from '../../src/services/stageTwistOverlay';
-import { captureFloorReference } from '../../src/services/rootMotion';
+import { captureFloorReference, floorReferenceForSupport } from '../../src/services/rootMotion';
+import { isRomClampActive, setRomClampEnabled } from '../../src/services/poseRomClamp';
 
 // GLTFExporter uses this browser API to package buffers; these review materials
 // intentionally have no textures, so no browser canvas/image shim is needed.
@@ -31,8 +32,20 @@ if (!globalThis.FileReader) Object.defineProperty(globalThis, 'FileReader', { va
   readAsDataURL(blob: Blob) { blob.arrayBuffer().then(value => { this.result = `data:${blob.type};base64,${Buffer.from(value).toString('base64')}`; this.onloadend?.(); }); }
 } });
 const repository = fileURLToPath(new URL('../../', import.meta.url));
-const output = process.argv[2] && resolve(process.argv[2]);
+const args = process.argv.slice(2);
+const clampOption = args.indexOf('--rom-clamp');
+const requestedClamp = clampOption >= 0 ? args[clampOption + 1] : 'context-default';
+if (!['on', 'off', 'context-default'].includes(requestedClamp ?? '')) throw Error('--rom-clamp must be on, off or context-default');
+if (clampOption >= 0) args.splice(clampOption, 2);
+if (args.some(arg => arg.startsWith('--')) || args.length > 3) throw Error('Unexpected or repeated exporter option');
+if (requestedClamp !== 'context-default') setRomClampEnabled(requestedClamp === 'on');
+const romClamp = { requested: requestedClamp, effective: isRomClampActive(), environment: 'node',
+  scope: 'Global FK/calibration clamp mode. Explicit contact and patient projections retain their own required limits.' };
+if (requestedClamp !== 'context-default' && romClamp.effective !== (requestedClamp === 'on')) throw Error('A debug global overrides the requested clamp mode');
+const output = args[0] && resolve(args[0]);
 if (!output) throw Error('Provide a fresh output directory');
+const sampleHz = Number(args[2] ?? 30);
+if (!Number.isInteger(sampleHz) || sampleHz < 15 || sampleHz > 120) throw Error('Review sample rate must be an integer from 15 to 120 Hz (the sampler limit)');
 mkdirSync(output); // Never replace evidence from an earlier run.
 const hash = (data: Uint8Array | string) => createHash('sha256').update(data).digest('hex');
 const git = (...args: string[]) => execFileSync('git', ['-c', `safe.directory=${repository.replaceAll('\\', '/').replace(/\/$/, '')}`, ...args], { cwd: repository, encoding: 'utf8' }).trim();
@@ -40,15 +53,15 @@ const sources = [...new Set(git('ls-files', '--cached', '--others', '--exclude-s
 const sourceDigest = () => hash(sources.map(path => `${path}:${hash(readFileSync(resolve(repository, path)))}`).join('\n'));
 const digest = sourceDigest();
 const manifest = { version: 1, sourceRevision: git('rev-parse', 'HEAD'), sourceStatus: git('status', '--porcelain'), sourceDigest: digest,
-  exporterSha256: hash(readFileSync(fileURLToPath(import.meta.url))), fps: 30, axes: 'glTF: X left, Y up, Z anterior; metres',
+  exporterSha256: hash(readFileSync(fileURLToPath(import.meta.url))), fps: sampleHz, romClamp, axes: 'glTF: X left, Y up, Z anterior; metres',
   materialPolicy: 'Neutral review material; source geometry, skin weights and production assets are unchanged.',
   deformation: 'Production sampled poses with createStageTwistOverlay.sampleWithTwist baked into every helper track.',
   cases: [] as Record<string, unknown>[] };
-const floorReview = process.argv[3] === 'floor';
-const customMotion = process.argv[3]?.endsWith('.json') ? JSON.parse(readFileSync(resolve(process.argv[3]), 'utf8').replace(/^\uFEFF/, '')) as ComposedMotion : null;
+const floorReview = args[1] === 'floor';
+const customMotion = args[1]?.endsWith('.json') ? JSON.parse(readFileSync(resolve(args[1]), 'utf8').replace(/^\uFEFF/, '')) as ComposedMotion : null;
 const generalReview = floorReview || !!customMotion;
 const cases = (['male', 'female', 'neutral'] as BodyVariantId[]).flatMap(variant => customMotion
-  ? [{ variant, side: 'R' as const, movement: basename(process.argv[3], '.json') }]
+  ? [{ variant, side: 'R' as const, movement: basename(args[1]!, '.json') }]
   : floorReview
   ? ['push-up', 'trunk-stability-push-up', 'extension-clearing', 'flexion-clearing'].map(movement => ({ variant, side: 'R' as const, movement }))
   : (['L', 'R'] as const).map(side => ({ variant, side, movement: 'ue-pattern1' })));
@@ -72,11 +85,19 @@ for (const { variant, side, movement } of cases) {
   const skeleton = skin.skeleton;
   const rest = captureJointAngleRestReference(skeleton, cfg);
   const baselinePose = serializeCustomPose(skeleton, cfg, variant);
-  const floorY = captureFloorReference(skeleton, cfg).floorY;
+  const capturedFloor = captureFloorReference(skeleton, cfg);
   const twist = createStageTwistOverlay(); twist.reset(skeleton, cfg);
   const authored = customMotion ?? (movement === 'push-up' ? buildPushUp({ reps: 1 }) : floorReview ? BODY_ASSESSMENT_MOTIONS[movement](side) : UPPER_ASSESSMENT_MOTIONS['ue-pattern1'](side));
   const motion = resolveComposedMotion(authored, cfg);
+  const floorY = floorReferenceForSupport(capturedFloor, motion.supportPlaneY).floorY;
   const recording = sampleComposedMotion(motion, { baselinePose, variantCfg: cfg, rest, skeletonHarness: { root, skinned: skin }, sampleHz: manifest.fps });
+  const supportEvidence = recording.frames.some(frame => frame.proneSupport) ? `${id}.support.json` : undefined;
+  if (supportEvidence) writeFileSync(resolve(output, supportEvidence), JSON.stringify({
+    sourceDigest: digest, variant, authored, sampleHz: recording.sampleHz, romClamp,
+    scope: 'Engine geometric support diagnostics before root pin. Blender full-skin clearance, clinical bounds and native dynamics require separate verification.',
+    palmLayout: recording.frames[0]?.pronePalmLayout,
+    frames: recording.frames.map(frame => ({ tMs: frame.tMs, support: frame.proneSupport })),
+  }, null, 2) + '\n', { flag: 'wx' });
   const durationMs = recording.frames.at(-1)!.tMs;
   const map = authoredToTrajectoryTimeMap(motion, durationMs);
   const setupMs = map.toTrajectory(motion.keyframes[0].durationMs);
@@ -114,7 +135,10 @@ for (const { variant, side, movement } of cases) {
   const glb = await new GLTFExporter().parseAsync(root, { binary: true, animations: [clip], onlyVisible: false }) as ArrayBuffer;
   writeFileSync(resolve(output, `${id}.glb`), Buffer.from(glb), { flag: 'wx' });
   const record = { id, variant, side, movement, file: `${id}.glb`, sourceModelSha256: hash(bytes), glbSha256: hash(new Uint8Array(glb)),
-    frames: recording.frames.length, durationMs, floorY, setupFrame: Math.round(setupMs / 1000 * manifest.fps),
+    frames: recording.frames.length, durationMs, floorY, romClamp,
+    ...(supportEvidence ? { supportEvidence, supportEvidenceSha256: hash(readFileSync(resolve(output, supportEvidence))) } : {}),
+    ...(motion.supportPlaneY != null ? { supportPlaneY: motion.supportPlaneY, restContactFloorY: capturedFloor.floorY } : {}),
+    setupFrame: Math.round(setupMs / 1000 * manifest.fps),
     holdFrame: 1 + Math.round((generalReview ? setupMs + (durationMs - setupMs) / 2 : map.toTrajectory(4100)) / 1000 * manifest.fps), expected };
   writeFileSync(resolve(output, `${id}.expected.json`), JSON.stringify(record), { flag: 'wx' });
   manifest.cases.push({ ...record, expected: `${id}.expected.json` });

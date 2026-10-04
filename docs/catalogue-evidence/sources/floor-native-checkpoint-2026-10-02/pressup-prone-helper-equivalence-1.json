@@ -1,0 +1,455 @@
+{
+  "exactResultAndPoseEquality": true,
+  "before": {
+    "proneSkinSupport": "72bbb1a2c906c69c550ab6f92914bb3eb2d74fbfc355d94138649e7b0eb9971d",
+    "footContact": "ed5e2a1bc5137cf198b8bb9c835bbbd36c49d60b59e7ffd3c6b2b0d50e23f1ef",
+    "handContactPose": "4731d2527b8c9a0d87e82c036de6c01f66d54d9d579f511e516f9896a9bf0a93",
+    "motionTrajectory": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8",
+    "posedGeometry": "baa508a59e1caf682cac037adc8488286fdd41948dd7f1b8423efb95a0d0bb6a",
+    "motionRigInputKey": "c12b7ca2a6f051b8daaacfe6bac38633d54bb4eb34422d5437a4960f4fa0b744",
+    "motionRecording": "e1c1cb070cd3a7953c74fa9d6a3c366941ec57b11940fc9bd0892173f0d61fe9"
+  },
+  "poseModeClampEnabled": false,
+  "scope": "Paired actual-rig production helper and isolated candidate; all returned values and all bone locals must be byte-identical on each invocation. Browser/test pose-mode clamp switch disabled; contact solver still forces clinical/patient projection. Process-local exact-delegating factory/solve timing; no production source changes or cache decisions changed.",
+  "runs": [
+    {
+      "variant": "male",
+      "label": "default",
+      "factories": [
+        {
+          "initializationMs": 28.983799999999974,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 403.57860000000073,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 384.8100999999989,
+              "cachedMs": 159.13740000000132
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 6.878299999999854,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.283899999999903,
+              "cachedMs": 6.878299999999854
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 28.416600000000017,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 16.814499999999498,
+              "cachedCalls": 3,
+              "iterations": 8,
+              "candidateMs": 16.273299999999836,
+              "cachedMs": 6.0041999999994005
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 756.6955000000039,
+              "cachedCalls": 79,
+              "iterations": 632,
+              "candidateMs": 722.4549999999999,
+              "cachedMs": 130.49560000000247
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 4368.1176,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "male",
+      "label": "patient",
+      "factories": [
+        {
+          "initializationMs": 25.525699999999233,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 454.52609999999277,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 425.38740000000416,
+              "cachedMs": 189.13739999999598
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 835.5089999999836,
+              "cachedCalls": 85,
+              "iterations": 585,
+              "candidateMs": 770.1386000000002,
+              "cachedMs": 154.83469999999033
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 9578.700499999999,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "male",
+      "label": "patient-repeat",
+      "factories": [
+        {
+          "initializationMs": 22.35490000000027,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 16.740399999996953,
+              "cachedCalls": 3,
+              "iterations": 8,
+              "candidateMs": 18.002399999999398,
+              "cachedMs": 6.980599999997139
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 798.0361000000321,
+              "cachedCalls": 79,
+              "iterations": 632,
+              "candidateMs": 753.2958999999719,
+              "cachedMs": 127.66490000000158
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 5327.8964,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "female",
+      "label": "default",
+      "factories": [
+        {
+          "initializationMs": 21.067900000001828,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 403.11980000000403,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 387.2468000000081,
+              "cachedMs": 172.5461999999934
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 7.797100000003411,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 7.6733000000022,
+              "cachedMs": 7.797100000003411
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 6.13749999999709,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 15.487899999996444,
+              "cachedCalls": 3,
+              "iterations": 13,
+              "candidateMs": 16.334500000000844,
+              "cachedMs": 4.643999999996595
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 688.1277000000118,
+              "cachedCalls": 79,
+              "iterations": 523,
+              "candidateMs": 674.2692000000097,
+              "cachedMs": 127.23599999998987
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 3934.8248999999996,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "female",
+      "label": "patient",
+      "factories": [
+        {
+          "initializationMs": 26.451199999999517,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 445.9349999999795,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 413.5019000000066,
+              "cachedMs": 207.6722999999838
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 739.0711000000338,
+              "cachedCalls": 85,
+              "iterations": 491,
+              "candidateMs": 695.9663999999575,
+              "cachedMs": 149.63980000001902
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 10729.6773,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "female",
+      "label": "patient-repeat",
+      "factories": [
+        {
+          "initializationMs": 5.053699999996752,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 16.636699999988195,
+              "cachedCalls": 3,
+              "iterations": 13,
+              "candidateMs": 15.651900000004389,
+              "cachedMs": 4.514199999990524
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 754.8579999999638,
+              "cachedCalls": 79,
+              "iterations": 523,
+              "candidateMs": 747.2430999999997,
+              "cachedMs": 137.10949999996956
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 6202.438399999999,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "neutral",
+      "label": "default",
+      "factories": [
+        {
+          "initializationMs": 8.552000000003318,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 461.68449999995937,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 460.82200000002194,
+              "cachedMs": 190.21729999998206
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 8.926800000022922,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 8.233599999992293,
+              "cachedMs": 8.926800000022922
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 22.896099999998114,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 17.875000000007276,
+              "cachedCalls": 3,
+              "iterations": 8,
+              "candidateMs": 19.531999999999243,
+              "cachedMs": 6.26660000000993
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 831.7230000000345,
+              "cachedCalls": 79,
+              "iterations": 561,
+              "candidateMs": 817.6142000000473,
+              "cachedMs": 156.0901000000449
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 4499.935300000005,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "neutral",
+      "label": "patient",
+      "factories": [
+        {
+          "initializationMs": 7.375,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 496.1128999999928,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 459.758199999982,
+              "cachedMs": 190.1134999999922
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 803.087099999997,
+              "cachedCalls": 85,
+              "iterations": 522,
+              "candidateMs": 785.3256000000183,
+              "cachedMs": 156.36589999998978
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 10333.135400000006,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "neutral",
+      "label": "patient-repeat",
+      "factories": [
+        {
+          "initializationMs": 6.0777000000016415,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 21.578700000005483,
+              "cachedCalls": 3,
+              "iterations": 8,
+              "candidateMs": 15.512099999999919,
+              "cachedMs": 4.677200000005541
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 815.3286999999473,
+              "cachedCalls": 79,
+              "iterations": 561,
+              "candidateMs": 822.0748999999996,
+              "cachedMs": 129.61199999997189
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 5717.010699999999,
+      "frames": 163,
+      "costs": {}
+    }
+  ],
+  "after": {
+    "proneSkinSupport": "72bbb1a2c906c69c550ab6f92914bb3eb2d74fbfc355d94138649e7b0eb9971d",
+    "footContact": "ed5e2a1bc5137cf198b8bb9c835bbbd36c49d60b59e7ffd3c6b2b0d50e23f1ef",
+    "handContactPose": "4731d2527b8c9a0d87e82c036de6c01f66d54d9d579f511e516f9896a9bf0a93",
+    "motionTrajectory": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8",
+    "posedGeometry": "baa508a59e1caf682cac037adc8488286fdd41948dd7f1b8423efb95a0d0bb6a",
+    "motionRigInputKey": "c12b7ca2a6f051b8daaacfe6bac38633d54bb4eb34422d5437a4960f4fa0b744",
+    "motionRecording": "e1c1cb070cd3a7953c74fa9d6a3c366941ec57b11940fc9bd0892173f0d61fe9"
+  },
+  "sourceStable": true
+}

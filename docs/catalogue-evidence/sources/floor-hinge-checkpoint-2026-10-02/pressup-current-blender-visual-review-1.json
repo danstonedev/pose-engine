@@ -1,0 +1,106 @@
+{
+  "kind": "development-visual-review",
+  "reviewer": "Codex scoped image inspection",
+  "scope": "Two actual-rig editable Blender projects. The listed still views were inspected; full timeline, dense skin, clinical, native and both-host acceptance remain separate and incomplete.",
+  "blenderVersion": "5.2.2 LTS",
+  "result": "unqualified",
+  "cases": [
+    {
+      "folder": "blender-workspace/native-dense-source-review-1",
+      "variantScope": [
+        "female",
+        "male"
+      ],
+      "images": [
+        {
+          "path": "blender-workspace/native-dense-source-review-1/renders/male-retained-extension-setup-side.png",
+          "sha256": "8a94ff0245dd1f30f46479a9cdd219496bfc7da1aeac74544ee895c69b94b8f5"
+        },
+        {
+          "path": "blender-workspace/native-dense-source-review-1/renders/male-retained-extension-middle-side.png",
+          "sha256": "245aaf35f880e445900896acead5adebd32b099c294dc19fd97a528ccb585e32"
+        },
+        {
+          "path": "blender-workspace/native-dense-source-review-1/renders/male-retained-extension-middle-overhead.png",
+          "sha256": "ce3e14168cbe4758928d41b84e229772505082dcb5e4db3b1a6c35591aa316fb"
+        },
+        {
+          "path": "blender-workspace/native-dense-source-review-1/renders/female-retained-extension-middle-side.png",
+          "sha256": "6ef6b6a348058c17bd2f9ed5619a126e221b575a1006136ffb53038b50508468"
+        },
+        {
+          "path": "blender-workspace/native-dense-source-review-1/renders/male-retained-extension-approach-side.png",
+          "sha256": "09b23822e7c808f0fb94313604f6223e57bc007bcdab2d7371b029ae3903bd66"
+        },
+        {
+          "path": "blender-workspace/native-dense-source-review-1/renders/male-retained-extension-quarter-side.png",
+          "sha256": "33877ab870816a44b99894bea42be6c47255ca9094ace9d5c201395c3522ea70"
+        },
+        {
+          "path": "blender-workspace/native-dense-source-review-1/renders/female-retained-extension-setup-overhead.png",
+          "sha256": "150248341349fcf51ba6c079110d7d1b2e8233cf169be74f492506f04c1b3da3"
+        },
+        {
+          "path": "blender-workspace/native-dense-source-review-1/renders/female-retained-extension-return-side.png",
+          "sha256": "90539a5a824195602525014fd98e2a866c5294edb3d41b64e9be7596b4570749"
+        }
+      ],
+      "findings": [
+        "The chest rises with head/neck following while the pelvis and legs remain at the support plane in these inspected views. This is visible authored coordination, not validated loading.",
+        "The setup shows deep elbow flexion and sharp shoulder/elbow skin folds; no clinical or visible-skin acceptance is granted.",
+        "Recorded setup1000ms and return5400ms transforms agree at floating precision; apparent view differences did not establish a loop endpoint defect."
+      ],
+      "sourceDigest": "e070239c8b000ae93e1ee7a01c9b066dcab9ff94a7ac56d40f65ca8876187c59",
+      "project": {
+        "path": "blender-workspace/native-dense-source-review-1/full-motion-review.blend",
+        "sha256": "7c1c08359d79e86a3d4584e53759ccb59a09abd1024e54df9c0ff5eb52404a14"
+      },
+      "import": {
+        "passed": true,
+        "toleranceM": 0.0001,
+        "maxBoneErrorM": 0.000030339265527171013,
+        "maxSkinErrorM": 0.000024946928533609025
+      }
+    },
+    {
+      "folder": "blender-workspace/pressup-hierarchical-review-1",
+      "variantScope": [
+        "neutral"
+      ],
+      "images": [
+        {
+          "path": "blender-workspace/pressup-hierarchical-review-1/renders/neutral-pressup-hierarchical-review-motion-1-setup-side.png",
+          "sha256": "3e7965003b9feaf8b4045c504781c551a4197195700c9da42a3c89ebcf6ce333"
+        },
+        {
+          "path": "blender-workspace/pressup-hierarchical-review-1/renders/neutral-pressup-hierarchical-review-motion-1-setup-overhead.png",
+          "sha256": "584c3e316b0423fae6715530b9df5e4d4cc6b6ead042ac040f0da4f5b19be825"
+        },
+        {
+          "path": "blender-workspace/pressup-hierarchical-review-1/renders/neutral-pressup-hierarchical-review-motion-1-middle-side.png",
+          "sha256": "05458238610e8c5a0417e5740666a100bc3b6f395ed0fa85ae10b81b35345a94"
+        },
+        {
+          "path": "blender-workspace/pressup-hierarchical-review-1/renders/neutral-pressup-hierarchical-review-motion-1-middle-overhead.png",
+          "sha256": "bdafe481cd4791dd65d86c61b97b9f650ba787bb75bfea91728b6c6ddd224412"
+        }
+      ],
+      "findings": [
+        "Coherent chest rise, following head/neck and supported lower body are visible in the inspected default neutral views.",
+        "Setup elbows remain widely flared with sharp skin folds. Actual posture control is not established by small palm residuals.",
+        "This is an explicitly experimental process-local hierarchy override. Its full patient sensitivity trial fails, and it is not promoted."
+      ],
+      "sourceDigest": "0c6de4208036c321c8bc7b7481ad1aad5a202b2f31c9a955bab3260a788465e6",
+      "project": {
+        "path": "blender-workspace/pressup-hierarchical-review-1/full-motion-review.blend",
+        "sha256": "a21032adf53d80c521a5b955b5b5bfa03deaf242de49b412a303f36d9c914345"
+      },
+      "import": {
+        "passed": true,
+        "toleranceM": 0.0001,
+        "maxBoneErrorM": 0.00001373677864731893,
+        "maxSkinErrorM": 0.000009590891750121955
+      }
+    }
+  ]
+}

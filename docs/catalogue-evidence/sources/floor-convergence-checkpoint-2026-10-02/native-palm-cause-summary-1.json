@@ -1,0 +1,68 @@
+{
+  "at": "2026-10-02T21:24:34.229Z",
+  "scope": "Causal diagnostics of the failed original-source exact-asset experimental shared-arm/palm extension trials. No runtime source, physical capacity, material, collision geometry, clinical limit or acceptance threshold changed during this diagnostic batch.",
+  "evidence": {
+    "../remaining-batches/native-exact-extension-palm-ab-summary-1.json": "cb7f1f62d5ec5403ebfe5747dbaf3559c043595859ac8077d690befe92382082",
+    "../remaining-batches/native-palm-prefix-timestep-summary-1.json": "31f3104e434ae2abbe9cdaad34f5dbb37659f259a4dbde6da86f46e196af6a5d",
+    "../remaining-batches/native-palm-cause-female-on-2.json": "8c14a934dc193e4bf132134104995c82f89b78f6727af9a147d6825911c68abf",
+    "../remaining-batches/native-palm-cause-male-on-2.json": "988ef23ecb641fc21ce6c2de64fac492aff4d7cb5252ea299ab24257adc14d20",
+    "../remaining-batches/native-palm-static-female-1.json": "7fbc13a27ebfc2d8803e6cb1f7bbee14befcb91331a8b3f691c0d550aaefd5c4",
+    "../blender-workspace/native-palm-cause-overlay-3/manifest.json": "0e00c4e610edb6f0f01fafbfab88949ddfc0d6dcf03e1aa252abbda9538a51e0",
+    "../blender-workspace/native-palm-cause-overlay-3/blender-review.json": "ebf51c09837e041a987243c29e59ff527f67831c6cf8cb3cdac32618d5b6175c",
+    "../blender-workspace/native-palm-cause-overlay-3/native-palm-overlay.blend": "de84c4f8567c7615b626165368f4a3cdea6c511d8fccd1843f05227cfaa8e0ff"
+  },
+  "nativeJobsRunning": false,
+  "hypotheses": [
+    {
+      "name": "Initial source fit and material orientation",
+      "status": "Measured representation difference; not proved cause of subsequent drift",
+      "finding": "Female maximum proximal frame error27.4682deg R_Forearm at0s; male28.0542deg R_Forearm at0s. Wrist/palm positions and orientation remain close. Rendered forearm twist helpers differ less: female proximal7.0?7.6deg/distal2.9?3.5deg; male proximal~9.1deg/distal~4.1deg. After removing recorded global setup floor lift only, forearm skin differs up to9.57mm female/13.02mm male. Native physical frame and deformation-bone frame are not synonymous."
+    },
+    {
+      "name": "Controller motor saturation",
+      "status": "Demonstrated along achieved trajectory; global static capacity feasibility remains undetermined",
+      "finding": "Female0.507s R elbow requests?56.21Nm/applies?35Nm, L girdle protraction requests+26.98/applies+12Nm. Male0.5s R elbow requests?71.83/applies?35Nm, L girdle protraction requests+37.11/applies+12Nm. At these states palm feedback terms are fractions of1Nm; posture and gravity-support terms dominate. Exact axes, lever arms, native constraint torques and each motor contribution are retained."
+    },
+    {
+      "name": "Competing task priority",
+      "status": "Not supported as cause of the early observed drift",
+      "finding": "Prefix COM controller is tracking, postureScale1, releasedOppositionNm0 at inspected first-drift/first-load-loss states. Saturation clips the combined request. This does not prove global optimal allocation."
+    },
+    {
+      "name": "Contact geometry approximation",
+      "status": "Measured separate gap; causal effect not isolated",
+      "finding": "Some actual replay forearm skin is outside validated supporting planes of the native outer forearm cell: up to4.80mm female/7.66mm male setup. Diagnostic rejects ill-conditioned display-triangle normals unless all native mesh vertices satisfy the candidate plane within100nm. Geometry is unchanged; coverage is a conservative plane-excess bound, not nearest-surface distance or clinical tolerance."
+    },
+    {
+      "name": "Integration/contact chatter",
+      "status": "First single-step loss is timestep sensitive; substantial tracking/slip failure persists",
+      "finding": "Same initial qpos, source, native sources and settings at1ms versus0.5ms. Female first zero-load shifts~0.51s?0.0235s, and prefix zero-load intervals last one integration step. At0.65s elbow tracking remains21.95/22.98deg female and29.09/28.71deg male. Tangential drift reaches~5.0/6.3mm female and~6.7/8.0mm right male. Full-cycle long losses and7cm drift remain in the earlier A/B."
+    }
+  ],
+  "staticFeasibility": {
+    "verdict": "Not determined",
+    "method": "Cloned native state, qvel=qacc=0, MuJoCo inverse with discrete-inverse flag; forward/inverse consistency better than1e?9 generalized force. Additional diagnostic fixes bones in a separate model and relaxes the same cells before transferring passive coordinates back only into scratch data.",
+    "limitation": "Fixed-cell inverse is dominated by passive surface and joint-stop disequilibrium. The held-cell transfer changes the contact effective-inertia problem and leaves residual in the original free model. Large reported torques therefore do not establish global actuator infeasibility. No static capacity acceptance is claimed.",
+    "next": "A rigid contact-force equilibrium relaxation may distinguish unavoidable motor capacity from suboptimal allocation, while explicitly including or delimiting self-contact, joint-stop and passive contributions. Feasible relaxation does not qualify the compliant dynamics."
+  },
+  "visual": {
+    "artifact": "../blender-workspace/native-palm-cause-overlay-3/native-palm-overlay.blend",
+    "states": "Female0,0.507,0.600s; male0,0.040,0.600s. Actual models and all101 rig bones, source/native skin collections, exact native collider overlays.",
+    "review": "At female0.507s native torso remains lower and elbows more bent than the sparse desired-body source reconstruction. Male0.040s near-start body difference is smaller. Forearm axial-frame residual alone exaggerates visible material twist.",
+    "maximumBoneRoundtripM": 0.00002962850943959391,
+    "limitation": "Intermediate source scenes use the sparse native target interpolant, not the dense5.4s shared-guide playback. This is a diagnostic overlay, not approved source retargeting or clinical review."
+  },
+  "retainedFailures": [
+    "Native A/B off/on trials remain failed/unqualified.",
+    "native-palm-cause-female-on-1.json lacks explicit discrete-inverse consistency verification; -2 supersedes that diagnostic.",
+    "native-palm-static-female-1.json is an inconclusive isolated-cell static attempt.",
+    "native-palm-cause-overlay-1 initial renders had importer-only bone widgets obstructing setup; revision3 and overlay-3 fix visibility.",
+    "native-palm-cause-overlay-2 collider plane coverage lacked ill-conditioned triangle validation; overlay-3 supersedes it."
+  ],
+  "acceptance": {
+    "promoted": false,
+    "clinicalReview": false,
+    "nativeTrackingQualified": false,
+    "fullCycleTimestepConverged": false
+  }
+}

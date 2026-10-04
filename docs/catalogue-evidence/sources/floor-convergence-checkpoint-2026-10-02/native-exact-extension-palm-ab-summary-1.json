@@ -1,0 +1,611 @@
+{
+  "at": "2026-10-02T20:44:28.288Z",
+  "scope": "Paired development trial on identical original editable-route captures. Both native variants share source, geometry, capacities and contact material; only bounded motor-only palm feedback differs. This four-keyframe4.4-second native route is not dense equivalence to every frame of the shared5.4-second guide.",
+  "inputs": "native-exact-core-inputs-3",
+  "sources": {
+    "off": {
+      "path": "../remaining-batches/native-exact-extension-palm-off-1.json",
+      "sha256": "693e8161cd0c8e64915537f1c3616a9baa032bbb98f8d22979bf52cd1c129542"
+    },
+    "on": {
+      "path": "../remaining-batches/native-exact-extension-palm-on-1.json",
+      "sha256": "f22ff36d8d232cf968ed0b8859b01d7104d505cd38667eb16112a33a13172df5"
+    }
+  },
+  "sampling": "Every native integration step at1ms;4401 states per trial including initialization. All individual force-loss intervals remain in the full reports.",
+  "acceptance": {
+    "nativePhysicsComplete": 4,
+    "trackingWithin15Degrees": 0,
+    "stablePalmsWithin2mm": 0,
+    "promoted": false,
+    "scope": "Engineering diagnostics, not clinical or experimental validation. No gate, gain or capacity was changed to obtain completion."
+  },
+  "comparisons": [
+    {
+      "variant": "female",
+      "inputSha256": "417399039bce2044abb60224646573ad2f671ee99cc0186b743c918301976c18",
+      "routeSha256": "8b4615d9410f68f31f95804be4638ee82d71f3694dace9b60ba67c46abaa83dd",
+      "bindingSha256": "fe71a387440c59ccef220b5560c8bf3ffb6ebf2e12ec8d55f93d717c7eb92d2a",
+      "settingsHashes": {
+        "off": "d03d85e170ab49120244578dccecedf43fd5625b094513907aba58e9ef5ca33b",
+        "on": "260c722a3a4a4906a1e4128be2ee4cbe65d0038462bc01b0d0b85078f3a13c0a"
+      },
+      "equalMotorLimits": true,
+      "off": {
+        "nativePhysicsComplete": true,
+        "nativeSteps": 4400,
+        "armStatesChecked": 4401,
+        "finalArmAdmissible": true,
+        "trackingPeak": {
+          "everyIntegrationStep": true,
+          "maximumJointErrorDeg": 34.78563944765382,
+          "joint": "L_Shoulder_scapular_tilt",
+          "time": 1.5839999999999363,
+          "maximumPelvisErrorM": 0.025973197559134388,
+          "signedErrorDeg": 34.78563944765382
+        },
+        "maximumCapturedSegmentError": {
+          "timeS": 1.5,
+          "label": "Target (1.5 s)",
+          "body": "Head",
+          "errorDeg": 9.838035217429612
+        },
+        "nativeFloorTranslationM": 0.004284640761907683,
+        "sourceFitMaximumPositionM": 0.001555386159756603,
+        "sourceFitMaximumOrientationDegrees": 27.46821205711753,
+        "palms": {
+          "L": {
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 6.12597906296534,
+              "worldPositionM": [
+                0.24686449796896082,
+                0.0007861515585330175,
+                1.6096470334797597
+              ],
+              "sourceMaterialPointM": [
+                0.2468648992186641,
+                -0.003497604715561653,
+                1.6096470419833246
+              ],
+              "sourceMaterialPointOffsetM": 0.0042837562928951835,
+              "sourceWristErrorM": 0.0042840797329470074,
+              "sourceOrientationErrorDeg": 0.004712195413361949,
+              "initialNativeMaterialPointOffsetM": 1.0625181290357943e-17
+            },
+            "maximumAnchorDriftM": 0.07736591322885711,
+            "maximumSourceWristTravelM": 0.00016554760720164312,
+            "maximumSourceMaterialPointTravelM": 0.000160682952411836,
+            "maximumSourceWristErrorM": 0.07559759624269324,
+            "maximumSourceOrientationErrorDeg": 18.942775660421617,
+            "maximumSourceWristErrorBeforeAcquisitionM": 0.0042840797329470074,
+            "maximumSourceOrientationErrorBeforeAcquisitionDeg": 0.004712195413361949,
+            "loadRangeN": [
+              0,
+              268.59885980751864
+            ],
+            "below1N": {
+              "count": 279,
+              "totalSeconds": 0.7310000000000446,
+              "longestSeconds": 0.19900000000006646,
+              "first": {
+                "startTimeS": 0.5110000000000003,
+                "endTimeS": 0.5120000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "zeroLoad": {
+              "count": 280,
+              "totalSeconds": 0.729000000000044,
+              "longestSeconds": 0.19900000000006646,
+              "first": {
+                "startTimeS": 0.5110000000000003,
+                "endTimeS": 0.5120000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            }
+          },
+          "R": {
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 5.84473221877945,
+              "worldPositionM": [
+                -0.24690038582987192,
+                0.0007941912989517935,
+                1.6095451760221287
+              ],
+              "sourceMaterialPointM": [
+                -0.24690161313383013,
+                -0.003488812669972665,
+                1.6095452289346408
+              ],
+              "sourceMaterialPointOffsetM": 0.0042830041450945865,
+              "sourceWristErrorM": 0.004284016194785952,
+              "sourceOrientationErrorDeg": 0.005207566023015504,
+              "initialNativeMaterialPointOffsetM": 3.925231146709438e-17
+            },
+            "maximumAnchorDriftM": 0.05411893186881725,
+            "maximumSourceWristTravelM": 0.00015765167183473053,
+            "maximumSourceMaterialPointTravelM": 0.0001532371171832933,
+            "maximumSourceWristErrorM": 0.054051646961164455,
+            "maximumSourceOrientationErrorDeg": 10.699610983356305,
+            "maximumSourceWristErrorBeforeAcquisitionM": 0.004284016194785952,
+            "maximumSourceOrientationErrorBeforeAcquisitionDeg": 0.005207566023015504,
+            "loadRangeN": [
+              0,
+              155.26722065024114
+            ],
+            "below1N": {
+              "count": 240,
+              "totalSeconds": 0.6440000000000718,
+              "longestSeconds": 0.22900000000007648,
+              "first": {
+                "startTimeS": 0.4990000000000004,
+                "endTimeS": 0.5000000000000003,
+                "durationS": 0.0009999999999999454
+              }
+            },
+            "zeroLoad": {
+              "count": 238,
+              "totalSeconds": 0.6400000000000705,
+              "longestSeconds": 0.22900000000007648,
+              "first": {
+                "startTimeS": 0.4990000000000004,
+                "endTimeS": 0.5000000000000003,
+                "durationS": 0.0009999999999999454
+              }
+            },
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            }
+          }
+        }
+      },
+      "on": {
+        "nativePhysicsComplete": true,
+        "nativeSteps": 4400,
+        "armStatesChecked": 4401,
+        "finalArmAdmissible": true,
+        "trackingPeak": {
+          "everyIntegrationStep": true,
+          "maximumJointErrorDeg": 34.836335783820104,
+          "joint": "L_Shoulder_scapular_tilt",
+          "time": 3.269999999999751,
+          "maximumPelvisErrorM": 0.031921692391611294,
+          "signedErrorDeg": 34.836335783820104
+        },
+        "maximumCapturedSegmentError": {
+          "timeS": 3.1,
+          "label": "Hold target (3.1 s)",
+          "body": "L_Hand",
+          "errorDeg": 16.528296423959205
+        },
+        "nativeFloorTranslationM": 0.004284640761907683,
+        "sourceFitMaximumPositionM": 0.001555386159756603,
+        "sourceFitMaximumOrientationDegrees": 27.46821205711753,
+        "palms": {
+          "L": {
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 6.12597906296534,
+              "worldPositionM": [
+                0.24686449796896082,
+                0.0007861515585330175,
+                1.6096470334797597
+              ],
+              "sourceMaterialPointM": [
+                0.2468648992186641,
+                -0.003497604715561653,
+                1.6096470419833246
+              ],
+              "sourceMaterialPointOffsetM": 0.0042837562928951835,
+              "sourceWristErrorM": 0.0042840797329470074,
+              "sourceOrientationErrorDeg": 0.004712195413361949,
+              "initialNativeMaterialPointOffsetM": 1.0625181290357943e-17
+            },
+            "maximumAnchorDriftM": 0.07076498007208143,
+            "maximumSourceWristTravelM": 0.00016554760720164312,
+            "maximumSourceMaterialPointTravelM": 0.000160682952411836,
+            "maximumSourceWristErrorM": 0.06832430309815993,
+            "maximumSourceOrientationErrorDeg": 17.778255253206837,
+            "maximumSourceWristErrorBeforeAcquisitionM": 0.0042840797329470074,
+            "maximumSourceOrientationErrorBeforeAcquisitionDeg": 0.004712195413361949,
+            "loadRangeN": [
+              0,
+              188.06991811553334
+            ],
+            "below1N": {
+              "count": 87,
+              "totalSeconds": 0.8160000000000905,
+              "longestSeconds": 0.623000000000109,
+              "first": {
+                "startTimeS": 0.5170000000000003,
+                "endTimeS": 0.5180000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "zeroLoad": {
+              "count": 88,
+              "totalSeconds": 0.8130000000000909,
+              "longestSeconds": 0.42200000000013116,
+              "first": {
+                "startTimeS": 0.5170000000000003,
+                "endTimeS": 0.5180000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            }
+          },
+          "R": {
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 5.84473221877945,
+              "worldPositionM": [
+                -0.24690038582987192,
+                0.0007941912989517935,
+                1.6095451760221287
+              ],
+              "sourceMaterialPointM": [
+                -0.24690161313383013,
+                -0.003488812669972665,
+                1.6095452289346408
+              ],
+              "sourceMaterialPointOffsetM": 0.0042830041450945865,
+              "sourceWristErrorM": 0.004284016194785952,
+              "sourceOrientationErrorDeg": 0.005207566023015504,
+              "initialNativeMaterialPointOffsetM": 3.925231146709438e-17
+            },
+            "maximumAnchorDriftM": 0.07075319167653402,
+            "maximumSourceWristTravelM": 0.00015765167183473053,
+            "maximumSourceMaterialPointTravelM": 0.0001532371171832933,
+            "maximumSourceWristErrorM": 0.07032196036676314,
+            "maximumSourceOrientationErrorDeg": 12.431563133601408,
+            "maximumSourceWristErrorBeforeAcquisitionM": 0.004284016194785952,
+            "maximumSourceOrientationErrorBeforeAcquisitionDeg": 0.005207566023015504,
+            "loadRangeN": [
+              0,
+              147.13376340222518
+            ],
+            "below1N": {
+              "count": 122,
+              "totalSeconds": 0.5770000000001126,
+              "longestSeconds": 0.2910000000000972,
+              "first": {
+                "startTimeS": 0.5070000000000003,
+                "endTimeS": 0.5080000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "zeroLoad": {
+              "count": 123,
+              "totalSeconds": 0.5760000000001128,
+              "longestSeconds": 0.2910000000000972,
+              "first": {
+                "startTimeS": 0.5070000000000003,
+                "endTimeS": 0.5080000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "variant": "male",
+      "inputSha256": "a4b1013c87fb9164d87f024ea88bf0a8ed4c005dcc2d43055530784dd4f9acda",
+      "routeSha256": "8b22afa22be32d88052501c5e01e51fa23efe2ff8e23aba29c121b848f28f4a1",
+      "bindingSha256": "026e55f7f79b8cf4ca5e81b6028ae3628c13bed425764264968d39045ed1f4d3",
+      "settingsHashes": {
+        "off": "d03d85e170ab49120244578dccecedf43fd5625b094513907aba58e9ef5ca33b",
+        "on": "260c722a3a4a4906a1e4128be2ee4cbe65d0038462bc01b0d0b85078f3a13c0a"
+      },
+      "equalMotorLimits": true,
+      "off": {
+        "nativePhysicsComplete": true,
+        "nativeSteps": 4400,
+        "armStatesChecked": 4401,
+        "finalArmAdmissible": true,
+        "trackingPeak": {
+          "everyIntegrationStep": true,
+          "maximumJointErrorDeg": 45.02448938365711,
+          "joint": "L_Shoulder_protraction",
+          "time": 0.9820000000000008,
+          "maximumPelvisErrorM": 0.013529339393529094,
+          "signedErrorDeg": -45.02448938365711
+        },
+        "maximumCapturedSegmentError": {
+          "timeS": 1.5,
+          "label": "Target (1.5 s)",
+          "body": "L_Hand",
+          "errorDeg": 21.612940764454514
+        },
+        "nativeFloorTranslationM": 0.004481217832350322,
+        "sourceFitMaximumPositionM": 0.0020921336463128365,
+        "sourceFitMaximumOrientationDegrees": 28.054226841364205,
+        "palms": {
+          "L": {
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 7.255127821252282,
+              "worldPositionM": [
+                0.2931289267106164,
+                0.0007394109683633663,
+                1.7324728242941967
+              ],
+              "sourceMaterialPointM": [
+                0.293127723638685,
+                -0.0037415544662354194,
+                1.7324729927199976
+              ],
+              "sourceMaterialPointOffsetM": 0.004480965599267461,
+              "sourceWristErrorM": 0.004480950541380222,
+              "sourceOrientationErrorDeg": 0.004155886678533336,
+              "initialNativeMaterialPointOffsetM": 2.949029909160572e-17
+            },
+            "maximumAnchorDriftM": 0.048940161608555216,
+            "maximumSourceWristTravelM": 0.0002464727865724494,
+            "maximumSourceMaterialPointTravelM": 0.00024288396550957097,
+            "maximumSourceWristErrorM": 0.05050176033598822,
+            "maximumSourceOrientationErrorDeg": 22.49761730365577,
+            "maximumSourceWristErrorBeforeAcquisitionM": 0.004480950541380222,
+            "maximumSourceOrientationErrorBeforeAcquisitionDeg": 0.004155886678533336,
+            "loadRangeN": [
+              0,
+              252.18319720645684
+            ],
+            "below1N": {
+              "count": 64,
+              "totalSeconds": 0.23400000000005672,
+              "longestSeconds": 0.1710000000000571,
+              "first": {
+                "startTimeS": 0.048000000000000036,
+                "endTimeS": 0.04900000000000004,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "zeroLoad": {
+              "count": 64,
+              "totalSeconds": 0.23400000000005672,
+              "longestSeconds": 0.1710000000000571,
+              "first": {
+                "startTimeS": 0.048000000000000036,
+                "endTimeS": 0.04900000000000004,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            }
+          },
+          "R": {
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 7.134483128653916,
+              "worldPositionM": [
+                -0.29315926765522493,
+                0.0007385514972783805,
+                1.7324659325563518
+              ],
+              "sourceMaterialPointM": [
+                -0.2931598862693961,
+                -0.003740944843901077,
+                1.732466144205278
+              ],
+              "sourceMaterialPointOffsetM": 0.004479496388894504,
+              "sourceWristErrorM": 0.0044807832878473765,
+              "sourceOrientationErrorDeg": 0.005328295647088358,
+              "initialNativeMaterialPointOffsetM": 2.6129272356900657e-17
+            },
+            "maximumAnchorDriftM": 0.06773482969915685,
+            "maximumSourceWristTravelM": 0.00022609797441740316,
+            "maximumSourceMaterialPointTravelM": 0.000220794415086546,
+            "maximumSourceWristErrorM": 0.06305492893428745,
+            "maximumSourceOrientationErrorDeg": 31.638505627638004,
+            "maximumSourceWristErrorBeforeAcquisitionM": 0.0044807832878473765,
+            "maximumSourceOrientationErrorBeforeAcquisitionDeg": 0.005328295647088358,
+            "loadRangeN": [
+              0,
+              179.59110924824196
+            ],
+            "below1N": {
+              "count": 96,
+              "totalSeconds": 0.5020000000000626,
+              "longestSeconds": 0.15100000000000013,
+              "first": {
+                "startTimeS": 0.04400000000000003,
+                "endTimeS": 0.04500000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "zeroLoad": {
+              "count": 96,
+              "totalSeconds": 0.5020000000000626,
+              "longestSeconds": 0.15100000000000013,
+              "first": {
+                "startTimeS": 0.04400000000000003,
+                "endTimeS": 0.04500000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            }
+          }
+        }
+      },
+      "on": {
+        "nativePhysicsComplete": true,
+        "nativeSteps": 4400,
+        "armStatesChecked": 4401,
+        "finalArmAdmissible": true,
+        "trackingPeak": {
+          "everyIntegrationStep": true,
+          "maximumJointErrorDeg": 51.27771513487797,
+          "joint": "L_Shoulder_protraction",
+          "time": 1.0020000000000004,
+          "maximumPelvisErrorM": 0.013750707364946465,
+          "signedErrorDeg": -51.27771513487797
+        },
+        "maximumCapturedSegmentError": {
+          "timeS": 1.5,
+          "label": "Target (1.5 s)",
+          "body": "L_Hand",
+          "errorDeg": 19.431916954788555
+        },
+        "nativeFloorTranslationM": 0.004481217832350322,
+        "sourceFitMaximumPositionM": 0.0020921336463128365,
+        "sourceFitMaximumOrientationDegrees": 28.054226841364205,
+        "palms": {
+          "L": {
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 7.255127821252282,
+              "worldPositionM": [
+                0.2931289267106164,
+                0.0007394109683633663,
+                1.7324728242941967
+              ],
+              "sourceMaterialPointM": [
+                0.293127723638685,
+                -0.0037415544662354194,
+                1.7324729927199976
+              ],
+              "sourceMaterialPointOffsetM": 0.004480965599267461,
+              "sourceWristErrorM": 0.004480950541380222,
+              "sourceOrientationErrorDeg": 0.004155886678533336,
+              "initialNativeMaterialPointOffsetM": 2.949029909160572e-17
+            },
+            "maximumAnchorDriftM": 0.0533218520314305,
+            "maximumSourceWristTravelM": 0.0002464727865724494,
+            "maximumSourceMaterialPointTravelM": 0.00024288396550957097,
+            "maximumSourceWristErrorM": 0.056549731538437634,
+            "maximumSourceOrientationErrorDeg": 19.320485249969074,
+            "maximumSourceWristErrorBeforeAcquisitionM": 0.004480950541380222,
+            "maximumSourceOrientationErrorBeforeAcquisitionDeg": 0.004155886678533336,
+            "loadRangeN": [
+              0,
+              329.47546307497396
+            ],
+            "below1N": {
+              "count": 103,
+              "totalSeconds": 0.15600000000001601,
+              "longestSeconds": 0.054000000000018034,
+              "first": {
+                "startTimeS": 0.046000000000000034,
+                "endTimeS": 0.047000000000000035,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "zeroLoad": {
+              "count": 103,
+              "totalSeconds": 0.15600000000001601,
+              "longestSeconds": 0.054000000000018034,
+              "first": {
+                "startTimeS": 0.046000000000000034,
+                "endTimeS": 0.047000000000000035,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            }
+          },
+          "R": {
+            "acquisition": {
+              "timeS": 0,
+              "loadN": 7.134483128653916,
+              "worldPositionM": [
+                -0.29315926765522493,
+                0.0007385514972783805,
+                1.7324659325563518
+              ],
+              "sourceMaterialPointM": [
+                -0.2931598862693961,
+                -0.003740944843901077,
+                1.732466144205278
+              ],
+              "sourceMaterialPointOffsetM": 0.004479496388894504,
+              "sourceWristErrorM": 0.0044807832878473765,
+              "sourceOrientationErrorDeg": 0.005328295647088358,
+              "initialNativeMaterialPointOffsetM": 2.6129272356900657e-17
+            },
+            "maximumAnchorDriftM": 0.06474219203848372,
+            "maximumSourceWristTravelM": 0.00022609797441740316,
+            "maximumSourceMaterialPointTravelM": 0.000220794415086546,
+            "maximumSourceWristErrorM": 0.06048997189905301,
+            "maximumSourceOrientationErrorDeg": 32.81007990495664,
+            "maximumSourceWristErrorBeforeAcquisitionM": 0.0044807832878473765,
+            "maximumSourceOrientationErrorBeforeAcquisitionDeg": 0.005328295647088358,
+            "loadRangeN": [
+              0,
+              236.07229883681072
+            ],
+            "below1N": {
+              "count": 132,
+              "totalSeconds": 0.5120000000000503,
+              "longestSeconds": 0.17800000000000016,
+              "first": {
+                "startTimeS": 0.04000000000000003,
+                "endTimeS": 0.04100000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "zeroLoad": {
+              "count": 132,
+              "totalSeconds": 0.5120000000000503,
+              "longestSeconds": 0.17800000000000016,
+              "first": {
+                "startTimeS": 0.04000000000000003,
+                "endTimeS": 0.04100000000000003,
+                "durationS": 0.0010000000000000009
+              }
+            },
+            "engineeringStability": {
+              "acquired": true,
+              "stationarySourceWrist": true,
+              "continuousLoadedFromSetup": false,
+              "retainedAfterAcquisition": false,
+              "anchorWithin2mm": false
+            }
+          }
+        }
+      }
+    }
+  ]
+}

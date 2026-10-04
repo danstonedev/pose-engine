@@ -1,0 +1,3982 @@
+{
+  "before": {
+    "proneSkinSupport": "f47b5b71a86537efc34855c386f02292ce20948be437a0e686508089d68602d1",
+    "poseRomClamp": "1e29bdafaa4743e3c1a4718b7b5f76f9f9a9c7c4be18c14321f39a3275e2c9c2",
+    "jointAngles": "5bb7618b768b1f4916df479174a2e9ec826d12de086dbb3623e18ae87efc0c39",
+    "movementCommand": "0a3fe6f7e569db963415f5568e537d5969ec133565b5b5a81cf352b746fcdbb8"
+  },
+  "scope": "Isolated helper reference-fingerprint deduplication. Actual three body rigs, authored setup/peak/return, lower-chain patient constraint, repeated inputs and authoritative mutations. Exact returned result and all-bone locals required. Timings alternate execution order; this is not the combined patient performance gate.",
+  "copies": {
+    "original": "484f2426e756265ad3ee92a63b8d5fa9df4fbb2cbe9b9012600ab5f17019ece1",
+    "dedup": "7a1957a38f10754646da6095c27e4894912e3059684cbdb577da89647c540133"
+  },
+  "runs": [
+    {
+      "variant": "male",
+      "assetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "skins": 6,
+      "uniqueSkeletons": 1,
+      "calls": [
+        {
+          "label": "default",
+          "times": [
+            34.884199999999964,
+            26.498599999999897
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            13.234699999999975,
+            13.649800000000027
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.549199999999928,
+            2.2278000000001157
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3329999999998563,
+            2.6405999999999494
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.531600000000026,
+            2.332499999999982
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.186300000000074,
+            2.0751000000000204
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.0578999999997905,
+            2.001199999999926
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.088600000000042,
+            2.1094000000000506
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.1989000000000942,
+            2.104799999999841
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.9588999999998578,
+            1.9663000000000466
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.61200000000008,
+            2.0058000000001357
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.861799999999903,
+            2.4777999999998883
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.014900000000125,
+            2.433999999999969
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.505499999999984,
+            2.3360999999999876
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.133000000000038,
+            2.0516999999999825
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.6851000000001477,
+            2.0480999999999767
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.45920000000001,
+            1.95049999999992
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.011199999999917,
+            1.9548999999999523
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.8838000000000648,
+            2.809600000000046
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.0135999999999967,
+            1.9990000000000236
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.8871999999998934,
+            1.947099999999864
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.936999999999898,
+            1.952099999999973
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.9363999999998214,
+            1.887899999999945
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.9906999999998334,
+            2.2048999999999523
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.015899999999874,
+            2.205600000000004
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3623999999999796,
+            1.9688999999998487
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3398999999999432,
+            2.182399999999916
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.2460000000000946,
+            2.3109000000001743
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.129899999999907,
+            2.1386999999999716
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.284599999999955,
+            1.9848000000001775
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.165200000000141,
+            2.070199999999886
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.473899999999958,
+            2.0233999999998105
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            5.0267999999998665,
+            2.485300000000052
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.0161000000000513,
+            2.08199999999988
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.8928000000000793,
+            1.922900000000027
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.2309000000000196,
+            2.192099999999982
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.7907000000000153,
+            1.959899999999834
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.2636999999999716,
+            1.9451000000001386
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.7230000000001837,
+            1.995600000000195
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.9446000000000367,
+            1.9062000000001262
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.066000000000031,
+            2.137899999999945
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.955600000000004,
+            1.9177999999999429
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.7918999999999414,
+            1.8962000000001353
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.070300000000088,
+            1.8280999999999494
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.175700000000006,
+            1.9471999999998388
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.060600000000022,
+            1.8704000000000178
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.144700000000057,
+            2.0733999999999924
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.0494999999998527,
+            2.3204000000000633
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.4883000000002085,
+            1.9539999999999509
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.680799999999863,
+            2.180699999999888
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            5.478599999999915,
+            3.2765999999999167
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.794300000000021,
+            3.2210000000000036
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.2824000000000524,
+            3.7906000000000404
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.641700000000128,
+            2.3898000000001502
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.228900000000067,
+            2.2437999999999647
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.373399999999947,
+            2.024699999999939
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.192299999999932,
+            1.9224999999999
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.4897000000000844,
+            3.046100000000024
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.005100000000084,
+            2.1096999999999753
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.051400000000058,
+            2.105099999999993
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.182199999999966,
+            8.542799999999943
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.080600000000004,
+            9.011799999999994
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.67879999999991,
+            11.179699999999912
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.448000000000093,
+            10.038600000000088
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.051999999999907,
+            8.69250000000011
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            13.014699999999948,
+            8.613299999999981
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.186799999999948,
+            10.141200000000026
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.617399999999861,
+            8.544499999999971
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.761999999999944,
+            10.633799999999837
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.499299999999948,
+            8.253799999999956
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.145399999999881,
+            10.064000000000078
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.906799999999976,
+            8.279199999999946
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.486099999999851,
+            8.152900000000045
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.010999999999967,
+            7.764899999999898
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.788299999999936,
+            9.969499999999925
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.068399999999883,
+            9.490599999999858
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.977799999999888,
+            9.000099999999975
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.658899999999903,
+            14.271600000000035
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.971300000000156,
+            9.077199999999948
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.599800000000187,
+            7.904099999999971
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.869899999999916,
+            8.662799999999834
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.216699999999946,
+            9.18990000000008
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.167300000000068,
+            7.571699999999964
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.516799999999876,
+            7.504899999999907
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.395300000000134,
+            7.936700000000201
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.062600000000202,
+            7.644700000000057
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.051699999999983,
+            9.52189999999996
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.844499999999925,
+            8.777100000000019
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.6400000000001,
+            7.805900000000065
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.80749999999989,
+            7.586900000000014
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.445999999999913,
+            8.682199999999966
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.74409999999989,
+            8.257200000000012
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.100099999999884,
+            8.476300000000037
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.827699999999822,
+            9.268000000000029
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.95659999999998,
+            10.165299999999661
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.574100000000271,
+            8.174199999999928
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.588600000000042,
+            8.666299999999865
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.419300000000021,
+            8.527700000000095
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.864399999999932,
+            7.885199999999713
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.007700000000114,
+            9.307600000000093
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.674199999999928,
+            13.119500000000244
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.973399999999856,
+            12.540099999999711
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.307199999999739,
+            8.557800000000043
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.740900000000238,
+            8.905999999999949
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.731699999999819,
+            9.993800000000192
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.39240000000018,
+            8.642199999999775
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.647500000000036,
+            9.082100000000082
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.2175000000002,
+            8.002100000000155
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.538200000000415,
+            7.718799999999646
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.590099999999893,
+            7.772899999999936
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.841600000000199,
+            8.24369999999999
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.466600000000199,
+            8.664600000000064
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.19419999999991,
+            7.667300000000068
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.451499999999669,
+            8.154700000000048
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.662800000000061,
+            9.119499999999789
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.983000000000175,
+            7.751800000000003
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.582499999999982,
+            8.056900000000041
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.443300000000363,
+            7.4867999999996755
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.959699999999884,
+            9.878900000000158
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.343699999999899,
+            8.502500000000055
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "owner",
+          "times": [
+            26.372699999999895,
+            10.944300000000112
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "weights",
+          "times": [
+            11.488199999999779,
+            9.185199999999895
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "replacement",
+          "times": [
+            18.19290000000001,
+            6.099299999999857
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "binding",
+          "times": [
+            23.521299999999883,
+            5.530999999999949
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "baseline",
+          "times": [
+            10.889700000000175,
+            5.59479999999985
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "rest",
+          "times": [
+            8.717599999999948,
+            6.110900000000129
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "scale",
+          "times": [
+            9.585300000000188,
+            4.914800000000014
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        }
+      ],
+      "mutations": [
+        {
+          "mutation": "owner",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "weights",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "replacement",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "binding",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "baseline",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "rest",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "scale",
+          "exactFreshMeasurement": true
+        }
+      ],
+      "timing": {
+        "default": {
+          "calls": 60,
+          "originalMs": 244.88229999999976,
+          "candidateMs": 167.29559999999913
+        },
+        "patient": {
+          "calls": 60,
+          "originalMs": 605.9784999999997,
+          "candidateMs": 535.1005999999986
+        }
+      }
+    },
+    {
+      "variant": "female",
+      "assetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "skins": 6,
+      "uniqueSkeletons": 1,
+      "calls": [
+        {
+          "label": "default",
+          "times": [
+            18.853000000000065,
+            11.303399999999783
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            6.282300000000305,
+            4.818499999999858
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.958799999999883,
+            2.102100000000064
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.159699999999702,
+            2.004899999999907
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.2721999999998843,
+            2.20029999999997
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.0736000000001695,
+            2.0208999999999833
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.4429000000000087,
+            2.1902000000000044
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.06230000000005,
+            1.9951999999998407
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.2773999999999432,
+            2.031199999999899
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.177599999999984,
+            2.0852999999997337
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.247299999999996,
+            2.694499999999607
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.176899999999932,
+            3.6132000000002336
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.4911999999999352,
+            2.609399999999823
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.483400000000074,
+            2.516599999999926
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.284400000000005,
+            2.217699999999695
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.003400000000056,
+            2.0614999999997963
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.9976000000001477,
+            2.0914999999999964
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.623199999999997,
+            2.276600000000144
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.262000000000171,
+            2.2092999999999847
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.112999999999829,
+            2.2479000000002998
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.827099999999973,
+            2.1911999999997533
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.487799999999879,
+            2.892699999999877
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.553099999999631,
+            2.3837000000003172
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.286800000000312,
+            2.18080000000009
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3323999999997795,
+            2.2294999999999163
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.9791000000000167,
+            2.1592000000000553
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.574300000000221,
+            2.3560999999999694
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.473399999999856,
+            2.158700000000408
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.71349999999984,
+            2.5246000000001914
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.979699999999866,
+            2.3726000000001477
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.0934000000002015,
+            2.2833999999998014
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            6.152900000000045,
+            3.220100000000002
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            5.676000000000386,
+            2.379099999999653
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.4926000000000386,
+            2.634299999999712
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.0822000000002845,
+            2.440399999999954
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.196900000000369,
+            2.4866000000001804
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3375999999998385,
+            2.222899999999754
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.87519999999995,
+            2.9677999999998974
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.683600000000297,
+            2.343800000000101
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.553100000000086,
+            2.235099999999875
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.766900000000078,
+            2.292399999999816
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3614000000002306,
+            2.387399999999616
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.659099999999853,
+            2.7062000000000808
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.4769999999998618,
+            2.2421999999996842
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.085900000000038,
+            2.597400000000107
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.5020999999997,
+            2.6819000000000415
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.792699999999968,
+            2.3877000000002226
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.470000000000255,
+            2.1136999999998807
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3292999999998756,
+            2.265400000000227
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.493199999999888,
+            2.4268999999999323
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.5785000000000764,
+            2.253400000000056
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3026999999997315,
+            2.3567000000002736
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3123999999997977,
+            2.5
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.616899999999987,
+            3.9054000000000997
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3508999999999105,
+            3.1141999999999825
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.367700000000241,
+            2.496299999999792
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.1035000000001673,
+            2.184099999999944
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.4364999999997963,
+            2.3874000000000706
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.377899999999954,
+            2.2363000000000284
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.47420000000011,
+            2.302599999999984
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.765300000000025,
+            17.65639999999985
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.481400000000122,
+            8.997299999999996
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.304200000000037,
+            15.275600000000395
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.759800000000268,
+            17.023499999999785
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.867899999999736,
+            9.153999999999996
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            23.98610000000008,
+            19.267899999999827
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            22.251000000000204,
+            21.3765999999996
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.496699999999691,
+            12.619699999999739
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            22.867999999999938,
+            20.528099999999995
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            26.690900000000056,
+            18.682800000000043
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            13.468499999999949,
+            12.230599999999868
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.993499999999585,
+            18.155599999999595
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.383200000000215,
+            14.45089999999982
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.29800000000023,
+            10.801899999999932
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.513500000000022,
+            13.939400000000205
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            18.115499999999884,
+            17.26859999999988
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            13.828499999999622,
+            13.557800000000043
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.805899999999838,
+            16.12039999999979
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.955600000000231,
+            16.54410000000007
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.073499999999967,
+            8.08259999999973
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.536999999999807,
+            16.29280000000017
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.875,
+            14.97440000000006
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.298199999999724,
+            9.930199999999786
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            19.075400000000172,
+            14.357299999999668
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.40079999999989,
+            15.00440000000026
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.508599999999205,
+            8.287999999999556
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.792000000000371,
+            14.562799999999697
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.54950000000008,
+            22.8136999999997
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.399600000000646,
+            8.215699999999742
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.552700000000186,
+            13.749499999999898
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.445700000000215,
+            15.255100000000311
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.699800000000323,
+            9.001100000000406
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.50340000000051,
+            16.929000000000087
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.821500000000015,
+            13.419399999999769
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.2520999999997,
+            7.761499999999614
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.759100000000217,
+            13.531699999999546
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.72110000000066,
+            15.495600000000195
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.514099999999416,
+            8.774900000000343
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.284200000000055,
+            15.970299999999952
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.126599999999598,
+            15.122199999999793
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            8.806999999999789,
+            9.255099999999402
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            18.198899999999412,
+            14.818000000000211
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.837100000000646,
+            13.645899999999529
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.575300000000425,
+            9.114000000000487
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            18.00720000000001,
+            15.765900000000329
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            18.172199999999975,
+            15.899699999999939
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.363900000000285,
+            8.126600000000508
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            18.219900000000052,
+            13.999499999999898
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.6904999999997,
+            16.14969999999994
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.160499999999956,
+            8.710000000000036
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.753899999999703,
+            14.481999999999971
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.091599999999744,
+            13.546599999999671
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.177200000000084,
+            9.722200000000157
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.36619999999948,
+            13.867699999999786
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.554799999999886,
+            12.867199999999684
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.770900000000438,
+            8.1875
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.02979999999934,
+            14.764100000000326
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            35.183899999999994,
+            13.6278999999995
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.73030000000017,
+            11.453499999999622
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.40139999999974,
+            18.5608000000002
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "owner",
+          "times": [
+            18.932600000000093,
+            8.688000000000102
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "weights",
+          "times": [
+            12.648099999999431,
+            6.767300000000432
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "replacement",
+          "times": [
+            9.922299999999268,
+            5.234400000000278
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "binding",
+          "times": [
+            11.708599999999933,
+            5.859599999999773
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "baseline",
+          "times": [
+            10.360000000000582,
+            5.387399999999616
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "rest",
+          "times": [
+            10.77009999999973,
+            5.3028000000003885
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "scale",
+          "times": [
+            9.767700000000332,
+            4.800199999999677
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        }
+      ],
+      "mutations": [
+        {
+          "mutation": "owner",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "weights",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "replacement",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "binding",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "baseline",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "rest",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "scale",
+          "exactFreshMeasurement": true
+        }
+      ],
+      "timing": {
+        "default": {
+          "calls": 60,
+          "originalMs": 239.45170000000053,
+          "candidateMs": 155.79039999999804
+        },
+        "patient": {
+          "calls": 60,
+          "originalMs": 913.1158999999993,
+          "candidateMs": 827.7472999999959
+        }
+      }
+    },
+    {
+      "variant": "neutral",
+      "assetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "skins": 6,
+      "uniqueSkeletons": 1,
+      "calls": [
+        {
+          "label": "default",
+          "times": [
+            12.938400000000001,
+            10.413500000000568
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            11.323900000000322,
+            12.294799999999668
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.2524999999996,
+            2.248399999999492
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.27809999999954,
+            2.170199999999568
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.519999999999527,
+            2.2595000000001164
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.9332000000003973,
+            2.0189000000000306
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.9961999999995896,
+            1.9215999999996711
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.052700000000186,
+            1.9167000000006738
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            5.0262000000002445,
+            2.1734999999998763
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.35779999999977,
+            2.2007000000003245
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.553899999999885,
+            2.1035000000001673
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.1611000000002605,
+            2.0716999999995096
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3424000000004526,
+            2.525900000000547
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.6053000000001703,
+            2.2799000000004526
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.555600000000595,
+            2.490799999999581
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.7224999999998545,
+            2.2478000000000975
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.6885999999994965,
+            2.178399999999783
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.528500000000349,
+            2.3154999999997017
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.6555000000007567,
+            2.3882000000003245
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.397100000000137,
+            2.1818999999995867
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            2.9606000000003405,
+            2.063299999999799
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.8479000000006636,
+            2.8320999999996275
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.7899999999999636,
+            2.266299999999319
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.560599999999795,
+            2.248199999999997
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.344299999999748,
+            3.3388999999997395
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            5.310900000000402,
+            3.5
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            5.07300000000032,
+            4.392899999999827
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.807600000000093,
+            3.7836999999999534
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.943899999999303,
+            2.6533999999992375
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.40270000000055,
+            2.711899999999332
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.300799999999981,
+            2.1253999999998996
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3747000000003027,
+            2.0992999999998574
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.718300000000454,
+            2.509299999999712
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.2296000000005733,
+            2.108700000000681
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.8233999999993102,
+            3.1270999999997002
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.8126000000002023,
+            2.2979999999997744
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.79739999999947,
+            2.8807999999999083
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.5547999999998865,
+            2.5305000000007567
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.309899999999288,
+            3.0393999999996595
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            7.795199999999568,
+            2.617000000000189
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            7.690300000000207,
+            5.575200000000223
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            6.74619999999959,
+            5.615399999999681
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            6.848099999999249,
+            4.818699999999808
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            5.698699999999917,
+            4.243600000000697
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            6.440599999999904,
+            4.476200000000063
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.266900000000533,
+            4.567500000000109
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            5.205600000000231,
+            3.527999999999338
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.931499999999687,
+            2.6716000000005806
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.837299999999232,
+            3.510099999999511
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.9742000000005646,
+            3.037100000000464
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.686200000000099,
+            2.213999999999942
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.681700000000092,
+            3.1603000000004613
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.692500000000109,
+            2.683600000000297
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            5.169100000000071,
+            3.050799999999981
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.483099999999467,
+            3.3339999999998327
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.335399999999936,
+            2.141700000000128
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            3.3070000000006985,
+            2.195400000000518
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.16610000000037,
+            2.5963999999994485
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.832999999999629,
+            2.8747999999995955
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "default",
+          "times": [
+            4.930199999999786,
+            3.201000000000022
+          ],
+          "reused": true,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            20.97100000000046,
+            29.335799999999836
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.593199999999342,
+            20.496100000000297
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            26.761499999999614,
+            30.90599999999995
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            25.167499999999563,
+            20.580200000000332
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.129899999999907,
+            10.674400000000787
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.320300000000316,
+            14.650099999999838
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.112999999999374,
+            14.449200000000019
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.235900000000584,
+            9.920900000000074
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            13.849699999999757,
+            12.620499999999993
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.5625,
+            13.09310000000005
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.411399999999958,
+            11.172300000000178
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.32009999999991,
+            16.221700000000055
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.77350000000024,
+            17.728500000000167
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.773600000000442,
+            10.3121000000001
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.547199999999975,
+            16.102200000000266
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.89930000000004,
+            18.036000000000058
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.870599999999286,
+            10.43040000000019
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.457900000000336,
+            17.493499999999585
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.069800000000214,
+            14.107600000000275
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            9.497199999999793,
+            8.826399999999921
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.836500000000342,
+            14.243199999999888
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            19.79870000000028,
+            15.505799999999908
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.14640000000054,
+            10.287800000000061
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            13.759900000000016,
+            15.41859999999997
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            13.480999999999767,
+            13.077299999999923
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.574499999999716,
+            8.47900000000027
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.066600000000108,
+            13.720800000000054
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.50890000000072,
+            17.40399999999954
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.664400000000569,
+            10.298999999999978
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.948099999999613,
+            17.917199999999866
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.564000000000306,
+            15.728500000000167
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.98109999999997,
+            10.975899999999456
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.540500000000065,
+            18.891999999999825
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.350100000000566,
+            11.846299999999246
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.813600000000406,
+            11.253399999999601
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            13.52940000000035,
+            13.569800000000214
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.244499999999789,
+            14.016599999999926
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            13.749699999999393,
+            8.626100000000406
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            13.40309999999954,
+            14.439099999999598
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            18.912599999999657,
+            13.333299999999326
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.025299999999334,
+            9.099100000000362
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.075699999999415,
+            13.373099999999795
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.027399999999943,
+            16.78740000000016
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.83680000000004,
+            11.301500000000487
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.773299999999836,
+            14.309200000000601
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.267399999999725,
+            13.923800000000483
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.10280000000057,
+            9.151300000000447
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.157599999999547,
+            13.587899999999536
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            14.390599999999722,
+            18.61320000000069
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.113100000000486,
+            8.714100000000144
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.366299999999683,
+            16.55829999999969
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.990200000000186,
+            13.516000000000531
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            11.91110000000026,
+            10.389500000000226
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.087900000000445,
+            15.277800000000752
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.68499999999949,
+            14.863400000000183
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            10.142399999999725,
+            8.804799999999886
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            15.48320000000058,
+            14.102100000000064
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            17.31970000000001,
+            13.910800000000563
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            12.5649999999996,
+            10.84439999999995
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "patient",
+          "times": [
+            16.97110000000066,
+            16.629700000000412
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "owner",
+          "times": [
+            18.159200000000055,
+            13.975500000000466
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "weights",
+          "times": [
+            7.617799999999988,
+            4.44130000000041
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "replacement",
+          "times": [
+            8.232899999999972,
+            2.8684999999995853
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "binding",
+          "times": [
+            7.98870000000079,
+            2.3302999999996246
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "baseline",
+          "times": [
+            7.652699999999641,
+            2.0455000000001746
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "rest",
+          "times": [
+            8.23739999999998,
+            2.2534999999998035
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        },
+        {
+          "label": "scale",
+          "times": [
+            7.244099999999889,
+            2.683799999999792
+          ],
+          "reused": false,
+          "exactResult": true,
+          "exactPose": true
+        }
+      ],
+      "mutations": [
+        {
+          "mutation": "owner",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "weights",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "replacement",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "binding",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "baseline",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "rest",
+          "exactFreshMeasurement": true
+        },
+        {
+          "mutation": "scale",
+          "exactFreshMeasurement": true
+        }
+      ],
+      "timing": {
+        "default": {
+          "calls": 60,
+          "originalMs": 273.5714000000007,
+          "candidateMs": 187.0229999999974
+        },
+        "patient": {
+          "calls": 60,
+          "originalMs": 880.4906000000001,
+          "candidateMs": 849.9481000000042
+        }
+      }
+    }
+  ],
+  "after": {
+    "proneSkinSupport": "f47b5b71a86537efc34855c386f02292ce20948be437a0e686508089d68602d1",
+    "poseRomClamp": "1e29bdafaa4743e3c1a4718b7b5f76f9f9a9c7c4be18c14321f39a3275e2c9c2",
+    "jointAngles": "5bb7618b768b1f4916df479174a2e9ec826d12de086dbb3623e18ae87efc0c39",
+    "movementCommand": "0a3fe6f7e569db963415f5568e537d5969ec133565b5b5a81cf352b746fcdbb8"
+  },
+  "sourceStable": true
+}

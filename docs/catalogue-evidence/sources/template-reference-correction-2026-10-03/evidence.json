@@ -1,0 +1,600 @@
+{
+  "kind": "bounded-template-reference-correction",
+  "result": "bibliography-and-supported-scope-corrected",
+  "createdAt": "2026-10-03T23:32:15.209Z",
+  "reviewer": "Codex reference audit; not clinical sign-off",
+  "defects": [
+    "defect:template-reference-attribution",
+    "defect:reference-template-primary-citations"
+  ],
+  "document": {
+    "path": "docs/movement-templates-reference.md",
+    "beforeSha256": "014d50f3d7ed8e0231a958a76d593f4a48bb6c378d2a9cb43ef2a075a0d25274",
+    "afterSha256": "13dfdcb402c311141dd2bafd291a1256026db9f2ebd18aa84fbd91265c4f5c27"
+  },
+  "originalRetained": {
+    "path": "docs/catalogue-evidence/sources/template-reference-correction-2026-10-03/original-movement-templates-reference.md",
+    "sha256": "014d50f3d7ed8e0231a958a76d593f4a48bb6c378d2a9cb43ef2a075a0d25274"
+  },
+  "originalClaimLocators": [
+    {
+      "line": 12,
+      "text": "**What is already guaranteed by automated tests** (`__tests__/movementTemplates.test.ts`,"
+    },
+    {
+      "line": 15,
+      "text": "1. **ROM-validated** — every authored peak passes through the ROM clamp"
+    },
+    {
+      "line": 18,
+      "text": "2. **Rig round-trip** — playing each template on the actual GLB measures the"
+    },
+    {
+      "line": 34,
+      "text": "## Literature validation (completed — pending your SME sign-off)"
+    },
+    {
+      "line": 36,
+      "text": "Every authored value was cross-checked against **published normative kinematics**"
+    },
+    {
+      "line": 42,
+      "text": "| Squat | knee flexion | 115° → **120°** | Kim 2020 deep-squat knee ~119–125° |"
+    },
+    {
+      "line": 43,
+      "text": "| Squat | lumbar flexion | 20° → **27°** | Kim 2020 ~30–44° lumbar in real squats |"
+    },
+    {
+      "line": 44,
+      "text": "| Squat | ankle DF | 18° → **20°*** | Real deep-squat DF ~30° but engine caps AROM at 20° (binding constraint) |"
+    },
+    {
+      "line": 45,
+      "text": "| Sit-to-stand | seated knee | 90° → **95°** | STS initiation knee ~95–98° |"
+    },
+    {
+      "line": 46,
+      "text": "| Sit-to-stand | lean hip | 100° → **105°** | preserves the trunk-to-vertical lean once lumbar reduced |"
+    },
+    {
+      "line": 47,
+      "text": "| **Sit-to-stand** | **lean lumbar** | **25° → 12°** | **Healthy STS leans with the HIPS and preserves lumbar lordosis; 25° modeled a faulty/compensatory pattern (Schenkman)** |"
+    },
+    {
+      "line": 48,
+      "text": "| Lunge | lead hip flexion | 55° → **75°** | 55° too shallow for a 90° lead-knee bottom (split-squat literature ~75–90°) |"
+    },
+    {
+      "line": 49,
+      "text": "| March | knee flexion | 70° → **80°** | more march-like shank hang |"
+    },
+    {
+      "line": 50,
+      "text": "| March | contralateral arm | 25° → **38°** | 25° = normal-gait amplitude; an exaggerated march exaggerates the arm |"
+    },
+    {
+      "line": 51,
+      "text": "| Lumbar AROM | thoracic extension | −15° → **−10°** | thoracic extension is rib-cage-limited to ~8–10° (CT: 8.5°) |"
+    },
+    {
+      "line": 53,
+      "text": "Validated **within range as-authored** (no change): squat hip 100° (Kim ~99°),"
+    },
+    {
+      "line": 58,
+      "text": "flexion 25°. Shoulder scapulohumeral-rhythm guidance refined: the ~2:1 ratio"
+    },
+    {
+      "line": 62,
+      "text": "**Every corrected value was re-verified on the real rig** (ROM clamp + round-trip"
+    },
+    {
+      "line": 65,
+      "text": "**Primary sources:** Kim et al. 2020 *J Sports Sci Med* (PMC7429430); Schenkman et"
+    },
+    {
+      "line": 74,
+      "text": "- **Shoulder elevation** is measured *humerothoracic* (as a goniometer reads it),"
+    },
+    {
+      "line": 79,
+      "text": "- **Sit-to-stand** has no chair prop; the seated depth is represented as the"
+    }
+  ],
+  "canonicalAtInspection": {
+    "path": "docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html",
+    "sha256": "9a832e00cb5a497bf491be9a6146a4800c01b1c8562fc3e48e8bc0677a0e1629",
+    "runtimeInventoryIdentity": "Master snapshot only; actual source file identities below are authoritative for the retained comment locators"
+  },
+  "originalMasterDefects": [
+    {
+      "id": "defect:template-reference-attribution",
+      "title": "Template sheet misattributes PMC7429430 to Kim et al. and lacks verified numerical claim scope.",
+      "category": "reference-provenance",
+      "severity": "medium",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "engine-template:squat",
+          "library:squat",
+          "exercises:squat",
+          "engine-builder:buildSquat"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "findingIds": [
+        "finding:template-kim-attribution",
+        "finding:reference-squat-attribution"
+      ],
+      "owner": "catalogue-integration",
+      "expected": "Correct bibliography and exact supported tables/conditions; arms-forward bodyweight/max-depth study does not validate FMS overhead/bar tasks.",
+      "acceptance": [
+        "Correct bibliography and exact supported tables/conditions; arms-forward bodyweight/max-depth study does not validate FMS overhead/bar tasks.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "nextAction": "Use ref:zawadka-2020-squat and verify numerical tables with reference integrator; no motion values changed.",
+      "dependencies": [],
+      "blocking": true,
+      "closures": [],
+      "mappingGaps": [],
+      "ownerDetails": {
+        "kind": "work-unit-role",
+        "person": null,
+        "assignmentStatus": "Accountable coordination role assigned; claim bounded file scope before implementation."
+      },
+      "reproduction": {
+        "status": "not-run-in-reconciliation",
+        "result": null,
+        "sourceState": "Source may differ from this master snapshot; fresh scope/identity checks required."
+      },
+      "hypotheses": [],
+      "originalStatus": "open",
+      "severityBasis": "Engineering prioritization, not inferred patient risk.",
+      "referenceIds": [
+        "ref:zawadka-2020-squat"
+      ],
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:reference-template-primary-citations",
+      "title": "Template/ROM bibliography lacks exact editions/pages, unique Bohannon work and per-claim provenance.",
+      "category": "reference-provenance",
+      "severity": "medium",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "engine-template:squat",
+          "library:squat",
+          "engine-template:forward-hip-hinge",
+          "engine-template:shoulder-flexion-elevation",
+          "library:shoulder-flexion-elevation",
+          "engine-template:shoulder-abduction-elevation",
+          "library:shoulder-abduction-elevation",
+          "engine-template:high-knee-march",
+          "engine-template:walk",
+          "library:walk",
+          "engine-template:sit-to-stand",
+          "library:sit-to-stand",
+          "engine-template:forward-lunge",
+          "engine-template:single-leg-stance",
+          "library:single-leg-stance",
+          "engine-template:heel-raise",
+          "engine-template:cervical-rotation",
+          "library:cervical-rotation",
+          "engine-template:lumbar-flexion-extension",
+          "library:lumbar-flexion-extension",
+          "engine-template:shoulder-rotation",
+          "library:shoulder-rotation",
+          "engine-template:hip-rotation",
+          "library:hip-rotation",
+          "engine-template:forearm-rotation",
+          "library:forearm-rotation",
+          "engine-template:wrist-flexion-extension",
+          "library:wrist-flexion-extension",
+          "engine-template:wrist-deviation",
+          "library:wrist-deviation",
+          "engine-template:tibial-rotation",
+          "library:tibial-rotation",
+          "engine-template:trunk-side-bend",
+          "library:trunk-side-bend",
+          "engine-template:cervical-lateral-flexion",
+          "library:cervical-lateral-flexion",
+          "engine-template:kick",
+          "engine-template:endpoint-reach",
+          "engine-template:ankle-strategy",
+          "engine-template:hip-strategy",
+          "engine-template:stepping-strategy"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "findingIds": [
+        "finding:reference-template-primary-citations"
+      ],
+      "owner": "catalogue-integration",
+      "expected": "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented.",
+      "acceptance": [
+        "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+      ],
+      "nextAction": "Identify accessed editions/papers and pin each actual target/timing/coordination claim; retain unsupported claims.",
+      "dependencies": [],
+      "blocking": true,
+      "closures": [],
+      "referenceIds": [
+        "ref:norkin-white-unspecified-edition",
+        "ref:aaos-joint-motion-unspecified-edition",
+        "ref:neumann-unspecified-edition",
+        "ref:bohannon-unspecified-functional-tasks"
+      ],
+      "mappingGaps": [],
+      "workUnitId": "work:catalogue-consolidation"
+    }
+  ],
+  "sources": [
+    {
+      "id": "ref:zawadka-2020-squat",
+      "authors": [
+        "Zawadka M",
+        "Smolka J",
+        "Skublewska-Paszkowska M",
+        "Lukasik E",
+        "Gawda P"
+      ],
+      "title": "How Are Squat Timing and Kinematics in The Sagittal Plane Related to Squat Depth?",
+      "publication": "J Sports Sci Med. 2020;19(3):500–507",
+      "pmid": "32874102",
+      "pmcid": "PMC7429430",
+      "doi": null,
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7429430/",
+      "access": "Full primary article, Methods and Table 2 verified",
+      "locator": "Methods: Subjects/Procedures and angle definitions; Results: Table 2",
+      "extractedData": {
+        "units": "degrees",
+        "statistic": "ROM excursion mean and SD",
+        "femaleN": 20,
+        "maleN": 40,
+        "regions": {
+          "hip": {
+            "female": [
+              98.61,
+              12.22
+            ],
+            "male": [
+              99.58,
+              11.03
+            ]
+          },
+          "knee": {
+            "female": [
+              119,
+              15.1
+            ],
+            "male": [
+              124.8,
+              15.5
+            ]
+          },
+          "ankle": {
+            "female": [
+              30.81,
+              4.86
+            ],
+            "male": [
+              30.27,
+              6.36
+            ]
+          },
+          "lumbarMeasure": {
+            "female": [
+              30.08,
+              14.44
+            ],
+            "male": [
+              43.74,
+              15.31
+            ]
+          }
+        }
+      },
+      "conditions": {
+        "task": "unloaded maximal-depth bodyweight squat",
+        "arms": "extended forward and parallel to floor",
+        "heelContact": "instructed throughout",
+        "holdSeconds": 3,
+        "pace": "preferred",
+        "population": "healthy university-age recreationally active, not especially trained in squatting",
+        "samplingHz": 100,
+        "angles": "XYZ Cardan; lumbar thoracic segment relative to pelvis; ROM maximum minus minimum"
+      },
+      "unsupported": [
+        "FMS overhead/dowel or loaded/bar task validation",
+        "group means interpreted as universal peak angles or a normal range",
+        "27-degree lumbar bone target validation",
+        "fixed engine timing or source-to-rig mapping"
+      ],
+      "accessedAt": "2026-10-03",
+      "license": "Not inferred; source article/media not redistributed",
+      "retention": "Direct primary links, bibliographic facts and scoped aggregate/phase observations retained; no raw trajectories"
+    },
+    {
+      "id": "reference-audit:namdari-2012",
+      "authors": [
+        "Namdari S",
+        "Yagnik G",
+        "Ebaugh DD",
+        "Nagda S",
+        "Ramsey ML",
+        "Williams GR Jr",
+        "Mehta S"
+      ],
+      "title": "Defining functional shoulder range of motion for activities of daily living",
+      "publication": "J Shoulder Elbow Surg. 2012;21(9):1177–1183",
+      "pmid": "22047785",
+      "doi": "10.1016/j.jse.2011.07.032",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/22047785/",
+      "access": "Primary abstract verified; full-text tables not inspected",
+      "locator": "Abstract Materials and methods; Results",
+      "extractedData": {
+        "units": "degrees",
+        "flexion": {
+          "reported": 121,
+          "reportedPlusMinus": 6.7
+        },
+        "abduction": {
+          "reported": 128,
+          "reportedPlusMinus": 7.9
+        },
+        "subjects": 20,
+        "shoulders": 40,
+        "tasks": 10
+      },
+      "conditions": {
+        "population": "volunteers without shoulder pathology",
+        "taskSelection": "ASES/SST/PSS functional tasks",
+        "equipment": "FASTRAK electromagnetic tracking; T3, scapular spine and distal humerus sensors"
+      },
+      "unsupported": [
+        "universal 120-degree screen or overhead task validation",
+        "full anatomical ROM or fixed regional shoulder split",
+        "complete task tables or coordinate-frame reconciliation"
+      ],
+      "accessedAt": "2026-10-03",
+      "license": "Not inferred; source article/media not redistributed",
+      "retention": "Direct primary links, bibliographic facts and scoped aggregate/phase observations retained; no raw trajectories"
+    },
+    {
+      "id": "reference-audit:mcquade-smidt-1998",
+      "authors": [
+        "McQuade KJ",
+        "Smidt GL"
+      ],
+      "title": "Dynamic scapulohumeral rhythm: the effects of external resistance during elevation of the arm in the scapular plane",
+      "publication": "J Orthop Sports Phys Ther. 1998;27(2):125–133",
+      "pmid": "9475136",
+      "doi": "10.2519/jospt.1998.27.2.125",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/9475136/",
+      "access": "Primary indexed abstract verified; publisher full text inaccessible and subsequent PubMed fetch incomplete",
+      "locator": "Abstract",
+      "extractedData": {
+        "subjects": 25,
+        "loadingConditions": [
+          "passive",
+          "active against limb weight",
+          "maximal resistance"
+        ],
+        "observed": "rhythm depends on elevation phase and load"
+      },
+      "unsupported": [
+        "fixed post-30-degree 2:1 rule",
+        "exact 85-degree GH / 35-degree scapular split at 120 degrees"
+      ],
+      "accessedAt": "2026-10-03",
+      "license": "Not inferred; source article/media not redistributed",
+      "retention": "Direct primary links, bibliographic facts and scoped aggregate/phase observations retained; no raw trajectories"
+    },
+    {
+      "id": "reference-audit:schenkman-1990",
+      "authors": [
+        "Schenkman M",
+        "Berger RA",
+        "Riley PO",
+        "Mann RW",
+        "Hodge WA"
+      ],
+      "title": "Whole-body movements during rising to standing from sitting",
+      "publication": "Phys Ther. 1990;70(10):638–648; discussion 648–651",
+      "pmid": "2217543",
+      "doi": "10.1093/ptj/70.10.638",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/2217543/",
+      "access": "Primary abstract verified; publisher full text inaccessible",
+      "locator": "Abstract",
+      "extractedData": {
+        "subjects": 9,
+        "phases": [
+          "flexion momentum",
+          "momentum transfer",
+          "extension",
+          "stabilization"
+        ]
+      },
+      "conditions": {
+        "population": "healthy individuals",
+        "task": "chair rise under controlled conditions"
+      },
+      "unsupported": [
+        "95–98-degree knee range",
+        "105-degree hip target",
+        "12-degree lumbar target",
+        "preserved-lordosis rule or 25-degree faulty classification"
+      ],
+      "accessedAt": "2026-10-03",
+      "license": "Not inferred; source article/media not redistributed",
+      "retention": "Direct primary links, bibliographic facts and scoped aggregate/phase observations retained; no raw trajectories"
+    }
+  ],
+  "runtimeCommentLocators": [
+    {
+      "file": "src/services/movementTemplates.ts",
+      "line": 5,
+      "issue": "AAOS/Norkin attribution without exact edition/page",
+      "sha256": "65761eb6b896af697092bb278d5cda16771d923156037f100199a11bc3c3f1cc",
+      "originalText": " * WHY. The composer's ROM limits are sourced (AAOS / Norkin & White) and every"
+    },
+    {
+      "file": "src/services/movementTemplates.ts",
+      "line": 20,
+      "endLine": 23,
+      "issue": "Tests described as proof of normative range and achievable coordination",
+      "sha256": "65761eb6b896af697092bb278d5cda16771d923156037f100199a11bc3c3f1cc",
+      "originalText": " *   2. {@link templateToComposedMotion} turns a template into a playable,\n *      measurable ComposedMotion — which lets the test-suite RESOLVE each\n *      template through the real ROM path (proving every peak is within\n *      normative range) and SAMPLE it on the rig (proving the authored"
+    },
+    {
+      "file": "src/services/movementTemplates.ts",
+      "line": 25,
+      "endLine": 28,
+      "issue": "Unverified 2:1 and reviewed-reference wording",
+      "sha256": "65761eb6b896af697092bb278d5cda16771d923156037f100199a11bc3c3f1cc",
+      "originalText": " *\n * These values are clinician-authored from standard kinesiology (e.g. Neumann,\n * *Kinesiology of the Musculoskeletal System*; scapulohumeral rhythm ~2:1) and\n * are flagged for SME verification, exactly like the ROM registry — they are a"
+    },
+    {
+      "file": "src/services/movementTemplates.data.ts",
+      "line": 10,
+      "endLine": 13,
+      "issue": "Reviewed-reference and 2:1 header wording",
+      "sha256": "a71d91349e3b7b2fbe7117d71b3bea86c7dd0a5a8633b453c7d21e319b6fa643",
+      "originalText": " * Every value is clinician-authored from standard kinesiology (e.g. Neumann,\n * *Kinesiology of the Musculoskeletal System*; scapulohumeral rhythm ~2:1) and is\n * flagged for SME verification, exactly like the ROM registry — a reviewed\n * reference, not mocap."
+    },
+    {
+      "file": "src/services/movementTemplates.data.ts",
+      "line": 177,
+      "issue": "Broad functional/task mapping, post-30-degree setting rule and exact 85/35 split",
+      "sha256": "a71d91349e3b7b2fbe7117d71b3bea86c7dd0a5a8633b453c7d21e319b6fa643",
+      "originalText": "      'Humerothoracic (goniometric) forward elevation to ~120° functional — this matches the mean forward elevation used across activities of daily living [Namdari 2012: 121°]; full physiologic range is ~160-170° (AAOS ideal 180°). Scapulohumeral rhythm averages ~2:1 (glenohumeral : scapular upward rotation) BEYOND the first ~30° \"setting phase\" (in which motion is predominantly glenohumeral and the scapula stabilises); the ratio varies with elevation and load [Inman 1944; Neumann; McQuade & Smidt 1998]. At the full 180° arc this yields ~120° GH + ~60° scapular; at this 120° functional target, ~85° GH + ~35° scapular upward rotation. Do NOT command the scapula separately — the humerothoracic readout already includes it. Shown on the right; mirror for the left or do both.',"
+    },
+    {
+      "file": "src/services/movementTemplates.data.ts",
+      "line": 199,
+      "issue": "Same unsupported claims in abduction coordination",
+      "sha256": "a71d91349e3b7b2fbe7117d71b3bea86c7dd0a5a8633b453c7d21e319b6fa643",
+      "originalText": "      'Humerothoracic (goniometric) lateral elevation to ~120° functional — near the mean abduction used across activities of daily living [Namdari 2012: 128°]; full physiologic range is ~160-170° (AAOS ideal 180°). Same scapulohumeral rhythm ~2:1 BEYOND the first ~30° setting phase (predominantly glenohumeral early), varying with elevation and load; at this 120° target ~85° GH + ~35° scapular upward rotation. Do NOT command the scapula separately; the humerothoracic readout already includes it. Shown on the right.',"
+    }
+  ],
+  "sourceBefore": {
+    "movementTemplates.ts": "65761eb6b896af697092bb278d5cda16771d923156037f100199a11bc3c3f1cc",
+    "movementTemplates.data.ts": "a71d91349e3b7b2fbe7117d71b3bea86c7dd0a5a8633b453c7d21e319b6fa643",
+    "functionalRecipes.ts": "591370e7df55c77b0f0eed722f3d5127bdb30165870e3e1d3ce7c2a0b468a5e6"
+  },
+  "sourceAfter": {
+    "movementTemplates.ts": "65761eb6b896af697092bb278d5cda16771d923156037f100199a11bc3c3f1cc",
+    "movementTemplates.data.ts": "a71d91349e3b7b2fbe7117d71b3bea86c7dd0a5a8633b453c7d21e319b6fa643",
+    "functionalRecipes.ts": "591370e7df55c77b0f0eed722f3d5127bdb30165870e3e1d3ce7c2a0b468a5e6"
+  },
+  "runtimeSourceUntouchedByCorrection": true,
+  "acceptance": {
+    "scope": "Documentation bibliography/claim correction only",
+    "runtimeEdited": false,
+    "canonicalEdited": false,
+    "gatesPinsTolerancesEdited": false,
+    "clinicalSignOff": false,
+    "defectsClosed": false
+  },
+  "remainingCriteria": {
+    "attributionDefect": [
+      "source-to-context/body/side/task mapping",
+      "current actual-rig editable Blender setup/motion/hold/return/loop review",
+      "whole-body skin/contact and clinical/patient/reference checks",
+      "both-host playback and applicable native trials"
+    ],
+    "primaryCitationsDefect": [
+      "exact editions/pages for remaining textbook claims",
+      "unique Bohannon work",
+      "remaining cervical/spinal/gait/lunge/balance/march source verification",
+      "usable retained per-task data and coordinate mappings",
+      "identified clinical reviewer and exact supported context coverage"
+    ]
+  },
+  "coverageLimit": "This artifact is not a second acceptance ledger; root integrates links and findings into the existing master. Historical claims are retained, unsupported claims are explicitly labelled, no new tolerances or full movement acceptance are inferred.",
+  "verification": {
+    "method": "Reviewed original-paper full text/table or primary abstracts through web browsing, inspected actual current runtime comments read-only, and compared preserved historical tables/timing against the original snapshot.",
+    "historicalTableRowsIdentical": true,
+    "historicalTableRows": 47,
+    "historicalTimingsIdentical": true,
+    "originalSnapshotHashMatches": true,
+    "clinicalSignOffStillBlank": true,
+    "runtimeSourceUntouched": true,
+    "historicalTimingRows": 10
+  },
+  "integrationNote": "Portable engine-relative artifact paths. CanonicalAtInspection and runtime comment locators retain the original audit identities; they are inspection records, not current movement qualification.",
+  "portability": {
+    "convertedAt": "2026-10-03T23:38:38.303Z",
+    "priorAuditEvidenceSha256": "64b8c447994791932b8961f2b025b20b5ef5adb35aac0d8381bbdc0fceff71ba",
+    "engineRelativePaths": true,
+    "originalBytesPreserved": true,
+    "referenceDocChange": "Exactly one snapshot link changed from workspace scratch to retained engine evidence.",
+    "priorReferenceDocSha256": "087e4584d7e0b589dc951a3d109fa977d7ed803b46c7761823faa0d3fc59cbe9",
+    "canonicalBeforeSha256": "4b432265ca23c1dfafd8690c64cf962157ea919db3f93f5f430b84374d110c9a",
+    "canonicalAfterSha256": "4b432265ca23c1dfafd8690c64cf962157ea919db3f93f5f430b84374d110c9a",
+    "runtimeSourcesBefore": {
+      "movementTemplates.ts": "65761eb6b896af697092bb278d5cda16771d923156037f100199a11bc3c3f1cc",
+      "movementTemplates.data.ts": "a71d91349e3b7b2fbe7117d71b3bea86c7dd0a5a8633b453c7d21e319b6fa643",
+      "functionalRecipes.ts": "591370e7df55c77b0f0eed722f3d5127bdb30165870e3e1d3ce7c2a0b468a5e6"
+    },
+    "runtimeSourcesAfter": {
+      "movementTemplates.ts": "65761eb6b896af697092bb278d5cda16771d923156037f100199a11bc3c3f1cc",
+      "movementTemplates.data.ts": "a71d91349e3b7b2fbe7117d71b3bea86c7dd0a5a8633b453c7d21e319b6fa643",
+      "functionalRecipes.ts": "591370e7df55c77b0f0eed722f3d5127bdb30165870e3e1d3ce7c2a0b468a5e6"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "docs/catalogue-evidence/sources/template-reference-correction-2026-10-03/original-movement-templates-reference.md",
+      "sha256": "014d50f3d7ed8e0231a958a76d593f4a48bb6c378d2a9cb43ef2a075a0d25274",
+      "kind": "original-reference-sheet"
+    },
+    {
+      "path": "docs/movement-templates-reference.md",
+      "sha256": "13dfdcb402c311141dd2bafd291a1256026db9f2ebd18aa84fbd91265c4f5c27",
+      "kind": "corrected-reference-sheet"
+    }
+  ]
+}

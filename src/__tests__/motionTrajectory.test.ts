@@ -14,7 +14,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { CustomPose } from '../types';
-import { buildPoseTrajectory, type TrajectoryKnot } from '../services/motionTrajectory';
+import { buildComposedTrajectory, buildPoseTrajectory, type TrajectoryKnot } from '../services/motionTrajectory';
 
 const IDENT: [number, number, number, number] = [0, 0, 0, 1];
 
@@ -58,6 +58,59 @@ describe('motionTrajectory — exact arrival (measurement invariant)', () => {
     expect(speedAt(traj, 3)).toBeLessThan(0.02);
     expect(speedAt(traj, 1197)).toBeLessThan(0.02);
   });
+});
+
+it('explicit prepared support preserves Float32 quaternion components at knots and throughout constant channels', () => {
+  const rest: [number, number, number, number] = [0.7071067448816968, 0, 0, 0.7071067448816968];
+  const knots = [knot(0, 0, true), knot(500, 30, true), knot(1300, 30, true), knot(1900, 60, true)];
+  for (const entry of knots) {
+    entry.pose.bones.Neck = [...rest];
+    entry.rootQuat = [...rest];
+  }
+  knots[1]!.pose.bones.Hips = [...rest];
+  knots[2]!.pose.bones.Hips = [...rest];
+  const traj = buildPoseTrajectory(knots, { preserveAuthoredQuaternions: true });
+  for (const entry of knots) {
+    expect(traj.sampleAt(entry.timeMs).pose.bones).toEqual(entry.pose.bones);
+    expect(traj.sampleAt(entry.timeMs).rootQuat).toEqual(rest);
+  }
+  for (const t of [0.1, 16.6666666667, 247.3, 500, 533.3333333333, 731.123, 1299.99, 1300, 1717.17]) {
+    const sample = traj.sampleAt(t);
+    expect(sample.pose.bones.Neck).toEqual(rest);
+    expect(sample.rootQuat).toEqual(rest);
+    if (t >= 500 && t <= 1300) expect(sample.pose.bones.Hips).toEqual(rest);
+  }
+});
+
+it('keeps spline motion between equal fly-through endpoints with distinct controls', () => {
+  const traj = buildPoseTrajectory([
+    knot(0, 0, true), knot(500, 45, false), knot(1000, 45, false), knot(1500, 90, true),
+  ]);
+  expect(Math.abs(angleAt(traj, 625) - 45)).toBeGreaterThan(.1);
+  expect(angleAt(traj, 500)).toBeCloseTo(45, 6);
+  expect(angleAt(traj, 1000)).toBeCloseTo(45, 6);
+});
+
+it('holds an already prepared setup without anticipating the following trunk/neck motion', () => {
+  const setup: CustomPose = { ...pose(0), bones: { Hips: rotX(0), Neck: rotX(0) } };
+  const press: CustomPose = { ...pose(-20), bones: { Hips: rotX(-20), Neck: rotX(-10) } };
+  const built = {
+    poses: [setup, press, setup], durationsMs: [1000, 1500, 1300], holdsMs: [0, 1600, 0],
+    roots: [0, 1, 0].map(y => ({ quat: IDENT, translateM: [0, y, 0] as [number, number, number], stance: 'planted' as const })),
+  };
+  const result = buildComposedTrajectory(built, {
+    startPose: setup, startQuat: IDENT, startTranslate: [0, 0, 0], timeScale: 1, startAtSetup: true,
+  });
+  for (let t = 0; t <= 1000; t += 10) {
+    const sample = result.trajectory.sampleAt(t);
+    expect(sample.pose.bones.Hips).toEqual(setup.bones.Hips);
+    expect(sample.pose.bones.Neck).toEqual(setup.bones.Neck);
+    expect(sample.rootTranslate).toEqual([0, 0, 0]);
+  }
+  expect(result.trajectory.sampleAt(1800).rootTranslate[1]).toBeGreaterThan(0);
+  expect(result.trajectory.totalMs).toBe(5400);
+  expect(result.settleAtMs).toEqual([1000, 2500, 5400]);
+  expect(result.trajectory.knotTimesMs).toEqual([0, 1000, 2500, 4100, 5400]);
 });
 
 describe('motionTrajectory — fly-through does NOT stop, held keyframe DOES', () => {

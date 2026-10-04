@@ -1,0 +1,201 @@
+{
+  "at": "2026-10-02T20:00:20.655Z",
+  "scope": "Fresh actual source geometry and binding regeneration only. No movement, dynamic tracking or clinical qualification is inferred. Historical observed-quadruped regression fixtures remain unchanged and retain their former source identity.",
+  "rows": [
+    {
+      "variant": "female",
+      "sources": {
+        "engine": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "public": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "fixture": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "overhead": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "binding": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "lower": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "upper": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "core": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+        "pelvis": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd"
+      },
+      "allMatch": true,
+      "bones": 101,
+      "torsoNumerics": {
+        "Hips": {
+          "sourceVertexCount": 717,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.0029999998490236185,
+          "rawMinimumCoreThicknessM": 0.007999999854622089,
+          "finalMinimumSourcePaddingM": 0.0030000008684900603,
+          "finalMinimumCoreThicknessM": 0.008000000877965818,
+          "outerExpansionM": 1.1509763815701893e-9,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        },
+        "Spine_Lower": {
+          "sourceVertexCount": 303,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.0029999999846731518,
+          "rawMinimumCoreThicknessM": 0.007999999984889155,
+          "finalMinimumSourcePaddingM": 0.0029999999846731518,
+          "finalMinimumCoreThicknessM": 0.007999999984889155,
+          "outerExpansionM": 0,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        },
+        "Spine_Mid": {
+          "sourceVertexCount": 551,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.0029999979689307177,
+          "rawMinimumCoreThicknessM": 0.007999997987303747,
+          "finalMinimumSourcePaddingM": 0.003000002768304543,
+          "finalMinimumCoreThicknessM": 0.008000002773240464,
+          "outerExpansionM": 3.031069282378006e-9,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        },
+        "Spine_Upper": {
+          "sourceVertexCount": 1162,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.00299999664346913,
+          "rawMinimumCoreThicknessM": 0.007999996707541077,
+          "finalMinimumSourcePaddingM": 0.0030000117125831283,
+          "finalMinimumCoreThicknessM": 0.008000011787075004,
+          "outerExpansionM": 1.5407522184497035e-8,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        },
+        "Head": {
+          "sourceVertexCount": 4749,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.0029999998677648076,
+          "rawMinimumCoreThicknessM": 0.007999999871487203,
+          "finalMinimumSourcePaddingM": 0.003000000735357033,
+          "finalMinimumCoreThicknessM": 0.008000000750712331,
+          "outerExpansionM": 1.1322351924140653e-9,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        }
+      }
+    },
+    {
+      "variant": "male",
+      "sources": {
+        "engine": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "public": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "fixture": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "overhead": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "binding": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "lower": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "upper": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "core": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+        "pelvis": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a"
+      },
+      "allMatch": true,
+      "bones": 101,
+      "torsoNumerics": {
+        "Hips": {
+          "sourceVertexCount": 712,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.002999987948539923,
+          "rawMinimumCoreThicknessM": 0.007999988006226963,
+          "finalMinimumSourcePaddingM": 0.00300000878591182,
+          "finalMinimumCoreThicknessM": 0.008000008806329825,
+          "outerExpansionM": 1.3051460077273924e-8,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        },
+        "Spine_Lower": {
+          "sourceVertexCount": 299,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.0029999999789812534,
+          "rawMinimumCoreThicknessM": 0.007999999979433122,
+          "finalMinimumSourcePaddingM": 0.0029999999789812534,
+          "finalMinimumCoreThicknessM": 0.007999999979433122,
+          "outerExpansionM": 0,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        },
+        "Spine_Mid": {
+          "sourceVertexCount": 563,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.0029999999783790806,
+          "rawMinimumCoreThicknessM": 0.007999999978679062,
+          "finalMinimumSourcePaddingM": 0.0029999999783790806,
+          "finalMinimumCoreThicknessM": 0.007999999978679062,
+          "outerExpansionM": 0,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        },
+        "Spine_Upper": {
+          "sourceVertexCount": 1163,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.0029999954584887384,
+          "rawMinimumCoreThicknessM": 0.007999995503651672,
+          "finalMinimumSourcePaddingM": 0.0030000258870161445,
+          "finalMinimumCoreThicknessM": 0.00800002603921146,
+          "outerExpansionM": 3.3042901202718574e-8,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        },
+        "Head": {
+          "sourceVertexCount": 4749,
+          "version": "measured-core-triangle-profile-v3",
+          "paddingM": 0.003,
+          "thicknessM": 0.008,
+          "rawMinimumSourcePaddingM": 0.0029999988540842792,
+          "rawMinimumCoreThicknessM": 0.00799999888702467,
+          "finalMinimumSourcePaddingM": 0.003000002028003718,
+          "finalMinimumCoreThicknessM": 0.008000002035987878,
+          "outerExpansionM": 2.1459157208196234e-9,
+          "coreInsetM": 0,
+          "maximumCorrectionM": 1e-7
+        }
+      }
+    }
+  ],
+  "files": {
+    "experiments/lower-body/fixtures/female-authored-neutral-binding.json": "b4e583db6c3806ee188f2f493d42ac9a9fef3ba2a96d778fb042a6ca1e1d8645",
+    "experiments/lower-body/fixtures/female-neutral.json": "d37451d9d2da91797b335bd2087970168736b0e40ecb2d5a55a9d1a8112e9571",
+    "experiments/lower-body/fixtures/female-overhead.json": "dd4798ac0c9e2400a07b0383ff679f23c4e96a09218b84d261acb7b766b29786",
+    "experiments/lower-body/fixtures/male-authored-neutral-binding.json": "210a3af7e2f3c3b75433f3bb852cd1c9bfbd0e6a3f17abdb0ae14f0e6e34adef",
+    "experiments/lower-body/fixtures/male-neutral.json": "0b2f41fd6d5ff03290b96ea6b4884465e1190f7c5ac2303a1338321279fd001b",
+    "experiments/lower-body/fixtures/male-overhead.json": "b2b04b5af397afdb05148531b5743571b47c4dc8950abef5701209e1704150fe",
+    "experiments/lower-body/fixtures/measured-contact-samples.mjs": "a1ed633c749e0a87dac6a6a25c78e918c1371b2bf87bffb7e4a9190911ef005b",
+    "experiments/lower-body/fixtures/measured-core-contact-samples.mjs": "8b7320f635eca12a7baa3b757e83cbaf3e893c5b7be389faede8c3333ec52e07",
+    "experiments/lower-body/fixtures/measured-upper-contact-samples.mjs": "5c0b0d88d9266480ef29c797d3c28bbfd8ead9c45794740f204226026a3ef81f",
+    "experiments/lower-body/fixtures/observed-quadruped-foot-contact.json": "a24ad07161e47695c0a18671562130ee5e52de1b1c54e9ff75c8c26a131ef97c",
+    "experiments/lower-body/fixtures/observed-quadruped-thigh-contact.json": "912f9ba9803a9a0417a5f78691f381dfd9c8e1d9e2272c8f5b25ab7b992da159",
+    "experiments/lower-body/pelvis-support-samples.mjs": "f529cb48fffd4c12ca92b6ef1035205a494dde7dd809f523a9f377b4b4b44e8d",
+    "experiments/lower-body/measured-convex-contact.mjs": "fac45e339857fd7b7762d6f0fcacb7431c6d9a47ac23cbb38f3c53c64cc5e5ce",
+    "experiments/lower-body/measured-core-contact.node-test.mjs": "eb905a51bbd0af11a26cfe92a635af1aa88dd1dd240bf368a178df064e2a9c56",
+    "scripts/audit-native-source-fixtures.mjs": "73773676c74b2b798e4ccbcfb2b0b329f5b2ab3b4f1abb17265b2944eb9c62a4",
+    "scripts/regenerate-native-source-fixtures.ts": "9d710999527cfb7c540b0624936cb507d4db9cafcffb2558c57cdcfc217c326e",
+    "scripts/export-pelvis-support-samples.ts": "4c0f95f52446dc3bf263279b60fa61d1cfa9aa854ad196d67bfd2cbc6eba0cab",
+    "scripts/export-measured-core-contact.ts": "823ca2fa50784e56c7a9bacd6714662fa70ae1ea0f5c76719e4de688a03d72be",
+    "scripts/export-measured-contact-samples.mjs": "b77476c03672116f57c28f2ee1b8e09439fcdc5132cb3075740cc0fd287845c8"
+  },
+  "numericalConstruction": {
+    "primalWeldM": 1e-9,
+    "dualWeldInverseM": 1e-8,
+    "maximumCorrectionM": 1e-7,
+    "meaning": "Numerical construction bound; not tissue padding, contact stability or clinical tolerance. Every source sample remains checked against the final declared 3 mm envelope and 8 mm inward layer."
+  },
+  "archivedPreviousFixtures": "native-quantized-fixtures-retained-1",
+  "archivedPreviousModels": "reconstructed-quantized-assets-1"
+}

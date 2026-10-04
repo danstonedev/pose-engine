@@ -1,0 +1,977 @@
+{
+  "date": "2026-10-02",
+  "kind": "floor-plane-diagnostic-regression",
+  "scope": "Measurement tooling only. No movement, physical configuration, acceptance gate or delivered playback changed.",
+  "blenderVersion": "5.2.2 LTS",
+  "blenderBuildHash": "d13f752e3b9c",
+  "sourceDigest": "d66807195075e5348efcce11b3e11b9c502c93888ba1f35e82aaad81fbc2eecc",
+  "provenance": {
+    "scriptSha256": "526ecf587ceb039bb69411411e452e4a7e3f2c3f9929d7c8ef16c6b0e204044e",
+    "manifestSha256": "20da939660c09ab19361d2a04124e6ae0688104bf20adae5bee74d064fc53139",
+    "projectSha256": "28918badefb8cf8cd3bf85a38452d08b2976df04c0f56d115ae116b09d03f75a",
+    "project": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\blender-workspace\\floor-support-motion-6\\full-motion-review.blend",
+    "arguments": [
+      "blender-workspace/floor-support-motion-6",
+      "skin-floor-clearance-datums-3.json",
+      "--comparison-floor-y",
+      "0",
+      "--comparison-label",
+      "world-zero"
+    ]
+  },
+  "artifacts": {
+    "baseline": {
+      "path": "blender-workspace/floor-support-motion-6/skin-floor-clearance-2.json",
+      "sha256": "a08e7751e70cc09c361ecaf4cccf98d61d6e738ffa3e3fc7c2f38020953528bb"
+    },
+    "report": {
+      "path": "blender-workspace/floor-support-motion-6/skin-floor-clearance-datums-3.json",
+      "sha256": "506c67d2ab4c387ca779053ecb36706c321002728c80449bac197db78181a3ae"
+    },
+    "runLog": {
+      "path": "remaining-batches/floor-clearance-datums-3.log",
+      "sha256": "2dbbbd0be802e32d93bef7c256ec95a0a3d2ab391ddd35b3f91cdb042de74207"
+    },
+    "syntheticTest": {
+      "script": "scripts/blender/test-measure-floor-clearance.py",
+      "scriptSha256": "81b650c304745c4f71448ed3d239825179f45583b73dfd41a1012ecc758e5d57",
+      "folder": "blender-workspace/floor-clearance-diagnostic-test-3",
+      "log": "remaining-batches/floor-clearance-diagnostic-test-3.log",
+      "logSha256": "053c58763bd9b32720d14476b6fa8bfc7248f61c20592867f14d5e6c553ee9a6",
+      "processExitCode": 0,
+      "passed": true,
+      "checks": [
+        "transformed vertex witness",
+        "toe classification",
+        "exactly on plane is not below",
+        "first crossing time bracket",
+        "initial sample below plane",
+        "case selection",
+        "Blender and artifact provenance",
+        "paired/finite argument validation",
+        "unknown case rejection",
+        "existing output preserved",
+        "modified source rejected"
+      ]
+    }
+  },
+  "legacyEquality": {
+    "cases": 12,
+    "samples": 1734,
+    "allWorstAndPerFrameMinimaExactlyEqual": true
+  },
+  "comparisonConsistency": {
+    "allPlaneOffsetsExact": true,
+    "allWorldZeroWitnessesWithin1e_12M": true,
+    "allFirstCrossingSamplesMatchLegacyFrames": true
+  },
+  "limitations": [
+    "This evaluates authored skin at exported 30 Hz samples, not native skin dynamics or continuous contact.",
+    "World zero is an explicitly supplied comparison plane; simLAB floor and native assessment topY are separately verified in source, not proved by this report.",
+    "Motion phase is unknown because the original manifest contains review markers without authoritative phase intervals.",
+    "Current rendered skin still crosses both planes. This report does not fix or approve the movements.",
+    "Installed Blender 5.2.2 LTS was verified. Versioned official documentation could not be fetched; existing repository API patterns and executed local tests were used."
+  ],
+  "cases": [
+    {
+      "id": "male-push-up",
+      "samples": 71,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.020233544814448716,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.020231249664584023,
+        "pair": {
+          "region": "L foot",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4",
+          "vertexIndex": 607,
+          "dominantWeightBone": "CC_Base_L_Foot",
+          "enginePositionM": [
+            0.07923215596675526,
+            0.0000022951498646945788,
+            -0.07046580345300058
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0.13333333333333333,
+        "sampleIndex": 4,
+        "clearanceM": -0.0002644057423067947,
+        "pair": {
+          "region": "L toes",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4",
+          "vertexIndex": 875,
+          "dominantWeightBone": "CC_Base_L_BigToe1",
+          "enginePositionM": [
+            0.0548977227997991,
+            -0.0002644057423067947,
+            0.15589323530958782
+          ]
+        },
+        "timeBracketSec": [
+          0.1,
+          0.13333333333333333
+        ],
+        "observation": "first-sampled-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.020297361315062545,
+          "timeSec": 1.7
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.02030635868802655,
+          "timeSec": 1.7666666666666666
+        },
+        "L toes": {
+          "clearanceM": -0.056254528718350356,
+          "timeSec": 1.7666666666666666
+        },
+        "R toes": {
+          "clearanceM": -0.05625785883720292,
+          "timeSec": 1.7666666666666666
+        }
+      }
+    },
+    {
+      "id": "male-trunk-stability-push-up",
+      "samples": 169,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.020233544814448716,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.02445220857411822,
+        "pair": {
+          "region": "L forearm",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_3.001",
+          "vertexIndex": 2378,
+          "dominantWeightBone": "CC_Base_L_ForearmTwist02",
+          "enginePositionM": [
+            0.265629171776645,
+            -0.004218663759669505,
+            1.734753633816991
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.004218663759669505,
+        "pair": {
+          "region": "L forearm",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_3.001",
+          "vertexIndex": 2378,
+          "dominantWeightBone": "CC_Base_L_ForearmTwist02",
+          "enginePositionM": [
+            0.265629171776645,
+            -0.004218663759669505,
+            1.734753633816991
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.020336114954242923,
+          "timeSec": 0.6333333333333333
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.020325663293892515,
+          "timeSec": 0.9
+        },
+        "L toes": {
+          "clearanceM": -0.05843732796835253,
+          "timeSec": 0.7
+        },
+        "R toes": {
+          "clearanceM": -0.058440690147890446,
+          "timeSec": 0.7
+        }
+      }
+    },
+    {
+      "id": "male-extension-clearing",
+      "samples": 163,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.020233544814448716,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -1.749786437063583e-7,
+        "pair": {
+          "region": "torso/other",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_2.002",
+          "vertexIndex": 802,
+          "dominantWeightBone": "CC_Base_Pelvis",
+          "enginePositionM": [
+            0.013656025096350888,
+            0.02023336983580501,
+            1.147075271101435
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.002138002406380818,
+        "pair": {
+          "region": "L forearm",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_3.002",
+          "vertexIndex": 2378,
+          "dominantWeightBone": "CC_Base_L_ForearmTwist02",
+          "enginePositionM": [
+            0.2669914490336609,
+            -0.002138002406380818,
+            1.6509517833570342
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.0195208571619655,
+          "timeSec": 0.8
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.019524328155817533,
+          "timeSec": 0.7
+        },
+        "L toes": {
+          "clearanceM": 0.022469284040524437,
+          "timeSec": 0
+        },
+        "R toes": {
+          "clearanceM": 0.022481653960032252,
+          "timeSec": 0
+        }
+      }
+    },
+    {
+      "id": "male-flexion-clearing",
+      "samples": 175,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.020233544814448716,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.06297927745951615,
+        "pair": {
+          "region": "torso/other",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.003",
+          "vertexIndex": 216,
+          "dominantWeightBone": "CC_Base_L_KneeShareBone",
+          "enginePositionM": [
+            0.10060401681550601,
+            -0.042745732645067425,
+            1.079847035458292
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.04274573264506743,
+        "pair": {
+          "region": "torso/other",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.003",
+          "vertexIndex": 216,
+          "dominantWeightBone": "CC_Base_L_KneeShareBone",
+          "enginePositionM": [
+            0.10060401681550601,
+            -0.042745732645067425,
+            1.079847035458292
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.02035761137559078,
+          "timeSec": 2.7666666666666666
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.020365419105889515,
+          "timeSec": 2.7666666666666666
+        },
+        "L toes": {
+          "clearanceM": -0.1104905619628056,
+          "timeSec": 2.6
+        },
+        "R toes": {
+          "clearanceM": -0.11046527194267952,
+          "timeSec": 2.6
+        }
+      }
+    },
+    {
+      "id": "female-push-up",
+      "samples": 71,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.016984592157642246,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.016981398013696702,
+        "pair": {
+          "region": "L foot",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.004",
+          "vertexIndex": 975,
+          "dominantWeightBone": "CC_Base_L_Foot",
+          "enginePositionM": [
+            0.06536318640152583,
+            0.0000031941439455460043,
+            0.0967903829472796
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0.03333333333333333,
+        "sampleIndex": 1,
+        "clearanceM": -0.000013833683072107111,
+        "pair": {
+          "region": "L foot",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.004",
+          "vertexIndex": 975,
+          "dominantWeightBone": "CC_Base_L_Foot",
+          "enginePositionM": [
+            0.06536583859140421,
+            -0.000013833683072107111,
+            0.0967368741610285
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0.03333333333333333
+        ],
+        "observation": "first-sampled-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.016807438156000387,
+          "timeSec": 2.32
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.016814807060130832,
+          "timeSec": 1.4666666666666666
+        },
+        "L toes": {
+          "clearanceM": -0.047550445517613345,
+          "timeSec": 1.7666666666666666
+        },
+        "R toes": {
+          "clearanceM": -0.04754490937337403,
+          "timeSec": 1.7666666666666666
+        }
+      }
+    },
+    {
+      "id": "female-trunk-stability-push-up",
+      "samples": 169,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.016984592157642246,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.013538074866875742,
+        "pair": {
+          "region": "torso/other",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_2.005",
+          "vertexIndex": 1482,
+          "dominantWeightBone": "CC_Base_R_Breast",
+          "enginePositionM": [
+            -0.07766146289093001,
+            0.0034465172907665043,
+            1.3689980247406992
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.0038097517735497244,
+        "pair": {
+          "region": "L forearm",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_3.005",
+          "vertexIndex": 2379,
+          "dominantWeightBone": "CC_Base_L_ForearmTwist02",
+          "enginePositionM": [
+            0.22577401327213664,
+            -0.0038097517735497244,
+            1.6581470613273182
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.01682583530590165,
+          "timeSec": 0.8666666666666667
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.01682389014093899,
+          "timeSec": 5.4
+        },
+        "L toes": {
+          "clearanceM": -0.04940527172520821,
+          "timeSec": 0.7
+        },
+        "R toes": {
+          "clearanceM": -0.04939957259638084,
+          "timeSec": 0.7
+        }
+      }
+    },
+    {
+      "id": "female-extension-clearing",
+      "samples": 163,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.016984592157642246,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.019506504015072916,
+        "pair": {
+          "region": "torso/other",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_2.006",
+          "vertexIndex": 1482,
+          "dominantWeightBone": "CC_Base_R_Breast",
+          "enginePositionM": [
+            -0.07766146289093001,
+            -0.00252191185743067,
+            1.3689980247406992
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.00252191185743067,
+        "pair": {
+          "region": "torso/other",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_2.006",
+          "vertexIndex": 1482,
+          "dominantWeightBone": "CC_Base_R_Breast",
+          "enginePositionM": [
+            -0.07766146289093001,
+            -0.00252191185743067,
+            1.3689980247406992
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.015913645156256706,
+          "timeSec": 5.2
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.015954349502008858,
+          "timeSec": 0.9333333333333333
+        },
+        "L toes": {
+          "clearanceM": 0.03390948401248427,
+          "timeSec": 0
+        },
+        "R toes": {
+          "clearanceM": 0.03389915343022365,
+          "timeSec": 0
+        }
+      }
+    },
+    {
+      "id": "female-flexion-clearing",
+      "samples": 175,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.016984592157642246,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.05650121721795608,
+        "pair": {
+          "region": "torso/other",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.007",
+          "vertexIndex": 1511,
+          "dominantWeightBone": "CC_Base_R_KneeShareBone",
+          "enginePositionM": [
+            -0.09732239365299122,
+            -0.03951662506031384,
+            1.0400215412941385
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.03951662506031384,
+        "pair": {
+          "region": "torso/other",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.007",
+          "vertexIndex": 1511,
+          "dominantWeightBone": "CC_Base_R_KneeShareBone",
+          "enginePositionM": [
+            -0.09732239365299122,
+            -0.03951662506031384,
+            1.0400215412941385
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.01686017546811769,
+          "timeSec": 2.3
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.016864912130692744,
+          "timeSec": 2.5
+        },
+        "L toes": {
+          "clearanceM": -0.0926873991032231,
+          "timeSec": 2.6
+        },
+        "R toes": {
+          "clearanceM": -0.0927120315555996,
+          "timeSec": 2.6
+        }
+      }
+    },
+    {
+      "id": "neutral-push-up",
+      "samples": 71,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.015347652668968023,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.015347892420103853,
+        "pair": {
+          "region": "L foot",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.008",
+          "vertexIndex": 892,
+          "dominantWeightBone": "CC_Base_L_Foot",
+          "enginePositionM": [
+            0.09548141077810346,
+            -2.397511358305845e-7,
+            0.06540205013824707
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -2.3975113582971885e-7,
+        "pair": {
+          "region": "L foot",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.008",
+          "vertexIndex": 892,
+          "dominantWeightBone": "CC_Base_L_Foot",
+          "enginePositionM": [
+            0.09548141077810346,
+            -2.397511358305845e-7,
+            0.06540205013824707
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.01509553936316621,
+          "timeSec": 2.2333333333333334
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.015098434313113529,
+          "timeSec": 2.3
+        },
+        "L toes": {
+          "clearanceM": -0.03794369725980706,
+          "timeSec": 1.7666666666666666
+        },
+        "R toes": {
+          "clearanceM": -0.03794258935811334,
+          "timeSec": 1.7666666666666666
+        }
+      }
+    },
+    {
+      "id": "neutral-trunk-stability-push-up",
+      "samples": 169,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.015347652668968023,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.018032939514079346,
+        "pair": {
+          "region": "L forearm",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_3.009",
+          "vertexIndex": 2378,
+          "dominantWeightBone": "CC_Base_L_ForearmTwist02",
+          "enginePositionM": [
+            0.20751364749198586,
+            -0.002685286845111323,
+            1.4686827662999775
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.002685286845111323,
+        "pair": {
+          "region": "L forearm",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_3.009",
+          "vertexIndex": 2378,
+          "dominantWeightBone": "CC_Base_L_ForearmTwist02",
+          "enginePositionM": [
+            0.20751364749198586,
+            -0.002685286845111323,
+            1.4686827662999775
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.01511522771462559,
+          "timeSec": 0.8666666666666667
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.015116066890163538,
+          "timeSec": 0.9
+        },
+        "L toes": {
+          "clearanceM": -0.039554707582974274,
+          "timeSec": 0.7
+        },
+        "R toes": {
+          "clearanceM": -0.03955362285550412,
+          "timeSec": 0.7
+        }
+      }
+    },
+    {
+      "id": "neutral-extension-clearing",
+      "samples": 163,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.015347652668968023,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.0025318578193219976,
+        "pair": {
+          "region": "torso/other",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_2.010",
+          "vertexIndex": 943,
+          "dominantWeightBone": "CC_Base_Spine01",
+          "enginePositionM": [
+            5.59613162690446e-8,
+            0.012815794849646026,
+            1.1414329388575717
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.0008769319962876471,
+        "pair": {
+          "region": "L forearm",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_3.010",
+          "vertexIndex": 2378,
+          "dominantWeightBone": "CC_Base_L_ForearmTwist02",
+          "enginePositionM": [
+            0.20758244295888773,
+            -0.0008769319962876471,
+            1.3982361967625234
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.014449932183117076,
+          "timeSec": 0.8
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.01449073113420958,
+          "timeSec": 0.9666666666666667
+        },
+        "L toes": {
+          "clearanceM": 0.018323081798041083,
+          "timeSec": 0
+        },
+        "R toes": {
+          "clearanceM": 0.018322941111967375,
+          "timeSec": 0
+        }
+      }
+    },
+    {
+      "id": "neutral-flexion-clearing",
+      "samples": 175,
+      "legacyMinimaExactlyEqual": true,
+      "engineReferenceY": 0.015347652668968023,
+      "comparisonFloorY": 0,
+      "firstEngineReference": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.050104735359608285,
+        "pair": {
+          "region": "torso/other",
+          "plane": "engine-reference"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.011",
+          "vertexIndex": 216,
+          "dominantWeightBone": "CC_Base_L_KneeShareBone",
+          "enginePositionM": [
+            0.08639942145454604,
+            -0.03475708269064026,
+            0.9366890964811747
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "firstWorldZero": {
+        "timeSec": 0,
+        "sampleIndex": 0,
+        "clearanceM": -0.03475708269064026,
+        "pair": {
+          "region": "torso/other",
+          "plane": "world-zero"
+        },
+        "phase": "unknown",
+        "witness": {
+          "mesh": "CC_Base_Body_4.011",
+          "vertexIndex": 216,
+          "dominantWeightBone": "CC_Base_L_KneeShareBone",
+          "enginePositionM": [
+            0.08639942145454604,
+            -0.03475708269064026,
+            0.9366890964811747
+          ]
+        },
+        "timeBracketSec": [
+          0,
+          0
+        ],
+        "observation": "initial-sample-below-plane"
+      },
+      "worldZeroExtrema": {
+        "L palm/fingers": {
+          "clearanceM": -0.015146657016103404,
+          "timeSec": 2.466666666666667
+        },
+        "R palm/fingers": {
+          "clearanceM": -0.015143837381955905,
+          "timeSec": 2.466666666666667
+        },
+        "L toes": {
+          "clearanceM": -0.07960907160405029,
+          "timeSec": 2.6
+        },
+        "R toes": {
+          "clearanceM": -0.07960676025995461,
+          "timeSec": 2.6
+        }
+      }
+    }
+  ]
+}

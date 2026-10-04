@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "date": "2026-10-03",
+  "kind": "work-in-progress-snapshot",
+  "authorization": "User requested committing current work and overriding blockers before taking a different approach. Stop further movement development; commit only, no PR/merge/deployment.",
+  "qualification": "Unqualified work in progress; no failed gate is relabeled as passing.",
+  "masterSha256": "e10b8dc259543a658304e9bda8d0de64808be37eb580c4bf6691131cddf64677",
+  "formalDefectsClosed": 0,
+  "completedChecks": [
+    "18 focused trunk setup/contact/patient tests passed.",
+    "53 affected palm/contact regressions passed.",
+    "1182-file engine check had zero errors/warnings.",
+    "Current trunk setup agrees with the actual Blender proposal and six diagnostic host cases.",
+    "Template prose corrections preserve all25 executable motion definitions."
+  ],
+  "remaining": [
+    "Trunk native tracking fails and integrated setup seed worsens maximum joint tracking versus the prior checkpoint. Dense recorded desired wrists improve but native dynamic tracking remains failed.",
+    "Forward-bend orientation/foot-contact candidate is isolated only, not applied to runtime. Actual Blender skin shows floor penetration and worse regional minima; do not promote it as accepted.",
+    "Clinical/reference/neutral native fixture and wider patient scope remain unqualified.",
+    "Canonical source freshness may be stale; isolated refresh candidate remains supporting evidence, not integrated after user stopped development.",
+    "Local remaining-batches and blender-workspace artifacts are outside Git repository roots and remain on disk. Their exact hashes are linked here.",
+    "simLAB has its own diverged engine checkout; preserve that snapshot rather than silently replace it."
+  ],
+  "artifacts": [
+    {
+      "workspacePath": "remaining-batches/halfway-plank-integrated-tests-4.log",
+      "sha256": "2d890b2bb4fc47b4ed877949ff87fa84547d7bfa964163e3aabfff77e6e4b036"
+    },
+    {
+      "workspacePath": "remaining-batches/halfway-trunk-seed-affected-tests-2.log",
+      "sha256": "836d5557994851fb8f4698b1d69bd5bbdd10468b604a518682e0852cac502c30"
+    },
+    {
+      "workspacePath": "remaining-batches/halfway-trunkpushup-native-2.json",
+      "sha256": "8b7cbbf4c37adea93119a0c3d7dee23ab2aed8828ad36bd18202626d9e1fb471"
+    },
+    {
+      "workspacePath": "remaining-batches/halfway-trunkpushup-recorded-native-summary-1.json",
+      "sha256": "7aa475ecf8ef4df69c767860895988f09e45c168a2a84be87da23c5fd83eb1b9"
+    },
+    {
+      "workspacePath": "remaining-batches/halfway-trunkpushup-early-load-cause-2.json",
+      "sha256": "414825e36ff26bcd6c235109a1880ac4f329a06d4b8eae3d0a0f7b1863420170"
+    },
+    {
+      "workspacePath": "remaining-batches/halfway-forward-bend-candidate-observations-1.json",
+      "sha256": "b9691fd467ba3155d1f888c2855d5c4ccf202ca5ad94259f65748eb39859b37b"
+    },
+    {
+      "workspacePath": "blender-workspace/halfway-multisegmental-flexion-baseline-1/manifest.json",
+      "sha256": "655d650c5ea37b82d1d24ff595d8d4b36333c297c56201f9bebb94554491972c"
+    },
+    {
+      "workspacePath": "blender-workspace/halfway-multisegmental-flexion-candidate-1/manifest.json",
+      "sha256": "319d63e8e797109b6b85282d1e0076e116ec5b93941b368e7aca64c7d5a7f605"
+    },
+    {
+      "workspacePath": "blender-workspace/halfway-multisegmental-flexion-candidate-1/skin-floor-clearance-1.json",
+      "sha256": "49eec09c5ea11a3f72607cfc7a0a178309f27d284f529b7ba3c304f172f67382"
+    }
+  ]
+}

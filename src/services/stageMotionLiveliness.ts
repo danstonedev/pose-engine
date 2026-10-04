@@ -55,6 +55,9 @@ export interface MotionLiveliness {
    *  deltas never accumulate while nothing drives the trunk. Returns whether
    *  it restored anything. */
   undo(bones: BoneMap | null, modelRoot: THREE.Object3D | null): boolean;
+  /** Read the driven pose without consuming the visible overlay or advancing
+   * its clock. Restores exact rendered quaternions even when the reader throws. */
+  sampleClean<T>(bones: BoneMap | null, modelRoot: THREE.Object3D | null, read: () => T): T;
   /** Reset the onset ramp + sway phase — call at each movement START. */
   reset(): void;
   /** Seconds since the current motion's onset (drives the ease-in ramp). */
@@ -135,9 +138,30 @@ export function createMotionLiveliness(): MotionLiveliness {
     livelinessTime = 0; // ML sway restarts at phase 0 (breath.phase stays continuous)
   }
 
+  function sampleClean<T>(bones: BoneMap | null, modelRoot: THREE.Object3D | null, read: () => T): T {
+    // Only restore overlays still owned by this layer. A command may already
+    // have replaced a trunk quaternion since the last render.
+    const snapshots = baked.flatMap(entry => {
+      const bone = bones?.get(entry.key);
+      return entry.on && bone && bone.quaternion.equals(entry.post)
+        ? [{ entry, bone, rendered: bone.quaternion.clone() }] : [];
+    });
+    undo(bones, modelRoot);
+    try {
+      return read();
+    } finally {
+      for (const { entry, bone, rendered } of snapshots) {
+        bone.quaternion.copy(rendered);
+        entry.on = true;
+      }
+      if (snapshots.length) modelRoot?.updateMatrixWorld(true);
+    }
+  }
+
   return {
     apply,
     undo,
+    sampleClean,
     reset,
     get onsetSec() {
       return livelinessOnsetSec;

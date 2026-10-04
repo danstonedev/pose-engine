@@ -1,0 +1,906 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-02",
+  "scope": "Numerical conditioning of bounded hand projection for extension-clearing. The same weighted pose objective, clinical/patient bounds, contact tolerances,40-iteration safety budget and5-second test timeout remain in force. This is not whole-movement, physics,skin or naturalness acceptance.",
+  "implementation": {
+    "sourcePath": "src/services/handContactPose.ts",
+    "sha256": "44e3cc6e91a85484e32ac46e2dc364f9eb56d2edce4b9cb9f8ca62d16217fc36",
+    "eligible": "Standard guarded private calculation graph with a posture prior; custom fallback and no-prior objective keep former direction set.",
+    "directions": [
+      "Exact paired forearm/hand twist about the actual hand offset, positive uniform forearm scale only",
+      "Actual wrist/girdle body-Euler coordinate rays; full clinical projection, measured quaternion displacement, shared raw residual Jacobian"
+    ],
+    "notPromoted": [
+      "Projected Cauchy/gradient alternatives",
+      "Unconditional no-prior chart changes",
+      "Increased iteration budget",
+      "Changed residual weights"
+    ]
+  },
+  "fullCycles": [
+    {
+      "path": "remaining-batches/pressup-regularized-euler-cone-sensitivity-1.json",
+      "sha256": "9b7cc52aa7aeed7a93c88f777bd2490dca4f940815521792099adc380da392b1",
+      "sourceBefore": "4cf11f9519f1533c4fa6bed88897df716d79d326144f902fa20929fb30a96381",
+      "sourceAfter": "4cf11f9519f1533c4fa6bed88897df716d79d326144f902fa20929fb30a96381",
+      "sourceStable": true,
+      "passed": true,
+      "scope": "Fresh rig for each run; all authored elbow target angles perturbed by ±5e-8 degrees under the existing restrictive-patient scenario. This tests sensitivity, not attainable contact or movement acceptance.",
+      "globalRomClamp": false,
+      "cases": [
+        {
+          "variant": "male",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 7.408739861641004e-7,
+            "degrees": 0.0000424489525582367,
+            "key": "R_UpperArm",
+            "tMs": 2500
+          },
+          "maximumPosition": {
+            "meters": 6.275123506398513e-8,
+            "key": "R_Forearm",
+            "tMs": 1033.3333333333335
+          },
+          "guideMaximum": {
+            "radians": 7.408739861641004e-7,
+            "degrees": 0.0000424489525582367,
+            "key": "R_UpperArm",
+            "tMs": 2500
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "male",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "Spine_Upper",
+            "tMs": 2083.3333333333335
+          },
+          "maximumPosition": {
+            "meters": 6.9687848333414836e-9,
+            "key": "L_Forearm",
+            "tMs": 1333.3333333333335
+          },
+          "guideMaximum": {
+            "radians": 5.16191365590357e-8,
+            "degrees": 0.0000029575586669421963,
+            "key": "L_Shoulder",
+            "tMs": 1416.6666666666667
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "female",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 0.00009996805126605729,
+            "degrees": 0.005727747423692529,
+            "key": "L_Forearm",
+            "tMs": 1016.6666666666667
+          },
+          "maximumPosition": {
+            "meters": 6.755147286875322e-7,
+            "key": "L_Pinky1",
+            "tMs": 1016.6666666666667
+          },
+          "guideMaximum": {
+            "radians": 0.000015968233401907814,
+            "degrees": 0.0009149123802091465,
+            "key": "L_UpperArm",
+            "tMs": 0
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "female",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 6.88040040768102e-7,
+            "degrees": 0.00003942179047202134,
+            "key": "R_Forearm",
+            "tMs": 4866.666666666667
+          },
+          "maximumPosition": {
+            "meters": 9.426450140635991e-8,
+            "key": "R_Forearm",
+            "tMs": 4866.666666666667
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_Forearm",
+            "tMs": 83.33333333333333
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "neutral",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 0.0000039678521479018825,
+            "degrees": 0.00022734118180669637,
+            "key": "R_Forearm",
+            "tMs": 4900
+          },
+          "maximumPosition": {
+            "meters": 2.1149952607401282e-7,
+            "key": "R_Forearm",
+            "tMs": 4900
+          },
+          "guideMaximum": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "L_Hand",
+            "tMs": 1750
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "neutral",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 0.000007984019362574381,
+            "degrees": 0.00045745061302624184,
+            "key": "R_Forearm",
+            "tMs": 4900
+          },
+          "maximumPosition": {
+            "meters": 4.2596529763274254e-7,
+            "key": "R_Forearm",
+            "tMs": 4900
+          },
+          "guideMaximum": {
+            "radians": 3.053829302179697e-7,
+            "degrees": 0.000017497153036827797,
+            "key": "L_Hand",
+            "tMs": 2166.6666666666665
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        }
+      ]
+    },
+    {
+      "path": "remaining-batches/pressup-default-regularized-euler-cone-sensitivity-1.json",
+      "sha256": "94a7d84d437375069d1ab7b543e4708941a4bdb0c4797294dff596fba357416b",
+      "sourceBefore": "4cf11f9519f1533c4fa6bed88897df716d79d326144f902fa20929fb30a96381",
+      "sourceAfter": "4cf11f9519f1533c4fa6bed88897df716d79d326144f902fa20929fb30a96381",
+      "sourceStable": true,
+      "passed": true,
+      "scope": "Fresh rig for each run; all authored elbow target angles perturbed by ±5e-8 degrees under the unrestricted default scenario. This tests sensitivity, not attainable contact or movement acceptance.",
+      "globalRomClamp": false,
+      "cases": [
+        {
+          "variant": "male",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "Spine_Upper",
+            "tMs": 2083.3333333333335
+          },
+          "maximumPosition": {
+            "meters": 1.4313622240229866e-10,
+            "key": "L_Forearm",
+            "tMs": 4333.333333333334
+          },
+          "guideMaximum": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "L_UpperArm",
+            "tMs": 2000
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "male",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "Spine_Upper",
+            "tMs": 2083.3333333333335
+          },
+          "maximumPosition": {
+            "meters": 1.4221997198043747e-10,
+            "key": "L_Forearm",
+            "tMs": 4333.333333333334
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_UpperArm",
+            "tMs": 1166.6666666666667
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "female",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.16191365590357e-8,
+            "degrees": 0.0000029575586669421963,
+            "key": "Spine_Upper",
+            "tMs": 1100
+          },
+          "maximumPosition": {
+            "meters": 1.0973709132670982e-10,
+            "key": "R_Forearm",
+            "tMs": 4250
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_Shoulder",
+            "tMs": 0
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "female",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.16191365590357e-8,
+            "degrees": 0.0000029575586669421963,
+            "key": "Spine_Upper",
+            "tMs": 1100
+          },
+          "maximumPosition": {
+            "meters": 1.0955441882485793e-10,
+            "key": "R_Forearm",
+            "tMs": 4250
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_UpperArm",
+            "tMs": 0
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "neutral",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "R_Mid2",
+            "tMs": 0
+          },
+          "maximumPosition": {
+            "meters": 9.176175270225583e-11,
+            "key": "R_Forearm",
+            "tMs": 4333.333333333334
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_Shoulder",
+            "tMs": 4833.333333333333
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "neutral",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "R_Mid2",
+            "tMs": 0
+          },
+          "maximumPosition": {
+            "meters": 9.133306751042547e-11,
+            "key": "R_Forearm",
+            "tMs": 4333.333333333334
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "R_UpperArm",
+            "tMs": 5000
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        }
+      ]
+    },
+    {
+      "path": "remaining-batches/pressup-clinical-cone-production-1.json",
+      "sha256": "c3673edfd8cb8586c65cf98dab1970a805b67893e8aa3cde66cf34e25eb7fcc3",
+      "sourceBefore": "30411508ab4eb00fdd002eccb971ab51bc136d0a4553d82e77cb788d69dcb8c3",
+      "sourceAfter": "30411508ab4eb00fdd002eccb971ab51bc136d0a4553d82e77cb788d69dcb8c3",
+      "sourceStable": true,
+      "passed": true,
+      "scope": "Fresh rig for each run; all authored elbow target angles perturbed by ±5e-8 degrees under the existing restrictive-patient scenario. This tests sensitivity, not attainable contact or movement acceptance.",
+      "globalRomClamp": false,
+      "cases": [
+        {
+          "variant": "male",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 7.408739861641004e-7,
+            "degrees": 0.0000424489525582367,
+            "key": "R_UpperArm",
+            "tMs": 2500
+          },
+          "maximumPosition": {
+            "meters": 6.275123506398513e-8,
+            "key": "R_Forearm",
+            "tMs": 1033.3333333333335
+          },
+          "guideMaximum": {
+            "radians": 7.408739861641004e-7,
+            "degrees": 0.0000424489525582367,
+            "key": "R_UpperArm",
+            "tMs": 2500
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "male",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "Spine_Upper",
+            "tMs": 2083.3333333333335
+          },
+          "maximumPosition": {
+            "meters": 6.9687848333414836e-9,
+            "key": "L_Forearm",
+            "tMs": 1333.3333333333335
+          },
+          "guideMaximum": {
+            "radians": 5.16191365590357e-8,
+            "degrees": 0.0000029575586669421963,
+            "key": "L_Shoulder",
+            "tMs": 1416.6666666666667
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "female",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 0.00009996805126605729,
+            "degrees": 0.005727747423692529,
+            "key": "L_Forearm",
+            "tMs": 1016.6666666666667
+          },
+          "maximumPosition": {
+            "meters": 6.755147286875322e-7,
+            "key": "L_Pinky1",
+            "tMs": 1016.6666666666667
+          },
+          "guideMaximum": {
+            "radians": 0.000015968233401907814,
+            "degrees": 0.0009149123802091465,
+            "key": "L_UpperArm",
+            "tMs": 0
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "female",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 6.88040040768102e-7,
+            "degrees": 0.00003942179047202134,
+            "key": "R_Forearm",
+            "tMs": 4866.666666666667
+          },
+          "maximumPosition": {
+            "meters": 9.426450140635991e-8,
+            "key": "R_Forearm",
+            "tMs": 4866.666666666667
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_Forearm",
+            "tMs": 83.33333333333333
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "neutral",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 0.0000039678521479018825,
+            "degrees": 0.00022734118180669637,
+            "key": "R_Forearm",
+            "tMs": 4900
+          },
+          "maximumPosition": {
+            "meters": 2.1149952607401282e-7,
+            "key": "R_Forearm",
+            "tMs": 4900
+          },
+          "guideMaximum": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "L_Hand",
+            "tMs": 1750
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "neutral",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 0.000007984019362574381,
+            "degrees": 0.00045745061302624184,
+            "key": "R_Forearm",
+            "tMs": 4900
+          },
+          "maximumPosition": {
+            "meters": 4.2596529763274254e-7,
+            "key": "R_Forearm",
+            "tMs": 4900
+          },
+          "guideMaximum": {
+            "radians": 3.053829302179697e-7,
+            "degrees": 0.000017497153036827797,
+            "key": "L_Hand",
+            "tMs": 2166.6666666666665
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        }
+      ]
+    },
+    {
+      "path": "remaining-batches/pressup-default-clinical-cone-production-1.json",
+      "sha256": "d5292e40ff74bf57e7751bac5562ce65d534a158e8d386cb4af9f69429e9cdba",
+      "sourceBefore": "30411508ab4eb00fdd002eccb971ab51bc136d0a4553d82e77cb788d69dcb8c3",
+      "sourceAfter": "30411508ab4eb00fdd002eccb971ab51bc136d0a4553d82e77cb788d69dcb8c3",
+      "sourceStable": true,
+      "passed": true,
+      "scope": "Fresh rig for each run; all authored elbow target angles perturbed by ±5e-8 degrees under the unrestricted default scenario. This tests sensitivity, not attainable contact or movement acceptance.",
+      "globalRomClamp": false,
+      "cases": [
+        {
+          "variant": "male",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "Spine_Upper",
+            "tMs": 2083.3333333333335
+          },
+          "maximumPosition": {
+            "meters": 1.4313622240229866e-10,
+            "key": "L_Forearm",
+            "tMs": 4333.333333333334
+          },
+          "guideMaximum": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "L_UpperArm",
+            "tMs": 2000
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "male",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "Spine_Upper",
+            "tMs": 2083.3333333333335
+          },
+          "maximumPosition": {
+            "meters": 1.4221997198043747e-10,
+            "key": "L_Forearm",
+            "tMs": 4333.333333333334
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_UpperArm",
+            "tMs": 1166.6666666666667
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "female",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.16191365590357e-8,
+            "degrees": 0.0000029575586669421963,
+            "key": "Spine_Upper",
+            "tMs": 1100
+          },
+          "maximumPosition": {
+            "meters": 1.0973709132670982e-10,
+            "key": "R_Forearm",
+            "tMs": 4250
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_Shoulder",
+            "tMs": 0
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "female",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.16191365590357e-8,
+            "degrees": 0.0000029575586669421963,
+            "key": "Spine_Upper",
+            "tMs": 1100
+          },
+          "maximumPosition": {
+            "meters": 1.0955441882485793e-10,
+            "key": "R_Forearm",
+            "tMs": 4250
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_UpperArm",
+            "tMs": 0
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "neutral",
+          "delta": -5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "R_Mid2",
+            "tMs": 0
+          },
+          "maximumPosition": {
+            "meters": 9.176175270225583e-11,
+            "key": "R_Forearm",
+            "tMs": 4333.333333333334
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "L_Shoulder",
+            "tMs": 4833.333333333333
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        },
+        {
+          "variant": "neutral",
+          "delta": 5e-8,
+          "frames": 325,
+          "passed": true,
+          "maximumRotation": {
+            "radians": 5.960464477539063e-8,
+            "degrees": 0.0000034150945850063755,
+            "key": "R_Mid2",
+            "tMs": 0
+          },
+          "maximumPosition": {
+            "meters": 9.133306751042547e-11,
+            "key": "R_Forearm",
+            "tMs": 4333.333333333334
+          },
+          "guideMaximum": {
+            "radians": 4.2146848510894035e-8,
+            "degrees": 0.0000024148365394514667,
+            "key": "R_UpperArm",
+            "tMs": 5000
+          },
+          "firstFailure": null,
+          "guideFirstFailure": null,
+          "patientViolations": 0
+        }
+      ]
+    }
+  ],
+  "productionFocused": {
+    "tests": 11,
+    "passed": 11,
+    "evidence": {
+      "path": "remaining-batches/pressup-clinical-cone-focused-tests-1.log",
+      "sha256": "14318608a467aea09a8b8ff46a7561131e06dc15551b659c3e628672514ee1b6"
+    },
+    "regressions": [
+      "src/__tests__/boundedPalmClinicalCone.test.ts",
+      "src/__tests__/preparedPalmRefinement.test.ts"
+    ],
+    "fixtureHashes": [
+      {
+        "variant": "male",
+        "sha256": "e86944178ed4bc12eac54d37be6343591ee902b9f2d2351abcab1bd011e0cf6e"
+      },
+      {
+        "variant": "female",
+        "sha256": "d1a0d0845690ccb600a6b91815826d6f8ed60e3d2a7b71f58214c50f9332368c"
+      }
+    ]
+  },
+  "typecheck": {
+    "errors": 0,
+    "warnings": 0,
+    "evidence": {
+      "path": "remaining-batches/pressup-clinical-cone-typecheck-1.log",
+      "sha256": "b7121ae5449e29391cdaed09c2c60bcd2a0df775ab86ed92f5d42bf7d9000ec8"
+    }
+  },
+  "intentionalDefaultChange": {
+    "path": "remaining-batches/pressup-clinical-cone-default-change-1.json",
+    "sha256": "66c06077ebb497f5fff96bc320db2c8fbaa59bc2083023f4eb29c90adc5f61e7",
+    "sourceBefore": "30411508ab4eb00fdd002eccb971ab51bc136d0a4553d82e77cb788d69dcb8c3",
+    "sourceAfter": "30411508ab4eb00fdd002eccb971ab51bc136d0a4553d82e77cb788d69dcb8c3",
+    "sourceStable": true,
+    "passed": false,
+    "scope": "Fresh rig for each run; all authored elbow target angles perturbed by ±5e-8 degrees under the unrestricted default scenario. This tests sensitivity, not attainable contact or movement acceptance.",
+    "globalRomClamp": false,
+    "cases": [
+      {
+        "variant": "male",
+        "delta": 1,
+        "frames": 7,
+        "passed": false,
+        "maximumRotation": {
+          "radians": 0.00019238557693895285,
+          "degrees": 0.011022881597791377,
+          "key": "L_Forearm",
+          "tMs": 4700
+        },
+        "maximumPosition": {
+          "meters": 0.000005759687837893365,
+          "key": "L_Forearm",
+          "tMs": 4700
+        },
+        "guideMaximum": {
+          "radians": 0.00023875306195004665,
+          "degrees": 0.013679542795563158,
+          "key": "L_Forearm",
+          "tMs": 2416.6666666666665
+        },
+        "firstFailure": {
+          "metric": "rotation",
+          "key": "L_Forearm",
+          "tMs": 2500,
+          "radians": 0.0001874499460732471
+        },
+        "guideFirstFailure": {
+          "radians": 0.00017514524920069229,
+          "degrees": 0.010035083580966723,
+          "key": "L_Forearm",
+          "tMs": 2000
+        },
+        "patientViolations": 0
+      },
+      {
+        "variant": "female",
+        "delta": 1,
+        "frames": 7,
+        "passed": true,
+        "maximumRotation": {
+          "radians": 0.00016095453244454702,
+          "degrees": 0.009222015402574021,
+          "key": "L_Shoulder",
+          "tMs": 4700
+        },
+        "maximumPosition": {
+          "meters": 0.000014660101497053924,
+          "key": "L_Hand",
+          "tMs": 4700
+        },
+        "guideMaximum": {
+          "radians": 0.000038676571718973826,
+          "degrees": 0.0022160043255322398,
+          "key": "L_Shoulder",
+          "tMs": 4666.666666666667
+        },
+        "firstFailure": null,
+        "guideFirstFailure": null,
+        "patientViolations": 0
+      },
+      {
+        "variant": "neutral",
+        "delta": 1,
+        "frames": 7,
+        "passed": true,
+        "maximumRotation": {
+          "radians": 0.000053315721720759856,
+          "degrees": 0.0030547658362935107,
+          "key": "L_Forearm",
+          "tMs": 4700
+        },
+        "maximumPosition": {
+          "meters": 0.000001570883392209055,
+          "key": "R_Forearm",
+          "tMs": 4700
+        },
+        "guideMaximum": {
+          "radians": 0.00002485913877967033,
+          "degrees": 0.0014243237344051054,
+          "key": "L_Forearm",
+          "tMs": 4666.666666666667
+        },
+        "firstFailure": null,
+        "guideFirstFailure": null,
+        "patientViolations": 0
+      }
+    ]
+  },
+  "originalPerformanceGate": {
+    "passed": false,
+    "unchangedTimeoutMs": 5000,
+    "mode": "browser clamp OFF; default + explicit patient + repeated patient30Hz recordings",
+    "cases": [
+      {
+        "body": "male",
+        "elapsedMs": 10251
+      },
+      {
+        "body": "female",
+        "elapsedMs": 10324
+      }
+    ],
+    "totalTestsMs": 31856,
+    "failures": "All three variants timeout; no numerical assertion failure reported.",
+    "evidence": {
+      "path": "remaining-batches/pressup-clinical-cone-patient-gate-1.log",
+      "sha256": "0b76a09e18481954363266aeb010bb30a4594d337dc64cb4e969ecaf79944b92"
+    }
+  },
+  "clinicalChartCheck": {
+    "path": "remaining-batches/pressup-body-euler-cone-chart-1.json",
+    "sha256": "e711b0485a1423f218fec5c3f8c0735121c5faaa8be36687afe94cf752ebe708"
+  },
+  "savedDescent": {
+    "path": "remaining-batches/pressup-posture-girdle-stationarity-male-1.json",
+    "sha256": "ee793e99356625bbdf76f00fc60369f63b9845bea05a68c2ce1474213243033e"
+  },
+  "retainedFailures": [
+    {
+      "path": "remaining-batches/pressup-production-hinge-setup-1.json",
+      "sha256": "e3d96f9690408af1adb350fe01550777b11c12a7aba2f49d1b6c4568da403395"
+    },
+    {
+      "path": "remaining-batches/pressup-posture-cone-sensitivity-male-1.json",
+      "sha256": "33977e10cd212f0713c2685bf2884622e22148b31d5c169efab3e674f55474b8"
+    },
+    {
+      "path": "remaining-batches/pressup-posture-girdle-sensitivity-1.json",
+      "sha256": "61a17f6300f39a61fa6fc33f3857e23104ec4da16542f6c47aadb1c9386bbef7"
+    },
+    {
+      "path": "remaining-batches/pressup-regularized-clinical-cone-setup-1.json",
+      "sha256": "f116a77e7a2e4f0a8d1bea2bde1b889574e7d8d034f36b571a99c06d7ab1fa39"
+    },
+    {
+      "path": "remaining-batches/pressup-gradient-cone-convergence-male-1.json",
+      "sha256": "731112652eee7f5e7cbae52aa6e59ae83786f7db32aa13f71654c5ec04a93178"
+    },
+    {
+      "path": "remaining-batches/pressup-cone-cauchy-convergence-male-1.json",
+      "sha256": "e86b3173782a35bfffba308650a48efc12a471ef05bd0880af341929192fa497"
+    }
+  ],
+  "remaining": [
+    "Original five-second patient regression still fails.",
+    "Male severe-patient stage/sample parity at1800ms fails0.26808045385degrees in both hosts, with a different patient scenario than the passing perturbation sweep.",
+    "Fresh full-source Blender/clinical/skin and host delivery review remain parent-owned; earlier visual evidence is historical after numerical source changes.",
+    "Unreachable patient palm targets retain nonzero residuals; iteration-limit/search-stalled are not contact success or mathematical stationarity."
+  ],
+  "currentHostEvidence": {
+    "path": "remaining-batches/pressup-clinical-cone-host-parity-1/results.json",
+    "sha256": "765156e09d130c605c5f8e2549d0b1800e1f4ed5f09db49c0f07763db6157de5",
+    "runtimeStable": true,
+    "passed": 16,
+    "total": 18,
+    "failures": [
+      {
+        "host": "simmove",
+        "body": "male",
+        "scenario": "patient",
+        "failure": "AssertionError [ERR_ASSERTION]: simmove/male/true bone parity at1800: {\"key\":\"R_Forearm\",\"differenceDeg\":0.2680804538504692}"
+      },
+      {
+        "host": "simlab",
+        "body": "male",
+        "scenario": "patient",
+        "failure": "AssertionError [ERR_ASSERTION]: simlab/male/true bone parity at1800: {\"key\":\"R_Forearm\",\"differenceDeg\":0.2680804538504692}"
+      }
+    ]
+  }
+}

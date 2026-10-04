@@ -1,3 +1,6 @@
+import { UPPER_ARM_CLINICAL_RANGES } from '../anatomy/upperArmJointFrame.mjs';
+import { SCAPULAR_GIRDLE_RANGES } from '../anatomy/scapularGirdleProxy.mjs';
+
 export type RomPlane = 'sagittal' | 'frontal' | 'transverse';
 export type RomStatus = 'neutral' | 'within' | 'near-limit' | 'outside';
 export type RomLimitSide = 'min' | 'max' | null;
@@ -142,36 +145,36 @@ export const ROM_JOINT_ROWS: RomJointDefinition[] = [
     canonicalKey: 'L_Shoulder',
     label: 'L Scapula',
     fields: [
-      field('upRotation', 'Up rot', 'Up', 'Down', { min: -5, max: 60 }, 'frontal'),
-      field('scapularTilt', 'Tilt', 'Post', 'Ant', { min: -10, max: 40 }, 'sagittal'),
-      field('protraction', 'Protract', 'Pro', 'Ret', { min: -30, max: 30 }, 'transverse'),
+      field('upRotation', 'Up rot', 'Up', 'Down', { ...SCAPULAR_GIRDLE_RANGES.upRotation }, 'frontal'),
+      field('scapularTilt', 'Tilt', 'Post', 'Ant', { ...SCAPULAR_GIRDLE_RANGES.scapularTilt }, 'sagittal'),
+      field('protraction', 'Protract', 'Pro', 'Ret', { ...SCAPULAR_GIRDLE_RANGES.protraction }, 'transverse'),
     ],
   },
   {
     canonicalKey: 'R_Shoulder',
     label: 'R Scapula',
     fields: [
-      field('upRotation', 'Up rot', 'Up', 'Down', { min: -5, max: 60 }, 'frontal'),
-      field('scapularTilt', 'Tilt', 'Post', 'Ant', { min: -10, max: 40 }, 'sagittal'),
-      field('protraction', 'Protract', 'Pro', 'Ret', { min: -30, max: 30 }, 'transverse'),
+      field('upRotation', 'Up rot', 'Up', 'Down', { ...SCAPULAR_GIRDLE_RANGES.upRotation }, 'frontal'),
+      field('scapularTilt', 'Tilt', 'Post', 'Ant', { ...SCAPULAR_GIRDLE_RANGES.scapularTilt }, 'sagittal'),
+      field('protraction', 'Protract', 'Pro', 'Ret', { ...SCAPULAR_GIRDLE_RANGES.protraction }, 'transverse'),
     ],
   },
   {
     canonicalKey: 'L_UpperArm',
     label: 'L Shoulder',
     fields: [
-      field('shoulderFlexion', 'Flex', 'Flex', 'Ext', { min: -60, max: 180 }, 'sagittal'),
-      field('shoulderAbduction', 'Abd', 'Abd', 'Add', { min: -50, max: 180 }, 'frontal'),
-      field('shoulderRotation', 'Rotate', 'Int', 'Ext', { min: -90, max: 70 }, 'transverse'),
+      field('shoulderFlexion', 'Flex', 'Flex', 'Ext', { ...UPPER_ARM_CLINICAL_RANGES.shoulderFlexion }, 'sagittal'),
+      field('shoulderAbduction', 'Abd', 'Abd', 'Add', { ...UPPER_ARM_CLINICAL_RANGES.shoulderAbduction }, 'frontal'),
+      field('shoulderRotation', 'Rotate', 'Int', 'Ext', { ...UPPER_ARM_CLINICAL_RANGES.shoulderRotation }, 'transverse'),
     ],
   },
   {
     canonicalKey: 'R_UpperArm',
     label: 'R Shoulder',
     fields: [
-      field('shoulderFlexion', 'Flex', 'Flex', 'Ext', { min: -60, max: 180 }, 'sagittal'),
-      field('shoulderAbduction', 'Abd', 'Abd', 'Add', { min: -50, max: 180 }, 'frontal'),
-      field('shoulderRotation', 'Rotate', 'Int', 'Ext', { min: -90, max: 70 }, 'transverse'),
+      field('shoulderFlexion', 'Flex', 'Flex', 'Ext', { ...UPPER_ARM_CLINICAL_RANGES.shoulderFlexion }, 'sagittal'),
+      field('shoulderAbduction', 'Abd', 'Abd', 'Add', { ...UPPER_ARM_CLINICAL_RANGES.shoulderAbduction }, 'frontal'),
+      field('shoulderRotation', 'Rotate', 'Int', 'Ext', { ...UPPER_ARM_CLINICAL_RANGES.shoulderRotation }, 'transverse'),
     ],
   },
   {
@@ -496,7 +499,15 @@ export function classifyRomValue(
 
 export function getRomFieldState(valueInput: number, fieldDef: RomFieldDefinition): RomFieldState {
   const value = normalizeValue(valueInput);
-  const classification = classifyRomValue(value, fieldDef);
+  // Float32 rig transforms can read an exact authored stop back a few
+  // millionths of a degree beyond its bound. Stabilize the display badge only;
+  // retain the measurement below and the strict classifier for other callers.
+  // This is not the larger tolerance used by trajectory acceptance tests.
+  const displayRoundoffDeg = 1e-5;
+  const { min, max } = fieldDef.range;
+  const displayValue = Math.abs(value - min) <= displayRoundoffDeg ? min
+    : Math.abs(value - max) <= displayRoundoffDeg ? max : value;
+  const classification = classifyRomValue(displayValue, fieldDef);
   return {
     value,
     rounded: Math.round(value),

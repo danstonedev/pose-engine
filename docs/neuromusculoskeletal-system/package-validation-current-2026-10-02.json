@@ -1,0 +1,57 @@
+{
+  "kind": "planning-package-integrity",
+  "executedAt": "2026-10-02T19:29:44.217Z",
+  "passed": true,
+  "documents": 10,
+  "sourceEntries": 31,
+  "inspectedSourceFiles": 34,
+  "checkedLocalLinks": 116,
+  "documentIdentities": [
+    {
+      "path": "README.md",
+      "sha256": "eaa570af4b4dbeb24ff26cfe0ccbd9fd1877e0584d47b0b64d25dd4d446ac7c8"
+    },
+    {
+      "path": "00-current-state-and-scope.md",
+      "sha256": "4a22ca8e13d98579623bda504a3e30fc4219c2d80b173fbd39a5fd2cb6dc177f"
+    },
+    {
+      "path": "01-research-and-sources.md",
+      "sha256": "37600af5574f0ee312668d22ebacb9f42b9444744fc5a6c4ca92b67020b775eb"
+    },
+    {
+      "path": "02-system-architecture.md",
+      "sha256": "76a79085a67f5a26d118f27d1aca48ec316db55415ca4b4ecfd0cc071b769bb1"
+    },
+    {
+      "path": "03-foundation-and-anatomy.md",
+      "sha256": "721f481d3125179aae734b9881a1920d9881ef1728d3034fd83b2069a33e7cf5"
+    },
+    {
+      "path": "04-validation-and-experiments.md",
+      "sha256": "413168f923fde81e036738d7360ef06d5e852a384dbee1f8c363bb352c9ecabc"
+    },
+    {
+      "path": "05-delivery-roadmap.md",
+      "sha256": "9226a281cc7c71be57a1d721ba81ec7ba8aadfb5c07a33696c54f307c86b175e"
+    },
+    {
+      "path": "06-expert-review-and-decisions.md",
+      "sha256": "2583213b1b8ab535dc132a49d48fa138405aea1747e4e3514aea8b68735bc796"
+    },
+    {
+      "path": "07-working-protocols.md",
+      "sha256": "030fe5e397e0aa2c90dba3be342a75c4e72f11eb03111a46ffe87fb85db6d3c2"
+    },
+    {
+      "path": "08-planning-review.md",
+      "sha256": "c044538de4365bbc72188aec278b0de84bc6d19abd4369f1cee9f9308fe964f9"
+    }
+  ],
+  "sourceLibrarySha256": "7a48d142061af229b4e9c8014747ab40a60219760a4cfa6ba300d22ff24e7c08",
+  "validatorSha256": "39c03b044a83e1412d44fad000f46801c22c8fdc1c544f58503ebfb6e2efca07",
+  "currentSourceHashComparison": "executed",
+  "scope": "Local document, research metadata and selected audit integrity only; no remote verification, simulation or clinical acceptance.",
+  "errors": [],
+  "warnings": []
+}

@@ -36,8 +36,10 @@ function maxFootTravel(rec: MotionRecording) {
   return Math.max(...rec.frames.flatMap(f => feet.map(k => distance(f.worldTracks![k]!, rec.frames[0]!.worldTracks![k]!))));
 }
 function boneExcursion(rec: MotionRecording, key: string) {
-  const base = new THREE.Quaternion().fromArray(rec.frames[0]!.pose.bones[key]!);
-  return Math.max(...rec.frames.map(f => base.angleTo(new THREE.Quaternion().fromArray(f.pose.bones[key]!)) * 180 / Math.PI));
+  // The imported Float32 rest rotation may be slightly nonunit. angleTo expects
+  // unit quaternions; otherwise even a byte-identical held head appears to move.
+  const base = new THREE.Quaternion().fromArray(rec.frames[0]!.pose.bones[key]!).normalize();
+  return Math.max(...rec.frames.map(f => base.angleTo(new THREE.Quaternion().fromArray(f.pose.bones[key]!).normalize()) * 180 / Math.PI));
 }
 
 describe('functional recipes declare complete, inspectable responsibilities', () => {

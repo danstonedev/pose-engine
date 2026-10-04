@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-02",
+  "kind": "user-scope-and-test-review",
+  "userMessages": [
+    "honestly it looks really good.... and has for a while so the changes are pretty imperceptible for me as the user...",
+    "perhaps it's time to move on? or maybe adjust the strickness of our tests?"
+  ],
+  "decision": "Freeze the current visible authored motion. Prepare a bounded authored-playback shipment; defer further experimental native physics, retaining its failures and lack of qualification. Separate delivery eligibility from full clinical/physics qualification. No user statement is treated as a complete multi-body clinical review.",
+  "timeoutReview": {
+    "previousLimitMs": 5000,
+    "revisedIntegrationTimeoutMs": 30000,
+    "basis": "The previous limit was the generic Vitest default. This correctness test produces three complete 30Hz recordings per body (489 frames), including a control and two restricted replays. It contains no elapsed-time assertion or documented product latency budget.",
+    "unchanged": "All frames, patient bounds (+/-0.01deg), cache miss/hit checks and deliberately restrictive control assertions remain unchanged. Global test configuration remains unchanged.",
+    "result": "3 body tests pass;21 unrelated tests skipped by name filter.",
+    "durationsMs": {
+      "male": 10523,
+      "female": 10506,
+      "neutral": 11279
+    },
+    "log": {
+      "path": "remaining-batches/pressup-patient-integration-timeout-review-2.log",
+      "sha256": "4ad4859b6e6adac8989891841b533c888339f031515298424d08d4175a384dd5"
+    },
+    "testSha256": "65b332742bf0bcd48d2cd48ae1ff91da24feca6b8315952838b4bb9624bef640",
+    "limitation": "This establishes correctness completion, not an interactive performance pass. The prior5-second failures remain retained."
+  },
+  "outstanding": [
+    "Restricted male numerical playback parity diagnostic",
+    "Current delivery policy and regression verification",
+    "Native contact/visible skin/initial lift/tracking follow-up",
+    "Broader reference and full clinical qualification"
+  ]
+}

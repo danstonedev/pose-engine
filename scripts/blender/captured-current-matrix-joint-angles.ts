@@ -1,0 +1,1009 @@
+/**
+ * Clinical joint-angle measurement.
+ *
+ * Computes the angles a clinician expects (elbow flexion, shoulder
+ * abduction, hip rotation, etc.) from the live three.js skeleton. All
+ * measurements are made relative to the parent bone's frame (so e.g.
+ * shoulder flexion stays meaningful when the trunk has been rotated),
+ * except the Hips readout which is in world frame so an anteriorly
+ * tilted pelvis registers as such no matter the camera.
+ *
+ * Body axis convention at anatomic position (matches `applyAnatomicPose`
+ * in PainBody3D — verified by inspecting the worldDir vectors in
+ * bodyVariants.ts):
+ *
+ *   superior  (head-up) = +Y
+ *   anterior  (forward) = -Z
+ *   subject's left      = +X     (subject's right = -X)
+ *
+ *   sagittal  plane = YZ      (normal +X)
+ *   coronal   plane = XY      (normal +Z)
+ *   transverse plane = XZ     (normal +Y)
+ *
+ * Sign convention (the side most worth recording):
+ *   + flexion, + abduction (away from midline), + internal rotation,
+ *   + lateral lean toward subject's left, + neck rotation toward subject's left
+ *   (the negative direction is extension / adduction / external rotation /
+ *    lean-right / look-right). The display layer can label them.
+ *
+ * TWO FRAMES — do not conflate them (conflating them caused a forward/back
+ * travel reversal). The "anterior = -Z" above is this READOUT's clinical
+ * labeling frame, used only to sign the measured joint angles; it is
+ * self-consistent for the numbers and does NOT describe where the mesh points.
+ * The loaded GLB PHYSICALLY faces world +Z (measured on the rig: a forward
+ * arm-raise, hip flexion, and trunk flexion all carry the limb/head to +Z; the
+ * world-frame UpperArm readout below likewise signs +Z as forward flexion).
+ * Whole-body world MOTION and whole-body TRAVEL therefore use the PHYSICAL
+ * facing — forward = +Z — via motionSequence's TRAVEL_DIRECTION_AXIS. Never use
+ * a readout axis-label to choose a travel direction.
+ *
+ * Side handling: right-side joints are mirrored before reporting so a
+ * symmetric pose reads symmetric numbers (right-leg flexion is positive
+ * for hip flexion; right-arm abduction is positive for true abduction).
+ *
+ * The math is intentionally allocation-light — caller can poll on every
+ * render frame in pose mode without GC pressure (it reuses module-level
+ * scratch quaternions / vectors).
+ */
+import * as THREE from 'three';
+import { upperArmWorldAngles } from '../../src/anatomy/upperArmJointFrame.mjs';
+import {
+  normalizeBoneNameForVariant,
+  type BodyVariantConfig,
+} from '../../src/anatomy/bodyVariants';
+import { ROM_JOINT_ROWS, type RomPlane } from '../../src/services/romRegistry';
+import { captureShoulderFrames, inspectRigShoulders, type ShoulderInspections } from '../../src/services/shoulderRuntime';
+import type { ShoulderComplexFrame } from '../../src/services/shoulderComplex';
+import type { RomScenarioConstraints } from '../../src/services/romConstraints';
+import { captureGaitLegFrames, type GaitLegFrames } from '../../src/services/gaitLegClearance';
+
+// ── Public types ───────────────────────────────────────────────────────────
+
+/** Per-joint angle record. Keys are stable canonical names that match the
+ *  ones display layers can label (e.g. 'elbowFlexion'). All values in
+ *  degrees, signed per the convention above. */
+export interface JointAngleSet {
+  [angleName: string]: number;
+}
+
+/** Full clinical-angle report for one pose. Snapshot-able. */
+export interface JointAngleReport {
+  /** ISO timestamp of when the report was computed. */
+  at: string;
+  /** Body variant the report was computed against (so reviewer-side display
+   *  knows which canonical-key set to expect). */
+  variant: string;
+  /** Per-joint angles, keyed by canonical bone key. */
+  joints: Record<string, JointAngleSet>;
+  /** Frame-relative measurements of the realized pose, distinct from legacy projections. */
+  shoulders?: ShoulderInspections;
+}
+
+/** Snapshot of every rig bone's rest pose (post-applyAnatomicPose) in both
+ *  world and parent-local space. Treat this as the "0° baseline" — every
+ *  reported angle is measured as a delta from this reference, so the live
+ *  anatomic position reads 0 everywhere (and the readouts only move when
+ *  the user actually poses the model away from rest). */
+export interface JointAngleRestReference {
+  /** Immutable leg geometry for gait clearance, independent of measurement-frame rebasing. */
+  gaitLegFrames?: GaitLegFrames;
+  /** Rest world quaternion of the Hips bone — defines the pelvis "0,0,0"
+   *  for the world-frame readout (option a). */
+  pelvisWorldQuat: [number, number, number, number];
+  /** Rest local quaternion per canonical bone key (used as the joint's
+   *  parent-relative zero for everything except Hips). */
+  localQuats: Record<string, [number, number, number, number]>;
+  /** Rest world quaternion per canonical bone key. Used by the ROM-clamp
+   *  module to decompose rotations in a canonical (world-aligned) frame
+   *  where every bone's rest long axis aligns with `(0,-1,0)` regardless
+   *  of how the GLB binds the bone-local frame. */
+  worldQuats: Record<string, [number, number, number, number]>;
+  /** Rest WORLD long-axis direction (shoulder→elbow etc.) per canonical bone
+   *  key. Needed by the world-frame UpperArm readout + the shoulder command
+   *  construction, where the twisted humeral local frame means the bone's
+   *  local -Y is NOT the arm axis. Optional for backward compatibility. */
+  worldDirs?: Record<string, [number, number, number]>;
+  /** Rest value of the raw finger curl sum (MCP + PIP, signed, in-plane) per
+   *  digit key. `fingerFlexion` is reported as the DELTA from this, so a
+   *  geometrically straight digit reads 0 the way every clinical scale defines
+   *  it. Optional for backward compatibility; absent means no subtraction, which
+   *  reproduces the rig's own rest offset in the reading. */
+  fingerCurlRest?: Record<string, number>;
+  /** Each hinge's (elbow, knee) flexion axis in its PARENT bone's local frame,
+   *  taken at capture, where the rest is un-rotated and body-left is world +X
+   *  (see hingeFlexionDeg). Being parent-local it holds for a root- or
+   *  pelvis-rotated copy of this reference too, whose world quats no longer
+   *  name body-left. Optional for backward compatibility; absent, the axis is
+   *  picked from `worldQuats` at measure time. */
+  hingeAxes?: Record<string, [number, number, number]>;
+  /** Immutable anatomic reference; retained through legacy root/pelvis adjustments. */
+  shoulderFrames?: Record<'L' | 'R', ShoulderComplexFrame>;
+}
+
+// ── Constants + scratch state ──────────────────────────────────────────────
+
+const DEG = 180 / Math.PI;
+
+/** Body axes in WORLD space at anatomic. */
+const BODY_UP = new THREE.Vector3(0, 1, 0); // superior
+const BODY_ANTERIOR = new THREE.Vector3(0, 0, -1); // forward
+const BODY_LEFT = new THREE.Vector3(1, 0, 0); // subject's left
+
+/** Module-level scratch — recycled across calls to avoid GC. */
+const _v1 = new THREE.Vector3();
+const _v2 = new THREE.Vector3();
+const _q1 = new THREE.Quaternion();
+const _q2 = new THREE.Quaternion();
+const _q3 = new THREE.Quaternion();
+const _e1 = new THREE.Euler();
+
+// ── Math helpers ───────────────────────────────────────────────────────────
+
+/** Swing-twist decomposition.
+ *
+ * Given a quaternion `q` and a unit axis `twistAxis`, splits q into a
+ * twist (rotation about `twistAxis`) and a swing (rotation perpendicular
+ * to it). q == swing * twist.
+ *
+ * Convention: `twistAxis` lives in the *rotated* frame, so for a bone the
+ * twist is rotation about the bone's own long axis (its child direction).
+ *
+ * Out-params: outSwing and outTwist are mutated in place.
+ */
+export function swingTwistDecompose(
+  q: THREE.Quaternion,
+  twistAxis: THREE.Vector3,
+  outSwing: THREE.Quaternion,
+  outTwist: THREE.Quaternion,
+): void {
+  // Project the rotation axis of q onto twistAxis.
+  const projection = twistAxis.x * q.x + twistAxis.y * q.y + twistAxis.z * q.z;
+  outTwist.set(twistAxis.x * projection, twistAxis.y * projection, twistAxis.z * projection, q.w);
+  outTwist.normalize();
+  // swing = q * twist^-1
+  outSwing.copy(q).multiply(_q1.copy(outTwist).invert());
+}
+
+/** Convert a quaternion to its rotation axis × angle (signed) in radians,
+ *  about the given reference axis. Positive when the rotation is right-
+ *  handed about `axis`. Useful for reading a twist value. */
+export function signedAngleAboutAxis(q: THREE.Quaternion, axis: THREE.Vector3): number {
+  // Quaternion q = [sin(θ/2)·n, cos(θ/2)] where n is the rotation axis.
+  // angle = 2·atan2(|qv|, qw); sign comes from dot(qv, axis).
+  const qvLen = Math.hypot(q.x, q.y, q.z);
+  if (qvLen < 1e-9) return 0;
+  let angle = 2 * Math.atan2(qvLen, q.w);
+  if (angle > Math.PI) angle -= 2 * Math.PI; // shortest path
+  const sign = Math.sign(q.x * axis.x + q.y * axis.y + q.z * axis.z) || 1;
+  return angle * sign;
+}
+
+// ── Skeleton plumbing ──────────────────────────────────────────────────────
+
+/** Build a canonical-key → bone lookup the same way poseRig does. */
+function buildLookup(
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+): Map<string, THREE.Bone> {
+  const map = new Map<string, THREE.Bone>();
+  for (const bone of skeleton.bones) {
+    const norm = normalizeBoneNameForVariant(bone.name, variantCfg.boneNameMap);
+    if (!norm.canonical) continue;
+    const sidePrefix = norm.side === 'Left' ? 'L_' : norm.side === 'Right' ? 'R_' : '';
+    map.set(`${sidePrefix}${norm.canonical}`, bone);
+  }
+  return map;
+}
+
+/** Capture the skeleton's CURRENT pose as the rest reference. Call this
+ *  once per model load, *after* applyAnatomicPose has been applied so the
+ *  recorded rest matches the canvas's "anatomic" baseline. Every subsequent
+ *  computeJointAngles call reads deltas off this snapshot. */
+export function captureJointAngleRestReference(
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+): JointAngleRestReference {
+  // Make sure world matrices reflect any pending pose work before we read.
+  for (const bone of skeleton.bones) bone.updateMatrixWorld(false);
+  const lookup = buildLookup(skeleton, variantCfg);
+  const localQuats: Record<string, [number, number, number, number]> = {};
+  const worldQuats: Record<string, [number, number, number, number]> = {};
+  const worldDirs: Record<string, [number, number, number]> = {};
+  for (const [key, bone] of lookup) {
+    const q = bone.quaternion;
+    localQuats[key] = [q.x, q.y, q.z, q.w];
+    const wq = bone.getWorldQuaternion(_q1);
+    worldQuats[key] = [wq.x, wq.y, wq.z, wq.w];
+    const dir = boneWorldDirection(bone);
+    if (dir) worldDirs[key] = [dir.x, dir.y, dir.z];
+  }
+  // Finger curl at rest — subtracted at measure time so a straight digit reads 0.
+  const fingerCurlRest: Record<string, number> = {};
+  for (const side of ['L_', 'R_'] as const)
+    for (const d of DIGIT_KEYS) {
+      const raw = rawFingerCurl(lookup, side, d);
+      if (raw != null) fingerCurlRest[`${side}${d}`] = raw;
+    }
+  let pelvisWorldQuat: [number, number, number, number] = [0, 0, 0, 1];
+  const hips = lookup.get('Hips');
+  if (hips) {
+    const wq = hips.getWorldQuaternion(_q1);
+    pelvisWorldQuat = [wq.x, wq.y, wq.z, wq.w];
+  }
+  const hingeAxes: Record<string, [number, number, number]> = {};
+  for (const key of Object.keys(HINGE_FLEX_SIGN)) {
+    if (!worldQuats[key]) continue;
+    const axis = hingeAxisInParent(localQuats[key], worldQuats[key]);
+    hingeAxes[key] = [axis.x, axis.y, axis.z];
+  }
+  return { pelvisWorldQuat, localQuats, worldQuats, worldDirs, fingerCurlRest, hingeAxes,
+    gaitLegFrames: captureGaitLegFrames(lookup),
+    shoulderFrames: captureShoulderFrames(lookup) };
+}
+
+/** The hinge bones (the elbow's forearm, the knee's leg), each with its flexion
+ *  sense about body-left: the knee flexes posteriorly (+), the elbow
+ *  anteriorly (−). */
+const HINGE_FLEX_SIGN: Readonly<Record<string, number>> = { L_Forearm: -1, R_Forearm: -1, L_Leg: 1, R_Leg: 1 };
+
+/** A hinge's flexion axis in its parent's frame: the child's local axis nearest
+ *  body-left in `restWorld` ({@link localAxisTowardBodyLeft}), through the
+ *  child's rest local rotation. Returns a new vector. */
+function hingeAxisInParent(
+  restLocal: [number, number, number, number] | undefined,
+  restWorld: [number, number, number, number] | undefined,
+): THREE.Vector3 {
+  const axis = localAxisTowardBodyLeft(restWorld);
+  if (restLocal) axis.applyQuaternion(new THREE.Quaternion(restLocal[0], restLocal[1], restLocal[2], restLocal[3]));
+  return axis;
+}
+
+// ── Gizmo ring ↔ clinical motion mapping ─────────────────────────────────────
+
+/** Gizmo space per joint. The primary UpperArm gizmo is world-aligned (so its
+ *  rings are the body axes); every other joint's gizmo rotates the bone about its
+ *  LOCAL axes. MUST match how the scene sets `tc.setSpace` + the ring `frameQuat`. */
+export function gizmoSpaceForJoint(key: string): 'world' | 'local' {
+  return key.endsWith('UpperArm') ? 'world' : 'local';
+}
+
+/** The gizmo ring (x = red, y = green, z = blue) that drives a clinical motion,
+ *  plus whether the single-ring mapping is only approximate (swing-twist ball
+ *  joints, where one local ring doesn't cleanly isolate one motion off-neutral). */
+export interface DrivingRing {
+  ring: 'x' | 'y' | 'z';
+  approximate: boolean;
+}
+/** Per joint key → per clinical plane → the ring that actually drives it. */
+export type DrivingRingMap = Record<string, Partial<Record<RomPlane, DrivingRing>>>;
+
+/** Body-frame rotation AXIS (normal) for each plane of motion: flexion sweeps the
+ *  sagittal plane ABOUT the medio-lateral axis (+X); abduction the frontal plane
+ *  about the A-P axis (+Z); rotation the transverse plane about the longitudinal
+ *  axis (+Y). */
+const PLANE_BODY_NORMAL: Record<RomPlane, THREE.Vector3> = {
+  sagittal: new THREE.Vector3(1, 0, 0),
+  frontal: new THREE.Vector3(0, 0, 1),
+  transverse: new THREE.Vector3(0, 1, 0),
+};
+const RING_LOCAL_AXES: { ring: 'x' | 'y' | 'z'; v: THREE.Vector3 }[] = [
+  { ring: 'x', v: new THREE.Vector3(1, 0, 0) },
+  { ring: 'y', v: new THREE.Vector3(0, 1, 0) },
+  { ring: 'z', v: new THREE.Vector3(0, 0, 1) },
+];
+
+/** Swing-twist ball joints (shoulder/hip) couple flexion/abduction/rotation, so a
+ *  single local ring only approximately isolates one clinical motion off neutral.
+ *  Hinges (elbow/knee) have a clean per-axis mapping, so they are NOT approximate. */
+function jointIsApproximate(key: string): boolean {
+  return key.endsWith('UpperArm') || key.endsWith('UpLeg');
+}
+
+const _drv = new THREE.Vector3();
+const _drvQ = new THREE.Quaternion();
+
+/** For every ROM joint + plane, the gizmo ring that actually drives that motion —
+ *  derived from the bone's REST world frame, so it's correct even when a bone's
+ *  local frame is rotated relative to the body (e.g. the forearm's baked 90° twist
+ *  makes ring Z, not X, the flexion ring). For a world-space gizmo (UpperArm) the
+ *  rings are the body axes directly. Compute once per model load (after the rest
+ *  reference is captured) and hand to the angle panel. */
+export function computeDrivingRingMap(rest: JointAngleRestReference): DrivingRingMap {
+  const map: DrivingRingMap = {};
+  for (const joint of ROM_JOINT_ROWS) {
+    const key = joint.canonicalKey;
+    // Wrist: its flex/dev measurement is manually swapped to match the hand's
+    // inherited (twisted) frame — flex = local-Z, dev = local-X, pro/sup = local-Y
+    // — which world-geometry nearest-axis can't infer. Pin the rings explicitly so
+    // the chip colours match the actual rings + the measurement.
+    if (key === 'L_Hand' || key === 'R_Hand') {
+      map[key] = {
+        sagittal: { ring: 'z', approximate: false }, // flexion
+        frontal: { ring: 'x', approximate: false }, // deviation
+        transverse: { ring: 'y', approximate: false }, // pro/sup (hand twist)
+      };
+      continue;
+    }
+    // Fingers inherit the hand's twisted frame: the curl (flexion) is the local-Z
+    // ring, like the wrist. Pin it so the chip + gizmo colour the curl ring red.
+    if (/(Thumb1|Index1|Mid1|Ring1|Pinky1)$/.test(key)) {
+      map[key] = { sagittal: { ring: 'z', approximate: false } };
+      continue;
+    }
+    const space = gizmoSpaceForJoint(key);
+    const worldArr = rest.worldQuats[key];
+    const approximate = jointIsApproximate(key);
+    const perPlane: Partial<Record<RomPlane, DrivingRing>> = {};
+    for (const f of joint.fields) {
+      if (perPlane[f.plane]) continue; // one ring per plane
+      const normal = PLANE_BODY_NORMAL[f.plane];
+      if (space === 'world' || !worldArr) {
+        perPlane[f.plane] = {
+          ring: f.plane === 'sagittal' ? 'x' : f.plane === 'frontal' ? 'z' : 'y',
+          approximate,
+        };
+        continue;
+      }
+      _drvQ.set(worldArr[0], worldArr[1], worldArr[2], worldArr[3]);
+      let bestAbs = -Infinity;
+      let bestRing: 'x' | 'y' | 'z' = 'x';
+      for (const { ring, v } of RING_LOCAL_AXES) {
+        const d = Math.abs(_drv.copy(v).applyQuaternion(_drvQ).dot(normal));
+        if (d > bestAbs) {
+          bestAbs = d;
+          bestRing = ring;
+        }
+      }
+      perPlane[f.plane] = { ring: bestRing, approximate };
+    }
+    map[key] = perPlane;
+  }
+  return map;
+}
+
+/** Empty rest reference (every joint reads as if rest = identity). Used
+ *  as a fallback when the live skeleton hasn't initialized yet. */
+function emptyRestReference(): JointAngleRestReference {
+  return { pelvisWorldQuat: [0, 0, 0, 1], localQuats: {}, worldQuats: {} };
+}
+
+/** The bone-LOCAL axis (unit) whose rest-world direction is nearest the body's
+ *  medio-lateral axis (subject-left +X), oriented to point toward +left: a
+ *  hinge's flexion axis (the readout's plane normal, the IK hinge constraint). */
+export function localAxisTowardBodyLeft(
+  worldArr: [number, number, number, number] | undefined,
+): THREE.Vector3 {
+  if (!worldArr) return new THREE.Vector3(1, 0, 0);
+  _drvQ.set(worldArr[0], worldArr[1], worldArr[2], worldArr[3]);
+  let bestAbs = -Infinity;
+  let best = RING_LOCAL_AXES[0].v;
+  let sign = 1;
+  for (const { v } of RING_LOCAL_AXES) {
+    const d = _drv.copy(v).applyQuaternion(_drvQ).dot(BODY_LEFT);
+    if (Math.abs(d) > bestAbs) {
+      bestAbs = Math.abs(d);
+      best = v;
+      sign = d >= 0 ? 1 : -1;
+    }
+  }
+  return best.clone().multiplyScalar(sign);
+}
+
+/** World-space bone direction = world(next meaningfully-offset descendant) −
+ *  world(this position), normalized. Descends past zero-length helper / "share" /
+ *  twist bones that the CC rig parks exactly on a joint (e.g. R_Calf's first
+ *  child is `R_KneeShareBone` sitting on the knee), which would otherwise yield a
+ *  zero-length vector and break the hinge angle. Returns a *new* Vector3. */
+/**
+ * SIGNED angle from `p` to `d`, measured in the plane whose normal is `axis`.
+ *
+ * Both vectors are PROJECTED into that plane first. That projection is the whole
+ * point: the digit's "metacarpal" reference is a ray from one wrist origin out to
+ * five knuckles, so it carries a fixed out-of-plane splay — rig-measured at a
+ * constant 18.4° on the index at every MCP angle. An UNSIGNED 3D angle reports
+ * that splay as flexion, which is why a geometrically straight index finger used
+ * to read 22°. Projecting removes it; `atan2` then gives a signed value, so
+ * extension is negative instead of folding back over zero.
+ */
+function signedAngleInPlane(
+  p: THREE.Vector3,
+  d: THREE.Vector3,
+  axis: THREE.Vector3,
+): number {
+  const pp = _sa1.copy(p).addScaledVector(axis, -p.dot(axis));
+  const dd = _sa2.copy(d).addScaledVector(axis, -d.dot(axis));
+  if (pp.lengthSq() < 1e-10 || dd.lengthSq() < 1e-10) return 0;
+  pp.normalize();
+  dd.normalize();
+  return Math.atan2(_sa3.crossVectors(pp, dd).dot(axis), pp.dot(dd)) * DEG;
+}
+const _sa1 = new THREE.Vector3();
+const _sa2 = new THREE.Vector3();
+const _sa3 = new THREE.Vector3();
+const _fAxis = new THREE.Vector3();
+const _fQ = new THREE.Quaternion();
+const LOCAL_Z_AXIS = new THREE.Vector3(0, 0, 1);
+
+/** The raw (pre-rest-subtraction) curl sum for one digit: the signed in-plane
+ *  MCP angle plus the signed in-plane PIP angle, each about its own bone's curl
+ *  axis. Side-agnostic — the caller applies the anatomical sign. */
+function rawFingerCurl(
+  lookup: Map<string, THREE.Bone>,
+  side: string,
+  digit: string,
+): number | null {
+  const mcp = lookup.get(`${side}${digit}`);
+  const hand = lookup.get(`${side}Hand`);
+  if (!mcp || !hand) return null;
+  const d1 = boneWorldDirection(mcp);
+  if (!d1) return null;
+  const meta = mcp.getWorldPosition(new THREE.Vector3()).sub(hand.getWorldPosition(new THREE.Vector3()));
+  let deg = 0;
+  if (meta.lengthSq() > 1e-8) {
+    _fAxis.copy(LOCAL_Z_AXIS).applyQuaternion(mcp.getWorldQuaternion(_fQ)).normalize();
+    deg += signedAngleInPlane(meta, d1, _fAxis);
+  }
+  const pipBone = mcp.children.find((c) => (c as THREE.Bone).isBone) as THREE.Bone | undefined;
+  const d2 = pipBone ? boneWorldDirection(pipBone) : null;
+  if (pipBone && d2) {
+    _fAxis.copy(LOCAL_Z_AXIS).applyQuaternion(pipBone.getWorldQuaternion(_fQ)).normalize();
+    deg += signedAngleInPlane(d1, d2, _fAxis);
+  }
+  return deg;
+}
+
+/** Digit keys, in the order every finger loop walks them. */
+const DIGIT_KEYS = ['Thumb1', 'Index1', 'Mid1', 'Ring1', 'Pinky1'] as const;
+
+/** True for the five MCP canonical keys on either hand. */
+export function isFingerJointKey(key: string | null | undefined): boolean {
+  return !!key && /^[LR]_(Thumb1|Index1|Mid1|Ring1|Pinky1)$/.test(key);
+}
+
+/**
+ * The clinical `fingerFlexion` for ONE digit — the same number
+ * {@link computeJointAngles} reports, from the same code, so a caller that
+ * needs the composite mid-interaction cannot drift from the readout.
+ *
+ * Returns null when the digit isn't in the rig (or `canonicalKey` is not an MCP
+ * key). Requires world matrices to be current: it reads world positions and
+ * quaternions off the bones.
+ *
+ * The quantity is a COMPOSITE — the signed in-plane MCP angle plus the signed
+ * in-plane PIP angle, as a delta from the captured rest — which is exactly why
+ * `poseRomClamp`'s single-bone strategies cannot express it and the ROM clamp
+ * for the digits has to be written against this measurement instead.
+ */
+export function measureFingerFlexion(
+  lookup: Map<string, THREE.Bone>,
+  canonicalKey: string,
+  rest: JointAngleRestReference,
+): number | null {
+  if (!isFingerJointKey(canonicalKey)) return null;
+  const side = canonicalKey.slice(0, 2);
+  const digit = canonicalKey.slice(2);
+  const raw = rawFingerCurl(lookup, side, digit);
+  if (raw == null) return null;
+  return fingerSideSign(side) * (raw - (rest.fingerCurlRest?.[canonicalKey] ?? 0));
+}
+
+/** Flexion is positive on BOTH hands. Each bone's own local +Z is the curl
+ *  axis, and the rig mirrors, so the left hand's signed value comes out negated;
+ *  this restores the anatomical convention. */
+function fingerSideSign(side: string): number {
+  return side === 'R_' ? 1 : -1;
+}
+
+function boneWorldDirection(bone: THREE.Bone): THREE.Vector3 | null {
+  const here = new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
+  // Breadth-first to the NEAREST descendant with a meaningful offset. The CC rig
+  // parks zero-length helper/"share" bones (e.g. R_KneeShareBone) ON the joint,
+  // and they can be the FIRST child while the real continuation (the foot) is a
+  // sibling — so we must scan across siblings, not just descend the first child.
+  const queue: THREE.Object3D[] = [...bone.children];
+  let guard = 0;
+  while (queue.length > 0 && guard < 64) {
+    guard += 1;
+    const node = queue.shift() as THREE.Object3D;
+    const dir = new THREE.Vector3().setFromMatrixPosition(node.matrixWorld).sub(here);
+    if (dir.lengthSq() >= 1e-8) return dir.normalize();
+    for (const c of node.children) queue.push(c);
+  }
+  return null;
+}
+
+// ── Per-joint computations ─────────────────────────────────────────────────
+
+/** HINGE flexion (elbow / knee), degrees: the SIGNED angle from the parent
+ *  segment's direction (shoulder→elbow, hip→knee) to the child's (elbow→wrist,
+ *  knee→ankle), in the plane of the hinge — about its flexion axis as the
+ *  PARENT carries it — times `flexSign`, which turns the angle about body-left
+ *  into clinical flexion (the knee flexes posteriorly, +; the elbow anteriorly,
+ *  −). 0° is straight, + flexion, − (hyper)extension, continuous through
+ *  straight.
+ *
+ *  The axis is the child's local axis nearest body-left at rest
+ *  ({@link localAxisTowardBodyLeft}: the axis the hinge commands rotate about
+ *  and the IK hinge constraint keeps), taken into the parent's frame through
+ *  the child's rest rotation (`rest.hingeAxes`, captured un-rotated), so it
+ *  follows the upper arm / thigh but not the forearm's own pronation. (The
+ *  finger readout takes the same in-plane angle, about each digit's curl axis.)
+ *
+ *  It used to be the unsigned 3D angle between the two directions, signed by
+ *  the child's rotation AWAY FROM REST. Rest is not straight on these rigs —
+ *  the elbows rest 0.88° flexed (male) and 1.41° (female), the knees 0.82° and
+ *  0.23° — so the size was measured from straight but the sign from rest: the
+ *  male elbow read −0.89° at rest, outside its own 0..150° range, and jumped
+ *  1.77° at its first flexion; DDx's chair stand read −0.888 → +0.958 in one
+ *  frame for 0.07° of forearm motion, its walk's right knee +0.826 → −0.821 for
+ *  0.005°. A varus/valgus tilt also read as flexion, and a turned body's sign
+ *  came from a turned rest; the plane and `rest.hingeAxes` leave both out. */
+function hingeFlexionDeg(
+  parent: THREE.Bone,
+  parentDir: THREE.Vector3,
+  childDir: THREE.Vector3,
+  jointKey: string,
+  rest: JointAngleRestReference,
+  flexSign: number,
+): number {
+  const stored = rest.hingeAxes?.[jointKey];
+  if (stored) _hingeAxis.set(stored[0], stored[1], stored[2]);
+  else _hingeAxis.copy(hingeAxisInParent(rest.localQuats[jointKey], rest.worldQuats[jointKey]));
+  _hingeAxis.applyQuaternion((parent.matrixWorld.decompose(new THREE.Vector3(), _hingeQ, new THREE.Vector3()), _hingeQ)).normalize();
+  return signedAngleInPlane(parentDir, childDir, _hingeAxis) * flexSign;
+}
+const _hingeAxis = new THREE.Vector3();
+const _hingeQ = new THREE.Quaternion();
+
+/**
+ * The clinical flexion of ONE hinge — `L/R_Forearm` (elbow) or `L/R_Leg`
+ * (knee), with `parent` its upper arm / thigh — the number
+ * {@link computeJointAngles} reports, from the same code, so a caller that caps
+ * a hinge in the chart's units (the stage's knee cap) cannot drift from the
+ * chart. Null for a non-hinge key or a zero-length segment. Requires current
+ * world matrices.
+ */
+export function measureHingeFlexion(
+  parent: THREE.Bone,
+  bone: THREE.Bone,
+  jointKey: string,
+  rest: JointAngleRestReference,
+): number | null {
+  const flexSign = HINGE_FLEX_SIGN[jointKey];
+  if (flexSign === undefined) return null;
+  const parentDir = boneWorldDirection(parent);
+  const childDir = boneWorldDirection(bone);
+  if (!parentDir || !childDir) return null;
+  return hingeFlexionDeg(parent, parentDir, childDir, jointKey, rest, flexSign);
+}
+
+/** Common shape: the three clinical motion axes for a joint. */
+export interface SwingTwistDeg {
+  flexion: number;
+  abduction: number;
+  rotation: number;
+}
+
+/** Compose `dQ = current · rest⁻¹` — the rotation that takes a bone from
+ *  its rest orientation to its current one, expressed in the same frame
+ *  both quaternions live in (world for pelvis, parent-local for everyone
+ *  else). Caller passes restArr; we build _q1 (current), _q2 (delta). */
+export function deltaFromRest(
+  currentQ: THREE.Quaternion,
+  restArr: [number, number, number, number] | undefined,
+  outDelta: THREE.Quaternion,
+): void {
+  if (!restArr) {
+    outDelta.copy(currentQ);
+    return;
+  }
+  _q1.set(restArr[0], restArr[1], restArr[2], restArr[3]).invert();
+  outDelta.copy(currentQ).multiply(_q1);
+}
+
+/** Map a body-frame Euler delta (YXZ order, in world or trunk-aligned
+ *  parent space) into the clinical sign convention.
+ *
+ *  Right-hand rule analysis on our body axes (superior +Y, anterior -Z,
+ *  subject's left +X):
+ *    - rotation about +X by +θ takes +Y toward +Z = top tips POSTERIORLY
+ *      ⇒ anteriorTilt is positive when delta.x is NEGATIVE.
+ *    - rotation about +Z by +θ takes +X toward +Y = subject's left RISES
+ *      ⇒ lateralTilt = +delta.z directly.
+ *    - rotation about +Y by +θ takes -Z (anterior) toward -X (subject's
+ *      right) = body faces RIGHT ⇒ rotation positive when delta.y is
+ *      NEGATIVE.
+ */
+export function decomposeBodyDelta(deltaQ: THREE.Quaternion): SwingTwistDeg {
+  _e1.setFromQuaternion(deltaQ, 'YXZ');
+  return {
+    flexion: -_e1.x * DEG, // X-axis: anterior tilt / forward flexion
+    abduction: _e1.z * DEG, // Z-axis: lateral tilt / side-bend
+    rotation: -_e1.y * DEG, // Y-axis: axial rotation
+  };
+}
+
+/** BALL-JOINT swing-twist angles (shoulder / hip). Decomposes the local
+ *  delta-from-rest into swing (long-axis re-aim) and twist (rotation about
+ *  the long axis), then projects swing onto sagittal vs coronal axes.
+ *
+ *  `mirror` flips abduction + rotation signs so right-side joints read with
+ *  the same clinical convention as the left (positive abduction = away
+ *  from midline; positive rotation = internal). */
+export function ballJointAngles(
+  deltaQ: THREE.Quaternion,
+  longAxis: THREE.Vector3,
+  mirror: boolean,
+): SwingTwistDeg {
+  // Decompose the rest→current delta into swing + twist about the long axis.
+  swingTwistDecompose(deltaQ, longAxis, _q2, _q3);
+
+  // Apply the swing to the long axis → current direction in parent frame.
+  _v1.copy(longAxis).applyQuaternion(_q2);
+
+  // From the swung direction:
+  //   flexion (sagittal)   = rotation in the YZ-plane toward anterior (-Z)
+  //   abduction (coronal)  = swing out of the YZ-plane toward lateral (+X)
+  // (Negation pairs match the body-frame sign convention used elsewhere.)
+  const flexionRad = Math.atan2(-_v1.z, -_v1.y);
+  const abductionRad = Math.atan2(_v1.x, Math.hypot(_v1.y, _v1.z));
+  const twistRad = signedAngleAboutAxis(_q3, longAxis);
+
+  const flexion = flexionRad * DEG;
+  let abduction = abductionRad * DEG;
+  let rotation = twistRad * DEG;
+  if (mirror) {
+    abduction = -abduction;
+    rotation = -rotation;
+  }
+  return { flexion, abduction, rotation };
+}
+
+/** WORLD/thorax-frame shoulder angles for the UpperArm (option a). The humeral
+ *  local frame is twisted (local -Y is NOT the arm axis), so the local swing-twist
+ *  decomposition scrambles forward flexion into rotation. Here flexion/abduction
+ *  come from the arm's REAL world long axis (shoulder→elbow) and axial rotation is
+ *  the residual after removing the minimal-arc elevation swing — so a pure forward
+ *  raise reads as pure flexion, a pure lateral raise as pure abduction, and IR/ER
+ *  as pure rotation. `curDir`/`restDir` are world arm directions; `mirror` flips
+ *  abduction+rotation on the right to the clinical convention (+abd away from
+ *  midline, +rot internal). flexion/abduction are clean 0..~90° in their own plane
+ *  (they saturate past horizontal in the OTHER plane — an inherent 3-field limit). */
+export { upperArmWorldAngles } from '../../src/anatomy/upperArmJointFrame.mjs';
+
+/** True when an UpperArm IN-PLANE field (shoulderFlexion / shoulderAbduction)
+ *  is outside its meaningful zone and hosts should render it masked ("—").
+ *  The world-frame readout measures flexion and abduction as in-plane angles;
+ *  once the OTHER elevation passes ~horizontal, this field's projection
+ *  degenerates and saturates toward ±180° — an inherent 3-field ball-joint
+ *  limit, not a measurement of anything. Single-plane grading is unaffected
+ *  (the commanded axis stays exact); this is a DISPLAY guard so the HUD never
+ *  shows the saturated garbage next to a clean commanded motion. */
+export function isShoulderFieldMasked(
+  jointKey: string,
+  fieldKey: string,
+  set: Record<string, number> | undefined,
+): boolean {
+  if (!set || !jointKey.endsWith('UpperArm')) return false;
+  const OTHER: Record<string, string> = {
+    shoulderFlexion: 'shoulderAbduction',
+    shoulderAbduction: 'shoulderFlexion',
+  };
+  const otherKey = OTHER[fieldKey];
+  if (!otherKey) return false; // rotation is the residual twist — always valid
+  const value = set[fieldKey];
+  const other = set[otherKey];
+  if (typeof value !== 'number' || typeof other !== 'number') return false;
+  // The degenerate projection is the one that saturated: a reading past 150°
+  // that is also the more extreme of the pair is the artifact (a real 150°+
+  // elevation leaves the OTHER field reading even closer to ±180°).
+  return Math.abs(value) > 150 && Math.abs(value) >= Math.abs(other);
+}
+
+// ── Public API ─────────────────────────────────────────────────────────────
+
+/** Long axis in every limb-root bone's local frame. Our convention: the
+ *  bone's child sits at local -Y, so the long axis points down at rest. */
+export const REST_DOWN_LOCAL = new THREE.Vector3(0, -1, 0);
+
+/** Compute every supported clinical joint angle for the current skeleton
+ *  pose. Each angle is the delta from the captured rest reference, so the
+ *  live anatomic position reads 0,0,0 across the panel. Cheap to call
+ *  (~17 joints × constant-time math, no allocations outside the result). */
+export function computeJointAngles(
+  skeleton: THREE.Skeleton,
+  variantCfg: BodyVariantConfig,
+  variantId: string,
+  rest: JointAngleRestReference = emptyRestReference(),
+  constraints?: RomScenarioConstraints | null,
+): JointAngleReport {
+  const lookup = buildLookup(skeleton, variantCfg);
+  const joints: Record<string, JointAngleSet> = {};
+
+  // Ensure parent-chain world matrices are up-to-date for hinge calculations.
+  for (const bone of skeleton.bones) bone.updateMatrixWorld(false);
+
+  const delta = new THREE.Quaternion();
+
+  // ── Pelvis (world frame) ─────────────────────────────────────────────
+  const hips = lookup.get('Hips');
+  if (hips) {
+    hips.getWorldQuaternion(_q3);
+    deltaFromRest(_q3, rest.pelvisWorldQuat, delta);
+    const a = decomposeBodyDelta(delta);
+    joints.Hips = {
+      anteriorTilt: -a.flexion, // flip (pelvis tilt)
+      lateralTilt: a.abduction, // good as-is
+      rotation: -a.rotation, // transverse flip (pelvis)
+    };
+  }
+
+  // ── Spine / neck / head (parent-local body-frame Euler delta from rest) ─
+  // Each segment measures relative to its parent (segmental). Signs follow the
+  // verified Spine_Mid/Head convention; the new segments (Lower/Upper/Neck) are
+  // PROVISIONAL — verify live and adjust latSign per segment if needed.
+  for (const [key, latSign] of [
+    ['Spine_Lower', -1],
+    ['Spine_Mid', -1],
+    ['Spine_Upper', -1],
+    ['Neck_Lower', -1],
+    ['Neck', -1],
+    ['Head', -1],
+  ] as const) {
+    const bone = lookup.get(key);
+    if (!bone) continue;
+    deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
+    const a = decomposeBodyDelta(delta);
+    joints[key] = {
+      flexion: -a.flexion, // + = forward flexion
+      lateralTilt: a.abduction * latSign,
+      rotation: -a.rotation, // transverse flip
+    };
+  }
+
+  // Regional readouts = sum of each region's two segments, so a single readout
+  // reflects the whole span its one curve control bends. The folded-in segment
+  // then has no standalone row. Thoracic = Spine01+Spine02; Cervical = both neck.
+  const addRegion = (target: string, a: string, b: string) => {
+    const ja = joints[a];
+    const jb = joints[b];
+    if (!ja || !jb) return;
+    joints[target] = {
+      flexion: (ja.flexion ?? 0) + (jb.flexion ?? 0),
+      lateralTilt: (ja.lateralTilt ?? 0) + (jb.lateralTilt ?? 0),
+      rotation: (ja.rotation ?? 0) + (jb.rotation ?? 0),
+    };
+  };
+  addRegion('Spine_Upper', 'Spine_Mid', 'Spine_Upper'); // Thoracic
+  // HEAD PROTRACTION — the two cervical segments' HALF-DIFFERENCE, taken before
+  // the region sum folds them together and the lower one is deleted.
+  //
+  // Protraction is a TRANSLATION of the head, not a bend of the neck: the lower
+  // cervical flexes while the upper extends, carrying the head forward while
+  // leaving it level. Sum and half-difference are an orthogonal pair over the two
+  // segments, so `flexion` (the sum) and `protraction` (the difference) cannot
+  // contaminate each other whatever combination is commanded — a pure flexion has
+  // no difference, a pure protraction has no sum. The command side splits both
+  // channels across both bones to hold exactly that property; see
+  // `cervicalProtraction` in movementCommand.
+  const cervicalLower = joints['Neck_Lower'];
+  const cervicalUpper = joints['Neck'];
+  const headProtraction =
+    cervicalLower && cervicalUpper
+      ? ((cervicalLower.flexion ?? 0) - (cervicalUpper.flexion ?? 0)) / 2
+      : undefined;
+  addRegion('Neck', 'Neck_Lower', 'Neck'); // Cervical
+  if (headProtraction != null && joints['Neck']) joints['Neck']!.protraction = headProtraction;
+  delete joints['Spine_Mid'];
+  delete joints['Neck_Lower'];
+
+  // ── Scapula / shoulder girdle (the 'Shoulder' canonical = clavicle bone) ──
+  // Girdle motions from the clavicle's body-frame Euler delta (verified live):
+  //   upRotation   ← frontal  (Z) component  (Up/Down)
+  //   scapularTilt ← sagittal (X) component  (Post/Ant tilt)
+  //   protraction  ← transverse (Y) component (Pro/Ret)
+  // Right side mirrors upRotation + protraction so symmetric motion reads alike.
+  for (const [key, mirror] of [['L_Shoulder', false], ['R_Shoulder', true]] as const) {
+    const bone = lookup.get(key);
+    if (!bone) continue;
+    deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
+    const a = decomposeBodyDelta(delta);
+    joints[key] = {
+      upRotation: mirror ? -a.abduction : a.abduction, // frontal
+      scapularTilt: a.flexion, // anterior/posterior scapular tilt (sagittal)
+      protraction: mirror ? -a.rotation : a.rotation, // transverse
+    };
+  }
+
+  // ── Shoulder (UpperArm): WORLD-frame readout (option a) ──────────────
+  // The humeral local frame is twisted, so a local swing-twist scrambles forward
+  // flexion into rotation. Decompose in the world/thorax frame from the arm's real
+  // long axis instead — see upperArmWorldAngles.
+  const _curDir = new THREE.Vector3();
+  const _restDir = new THREE.Vector3();
+  const _armRestW = new THREE.Quaternion();
+  const _armCurW = new THREE.Quaternion();
+  for (const [key, mirror] of [
+    ['L_UpperArm', false],
+    ['R_UpperArm', true],
+  ] as const) {
+    const bone = lookup.get(key);
+    if (!bone) continue;
+    const rd = rest.worldDirs?.[key];
+    const rwq = rest.worldQuats[key];
+    const curDir = boneWorldDirection(bone) ?? _curDir.set(0, -1, 0);
+    if (rd && rwq) {
+      _restDir.set(rd[0], rd[1], rd[2]);
+      _armRestW.set(rwq[0], rwq[1], rwq[2], rwq[3]);
+      bone.getWorldQuaternion(_armCurW);
+      const a = upperArmWorldAngles(_armCurW, _armRestW, curDir, _restDir, mirror);
+      joints[key] = {
+        shoulderFlexion: a.flexion,
+        shoulderAbduction: a.abduction,
+        shoulderRotation: a.rotation,
+      };
+    } else {
+      // Fallback (no rest world dirs captured): legacy local swing-twist.
+      deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
+      const a = ballJointAngles(delta, REST_DOWN_LOCAL, mirror);
+      joints[key] = {
+        shoulderFlexion: a.flexion,
+        shoulderAbduction: a.abduction,
+        shoulderRotation: -a.rotation,
+      };
+    }
+  }
+
+  // ── Hip (UpLeg): 3-axis swing-twist on the local delta ───────────────
+  for (const [key, mirror] of [
+    ['L_UpLeg', false],
+    ['R_UpLeg', true],
+  ] as const) {
+    const bone = lookup.get(key);
+    if (!bone) continue;
+    deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
+    const a = ballJointAngles(delta, REST_DOWN_LOCAL, mirror);
+    joints[key] = {
+      hipFlexion: -a.flexion, // + = hip flexion (flip; shoulder stays as-is)
+      hipAbduction: a.abduction,
+      hipRotation: a.rotation,
+    };
+  }
+
+  // ── Hinges: Forearm (elbow), Leg (knee) ──────────────────────────────
+  // Flexion is geometric — the in-plane angle between the parent and child
+  // world directions (hingeFlexionDeg), so it reads 0° straight whatever the
+  // bind quaternions, and the rest pose reads its own small bend. The secondary
+  // axes (axial twist = forearm pro/sup or tibial rotation, and frontal
+  // deviation = elbow/knee varus-valgus) come from a swing-twist of the bone's
+  // local delta-from-rest. SIGNS PROVISIONAL — verify.
+  for (const [parentKey, jointKey, flexLabel, twistLabel, devLabel, mirror, twistSign] of [
+    ['L_UpperArm', 'L_Forearm', 'elbowFlexion', 'forearmRotation', 'elbowDeviation', false, 1],
+    ['R_UpperArm', 'R_Forearm', 'elbowFlexion', 'forearmRotation', 'elbowDeviation', true, 1],
+    ['L_UpLeg', 'L_Leg', 'kneeFlexion', 'kneeRotation', 'kneeDeviation', false, -1],
+    ['R_UpLeg', 'R_Leg', 'kneeFlexion', 'kneeRotation', 'kneeDeviation', true, -1],
+  ] as const) {
+    const parent = lookup.get(parentKey);
+    const bone = lookup.get(jointKey); // the forearm / leg bone (also the hinge child)
+    if (!parent || !bone) continue;
+    const flexion = measureHingeFlexion(parent, bone, jointKey, rest) ?? 0;
+    deltaFromRest(bone.quaternion, rest.localQuats[jointKey], delta);
+    const a = ballJointAngles(delta, REST_DOWN_LOCAL, mirror);
+    joints[jointKey] = {
+      [flexLabel]: flexion, // signed: + flexion, − (hyper)extension
+      [twistLabel]: a.rotation * twistSign, // axial twist (knee tibial-rot flipped; forearm stays)
+      [devLabel]: a.abduction, // frontal-plane deviation (var/valg)
+    };
+  }
+
+  // ── Hand / Foot (2-axis parent-local delta) ──────────────────────────
+  for (const [key, isHand, mirror] of [
+    ['L_Hand', true, false],
+    ['R_Hand', true, true],
+    ['L_Foot', false, false],
+    ['R_Foot', false, true],
+  ] as const) {
+    const bone = lookup.get(key);
+    if (!bone) continue;
+    deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
+    const a = decomposeBodyDelta(delta);
+    let abduction = a.abduction;
+    let rotation = a.rotation;
+    if (mirror) {
+      abduction = -abduction;
+      rotation = -rotation;
+    }
+    if (isHand) {
+      // Wrist: the hand inherits the forearm's rotated frame, so flexion is the
+      // local-Z component and deviation the local-X component (blue↔red switch).
+      // Pro/sup TOTAL = forearm (radioulnar) twist + hand (wrist) twist — the two
+      // share the rotation, so the total is written to BOTH the elbow and wrist
+      // rows. Wrist flex + dev signs verified live (both wrists). The RIGHT
+      // hand's local frame is flipped ~180° about its long axis, so its sagittal
+      // read inverts vs the left: flexion = -a.abduction (L) / +a.abduction (R).
+      // Deviation reads the same on both (-a.flexion: radial +, ulnar -). Pro/sup
+      // sign still PROVISIONAL — verify.
+      const forearmKey = key.replace('Hand', 'Forearm');
+      const total = (joints[forearmKey]?.forearmRotation ?? 0) + rotation;
+      if (joints[forearmKey]) joints[forearmKey].forearmRotation = total;
+      joints[key] = {
+        wristFlexion: mirror ? a.abduction : -a.abduction,
+        proSup: total,
+        wristDeviation: -a.flexion,
+      };
+    } else {
+      joints[key] = { ankleFlexion: -a.flexion, ankleInversion: -abduction, ankleAbduction: rotation }; // ankle F/E flip; inv/ev flip
+    }
+  }
+
+  // ── Toes (forefoot MTP — ToeBase relative to the foot) ───────────────
+  for (const key of ['L_Toes', 'R_Toes'] as const) {
+    const bone = lookup.get(key);
+    if (!bone) continue;
+    deltaFromRest(bone.quaternion, rest.localQuats[key], delta);
+    const a = decomposeBodyDelta(delta);
+    joints[key] = { toeFlexion: -a.flexion }; // + = extension (PROVISIONAL — verify)
+  }
+
+  // ── Fingers: composite curl = MCP + PIP, SIGNED, in the curl plane, measured
+  //    as a DELTA FROM REST. Flexion positive on both hands; a straight digit
+  //    reads 0 and extension reads negative, which is what every clinical scale
+  //    means by finger flexion.
+  //
+  //    This was previously a sum of UNSIGNED 3D angles with no rest subtraction,
+  //    and it made a geometrically straight index finger report 22°. The cause
+  //    was the reference vector: `knuckleWorldPos − handWorldPos` is one origin
+  //    at the wrist radiating to five knuckles, so it is splayed radially for the
+  //    index and ulnarly for the little finger, and an unsigned sum reports that
+  //    fixed splay as flexion. Every digit therefore had a "floor" it could not
+  //    read below, the response was non-monotone through it, and a 130-constant
+  //    per-digit per-variant lookup table existed to invert the result. Projecting
+  //    into the curl plane removes the splay, the signed atan2 removes the fold,
+  //    and the rest subtraction removes what is left — after which measured equals
+  //    the authored curl exactly and linearly (rig-verified: ratio 1.000 on all
+  //    five digits, both hands, both variants, from −30° through +176°).
+  for (const side of ['L_', 'R_'] as const) {
+    for (const d of DIGIT_KEYS) {
+      const key = `${side}${d}`;
+      const value = measureFingerFlexion(lookup, key, rest);
+      if (value == null) continue;
+      joints[key] = { fingerFlexion: value };
+    }
+  }
+
+  return {
+    at: new Date().toISOString(),
+    variant: variantId,
+    joints,
+    shoulders: inspectRigShoulders(lookup, rest, constraints),
+  };
+}
+
+/** Stable hash of a joint-angle report (for cache keys / change detection).
+ *  Rounds to 0.1° so floating-point jitter doesn't bust the hash. */
+export function hashJointAngleReport(report: JointAngleReport | null | undefined): string {
+  if (!report) return 'none';
+  const keys = Object.keys(report.joints).sort();
+  if (keys.length === 0) return 'empty';
+  let h = 0x811c9dc5;
+  for (const key of keys) {
+    const set = report.joints[key];
+    const angleKeys = Object.keys(set).sort();
+    let segment = `${key}:`;
+    for (const a of angleKeys) segment += `${a}=${(set[a] ?? 0).toFixed(1)};`;
+    for (let i = 0; i < segment.length; i += 1) {
+      h ^= segment.charCodeAt(i);
+      h = (h * 0x01000193) >>> 0;
+    }
+  }
+  if (report.shoulders) {
+    const extra = JSON.stringify(report.shoulders, (_key, value) => typeof value === 'number' ? Number(value.toFixed(1)) : value);
+    for (let i = 0; i < extra.length; i++) { h ^= extra.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+  }
+  return h.toString(16);
+}
+
+/** Empty report stub for type-safe defaults. */
+export function emptyJointAngleReport(variantId = ''): JointAngleReport {
+  return { at: new Date(0).toISOString(), variant: variantId, joints: {} };
+}

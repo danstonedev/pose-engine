@@ -7,6 +7,55 @@ import {
 
 type SkinAttribute = THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
 
+/** Reuse the exact CPU bone transforms while reading a single posed surface.
+ * Call beginMeasurement after propagating world matrices and applying any
+ * transient twist overlay. No palette survives into the next measurement.
+ * Unlike a GPU/baked geometry buffer, Matrix4 retains JavaScript double
+ * precision and the vertex operations follow Three's original order. */
+export function createPosedVertexReader() {
+  const palettes = new WeakMap<THREE.Skeleton, { matrices: THREE.Matrix4[]; measuredAt: number[] }>();
+  let measurement = 0;
+  const base = new THREE.Vector3(), weighted = new THREE.Vector3();
+  const indices = new THREE.Vector4(), weights = new THREE.Vector4();
+  return {
+    beginMeasurement() { measurement++; },
+    getVertexPosition(mesh: THREE.SkinnedMesh, index: number, target: THREE.Vector3): THREE.Vector3 {
+      // Preserve host-defined geometry/skinning overrides instead of silently
+      // substituting the standard Three implementation for a custom surface.
+      if (mesh.getVertexPosition !== THREE.SkinnedMesh.prototype.getVertexPosition
+        || mesh.applyBoneTransform !== THREE.SkinnedMesh.prototype.applyBoneTransform) return mesh.getVertexPosition(index, target);
+      const skeleton = mesh.skeleton;
+      let palette = palettes.get(skeleton);
+      if (!palette || palette.matrices.length !== skeleton.bones.length) {
+        palette = { matrices: skeleton.bones.map(() => new THREE.Matrix4()), measuredAt: skeleton.bones.map(() => -1) };
+        palettes.set(skeleton, palette);
+      }
+      // Mesh's implementation includes absolute/relative morph targets and
+      // normalized/interleaved attributes before the skin transform.
+      THREE.Mesh.prototype.getVertexPosition.call(mesh, index, target);
+      base.copy(target).applyMatrix4(mesh.bindMatrix);
+      const skinIndex = mesh.geometry.getAttribute('skinIndex'), skinWeight = mesh.geometry.getAttribute('skinWeight');
+      indices.set(skinIndex.getX(index), skinIndex.getY(index), skinIndex.getZ(index), skinIndex.getW(index));
+      weights.set(skinWeight.getX(index), skinWeight.getY(index), skinWeight.getZ(index), skinWeight.getW(index));
+      target.set(0, 0, 0);
+      for (let slot = 0; slot < 4; slot++) {
+        const weight = weights.getComponent(slot);
+        if (weight !== 0) {
+          const boneIndex = indices.getComponent(slot);
+          // A derivative probe can read only three witnesses. Compute only
+          // their contributing bones; a full skin sweep reuses the same values.
+          if (palette.measuredAt[boneIndex] !== measurement) {
+            palette.matrices[boneIndex]!.multiplyMatrices(skeleton.bones[boneIndex]!.matrixWorld, skeleton.boneInverses[boneIndex]!);
+            palette.measuredAt[boneIndex] = measurement;
+          }
+          target.addScaledVector(weighted.copy(base).applyMatrix4(palette.matrices[boneIndex]!), weight);
+        }
+      }
+      return target.applyMatrix4(mesh.bindMatrixInverse);
+    },
+  };
+}
+
 export interface CreatePosedWorldGeometryOptions {
   requiredAttributes?: string[];
   nonIndexed?: boolean;

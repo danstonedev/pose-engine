@@ -1,0 +1,138 @@
+{
+  "at": "2026-10-02T19:46:43.989Z",
+  "sourceRevision": "274ad55a3a84df593c12c24852ec80bc744d3d13",
+  "expectedSource": "Engine reference",
+  "toleranceM": 0.0001,
+  "method": "Original bone-head and rendered skin samples compared with exported glTF replay in Three.js. Nearest-vertex search within neighboring 5 mm cells; any missing neighbor fails. Original vertex indices are not assumed to survive export.",
+  "cases": [
+    {
+      "id": "male-shoulder-abduction-160",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000014736790643231716,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000005978253570632504,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 0.26666666666666666,
+          "maxBoneErrorM": 0.000014736790643231716,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000009991026858227627,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 1.1666666666666667,
+          "maxBoneErrorM": 0.000014736790643231687,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000009991847308970351,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 2.066666666666667,
+          "maxBoneErrorM": 0.000014736790643231716,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000009991847308970351,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 3.9000000000000004,
+          "maxBoneErrorM": 0.000014736790643231716,
+          "worstBone": "CC_Base_L_BigToe1",
+          "maxSkinNearestVertexErrorM": 0.000009991847308970351,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000014736790643231716,
+      "maxSkinErrorM": 0.000009991847308970351,
+      "passed": true
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.00002968510586198029,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000002396914664636726,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 0.26666666666666666,
+          "maxBoneErrorM": 0.00002968510586198029,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.0000059774370762806745,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 1.1666666666666667,
+          "maxBoneErrorM": 0.00002968510586198029,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.000006280991019744473,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 2.066666666666667,
+          "maxBoneErrorM": 0.00002968510586198029,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.00000767638864426607,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 3.9000000000000004,
+          "maxBoneErrorM": 0.00002968510586198029,
+          "worstBone": "CC_Base_L_KneeShareBone",
+          "maxSkinNearestVertexErrorM": 0.0000059803788528463,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.00002968510586198029,
+      "maxSkinErrorM": 0.00000767638864426607,
+      "passed": true
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "checkpoints": [
+        {
+          "timeSec": 0,
+          "maxBoneErrorM": 0.000012608631290091,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000003369160634653534,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 0.26666666666666666,
+          "maxBoneErrorM": 0.000012608631290091,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000005500322751121426,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 1.1666666666666667,
+          "maxBoneErrorM": 0.000012608631290091,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004841670817104514,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 2.066666666666667,
+          "maxBoneErrorM": 0.000012608631290091,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000004642641518256444,
+          "skinPointsOutsideSearch": 0
+        },
+        {
+          "timeSec": 3.9000000000000004,
+          "maxBoneErrorM": 0.000012608631290091,
+          "worstBone": "CC_Base_L_ToeBase",
+          "maxSkinNearestVertexErrorM": 0.000005457245649197601,
+          "skinPointsOutsideSearch": 0
+        }
+      ],
+      "maxBoneErrorM": 0.000012608631290091,
+      "maxSkinErrorM": 0.000005500322751121426,
+      "passed": true
+    }
+  ]
+}

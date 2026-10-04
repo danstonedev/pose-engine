@@ -282,3 +282,5 @@ export * from './services/shoulderRuntime';
 
 export * from './services/independentShoulderRig';
 export { default as IndependentShoulderLab } from './IndependentShoulderLab.svelte';
+export * from './services/painResponse';
+export * from './services/painResponseLayer';

@@ -1,0 +1,4930 @@
+{
+  "version": 1,
+  "date": "2026-10-03",
+  "masterSha256": "ef6896ac099223d7b8cbf4cc60672c8a9641323e55c6935953298c74736bacce",
+  "scope": "All81 canonical issues currently recorded in the one master, including historical, partial and unsupported records. Later discoveries do not alter this fixed denominator.",
+  "target": {
+    "fraction": 0.5,
+    "count": 41
+  },
+  "initialFullyClosed": 0,
+  "countingRule": "Count a baseline issue only after all applicable context scopes satisfy its retained criteria and current validated closure evidence. Duplicate, historical, excluded, partial, source-reviewed, locally improved or merged alone do not count as fixes.",
+  "issues": [
+    {
+      "id": "defect:shoulder-flexion-abduction-distortion",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "joint:shoulder-flexion",
+          "joint:shoulder-abduction",
+          "engine-template:shoulder-flexion-elevation",
+          "engine-template:shoulder-abduction-elevation",
+          "library:shoulder-flexion-elevation",
+          "library:shoulder-abduction-elevation"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Matched elevation-plane views with girdle/humeral/axial-rotation traces, plausible skin and reference-supported task coordination.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:shoulder-coordination-and-endpoints"
+    },
+    {
+      "id": "defect:thoracic-fixed-distribution",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "joint:thoracic-flexion",
+          "joint:thoracic-extension",
+          "joint:thoracic-side-bend",
+          "joint:thoracic-rotation",
+          "engine-template:trunk-side-bend",
+          "library:trunk-side-bend"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Task-supported pelvis-to-head curvature and stabilizer roles, preserving isolated-test intent.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:axial-coordination"
+    },
+    {
+      "id": "defect:cervical-rotation-sidebend-distribution",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "joint:cervical-rotation",
+          "joint:cervical-side-bend",
+          "engine-template:cervical-rotation",
+          "engine-template:cervical-lateral-flexion",
+          "library:cervical-rotation",
+          "library:cervical-lateral-flexion",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Reference-supported lower/upper neck and head/torso landmark behavior with patient limits.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:axial-coordination"
+    },
+    {
+      "id": "defect:multisegmental-flexion-shoulder-shape",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Current full-body reproduction including trunk-relative humeral twist/girdle/skin, planted support and endpoint.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:shoulder-coordination-and-endpoints"
+    },
+    {
+      "id": "defect:task-gaze-pelvis-chain",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Explicit whole axial-chain roles and task-supported pelvis/curvature/gaze sequencing; unsupported vertebral detail disclosed.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:axial-coordination"
+    },
+    {
+      "id": "defect:whole-body-posed-surface-coverage",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/aslr/aslr",
+          "screen:fms-repo-legacy-v1/deep-squat/deep-squat",
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step",
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier",
+          "screen:sfma-repo-legacy-v1/single-leg-stance/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Continuous source-skin/collider fit and posed seams with bounded intended compression and full-body/head contact.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:physics-and-contact-foundation"
+    },
+    {
+      "id": "defect:lower-reach-scapular-contact",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Calibrated moving scapular landmark, exact palm/back contact, full-route clearance and clinical endpoint review.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:shoulder-coordination-and-endpoints"
+    },
+    {
+      "id": "defect:reciprocal-fist-endpoint",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Actual fists, surface gap versus model hand length, both reciprocal side meanings and explicit partial/unreachable outcomes.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:shoulder-coordination-and-endpoints"
+    },
+    {
+      "id": "defect:loaded-palm-contact",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "engine-builder:buildPushUp",
+          "exercises:push-up",
+          "engine-builder:buildBirdDog",
+          "exercises:bird-dog",
+          "transfers:chair",
+          "engine-builder:buildSitDown",
+          "engine-builder:buildStandFromSit"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Palm-region skin contact distinct from low fingertips, no unacceptable penetration through load/release and supported forces.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:inplace-gait-warnings",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "gait:antalgic",
+          "gait:circumduction",
+          "gait:compensated-trendelenburg",
+          "gait:crouch-gait",
+          "gait:festinating",
+          "gait:foot-drop",
+          "gait:forward-head",
+          "gait:genu-recurvatum",
+          "gait:hip-hike",
+          "gait:knee-valgus",
+          "gait:normal",
+          "gait:running",
+          "gait:running-in-place",
+          "gait:scissoring",
+          "gait:steppage",
+          "gait:trendelenburg",
+          "gait:vaulting"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Reproduce exact warnings and distinguish frame-time diagnostics from geometry, actual surface contact/clearance across speed/body.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:locomotion-fidelity"
+    },
+    {
+      "id": "defect:restricted-squat-support",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "exercises:squat",
+          "engine-builder:buildSquat",
+          "engine-template:squat",
+          "library:squat",
+          "screen:fms-repo-legacy-v1/deep-squat/deep-squat",
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Capacity/ROM sweep with achieved depth, soles/balance and explicit refusal/residual without weakening default gates.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:assessment-support-and-variation"
+    },
+    {
+      "id": "defect:independent-shoulder-rig-calibration",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "joint:scapular-upward-rotation",
+          "joint:scapular-anterior-tilt",
+          "joint:scapular-posterior-tilt",
+          "joint:scapular-protraction",
+          "joint:scapular-retraction",
+          "joint:shoulder-flexion",
+          "joint:shoulder-abduction",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Calibrated SC/AC/GH landmarks/bounds/skin, whole-catalog open/loaded-chain review before production promotion.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:shoulder-coordination-and-endpoints"
+    },
+    {
+      "id": "defect:sfma-breakout-recipes",
+      "status": "unsupported",
+      "scope": {
+        "motionIds": [],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Dedicated active/passive/load-specific recipes with exact protocol/source availability and per-context verification.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:mapping-review"
+    },
+    {
+      "id": "defect:shared-contact-host-parity",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/aslr/aslr",
+          "screen:fms-repo-legacy-v1/deep-squat/deep-squat",
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step",
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier",
+          "screen:sfma-repo-legacy-v1/single-leg-stance/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Explicit capability matrix, matching shared behavior where supported, unsupported paths visible and current recording/trial identities.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:physics-and-contact-foundation"
+    },
+    {
+      "id": "defect:segmental-roll-fidelity",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "transfers:roll",
+          "transfers:roll-over",
+          "engine-builder:buildRollLeftToProne",
+          "engine-builder:buildRollLeftToSupine",
+          "engine-builder:buildRollProneToLeft",
+          "engine-builder:buildRollProneToRight",
+          "engine-builder:buildRollRightToProne",
+          "engine-builder:buildRollRightToSupine",
+          "engine-builder:buildRollSupineToLeft",
+          "engine-builder:buildRollSupineToRight"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Reference-supported separately declared segmental roll while retaining intentional log-roll behavior.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:locomotion-fidelity"
+    },
+    {
+      "id": "defect:run-flight-grounding-seams",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "gait:running",
+          "gait:running-in-place",
+          "engine-builder:buildRun",
+          "engine-builder:buildTravelRun"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Dense/event-aware takeoff/flight/landing skin contacts and seams across supported speed/body settings.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:locomotion-fidelity"
+    },
+    {
+      "id": "defect:contact-point-travel-metrics",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "gait:normal",
+          "gait:running",
+          "gait:running-in-place",
+          "gait:figure-eight",
+          "engine-builder:buildTravelWalk",
+          "engine-builder:buildTravelRun",
+          "engine-builder:buildFigureEightWalk"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Actual planted surface-point displacement/travel and current turns/transfers rendered review.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:locomotion-fidelity"
+    },
+    {
+      "id": "defect:ue2-scapular-endpoint",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Calibrated moving scapular-spine landmark, palm orientation/contact and full overhead clearance with partial/unreachable outcomes.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:shoulder-coordination-and-endpoints"
+    },
+    {
+      "id": "defect:shoulder-clearing-palm-contact",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Actual palm patch on moving shoulder throughout elbow rise/return and clinical endpoint evidence.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:shoulder-coordination-and-endpoints"
+    },
+    {
+      "id": "defect:cervical-endpoint-landmarks",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Calibrated chin/face/thorax, mouth-state support where relevant, torso-relative rotation and clinical review.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:axial-coordination"
+    },
+    {
+      "id": "defect:rendered-audit-clinical-coverage",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "balance:ankle-strategy",
+          "balance:hip-strategy",
+          "balance:single-leg-stance",
+          "balance:stepping-strategy",
+          "clip-registry:aerobic-dance",
+          "clip-registry:catwalk",
+          "clip-registry:crouch-walk",
+          "clip-registry:idle",
+          "clip-registry:idle-passenger",
+          "clip-registry:jog",
+          "clip-registry:left-knee-extension",
+          "clip-registry:limp",
+          "clip-registry:long-sit",
+          "clip-registry:right-knee-extension",
+          "clip-registry:run",
+          "clip-registry:sandbox",
+          "clip-registry:sit",
+          "clip-registry:stand",
+          "clip-registry:walk",
+          "clip-registry:walk-backward",
+          "clip-registry:walk-elder",
+          "clip-registry:walk-elderly",
+          "clip-registry:walk-elderly-wobble",
+          "clip-registry:walk-relaxed",
+          "clip-registry:walk-strafe-left",
+          "clip-registry:walk-strafe-right",
+          "engine-builder:buildBirdDog",
+          "engine-builder:buildFigureEightWalk",
+          "engine-builder:buildGetDownToPlank",
+          "engine-builder:buildGetDownToQuadruped",
+          "engine-builder:buildGetUp",
+          "engine-builder:buildJump",
+          "engine-builder:buildKneelDown",
+          "engine-builder:buildLieDown",
+          "engine-builder:buildLowerToProne",
+          "engine-builder:buildPlankFromQuadruped",
+          "engine-builder:buildPressUpToQuadruped",
+          "engine-builder:buildPushUp",
+          "engine-builder:buildQuadrupedFromPlank",
+          "engine-builder:buildRollLeftToProne",
+          "engine-builder:buildRollLeftToSupine",
+          "engine-builder:buildRollProneToLeft",
+          "engine-builder:buildRollProneToRight",
+          "engine-builder:buildRollRightToProne",
+          "engine-builder:buildRollRightToSupine",
+          "engine-builder:buildRollSupineToLeft",
+          "engine-builder:buildRollSupineToRight",
+          "engine-builder:buildRun",
+          "engine-builder:buildSeatedKneeExtension",
+          "engine-builder:buildSingleLegHop",
+          "engine-builder:buildSitDown",
+          "engine-builder:buildSquat",
+          "engine-builder:buildStandFromKneel",
+          "engine-builder:buildStandFromPlank",
+          "engine-builder:buildStandFromQuadruped",
+          "engine-builder:buildStandFromSit",
+          "engine-builder:buildSupineLegRaise",
+          "engine-builder:buildTravelRun",
+          "engine-builder:buildTravelWalk",
+          "engine-builder:buildTurnInPlace",
+          "engine-template:ankle-strategy",
+          "engine-template:cervical-lateral-flexion",
+          "engine-template:cervical-rotation",
+          "engine-template:endpoint-reach",
+          "engine-template:forearm-rotation",
+          "engine-template:forward-hip-hinge",
+          "engine-template:forward-lunge",
+          "engine-template:heel-raise",
+          "engine-template:high-knee-march",
+          "engine-template:hip-rotation",
+          "engine-template:hip-strategy",
+          "engine-template:kick",
+          "engine-template:lumbar-flexion-extension",
+          "engine-template:shoulder-abduction-elevation",
+          "engine-template:shoulder-flexion-elevation",
+          "engine-template:shoulder-rotation",
+          "engine-template:single-leg-stance",
+          "engine-template:sit-to-stand",
+          "engine-template:squat",
+          "engine-template:stepping-strategy",
+          "engine-template:tibial-rotation",
+          "engine-template:trunk-side-bend",
+          "engine-template:walk",
+          "engine-template:wrist-deviation",
+          "engine-template:wrist-flexion-extension",
+          "exam:arom:hip-abduction",
+          "exam:arom:hip-adduction",
+          "exam:arom:hip-er",
+          "exam:arom:hip-extension",
+          "exam:arom:hip-flexion",
+          "exam:arom:hip-ir",
+          "exam:arom:knee-extension",
+          "exam:arom:knee-flexion",
+          "exam:arom:lumbar-extension",
+          "exam:arom:lumbar-flexion",
+          "exam:arom:lumbar-rotation",
+          "exam:arom:lumbar-sidebend",
+          "exam:prom:hip-abduction",
+          "exam:prom:hip-adduction",
+          "exam:prom:hip-er",
+          "exam:prom:hip-extension",
+          "exam:prom:hip-flexion",
+          "exam:prom:hip-ir",
+          "exam:prom:knee-extension",
+          "exam:prom:knee-flexion",
+          "exam:reflex:reflex-achilles",
+          "exam:reflex:reflex-hamstring",
+          "exam:reflex:reflex-patellar",
+          "exam:sensory:sensory-anterior-femoral-cut",
+          "exam:sensory:sensory-deep-fibular",
+          "exam:sensory:sensory-l2",
+          "exam:sensory:sensory-l3",
+          "exam:sensory:sensory-l4",
+          "exam:sensory:sensory-l5",
+          "exam:sensory:sensory-lateral-plantar",
+          "exam:sensory:sensory-lateral-sural-cut",
+          "exam:sensory:sensory-lfcn",
+          "exam:sensory:sensory-medial-calcaneal",
+          "exam:sensory:sensory-medial-plantar",
+          "exam:sensory:sensory-obturator-cut",
+          "exam:sensory:sensory-pfcn",
+          "exam:sensory:sensory-s1",
+          "exam:sensory:sensory-s2",
+          "exam:sensory:sensory-saphenous",
+          "exam:sensory:sensory-superficial-fibular",
+          "exam:sensory:sensory-sural",
+          "exam:special:anterior-drawer",
+          "exam:special:derotation",
+          "exam:special:faber",
+          "exam:special:fadir",
+          "exam:special:lachman",
+          "exam:special:log-roll",
+          "exam:special:mcmurray",
+          "exam:special:ober",
+          "exam:special:posterior-drawer",
+          "exam:special:prone-knee-bend",
+          "exam:special:scour",
+          "exam:special:slr",
+          "exam:special:slump",
+          "exam:special:stinchfield",
+          "exam:special:thomas",
+          "exam:special:valgus-stress",
+          "exam:special:varus-stress",
+          "exam:strength:mmt-hip-abduction",
+          "exam:strength:mmt-hip-adduction",
+          "exam:strength:mmt-hip-er",
+          "exam:strength:mmt-hip-extension",
+          "exam:strength:mmt-hip-flexion",
+          "exam:strength:mmt-hip-ir",
+          "exam:strength:mmt-knee-extension",
+          "exam:strength:mmt-knee-flexion",
+          "exam:strength:myotome-l2",
+          "exam:strength:myotome-l3",
+          "exam:strength:myotome-l4",
+          "exam:strength:myotome-l5",
+          "exam:strength:myotome-s1",
+          "exam:strength:myotome-s2",
+          "exam:strength:rims-hip-abduction",
+          "exam:strength:rims-hip-adduction",
+          "exam:strength:rims-hip-er",
+          "exam:strength:rims-hip-extension",
+          "exam:strength:rims-hip-flexion",
+          "exam:strength:rims-hip-ir",
+          "exam:strength:rims-knee-extension",
+          "exam:strength:rims-knee-flexion",
+          "exercises:bird-dog",
+          "exercises:endpoint-reach",
+          "exercises:forward-hip-hinge",
+          "exercises:forward-lunge",
+          "exercises:heel-raise",
+          "exercises:high-knee-march",
+          "exercises:jump",
+          "exercises:kick",
+          "exercises:knee-extension",
+          "exercises:leg-raise",
+          "exercises:plank",
+          "exercises:push-up",
+          "exercises:single-leg-hop",
+          "exercises:squat",
+          "exercises:turn",
+          "gait:antalgic",
+          "gait:circumduction",
+          "gait:compensated-trendelenburg",
+          "gait:crouch-gait",
+          "gait:festinating",
+          "gait:figure-eight",
+          "gait:foot-drop",
+          "gait:forward-head",
+          "gait:genu-recurvatum",
+          "gait:hip-hike",
+          "gait:knee-valgus",
+          "gait:normal",
+          "gait:running",
+          "gait:running-in-place",
+          "gait:scissoring",
+          "gait:steppage",
+          "gait:trendelenburg",
+          "gait:vaulting",
+          "joint:ankle-dorsiflexion",
+          "joint:ankle-eversion",
+          "joint:ankle-inversion",
+          "joint:ankle-plantarflexion",
+          "joint:cervical-extension",
+          "joint:cervical-flexion",
+          "joint:cervical-rotation",
+          "joint:cervical-side-bend",
+          "joint:elbow-flexion",
+          "joint:forearm-pronation",
+          "joint:forearm-supination",
+          "joint:forefoot-abduction",
+          "joint:forefoot-adduction",
+          "joint:head-protraction",
+          "joint:head-retraction",
+          "joint:index-flexion",
+          "joint:little-flexion",
+          "joint:middle-flexion",
+          "joint:pelvic-anterior-tilt",
+          "joint:pelvic-hitch",
+          "joint:pelvic-posterior-tilt",
+          "joint:pelvic-rotation",
+          "joint:ring-flexion",
+          "joint:scapular-anterior-tilt",
+          "joint:scapular-posterior-tilt",
+          "joint:scapular-protraction",
+          "joint:scapular-retraction",
+          "joint:scapular-upward-rotation",
+          "joint:shoulder-abduction",
+          "joint:shoulder-er",
+          "joint:shoulder-extension",
+          "joint:shoulder-flexion",
+          "joint:shoulder-ir",
+          "joint:thoracic-extension",
+          "joint:thoracic-flexion",
+          "joint:thoracic-rotation",
+          "joint:thoracic-side-bend",
+          "joint:thumb-flexion",
+          "joint:tibial-er",
+          "joint:tibial-ir",
+          "joint:toe-extension",
+          "joint:toe-flexion",
+          "joint:wrist-extension",
+          "joint:wrist-flexion",
+          "joint:wrist-radial-deviation",
+          "joint:wrist-ulnar-deviation",
+          "library:cervical-lateral-flexion",
+          "library:cervical-rotation",
+          "library:forearm-rotation",
+          "library:hip-rotation",
+          "library:lumbar-flexion-extension",
+          "library:shoulder-abduction-elevation",
+          "library:shoulder-flexion-elevation",
+          "library:shoulder-rotation",
+          "library:single-leg-stance",
+          "library:sit-to-stand",
+          "library:squat",
+          "library:tibial-rotation",
+          "library:trunk-side-bend",
+          "library:walk",
+          "library:wrist-deviation",
+          "library:wrist-flexion-extension",
+          "palpation:groin",
+          "palpation:lateral",
+          "palpation:posterior",
+          "rig-animation:Armature|Default",
+          "screen:fms-repo-legacy-v1/aslr/aslr",
+          "screen:fms-repo-legacy-v1/deep-squat/deep-squat",
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step",
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier",
+          "screen:sfma-repo-legacy-v1/single-leg-stance/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+          "transfers:chair",
+          "transfers:floor",
+          "transfers:kneel",
+          "transfers:prone",
+          "transfers:quadruped",
+          "transfers:roll",
+          "transfers:roll-over"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Current context/source rendered coverage and reconciliation; clinical records stay unsigned until actually reviewed.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:extension-whole-chain-skin-support",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "All bones accounted for, palm/pelvis/thigh/calf/toe support/head clearance, unchanged2mm palm and0.1mm Blender exchange gates.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:extension-arm-guide-continuity",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Dense all-bone continuity plus fresh Blender/skin/clinical/host/patient/native review after guide changes.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:restricted-patient-playback-parity",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Path agreement under resolved patient limits and explicit infeasible support residuals/following-motion isolation.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:restricted-guide-repeat-performance",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Existing five-second repetition/importer gates pass without timeout relaxation or stale patient cache.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:native-arm-source-representation",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Explicit anatomical frames/unsupported residuals and actual skin/collider fit distinct from endpoint frames; existing bounds/mass/caps retained.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:extension-native-tracking",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Fresh source/fixture/controller trials with existing5cm pelvis/15degree joint/15degree segment gates, fullstep peaks and later repeat/timestep checks.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:baseline-world-command-frame",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand"
+        ]
+      },
+      "acceptance": [
+        "Supported baseline-orientation invariance with clinical/support/host parity; unsupported transforms disclosed.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:flexion-clearing-feet-contact",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Current sole/toe/leg/palm skin and native support with unchanged self-contact gates; neutral authored/host review.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:pushup-tracking-support",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "exercises:push-up",
+          "engine-builder:buildPushUp"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Correct prone-start versus exercise phases, fullskin hands/toes, current patient/host/native tracking.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:floor-datum-skin-disagreement",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "exercises:push-up",
+          "engine-builder:buildPushUp",
+          "exercises:bird-dog",
+          "engine-builder:buildBirdDog"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Explicit source/host/native planes and actual palm/foot skin support; no root lift concealing other gaps.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:physics-and-contact-foundation"
+    },
+    {
+      "id": "defect:native-neutral-fixture",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/aslr/aslr",
+          "screen:fms-repo-legacy-v1/deep-squat/deep-squat",
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step",
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier",
+          "screen:sfma-repo-legacy-v1/single-leg-stance/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier"
+        ],
+        "bodies": [
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Registered neutral fixture with checked frames/contact/task trials and preserved male/female regressions.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:physics-and-contact-foundation"
+    },
+    {
+      "id": "defect:native-finger-contact",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Explicit native capability and actual supported surface contact/force; no claim proxies establish independent digits.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:physics-and-contact-foundation"
+    },
+    {
+      "id": "defect:material-density-calibration",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/aslr/aslr",
+          "screen:fms-repo-legacy-v1/deep-squat/deep-squat",
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step",
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier",
+          "screen:sfma-repo-legacy-v1/single-leg-stance/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Controlled regional force/displacement/recovery and density sensitivity, explicit supported parameter/calibration scope.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:physics-and-contact-foundation"
+    },
+    {
+      "id": "defect:native-replay-student-delivery",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/aslr/aslr",
+          "screen:fms-repo-legacy-v1/deep-squat/deep-squat",
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step",
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier",
+          "screen:sfma-repo-legacy-v1/single-leg-stance/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native",
+          "simLAB",
+          "embedded-engine"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Persist replay/config identities, safe restore/invalidation and actual supported synchronized student state/forces/deformation.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:physics-and-contact-foundation"
+    },
+    {
+      "id": "defect:native-stop-hurdle-step",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Fresh fullcycle exact-source trials, existing native speed/contact/selfcontact/material/capacity bounds; source tracking/support/endpoint separately measured.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:native-assessment-stops"
+    },
+    {
+      "id": "defect:native-stop-in-line-lunge",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Fresh fullcycle exact-source trials, existing native speed/contact/selfcontact/material/capacity bounds; source tracking/support/endpoint separately measured.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:native-assessment-stops"
+    },
+    {
+      "id": "defect:native-stop-rotary-stability",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Fresh fullcycle exact-source trials, existing native speed/contact/selfcontact/material/capacity bounds; source tracking/support/endpoint separately measured.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:native-assessment-stops"
+    },
+    {
+      "id": "defect:native-stop-multisegmental-flexion",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Fresh fullcycle exact-source trials, existing native speed/contact/selfcontact/material/capacity bounds; source tracking/support/endpoint separately measured.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:native-assessment-stops"
+    },
+    {
+      "id": "defect:native-stop-multisegmental-rotation",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Fresh fullcycle exact-source trials, existing native speed/contact/selfcontact/material/capacity bounds; source tracking/support/endpoint separately measured.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:native-assessment-stops"
+    },
+    {
+      "id": "defect:native-stop-overhead-deep-squat",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Fresh fullcycle exact-source trials, existing native speed/contact/selfcontact/material/capacity bounds; source tracking/support/endpoint separately measured.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:native-assessment-stops"
+    },
+    {
+      "id": "defect:protocol-current-version-gap",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Primary revision, side/equipment/setup/assessed/return identity; legacy saved cases retained and current tasks independently verified.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:assessment-support-and-variation"
+    },
+    {
+      "id": "defect:hurdle-board-equipment-contact",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step",
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Measured model-based hurdle/board/dowel and actual task support/contact forces where claimed.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:assessment-support-and-variation"
+    },
+    {
+      "id": "defect:lunge-foot-support",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Current stance/sole/dowel contact goals through target/return and reference-supported dimensions/side.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:assessment-support-and-variation"
+    },
+    {
+      "id": "defect:rotary-support-chain",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Task-specific planted support/release/approximation, explicit ipsilateral/diagonal protocol and surface/native evidence.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:assessment-support-and-variation"
+    },
+    {
+      "id": "defect:assessment-rom-variation",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/aslr/aslr",
+          "screen:fms-repo-legacy-v1/deep-squat/deep-squat",
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step",
+          "screen:fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "screen:fms-repo-legacy-v1/rotary-stability/rotary-stability",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+          "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier",
+          "screen:sfma-repo-legacy-v1/single-leg-stance/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Registered reference-supported patient/body ranges, bounded limited-range attempts and achieved endpoint/support residuals.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:assessment-support-and-variation"
+    },
+    {
+      "id": "defect:sprint-flight-duration",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "gait:running-in-place",
+          "gait:running",
+          "engine-builder:buildRun",
+          "engine-builder:buildTravelRun"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Exact current context reproduction with justified measurement/reference expectation; no old magnitude imported as current.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:locomotion-fidelity"
+    },
+    {
+      "id": "defect:run-pelvic-excursion",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "gait:normal",
+          "engine-template:walk",
+          "library:walk",
+          "engine-builder:buildTravelWalk"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Exact current context reproduction with justified measurement/reference expectation; no old magnitude imported as current.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:locomotion-fidelity"
+    },
+    {
+      "id": "defect:run-lateral-sway",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "gait:running-in-place",
+          "gait:running",
+          "engine-builder:buildRun",
+          "engine-builder:buildTravelRun"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Exact current context reproduction with justified measurement/reference expectation; no old magnitude imported as current.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:locomotion-fidelity"
+    },
+    {
+      "id": "defect:girdle-protraction-saturation",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "gait:running",
+          "gait:running-in-place",
+          "engine-builder:buildRun",
+          "engine-builder:buildTravelRun"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand"
+        ]
+      },
+      "acceptance": [
+        "Exact current context reproduction with justified measurement/reference expectation; no old magnitude imported as current.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:locomotion-fidelity"
+    },
+    {
+      "id": "defect:world-frame-abduction-ambiguity",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "joint:shoulder-abduction"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Exact current context reproduction with justified measurement/reference expectation; no old magnitude imported as current.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:assessment-support-and-variation"
+    },
+    {
+      "id": "defect:recording-angles-pose-discrepancy",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "exercises:push-up",
+          "engine-builder:buildPushUp"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Exact current context reproduction with justified measurement/reference expectation; no old magnitude imported as current.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:template-reference-attribution",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "engine-template:squat",
+          "library:squat",
+          "exercises:squat",
+          "engine-builder:buildSquat"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes",
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Correct bibliography and exact supported tables/conditions; arms-forward bodyweight/max-depth study does not validate FMS overhead/bar tasks.",
+        "Current source/asset/context identities; inspect setup, motion, hold, return and loop in actual-rig editable Blender projects.",
+        "Whole-body local/world bone, skin/contact, clinical/patient limits and task references checked; supported tolerances justified, unchanged existing gates retained.",
+        "Both-host affected playback paths and applicable native trials verified separately; numerical completion is not reference/clinical acceptance."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:reference-template-primary-citations",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "engine-template:squat",
+          "library:squat",
+          "engine-template:forward-hip-hinge",
+          "engine-template:shoulder-flexion-elevation",
+          "library:shoulder-flexion-elevation",
+          "engine-template:shoulder-abduction-elevation",
+          "library:shoulder-abduction-elevation",
+          "engine-template:high-knee-march",
+          "engine-template:walk",
+          "library:walk",
+          "engine-template:sit-to-stand",
+          "library:sit-to-stand",
+          "engine-template:forward-lunge",
+          "engine-template:single-leg-stance",
+          "library:single-leg-stance",
+          "engine-template:heel-raise",
+          "engine-template:cervical-rotation",
+          "library:cervical-rotation",
+          "engine-template:lumbar-flexion-extension",
+          "library:lumbar-flexion-extension",
+          "engine-template:shoulder-rotation",
+          "library:shoulder-rotation",
+          "engine-template:hip-rotation",
+          "library:hip-rotation",
+          "engine-template:forearm-rotation",
+          "library:forearm-rotation",
+          "engine-template:wrist-flexion-extension",
+          "library:wrist-flexion-extension",
+          "engine-template:wrist-deviation",
+          "library:wrist-deviation",
+          "engine-template:tibial-rotation",
+          "library:tibial-rotation",
+          "engine-template:trunk-side-bend",
+          "library:trunk-side-bend",
+          "engine-template:cervical-lateral-flexion",
+          "library:cervical-lateral-flexion",
+          "engine-template:kick",
+          "engine-template:endpoint-reach",
+          "engine-template:ankle-strategy",
+          "engine-template:hip-strategy",
+          "engine-template:stepping-strategy"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "acceptance": [
+        "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:reference-template-clinician-signoff",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "engine-template:squat",
+          "library:squat",
+          "engine-template:forward-hip-hinge",
+          "engine-template:shoulder-flexion-elevation",
+          "library:shoulder-flexion-elevation",
+          "engine-template:shoulder-abduction-elevation",
+          "library:shoulder-abduction-elevation",
+          "engine-template:high-knee-march",
+          "engine-template:walk",
+          "library:walk",
+          "engine-template:sit-to-stand",
+          "library:sit-to-stand",
+          "engine-template:forward-lunge",
+          "engine-template:single-leg-stance",
+          "library:single-leg-stance",
+          "engine-template:heel-raise",
+          "engine-template:cervical-rotation",
+          "library:cervical-rotation",
+          "engine-template:lumbar-flexion-extension",
+          "library:lumbar-flexion-extension",
+          "engine-template:shoulder-rotation",
+          "library:shoulder-rotation",
+          "engine-template:hip-rotation",
+          "library:hip-rotation",
+          "engine-template:forearm-rotation",
+          "library:forearm-rotation",
+          "engine-template:wrist-flexion-extension",
+          "library:wrist-flexion-extension",
+          "engine-template:wrist-deviation",
+          "library:wrist-deviation",
+          "engine-template:tibial-rotation",
+          "library:tibial-rotation",
+          "engine-template:trunk-side-bend",
+          "library:trunk-side-bend",
+          "engine-template:cervical-lateral-flexion",
+          "library:cervical-lateral-flexion",
+          "engine-template:kick",
+          "engine-template:endpoint-reach",
+          "engine-template:ankle-strategy",
+          "engine-template:hip-strategy",
+          "engine-template:stepping-strategy"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "acceptance": [
+        "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:reference-shoulder-matched-trajectories",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "joint:shoulder-flexion",
+          "joint:shoulder-extension",
+          "joint:shoulder-abduction",
+          "joint:shoulder-er",
+          "joint:shoulder-ir",
+          "library:shoulder-flexion-elevation",
+          "library:shoulder-abduction-elevation",
+          "library:shoulder-rotation",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+          "engine-template:shoulder-flexion-elevation",
+          "engine-template:shoulder-abduction-elevation",
+          "engine-template:shoulder-rotation"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "acceptance": [
+        "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:reference-axial-whole-chain",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "exam:arom:lumbar-flexion",
+          "exam:arom:lumbar-extension",
+          "exam:arom:lumbar-sidebend",
+          "exam:arom:lumbar-rotation",
+          "joint:cervical-flexion",
+          "joint:cervical-extension",
+          "joint:cervical-rotation",
+          "joint:cervical-side-bend",
+          "joint:thoracic-flexion",
+          "joint:thoracic-extension",
+          "joint:thoracic-rotation",
+          "joint:thoracic-side-bend",
+          "exercises:forward-hip-hinge",
+          "library:cervical-rotation",
+          "library:cervical-lateral-flexion",
+          "library:lumbar-flexion-extension",
+          "library:trunk-side-bend",
+          "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+          "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+          "engine-template:forward-hip-hinge",
+          "engine-template:cervical-rotation",
+          "engine-template:lumbar-flexion-extension",
+          "engine-template:trunk-side-bend",
+          "engine-template:cervical-lateral-flexion"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "acceptance": [
+        "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:reference-gait-extraction-lineage",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "library:walk",
+          "engine-template:walk",
+          "clip-registry:walk",
+          "clip-registry:walk-backward",
+          "clip-registry:walk-strafe-left",
+          "clip-registry:walk-strafe-right",
+          "clip-registry:crouch-walk",
+          "clip-registry:walk-relaxed",
+          "clip-registry:walk-elder",
+          "clip-registry:walk-elderly",
+          "clip-registry:walk-elderly-wobble",
+          "clip-registry:catwalk"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "acceptance": [
+        "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:reference-archived-shoulder-photos",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+          "screen:fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+          "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "acceptance": [
+        "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:reference-media-reference-retention",
+      "status": "open",
+      "scope": {
+        "motionIds": [],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": [],
+        "allAvailable": true
+      },
+      "acceptance": [
+        "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:reference-unlinked-motion-families",
+      "status": "open",
+      "scope": {
+        "motionIds": [
+          "exam:arom:hip-flexion",
+          "exam:prom:hip-flexion",
+          "exam:arom:hip-extension",
+          "exam:prom:hip-extension",
+          "exam:arom:hip-abduction",
+          "exam:prom:hip-abduction",
+          "exam:arom:hip-adduction",
+          "exam:prom:hip-adduction",
+          "exam:arom:hip-ir",
+          "exam:prom:hip-ir",
+          "exam:arom:hip-er",
+          "exam:prom:hip-er",
+          "exam:arom:knee-flexion",
+          "exam:prom:knee-flexion",
+          "exam:arom:knee-extension",
+          "exam:prom:knee-extension",
+          "exam:strength:rims-hip-flexion",
+          "exam:strength:rims-hip-extension",
+          "exam:strength:rims-hip-abduction",
+          "exam:strength:rims-hip-adduction",
+          "exam:strength:rims-hip-ir",
+          "exam:strength:rims-hip-er",
+          "exam:strength:rims-knee-extension",
+          "exam:strength:rims-knee-flexion",
+          "exam:strength:mmt-hip-flexion",
+          "exam:strength:mmt-hip-extension",
+          "exam:strength:mmt-hip-abduction",
+          "exam:strength:mmt-hip-adduction",
+          "exam:strength:mmt-hip-ir",
+          "exam:strength:mmt-hip-er",
+          "exam:strength:mmt-knee-extension",
+          "exam:strength:mmt-knee-flexion",
+          "exam:strength:myotome-l2",
+          "exam:strength:myotome-l3",
+          "exam:strength:myotome-l4",
+          "exam:strength:myotome-l5",
+          "exam:strength:myotome-s1",
+          "exam:strength:myotome-s2",
+          "exam:reflex:reflex-patellar",
+          "exam:reflex:reflex-hamstring",
+          "exam:reflex:reflex-achilles",
+          "exam:sensory:sensory-l2",
+          "exam:sensory:sensory-l3",
+          "exam:sensory:sensory-l4",
+          "exam:sensory:sensory-l5",
+          "exam:sensory:sensory-s1",
+          "exam:sensory:sensory-s2",
+          "exam:sensory:sensory-lfcn",
+          "exam:sensory:sensory-anterior-femoral-cut",
+          "exam:sensory:sensory-obturator-cut",
+          "exam:sensory:sensory-saphenous",
+          "exam:sensory:sensory-pfcn",
+          "exam:sensory:sensory-lateral-sural-cut",
+          "exam:sensory:sensory-superficial-fibular",
+          "exam:sensory:sensory-deep-fibular",
+          "exam:sensory:sensory-sural",
+          "exam:sensory:sensory-medial-plantar",
+          "exam:sensory:sensory-lateral-plantar",
+          "exam:sensory:sensory-medial-calcaneal",
+          "exam:special:fadir",
+          "exam:special:faber",
+          "exam:special:scour",
+          "exam:special:log-roll",
+          "exam:special:stinchfield",
+          "exam:special:derotation",
+          "exam:special:thomas",
+          "exam:special:ober",
+          "exam:special:lachman",
+          "exam:special:anterior-drawer",
+          "exam:special:posterior-drawer",
+          "exam:special:mcmurray",
+          "exam:special:valgus-stress",
+          "exam:special:varus-stress",
+          "exam:special:slr",
+          "exam:special:slump",
+          "exam:special:prone-knee-bend",
+          "palpation:groin",
+          "palpation:lateral",
+          "palpation:posterior",
+          "joint:shoulder-extension",
+          "joint:elbow-flexion",
+          "joint:forearm-supination",
+          "joint:forearm-pronation",
+          "joint:wrist-flexion",
+          "joint:wrist-extension",
+          "joint:ankle-dorsiflexion",
+          "joint:ankle-plantarflexion",
+          "joint:ankle-inversion",
+          "joint:ankle-eversion",
+          "joint:forefoot-abduction",
+          "joint:forefoot-adduction",
+          "joint:toe-extension",
+          "joint:toe-flexion",
+          "joint:tibial-ir",
+          "joint:tibial-er",
+          "joint:thoracic-flexion",
+          "joint:thoracic-extension",
+          "joint:thoracic-rotation",
+          "joint:thoracic-side-bend",
+          "joint:head-protraction",
+          "joint:head-retraction",
+          "joint:scapular-protraction",
+          "joint:scapular-retraction",
+          "joint:scapular-upward-rotation",
+          "joint:scapular-posterior-tilt",
+          "joint:scapular-anterior-tilt",
+          "joint:wrist-radial-deviation",
+          "joint:wrist-ulnar-deviation",
+          "joint:thumb-flexion",
+          "joint:index-flexion",
+          "joint:middle-flexion",
+          "joint:ring-flexion",
+          "joint:little-flexion",
+          "joint:pelvic-anterior-tilt",
+          "joint:pelvic-posterior-tilt",
+          "joint:pelvic-hitch",
+          "joint:pelvic-rotation",
+          "gait:normal",
+          "gait:antalgic",
+          "gait:trendelenburg",
+          "gait:compensated-trendelenburg",
+          "gait:hip-hike",
+          "gait:circumduction",
+          "gait:vaulting",
+          "gait:foot-drop",
+          "gait:steppage",
+          "gait:genu-recurvatum",
+          "gait:knee-valgus",
+          "gait:crouch-gait",
+          "gait:scissoring",
+          "gait:festinating",
+          "gait:forward-head",
+          "gait:figure-eight",
+          "gait:running",
+          "gait:running-in-place",
+          "balance:single-leg-stance",
+          "balance:ankle-strategy",
+          "balance:hip-strategy",
+          "balance:stepping-strategy",
+          "transfers:chair",
+          "transfers:floor",
+          "transfers:roll",
+          "transfers:roll-over",
+          "transfers:kneel",
+          "transfers:quadruped",
+          "transfers:prone",
+          "exercises:forward-hip-hinge",
+          "exercises:forward-lunge",
+          "exercises:heel-raise",
+          "exercises:high-knee-march",
+          "exercises:kick",
+          "exercises:endpoint-reach",
+          "exercises:leg-raise",
+          "exercises:knee-extension",
+          "exercises:bird-dog",
+          "exercises:push-up",
+          "exercises:plank",
+          "exercises:single-leg-hop",
+          "exercises:jump",
+          "exercises:turn",
+          "screen:fms-repo-legacy-v1/hurdle-step/hurdle-step",
+          "screen:fms-repo-legacy-v1/aslr/aslr",
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+          "engine-builder:buildLieDown",
+          "engine-builder:buildGetUp",
+          "engine-builder:buildSupineLegRaise",
+          "engine-builder:buildSitDown",
+          "engine-builder:buildStandFromSit",
+          "engine-builder:buildSeatedKneeExtension",
+          "engine-builder:buildSquat",
+          "engine-builder:buildGetDownToPlank",
+          "engine-builder:buildPushUp",
+          "engine-builder:buildStandFromPlank",
+          "engine-builder:buildGetDownToQuadruped",
+          "engine-builder:buildStandFromQuadruped",
+          "engine-builder:buildBirdDog",
+          "engine-builder:buildKneelDown",
+          "engine-builder:buildStandFromKneel",
+          "engine-builder:buildLowerToProne",
+          "engine-builder:buildPressUpToQuadruped",
+          "engine-builder:buildPlankFromQuadruped",
+          "engine-builder:buildQuadrupedFromPlank",
+          "engine-builder:buildRollSupineToLeft",
+          "engine-builder:buildRollLeftToSupine",
+          "engine-builder:buildRollSupineToRight",
+          "engine-builder:buildRollRightToSupine",
+          "engine-builder:buildRollLeftToProne",
+          "engine-builder:buildRollProneToLeft",
+          "engine-builder:buildRollRightToProne",
+          "engine-builder:buildRollProneToRight",
+          "engine-builder:buildTravelWalk",
+          "engine-builder:buildFigureEightWalk",
+          "engine-builder:buildTurnInPlace",
+          "engine-builder:buildJump",
+          "engine-builder:buildRun",
+          "engine-builder:buildTravelRun",
+          "engine-builder:buildSingleLegHop",
+          "clip-registry:stand",
+          "clip-registry:sit",
+          "clip-registry:walk",
+          "clip-registry:walk-backward",
+          "clip-registry:walk-strafe-left",
+          "clip-registry:walk-strafe-right",
+          "clip-registry:crouch-walk",
+          "clip-registry:limp",
+          "clip-registry:long-sit",
+          "clip-registry:jog",
+          "clip-registry:run",
+          "clip-registry:walk-relaxed",
+          "clip-registry:walk-elder",
+          "clip-registry:walk-elderly",
+          "clip-registry:walk-elderly-wobble",
+          "clip-registry:catwalk",
+          "clip-registry:aerobic-dance",
+          "clip-registry:idle",
+          "clip-registry:idle-passenger",
+          "clip-registry:left-knee-extension",
+          "clip-registry:right-knee-extension",
+          "clip-registry:sandbox",
+          "rig-animation:Armature|Default"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [],
+        "joints": []
+      },
+      "acceptance": [
+        "Current supported claims, usable retained data, exact scopes and reviewer must be recorded before promoting reference coverage. No numerical tolerances invented."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:catalogue-consolidation"
+    },
+    {
+      "id": "defect:composed-temporal-followthrough",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "engine-template:kick",
+          "engine-template:endpoint-reach",
+          "exercises:kick",
+          "exercises:endpoint-reach",
+          "engine-builder:buildJump",
+          "exercises:jump"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Task/reference-supported arrival and reversal sequencing; held/contact chains remain stable and final pose/patient constraints retained.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:historical-naturalism-reproduction"
+    },
+    {
+      "id": "defect:idle-hold-continuity",
+      "status": "historical",
+      "scope": {
+        "motionIds": [],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "simMOVE-live",
+          "simLAB-live"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Task-appropriate rest/hold behavior and declared clean/measurement mode; no artificial movement forced into clinical observation.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:mapping-review"
+    },
+    {
+      "id": "defect:non-gait-distal-coordination",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "engine-template:kick",
+          "engine-template:endpoint-reach",
+          "engine-template:sit-to-stand",
+          "exercises:kick",
+          "exercises:endpoint-reach",
+          "transfers:chair",
+          "engine-builder:buildBirdDog",
+          "exercises:bird-dog"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand"
+        ]
+      },
+      "acceptance": [
+        "Task-supported palm/wrist/digit preparation, grasp/support and release; explicit stabilizers instead of universal curl or pronation.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:historical-naturalism-reproduction"
+    },
+    {
+      "id": "defect:grounded-descent-weight-timing",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "engine-builder:buildSitDown",
+          "engine-builder:buildStandFromSit",
+          "engine-builder:buildGetDownToQuadruped",
+          "engine-builder:buildGetDownToPlank",
+          "engine-builder:buildSquat",
+          "transfers:chair",
+          "transfers:floor",
+          "exercises:squat"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Declared task/load/reference timing and support, distinguishing controlled clinical descent from simulated weight acceptance; no mandatory ballistic lower or overshoot.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:historical-naturalism-reproduction"
+    },
+    {
+      "id": "defect:effort-conditioned-motion-cues",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "engine-builder:buildJump",
+          "exercises:jump",
+          "engine-template:endpoint-reach",
+          "exercises:endpoint-reach",
+          "gait:running",
+          "gait:running-in-place",
+          "engine-builder:buildRun",
+          "engine-builder:buildTravelRun"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Reference-supported task/load conditions and coordinated effort/breath timing; unsupported physiological claims stay explicit.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:historical-naturalism-reproduction"
+    },
+    {
+      "id": "defect:repetition-asymmetry-reference",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "gait:normal",
+          "gait:running",
+          "gait:running-in-place",
+          "engine-template:walk",
+          "library:walk",
+          "engine-builder:buildTravelWalk",
+          "engine-builder:buildRun"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Task-supported temporal/spatial variability and symmetry with reproducible sampling; no random jitter or asymmetry imposed on grading.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:historical-naturalism-reproduction"
+    },
+    {
+      "id": "defect:cross-motion-flowing-seams",
+      "status": "historical",
+      "scope": {
+        "motionIds": [],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Declared task/reference flow and support across chained transitions, preserving exact intent and stable clean/assessment stops.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:mapping-review"
+    },
+    {
+      "id": "defect:sprint-arm-trunk-specificity",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "gait:running",
+          "gait:running-in-place",
+          "engine-builder:buildRun",
+          "engine-builder:buildTravelRun"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Reference-supported sprint arm/trunk/pelvis timing under declared pattern/speed; flight duration, support and body variation measured separately.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:historical-naturalism-reproduction"
+    },
+    {
+      "id": "defect:jump-hop-flight-grounding-seams",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "engine-builder:buildJump",
+          "engine-builder:buildSingleLegHop",
+          "exercises:jump",
+          "exercises:single-leg-hop"
+        ],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Current takeoff/landing surface and clinical continuity under declared speed/body settings; preserve intentional flight and existing contact gates.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:historical-naturalism-reproduction"
+    },
+    {
+      "id": "defect:facial-blink-capability-review",
+      "status": "historical",
+      "scope": {
+        "motionIds": [],
+        "bodies": [],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Eye",
+          "R_Eye",
+          "bone:CC_Base_JawRoot",
+          "bone:CC_Base_UpperJaw",
+          "Head"
+        ]
+      },
+      "acceptance": [
+        "Explicit current facial/gaze/breath capabilities and task-supported use; do not infer original blink loss is current or native facial-force support exists.",
+        "Reproduce the historical symptom on current source and exact body/side/phase/path before deciding a correction.",
+        "Use task-supported reference data and current full-body Blender/skin/clinical/patient/both-host checks; preserve existing limits and deterministic replay.",
+        "Applicable native validation and defect-specific closure evidence remain separate; do not promote old opinions, assumed numerical targets or source existence to acceptance."
+      ],
+      "owner": "catalogue-integration",
+      "workUnitId": "work:mapping-review"
+    },
+    {
+      "id": "defect:served-support-asset-identity",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "All six runtime/shoulder-v2 production copies match the shared-engine hashes after preparation and optional optimizer invocation.",
+        "Current live and sampled extension playback in both hosts uses the same assets and satisfies existing parity, skin and clinical gates.",
+        "Retain former quantized assets and source identities so historical native trials remain reproducible."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:native-offset-hull-construction",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Fresh fixtures match exact authoritative body assets and retain source vertices and measured construction provenance.",
+        "Raw offset hulls meet declared 3 mm padding and 8 mm core-layer dimensions within justified numerical construction error; numerical guard corrections are explicitly bounded.",
+        "Existing enclosure, fixture replay, clinical and native tracking/contact gates pass with unchanged material, mass, range and actuator limits."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:prepared-palm-guide-cache-inputs",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "The retained actual-rig geometry edit produces identical warm and fresh results under the existing parity thresholds.",
+        "Geometry, skin weights, morphs, binding, source ancestor transforms, clamp mode and fixed support configuration invalidate affected preparations without rounded pose keys.",
+        "Both hosts use the same shared identity and pass current motion/patient/skin checks after source stabilization."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:native-deep-squat-tracking",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/deep-squat/deep-squat"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Retain the historical route/binding/settings/controller identities and exact observed values; a fresh reproduction must name current source, asset, fixture and context identities.",
+        "Preserve existing speed/contact/self-contact/material/capacity and patient bounds; define supported current tracking and task criteria before tuning. The archived15degree/0.05m sampled checks are diagnostic history, not clinical acceptance.",
+        "Verify the entire affected motion and actual skin/contact in editable production-rig Blender projects, both affected hosts and applicable native trials; retain partial, unsupported and failing contexts."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:native-assessment-stops"
+    },
+    {
+      "id": "defect:native-multisegmental-extension-tracking",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Retain the historical route/binding/settings/controller identities and exact observed values; a fresh reproduction must name current source, asset, fixture and context identities.",
+        "Preserve existing speed/contact/self-contact/material/capacity and patient bounds; define supported current tracking and task criteria before tuning. The archived15degree/0.05m sampled checks are diagnostic history, not clinical acceptance.",
+        "Verify the entire affected motion and actual skin/contact in editable production-rig Blender projects, both affected hosts and applicable native trials; retain partial, unsupported and failing contexts."
+      ],
+      "owner": "movement-coordinator",
+      "workUnitId": "work:native-assessment-stops"
+    },
+    {
+      "id": "defect:flexion-clearing-native-tracking",
+      "status": "historical",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Retain the historical route/binding/settings/controller identities and exact observed values; a fresh reproduction must name current source, asset, fixture and context identities.",
+        "Preserve existing speed/contact/self-contact/material/capacity and patient bounds; define supported current tracking and task criteria before tuning. The archived15degree/0.05m sampled checks are diagnostic history, not clinical acceptance.",
+        "Verify the entire affected motion and actual skin/contact in editable production-rig Blender projects, both affected hosts and applicable native trials; retain partial, unsupported and failing contexts."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:prone-support-membership-invalidation",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "The retained actual-rig ownership edit yields identical warm/fresh support results and bone locals, including infeasibility reporting.",
+        "Geometry, skin attributes, morphs, binding, hierarchy, rest and configuration changes invalidate membership; ordinary pose updates and exactly restored temporary render compression do not.",
+        "Published pelvis-surface and vertex-array references remain valid after rebuilding; current both-host whole-motion and patient-limit checks pass."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:graded-movement-pain-response",
+      "status": "partial",
+      "scope": {
+        "motionIds": [
+          "exam:prom:hip-ir"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [
+          "left",
+          "right"
+        ],
+        "phases": [
+          "setup",
+          "provocation",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simlab-render",
+          "simmove-pain-preview",
+          "blender-review"
+        ],
+        "joints": []
+      },
+      "acceptance": [
+        "Pain onset/hold/release and zero-expression behavior are deterministic.",
+        "Face and free-hand reaction preserve assessed joint, patient limits and exact clean-pose restoration.",
+        "Male/female/neutral and applicable sides retain current Blender exchange and both-host evidence.",
+        "Unsupported neutral face and support shifts remain explicitly open; no clinical pain-score or native-force claim."
+      ],
+      "owner": "pain-response-integration",
+      "workUnitId": "work:graded-movement-pain-response"
+    },
+    {
+      "id": "defect:native-desired-palm-path-conflict",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "simMOVE-native"
+        ],
+        "joints": [
+          "Hips",
+          "Spine_Lower",
+          "Spine_Mid",
+          "Spine_Upper",
+          "Neck_Lower",
+          "Neck",
+          "Head",
+          "L_Shoulder",
+          "R_Shoulder",
+          "L_UpperArm",
+          "R_UpperArm",
+          "L_Forearm",
+          "R_Forearm",
+          "L_Hand",
+          "R_Hand",
+          "L_UpLeg",
+          "R_UpLeg",
+          "L_Leg",
+          "R_Leg",
+          "L_Foot",
+          "R_Foot",
+          "L_Toes",
+          "R_Toes"
+        ]
+      },
+      "acceptance": [
+        "Exact-source native desired FK and simultaneous contact goals agree throughout all movement phases, with measured residuals inside the existing contact tolerance.",
+        "Dense trajectory interpolation preserves phase timing and continuity, without introducing a rest at every sampled waypoint.",
+        "Fresh native replay passes the existing physical, anatomical, tracking and planted-palm gates on both native bodies, with current Blender and both-host evidence."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    },
+    {
+      "id": "defect:contact-hinge-flexion-ownership",
+      "status": "in-progress",
+      "scope": {
+        "motionIds": [
+          "screen:fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing"
+        ],
+        "bodies": [
+          "male",
+          "female",
+          "neutral"
+        ],
+        "sides": [],
+        "phases": [
+          "setup",
+          "motion",
+          "hold",
+          "return",
+          "loop"
+        ],
+        "paths": [
+          "shared-engine",
+          "simMOVE",
+          "simLAB"
+        ],
+        "joints": [
+          "L_Forearm",
+          "R_Forearm",
+          "L_Leg",
+          "R_Leg"
+        ]
+      },
+      "acceptance": [
+        "Actual production rigs respect measured flexion and off-axis limits after each contact projection.",
+        "Repeated projection and feasible finite-difference probes remain continuous and stable at default, ranged and locked bounds.",
+        "Affected whole movements pass unchanged clinical, skin/contact, conditioning, performance and both-host gates with current Blender evidence."
+      ],
+      "owner": "existing-pr-168",
+      "workUnitId": "work:active-floor-pr-168"
+    }
+  ]
+}

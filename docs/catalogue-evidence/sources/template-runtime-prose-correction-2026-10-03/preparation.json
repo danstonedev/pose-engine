@@ -1,0 +1,20 @@
+{
+  "kind": "template-reference-proposal-preparation",
+  "baseMasterSha256": "ed9a51828026bad0c80ec3dc84ceb0d36d1031ffb82ab4f9dc3e405f35766081",
+  "createdAt": "2026-10-04T00:12:30.973Z",
+  "currentCapturePath": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/definitions-current.json",
+  "sourceRoots": {
+    "engine": "simmove/pose-engine",
+    "simlab": "simlab",
+    "simmove": "simmove"
+  },
+  "primaryEvidence": {
+    "path": "docs/catalogue-evidence/sources/template-reference-correction-2026-10-03/evidence.json",
+    "sha256": "52c65071fb85bc74f731caa041395ac330b3f66a21c9aa479315f2ee4815e7eb"
+  },
+  "captureTool": {
+    "originalPath": "scripts/catalogue/capture-template-motion-definitions.ts",
+    "sha256": "b50d9bdcbad9e22569ffffbba4d6ea832a70b1e8649da7c70dcf1de5bacebec7"
+  },
+  "qualification": "No movement, clinical, native or both-host acceptance inferred."
+}

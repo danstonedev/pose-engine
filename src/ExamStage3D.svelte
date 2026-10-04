@@ -74,6 +74,7 @@
   import { createRecordingTap } from './services/stageRecordingTap';
   import { createStageDriver, type DriverMechanism } from './services/stageDriver';
   import { hasFixedBilateralFootSupport, bilateralFootSetupMs } from './services/motionSupport';
+  import { pressupPatientRangeRefusal } from './services/pressupPatientSupport';
   // Type-only — the module itself is dynamically imported (it pulls three).
   import type { StanceWindow } from './services/stageComposedDerivations';
   // Type-only — the posing layer module itself is dynamically imported (it pulls
@@ -554,6 +555,11 @@
         buildBoneByPoseKey,
       } = await import('./services/poseRig');
       const { clearLocomotorArms } = await import('./services/locomotorArmClearance');
+      const { createProneSkinSupport } = await import('./services/proneSkinSupport');
+      const { createKneelingSkinSupport } = await import('./services/kneelingSkinSupport');
+      const { createPlankSkinSupport } = await import('./services/plankSkinSupport');
+      const { preparePressupPalmLayout } = await import('./services/pressupPalmLayout');
+      const { motionRigInputKey } = await import('./services/motionRigInputKey');
       const { clampBoneToRom, enforceShoulderCapacities, hasClampStrategy, setRomClampEnabled } = await import(
         './services/poseRomClamp'
       );
@@ -582,6 +588,7 @@
       } = await import('./services/motionRecording');
       const {
         captureFloorReference,
+        floorReferenceForSupport,
         captureGroundSupportAnchors,
         captureFootFrames,
         captureFootSetupFrames,
@@ -714,6 +721,9 @@
       // compositions for continuity and reset when a clip / exam command takes
       // over.
       let floorRef: ReturnType<typeof captureFloorReference> | null = null;
+      // Never mutate the captured reference: motion-specific planes and anchors
+      // must not leak into the next motion, clip, or return-to-ready transition.
+      let capturedFloorRef: ReturnType<typeof captureFloorReference> | null = null;
       // Rest WORLD frame of each ankle — the target closed-chain foot-rooted
       // planting restores the stance foot to (services/rootMotion). Captured with
       // floorRef at grounding; used for the quasi-static planted set below.
@@ -1140,6 +1150,7 @@
       function cancelComposed() {
         composedSeq = driver.supersede(); // ONE command generation for every path
         setComposedActive(false);
+        floorRef = capturedFloorRef;
         updateSeatProp(false); // hide the seat when a motion ends / is taken over
         composedPlants = []; // drop any foot-contact IK for the ended motion
         composedPlantRest = null; // drop any heading-rotated plant-clamp frame
@@ -1401,7 +1412,8 @@
           rootRestScale.copy(root.scale);
           composedRootQuat = [0, 0, 0, 1];
           composedRootTranslate = [0, 0, 0];
-          floorRef = skinned ? captureFloorReference(skinned.skeleton, variantCfg, root) : null;
+          capturedFloorRef = skinned ? captureFloorReference(skinned.skeleton, variantCfg, root) : null;
+          floorRef = capturedFloorRef;
           footFrames = skinned ? captureFootFrames(skinned.skeleton, variantCfg, rest) : null;
           frameCamera();
 
@@ -2069,7 +2081,7 @@
           // both contacts. Their clamp frame includes that root and pelvis turn.
           rest: composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? activeRestRef() : composedPlantRest ?? restRef,
           hingeAxisRest: restRef,
-          ...(composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? { constraints: romConstraints, forceRomClamp: true } : {}),
+          ...(composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? { constraints: activeShoulderConstraints(), forceRomClamp: true } : {}),
           heelStrikeY: composedHeelStrikeY,
           captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,
           initialTargets: initialComposedPlantTargets,
@@ -2374,7 +2386,7 @@
       function commitTrajectoryPose(): void {
         if (!skinnedRef || !variantCfgRef) return;
         currentPose = serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id);
-        if (composedUseFootRoot && modelRoot) {
+        if ((composedUseFootRoot || floorRef?.kneelingSupport || floorRef?.plankSupport) && modelRoot) {
           const q = rootRestQuat.clone().invert().multiply(modelRoot.quaternion);
           composedRootQuat = [q.x, q.y, q.z, q.w];
           composedRootTranslate = [
@@ -2498,6 +2510,9 @@
        *  sampling (no motion playing) still measures fresh. */
       function buildFrameNow(tMs: number): RecordedFrame | null {
         if (!skinnedRef || !variantCfgRef || !restRef || !modelRoot) return null;
+        // Public capture and start/stop snapshots can run after the render-time
+        // motion overlay, unlike the in-loop tap. Sample the same clean pose.
+        return motionLive.sampleClean(motionCapBones, modelRoot, () => {
         // Capture the CLEAN pose: lift any baked idle-liveliness + eye deltas
         // around the serialize/measure and restore them at the same phase, so
         // captureFrame/recordings never carry the live-only perturbation while
@@ -2519,6 +2534,7 @@
           if (hadIdleOverlay) applyIdleOverlays(0);
           if (eyeRestore) eyeRestore();
         }
+        });
       }
 
       function buildFrameNowClean(tMs: number): RecordedFrame | null {
@@ -2549,6 +2565,8 @@
           pose: serializeCustomPose(skinnedRef.skeleton, variantCfgRef, variantCfgRef.id),
           angles,
           shoulders: report.shoulders,
+          ...(floorRef?.proneSupportResult ? { proneSupport: structuredClone(floorRef.proneSupportResult) } : {}),
+          ...(floorRef?.pronePalmLayout ? { pronePalmLayout: structuredClone(floorRef.pronePalmLayout) } : {}),
           root: {
             orientQuat: [_recQ.x, _recQ.y, _recQ.z, _recQ.w],
             translateM: [
@@ -2681,6 +2699,11 @@
         if (!resolved || resolved.status !== 'ok' || resolved.keyframes.length === 0) {
           return refusedResult(resolved?.reason ?? 'not-resolved');
         }
+        // Prop-only patient restrictions may arrive after resolution. Reject a
+        // known impossible prepared endpoint before taking over or posing.
+        const patientSupportRefusal = pressupPatientRangeRefusal(resolved,
+          shoulderConstraintsForPolicy(resolved.shoulderCapacity, romConstraints ?? resolved.constraints));
+        if (patientSupportRefusal) return refusedResult(patientSupportRefusal);
         // Composed playback owns the skeleton: cancel any clip / prior
         // composed loop / in-flight tween, THEN capture the cancellation token.
         undoIdleOverlays(); // playback starts from the clean idle pose
@@ -2738,6 +2761,36 @@
           }
         }
 
+        // Select the movement's support plane only after the ready transition,
+        // which still uses the captured standing reference.
+        composedShoulderConstraints = effectiveResolved.constraints ?? null;
+        composedShoulderPolicy = effectiveResolved.shoulderCapacity;
+        floorRef = capturedFloorRef ? floorReferenceForSupport(capturedFloorRef, effectiveResolved.supportPlaneY) : null;
+        if (effectiveResolved.pronePalmAnchorFit && floorRef && modelRoot) {
+          const layout = preparePressupPalmLayout({ resolvedMotion: effectiveResolved,
+            baselinePose: baselinePoseRef, variantCfg: variantCfgRef, rest: restRef,
+            skeletonHarness: { root: modelRoot, skinned: skinnedRef }, constraints: activeShoulderConstraints() });
+          floorRef.pronePalmLayout = layout;
+          effectiveResolved = { ...effectiveResolved, contacts: layout.contacts, pronePalmAnchorFit: false };
+          setComposedContacts(effectiveResolved.contacts, effectiveResolved.headingDeg ?? 0, effectiveResolved.headingProfileMs);
+        }
+        if (effectiveResolved.kneelingSkinSupport && floorRef && modelRoot) {
+          floorRef.kneelingSupport = createKneelingSkinSupport({ root: modelRoot, skinned: skinnedRef,
+            variantCfg: variantCfgRef, baselinePose: baselinePoseRef, rest: restRef, constraints: activeShoulderConstraints });
+        }
+        if (effectiveResolved.plankSkinSupport && floorRef && modelRoot) {
+          floorRef.plankSupport = createPlankSkinSupport({ root: modelRoot, skinned: skinnedRef,
+            variantCfg: variantCfgRef, baselinePose: baselinePoseRef });
+        }
+        if (effectiveResolved.proneSkinSupport && floorRef && modelRoot) {
+          const floor = floorRef;
+          const support = createProneSkinSupport({ root: modelRoot, skinned: skinnedRef,
+            variantCfg: variantCfgRef, baselinePose: baselinePoseRef, rest: restRef });
+          floor.pronePelvisSurface = support.pelvisSurface;
+          floor.proneSupportPrepare = () => {
+            floor.proneSupportResult = support.solve({ constraints: activeShoulderConstraints(), floorY: floor.floorY });
+          };
+        }
         composedHasPlayed = true; // a movement is playing → future commands get the ready beat
 
         // Capture carried support ownership before any derivation temporarily
@@ -2805,6 +2858,7 @@
         const startQuat = resolved.startAtSetup ? [...built.roots[0]!.quat] as [number, number, number, number] : [...composedRootQuat] as [number, number, number, number];
         const startTranslate = resolved.startAtSetup ? [...built.roots[0]!.translateM] as [number, number, number] : [...composedRootTranslate] as [number, number, number];
         const { trajectory, settleAtMs } = buildComposedTrajectory(built, {
+          startAtSetup: resolved.startAtSetup,
           startPose,
           startQuat,
           startTranslate,
@@ -2935,14 +2989,20 @@
         // contacts (a plank's hands), so they stay planted as the chest lowers.
         if (floorRef) {
           delete floorRef.supportAnchorsXZ;
-          if (resolved.fixedGroundSupports?.length && skinnedRef && variantCfgRef) {
+          if (resolved.fixedGroundSupports?.length && skinnedRef && variantCfgRef && modelRoot) {
             const setupAt = resolved.startAtSetup ? 0 : authoredToTrajectoryTimeMap(resolved, trajectory.totalMs).toTrajectory(resolved.keyframes[0]?.durationMs ?? 0);
             if (resolved.startAtSetup) for (const plant of composedPlants) if (plant.palmSupport) plant.fromMs = 0;
-            preparePalmSupportApproach(composedPlants, setupAt, trajectory.totalMs, JSON.stringify([built, startPose, startQuat, startTranslate, timeScale, resolved.reps]),
+            const supportInputKey = motionRigInputKey({
+              resolvedMotion: effectiveResolved, baselinePose: baselinePoseRef, variantCfg: variantCfgRef, rest: restRef,
+              skeletonHarness: { root: modelRoot, skinned: skinnedRef }, constraints: activeShoulderConstraints(),
+              rootTransform: { position: rootRestPos, quaternion: rootRestQuat, scale: rootRestScale },
+            });
+            preparePalmSupportApproach(composedPlants, setupAt, trajectory.totalMs, JSON.stringify([built, startPose, startQuat, startTranslate, timeScale, resolved.reps, supportInputKey]),
               tMs => poseComposedReachFrameAt(trajectory, tMs),
-              () => ({ rest: activeRestRef(), hingeAxisRest: restRef, constraints: romConstraints,
+              () => ({ rest: activeRestRef(), hingeAxisRest: restRef, constraints: activeShoulderConstraints(),
                 forceRomClamp: true, heelStrikeY: 0, initialTargets: initialComposedPlantTargets, floorY: floorRef!.floorY }),
-              () => { floorRef!.supportAnchorsXZ = captureGroundSupportAnchors(skinnedRef!.skeleton, variantCfgRef!, resolved.fixedGroundSupports!); }, !resolved.startAtSetup);
+              () => { floorRef!.supportAnchorsXZ = captureGroundSupportAnchors(skinnedRef!.skeleton, variantCfgRef!, resolved.fixedGroundSupports!); }, !resolved.startAtSetup,
+              trajectory.knotTimesMs);
           }
         }
         setComposedHandPlants(built.roots);

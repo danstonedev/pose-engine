@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:schenkman-1990-sts",
+  "title": "Whole-body movements during rising to standing from sitting",
+  "primaryUrls": [
+    "https://pubmed.ncbi.nlm.nih.gov/2217543/"
+  ],
+  "doi": "10.1093/ptj/70.10.638",
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Inspected primary PubMed indexed abstract and bibliography, PMID2217543. Direct open returned incomplete content. Verified four chair-rise phase descriptions; no numerical spinal targets or raw kinematics verified.",
+  "claims": [
+    {
+      "id": "ref:schenkman-1990-sts:claim-1",
+      "description": "Abstract describes four chair-rise phases: momentum generation, seat-off transfer, extension and stabilization.",
+      "kind": "observed"
+    }
+  ],
+  "limitations": [
+    "Exact chair height, speed, kinetics and numerical lumbar/hip values not reconciled.",
+    "Abstract does not directly establish sheet’s12-degree lumbar target or a universal hip-to-spine ratio.",
+    "No current body-variant matching or trajectory import."
+  ],
+  "license": {
+    "status": "unknown",
+    "name": null,
+    "scope": null,
+    "retentionConditions": "Do not assume public access permits dataset or media redistribution."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/2217543/",
+        "section": "Abstract verified through primary search index; direct fetch incomplete"
+      },
+      {
+        "path": "simmove/pose-engine/docs/movement-templates-reference.md",
+        "sha256": "157a8a07400e7f287fe40d488450f6ce99eabc702c59be88e3d6640c79fd961b",
+        "line": 45,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "library:sit-to-stand",
+      "engine-template:sit-to-stand"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}

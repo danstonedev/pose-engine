@@ -1,0 +1,777 @@
+{
+  "schemaVersion": 1,
+  "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+  "scope": "Immutable read-only diagnostic artifacts; this inventory is evidence metadata, not a motion acceptance ledger",
+  "files": [
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/female-shoulder-abduction-160.expected.json",
+      "sha256": "4b32d2a0d41a97c326afd3c298824cab1249298a04eb99bab5403994c20e7395",
+      "bytes": 566245
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/female-shoulder-abduction-160.glb",
+      "sha256": "2436115788df78b10808a90e6d5112858bbd9ac6c887153f95756c6b5ae58f36",
+      "bytes": 1615832
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/full-motion-exchange.json",
+      "sha256": "a0c37fd0ec3d839a65466185d87d94587eae4bdffe0f97f058cd439e26de337f",
+      "bytes": 3063
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/full-motion-review.blend",
+      "sha256": "417f21dd6c26b14e4248f39e3d653241b82ada977a8e4dd2adbc3531c2b8c7ce",
+      "bytes": 4332325
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/male-helper-trace.json",
+      "sha256": "198ca124654ce58f8bbba2883d6e7eb5a2fc097cad544bd0af825d4d21933884",
+      "bytes": 217363
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/male-route-summary.json",
+      "sha256": "f3aaf1808a1d0261043888a2afcda923e7454dd57e8fb95c17d869bcdade79cc",
+      "bytes": 22030
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/male-shoulder-abduction-160.expected.json",
+      "sha256": "a128f0d23f3ac4c5cf991cc98131165ec0e700a6dd26e6e1cc65a5fca22d2238",
+      "bytes": 565644
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/male-shoulder-abduction-160.glb",
+      "sha256": "9c231e819263ceebe13f7f8bf7f2ec2aedd0174e85f7a2e8e156a2591064c884",
+      "bytes": 1615100
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/manifest.json",
+      "sha256": "1a0c654eacaac9d6bd594e1e166aae4367a6a32b01963a12bf49d2ff75b4a0bd",
+      "bytes": 7495
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/matched-captures/index.json",
+      "sha256": "b28cd7e5c52b711e958d51c7e052a8fc4608c7c1554f5476781161f4bcf4781c",
+      "bytes": 4321
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/matched-captures/male-right-back-1167ms.png",
+      "sha256": "faad776023dd43757c28c5bebc0a9a06a93019ce1ebd0bef0b519cd87fbf57d5",
+      "bytes": 1147432
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/matched-captures/male-right-back-2067ms.png",
+      "sha256": "56ef3f7f98a57f663be1286655a0954d9500a05068645d14422e4cd51a7b3535",
+      "bytes": 1141420
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/matched-captures/male-right-back-3233ms.png",
+      "sha256": "aa1d10abda6d5e65ed438c63736a73588b4e7d8206f86049f8cffccca89567e3",
+      "bytes": 1154199
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/matched-captures/male-right-side-1167ms.png",
+      "sha256": "cf237f4fb261dc45113eadfe0d05f16a31fea75710f03c7632871239e732861f",
+      "bytes": 1132398
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/matched-captures/male-right-side-2067ms.png",
+      "sha256": "c2c3e26cc480fd59a047efef1e297959a126b78bc8169a41b16812a2dea96948",
+      "bytes": 1140711
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/matched-captures/male-right-side-3233ms.png",
+      "sha256": "09ce4e96206110254e6059b21185ed51faeb9cf8fb5743e89be2e0779a4db702",
+      "bytes": 1140539
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/neutral-shoulder-abduction-160.expected.json",
+      "sha256": "931d531509516bfc7524593feee6db06e4e7fd7d6b340518ce3e7acbbb5e164a",
+      "bytes": 567797
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/neutral-shoulder-abduction-160.glb",
+      "sha256": "d08ca5aa157b43d5c1d9832a2af865da3c8f81a5682f32be3111d8ea36434d01",
+      "bytes": 1791064
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/female-shoulder-abduction-160-approach-side.png",
+      "sha256": "da38ccfb7930e9c102b50037de839a3a4958b3de675e1167e0c28719168ff745",
+      "bytes": 316895
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/female-shoulder-abduction-160-middle-overhead.png",
+      "sha256": "be54cc0b6ce1761ec58c63132cdd0a4aa3a207e911b6860866cc89ac300eb2e9",
+      "bytes": 279166
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/female-shoulder-abduction-160-middle-side.png",
+      "sha256": "5cb08d3695e58b26b3ff03a7f2a3e184a3d0f514eae17b1f6db43c3e4a9bc070",
+      "bytes": 312055
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/female-shoulder-abduction-160-quarter-side.png",
+      "sha256": "c706d263fd9f933bb8470e75be303e15a47774b2d0285cd86e8e70b57d2d4ceb",
+      "bytes": 314451
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/female-shoulder-abduction-160-return-overhead.png",
+      "sha256": "2a42760621784092ff23c02550e4a148f2e76ef204aa8dafeb4b48818ed2f5cc",
+      "bytes": 280881
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/female-shoulder-abduction-160-return-side.png",
+      "sha256": "89ec47f52e3b149e6d6267da99cdc9560e4ef15cf07851bcde2089a12237cfdd",
+      "bytes": 316567
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/female-shoulder-abduction-160-setup-overhead.png",
+      "sha256": "73edf44cf0470f2d58d348907532823e22d466db109ed2d91e7fab5d2af0873c",
+      "bytes": 280881
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/female-shoulder-abduction-160-setup-side.png",
+      "sha256": "e35554f1e7dd1e7d2adaed83299177af949252e8c1898d1047d99f31b2bf9e10",
+      "bytes": 316567
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/female-shoulder-abduction-160-start-side.png",
+      "sha256": "b7f4d23cde70622a19fc6f83a45216aedbb0294479bac9fca12981c7751fdb1f",
+      "bytes": 316995
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/index.json",
+      "sha256": "41f9404d711ffd1ad470301f7c33e9767d476ecc8e460b0cadb93e9199c1c39a",
+      "bytes": 5783
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/male-shoulder-abduction-160-approach-side.png",
+      "sha256": "0a1b12e241990d60ea20be83ec5577eed243ea46bc5c6d30f6607515fea3a356",
+      "bytes": 317483
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/male-shoulder-abduction-160-middle-overhead.png",
+      "sha256": "aec987c8fa689588eff893bf5865b56d2b4beb876fe4af9ffd1ac7f843fe4e6e",
+      "bytes": 283288
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/male-shoulder-abduction-160-middle-side.png",
+      "sha256": "1e6740fb213cc3aacca2de8aa163ea4573b5849e11926f626fda8b0d2603ba60",
+      "bytes": 313607
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/male-shoulder-abduction-160-quarter-side.png",
+      "sha256": "9959cdf491278862a585c9b1ca4a4e30b10c57314b61c145dbbd17c4fd306293",
+      "bytes": 315121
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/male-shoulder-abduction-160-return-overhead.png",
+      "sha256": "6610eb4386a5da08816d6dde605cda316fc224f502278ed971b22ff3cb926029",
+      "bytes": 284700
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/male-shoulder-abduction-160-return-side.png",
+      "sha256": "5d4789ffadec7839edeab6d5ec41117a274ae3d345fc1327cd5b669f90e7b419",
+      "bytes": 317380
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/male-shoulder-abduction-160-setup-overhead.png",
+      "sha256": "7194f20c6c9d105e7b9f96375801971432cce0482897655dd71105d2c9086a5c",
+      "bytes": 284700
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/male-shoulder-abduction-160-setup-side.png",
+      "sha256": "e2715f30187d4051a298936c0cb4c1d1bd021cded670eda5077cbb405f3e2fa1",
+      "bytes": 317380
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/male-shoulder-abduction-160-start-side.png",
+      "sha256": "d2601568e9b964310f42d259c18955b68307462bb7b4a6f9d7eb62b2ed4d2e3b",
+      "bytes": 317401
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/neutral-shoulder-abduction-160-approach-side.png",
+      "sha256": "37c59e4dfec9103c1eccf0209849a7a94f6199ad54e361f383bd5a3415ec80f3",
+      "bytes": 314349
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/neutral-shoulder-abduction-160-middle-overhead.png",
+      "sha256": "5e80472c325ab2fa5d9ba0a07036be3760b2e46f5d903a0d2055e1d691bfdbe2",
+      "bytes": 276551
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/neutral-shoulder-abduction-160-middle-side.png",
+      "sha256": "153e32ec10c034e976e782fc29e57de5fa3c8713cbca1c54b0655e5fc9439b2f",
+      "bytes": 309266
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/neutral-shoulder-abduction-160-quarter-side.png",
+      "sha256": "ae0756cfc45b56ae840f7d5539fc311a8295d7c253d78d25379a4264a20f6502",
+      "bytes": 311137
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/neutral-shoulder-abduction-160-return-overhead.png",
+      "sha256": "9ad2f7643a466c50f6086ead9934bb17489198423686e321e203ce0838012e37",
+      "bytes": 277922
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/neutral-shoulder-abduction-160-return-side.png",
+      "sha256": "369b7ab91cb803261bbc617b198c544d76fce37493da8b60cf2771bd59909ec7",
+      "bytes": 314002
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/neutral-shoulder-abduction-160-setup-overhead.png",
+      "sha256": "ef6a70507f8ddd14c2e9f784fec8f45936b8856400cd6fa556d2ce2863ae68e5",
+      "bytes": 277922
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/neutral-shoulder-abduction-160-setup-side.png",
+      "sha256": "2eb1c0fbcea7744070724c055f9dbcd2c1553bd31457fd3819bd27efc3bb3ac5",
+      "bytes": 314002
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/renders/neutral-shoulder-abduction-160-start-side.png",
+      "sha256": "6e1584fb396d3267236cfcda90472b080b8cc30280d13bded08cd5042fb82955",
+      "bytes": 314541
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/roundtrip-results.json",
+      "sha256": "ab5d7db9930df2db8ba5b023d70427a161e4936b45b07960577fac5bf7245218",
+      "bytes": 4931
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/roundtrip/female-shoulder-abduction-160.glb",
+      "sha256": "28a6642d32831f04fef6ff0d70e86f264c18b427d157d0393e34fc2f6a4295f8",
+      "bytes": 1403972
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/roundtrip/male-shoulder-abduction-160.glb",
+      "sha256": "d06b1ebe369150faab08851ddc39e439778646f05aba545b1729c17a489b154a",
+      "bytes": 1403936
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/abduction-160/roundtrip/neutral-shoulder-abduction-160.glb",
+      "sha256": "389583e24642b6974d5a6f8c9959648d60daf0558fb1fb321d2e763fe8296fce",
+      "bytes": 1718212
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/female-shoulder-flexion-160.expected.json",
+      "sha256": "d8f4c584a2658c234b54c9baf5c27178d153f6a1fdccb5fd1b3e6af0544e0282",
+      "bytes": 565374
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/female-shoulder-flexion-160.glb",
+      "sha256": "370c0f379a77d8defb66536641089a79c7b1c6f020341cd41dafec9da4097ee4",
+      "bytes": 1615840
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/full-motion-exchange.json",
+      "sha256": "8558d8fbbdf1b9f48402129b5fb7a7c027abbcebd71d30c53b068ea5f69f652d",
+      "bytes": 3053
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/full-motion-review.blend",
+      "sha256": "07693c3367f411e4c6061ac6163cefff145119e2b1f4afd486f3636acbcbeabb",
+      "bytes": 4334019
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/male-helper-trace.json",
+      "sha256": "029b44a77ed242eef8257e43920bed38e8d73b3fe73937d4f2b8ff770b9873a6",
+      "bytes": 216404
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/male-route-summary.json",
+      "sha256": "70e7ef9774781a01d8d03091ab5ca74478f8e33c565a4ca347e602f12545a925",
+      "bytes": 21894
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/male-shoulder-flexion-160.expected.json",
+      "sha256": "fb531319b5a873c1bcdba4ce93e61c5d8a230c0b077c70d27dd63e949164b3bc",
+      "bytes": 564812
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/male-shoulder-flexion-160.glb",
+      "sha256": "029f84ebbfdbbed778abe8ae1f0f154930a9ab7e39d0787dfbd9343d2a38f93c",
+      "bytes": 1615096
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/manifest.json",
+      "sha256": "709572f50b222ce52a6fe336b59887fc1e586ca5df96e55f0db0b1c1683a9558",
+      "bytes": 7471
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/matched-captures/index.json",
+      "sha256": "16d26461848c73fb19fa7a35893e2bdb494b4cc199b6711072e4b134e5991aa9",
+      "bytes": 4297
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/matched-captures/male-right-back-1167ms.png",
+      "sha256": "e56022fc7e274ff3ca398fc0cb45149167550c2f723ac42f846b01aa23daee3b",
+      "bytes": 1137389
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/matched-captures/male-right-back-2067ms.png",
+      "sha256": "8be34ed88bb33386a5a70588cac0cfe8eadee8d4c1c8b789ce5d3f07bb4c3a2d",
+      "bytes": 1151570
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/matched-captures/male-right-back-3233ms.png",
+      "sha256": "b2a0619f9119394c522432ffe36d93315ff5b202a8263c371d639a9967ab4040",
+      "bytes": 1153588
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/matched-captures/male-right-side-1167ms.png",
+      "sha256": "30b5451901daac6d56310497e0b37ca356530bd6ea6fff204e40e18be6a2ce3e",
+      "bytes": 1154709
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/matched-captures/male-right-side-2067ms.png",
+      "sha256": "42562b7bec0e893bee73993706384147c5ffbefd9e2895084391b92e7be649fc",
+      "bytes": 1152610
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/matched-captures/male-right-side-3233ms.png",
+      "sha256": "f579c547165114c355d6a854c6f9235c17bfcc99da47cbcb1b2a7d2ace10fe04",
+      "bytes": 1153907
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/neutral-shoulder-flexion-160.expected.json",
+      "sha256": "fd47eb746ce67fa099bf00df3c6c864988a9a66cfc53b1ff91f3768435569a71",
+      "bytes": 566995
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/neutral-shoulder-flexion-160.glb",
+      "sha256": "d9f25a9f392e0738ebd6dd7c6299bd4cb8f2e3d17e53d94907e9e2d02d800263",
+      "bytes": 1791064
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/female-shoulder-flexion-160-approach-side.png",
+      "sha256": "cbb6cb4d7c9f29c1a0765c7fb3ba8323ee651f14e3084f7acb6dbb60c4bd52b2",
+      "bytes": 316891
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/female-shoulder-flexion-160-middle-overhead.png",
+      "sha256": "70dadd7c39b2e8987b2518971c8a13a7c67b111e6ddf68bc5c02d4574ec79a88",
+      "bytes": 281907
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/female-shoulder-flexion-160-middle-side.png",
+      "sha256": "35f07409742f6302d053cf17b97b549af34036a1c0791f8249a712b0c7c0305f",
+      "bytes": 313349
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/female-shoulder-flexion-160-quarter-side.png",
+      "sha256": "57e1216506940d487acd5ca6a0cbeb7352c5bad5312a6e7d2a24bdac42fd188e",
+      "bytes": 318719
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/female-shoulder-flexion-160-return-overhead.png",
+      "sha256": "a0766b391bf03f5c6aee4eaa070f468916efb77d92f03361eddec2f07316bce1",
+      "bytes": 280877
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/female-shoulder-flexion-160-return-side.png",
+      "sha256": "87b4aff45800011b4f6d5d700f96b056a5e1b18673d0f1f7e81ae0344c65b28a",
+      "bytes": 316563
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/female-shoulder-flexion-160-setup-overhead.png",
+      "sha256": "bedefe29207a25bbec1268579e4f2e06febc9244d99dd340b1707e4203c2cfb0",
+      "bytes": 280877
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/female-shoulder-flexion-160-setup-side.png",
+      "sha256": "6f7bb91459bd103ffece486a6f69ba734b8fa1a0c7c931c3784fd34869bc7fff",
+      "bytes": 316563
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/female-shoulder-flexion-160-start-side.png",
+      "sha256": "e8b8d2abec8b50afe9007bc4d848040c613a81247411bf6ce1be8c03990848cb",
+      "bytes": 316991
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/index.json",
+      "sha256": "460569c023f07b313212cda6bfc984ec53f2da15bc3be0feb890732be8aafa2d",
+      "bytes": 5675
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/male-shoulder-flexion-160-approach-side.png",
+      "sha256": "170bb1137398993b7ddcfbc80e0e6f9fef775c3f76e73539ddbae3d67ac431b8",
+      "bytes": 317479
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/male-shoulder-flexion-160-middle-overhead.png",
+      "sha256": "e6821d75405fa034574ad779cdd4e3ee163d7665cf6112d790a61afba7a45ba3",
+      "bytes": 286562
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/male-shoulder-flexion-160-middle-side.png",
+      "sha256": "d3cdcac296650845b433f67f94c2e53ff0234a930f21132286f6cc94adeb7a50",
+      "bytes": 314624
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/male-shoulder-flexion-160-quarter-side.png",
+      "sha256": "9923f5accac1e9271a5072d6e86d5ce7212444f8d3cf3908b8657cd5a2fc5a88",
+      "bytes": 319373
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/male-shoulder-flexion-160-return-overhead.png",
+      "sha256": "e04203e19d33469ba87e709f33f4aaf23043d95c99854e79377065987c340e62",
+      "bytes": 284696
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/male-shoulder-flexion-160-return-side.png",
+      "sha256": "73c0474f21778e8768407a25aac6d79543ef7510eb129d961e7b469969edefdb",
+      "bytes": 317376
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/male-shoulder-flexion-160-setup-overhead.png",
+      "sha256": "b7aa1d8a3789d8e0d767d28e4382eae4f48879cea010d8af7242cade642bc4f1",
+      "bytes": 284696
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/male-shoulder-flexion-160-setup-side.png",
+      "sha256": "ea4541973e0cb29441306174f4179af6e0279e6ae514c0cc914a0c2768f0fdac",
+      "bytes": 317376
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/male-shoulder-flexion-160-start-side.png",
+      "sha256": "40e0835d0d1cab5443b6f8dc5fae543e50346a81ed9aa13847ea745638613b89",
+      "bytes": 317397
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/neutral-shoulder-flexion-160-approach-side.png",
+      "sha256": "473ce7da01b375dda2a6842353f91c0b50b1e3bebd0a72b31469c2c9e4282f44",
+      "bytes": 314345
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/neutral-shoulder-flexion-160-middle-overhead.png",
+      "sha256": "1c87810bff940f8d0b002d344207c3184dd6aa51d85f08da26545990a63228bb",
+      "bytes": 279201
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/neutral-shoulder-flexion-160-middle-side.png",
+      "sha256": "767d3ed7692329bff3ac59e94c57d8fca07bad5ef96f1cca3e1bc4e1f820c38d",
+      "bytes": 311510
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/neutral-shoulder-flexion-160-quarter-side.png",
+      "sha256": "f67d49c77f7cc6bb955a1ac6c08c8b7d5c5d3f28f4cd0ac4d1b79cc073d0b122",
+      "bytes": 315749
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/neutral-shoulder-flexion-160-return-overhead.png",
+      "sha256": "4db042b1556eeff0fef506aa8a08fc4b7fe9b0b0bf7fe03615ead660cfd83565",
+      "bytes": 277918
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/neutral-shoulder-flexion-160-return-side.png",
+      "sha256": "d5560c551ca539eaea0acaa97374fb1c65aff016116e1a2694e2cabcc3244b40",
+      "bytes": 313998
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/neutral-shoulder-flexion-160-setup-overhead.png",
+      "sha256": "7d99233dc6548c4e588eac26604cf429f22cd075ce5894dcd69b1b7c6cb64cf0",
+      "bytes": 277918
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/neutral-shoulder-flexion-160-setup-side.png",
+      "sha256": "7d7a5ffeb59ef28f86041118345ba8d3cfea1c4a3b5c938801699540c521966c",
+      "bytes": 313998
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/renders/neutral-shoulder-flexion-160-start-side.png",
+      "sha256": "f3c6412e64a92cdedeb37f68ef31db8655bdfc96a9316deb0b9fa532b318078b",
+      "bytes": 314537
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/roundtrip-results.json",
+      "sha256": "84c6d147de162cf417c8237579a7656ca2767fe0d9855e81a11588edd05760a5",
+      "bytes": 4927
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/roundtrip/female-shoulder-flexion-160.glb",
+      "sha256": "75cc9658786f9d2a59da8a958a12ce435cfd345fe0fc1bd1a9be862c1e38b6ae",
+      "bytes": 1403972
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/roundtrip/male-shoulder-flexion-160.glb",
+      "sha256": "21c7901fdf7b3131cce662225262fd08ef56fae0b9340c4e56cd6ea7cfb1a6a7",
+      "bytes": 1403936
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-160/roundtrip/neutral-shoulder-flexion-160.glb",
+      "sha256": "f5c365fb45e828bec952747dc853c7a1a56148cb74d49ba2ad113e4cc4b195f2",
+      "bytes": 1718208
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/female-shoulder-flexion-180.expected.json",
+      "sha256": "ee31a5b04c0f52410bb8832a93c152afef368222ecb4fa59f095597005cc0c5a",
+      "bytes": 565753
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/female-shoulder-flexion-180.glb",
+      "sha256": "d7af319739cf4839c861c2bcad08eb6fd8a208686ff7fcc9988f2884b4ef0b54",
+      "bytes": 1615836
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/full-motion-exchange.json",
+      "sha256": "2573bc64e4d0670705dc8784a0dc32814bbf6eaf9f4c6128f18d220bab01db36",
+      "bytes": 3057
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/full-motion-review.blend",
+      "sha256": "9d90ba3d798f77c361aee0d369fcf2c94d2d12b04938c1953822553af855509c",
+      "bytes": 4334110
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/male-helper-trace.json",
+      "sha256": "62fb5525ae511ad6c787e37dd66e81805dad0cdf66c4886ebca6180973349037",
+      "bytes": 216368
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/male-route-summary.json",
+      "sha256": "62586aa74f7738b13442a9eb1201bff6d0df87838444f912b142cdaf80197699",
+      "bytes": 21962
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/male-shoulder-flexion-180.expected.json",
+      "sha256": "aabdb8543bafb4a73a4b3e2eed0f4c83ee8ac8e95b216b50190a6725820d47be",
+      "bytes": 565206
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/male-shoulder-flexion-180.glb",
+      "sha256": "a245dadbcf960a8e17f7fd5534aae682b010d89aa069111cfa59495587f0cbae",
+      "bytes": 1615092
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/manifest.json",
+      "sha256": "4a00708f9b940c288d8c617a4256bd267f7e08e176b07fa1cd3941af4f7f9b11",
+      "bytes": 7471
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/matched-captures/index.json",
+      "sha256": "0fac0558c09ae93eea0874e21c953cd948a682ff73b5e8a05f13875d1d25a13d",
+      "bytes": 4297
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/matched-captures/male-right-back-1167ms.png",
+      "sha256": "2063a4bdf9276e68470420e00fed8f23ce0aef5cbbdeb9a3e917bb9b00076287",
+      "bytes": 1140882
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/matched-captures/male-right-back-2067ms.png",
+      "sha256": "daaa6139921417d31b69fab6222d21af48f830449b2f201799370670c6e36e90",
+      "bytes": 1153077
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/matched-captures/male-right-back-3233ms.png",
+      "sha256": "b8d7ddccba2f10a197d70a3532313485499dceb80815191de0485962a1c90ab8",
+      "bytes": 1160041
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/matched-captures/male-right-side-1167ms.png",
+      "sha256": "ba0f8f85ff003fcffab3f776be0d66dee1d568e54a9dbc0adcfadef8cab8f794",
+      "bytes": 1143492
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/matched-captures/male-right-side-2067ms.png",
+      "sha256": "901d75f49b2e83bc030284fbbbd61fdb04eb50c1f43b668a68e9c88cd452621f",
+      "bytes": 1143752
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/matched-captures/male-right-side-3233ms.png",
+      "sha256": "47d1167ca556550b92e76445a038616ee54344e36d539809441cf2f7765fb157",
+      "bytes": 1146806
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/neutral-shoulder-flexion-180.expected.json",
+      "sha256": "b16fe6e8f7ee508df37cc9433bf8d4752fc68341f69a587335d0178826e4502a",
+      "bytes": 567287
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/neutral-shoulder-flexion-180.glb",
+      "sha256": "b814c8e6adb3c4b329422a4ee21ea3162bb5bb26e0f1713385e59719f36bee74",
+      "bytes": 1791064
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/female-shoulder-flexion-180-approach-side.png",
+      "sha256": "49fa1e3428a749b6092623c429c76fd14e9947aa847ce05e5b5dffb1627a7286",
+      "bytes": 316891
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/female-shoulder-flexion-180-middle-overhead.png",
+      "sha256": "3e969fc9060e31ff2521597a6507dd82f3f6e3a7b267f8f1958b7e2f6b4ffee0",
+      "bytes": 280937
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/female-shoulder-flexion-180-middle-side.png",
+      "sha256": "f29d02c95d3dd603055886d2c82aa42b9d6ace3d1c5a451890326f17b2592c3b",
+      "bytes": 313085
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/female-shoulder-flexion-180-quarter-side.png",
+      "sha256": "162a500dcf5b1291de16af2a4db9dbcc4f8ebe7a2378f75decc9e5f1b95628fb",
+      "bytes": 316751
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/female-shoulder-flexion-180-return-overhead.png",
+      "sha256": "20e265ad645063cf96549257c52164339de6f318146f3d3b987df7e4fd5864f3",
+      "bytes": 280877
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/female-shoulder-flexion-180-return-side.png",
+      "sha256": "501401b1edc754bfc13e84cfa24d91b573ceea529ab30239064d74aa4afe36d6",
+      "bytes": 316563
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/female-shoulder-flexion-180-setup-overhead.png",
+      "sha256": "e962497877cda33655962a2d92e12241248d2431452b45b7635dd56f160c6c2f",
+      "bytes": 280877
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/female-shoulder-flexion-180-setup-side.png",
+      "sha256": "d20d594b9e4a53e71a5cee5990f59ad770de84a88d7125234e917bc61158a232",
+      "bytes": 316563
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/female-shoulder-flexion-180-start-side.png",
+      "sha256": "2eafb4c36fed7ed6b62c96b3e126b45552f4664c2529c792e5839172ca89ebb5",
+      "bytes": 316991
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/index.json",
+      "sha256": "bda365ea73e6001db73f07f7c2f431273d05c4f75dda93dfb4e466ba35478f0f",
+      "bytes": 5675
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/male-shoulder-flexion-180-approach-side.png",
+      "sha256": "38a99a0f3aa2eaa604f2e6719c575a0f816d9d69696f71698fff62fccb8a6171",
+      "bytes": 317479
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/male-shoulder-flexion-180-middle-overhead.png",
+      "sha256": "bb5de24421b31792b32224e0459f4a90ef2d316c370ced2d3f464bb684a2060e",
+      "bytes": 285761
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/male-shoulder-flexion-180-middle-side.png",
+      "sha256": "a4c579884a2c65c5f27789a36b11df70a31f32ab61fbd56ee8872febfba55262",
+      "bytes": 314105
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/male-shoulder-flexion-180-quarter-side.png",
+      "sha256": "015306130bc8403dbaf6901e5c22859d974b0c46bf8939af4c2c576e222b5936",
+      "bytes": 317615
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/male-shoulder-flexion-180-return-overhead.png",
+      "sha256": "c31771fdfcc31187139b5f3825f1deb45a33b58b448de885d78b0e94842c0665",
+      "bytes": 284696
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/male-shoulder-flexion-180-return-side.png",
+      "sha256": "7a1dcaa670d79ab50eb2b2d1b9ca9673870ea0c0c08493f9a877dbef416ea8ab",
+      "bytes": 317376
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/male-shoulder-flexion-180-setup-overhead.png",
+      "sha256": "ada3af1a923eec469c45122768647549564deebb9a2e13f312ed70ac709bc69a",
+      "bytes": 284696
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/male-shoulder-flexion-180-setup-side.png",
+      "sha256": "23894135968080d82da9c0a532ecb48208dc73f0f11159873051c2ed8e6ea439",
+      "bytes": 317376
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/male-shoulder-flexion-180-start-side.png",
+      "sha256": "42e89ae910fe5ee1dcb7d944e038cc156117938c746f90801d4f9eb7a0e44a67",
+      "bytes": 317397
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/neutral-shoulder-flexion-180-approach-side.png",
+      "sha256": "f29112167927124dab6d8991515ab925f8e422b0db8c698750905d2a2013e67b",
+      "bytes": 314345
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/neutral-shoulder-flexion-180-middle-overhead.png",
+      "sha256": "0f84ad53079f7c36302a12d709fe6514e0794ac9e5f50b9999d10bd8e5f8049c",
+      "bytes": 277965
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/neutral-shoulder-flexion-180-middle-side.png",
+      "sha256": "98efa998a16b2abb48328547637e7b95b61082ba5e817968ce6bad6b30abf40e",
+      "bytes": 310536
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/neutral-shoulder-flexion-180-quarter-side.png",
+      "sha256": "a1f36667f2050ae4d5c7da8b999908c950f18ff52712f40b597e361ee0513365",
+      "bytes": 313553
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/neutral-shoulder-flexion-180-return-overhead.png",
+      "sha256": "492a41d8be78eaa4cec72633a676af7956eb1554398edc7e8bd67dd85e1c77cc",
+      "bytes": 277918
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/neutral-shoulder-flexion-180-return-side.png",
+      "sha256": "3d9114774586801095762b98f36d537fbe729f05d0d217e1fe5ad70fba2e80cc",
+      "bytes": 313998
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/neutral-shoulder-flexion-180-setup-overhead.png",
+      "sha256": "740b27301db30b7774b183e599612a19d5d49ef41dec05f2916845324ef19315",
+      "bytes": 277918
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/neutral-shoulder-flexion-180-setup-side.png",
+      "sha256": "3377154086ac6dc56b942a7b1445551701e36d2d702f0186502d8428d1ea5d52",
+      "bytes": 313998
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/renders/neutral-shoulder-flexion-180-start-side.png",
+      "sha256": "67d78c4863313627d6b312706f7af2424c6236d1e2924da0e2cf7fe1e63f1267",
+      "bytes": 314537
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/roundtrip-results.json",
+      "sha256": "a1972c963624493dfd7d6b3cc40f3f29b6591fc6ca32c8091b175f4d7545bee5",
+      "bytes": 4930
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/roundtrip/female-shoulder-flexion-180.glb",
+      "sha256": "ffb0a9ebc42c70bfbc2eba0c633db1fac018bf7331a7401ec8b262a89a975243",
+      "bytes": 1403972
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/roundtrip/male-shoulder-flexion-180.glb",
+      "sha256": "1d38e8d9f632d3096cbe389b03199d19e8b9ade89684b2f12e892a1802559f04",
+      "bytes": 1403936
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/flexion-180/roundtrip/neutral-shoulder-flexion-180.glb",
+      "sha256": "2f8e4a423a69dd9a7518e233ad2c13cfdf14c8b68862c79be01370f891c8d203",
+      "bytes": 1718208
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/provenance.json",
+      "sha256": "3b10cbecfd78d4c2abc2ecea5041fd4dbe0f22b9ebbbe5a528cd09fd2c565489",
+      "bytes": 11276
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/shoulder-abduction-160.json",
+      "sha256": "95c25172b35fb3eeab2f4cafb6e106f55faa5f614b4660a9cbd328ec7cfcb83a",
+      "bytes": 2770
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/shoulder-flexion-160.json",
+      "sha256": "3349c5104ae9adf46616b2e51d122ca9712c255c5d7f258f2d5b5fe2b861dc97",
+      "bytes": 2762
+    },
+    {
+      "path": "docs/catalogue-evidence/diagnostics/shoulder-baseline/shoulder-flexion-180.json",
+      "sha256": "ce9aa215c77916ab6aa9b6ef1040e29982992270159260cb9c24ad82e5d57475",
+      "bytes": 2762
+    }
+  ]
+}

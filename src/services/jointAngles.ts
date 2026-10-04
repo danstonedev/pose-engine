@@ -46,6 +46,7 @@
  * scratch quaternions / vectors).
  */
 import * as THREE from 'three';
+import { upperArmWorldAngles } from '../anatomy/upperArmJointFrame.mjs';
 import {
   normalizeBoneNameForVariant,
   type BodyVariantConfig,
@@ -493,8 +494,9 @@ function fingerSideSign(side: string): number {
   return side === 'R_' ? 1 : -1;
 }
 
-function boneWorldDirection(bone: THREE.Bone): THREE.Vector3 | null {
-  const here = bone.getWorldPosition(new THREE.Vector3());
+function boneWorldDirection(bone: THREE.Bone, currentMatrices = false): THREE.Vector3 | null {
+  const here = currentMatrices ? new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld)
+    : bone.getWorldPosition(new THREE.Vector3());
   // Breadth-first to the NEAREST descendant with a meaningful offset. The CC rig
   // parks zero-length helper/"share" bones (e.g. R_KneeShareBone) ON the joint,
   // and they can be the FIRST child while the real continuation (the foot) is a
@@ -504,7 +506,8 @@ function boneWorldDirection(bone: THREE.Bone): THREE.Vector3 | null {
   while (queue.length > 0 && guard < 64) {
     guard += 1;
     const node = queue.shift() as THREE.Object3D;
-    const dir = node.getWorldPosition(new THREE.Vector3()).sub(here);
+    const dir = (currentMatrices ? new THREE.Vector3().setFromMatrixPosition(node.matrixWorld)
+      : node.getWorldPosition(new THREE.Vector3())).sub(here);
     if (dir.lengthSq() >= 1e-8) return dir.normalize();
     for (const c of node.children) queue.push(c);
   }
@@ -544,15 +547,20 @@ function hingeFlexionDeg(
   jointKey: string,
   rest: JointAngleRestReference,
   flexSign: number,
+  currentMatrices = false,
 ): number {
   const stored = rest.hingeAxes?.[jointKey];
   if (stored) _hingeAxis.set(stored[0], stored[1], stored[2]);
   else _hingeAxis.copy(hingeAxisInParent(rest.localQuats[jointKey], rest.worldQuats[jointKey]));
-  _hingeAxis.applyQuaternion(parent.getWorldQuaternion(_hingeQ)).normalize();
+  if (currentMatrices) parent.matrixWorld.decompose(_hingePosition, _hingeQ, _hingeScale);
+  else parent.getWorldQuaternion(_hingeQ);
+  _hingeAxis.applyQuaternion(_hingeQ).normalize();
   return signedAngleInPlane(parentDir, childDir, _hingeAxis) * flexSign;
 }
 const _hingeAxis = new THREE.Vector3();
 const _hingeQ = new THREE.Quaternion();
+const _hingePosition = new THREE.Vector3();
+const _hingeScale = new THREE.Vector3();
 
 /**
  * The clinical flexion of ONE hinge — `L/R_Forearm` (elbow) or `L/R_Leg`
@@ -568,12 +576,35 @@ export function measureHingeFlexion(
   jointKey: string,
   rest: JointAngleRestReference,
 ): number | null {
+  return readHingeFlexion(parent, bone, jointKey, rest, false);
+}
+
+/** The same readout on an already-refreshed standard transform graph. This
+ * deliberately does not invoke world accessor overrides or refresh ancestors.
+ * Only use when the caller owns the graph and has updated all descendants;
+ * custom rigs and ordinary chart reads retain measureHingeFlexion. */
+export function measureHingeFlexionFromCurrentMatrices(
+  parent: THREE.Bone,
+  bone: THREE.Bone,
+  jointKey: string,
+  rest: JointAngleRestReference,
+): number | null {
+  return readHingeFlexion(parent, bone, jointKey, rest, true);
+}
+
+function readHingeFlexion(
+  parent: THREE.Bone,
+  bone: THREE.Bone,
+  jointKey: string,
+  rest: JointAngleRestReference,
+  currentMatrices: boolean,
+): number | null {
   const flexSign = HINGE_FLEX_SIGN[jointKey];
   if (flexSign === undefined) return null;
-  const parentDir = boneWorldDirection(parent);
-  const childDir = boneWorldDirection(bone);
+  const parentDir = boneWorldDirection(parent, currentMatrices);
+  const childDir = boneWorldDirection(bone, currentMatrices);
   if (!parentDir || !childDir) return null;
-  return hingeFlexionDeg(parent, parentDir, childDir, jointKey, rest, flexSign);
+  return hingeFlexionDeg(parent, parentDir, childDir, jointKey, rest, flexSign, currentMatrices);
 }
 
 /** Common shape: the three clinical motion axes for a joint. */
@@ -668,31 +699,7 @@ export function ballJointAngles(
  *  abduction+rotation on the right to the clinical convention (+abd away from
  *  midline, +rot internal). flexion/abduction are clean 0..~90° in their own plane
  *  (they saturate past horizontal in the OTHER plane — an inherent 3-field limit). */
-const _stSwing = new THREE.Quaternion();
-const _stTwist = new THREE.Quaternion();
-export function upperArmWorldAngles(
-  curWorldQuat: THREE.Quaternion,
-  restWorldQuat: THREE.Quaternion,
-  curDir: THREE.Vector3,
-  restDir: THREE.Vector3,
-  mirror: boolean,
-): SwingTwistDeg {
-  const s = mirror ? -1 : 1;
-  // + flexion = forward (anterior +Z); + abduction = away from midline. Both are
-  // IN-PLANE angles (0..180° in their own plane); each saturates toward 180° when
-  // the OTHER motion passes horizontal — an inherent 3-field ball-joint limit.
-  const flexOf = (v: THREE.Vector3) => Math.atan2(v.z, -v.y) * DEG;
-  const abdOf = (v: THREE.Vector3) => Math.atan2(s * v.x, -v.y) * DEG;
-  const flexion = flexOf(curDir) - flexOf(restDir);
-  const abduction = abdOf(curDir) - abdOf(restDir);
-  // Removing the swing on the left expresses the residual twist about the
-  // REST arm axis. Measuring it against curDir reverses the sign above 90°.
-  _stTwist.copy(curWorldQuat).multiply(_q1.copy(restWorldQuat).invert()); // world delta
-  _stSwing.setFromUnitVectors(restDir, curDir);
-  _stTwist.premultiply(_stSwing.invert());
-  const rotation = signedAngleAboutAxis(_stTwist, restDir) * DEG * s;
-  return { flexion, abduction, rotation };
-}
+export { upperArmWorldAngles } from '../anatomy/upperArmJointFrame.mjs';
 
 /** True when an UpperArm IN-PLANE field (shoulderFlexion / shoulderAbduction)
  *  is outside its meaningful zone and hosts should render it masked ("—").

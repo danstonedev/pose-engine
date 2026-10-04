@@ -1,8 +1,8 @@
 /**
- * CLINICIAN-AUTHORED MOVEMENT TEMPLATES — reference material for the *content*
+ * AUTHORED MOVEMENT TEMPLATES — reference material for the *content*
  * of core clinical movements.
  *
- * WHY. The composer's ROM limits are sourced (AAOS / Norkin & White) and every
+ * WHY. The composer applies the configured ROM registry and every
  * frame is measured, but the SHAPE of a movement — which joints participate, to
  * what peak angles, in what timing and coordination — was previously left to the
  * language model's own knowledge. These templates encode that shape explicitly,
@@ -16,17 +16,17 @@
  *
  * Two uses, from ONE source of truth:
  *   1. {@link describeMovementTemplates} renders the library into the compose
- *      tool's prompt, so the planner anchors on real coordination.
+ *      tool's prompt, so the planner starts from explicit authored coordination.
  *   2. {@link templateToComposedMotion} turns a template into a playable,
  *      measurable ComposedMotion — which lets the test-suite RESOLVE each
- *      template through the real ROM path (proving every peak is within
- *      normative range) and SAMPLE it on the rig (proving the authored
- *      coordination is achievable and measures back to the authored peaks).
+ *      template through the configured ROM path and SAMPLE it on the rig.
+ *      Those checks measure implementation consistency; reference-supported
+ *      coordination, physical feasibility and clinical review are separate.
  *
- * These values are clinician-authored from standard kinesiology (e.g. Neumann,
- * *Kinesiology of the Musculoskeletal System*; scapulohumeral rhythm ~2:1) and
- * are flagged for SME verification, exactly like the ROM registry — they are a
- * reviewed reference, not mocap.
+ * Targets, timing and coordination remain authored settings pending SME and
+ * task-specific source verification. Current supported claims and historical
+ * attributions are recorded in docs/movement-templates-reference.md and the
+ * master catalogue. Clinical sign-off is not established by this library.
  */
 
 // This module is the template LIBRARY's front door: the free-text template

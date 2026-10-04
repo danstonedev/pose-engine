@@ -1,16 +1,15 @@
 /**
- * CLINICIAN-AUTHORED MOVEMENT TEMPLATES — the data.
+ * AUTHORED MOVEMENT TEMPLATES — the data.
  *
  * The template vocabulary and the MOVEMENT_TEMPLATES library itself, split out of
- * movementTemplates.ts so the ~1,280 lines of clinician-authored content are not
+ * movementTemplates.ts so the authored content is not
  * interleaved with the motion builders that consume them. Pure declarative data:
  * it references nothing defined elsewhere in the original module, which is what
  * made this the safe cut to make first.
  *
- * Every value is clinician-authored from standard kinesiology (e.g. Neumann,
- * *Kinesiology of the Musculoskeletal System*; scapulohumeral rhythm ~2:1) and is
- * flagged for SME verification, exactly like the ROM registry — a reviewed
- * reference, not mocap.
+ * Values, timing and coordination are authored settings pending task-specific
+ * reference and SME verification. See docs/movement-templates-reference.md for
+ * supported source claims, historical attributions and remaining review gaps.
  *
  * See movementTemplates.ts for how these are rendered into the compose prompt
  * (describeMovementTemplates) and turned into playable motions
@@ -93,7 +92,7 @@ export interface MovementTemplate {
   label: string;
   /** Instruction keywords that select this template (lowercased substrings). */
   aliases: string[];
-  /** One-line clinician note on the coordination the template teaches. */
+  /** Authored coordination guidance, with reference/review scope stated. */
   coordination: string;
   stance: StanceMode;
   /** Cycle the phases until stopped (locomotion / repetitive movements). The
@@ -118,7 +117,7 @@ export interface MovementTemplate {
   source: string;
 }
 
-const VERIFY = 'clinician-authored from standard kinesiology; verify with SME';
+const VERIFY = 'authored settings; verify task-specific targets, timing and coordination with SME';
 
 // A command on a joint replaces that joint's composed channels. Re-state the
 // setup in EVERY sweep phase so rotation never straightens the elbow/knee or
@@ -174,7 +173,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Shoulder flexion (forward elevation)',
     aliases: ['raise your arm', 'reach overhead', 'shoulder flexion', 'lift your arm forward', 'arm overhead', 'forward elevation'],
     coordination:
-      'Humerothoracic (goniometric) forward elevation to ~120° functional — this matches the mean forward elevation used across activities of daily living [Namdari 2012: 121°]; full physiologic range is ~160-170° (AAOS ideal 180°). Scapulohumeral rhythm averages ~2:1 (glenohumeral : scapular upward rotation) BEYOND the first ~30° "setting phase" (in which motion is predominantly glenohumeral and the scapula stabilises); the ratio varies with elevation and load [Inman 1944; Neumann; McQuade & Smidt 1998]. At the full 180° arc this yields ~120° GH + ~60° scapular; at this 120° functional target, ~85° GH + ~35° scapular upward rotation. Do NOT command the scapula separately — the humerothoracic readout already includes it. Shown on the right; mirror for the left or do both.',
+      'Authored humerothoracic forward elevation to 120 degrees, pending task-specific and SME verification. Namdari 2012 reports functional requirements for ten specified daily-living tasks; those tasks require their own source and coordinate comparison. McQuade and Smidt 1998 reports scapular-plane rhythm varying with elevation and external resistance. Glenohumeral and scapular contributions therefore need task-specific guidance. The humerothoracic readout includes girdle contribution; separate scapular commands require coordinated review. Shown on the right; mirror for the left or do both.',
     stance: 'floating',
     phases: [
       {
@@ -196,7 +195,7 @@ export const MOVEMENT_TEMPLATES: MovementTemplate[] = [
     label: 'Shoulder abduction (lateral elevation)',
     aliases: ['abduct', 'lateral raise', 'raise your arm out to the side', 'shoulder abduction', 'arm out to the side'],
     coordination:
-      'Humerothoracic (goniometric) lateral elevation to ~120° functional — near the mean abduction used across activities of daily living [Namdari 2012: 128°]; full physiologic range is ~160-170° (AAOS ideal 180°). Same scapulohumeral rhythm ~2:1 BEYOND the first ~30° setting phase (predominantly glenohumeral early), varying with elevation and load; at this 120° target ~85° GH + ~35° scapular upward rotation. Do NOT command the scapula separately; the humerothoracic readout already includes it. Shown on the right.',
+      'Authored humerothoracic lateral elevation to 120 degrees, pending task-specific and SME verification. Namdari 2012 supplies functional requirements for its specified daily-living tasks. McQuade and Smidt 1998 examines scapular-plane elevation under three loading conditions and reports variable rhythm. Each elevation plane and load needs its own coordination review. The humerothoracic readout includes girdle contribution; separate scapular commands require coordinated review. Shown on the right.',
     stance: 'floating',
     phases: [
       {

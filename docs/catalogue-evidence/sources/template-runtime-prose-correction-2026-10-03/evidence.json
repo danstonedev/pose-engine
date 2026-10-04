@@ -1,0 +1,104 @@
+{
+  "kind": "template-reference-provenance-supplement",
+  "result": "pass",
+  "createdAt": "2026-10-04T00:15:41.133Z",
+  "scope": "Retained primary-reference history, current bibliography document, and before/after/fresh-current executable definitions for all 25 authored templates. Planner prose changed; target/contact/timing definitions did not.",
+  "reviewer": "Codex engineering/reference audit; no clinical sign-off",
+  "toolVersion": {
+    "node": "v22.19.0",
+    "viteNode": "3.2.4",
+    "captureToolSha256": "b50d9bdcbad9e22569ffffbba4d6ea832a70b1e8649da7c70dcf1de5bacebec7"
+  },
+  "currentCaptureCommand": "From the authoritative engine root: node ../node_modules/vite-node/vite-node.mjs scripts/catalogue/capture-template-motion-definitions.ts docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/definitions-current.json (fresh output required).",
+  "baseMasterSha256": "ed9a51828026bad0c80ec3dc84ceb0d36d1031ffb82ab4f9dc3e405f35766081",
+  "checks": {
+    "all25TemplatesCaptured": true,
+    "reportedDefinitionHashesRecomputed": true,
+    "executableDefinitionsBeforeAfterIdentical": true,
+    "freshCurrentDefinitionsMatchAfter": true,
+    "currentSourceHashesMatchAfterCapture": true,
+    "freshCurrentSourceHashesMatchActual": true,
+    "actualCompleteSourcesStable": true,
+    "plannerProseChanged": true,
+    "currentPlannerProseMatchesAfter": true,
+    "canonicalBytesUnchanged": true,
+    "correctedReferenceSnapshotMatchesLive": true,
+    "primaryEvidenceUnchanged": true
+  },
+  "templateCount": 25,
+  "definitionSha256": "ead1590564d8a5bf36d5fb78e463f26e05648b5db7c16f662851ddfc1d439b5f",
+  "definitionHashMaterial": "JSON.stringify({templates,motions}); templates exclude coordination/source prose; composed motions retained exactly.",
+  "actualSourceFiles": 470,
+  "actualSourceInventorySha256": "38c026eb43f85b42ebeddd72304c89e9634c9de27a71d6dce7ee1db9e6e1d346",
+  "actualSharedRuntimeIdentity": "1b0fe8809b3f09e8c70e8ff9f90792ede13d4cfe5af82d5cf7446a9edd176961",
+  "currentChangedSources": [
+    {
+      "path": "src/services/movementTemplates.ts",
+      "sha256": "a3bdcee2fc3989f951c6bbdb5596a767c707aa01fc47cd2d99b96334edc153e3"
+    },
+    {
+      "path": "src/services/movementTemplates.data.ts",
+      "sha256": "a1c8c1a39a71f7c592467fe671eb1264c9e5df29c966a52eb68debbab2e1172a"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/definitions-before.json",
+      "sha256": "897a01e64977b0860d093ad2b9560a3d6050023579845165cf0f53825dd2a0b0",
+      "kind": "executable-template-definition-capture"
+    },
+    {
+      "path": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/definitions-after.json",
+      "sha256": "e8e9df413e904818efbd1504b66d8b78b851e00f46ba9bc000ff24bc5ee2257a",
+      "kind": "executable-template-definition-capture"
+    },
+    {
+      "path": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/definitions-current.json",
+      "sha256": "e8e9df413e904818efbd1504b66d8b78b851e00f46ba9bc000ff24bc5ee2257a",
+      "kind": "fresh-current-executable-template-definition-capture"
+    },
+    {
+      "path": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/prior-parity-report.json",
+      "sha256": "56608217c104576614e275fff8e81290a80921bfb61086ed20c9d326a912dd2b",
+      "kind": "prior-parity-summary"
+    },
+    {
+      "path": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/capture-tool.ts",
+      "sha256": "b50d9bdcbad9e22569ffffbba4d6ea832a70b1e8649da7c70dcf1de5bacebec7",
+      "kind": "capture-tool-source"
+    },
+    {
+      "path": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/source-inventory-before.json",
+      "sha256": "fb44e4038e506889a2e6159a52db01498568001eb9b0d1fa912e5106c132df6b",
+      "kind": "current-complete-source-inventory"
+    },
+    {
+      "path": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/source-inventory-after.json",
+      "sha256": "7f404bb73e49c5e49ca585711a9ae4d4b47fdb8ca172fb8df7472cd2b73b4b46",
+      "kind": "current-complete-source-inventory"
+    },
+    {
+      "path": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/reference-records-before.json",
+      "sha256": "4ac45600f9ca333cdd838ee0be974b29cf47a4a48d6f78e4d022326ab3cd55d3",
+      "kind": "historical-canonical-reference-records"
+    },
+    {
+      "path": "docs/catalogue-evidence/sources/template-runtime-prose-correction-2026-10-03/corrected-reference-sheet.snapshot.md",
+      "sha256": "13dfdcb402c311141dd2bafd291a1256026db9f2ebd18aa84fbd91265c4f5c27",
+      "kind": "corrected-reference-document-snapshot"
+    },
+    {
+      "path": "docs/catalogue-evidence/sources/template-reference-correction-2026-10-03/evidence.json",
+      "sha256": "52c65071fb85bc74f731caa041395ac330b3f66a21c9aa479315f2ee4815e7eb"
+    }
+  ],
+  "historicalClaims": "Original bibliography/claims remain retained in the primary evidence and reference-records-before.json. No Table 2 number or unsigned clinical gap was changed.",
+  "qualification": "No clinical, source-to-rig, Blender, skin/contact, both-host, native or new language-planner-output qualification. Definition equality covers these 25 templates; it is not a whole-catalogue runtime acceptance claim.",
+  "canonicalReferenceIds": {
+    "zawadka": "ref:zawadka-2020-squat",
+    "namdari": "ref:namdari-2012-adl",
+    "mcquade": "ref:mcquade-smidt-1998-dynamic",
+    "schenkman": "ref:schenkman-1990-sts",
+    "inman": "ref:inman-1944-unspecified"
+  }
+}

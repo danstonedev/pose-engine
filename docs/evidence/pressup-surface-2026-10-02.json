@@ -1,0 +1,160 @@
+{
+    "schemaVersion":  1,
+    "date":  "2026-10-02",
+    "candidate":  "pressup-surface-motion-2",
+    "scope":  "Historical local geometric candidate and patient-bound follow-up. Subsequent whole-chain and native-representation work is separate.",
+    "sourceRevision":  "274ad55a3a84df593c12c24852ec80bc744d3d13",
+    "sourceDigest":  "559a74ab821a6b2afc4469b0595d40fb3d38561cd75997c9667010b4a19822d8",
+    "blenderVersion":  "5.2.2 LTS",
+    "geometry":  {
+                     "allRoundtripsPass":  true,
+                     "maxBoneExchangeErrorM":  0.00002970231807976838,
+                     "maxSkinExchangeErrorM":  0.000020501080056630815,
+                     "exchangeToleranceM":  0.0001,
+                     "largestSampledWholeSkinFloorPenetrationM":  0.0001714465103798135
+                 },
+    "visualObservations":  [
+                               "Inspected fullbody side and overhead setup/middle/return on male,female,neutral with common cameras and world-zero floor; head and limbs remain within frame.",
+                               "Candidate palms visually meet floor; the old deeper hand embedding is reduced. Numeric sampling still records up to0.17145mm local hand penetration.",
+                               "No visible head/body clipping at reviewed checkpoints; entire60Hz geometry audit independently covers all exported samples.",
+                               "Elbows remain substantially flexed and are more bent at3.2s than in the baseline. Full press-up extension is not accepted.",
+                               "Female pelvis can remain about19.51mm abovefloor; neutral about2.53mm, from the separate10Hz torso-support regression. Whole-torso nonpenetration is not simultaneous pelvis/chest support.",
+                               "Toe and foot skin remain separated fromfloor, especially female. Lowerlimb supported shape remains unfinished.",
+                               "No tissue compression, physical loading or clinical adequacy is established by these renders."
+                           ],
+    "blenderCases":  3,
+    "sampleHz":  60,
+    "totalSkinSamples":  975,
+    "patientBoundProof":  {
+                              "scope":  "Unrestricted 60 Hz production skin and bone animation before and after patient-only measured hinge projection",
+                              "beforeFolder":  "C:/Users/danst/probonoEMR/movement-realism-implementation/blender-workspace/pressup-surface-motion-2",
+                              "afterFolder":  "C:/Users/danst/probonoEMR/movement-realism-implementation/blender-workspace/pressup-patient-bound-proof-1",
+                              "beforeSourceDigest":  "559a74ab821a6b2afc4469b0595d40fb3d38561cd75997c9667010b4a19822d8",
+                              "afterSourceDigest":  "7ad3b5a4b5f1879c852df4ca3191963dad7b3625adde966f18dca89da60aeecb",
+                              "cases":  [
+                                            {
+                                                "id":  "male-pressup-surface-motion-2",
+                                                "frames":  325,
+                                                "beforeSha256":  "fd71e2d711c12850ae566738eadfd569f8df75243feb5abcb998196de97d7262",
+                                                "afterSha256":  "fd71e2d711c12850ae566738eadfd569f8df75243feb5abcb998196de97d7262",
+                                                "byteIdentical":  true
+                                            },
+                                            {
+                                                "id":  "female-pressup-surface-motion-2",
+                                                "frames":  325,
+                                                "beforeSha256":  "ed089ed7955842ad45e214642b776aecd6b8c6917316e00ddb4362a7f2c76838",
+                                                "afterSha256":  "ed089ed7955842ad45e214642b776aecd6b8c6917316e00ddb4362a7f2c76838",
+                                                "byteIdentical":  true
+                                            },
+                                            {
+                                                "id":  "neutral-pressup-surface-motion-2",
+                                                "frames":  325,
+                                                "beforeSha256":  "b344ea144b0098c9af80efb123d30628fdfae517d10896a0d30ca6da05dc69f4",
+                                                "afterSha256":  "b344ea144b0098c9af80efb123d30628fdfae517d10896a0d30ca6da05dc69f4",
+                                                "byteIdentical":  true
+                                            }
+                                        ]
+                          },
+    "tests":  {
+                  "browserFailures":  0,
+                  "browserCases":  12,
+                  "browserPageErrors":  0,
+                  "focusedPassed":  48,
+                  "hostSamplerPassed":  9,
+                  "engineTypeWarnings":  0,
+                  "cloudScope":  "No cloud CI on these local edits",
+                  "engineTypeErrors":  0
+              },
+    "native":  {
+                   "cases":  [
+                                 {
+                                     "context":  {
+                                                     "movement":  "fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+                                                     "variant":  "female",
+                                                     "side":  "both"
+                                                 },
+                                     "current":  {
+                                                     "completed":  true,
+                                                     "calculatedSeconds":  4.399999999999804,
+                                                     "maximumPelvisErrorM":  0.02076963894125572,
+                                                     "maximumJointTrackingErrorDeg":  15.195849491192172,
+                                                     "maximumSegmentError":  {
+                                                                                 "timeS":  4.4,
+                                                                                 "label":  "End (4.4 s)",
+                                                                                 "body":  "R_Hand",
+                                                                                 "errorDeg":  8.564064575707896
+                                                                             },
+                                                     "terminalFailure":  null,
+                                                     "sampledTrackingPassed":  false,
+                                                     "finite":  true,
+                                                     "withinMotorCaps":  true,
+                                                     "noExternalWrench":  true
+                                                 },
+                                     "nativeInitialization":  {
+                                                                  "floorTranslationM":  0.020769638941255726,
+                                                                  "initialMinimumContactY":  -0.019769638941255725
+                                                              }
+                                 },
+                                 {
+                                     "context":  {
+                                                     "movement":  "fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+                                                     "variant":  "male",
+                                                     "side":  "both"
+                                                 },
+                                     "current":  {
+                                                     "completed":  true,
+                                                     "calculatedSeconds":  4.399999999999804,
+                                                     "maximumPelvisErrorM":  0.0039025212639285517,
+                                                     "maximumJointTrackingErrorDeg":  12.227513377684918,
+                                                     "maximumSegmentError":  {
+                                                                                 "timeS":  3.1,
+                                                                                 "label":  "Hold target (3.1 s)",
+                                                                                 "body":  "R_Hand",
+                                                                                 "errorDeg":  6.441275065417392
+                                                                             },
+                                                     "terminalFailure":  null,
+                                                     "sampledTrackingPassed":  true,
+                                                     "finite":  true,
+                                                     "withinMotorCaps":  true,
+                                                     "noExternalWrench":  true
+                                                 },
+                                     "nativeInitialization":  {
+                                                                  "floorTranslationM":  0.0039025212639285482,
+                                                                  "initialMinimumContactY":  -0.002902521263928548
+                                                              }
+                                 }
+                             ],
+                   "verdict":  {
+                                   "completed":  2,
+                                   "sampledTrackingPassed":  1,
+                                   "physicalAcceptance":  "unverified",
+                                   "clinicalAcceptance":  "unverified",
+                                   "nextIssue":  "Native retargeting changes the female upper-thoracic and shoulder frames and introduces extra floor intrusion before its one-time root fit. Source-exact compiled geometry substantially reduces that intrusion. Resolve representational mismatch before tuning dynamic timing.",
+                                   "repeatabilityAndTimestepSensitivity":  "Not run: female already fails the unchanged tracking gate; investigate the demonstrated representation defect first."
+                               },
+                   "femaleFullStepPrefix":  {
+                                                "report":  "remaining-batches/extension-palm-female-tracking-prefix-1.json",
+                                                "sha256":  "575ab2d305b0e656eea5d9223af30a6db217e9f0c726cec32638b56d96772380",
+                                                "timestep":  0.001,
+                                                "inspectedPrefixSeconds":  1.1,
+                                                "peakTime":  0.9500000000000007,
+                                                "peakJoint":  {
+                                                                  "joint":  "L_Shoulder_protraction",
+                                                                  "errorDeg":  15.596680633209148
+                                                              },
+                                                "note":  "The full-step prefix peak exceeds the 100 ms sampled matrix peak. No timing, gains, capacities, collision coverage or gates were changed."
+                                            },
+                   "controllerVersion":  "authored-pelvis-support-torque-v17"
+               },
+    "latestUserRequirement":  "Coordinate complete spine, pelvis, hips and lower extremities with arms and head. Candidate 2 does not yet meet it.",
+    "acceptance":  "Unqualified: no merge, physical-contact qualification or clinical approval.",
+    "artifactSha256":  {
+                           "remaining-batches/pressup-patient-bound-animation-proof-1.json":  "8bd7f6e9108fb028bc4eab7a070eaebd7a86d6d6f0fcd40d3b3acf3dedba5375",
+                           "remaining-batches/pressup-surface-blender-review-2.json":  "e323188bd6da20784709ef759d952f69046d6007a9a8c6c966637c5dc2c6aad2",
+                           "remaining-batches/pressup-surface-acceptance-2026-10-02.md":  "6870a74ab7db0cb9a26c74a3a7287eca01bb92d52420578c8e4dca1bf7de3142",
+                           "remaining-batches/extension-palm-surface-native-summary-1.json":  "91e125e485962f6678db26a5c83bfc4770b3f0c3fa953922af7df286a6a88f00",
+                           "remaining-batches/pressup-patient-bounds-combined-1.log":  "272bc4d7fbe99cccf43b261391ddab7cb3c0417497fcab44ddb4423a7482914a",
+                           "remaining-batches/pressup-surface-hosts-1/results.json":  "704bc0c44a5b2a303e43c0cc3e303bc88043aea7f4b7aa6a9d3da5ac14d6859f",
+                           "remaining-batches/pressup-runtime-host-sync-2.json":  "2ce9b7b5156abebd7524ed87c9d352f41b0edf744f7726b959cdf643e799d8ec"
+                       }
+}

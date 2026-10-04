@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "kind": "reference-verification",
+  "referenceId": "ref:fms-cook-burton-hoogenboom-2006-flexion-clearing",
+  "reviewer": "/root",
+  "verificationBasis": "Primary source inspected by the root integrator; scope transmitted in the current delegated task on 2026-10-03. This supporting extraction does not independently claim a second PDF inspection.",
+  "url": "https://www.functionalmovement.com/files/Articles/335a_najspt-01-132.pdf",
+  "creators": [
+    "Gray Cook",
+    "Lee Burton",
+    "Barbara Hoogenboom"
+  ],
+  "edition": "2006 historical FMS article",
+  "locator": "printed page138, Figure17 and accompanying flexion clearing description",
+  "accessedAt": "2026-10-03",
+  "retainedRawSource": false,
+  "sourceSha256": null,
+  "license": "Not established. Retain this paraphrased claim record and citation only; no permission to redistribute the PDF or imagery is inferred.",
+  "claims": [
+    {
+      "id": "ref:fms-cook-burton-hoogenboom-2006-flexion-clearing:quadruped-start",
+      "kind": "protocol",
+      "description": "The clearing maneuver starts supported on hands and knees.",
+      "joints": [],
+      "phases": [
+        "setup"
+      ],
+      "limitations": "Qualitative protocol setup; it supplies no numerical joint targets, surface-contact tolerance or time series."
+    },
+    {
+      "id": "ref:fms-cook-burton-hoogenboom-2006-flexion-clearing:rock-back-endpoint",
+      "kind": "protocol",
+      "description": "The participant moves backward toward sitting on the heels while lowering the chest toward the thighs and reaching the hands forward.",
+      "joints": [],
+      "phases": [
+        "motion",
+        "hold"
+      ],
+      "limitations": "Qualitative requested endpoint. Feasibility on the current rig under patient limits must be measured; it does not justify changing ROM or imposing universal joint ratios."
+    }
+  ],
+  "limitations": "Historical protocol reference for the explicit repository legacy identity only. No measured trajectory, regional spine distribution, head angle, speed, force, compression, current-protocol equivalence or clinical signoff is supplied. Return and loop are authored playback requirements, not extracted clinical protocol claims."
+}

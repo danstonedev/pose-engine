@@ -1,0 +1,62 @@
+{
+  "kind": "planning-package-integrity",
+  "executedAt": "2026-10-02T19:26:47.084Z",
+  "passed": false,
+  "documents": 10,
+  "sourceEntries": 31,
+  "inspectedSourceFiles": 31,
+  "checkedLocalLinks": 115,
+  "documentIdentities": [
+    {
+      "path": "README.md",
+      "sha256": "9501775e9640571207a673d3f19f503f9dc1a84519d599e4e50cb59fd9909021"
+    },
+    {
+      "path": "00-current-state-and-scope.md",
+      "sha256": "4a22ca8e13d98579623bda504a3e30fc4219c2d80b173fbd39a5fd2cb6dc177f"
+    },
+    {
+      "path": "01-research-and-sources.md",
+      "sha256": "37600af5574f0ee312668d22ebacb9f42b9444744fc5a6c4ca92b67020b775eb"
+    },
+    {
+      "path": "02-system-architecture.md",
+      "sha256": "76a79085a67f5a26d118f27d1aca48ec316db55415ca4b4ecfd0cc071b769bb1"
+    },
+    {
+      "path": "03-foundation-and-anatomy.md",
+      "sha256": "721f481d3125179aae734b9881a1920d9881ef1728d3034fd83b2069a33e7cf5"
+    },
+    {
+      "path": "04-validation-and-experiments.md",
+      "sha256": "413168f923fde81e036738d7360ef06d5e852a384dbee1f8c363bb352c9ecabc"
+    },
+    {
+      "path": "05-delivery-roadmap.md",
+      "sha256": "9226a281cc7c71be57a1d721ba81ec7ba8aadfb5c07a33696c54f307c86b175e"
+    },
+    {
+      "path": "06-expert-review-and-decisions.md",
+      "sha256": "2583213b1b8ab535dc132a49d48fa138405aea1747e4e3514aea8b68735bc796"
+    },
+    {
+      "path": "07-working-protocols.md",
+      "sha256": "e683907b48fa023945d14b03d05b09480999ccde20cc02c77559621d61bf1d7f"
+    },
+    {
+      "path": "08-planning-review.md",
+      "sha256": "9663a6ed302a1a1e00780a4500a3e9f6ba482c1e147c571223e5f8464fb53b92"
+    }
+  ],
+  "sourceLibrarySha256": "7a48d142061af229b4e9c8014747ab40a60219760a4cfa6ba300d22ff24e7c08",
+  "validatorSha256": "39c03b044a83e1412d44fad000f46801c22c8fdc1c544f58503ebfb6e2efca07",
+  "currentSourceHashComparison": "executed",
+  "scope": "Local document, research metadata and selected audit integrity only; no remote verification, simulation or clinical acceptance.",
+  "errors": [
+    "Inspection snapshot is stale: movement-realism-implementation/UNIFIED-MOVEMENT-DEVELOPMENT-PROMPT.md",
+    "Inspection snapshot is stale: movement-realism-implementation/simmove/pose-engine/AGENTS.md",
+    "Inspection snapshot is stale: movement-realism-implementation/simmove/pose-engine/docs/movement-catalogue-process.md",
+    "Inspection snapshot is stale: movement-realism-implementation/simmove/pose-engine/docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html"
+  ],
+  "warnings": []
+}

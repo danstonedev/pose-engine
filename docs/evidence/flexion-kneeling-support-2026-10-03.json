@@ -1,0 +1,1485 @@
+{
+  "date": "2026-10-03",
+  "scope": {
+    "motionIds": [
+      "screen:fms-repo-legacy-v1/rotary-stability/flexion-clearing"
+    ],
+    "bodies": [
+      "male",
+      "female",
+      "neutral"
+    ],
+    "sides": [
+      "left"
+    ],
+    "phases": [
+      "setup",
+      "motion",
+      "hold",
+      "return",
+      "loop"
+    ],
+    "paths": [
+      "shared-engine",
+      "simMOVE",
+      "simLAB"
+    ],
+    "joints": []
+  },
+  "qualification": "unqualified",
+  "status": "local-candidate-verified",
+  "correction": "Blender-derived whole-body knee/foot-toe support, measured knee bounds, fixed skin-plane palms and achieved-root recording/live playback.",
+  "authoring": [
+    {
+      "path": "blender-workspace/flexion-kneeling-authoring-1/kneeling-support-proposal.blend",
+      "sha256": "3d58ae2a049d258cffffe55306c2f36c82eefb5cdd5fdb27e03f9f39748fd002"
+    },
+    {
+      "path": "blender-workspace/flexion-kneeling-palms-2/kneeling-palms-proposal.blend",
+      "sha256": "2e685275e7b79ce055b9951f62a177effa9c2110300c1e009ec320116b06b6c1"
+    }
+  ],
+  "blender": {
+    "path": "blender-workspace/flexion-support-review-1/scoped-review-1.json",
+    "sha256": "f46428f77c718a4b8d709835d0ac9ac9dc9560e5bd36c03248c2eb5b8b4e9486",
+    "review": {
+      "version": 1,
+      "reviewer": "Codex flexion_baseline",
+      "scope": "Three production bodies, 175 exported samples each at30Hz over5.8seconds. Full-skin numerical evaluation and all27 generic phase images inspected. This is not continuous video, reference endpoint, clinical or native-dynamics approval.",
+      "sourceDigest": "ac4abc05d874594869f2224fad14fa5c22e0bd6dac97179e09ff211df63b6c20",
+      "sourceStableDuringExport": true,
+      "sourceStableDuringExportBasis": "export-review.ts checks its complete source digest again before writing this manifest; a changed digest throws.",
+      "currentSourceDigest": "34c44b1f13463adbb037205a17eda760f9fa5d53d32758bfab1bf407f943636a",
+      "currentSourceMatchesExport": false,
+      "blenderVersion": "5.2.2 LTS",
+      "roundtripProcessExit": 0,
+      "priorFailedHarnessRuns": [
+        "remaining-batches/flexion-support-roundtrip-1.log: sandbox dependency access",
+        "remaining-batches/flexion-support-roundtrip-2.log: Vite Git ownership warning; numerical comparison passed"
+      ],
+      "cases": [
+        {
+          "id": "male-flexion-clearing-support-1",
+          "frames": 175,
+          "worldFloorY": 0,
+          "regionMinima": {
+            "center head": {
+              "clearanceM": 0.07065301241103583,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_Head"
+            },
+            "center neck": {
+              "clearanceM": 0.22228622829083378,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_NeckTwist01"
+            },
+            "torso/other": {
+              "clearanceM": -0.000012089424271444216,
+              "timeSec": 5.366666666666666,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "L thigh": {
+              "clearanceM": 0.04969291682877042,
+              "timeSec": 0,
+              "dominantBone": "CC_Base_L_ThighTwist02"
+            },
+            "R thigh": {
+              "clearanceM": 0.049705758972984015,
+              "timeSec": 0,
+              "dominantBone": "CC_Base_R_ThighTwist02"
+            },
+            "L forearm": {
+              "clearanceM": 0.00791794753107311,
+              "timeSec": 2.566666666666667,
+              "dominantBone": "CC_Base_L_ForearmTwist02"
+            },
+            "L palm/fingers": {
+              "clearanceM": -0.000139975281333804,
+              "timeSec": 1.6666666666666667,
+              "dominantBone": "CC_Base_L_Hand"
+            },
+            "L upper arm": {
+              "clearanceM": 0.13750323803288467,
+              "timeSec": 2.566666666666667,
+              "dominantBone": "CC_Base_L_UpperarmTwist02"
+            },
+            "R forearm": {
+              "clearanceM": 0.007652401959695965,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_R_ForearmTwist02"
+            },
+            "R palm/fingers": {
+              "clearanceM": -0.00010862183991466878,
+              "timeSec": 1.6666666666666667,
+              "dominantBone": "CC_Base_R_Hand"
+            },
+            "R upper arm": {
+              "clearanceM": 0.12493051268714339,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_R_UpperarmTwist02"
+            },
+            "L calf": {
+              "clearanceM": 0.011897742286297586,
+              "timeSec": 2.466666666666667,
+              "dominantBone": "CC_Base_L_CalfTwist01"
+            },
+            "L foot": {
+              "clearanceM": 0.030030514120396035,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_L_Foot"
+            },
+            "L toes": {
+              "clearanceM": -0.00002001860246347853,
+              "timeSec": 1.1,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R calf": {
+              "clearanceM": 0.011915818553820401,
+              "timeSec": 2.466666666666667,
+              "dominantBone": "CC_Base_R_CalfTwist01"
+            },
+            "R foot": {
+              "clearanceM": 0.0300586555069966,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_R_Foot"
+            },
+            "R toes": {
+              "clearanceM": 0.000011496380182052235,
+              "timeSec": 2.3666666666666667,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          }
+        },
+        {
+          "id": "female-flexion-clearing-support-1",
+          "frames": 175,
+          "worldFloorY": 0,
+          "regionMinima": {
+            "center head": {
+              "clearanceM": 0.0795175716953338,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_Head"
+            },
+            "center neck": {
+              "clearanceM": 0.20961467432938008,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_NeckTwist01"
+            },
+            "torso/other": {
+              "clearanceM": 0.000007599509245892477,
+              "timeSec": 4.533333333333333,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L thigh": {
+              "clearanceM": 0.04572365712957227,
+              "timeSec": 0,
+              "dominantBone": "CC_Base_L_ThighTwist02"
+            },
+            "R thigh": {
+              "clearanceM": 0.04571223765983756,
+              "timeSec": 0,
+              "dominantBone": "CC_Base_R_ThighTwist02"
+            },
+            "L forearm": {
+              "clearanceM": 0.0055280482587996005,
+              "timeSec": 2.5,
+              "dominantBone": "CC_Base_L_ForearmTwist02"
+            },
+            "L palm/fingers": {
+              "clearanceM": -0.0002861244066387769,
+              "timeSec": 2,
+              "dominantBone": "CC_Base_L_Hand"
+            },
+            "L upper arm": {
+              "clearanceM": 0.11361003350117826,
+              "timeSec": 2.566666666666667,
+              "dominantBone": "CC_Base_L_UpperarmTwist02"
+            },
+            "R forearm": {
+              "clearanceM": 0.005473506255690097,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_R_ForearmTwist02"
+            },
+            "R palm/fingers": {
+              "clearanceM": -0.00027224704246364695,
+              "timeSec": 1.8333333333333333,
+              "dominantBone": "CC_Base_R_Hand"
+            },
+            "R upper arm": {
+              "clearanceM": 0.11032939102510397,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_R_UpperarmTwist02"
+            },
+            "L calf": {
+              "clearanceM": 0.011068363665465597,
+              "timeSec": 2.533333333333333,
+              "dominantBone": "CC_Base_L_CalfTwist01"
+            },
+            "L foot": {
+              "clearanceM": 0.024698694064667848,
+              "timeSec": 2.533333333333333,
+              "dominantBone": "CC_Base_L_Foot"
+            },
+            "L toes": {
+              "clearanceM": 0.00004272919724712665,
+              "timeSec": 2.533333333333333,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R calf": {
+              "clearanceM": 0.011050288367187022,
+              "timeSec": 2.533333333333333,
+              "dominantBone": "CC_Base_R_CalfTwist01"
+            },
+            "R foot": {
+              "clearanceM": 0.02467104408646037,
+              "timeSec": 2.533333333333333,
+              "dominantBone": "CC_Base_R_Foot"
+            },
+            "R toes": {
+              "clearanceM": 0.000015242247035196499,
+              "timeSec": 4.533333333333333,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          }
+        },
+        {
+          "id": "neutral-flexion-clearing-support-1",
+          "frames": 175,
+          "worldFloorY": 0,
+          "regionMinima": {
+            "center head": {
+              "clearanceM": 0.08152560457114433,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_Head"
+            },
+            "center neck": {
+              "clearanceM": 0.1910748950761807,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_NeckTwist01"
+            },
+            "torso/other": {
+              "clearanceM": 0.000004134505251940368,
+              "timeSec": 2.433333333333333,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "L thigh": {
+              "clearanceM": 0.04049326508792894,
+              "timeSec": 0,
+              "dominantBone": "CC_Base_L_ThighTwist02"
+            },
+            "R thigh": {
+              "clearanceM": 0.04049703351339795,
+              "timeSec": 0,
+              "dominantBone": "CC_Base_R_ThighTwist02"
+            },
+            "L forearm": {
+              "clearanceM": 0.009960629751866179,
+              "timeSec": 2.566666666666667,
+              "dominantBone": "CC_Base_L_ForearmTwist02"
+            },
+            "L palm/fingers": {
+              "clearanceM": -0.00013073761975235243,
+              "timeSec": 2.1666666666666665,
+              "dominantBone": "CC_Base_L_Hand"
+            },
+            "L upper arm": {
+              "clearanceM": 0.13788604382857272,
+              "timeSec": 2.566666666666667,
+              "dominantBone": "CC_Base_L_UpperarmTwist02"
+            },
+            "R forearm": {
+              "clearanceM": 0.009856026580830957,
+              "timeSec": 2.6,
+              "dominantBone": "CC_Base_R_ForearmTwist02"
+            },
+            "R palm/fingers": {
+              "clearanceM": -0.00007948627370524264,
+              "timeSec": 2,
+              "dominantBone": "CC_Base_R_Hand"
+            },
+            "R upper arm": {
+              "clearanceM": 0.12199611450125758,
+              "timeSec": 2.533333333333333,
+              "dominantBone": "CC_Base_R_UpperarmTwist02"
+            },
+            "L calf": {
+              "clearanceM": 0.011415250054376713,
+              "timeSec": 2.433333333333333,
+              "dominantBone": "CC_Base_L_CalfTwist01"
+            },
+            "L foot": {
+              "clearanceM": 0.02168755827047697,
+              "timeSec": 2.433333333333333,
+              "dominantBone": "CC_Base_L_Foot"
+            },
+            "L toes": {
+              "clearanceM": 0.000008992953157260786,
+              "timeSec": 2.433333333333333,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R calf": {
+              "clearanceM": 0.011419268369404989,
+              "timeSec": 2.433333333333333,
+              "dominantBone": "CC_Base_R_CalfTwist01"
+            },
+            "R foot": {
+              "clearanceM": 0.021690775287028785,
+              "timeSec": 2.433333333333333,
+              "dominantBone": "CC_Base_R_Foot"
+            },
+            "R toes": {
+              "clearanceM": 0.000012275038020703732,
+              "timeSec": 2.4,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          }
+        }
+      ],
+      "exchange": {
+        "thresholdM": 0.0001,
+        "allPassed": true,
+        "maxBoneM": 0.00003661616241055215,
+        "maxSkinM": 0.00005900006362935528
+      },
+      "roundtrip": {
+        "thresholdM": 0.0001,
+        "allPassed": true,
+        "maxBoneM": 0.000035081429790114595,
+        "maxSkinM": 0.00005782210422204983
+      },
+      "visualFindings": [
+        "All27 generic phase renders inspected: each body at start0s, approach0.5s, setup1s, quarter2.2s, middle3.4s and returned5.8s side; setup/middle/returned also overhead.",
+        "The feet and toes are now visible above the support plane through the reviewed phases. Knees are supported without lifting them clear of the floor.",
+        "Pelvis moves back and trunk/head lower together. Head remains visibly and numerically clear. The heel-to-pelvis gap remains; no complete FMS endpoint claim is made.",
+        "Arms reach forward with palms on the floor and elbows bending outward modestly in overhead views. Compared with the earlier geometric proposal, the runtime shoulders and hands produce a more extended forward reach.",
+        "Start/setup/return silhouettes agree visually. This visual review does not independently measure contact drift or dense temporal continuity."
+      ],
+      "staticProposalComparison": "Knee/toe support and approximately11?12mm calf clearance follow the Blender skin proposal. Runtime clinical knee projection changes the whole-chain result, so static authoring landmarks are not claimed to be exact matches. Original90/70root command alone caused up to110mm toe penetration.",
+      "limitations": [
+        "Palms retain small negative skin minima: approximately?0.140mm male,?0.286mm female,?0.131mm neutral. Male knee/toe minima are?0.0121/?0.0200mm. These are reported, not relabeled zero.",
+        "Runtime source changed after export; currentSourceMatchesExport is false. Root must attribute the changed source or recapture affected motion before attaching current-identity evidence.",
+        "Roundtrip checkpoints are five times per body; full skin floor measurements are all175samples per body, without between-sample collision checking.",
+        "Native simulation, reference endpoint and patient/clinical acceptance are separate."
+      ],
+      "artifacts": [
+        {
+          "path": "manifest.json",
+          "sha256": "215ecc4369a84f7ffaae8ccaa7df55c71a970c445e92151cd66885e43fd506c2"
+        },
+        {
+          "path": "full-motion-review.blend",
+          "sha256": "d43bccbed69f4a77356c8870b73adaf968d7469ef6e96b6beff15cbca2da7042"
+        },
+        {
+          "path": "full-motion-exchange.json",
+          "sha256": "656837fb17e73f4921a3fdfb5c17211ceb93ecd17a1f58f22d4a6bab1a911bdf"
+        },
+        {
+          "path": "roundtrip-results.json",
+          "sha256": "17cdbc9d3c16a90251cbf576a7eba962a30664ca1553c6ce090708d85479f83d"
+        },
+        {
+          "path": "skin-floor-clearance-world-1.json",
+          "sha256": "3a143e3339d759cbb6797918dc1dc65ac34c031dad7c83a906bcaed5ef20ad65"
+        },
+        {
+          "path": "renders/index.json",
+          "sha256": "1d8c8d2118209ca4700e5c5a9e32f1d1a5a07b41bbb41b8f15008382b3d1a514"
+        },
+        {
+          "path": "renders/male-flexion-clearing-support-1-start-side.png",
+          "sha256": "965e997757b873dd0129dc46678d63424ad49262d89272478bcbed795354957a"
+        },
+        {
+          "path": "renders/male-flexion-clearing-support-1-approach-side.png",
+          "sha256": "560947800d9d6d8c94783058b340ebb926eb75478af5c3ccaecdb74850a4fee3"
+        },
+        {
+          "path": "renders/male-flexion-clearing-support-1-setup-side.png",
+          "sha256": "206027101ce12fb93917aeac75279411c87eeb5130d4f3e32660dad8ed2ff5d2"
+        },
+        {
+          "path": "renders/male-flexion-clearing-support-1-setup-overhead.png",
+          "sha256": "89a5f6497440a8c79d0b5b31da44489bebc5fe19c194c84e04d40a2c3d680f8f"
+        },
+        {
+          "path": "renders/male-flexion-clearing-support-1-quarter-side.png",
+          "sha256": "5193ecdccf1c74dbfc602f3938dced44ddf9b2e87c04a24d01e2f46cc491c7d6"
+        },
+        {
+          "path": "renders/male-flexion-clearing-support-1-middle-side.png",
+          "sha256": "ca0b3481b84159e1a747d5bdbc9c3272884f6647e623399a700d99f1645d78cb"
+        },
+        {
+          "path": "renders/male-flexion-clearing-support-1-middle-overhead.png",
+          "sha256": "f36e14d242dee88f1cbe73f549403cb029d0c624f44a427c05d25b90069097ac"
+        },
+        {
+          "path": "renders/male-flexion-clearing-support-1-return-side.png",
+          "sha256": "eb4619f042a63a706a95fef8c185d016a06525a0a8e485ca1ec0791080ad7dad"
+        },
+        {
+          "path": "renders/male-flexion-clearing-support-1-return-overhead.png",
+          "sha256": "c81c1bd3071191311154b85d680272b303e15bb3fe2dd537cf35d4950479b848"
+        },
+        {
+          "path": "renders/female-flexion-clearing-support-1-start-side.png",
+          "sha256": "2c0abbb381588e1d2c76f79f2f57a488b282dc8013025ffe66e545af040c10db"
+        },
+        {
+          "path": "renders/female-flexion-clearing-support-1-approach-side.png",
+          "sha256": "6461ffe1f50d7a980dd0ecc8d72086bf059cb578aa0f2217abfbeddc8a8586c6"
+        },
+        {
+          "path": "renders/female-flexion-clearing-support-1-setup-side.png",
+          "sha256": "64c579cb48b382e487772e05cb0b380a50785b6e6a0f30ed52d1f066a890344e"
+        },
+        {
+          "path": "renders/female-flexion-clearing-support-1-setup-overhead.png",
+          "sha256": "e483c5b0fb42a7fcaeb422a25fca379e0dc3c2dd976d2c3a0c41db1ecd98b408"
+        },
+        {
+          "path": "renders/female-flexion-clearing-support-1-quarter-side.png",
+          "sha256": "667ef260d19b01406990cc91282d4cb5e2e7b6fecdb1a1ec3f730026c16176a5"
+        },
+        {
+          "path": "renders/female-flexion-clearing-support-1-middle-side.png",
+          "sha256": "96206c8d7f2830df114862da3e5c7e1350ed9a29f51c4234952300050f50f89c"
+        },
+        {
+          "path": "renders/female-flexion-clearing-support-1-middle-overhead.png",
+          "sha256": "2703a9e073f825abf3520e986817d23d971e22ed3d0bd118e526e6fb40815bd2"
+        },
+        {
+          "path": "renders/female-flexion-clearing-support-1-return-side.png",
+          "sha256": "8ff9dd35466ed5fc9d7fa6adb100ff1d17cb752871f1a3540f93e921156b1a4b"
+        },
+        {
+          "path": "renders/female-flexion-clearing-support-1-return-overhead.png",
+          "sha256": "dd7bfa336e05254ebc88e90944a474de1917c633ba5b7415843dec77c4ba2a4c"
+        },
+        {
+          "path": "renders/neutral-flexion-clearing-support-1-start-side.png",
+          "sha256": "aa3504a6c887af3222bc48d37b30448272b30b6fde7af28c5b682681e4f2ebbf"
+        },
+        {
+          "path": "renders/neutral-flexion-clearing-support-1-approach-side.png",
+          "sha256": "8eef412474c30ac805b8626404763b68a7f0deb40ecd22beeabcb9170b24a601"
+        },
+        {
+          "path": "renders/neutral-flexion-clearing-support-1-setup-side.png",
+          "sha256": "ea9ba52d0e5598108db9aeb58582c3fee1fd54f99eeca325fc3cf77f4788d505"
+        },
+        {
+          "path": "renders/neutral-flexion-clearing-support-1-setup-overhead.png",
+          "sha256": "b2742f3c70df8d01213a6904f8369be50dfa4fe26ae07b1bee063de8083ec389"
+        },
+        {
+          "path": "renders/neutral-flexion-clearing-support-1-quarter-side.png",
+          "sha256": "6576e6c49a260000ce9c9caea343464eed058306430ceda4833063ca8464fad5"
+        },
+        {
+          "path": "renders/neutral-flexion-clearing-support-1-middle-side.png",
+          "sha256": "9da2ea4fca7002dbd0d274723c211cf72d17d4d7d8a61beae20cd4b035b73625"
+        },
+        {
+          "path": "renders/neutral-flexion-clearing-support-1-middle-overhead.png",
+          "sha256": "cf4a014d51adf97075c3020cb3d973d1c54e1d7a15b56ad942b43b32df094386"
+        },
+        {
+          "path": "renders/neutral-flexion-clearing-support-1-return-side.png",
+          "sha256": "4d6dcdb64ed4c6c6727b93eac3d1d12d13e4e43b45648bc5866e9bb0ac9cd2e9"
+        },
+        {
+          "path": "renders/neutral-flexion-clearing-support-1-return-overhead.png",
+          "sha256": "69f41847f4d6fa9bf9fa5d781894a798a17737852419933a618d3c09910d0552"
+        }
+      ]
+    }
+  },
+  "finalSource": {
+    "path": "blender-workspace/flexion-support-review-2/runtime-equivalence-final.json",
+    "sha256": "e28abc08a575f528c2dea1c05ec566093f557a9cbdc9ff6d86ed0d3ac877a56a",
+    "equivalence": {
+      "version": 1,
+      "scope": "Default FMS flexion-clearing on male/female/neutral, both arms,30Hz175samples each,ROM off. Exact byte equivalence of the full exported animation GLBs and all original bone/skin checkpoint files links the current export to the existing Blender project,skin measurements and inspected renders. No new Blender render or simulation was run.",
+      "exportSourceDigest": "b2ca892cfd00a49d2d183aaa1f7b507030fa714e290bd66052d84a850b1c71df",
+      "currentSourceDigest": "1fe139b473056361712a22bbb3fd4b61e148b1d38decce257e694fc4ebbe4918",
+      "sourceStableDuringExport": true,
+      "runtimeModelsDependenciesUnchanged": true,
+      "allAnimationGlbsByteIdentical": true,
+      "allExpectedSamplesByteIdentical": true,
+      "allProductionModelsUnchanged": true,
+      "runtimeEvidenceReuseValid": true,
+      "currentIdentity": {
+        "runtime": {
+          "digest": "7cac23719ceb1cd287397eeff160d106a59820963f6a952702817face6881e88",
+          "count": 137
+        },
+        "models": {
+          "digest": "ad630f320f724fb09ada92ef5602f013952be6a42435c296501db37057292383",
+          "count": 8
+        },
+        "dependencies": {
+          "digest": "7d442d9d6cb4d2a6a53e2d46245dc7dcddeaa3e02aca5dfaa3811f4ae63c7d89",
+          "count": 1
+        }
+      },
+      "tests": {
+        "exportDigest": "d4564c3d7174570278a559bcbfdf7bc2c7a7925e6367e7de6914ee827d45b7f7",
+        "comparisonDigest": "1cbfbe2b61e98130474fd2fac937f205251a9a3206aa77081ece0a42c4e2a88a",
+        "changedFiles": [
+          {
+            "path": "src/__tests__/assessmentBodyMotions.test.ts",
+            "kind": "test",
+            "beforeSha256": "4f650958030777588f14b8e32f21aaf1e287f07d74c3e69bc08010cbbc7c829b",
+            "afterSha256": "1190672719497f3f94d94b8267a221bc0f432951bc7fad958ac19195839e6714"
+          }
+        ],
+        "affectsRuntimeArtifactIdentity": false
+      },
+      "cases": [
+        {
+          "id": "male-flexion-clearing-support-1",
+          "frames": 175,
+          "durationMs": 5800,
+          "animationSha256": "b7e7df01f83bc8c5a728b0b3b863bc389db8cfe955f7ee304965d23342debf87",
+          "expectedSha256": "36c4376fcdc289bf2ba42cbd38afb268259329a52dab289c8e8f4647b558cae1",
+          "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a"
+        },
+        {
+          "id": "female-flexion-clearing-support-1",
+          "frames": 175,
+          "durationMs": 5800,
+          "animationSha256": "b2a8d1b0a43b1318fe4b5d6245639ffd90810b9ad6aa304b1c96e956759a42b2",
+          "expectedSha256": "0aa87c78bd99e68200a27d4ba446c9e724549f42edcbf2c7fb4918cfbbbb97a7",
+          "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd"
+        },
+        {
+          "id": "neutral-flexion-clearing-support-1",
+          "frames": 175,
+          "durationMs": 5800,
+          "animationSha256": "3dbf8c060c29160ba68485b7714b61e3924b3f4258514db896c4d2bb62f1c435",
+          "expectedSha256": "cfbbcc1cce304e44dc38c87cc05ac722574075f6950658e8b43772ed9277ddff",
+          "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62"
+        }
+      ],
+      "contactScope": "Measured knee skin and toe skin support. The dominant-foot skin region remains approximately22?30mm above the plane; no claim of whole dorsal-foot contact.",
+      "qualification": "No movement, clinical, patient or native qualification granted by equivalence. Existing small negative skin minima and the retained scoped review limitations still apply.",
+      "evidence": [
+        {
+          "path": "source-equivalence-2.json",
+          "sha256": "ac4fd6bc50edf430fcb718fbbe317dd26654659cb765a9c4df11e18703d916bb"
+        },
+        {
+          "path": "source-inputs.json",
+          "sha256": "002d1dc7dd776c74d64cd09847e5e5259fae21285b8c99bbb0bc88cd7af20533"
+        },
+        {
+          "path": "source-inputs-after.json",
+          "sha256": "6960eb2222d8a169a0bdf5869222cf7beb3360990c8d9c878f4347c87d1f039f"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "42c4373127ea689a7cfafcc75140667d9a94186d6e6f2f3eea84bbd7464328e4"
+        }
+      ],
+      "retainedBlenderArtifacts": [
+        {
+          "path": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\blender-workspace\\flexion-support-review-1\\full-motion-review.blend",
+          "sha256": "d43bccbed69f4a77356c8870b73adaf968d7469ef6e96b6beff15cbca2da7042"
+        },
+        {
+          "path": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\blender-workspace\\flexion-support-review-1\\full-motion-exchange.json",
+          "sha256": "656837fb17e73f4921a3fdfb5c17211ceb93ecd17a1f58f22d4a6bab1a911bdf"
+        },
+        {
+          "path": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\blender-workspace\\flexion-support-review-1\\roundtrip-results.json",
+          "sha256": "17cdbc9d3c16a90251cbf576a7eba962a30664ca1553c6ce090708d85479f83d"
+        },
+        {
+          "path": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\blender-workspace\\flexion-support-review-1\\skin-floor-clearance-world-1.json",
+          "sha256": "3a143e3339d759cbb6797918dc1dc65ac34c031dad7c83a906bcaed5ef20ad65"
+        },
+        {
+          "path": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\blender-workspace\\flexion-support-review-1\\scoped-review-1.json",
+          "sha256": "f46428f77c718a4b8d709835d0ac9ac9dc9560e5bd36c03248c2eb5b8b4e9486"
+        },
+        {
+          "path": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\blender-workspace\\flexion-support-review-1\\renders\\index.json",
+          "sha256": "1d8c8d2118209ca4700e5c5a9e32f1d1a5a07b41bbb41b8f15008382b3d1a514"
+        }
+      ]
+    }
+  },
+  "skin": {
+    "samples": 525,
+    "previousPeakToePenetrationMm": {
+      "male": 110.491,
+      "female": 92.712,
+      "neutral": 79.609
+    },
+    "worstResidualPenetrationMm": {
+      "knees": 0.0121,
+      "toes": 0.0201,
+      "palms": 0.286
+    },
+    "minimumForearmClearanceMm": 5.47,
+    "minimumHeadClearanceMm": 70.65
+  },
+  "hosts": [
+    {
+      "path": "remaining-batches/flexion-host-witness-1/results.json",
+      "sha256": "ca6d75f8adbad82632b2965e97650e629196f4320fe537a402ef7bca5a76c1b5",
+      "scope": "Actual ExamStage compiled by the named host, current authoritative source, independent sampled rig. Breathing/sway OFF. Sparse setup/approach/peak/hold/return parity at .01deg/.1mm. Diagnostic camera and mount, not product UI, clinical or native acceptance.",
+      "runtimeStable": true,
+      "runtimeIdentity": "0b103c7c1463784a325cfa04fdac7bc15532e6bcda64158a46944ed912809e8b",
+      "cases": [
+        {
+          "host": "simmove",
+          "variant": "male",
+          "pass": true,
+          "samples": 8,
+          "errors": [],
+          "consoleErrors": [
+            "WebSocket connection to 'ws://127.0.0.1:5199/?token=CGbpLhPIAZ9r' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "WebSocket connection to 'ws://127.0.0.1:5199/?token=CGbpLhPIAZ9r' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "[vite] failed to connect to websocket.\nyour current setup:\n  (browser) 127.0.0.1:5199/ <--[HTTP]--> 127.0.0.1:5199/ (server)\n  (browser) 127.0.0.1:5199/ <--[WebSocket (failing)]--> 127.0.0.1:5199/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr ."
+          ],
+          "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+          "comparisons": [
+            {
+              "tMs": 0,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 6.349097477266086e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1000,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 6.349097477266086e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1800,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.681541965537398e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 2600,
+              "maxBoneDifference": {
+                "key": "Spine_Lower",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.912549448877484e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 3500,
+              "maxBoneDifference": {
+                "key": "Spine_Lower",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.912549448877484e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 4400,
+              "maxBoneDifference": {
+                "key": "Spine_Lower",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.912549448877484e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5100,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.542878842340692e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5800,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 6.349097477266086e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            }
+          ]
+        },
+        {
+          "host": "simmove",
+          "variant": "female",
+          "pass": true,
+          "samples": 8,
+          "errors": [],
+          "consoleErrors": [
+            "WebSocket connection to 'ws://127.0.0.1:5199/?token=CGbpLhPIAZ9r' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "WebSocket connection to 'ws://127.0.0.1:5199/?token=CGbpLhPIAZ9r' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "[vite] failed to connect to websocket.\nyour current setup:\n  (browser) 127.0.0.1:5199/ <--[HTTP]--> 127.0.0.1:5199/ (server)\n  (browser) 127.0.0.1:5199/ <--[WebSocket (failing)]--> 127.0.0.1:5199/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr ."
+          ],
+          "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+          "comparisons": [
+            {
+              "tMs": 0,
+              "maxBoneDifference": {
+                "key": "L_UpLeg",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1000,
+              "maxBoneDifference": {
+                "key": "L_UpLeg",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1800,
+              "maxBoneDifference": {
+                "key": "R_UpLeg",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 2600,
+              "maxBoneDifference": {
+                "key": "L_Toes",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 3500,
+              "maxBoneDifference": {
+                "key": "L_Toes",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 4400,
+              "maxBoneDifference": {
+                "key": "L_Toes",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5100,
+              "maxBoneDifference": {
+                "key": "R_UpLeg",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5800,
+              "maxBoneDifference": {
+                "key": "L_UpLeg",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            }
+          ]
+        },
+        {
+          "host": "simmove",
+          "variant": "neutral",
+          "pass": true,
+          "samples": 8,
+          "errors": [],
+          "consoleErrors": [
+            "WebSocket connection to 'ws://127.0.0.1:5199/?token=CGbpLhPIAZ9r' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "WebSocket connection to 'ws://127.0.0.1:5199/?token=CGbpLhPIAZ9r' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "[vite] failed to connect to websocket.\nyour current setup:\n  (browser) 127.0.0.1:5199/ <--[HTTP]--> 127.0.0.1:5199/ (server)\n  (browser) 127.0.0.1:5199/ <--[WebSocket (failing)]--> 127.0.0.1:5199/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr ."
+          ],
+          "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+          "comparisons": [
+            {
+              "tMs": 0,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1000,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1800,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 2600,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 3500,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 4400,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5100,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5800,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "remaining-batches/flexion-host-witness-2/results.json",
+      "sha256": "90fff956ca15575a8888d73a50d909926984270b52c63a567b58c36fced27dab",
+      "scope": "Actual ExamStage compiled by the named host, current authoritative source, independent sampled rig. Breathing/sway OFF. Sparse setup/approach/peak/hold/return parity at .01deg/.1mm. Diagnostic camera and mount, not product UI, clinical or native acceptance.",
+      "runtimeStable": true,
+      "runtimeIdentity": "2e5ecf4e25b82c455ef86472dafdaeb41378b03b8a3f279131389e198d30ab52",
+      "cases": [
+        {
+          "host": "simlab",
+          "variant": "male",
+          "pass": true,
+          "samples": 8,
+          "errors": [],
+          "consoleErrors": [
+            "WebSocket connection to 'ws://127.0.0.1:5212/?token=FB8FXnPl7npb' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "WebSocket connection to 'ws://127.0.0.1:5212/?token=FB8FXnPl7npb' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "[vite] failed to connect to websocket.\nyour current setup:\n  (browser) 127.0.0.1:5212/ <--[HTTP]--> 127.0.0.1:5212/ (server)\n  (browser) 127.0.0.1:5212/ <--[WebSocket (failing)]--> 127.0.0.1:5212/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr ."
+          ],
+          "engineAssetSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+          "comparisons": [
+            {
+              "tMs": 0,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 6.349097477266086e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1000,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 6.349097477266086e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1800,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.681541965537398e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 2600,
+              "maxBoneDifference": {
+                "key": "Spine_Lower",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.912549448877484e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 3500,
+              "maxBoneDifference": {
+                "key": "Spine_Lower",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.912549448877484e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 4400,
+              "maxBoneDifference": {
+                "key": "Spine_Lower",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.912549448877484e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5100,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 7.542878842340692e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5800,
+              "maxBoneDifference": {
+                "key": "L_Index2",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "R_Forearm",
+                "differenceM": 6.349097477266086e-14
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            }
+          ]
+        },
+        {
+          "host": "simlab",
+          "variant": "female",
+          "pass": true,
+          "samples": 8,
+          "errors": [],
+          "consoleErrors": [
+            "WebSocket connection to 'ws://127.0.0.1:5212/?token=FB8FXnPl7npb' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "WebSocket connection to 'ws://127.0.0.1:5212/?token=FB8FXnPl7npb' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "[vite] failed to connect to websocket.\nyour current setup:\n  (browser) 127.0.0.1:5212/ <--[HTTP]--> 127.0.0.1:5212/ (server)\n  (browser) 127.0.0.1:5212/ <--[WebSocket (failing)]--> 127.0.0.1:5212/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr ."
+          ],
+          "engineAssetSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+          "comparisons": [
+            {
+              "tMs": 0,
+              "maxBoneDifference": {
+                "key": "L_UpLeg",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1000,
+              "maxBoneDifference": {
+                "key": "L_UpLeg",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1800,
+              "maxBoneDifference": {
+                "key": "R_UpLeg",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 2600,
+              "maxBoneDifference": {
+                "key": "L_Toes",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 3500,
+              "maxBoneDifference": {
+                "key": "L_Toes",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 4400,
+              "maxBoneDifference": {
+                "key": "L_Toes",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5100,
+              "maxBoneDifference": {
+                "key": "R_UpLeg",
+                "differenceDeg": 0.0000029575586669421963
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5800,
+              "maxBoneDifference": {
+                "key": "L_UpLeg",
+                "differenceDeg": 0.0000024148365394514667
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            }
+          ]
+        },
+        {
+          "host": "simlab",
+          "variant": "neutral",
+          "pass": true,
+          "samples": 8,
+          "errors": [],
+          "consoleErrors": [
+            "WebSocket connection to 'ws://127.0.0.1:5212/?token=FB8FXnPl7npb' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "WebSocket connection to 'ws://127.0.0.1:5212/?token=FB8FXnPl7npb' failed: Error in connection establishment: net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS",
+            "[vite] failed to connect to websocket.\nyour current setup:\n  (browser) 127.0.0.1:5212/ <--[HTTP]--> 127.0.0.1:5212/ (server)\n  (browser) 127.0.0.1:5212/ <--[WebSocket (failing)]--> 127.0.0.1:5212/ (server)\nCheck out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr ."
+          ],
+          "engineAssetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+          "comparisons": [
+            {
+              "tMs": 0,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1000,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 1800,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 2600,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 3500,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 4400,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5100,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            },
+            {
+              "tMs": 5800,
+              "maxBoneDifference": {
+                "key": "R_Mid2",
+                "differenceDeg": 0.0000034150945850063755
+              },
+              "maxTrackDifference": {
+                "key": "Hips",
+                "differenceM": 0
+              },
+              "rootDifferenceDeg": 0,
+              "rootDifferenceM": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "path": "remaining-batches/flexion-test-reconciliation-2026-10-03.json",
+    "sha256": "85c2b2b2fd8ebafd55b4b2882e05e81f26d1edc318aedbd33cc43c45fe5adb03",
+    "report": {
+      "version": 1,
+      "kind": "flexion-test-reconciliation",
+      "createdAt": "2026-10-03",
+      "scope": "Focused test-property corrections explicitly authorized by root; no runtime changes from this agent, no clinical or contact threshold expansion.",
+      "tests": [
+        {
+          "path": "simmove/pose-engine/src/__tests__/kneelingSkinSupport.test.ts",
+          "sha256": "fce39bec3e8858954d56b4c31c1a763b83fba649d8d7f2cd2b13ee877a0e1692"
+        },
+        {
+          "path": "simmove/pose-engine/src/__tests__/floorPalmSupports.test.ts",
+          "sha256": "392371378762e9a29d50f6b8491debe10b6d4b0e33f386e3acc2d7a15aad9d1c"
+        },
+        {
+          "path": "simmove/pose-engine/src/__tests__/assessmentBodyMotions.test.ts",
+          "sha256": "1190672719497f3f94d94b8267a221bc0f432951bc7fad958ac19195839e6714"
+        }
+      ],
+      "priorRuns": [
+        {
+          "session": 62376,
+          "command": "node ../node_modules/vitest/vitest.mjs run src/__tests__/kneelingSkinSupport.test.ts src/__tests__/floorPalmSupports.test.ts src/__tests__/assessmentBodyMotions.test.ts --maxWorkers=1",
+          "durationSec": 84.51,
+          "total": 102,
+          "passed": 95,
+          "failed": 7,
+          "retention": "Observed tool output transcribed here; full raw output remains in the conversation. Per-run source hash was not captured, so no frozen-source claim is made.",
+          "failures": [
+            {
+              "file": "floorPalmSupports.test.ts",
+              "assertion": "normal.y < -0.995",
+              "observed": {
+                "male": -0.9776199658930856,
+                "female": -0.9703222676048141,
+                "neutral": -0.9631915560424613
+              },
+              "reason": "Old test used metacarpal bone plane for flexion although updated recipe explicitly targets the fitted skin plane.",
+              "replacement": "Use the existing fitted skin normal branch for flexion as already done for extension. Preserve < -0.995 unchanged."
+            },
+            {
+              "file": "assessmentBodyMotions.test.ts",
+              "assertion": "setup Hips.y - assessed Hips.y > 0.14m",
+              "observed": {
+                "female": 0.12987193248745305,
+                "male": 0.1255188449834041
+              },
+              "cases": "Both sides of male/female.",
+              "reason": "14cm absolute excursion was an unsupported heuristic tied to the prior penetrating placement. It failed and is not relabelled a pass.",
+              "replacement": "Require pelvis descent (>0) and reduced distance to bilateral foot midpoint, keeping the existing kneeZ - hipZ >0.3m assertion. Qualitative direction follows the referenced protocol; endpoint feasibility remains separate."
+            }
+          ]
+        },
+        {
+          "session": 1054,
+          "scope": "After replacing only the pelvis-drop heuristic; existing ankle-origin check subsequently reached.",
+          "passed": 1,
+          "failed": 4,
+          "failures": [
+            {
+              "file": "assessmentBodyMotions.test.ts",
+              "assertion": "abs(assessed Foot origin.y) <0.08m",
+              "observed": {
+                "female": 0.10370521758563286,
+                "male": 0.12685739341811308
+              },
+              "cases": "Both sides.",
+              "reason": "Ankle origin lies above the supported dorsal foot/toe skin. The old8cm proxy failed; it did not demonstrate actual surface contact.",
+              "replacement": "Use existing independently computed >50%foot/toe-weighted skin bounds; abs(minY)<0.001m at setup, assessed and finish, using the predeclared new flexion surface criterion. Preserve the other hand, forearm and geometric checks."
+            }
+          ]
+        }
+      ],
+      "currentRun": {
+        "session": 66141,
+        "log": {
+          "path": "remaining-batches/flexion-support-focused-regression-1.log",
+          "sha256": "54ba99ec3a1744c4469473886e79b6093bfa446f5fb1a9213280151038044426"
+        },
+        "filter": "kneeling skin support|flexion-clearing",
+        "passed": 23,
+        "failed": 0,
+        "skipped": 79,
+        "durationSec": 26.34,
+        "recordings": {
+          "cases": 6,
+          "framesEach": 175,
+          "rateHz": 30,
+          "maxReplayWorldPositionErrorM": 0,
+          "defaultKneeMaximumDeg": 140,
+          "restrictedKneeMaximumDeg": 120,
+          "constraintsDelivery": "Restricted limits supplied only to resolveComposedMotion; sampleComposedMotion receives no duplicate constraints."
+        }
+      },
+      "unchanged": "Existing prone150micrometre and exchange100micrometre gates, modeled/patient joint bounds, palm2mm drift, kneeXZ5mm and palmnormal?0.995 remain unchanged.",
+      "limitations": "Focused current run covers23 selected tests. The earlier run passed the other79, but final whole-suite, full frozen-source identity, native, clinical and host acceptance are not established here."
+    },
+    "finalLog": {
+      "path": "remaining-batches/flexion-support-focused-regression-1.log",
+      "sha256": "54ba99ec3a1744c4469473886e79b6093bfa446f5fb1a9213280151038044426"
+    },
+    "typecheck": {
+      "path": "remaining-batches/flexion-engine-check-2.log",
+      "sha256": "ecb3d077a152c648c31b8d548068078f16df90b7beeb430220ec90b4c9833b1b",
+      "files": 1180,
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "limitations": [
+    "Local authored-playback candidate, not a merged release or a formal catalogue context/defect acceptance. Existing source identities, observations and delivery records require release reconciliation before shipment.",
+    "The heel-to-pelvis endpoint gap remains. No quantitative reference trajectory, clinical signoff, native dynamics, compression or whole-foot contact is claimed.",
+    "Knee skin and toe skin are the lower support witnesses. The foot region itself remains about22–30mm above the plane.",
+    "Default Blender geometry is sampled at30Hz, with27 phase images inspected; this is not continuous event-aware contact validation.",
+    "Browser witnesses use the real stage compiled by each host and an independent sampled rig, with a diagnostic mount. They do not establish all product UI paths or rollout of the unchanged original simLAB5173 checkout.",
+    "The1mm flexion visual-contact criterion was declared before tuning. Existing prone150micrometre, solver50micrometre and interchange0.1mm gates are unchanged. Historical14cm pelvis-drop and8cm ankle-marker assertions failed and were replaced with explicit task-direction and actual-skin checks; they are not reported as passes.",
+    "Original failed evidence, native failures, other movement defects and the isolated extension shipment checkpoint remain retained."
+  ]
+}

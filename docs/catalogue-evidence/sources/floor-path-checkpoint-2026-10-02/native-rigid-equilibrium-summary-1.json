@@ -1,0 +1,677 @@
+{
+  "at": "2026-10-02T22:29:03.608Z",
+  "scope": "Offline necessary-condition characterization of 11 immutable native states; all22 static QPs including stricter no-stop sensitivity are constructive. This does not qualify native movement or prove dynamic compliant feasibility.",
+  "inputs": {
+    "../remaining-batches/native-rigid-equilibrium-female-3.json": "18ba9369eeda5117cc753ae78d48833ec138bd482b71ef53999a625b42fd8573",
+    "../remaining-batches/native-rigid-equilibrium-male-3.json": "0c8226006ba8f07a34e731bcd6ec8266c6d0452003ff9787e8ec7a6a12ae6137"
+  },
+  "results": [
+    {
+      "variant": "female",
+      "label": "initialized-setup",
+      "timeS": 0,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.5144734224040821,
+      "equilibriumResidual": 0.0000022425662407066227,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0,
+      "eligibleFloorContacts": 20,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 16.86921291008491,
+        "R": 18.15105483733341
+      },
+      "bias": [
+        {
+          "joint": "R_Forearm_flexion",
+          "limitNm": 35,
+          "gravityOwnNm": 1.9585691384811061,
+          "rootGravityContributionNm": -12.539341395922753,
+          "unclippedBiasNm": -10.580772257441646,
+          "zeroVelocityBiasNm": -3.062113456452581,
+          "capturedMovingController": null,
+          "staticEquilibriumMotorNm": -2.137641112001021
+        },
+        {
+          "joint": "L_Shoulder_protraction",
+          "limitNm": 12,
+          "gravityOwnNm": -5.068972211694827,
+          "rootGravityContributionNm": 8.84372557355255,
+          "unclippedBiasNm": 3.774753361857724,
+          "zeroVelocityBiasNm": 1.092427167214066,
+          "capturedMovingController": null,
+          "staticEquilibriumMotorNm": -0.7896520986808414
+        },
+        {
+          "joint": "L_Shoulder_scapular_tilt",
+          "limitNm": 10,
+          "gravityOwnNm": -0.5416475120296234,
+          "rootGravityContributionNm": -5.7345912110629795,
+          "unclippedBiasNm": -6.276238723092603,
+          "zeroVelocityBiasNm": -1.8163660064012692,
+          "capturedMovingController": null,
+          "staticEquilibriumMotorNm": -0.5844787710941622
+        }
+      ]
+    },
+    {
+      "variant": "female",
+      "label": "L-tangential-drift-over-2mm",
+      "timeS": 0.45900000000000035,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.5147452321329371,
+      "equilibriumResidual": 6.175950861553314e-7,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0,
+      "eligibleFloorContacts": 12,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 8.33187331141929,
+        "R": 5.910547960233573
+      },
+      "bias": [
+        {
+          "joint": "R_Forearm_flexion",
+          "limitNm": 35,
+          "gravityOwnNm": 1.9590706361077435,
+          "rootGravityContributionNm": -32.16284870642537,
+          "unclippedBiasNm": -30.20377807031763,
+          "zeroVelocityBiasNm": -30.194831090751368,
+          "capturedMovingController": {
+            "biasNm": -27.662667225213333,
+            "postureNm": -18.849556531291892,
+            "dampingNm": -8.877036611566904,
+            "taskNm": -0.0061878640635090465,
+            "balanceNm": 0.0028266813979320182,
+            "requestedNm": -55.3926215507377,
+            "appliedNm": -35
+          },
+          "staticEquilibriumMotorNm": -15.721005362519927
+        },
+        {
+          "joint": "L_Shoulder_protraction",
+          "limitNm": 12,
+          "gravityOwnNm": -4.87377878481071,
+          "rootGravityContributionNm": 24.114140104725088,
+          "unclippedBiasNm": 19.240361319914378,
+          "zeroVelocityBiasNm": 11.99644535347382,
+          "capturedMovingController": {
+            "biasNm": 12,
+            "postureNm": 12.547347576134262,
+            "dampingNm": 1.7886087423286632,
+            "taskNm": -0.016540727277923384,
+            "balanceNm": -0.4503721711951127,
+            "requestedNm": 25.869043419989886,
+            "appliedNm": 12
+          },
+          "staticEquilibriumMotorNm": 2.012844614389733
+        },
+        {
+          "joint": "L_Shoulder_scapular_tilt",
+          "limitNm": 10,
+          "gravityOwnNm": -0.19319316143488408,
+          "rootGravityContributionNm": -15.632377071036865,
+          "unclippedBiasNm": -15.82557023247175,
+          "zeroVelocityBiasNm": -9.997037794561518,
+          "capturedMovingController": {
+            "biasNm": -10,
+            "postureNm": -4.20815409184772,
+            "dampingNm": -0.012759196357615132,
+            "taskNm": -0.21671046142785338,
+            "balanceNm": -1.1058538442739831,
+            "requestedNm": -15.543477593907173,
+            "appliedNm": -10
+          },
+          "staticEquilibriumMotorNm": -0.7582204808523847
+        }
+      ]
+    },
+    {
+      "variant": "female",
+      "label": "R-tangential-drift-over-2mm",
+      "timeS": 0.47300000000000036,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.5146958803148811,
+      "equilibriumResidual": 6.181700370755383e-7,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0,
+      "eligibleFloorContacts": 14,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 8.313094717988294,
+        "R": 6.157583485289996
+      },
+      "bias": [
+        {
+          "joint": "R_Forearm_flexion",
+          "limitNm": 35,
+          "gravityOwnNm": 1.9592037029910019,
+          "rootGravityContributionNm": -28.477767701021882,
+          "unclippedBiasNm": -26.51856399803088,
+          "zeroVelocityBiasNm": -26.51856399803088,
+          "capturedMovingController": {
+            "biasNm": -26.28238013729028,
+            "postureNm": -20.191416871080676,
+            "dampingNm": -8.41616789310632,
+            "taskNm": 0.041940110994871646,
+            "balanceNm": 0.12015670775848605,
+            "requestedNm": -54.727868082723916,
+            "appliedNm": -35
+          },
+          "staticEquilibriumMotorNm": -15.467963163174302
+        },
+        {
+          "joint": "L_Shoulder_protraction",
+          "limitNm": 12,
+          "gravityOwnNm": -4.855363886222472,
+          "rootGravityContributionNm": 25.141746737157042,
+          "unclippedBiasNm": 20.286382850934572,
+          "zeroVelocityBiasNm": 12,
+          "capturedMovingController": {
+            "biasNm": 12,
+            "postureNm": 12.844602759260441,
+            "dampingNm": 1.8504687557115544,
+            "taskNm": -0.009260394962666438,
+            "balanceNm": -0.5170399099212727,
+            "requestedNm": 26.170614581687026,
+            "appliedNm": 12
+          },
+          "staticEquilibriumMotorNm": 2.0050553283558696
+        },
+        {
+          "joint": "L_Shoulder_scapular_tilt",
+          "limitNm": 10,
+          "gravityOwnNm": -0.17419869054785764,
+          "rootGravityContributionNm": -16.418575351964947,
+          "unclippedBiasNm": -16.592774042512804,
+          "zeroVelocityBiasNm": -10,
+          "capturedMovingController": {
+            "biasNm": -10,
+            "postureNm": -4.207861369495565,
+            "dampingNm": -0.023806636411271564,
+            "taskNm": -0.27227579198794655,
+            "balanceNm": -1.321214404020157,
+            "requestedNm": -15.82515820191494,
+            "appliedNm": -10
+          },
+          "staticEquilibriumMotorNm": -0.7254027506688507
+        }
+      ]
+    },
+    {
+      "variant": "female",
+      "label": "R-load-below-1N,R-zero-load",
+      "timeS": 0.5070000000000003,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.5144328537805958,
+      "equilibriumResidual": 6.217779603689966e-7,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0,
+      "eligibleFloorContacts": 15,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 8.310222336788158,
+        "R": 6.484562420468423
+      },
+      "bias": [
+        {
+          "joint": "R_Forearm_flexion",
+          "limitNm": 35,
+          "gravityOwnNm": 1.9572207485432598,
+          "rootGravityContributionNm": -21.94729358505373,
+          "unclippedBiasNm": -19.990072836510468,
+          "zeroVelocityBiasNm": -18.211263151111805,
+          "capturedMovingController": {
+            "biasNm": -26.00709151384557,
+            "postureNm": -23.24489519594159,
+            "dampingNm": -7.617153006541235,
+            "taskNm": 0.23084132890387563,
+            "balanceNm": 0.42897102575368,
+            "requestedNm": -56.20932736167084,
+            "appliedNm": -35
+          },
+          "staticEquilibriumMotorNm": -15.14801228571507
+        },
+        {
+          "joint": "L_Shoulder_protraction",
+          "limitNm": 12,
+          "gravityOwnNm": -4.8018988435675745,
+          "rootGravityContributionNm": 20.9750885439018,
+          "unclippedBiasNm": 16.173189700334227,
+          "zeroVelocityBiasNm": 10.93218416964457,
+          "capturedMovingController": {
+            "biasNm": 12,
+            "postureNm": 13.605970041039027,
+            "dampingNm": 1.9820787163415472,
+            "taskNm": 0.1377470932380871,
+            "balanceNm": -0.7474690470137766,
+            "requestedNm": 26.978326803604883,
+            "appliedNm": 12
+          },
+          "staticEquilibriumMotorNm": 1.8587429321930835
+        },
+        {
+          "joint": "L_Shoulder_scapular_tilt",
+          "limitNm": 10,
+          "gravityOwnNm": -0.1207183586060605,
+          "rootGravityContributionNm": -14.164161953521313,
+          "unclippedBiasNm": -14.284880312127374,
+          "zeroVelocityBiasNm": -9.110153474703807,
+          "capturedMovingController": {
+            "biasNm": -10,
+            "postureNm": -4.241953851471462,
+            "dampingNm": -0.023522835058427533,
+            "taskNm": -0.5204412590169452,
+            "balanceNm": -1.980642258864272,
+            "requestedNm": -16.766560204411107,
+            "appliedNm": -10
+          },
+          "staticEquilibriumMotorNm": -0.7049985893561818
+        }
+      ]
+    },
+    {
+      "variant": "female",
+      "label": "L-load-below-1N,L-zero-load",
+      "timeS": 0.5170000000000003,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.5633010921760366,
+      "equilibriumResidual": 0.0000034742380456975752,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0,
+      "eligibleFloorContacts": 13,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 4.934063346086071,
+        "R": 1.8903892052306208
+      },
+      "bias": [
+        {
+          "joint": "R_Forearm_flexion",
+          "limitNm": 35,
+          "gravityOwnNm": 1.9556893732454743,
+          "rootGravityContributionNm": -25.179536988645,
+          "unclippedBiasNm": -23.223847615399528,
+          "zeroVelocityBiasNm": -22.53381669418396,
+          "capturedMovingController": {
+            "biasNm": -28.282179510821695,
+            "postureNm": -23.923978598558037,
+            "dampingNm": -8.251028400887497,
+            "taskNm": 0.1486719079270999,
+            "balanceNm": 0.4976959618191365,
+            "requestedNm": -59.81081864052099,
+            "appliedNm": -35
+          },
+          "staticEquilibriumMotorNm": -9.39410880316352
+        },
+        {
+          "joint": "L_Shoulder_protraction",
+          "limitNm": 12,
+          "gravityOwnNm": -4.782456911694995,
+          "rootGravityContributionNm": 14.767662810392483,
+          "unclippedBiasNm": 9.985205898697489,
+          "zeroVelocityBiasNm": 9.688523758041494,
+          "capturedMovingController": {
+            "biasNm": 12,
+            "postureNm": 13.839457342190794,
+            "dampingNm": 2.0214809118672243,
+            "taskNm": 0.1342196175894515,
+            "balanceNm": -0.8133103451401646,
+            "requestedNm": 27.18184752650731,
+            "appliedNm": 12
+          },
+          "staticEquilibriumMotorNm": 1.017599751740534
+        },
+        {
+          "joint": "L_Shoulder_scapular_tilt",
+          "limitNm": 10,
+          "gravityOwnNm": -0.09919139301020685,
+          "rootGravityContributionNm": -8.315206307274632,
+          "unclippedBiasNm": -8.41439770028484,
+          "zeroVelocityBiasNm": -8.164387680724099,
+          "capturedMovingController": {
+            "biasNm": -10,
+            "postureNm": -4.217520567789119,
+            "dampingNm": 0.31451842962317517,
+            "taskNm": -0.5368436388595017,
+            "balanceNm": -2.0950188438180986,
+            "requestedNm": -16.534864620843543,
+            "appliedNm": -10
+          },
+          "staticEquilibriumMotorNm": -0.9305239400760178
+        }
+      ]
+    },
+    {
+      "variant": "female",
+      "label": "target-fit-original-source-root",
+      "timeS": 1.5,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.22337607592078004,
+      "equilibriumResidual": 0.000001923973600881368,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0.0031432733209939825,
+      "eligibleFloorContacts": 16,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 41.852153912286155,
+        "R": 40.7105471570513
+      },
+      "bias": null
+    },
+    {
+      "variant": "male",
+      "label": "initialized-setup",
+      "timeS": 0,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.6122608000315675,
+      "equilibriumResidual": 0.0000023695937418910518,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0,
+      "eligibleFloorContacts": 12,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 46.21347102748374,
+        "R": 46.822125482916135
+      },
+      "bias": [
+        {
+          "joint": "R_Forearm_flexion",
+          "limitNm": 35,
+          "gravityOwnNm": 2.0396535587513633,
+          "rootGravityContributionNm": -21.324425477198695,
+          "unclippedBiasNm": -19.28477191844733,
+          "zeroVelocityBiasNm": -4.484579791579285,
+          "capturedMovingController": null,
+          "staticEquilibriumMotorNm": -12.97679072889616
+        },
+        {
+          "joint": "L_Shoulder_protraction",
+          "limitNm": 12,
+          "gravityOwnNm": -5.8222938477107515,
+          "rootGravityContributionNm": 16.433759477188158,
+          "unclippedBiasNm": 10.611465629477406,
+          "zeroVelocityBiasNm": 2.4676446536280308,
+          "capturedMovingController": null,
+          "staticEquilibriumMotorNm": 2.6471510099474815
+        },
+        {
+          "joint": "L_Shoulder_scapular_tilt",
+          "limitNm": 10,
+          "gravityOwnNm": -1.0350497025614924,
+          "rootGravityContributionNm": -9.23944237010409,
+          "unclippedBiasNm": -10.274492072665582,
+          "zeroVelocityBiasNm": -2.3254512993692438,
+          "capturedMovingController": null,
+          "staticEquilibriumMotorNm": -3.6534401339289313
+        }
+      ]
+    },
+    {
+      "variant": "male",
+      "label": "R-load-below-1N,R-zero-load",
+      "timeS": 0.04000000000000003,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.5562413833503085,
+      "equilibriumResidual": 6.522547577603177e-7,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0,
+      "eligibleFloorContacts": 20,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 53.16117459114845,
+        "R": 54.44067881095632
+      },
+      "bias": [
+        {
+          "joint": "R_Forearm_flexion",
+          "limitNm": 35,
+          "gravityOwnNm": 2.038974458094015,
+          "rootGravityContributionNm": 0,
+          "unclippedBiasNm": 2.038974458094015,
+          "zeroVelocityBiasNm": 2.038974458094015,
+          "capturedMovingController": {
+            "biasNm": -12.004196674719125,
+            "postureNm": -0.23649885888023192,
+            "dampingNm": -1.6456474564137078,
+            "taskNm": -0.10307134529612316,
+            "balanceNm": -0.0459188018510468,
+            "requestedNm": -15.793607640501337,
+            "appliedNm": -15.793607640501337
+          },
+          "staticEquilibriumMotorNm": -14.889186868598802
+        },
+        {
+          "joint": "L_Shoulder_protraction",
+          "limitNm": 12,
+          "gravityOwnNm": -5.817501647237924,
+          "rootGravityContributionNm": 8.41763371160725,
+          "unclippedBiasNm": 2.600132064369326,
+          "zeroVelocityBiasNm": 2.600132064369326,
+          "capturedMovingController": {
+            "biasNm": 2.2038703023714827,
+            "postureNm": 0.31621305680872014,
+            "dampingNm": 0.7481876963590128,
+            "taskNm": 0.04450034753370393,
+            "balanceNm": 0.012099195842130251,
+            "requestedNm": 3.3248705989150498,
+            "appliedNm": 3.3248705989150498
+          },
+          "staticEquilibriumMotorNm": 1.9511468414632465
+        },
+        {
+          "joint": "L_Shoulder_scapular_tilt",
+          "limitNm": 10,
+          "gravityOwnNm": -1.0399707129849194,
+          "rootGravityContributionNm": -4.6628303009896666,
+          "unclippedBiasNm": -5.702801013974586,
+          "zeroVelocityBiasNm": -5.702801013974586,
+          "capturedMovingController": {
+            "biasNm": -5.4561823684577835,
+            "postureNm": -0.15175556877257412,
+            "dampingNm": -0.15560573257277038,
+            "taskNm": -0.02690190331994465,
+            "balanceNm": 0.022202718823298148,
+            "requestedNm": -5.768242854299775,
+            "appliedNm": -5.768242854299775
+          },
+          "staticEquilibriumMotorNm": -2.485857608747219
+        }
+      ]
+    },
+    {
+      "variant": "male",
+      "label": "L-load-below-1N,L-zero-load",
+      "timeS": 0.046000000000000034,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.5561658524078926,
+      "equilibriumResidual": 6.500258645791845e-7,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0,
+      "eligibleFloorContacts": 15,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 53.43963213079665,
+        "R": 54.455557504009
+      },
+      "bias": [
+        {
+          "joint": "R_Forearm_flexion",
+          "limitNm": 35,
+          "gravityOwnNm": 2.038934975555187,
+          "rootGravityContributionNm": -14.098554060280124,
+          "unclippedBiasNm": -12.059619084724936,
+          "zeroVelocityBiasNm": -12.059619084724936,
+          "capturedMovingController": {
+            "biasNm": -9.293203525352178,
+            "postureNm": -0.30368928775697857,
+            "dampingNm": -1.4895389029081154,
+            "taskNm": -0.13888709688486145,
+            "balanceNm": -0.0913377627672396,
+            "requestedNm": -12.784050330840948,
+            "appliedNm": -12.784050330840948
+          },
+          "staticEquilibriumMotorNm": -14.940096682247194
+        },
+        {
+          "joint": "L_Shoulder_protraction",
+          "limitNm": 12,
+          "gravityOwnNm": -5.8158657972330845,
+          "rootGravityContributionNm": 0,
+          "unclippedBiasNm": -5.8158657972330845,
+          "zeroVelocityBiasNm": -5.8158657972330845,
+          "capturedMovingController": {
+            "biasNm": 0.8289319507558375,
+            "postureNm": 0.36417551835680406,
+            "dampingNm": 0.6803186319115417,
+            "taskNm": 0.022028335121942036,
+            "balanceNm": 0.025470948122146893,
+            "requestedNm": 1.9209253842682723,
+            "appliedNm": 1.9209253842682723
+          },
+          "staticEquilibriumMotorNm": 2.0196711933836173
+        },
+        {
+          "joint": "L_Shoulder_scapular_tilt",
+          "limitNm": 10,
+          "gravityOwnNm": -1.0449331007196783,
+          "rootGravityContributionNm": 0,
+          "unclippedBiasNm": -1.0449331007196783,
+          "zeroVelocityBiasNm": -1.0449331007196783,
+          "capturedMovingController": {
+            "biasNm": -4.691745346828497,
+            "postureNm": -0.16309324332262898,
+            "dampingNm": -0.20524080227592784,
+            "taskNm": 0.01905063596050971,
+            "balanceNm": 0.029206185416307352,
+            "requestedNm": -5.011822571050237,
+            "appliedNm": -5.011822571050237
+          },
+          "staticEquilibriumMotorNm": -2.502488004122236
+        }
+      ]
+    },
+    {
+      "variant": "male",
+      "label": "R-tangential-drift-over-2mm",
+      "timeS": 0.5330000000000004,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.5623823917960653,
+      "equilibriumResidual": 1.3264311913787795e-14,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0,
+      "eligibleFloorContacts": 8,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 54.813194869422176,
+        "R": 5.462249923763234
+      },
+      "bias": [
+        {
+          "joint": "R_Forearm_flexion",
+          "limitNm": 35,
+          "gravityOwnNm": 2.172927018187493,
+          "rootGravityContributionNm": -33.03786841498078,
+          "unclippedBiasNm": -30.864941396793284,
+          "zeroVelocityBiasNm": -30.864941396793284,
+          "capturedMovingController": {
+            "biasNm": -31.30730231235486,
+            "postureNm": -30.844711082720433,
+            "dampingNm": -12.803235580892945,
+            "taskNm": -0.25120972540583175,
+            "balanceNm": -2.0188202734662806,
+            "requestedNm": -77.22527897484035,
+            "appliedNm": -35
+          },
+          "staticEquilibriumMotorNm": -18.49297762867287
+        },
+        {
+          "joint": "L_Shoulder_protraction",
+          "limitNm": 12,
+          "gravityOwnNm": -5.883502248195494,
+          "rootGravityContributionNm": 27.206312137833773,
+          "unclippedBiasNm": 21.32280988963828,
+          "zeroVelocityBiasNm": 12,
+          "capturedMovingController": {
+            "biasNm": 11.913503191862947,
+            "postureNm": 21.930540972694892,
+            "dampingNm": 6.300024743423556,
+            "taskNm": 0.5678164018663036,
+            "balanceNm": -0.3792272905584363,
+            "requestedNm": 40.33265801928926,
+            "appliedNm": 12
+          },
+          "staticEquilibriumMotorNm": 2.988003549048828
+        },
+        {
+          "joint": "L_Shoulder_scapular_tilt",
+          "limitNm": 10,
+          "gravityOwnNm": -0.9240377312169006,
+          "rootGravityContributionNm": -11.44106376186649,
+          "unclippedBiasNm": -12.36510149308339,
+          "zeroVelocityBiasNm": -10,
+          "capturedMovingController": {
+            "biasNm": -9.927919326552455,
+            "postureNm": -2.6935584873023277,
+            "dampingNm": 0.6970526112957773,
+            "taskNm": -0.21489144724718545,
+            "balanceNm": -0.1119198898530358,
+            "requestedNm": -12.251236539659226,
+            "appliedNm": -10
+          },
+          "staticEquilibriumMotorNm": -2.29512585667631
+        }
+      ]
+    },
+    {
+      "variant": "male",
+      "label": "target-fit-original-source-root",
+      "timeS": 1.5,
+      "withStops": true,
+      "withoutStops": true,
+      "maximumMotorFraction": 0.23691673121200676,
+      "equilibriumResidual": 0.0000019866796890088967,
+      "boundViolation": 0,
+      "maximumNativeContactPenetrationM": 0.002942214504899559,
+      "eligibleFloorContacts": 16,
+      "eligibleSelfContacts": 0,
+      "predictedPalmNormalForceN": {
+        "L": 44.94857966990403,
+        "R": 44.24927883676439
+      },
+      "bias": null
+    }
+  ],
+  "conclusion": "The projected rigid-cell model does not have a simple static motor-capacity deficit at these exact poses. Current load-weighted root reduction can request substantially larger gravity bias than a coupled friction-bounded static allocation; moving tracking and damping then add enough torque to saturate elbow/girdle. Initial unloaded-contact chatter and later drift remain distinct. Native compliance, passive-cell equilibrium and velocity/acceleration are excluded from this static relaxation.",
+  "limits": [
+    "All current eligible proximity contact rays are included, even if measured load is zero; distances within existing native margins can be positive.",
+    "Full gravity and mass are retained, but passive-cell equilibrium equations are relaxed by treating cells as fixed to their parent.",
+    "Self-contact reactions are supported; none are eligible in these11 states.",
+    "Peak uses original source root and retains2.94?3.14mm native skin-cell floor overlap; this is not accepted source/native geometric parity.",
+    "Early drift distributions use forearm and torso support. Full-route allowed bodies do not establish phase-specific contact intent.",
+    "Minimum-effort allocation is one feasible distribution, not a uniquely correct muscle or tissue force.",
+    "All old native runs still fail tracking/contact criteria; this diagnostic adds no accepted movement count."
+  ],
+  "nextCandidate": {
+    "kind": "rigid-equilibrium-v1",
+    "purpose": "Experimental native gravity feedforward using only allocated motor torques, existing final caps and actual native compliant simulation. No optimized contact forces or state corrections are applied. Original bias is retained on rejected estimates.",
+    "controllerVersion": "authored-pelvis-support-torque-v22",
+    "priorSourceArchive": "native-controller-v21-retained-1",
+    "tests": "native-equilibrium-bias-contracts-1.log"
+  },
+  "blender": {
+    "project": "../blender-workspace/native-palm-cause-overlay-3/native-palm-overlay.blend",
+    "review": "Matched original sparse-editor source and actual native rig/skin show lower achieved torso/head and arm-shape disagreement. Male source elbow skin crease is separately unresolved; do not attribute it to native tracking."
+  },
+  "documentation": "https://mujoco.readthedocs.io/en/stable/computation/index.html"
+}

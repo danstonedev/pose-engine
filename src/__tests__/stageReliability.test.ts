@@ -165,7 +165,7 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     for (const field of [
       'rest: composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? activeRestRef() : composedPlantRest ?? restRef,',
       'hingeAxisRest: restRef,',
-      '...(composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? { constraints: romConstraints, forceRomClamp: true } : {}),',
+      '...(composedUseFootRoot || composedPlants.some(plant => plant.holdOrientation) ? { constraints: activeShoulderConstraints(), forceRomClamp: true } : {}),',
       'heelStrikeY: composedHeelStrikeY,',
       'captureLiftY: composedPlantsAtTouchdown ? composedVcalRaiseY : 0,',
       'initialTargets: initialComposedPlantTargets,', 'restY: floorRef?.restY,',
@@ -183,9 +183,10 @@ describe('Finding 4 — the live stage applies closed-chain foot contacts (sourc
     // …both from the floor reference their floor pin grounds on, captured at
     // anatomic rest (the sampler after the baseline pose, the stage at boot).
     expect(samplerSource).toMatch(
-      /applyCustomPose\(skinned\.skeleton, variantCfg, baselinePose\);\s*root\.updateMatrixWorld\(true\);[\s\S]{0,250}const floorRef = captureFloorReference\(skinned\.skeleton, variantCfg, needsPelvisSurface \? root : undefined\);/,
+      /applyCustomPose\(skinned\.skeleton, variantCfg, baselinePose\);\s*root\.updateMatrixWorld\(true\);[\s\S]{0,250}const floorRef = floorReferenceForSupport\(\s*captureFloorReference\(skinned\.skeleton, variantCfg, needsPelvisSurface \? root : undefined\), resolved\.supportPlaneY\);/,
     );
-    expect(stageSource).toMatch(/floorRef = skinned \? captureFloorReference\(skinned\.skeleton, variantCfg, root\) : null;/);
+    expect(stageSource).toMatch(/capturedFloorRef = skinned \? captureFloorReference\(skinned\.skeleton, variantCfg, root\) : null;/);
+    expect(stageSource).toContain('floorReferenceForSupport(capturedFloorRef, effectiveResolved.supportPlaneY)');
     // …and neither keeps a private copy of the window/capture logic.
     expect(stageSource).not.toMatch(/fp\.target\.y -= /);
     expect(samplerSource).not.toMatch(/fp\.target\.y -= /);

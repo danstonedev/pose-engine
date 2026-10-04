@@ -1,0 +1,194 @@
+{
+  "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+  "renders": [
+    {
+      "id": "male-shoulder-abduction-160",
+      "phase": "start",
+      "seconds": 0,
+      "view": "Side",
+      "file": "male-shoulder-abduction-160-start-side.png"
+    },
+    {
+      "id": "male-shoulder-abduction-160",
+      "phase": "approach",
+      "seconds": 0.13333333333333333,
+      "view": "Side",
+      "file": "male-shoulder-abduction-160-approach-side.png"
+    },
+    {
+      "id": "male-shoulder-abduction-160",
+      "phase": "setup",
+      "seconds": 0.26666666666666666,
+      "view": "Side",
+      "file": "male-shoulder-abduction-160-setup-side.png"
+    },
+    {
+      "id": "male-shoulder-abduction-160",
+      "phase": "setup",
+      "seconds": 0.26666666666666666,
+      "view": "Overhead",
+      "file": "male-shoulder-abduction-160-setup-overhead.png"
+    },
+    {
+      "id": "male-shoulder-abduction-160",
+      "phase": "quarter",
+      "seconds": 1.175,
+      "view": "Side",
+      "file": "male-shoulder-abduction-160-quarter-side.png"
+    },
+    {
+      "id": "male-shoulder-abduction-160",
+      "phase": "middle",
+      "seconds": 2.0833333333333335,
+      "view": "Side",
+      "file": "male-shoulder-abduction-160-middle-side.png"
+    },
+    {
+      "id": "male-shoulder-abduction-160",
+      "phase": "middle",
+      "seconds": 2.0833333333333335,
+      "view": "Overhead",
+      "file": "male-shoulder-abduction-160-middle-overhead.png"
+    },
+    {
+      "id": "male-shoulder-abduction-160",
+      "phase": "return",
+      "seconds": 3.9000000000000004,
+      "view": "Side",
+      "file": "male-shoulder-abduction-160-return-side.png"
+    },
+    {
+      "id": "male-shoulder-abduction-160",
+      "phase": "return",
+      "seconds": 3.9000000000000004,
+      "view": "Overhead",
+      "file": "male-shoulder-abduction-160-return-overhead.png"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "phase": "start",
+      "seconds": 0,
+      "view": "Side",
+      "file": "female-shoulder-abduction-160-start-side.png"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "phase": "approach",
+      "seconds": 0.13333333333333333,
+      "view": "Side",
+      "file": "female-shoulder-abduction-160-approach-side.png"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "phase": "setup",
+      "seconds": 0.26666666666666666,
+      "view": "Side",
+      "file": "female-shoulder-abduction-160-setup-side.png"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "phase": "setup",
+      "seconds": 0.26666666666666666,
+      "view": "Overhead",
+      "file": "female-shoulder-abduction-160-setup-overhead.png"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "phase": "quarter",
+      "seconds": 1.175,
+      "view": "Side",
+      "file": "female-shoulder-abduction-160-quarter-side.png"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "phase": "middle",
+      "seconds": 2.0833333333333335,
+      "view": "Side",
+      "file": "female-shoulder-abduction-160-middle-side.png"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "phase": "middle",
+      "seconds": 2.0833333333333335,
+      "view": "Overhead",
+      "file": "female-shoulder-abduction-160-middle-overhead.png"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "phase": "return",
+      "seconds": 3.9000000000000004,
+      "view": "Side",
+      "file": "female-shoulder-abduction-160-return-side.png"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "phase": "return",
+      "seconds": 3.9000000000000004,
+      "view": "Overhead",
+      "file": "female-shoulder-abduction-160-return-overhead.png"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "phase": "start",
+      "seconds": 0,
+      "view": "Side",
+      "file": "neutral-shoulder-abduction-160-start-side.png"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "phase": "approach",
+      "seconds": 0.13333333333333333,
+      "view": "Side",
+      "file": "neutral-shoulder-abduction-160-approach-side.png"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "phase": "setup",
+      "seconds": 0.26666666666666666,
+      "view": "Side",
+      "file": "neutral-shoulder-abduction-160-setup-side.png"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "phase": "setup",
+      "seconds": 0.26666666666666666,
+      "view": "Overhead",
+      "file": "neutral-shoulder-abduction-160-setup-overhead.png"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "phase": "quarter",
+      "seconds": 1.175,
+      "view": "Side",
+      "file": "neutral-shoulder-abduction-160-quarter-side.png"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "phase": "middle",
+      "seconds": 2.0833333333333335,
+      "view": "Side",
+      "file": "neutral-shoulder-abduction-160-middle-side.png"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "phase": "middle",
+      "seconds": 2.0833333333333335,
+      "view": "Overhead",
+      "file": "neutral-shoulder-abduction-160-middle-overhead.png"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "phase": "return",
+      "seconds": 3.9000000000000004,
+      "view": "Side",
+      "file": "neutral-shoulder-abduction-160-return-side.png"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "phase": "return",
+      "seconds": 3.9000000000000004,
+      "view": "Overhead",
+      "file": "neutral-shoulder-abduction-160-return-overhead.png"
+    }
+  ]
+}

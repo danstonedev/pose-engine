@@ -15,6 +15,7 @@ import { stepIntoStandingStance } from './stanceTransition';
 import { buildBirdDog, buildPushUp } from './movementPostures';
 import { supportedBodyTargets } from './upperSupportRecipes';
 import { floorPalmSupports } from './floorPalmSupports';
+import { defineBodyControl } from './movementControl';
 
 type Side = 'R' | 'L';
 const opposite = (side: Side): Side => side === 'R' ? 'L' : 'R';
@@ -103,22 +104,47 @@ function trunkPushUp(): ComposedMotion {
     frame(top, 1500, { root: { orient: { pitchDeg: 76 } }, groundingPosture: 'plank', holdMs: 1600 }),
     frame(bottom, 1500, { root: { orient: { pitchDeg: 90 } }, groundingPosture: 'plank' }),
   ], 'prone'), startAtSetup: true, fixedGroundSupports: ['L_Toes', 'R_Toes'],
+  supportPlaneY: 0, plankSkinSupport: true,
   contacts: floorPalmSupports('trunk-push-up', 1000) };
 }
 
+function pressUpControl(phase: 'setup' | 'press-and-hold' | 'return') {
+  return defineBodyControl({
+    id: 'extension-clearing/' + phase,
+    root: { translation: 'support', orientation: 'placement' },
+    supports: ['anterior-pelvis', 'full-thigh-calf-skin', 'dorsal-toes', 'bilateral-palms'],
+    groups: [
+      { joints: ['Hips'], role: 'contact', support: 'anterior-pelvis', purpose: 'Authored pelvic tilt participates in extension while measured anterior pelvis sets root support height.' },
+      { joints: ['Spine_Lower'], role: 'driven', purpose: 'Authored lumbar curve contributes to coordinated spinal extension and return within patient ROM.' },
+      { joints: ['Spine_Mid', 'Spine_Upper'], role: 'derived', source: 'Hips', purpose: 'Regional thoracic command splits across both segments; proneSkinSupport raises only the minimum setup curve needed for chest clearance above the supported pelvis.' },
+      { joints: ['Neck'], role: 'driven', purpose: 'Regional cervical command coordinates gaze with the extending trunk.' },
+      { joints: ['Neck_Lower'], role: 'derived', source: 'Neck', purpose: 'Regional cervical command distributes through the lower neck.' },
+      { joints: ['Head'], role: 'held', purpose: 'Local head orientation follows the cervical chain without an independent head excursion.' },
+      { joints: ['L_Shoulder', 'L_UpperArm', 'L_Forearm'], role: 'derived', source: 'L_Hand', purpose: 'Bounded handContactPose solves the fixed left palm with the authored elbow guide and preserves clinical/patient ROM; arm commands initialize that contact solve.' },
+      { joints: ['R_Shoulder', 'R_UpperArm', 'R_Forearm'], role: 'derived', source: 'R_Hand', purpose: 'Bounded handContactPose solves the fixed right palm with the authored elbow guide and preserves clinical/patient ROM; arm commands initialize that contact solve.' },
+      { joints: ['L_Hand', 'R_Hand'], role: 'contact', support: 'bilateral-palms', purpose: 'Measured palm skin orientation and geometry-derived fixed anchors stay on the explicit floor throughout the source motion.' },
+      { joints: ['L_UpLeg', 'L_Leg', 'R_UpLeg', 'R_Leg'], role: 'derived', source: 'Hips', purpose: 'proneSkinSupport coordinates bounded hip/knee corrections from full thigh/calf skin and toe skin against pelvis support; distal-envelope and knee-band gaps remain independent diagnostics.' },
+      { joints: ['L_Foot', 'R_Foot'], role: 'held', purpose: 'Authored plantarflexed ankles are held while the proximal chain solves prone resting support.' },
+      { joints: ['L_Toes', 'R_Toes'], role: 'contact', support: 'dorsal-toes', purpose: 'Dorsal toe skin participates in prone resting support, without requiring a standing sole or heel plant.' },
+    ],
+  });
+}
+
 function extensionClearing(): ComposedMotion {
-  // Ground the measured anterior pelvis and coordinate humeral abduction with
-  // external rotation so the folded forearms clear the floor at setup.
-  // A foot-height pin with dorsiflexed ankles left the trunk airborne
-  // and introduced a floor impact at the beginning of native playback.
-  // Palm orientation and the assessed endpoint still need separate qualification.
-  const setup = withTargets(standing(), [...arms(35, 100, 'shoulderAbduction'), target('R_UpperArm', 'shoulderRotation', -45), target('L_UpperArm', 'shoulderRotation', -45), ...leg('R', 0, 0, -45), ...leg('L', 0, 0, -45), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]);
-  const chestUp = withTargets(setup, [...trunk(-20, -15), ...arms(140, 10), target('Neck', 'flexion', -10), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]);
+  // Transferred from the actual-rig proposal8 Blender review. Lumbar and both
+  // thoracic segments extend with pelvic tilt; skin-derived hip/knee correction
+  // keeps the resting lower chain supported. The palm planner chooses one fixed
+  // layout from each rig's reach geometry, never a body-variant offset table.
+  // Humeral/elbow commands are FK initializers for the bounded contact solve;
+  // the assessed endpoint is measured separately. Sparse Blender review is not
+  // full-cycle, clinical, native or delivered-host acceptance.
+  const setup = withTargets(standing(), [...arms(35, 100, 'shoulderAbduction'), target('R_UpperArm', 'shoulderRotation', -45), target('L_UpperArm', 'shoulderRotation', -45), ...leg('R', 0, 0, -45), ...leg('L', 0, 0, -45), target('Hips', 'anteriorTilt', 0), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]);
+  const chestUp = withTargets(setup, [...trunk(-25, -25), ...arms(100, 10), target('Hips', 'anteriorTilt', -15), ...leg('R', -15, 0, -45), ...leg('L', -15, 0, -45), target('Neck', 'flexion', -10), target('R_Hand', 'wristFlexion', -45), target('L_Hand', 'wristFlexion', -45)]);
   return { ...motion('Spinal extension clearing · prone chest press', [
-    frame(setup, 1000, { posture: 'prone', groundingPosture: 'prone-supported' }),
-    frame(chestUp, 1500, { posture: 'prone', groundingPosture: 'prone-supported', holdMs: 1600 }),
-    frame(setup, 1300, { posture: 'prone', groundingPosture: 'prone-supported' }),
-  ], 'prone'), startAtSetup: true, fixedGroundSupports: ['Hips'],
+    frame(setup, 1000, { posture: 'prone', groundingPosture: 'prone-supported', control: pressUpControl('setup') }),
+    frame(chestUp, 1500, { posture: 'prone', groundingPosture: 'prone-supported', holdMs: 1600, control: pressUpControl('press-and-hold') }),
+    frame(setup, 1300, { posture: 'prone', groundingPosture: 'prone-supported', control: pressUpControl('return') }),
+  ], 'prone'), startAtSetup: true, fixedGroundSupports: ['Hips'], supportPlaneY: 0, proneSkinSupport: true, pronePalmAnchorFit: true,
   contacts: floorPalmSupports('press-up', 1000) };
 }
 
@@ -133,7 +159,7 @@ function flexionClearing(): ComposedMotion {
     frame(setup, 1000, { root, groundingPosture: 'quadruped' }),
     frame(back, 1600, { root: { orient: { pitchDeg: 70 } }, groundingPosture: 'quadruped', holdMs: 1800 }),
     frame(setup, 1400, { root, groundingPosture: 'quadruped' }),
-  ], 'quadruped'), startAtSetup: true, fixedGroundSupports: ['L_Leg', 'R_Leg'],
+  ], 'quadruped'), startAtSetup: true, fixedGroundSupports: ['L_Leg', 'R_Leg'], supportPlaneY: 0, kneelingSkinSupport: true,
   contacts: floorPalmSupports('rock-back', 1000) };
 }
 

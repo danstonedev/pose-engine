@@ -1,0 +1,574 @@
+{
+  "at": "2026-10-02T21:18:29.246Z",
+  "scope": "Matched0.65-second native prefixes with motor-only palm feedback. Only integration timestep differs:1ms vs0.5ms. Original captures, controller, geometry, material and motor caps unchanged. First contact loss can be one-step chatter; longer tracking/drift remains measured. Not full-cycle convergence or static feasibility.",
+  "cases": [
+    {
+      "variant": "female",
+      "sameInput": true,
+      "sameNativeSources": true,
+      "sameControllerSettings": true,
+      "initialMaxQposDifference": 0,
+      "runs": [
+        {
+          "path": "../remaining-batches/native-palm-prefix-female-1ms-1.json",
+          "sha256": "f631d7cf34a1b0c3941336e7162e52a4bb38f5fa451f593d1145b2eecdf60270",
+          "timestep": 0.001,
+          "endTime": 0.6500000000000005,
+          "peakTracking": {
+            "time": 0.6500000000000005,
+            "joint": "L_Forearm_flexion",
+            "signedErrorDeg": 21.952600051573135
+          },
+          "firstSaturation": 0.1500000000000001,
+          "firstTracking15": 0.5120000000000003,
+          "events": [
+            {
+              "event": "R-drift-over-2mm",
+              "timeS": 0.17600000000000013
+            },
+            {
+              "event": "L-drift-over-2mm",
+              "timeS": 0.17900000000000013
+            },
+            {
+              "event": "L-tangential-drift-over-2mm",
+              "timeS": 0.45900000000000035
+            },
+            {
+              "event": "R-tangential-drift-over-2mm",
+              "timeS": 0.47300000000000036
+            },
+            {
+              "event": "R-load-below-1N",
+              "timeS": 0.5070000000000003
+            },
+            {
+              "event": "R-zero-load",
+              "timeS": 0.5070000000000003
+            },
+            {
+              "event": "L-load-below-1N",
+              "timeS": 0.5170000000000003
+            },
+            {
+              "event": "L-zero-load",
+              "timeS": 0.5170000000000003
+            }
+          ],
+          "palms": {
+            "L": {
+              "zeroLoadCount": 5,
+              "zeroLoadTotal": 0.0040000000000000036,
+              "longestZero": 0.0010000000000000009,
+              "zeroIntervals": [
+                {
+                  "start": 0.5170000000000003,
+                  "end": 0.5180000000000003,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.5480000000000004,
+                  "end": 0.5490000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.5890000000000004,
+                  "end": 0.5900000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.6220000000000004,
+                  "end": 0.6230000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.6500000000000005,
+                  "end": null,
+                  "duration": 0
+                }
+              ],
+              "maximumDriftM": 0.004949633388296742,
+              "maximumTangentialM": 0.004924904938810811,
+              "end": {
+                "loadN": 0,
+                "driftM": 0.004949633388296742,
+                "tangentialDriftM": 0.004924904938810811,
+                "normalDisplacementM": 0.0004941477736656907,
+                "sourceWristErrorM": 0.0068225657003467555
+              }
+            },
+            "R": {
+              "zeroLoadCount": 5,
+              "zeroLoadTotal": 0.0040000000000000036,
+              "longestZero": 0.0010000000000000009,
+              "zeroIntervals": [
+                {
+                  "start": 0.5070000000000003,
+                  "end": 0.5080000000000003,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.5450000000000004,
+                  "end": 0.5460000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.5830000000000004,
+                  "end": 0.5840000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.6170000000000004,
+                  "end": 0.6180000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.6500000000000005,
+                  "end": null,
+                  "duration": 0
+                }
+              ],
+              "maximumDriftM": 0.0050462877572282775,
+              "maximumTangentialM": 0.004978612740177934,
+              "end": {
+                "loadN": 0,
+                "driftM": 0.0050462877572282775,
+                "tangentialDriftM": 0.004978612740177934,
+                "normalDisplacementM": -0.0008236718473336076,
+                "sourceWristErrorM": 0.006593080570202693
+              }
+            }
+          }
+        },
+        {
+          "path": "../remaining-batches/native-palm-prefix-female-halfms-1.json",
+          "sha256": "e5fad8a4bc6adbf8438d1defdfb8ed1047c5defa8815fac200b230852afaa910",
+          "timestep": 0.0005,
+          "endTime": 0.6499999999999838,
+          "peakTracking": {
+            "time": 0.6499999999999838,
+            "joint": "L_Forearm_flexion",
+            "signedErrorDeg": 22.978358880339947
+          },
+          "firstSaturation": 0.1490000000000001,
+          "firstTracking15": 0.5164999999999985,
+          "events": [
+            {
+              "event": "L-load-below-1N",
+              "timeS": 0.023500000000000017
+            },
+            {
+              "event": "L-zero-load",
+              "timeS": 0.023500000000000017
+            },
+            {
+              "event": "R-load-below-1N",
+              "timeS": 0.023500000000000017
+            },
+            {
+              "event": "R-zero-load",
+              "timeS": 0.023500000000000017
+            },
+            {
+              "event": "R-drift-over-2mm",
+              "timeS": 0.16850000000000012
+            },
+            {
+              "event": "L-drift-over-2mm",
+              "timeS": 0.17300000000000013
+            },
+            {
+              "event": "R-tangential-drift-over-2mm",
+              "timeS": 0.3065000000000002
+            },
+            {
+              "event": "L-tangential-drift-over-2mm",
+              "timeS": 0.3080000000000002
+            }
+          ],
+          "palms": {
+            "L": {
+              "zeroLoadCount": 10,
+              "zeroLoadTotal": 0.004999999999999782,
+              "longestZero": 0.0005000000000000004,
+              "zeroIntervals": [
+                {
+                  "start": 0.023500000000000017,
+                  "end": 0.024000000000000018,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.035000000000000024,
+                  "end": 0.035500000000000025,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.04400000000000003,
+                  "end": 0.04450000000000003,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.047500000000000035,
+                  "end": 0.048000000000000036,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.05150000000000004,
+                  "end": 0.05200000000000004,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.058500000000000045,
+                  "end": 0.059000000000000045,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.5534999999999944,
+                  "end": 0.5539999999999944,
+                  "duration": 0.0004999999999999449
+                },
+                {
+                  "start": 0.6019999999999891,
+                  "end": 0.602499999999989,
+                  "duration": 0.0004999999999999449
+                },
+                {
+                  "start": 0.6314999999999859,
+                  "end": 0.6319999999999858,
+                  "duration": 0.0004999999999999449
+                },
+                {
+                  "start": 0.6469999999999841,
+                  "end": 0.6474999999999841,
+                  "duration": 0.0004999999999999449
+                }
+              ],
+              "maximumDriftM": 0.006285684587702949,
+              "maximumTangentialM": 0.006223568648422066,
+              "end": {
+                "loadN": 52.63194462617031,
+                "driftM": 0.006285684587702949,
+                "tangentialDriftM": 0.006223568648422066,
+                "normalDisplacementM": 0.000881489656470422,
+                "sourceWristErrorM": 0.008143951631210733
+              }
+            },
+            "R": {
+              "zeroLoadCount": 7,
+              "zeroLoadTotal": 0.0034999999999998886,
+              "longestZero": 0.0005000000000000004,
+              "zeroIntervals": [
+                {
+                  "start": 0.023500000000000017,
+                  "end": 0.024000000000000018,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.031000000000000024,
+                  "end": 0.03150000000000002,
+                  "duration": 0.000499999999999997
+                },
+                {
+                  "start": 0.035500000000000025,
+                  "end": 0.036000000000000025,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.03850000000000003,
+                  "end": 0.03900000000000003,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.04250000000000003,
+                  "end": 0.04300000000000003,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.5559999999999942,
+                  "end": 0.5564999999999941,
+                  "duration": 0.0004999999999999449
+                },
+                {
+                  "start": 0.6054999999999887,
+                  "end": 0.6059999999999887,
+                  "duration": 0.0004999999999999449
+                }
+              ],
+              "maximumDriftM": 0.006319249927215942,
+              "maximumTangentialM": 0.006264169709705235,
+              "end": {
+                "loadN": 73.61889374784305,
+                "driftM": 0.006319249927215942,
+                "tangentialDriftM": 0.006264169709705235,
+                "normalDisplacementM": -0.0008325247687787571,
+                "sourceWristErrorM": 0.0077917778003513405
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "variant": "male",
+      "sameInput": true,
+      "sameNativeSources": true,
+      "sameControllerSettings": true,
+      "initialMaxQposDifference": 0,
+      "runs": [
+        {
+          "path": "../remaining-batches/native-palm-prefix-male-1ms-1.json",
+          "sha256": "b2edcc61ccc1601c277c3db5785c13c9b66fc96e01e263706392e6dd50f3f65d",
+          "timestep": 0.001,
+          "endTime": 0.6500000000000005,
+          "peakTracking": {
+            "time": 0.6500000000000005,
+            "joint": "R_Forearm_flexion",
+            "signedErrorDeg": 29.090832356380925
+          },
+          "firstSaturation": 0.02000000000000001,
+          "firstTracking15": 0.47900000000000037,
+          "events": [
+            {
+              "event": "R-load-below-1N",
+              "timeS": 0.04000000000000003
+            },
+            {
+              "event": "R-zero-load",
+              "timeS": 0.04000000000000003
+            },
+            {
+              "event": "L-load-below-1N",
+              "timeS": 0.046000000000000034
+            },
+            {
+              "event": "L-zero-load",
+              "timeS": 0.046000000000000034
+            },
+            {
+              "event": "R-drift-over-2mm",
+              "timeS": 0.23100000000000018
+            },
+            {
+              "event": "L-drift-over-2mm",
+              "timeS": 0.2740000000000002
+            },
+            {
+              "event": "R-tangential-drift-over-2mm",
+              "timeS": 0.5330000000000004
+            }
+          ],
+          "palms": {
+            "L": {
+              "zeroLoadCount": 2,
+              "zeroLoadTotal": 0.0020000000000000018,
+              "longestZero": 0.0010000000000000009,
+              "zeroIntervals": [
+                {
+                  "start": 0.046000000000000034,
+                  "end": 0.047000000000000035,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.6260000000000004,
+                  "end": 0.6270000000000004,
+                  "duration": 0.0010000000000000009
+                }
+              ],
+              "maximumDriftM": 0.002064582955650034,
+              "maximumTangentialM": 0.0018454753501942996,
+              "end": {
+                "loadN": 126.54610031184454,
+                "driftM": 0.0017193791027749193,
+                "tangentialDriftM": 0.001650742754996354,
+                "normalDisplacementM": 0.00048094995153979796,
+                "sourceWristErrorM": 0.008440900185202438
+              }
+            },
+            "R": {
+              "zeroLoadCount": 7,
+              "zeroLoadTotal": 0.007000000000000006,
+              "longestZero": 0.0010000000000000009,
+              "zeroIntervals": [
+                {
+                  "start": 0.04000000000000003,
+                  "end": 0.04100000000000003,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.5730000000000004,
+                  "end": 0.5740000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.5900000000000004,
+                  "end": 0.5910000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.6060000000000004,
+                  "end": 0.6070000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.6210000000000004,
+                  "end": 0.6220000000000004,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.6350000000000005,
+                  "end": 0.6360000000000005,
+                  "duration": 0.0010000000000000009
+                },
+                {
+                  "start": 0.6490000000000005,
+                  "end": 0.6500000000000005,
+                  "duration": 0.0010000000000000009
+                }
+              ],
+              "maximumDriftM": 0.00985937567496118,
+              "maximumTangentialM": 0.0066951944045950005,
+              "end": {
+                "loadN": 23.64561643179341,
+                "driftM": 0.00985937567496118,
+                "tangentialDriftM": 0.0066951944045950005,
+                "normalDisplacementM": 0.007237517570596706,
+                "sourceWristErrorM": 0.013809767625894274
+              }
+            }
+          }
+        },
+        {
+          "path": "../remaining-batches/native-palm-prefix-male-halfms-1.json",
+          "sha256": "19396a7dff00fe2db28372da77cc504121ba871cfb31f9c4e2f451760491e8e4",
+          "timestep": 0.0005,
+          "endTime": 0.6499999999999838,
+          "peakTracking": {
+            "time": 0.6499999999999838,
+            "joint": "R_Forearm_flexion",
+            "signedErrorDeg": 28.70502308912442
+          },
+          "firstSaturation": 0.09600000000000007,
+          "firstTracking15": 0.4820000000000004,
+          "events": [
+            {
+              "event": "R-load-below-1N",
+              "timeS": 0.03800000000000003
+            },
+            {
+              "event": "R-zero-load",
+              "timeS": 0.03800000000000003
+            },
+            {
+              "event": "L-load-below-1N",
+              "timeS": 0.04500000000000003
+            },
+            {
+              "event": "L-zero-load",
+              "timeS": 0.04500000000000003
+            },
+            {
+              "event": "R-drift-over-2mm",
+              "timeS": 0.24000000000000019
+            },
+            {
+              "event": "L-drift-over-2mm",
+              "timeS": 0.2615000000000002
+            },
+            {
+              "event": "L-tangential-drift-over-2mm",
+              "timeS": 0.4180000000000003
+            },
+            {
+              "event": "R-tangential-drift-over-2mm",
+              "timeS": 0.44450000000000034
+            }
+          ],
+          "palms": {
+            "L": {
+              "zeroLoadCount": 3,
+              "zeroLoadTotal": 0.0014999999999999458,
+              "longestZero": 0.0005000000000000004,
+              "zeroIntervals": [
+                {
+                  "start": 0.04500000000000003,
+                  "end": 0.045500000000000033,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.17150000000000012,
+                  "end": 0.17200000000000013,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.6204999999999871,
+                  "end": 0.620999999999987,
+                  "duration": 0.0004999999999999449
+                }
+              ],
+              "maximumDriftM": 0.004301608464656205,
+              "maximumTangentialM": 0.004258998531509455,
+              "end": {
+                "loadN": 127.79238291219333,
+                "driftM": 0.004209221523654311,
+                "tangentialDriftM": 0.00412252956641122,
+                "normalDisplacementM": 0.0008498798793123829,
+                "sourceWristErrorM": 0.010764626280958069
+              }
+            },
+            "R": {
+              "zeroLoadCount": 7,
+              "zeroLoadTotal": 0.00349999999999967,
+              "longestZero": 0.0005000000000000004,
+              "zeroIntervals": [
+                {
+                  "start": 0.03800000000000003,
+                  "end": 0.03850000000000003,
+                  "duration": 0.0005000000000000004
+                },
+                {
+                  "start": 0.5739999999999922,
+                  "end": 0.5744999999999921,
+                  "duration": 0.0004999999999999449
+                },
+                {
+                  "start": 0.5899999999999904,
+                  "end": 0.5904999999999904,
+                  "duration": 0.0004999999999999449
+                },
+                {
+                  "start": 0.6059999999999887,
+                  "end": 0.6064999999999886,
+                  "duration": 0.0004999999999999449
+                },
+                {
+                  "start": 0.6194999999999872,
+                  "end": 0.6199999999999871,
+                  "duration": 0.0004999999999999449
+                },
+                {
+                  "start": 0.6329999999999857,
+                  "end": 0.6334999999999856,
+                  "duration": 0.0004999999999999449
+                },
+                {
+                  "start": 0.6454999999999843,
+                  "end": 0.6459999999999843,
+                  "duration": 0.0004999999999999449
+                }
+              ],
+              "maximumDriftM": 0.01074367173056664,
+              "maximumTangentialM": 0.008021126231649363,
+              "end": {
+                "loadN": 48.95781308160829,
+                "driftM": 0.01074367173056664,
+                "tangentialDriftM": 0.008021126231649363,
+                "normalDisplacementM": 0.007147588140773311,
+                "sourceWristErrorM": 0.01474369815064474
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

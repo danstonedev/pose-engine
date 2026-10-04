@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "sourceRevision": "274ad55a3a84df593c12c24852ec80bc744d3d13",
+  "sourceStatus": "M AGENTS.md\n M docs/blender-workflow.md\n M docs/movement-improvement-status.md\n M docs/movement-templates-reference.md\n M package.json\n M scripts/blender/export-review.ts\n M scripts/blender/measure-floor-clearance.py\n M src/ExamStage3D.svelte\n M src/__tests__/assessmentBodyMotions.test.ts\n M src/__tests__/floorPalmSupports.test.ts\n M src/__tests__/modelQuantize.test.ts\n M src/__tests__/motionTrajectory.test.ts\n M src/__tests__/romRegistry.test.ts\n M src/__tests__/stageReliability.test.ts\n M src/services/assessmentBodyMotions.ts\n M src/services/balanceCoordination.ts\n M src/services/floorPalmSupports.ts\n M src/services/footContact.ts\n M src/services/handContactPose.ts\n M src/services/jointAngles.ts\n M src/services/motionRecording.ts\n M src/services/motionSequence.ts\n M src/services/motionTrajectory.ts\n M src/services/movementCommand.ts\n M src/services/poseRomClamp.ts\n M src/services/posedGeometry.ts\n M src/services/romRegistry.ts\n M src/services/rootMotion.ts\n M src/services/shoulderComplex.ts\n?? .gitattributes\n?? docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html\n?? docs/catalogue-evidence/\n?? docs/evidence/floor-plane-diagnostic-2026-10-02.json\n?? docs/evidence/pressup-surface-2026-10-02.json\n?? docs/movement-catalogue-process.md\n?? docs/movement-engineering-charter.md\n?? docs/movement-pipeline-audit-2026-10-02.md\n?? docs/neuromusculoskeletal-system/\n?? docs/unified-movement-development-prompt.md\n?? scripts/blender/audit-captured-palm-projection.ts\n?? scripts/blender/audit-motion-continuity.py\n?? scripts/blender/audit-patient-held-inputs.ts\n?? scripts/blender/audit-pressup-arm-frames.ts\n?? scripts/blender/audit-pressup-chain.ts\n?? scripts/blender/audit-pressup-clinical-dense.ts\n?? scripts/blender/audit-pressup-heading.ts\n?? scripts/blender/audit-pressup-input-sensitivity.ts\n?? scripts/blender/audit-prone-fk-scan.ts\n?? scripts/blender/audit-public-support-assets.ts\n?? scripts/blender/author-palm-surface-support.py\n?? scripts/blender/author-pressup-whole-chain.py\n?? scripts/blender/author-prone-thigh-rest.py\n?? scripts/blender/author-sparse-pressup-controls.py\n?? scripts/blender/captured-hand-solver-trace.ts\n?? scripts/blender/check-pressup-guide-continuity.ts\n?? scripts/blender/check-pressup-palm-layout.ts\n?? scripts/blender/check-prone-lower-chain-probe.ts\n?? scripts/blender/check-whole-chain-proposal.ts\n?? scripts/blender/derive-palm-support-plane.py\n?? scripts/blender/export-assessment-json.ts\n?? scripts/blender/export-sparse-pressup-probe.ts\n?? scripts/blender/probe-pressup-endpoints.ts\n?? scripts/blender/probe-prone-knee-toe-support.py\n?? scripts/blender/probe-prone-patient-order.ts\n?? scripts/blender/profile-patient-support-paths.ts\n?? scripts/blender/profile-prepared-patient.ts\n?? scripts/blender/render-prone-thigh-authoring.py\n?? scripts/blender/render-whole-chain-proposal.py\n?? scripts/blender/test-measure-floor-clearance.py\n?? scripts/blender/verify-palm-support-plane.ts\n?? scripts/catalogue/\n?? src/__tests__/hingeClinicalFrame.test.ts\n?? src/__tests__/measuredPatientHip.test.ts\n?? src/__tests__/movementCatalogue.test.ts\n?? src/__tests__/posedVertexReader.test.ts\n?? src/__tests__/preparedPalmRefinement.test.ts\n?? src/__tests__/pressUpSurfaceContact.test.ts\n?? src/__tests__/pressupPalmLayoutScope.test.ts\n?? src/__tests__/proneScreenControls.test.ts\n?? src/__tests__/proneSkinSupport.test.ts\n?? src/__tests__/proneSkinSupportIntegration.test.ts\n?? src/__tests__/proneSupportRecordingContract.test.ts\n?? src/__tests__/proneSupportSurface.test.ts\n?? src/__tests__/supportPlane.test.ts\n?? src/anatomy/forearmJointFrame.d.mts\n?? src/anatomy/forearmJointFrame.mjs\n?? src/anatomy/scapularGirdleProxy.d.mts\n?? src/anatomy/scapularGirdleProxy.mjs\n?? src/anatomy/shoulderComplexFrame.d.mts\n?? src/anatomy/shoulderComplexFrame.mjs\n?? src/anatomy/upperArmJointFrame.d.mts\n?? src/anatomy/upperArmJointFrame.mjs\n?? src/anatomy/wristJointFrame.d.mts\n?? src/anatomy/wristJointFrame.mjs\n?? src/services/handSupportSurface.ts\n?? src/services/pressupPalmLayout.ts\n?? src/services/proneSkinSupport.ts",
+  "sourceDigest": "067db033df2c41495f14d67d942ab4648661e5d0a09c3becf2e0b74aee1b4323",
+  "exporterSha256": "c5331887fa16d2c0658e997b1387de789007c5398b1baf586b289f612d27376b",
+  "fps": 30,
+  "romClamp": {
+    "requested": "context-default",
+    "effective": true,
+    "environment": "node",
+    "scope": "Global FK/calibration clamp mode. Explicit contact and patient projections retain their own required limits."
+  },
+  "axes": "glTF: X left, Y up, Z anterior; metres",
+  "materialPolicy": "Neutral review material; source geometry, skin weights and production assets are unchanged.",
+  "deformation": "Production sampled poses with createStageTwistOverlay.sampleWithTwist baked into every helper track.",
+  "cases": [
+    {
+      "id": "male-shoulder-abduction-160",
+      "variant": "male",
+      "side": "R",
+      "movement": "shoulder-abduction-160",
+      "file": "male-shoulder-abduction-160.glb",
+      "sourceModelSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "glbSha256": "9c231e819263ceebe13f7f8bf7f2ec2aedd0174e85f7a2e8e156a2591064c884",
+      "frames": 118,
+      "durationMs": 3900.0000000000005,
+      "floorY": 0.020233544814448716,
+      "romClamp": {
+        "requested": "context-default",
+        "effective": true,
+        "environment": "node",
+        "scope": "Global FK/calibration clamp mode. Explicit contact and patient projections retain their own required limits."
+      },
+      "setupFrame": 8,
+      "holdFrame": 63,
+      "expected": "male-shoulder-abduction-160.expected.json"
+    },
+    {
+      "id": "female-shoulder-abduction-160",
+      "variant": "female",
+      "side": "R",
+      "movement": "shoulder-abduction-160",
+      "file": "female-shoulder-abduction-160.glb",
+      "sourceModelSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "glbSha256": "2436115788df78b10808a90e6d5112858bbd9ac6c887153f95756c6b5ae58f36",
+      "frames": 118,
+      "durationMs": 3900.0000000000005,
+      "floorY": 0.016984592157642246,
+      "romClamp": {
+        "requested": "context-default",
+        "effective": true,
+        "environment": "node",
+        "scope": "Global FK/calibration clamp mode. Explicit contact and patient projections retain their own required limits."
+      },
+      "setupFrame": 8,
+      "holdFrame": 63,
+      "expected": "female-shoulder-abduction-160.expected.json"
+    },
+    {
+      "id": "neutral-shoulder-abduction-160",
+      "variant": "neutral",
+      "side": "R",
+      "movement": "shoulder-abduction-160",
+      "file": "neutral-shoulder-abduction-160.glb",
+      "sourceModelSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "glbSha256": "d08ca5aa157b43d5c1d9832a2af865da3c8f81a5682f32be3111d8ea36434d01",
+      "frames": 118,
+      "durationMs": 3900.0000000000005,
+      "floorY": 0.015347652668968023,
+      "romClamp": {
+        "requested": "context-default",
+        "effective": true,
+        "environment": "node",
+        "scope": "Global FK/calibration clamp mode. Explicit contact and patient projections retain their own required limits."
+      },
+      "setupFrame": 8,
+      "holdFrame": 63,
+      "expected": "neutral-shoulder-abduction-160.expected.json"
+    }
+  ]
+}

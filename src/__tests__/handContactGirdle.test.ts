@@ -44,7 +44,7 @@ describe.each(['male', 'female'] as const)('%s hand contact girdle', variant => 
           expect(turn, 'the girdle contributes to the high reach').toBeGreaterThan(3);
           expect(error, 'the raised-support fallback improves the endpoint').toBeLessThan(legacyError * 0.9);
           for (let i = 1; i < solver.ctx.bones.length; i += 1) {
-            const report = inspectClinicalAngles(solver.ctx.bones[i]!, solver.ctx.canonicalKeys[i], rig.rest)!;
+            const report = inspectClinicalAngles(solver.ctx.bones[i]!, solver.ctx.canonicalKeys[i], rig.rest, undefined, { clinicalHingeDeviation: true })!;
             for (const axis of ['flexion', 'abduction', 'rotation'] as const) {
               const value = axis === 'flexion' ? report.anatomicFlexion : axis === 'rotation' ? report.anatomicRotation : report.raw.abduction;
               const range = report.ranges[axis];

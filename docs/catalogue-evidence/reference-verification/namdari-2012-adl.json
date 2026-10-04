@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:namdari-2012-adl",
+  "title": "Defining functional shoulder range of motion for activities of daily living",
+  "primaryUrls": [
+    "https://www.sciencedirect.com/science/article/pii/S1058274611003867"
+  ],
+  "doi": "10.1016/j.jse.2011.07.032",
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Inspected primary publisher Results/Discussion and bibliographic DOI. Verified aggregate ADL task context only. Full methods, individual task table values and raw trajectories were not retained or reconciled to engine axes.",
+  "claims": [
+    {
+      "id": "ref:namdari-2012-adl:claim-1",
+      "description": "Published daily-task study supports aggregate functional shoulder ROM context, not an isolated-elevation trajectory or clinical ROM ceiling.",
+      "kind": "observed"
+    }
+  ],
+  "limitations": [
+    "Study requirement summaries cannot validate scapular/glenohumeral partition, fingers, trunk or force.",
+    "Full methods/cohort and Table II per-task figures have not been retained or reconciled to engine axes.",
+    "No licensed raw trajectory is imported."
+  ],
+  "license": {
+    "status": "unknown",
+    "name": null,
+    "scope": null,
+    "retentionConditions": "Do not assume public access permits dataset or media redistribution."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://www.sciencedirect.com/science/article/pii/S1058274611003867",
+        "section": "Results; Table II; Discussion"
+      },
+      {
+        "path": "simmove/pose-engine/src/services/movementTemplates.data.ts",
+        "sha256": "d28acd37fe2677a942a60e82e944b98941a2dae1c9c71ec144c416f61470fc7e",
+        "line": 177,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "library:shoulder-flexion-elevation",
+      "library:shoulder-abduction-elevation",
+      "engine-template:shoulder-flexion-elevation",
+      "engine-template:shoulder-abduction-elevation"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}

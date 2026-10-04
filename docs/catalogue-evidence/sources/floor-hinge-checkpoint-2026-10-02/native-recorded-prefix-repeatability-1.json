@@ -1,0 +1,278 @@
+{
+  "at": "2026-10-02T23:28:13.352Z",
+  "scope": "Reporter completion recapture; all native step history values exactly match retained first run. Historical source remains unqualified.",
+  "rows": [
+    {
+      "variant": "female",
+      "kind": "dense",
+      "identicalHistory": true,
+      "samples": 1650,
+      "finalTime": 1.649999999999929,
+      "floorTranslationM": 0.010090151558070089,
+      "acquisition": {
+        "L": {
+          "acquisition": {
+            "timeS": 1.3469999999999624,
+            "loadN": 7.7394086128004504,
+            "worldPositionM": [
+              0.24938885087735857,
+              0.0009142761930209626,
+              1.6963319838687885
+            ],
+            "sourceMaterialPointM": [
+              0.24686636162844325,
+              -0.0035434078467115847,
+              1.6980826172955357
+            ],
+            "sourceMaterialPointOffsetM": 0.005412819635257053,
+            "sourceWristErrorM": 0.0055677950551216845,
+            "sourceOrientationErrorDeg": 0.9671120081191701,
+            "initialNativeMaterialPointOffsetM": 0.006414148708642372
+          },
+          "stability": {
+            "acquired": true,
+            "stationarySourceWrist": true,
+            "continuousLoadedFromSetup": false,
+            "retainedAfterAcquisition": false,
+            "anchorWithin2mm": true
+          },
+          "lossIntervals": 19,
+          "zeroIntervals": 19
+        },
+        "R": {
+          "acquisition": {
+            "timeS": 1.6349999999999307,
+            "loadN": 2.8888128904115247,
+            "worldPositionM": [
+              -0.25258196453175913,
+              0.0009397958067665983,
+              1.6948209021216154
+            ],
+            "sourceMaterialPointM": [
+              -0.24694220441083267,
+              -0.003623292327359022,
+              1.69799639338625
+            ],
+            "sourceMaterialPointOffsetM": 0.007919116889727136,
+            "sourceWristErrorM": 0.008758110653046101,
+            "sourceOrientationErrorDeg": 1.1710695482063151,
+            "initialNativeMaterialPointOffsetM": 0.008489653594172888
+          },
+          "stability": {
+            "acquired": true,
+            "stationarySourceWrist": true,
+            "continuousLoadedFromSetup": false,
+            "retainedAfterAcquisition": false,
+            "anchorWithin2mm": true
+          },
+          "lossIntervals": 2,
+          "zeroIntervals": 2
+        }
+      }
+    },
+    {
+      "variant": "female",
+      "kind": "sparse",
+      "identicalHistory": true,
+      "samples": 1650,
+      "finalTime": 1.649999999999929,
+      "floorTranslationM": 0.010090151558070089,
+      "acquisition": {
+        "L": {
+          "acquisition": {
+            "timeS": 1.242999999999974,
+            "loadN": 4.206828635673799,
+            "worldPositionM": [
+              0.2574481182047637,
+              0.0009423030858698092,
+              1.6981323541776416
+            ],
+            "sourceMaterialPointM": [
+              0.24684749852385587,
+              -0.003602741048569249,
+              1.6980435986103184
+            ],
+            "sourceMaterialPointOffsetM": 0.011534229118323438,
+            "sourceWristErrorM": 0.010522109804826962,
+            "sourceOrientationErrorDeg": 1.2342024469020456,
+            "initialNativeMaterialPointOffsetM": 0.011964403006266772
+          },
+          "stability": {
+            "acquired": true,
+            "stationarySourceWrist": true,
+            "continuousLoadedFromSetup": false,
+            "retainedAfterAcquisition": false,
+            "anchorWithin2mm": false
+          },
+          "lossIntervals": 27,
+          "zeroIntervals": 27
+        },
+        "R": {
+          "acquisition": {
+            "timeS": 1.2499999999999731,
+            "loadN": 3.8563595488280464,
+            "worldPositionM": [
+              -0.2577660404207975,
+              0.0009335178171078128,
+              1.6993532069012425
+            ],
+            "sourceMaterialPointM": [
+              -0.2468336410782285,
+              -0.003591796234753083,
+              1.6979408209594262
+            ],
+            "sourceMaterialPointOffsetM": 0.011915983245289185,
+            "sourceWristErrorM": 0.01078268163537459,
+            "sourceOrientationErrorDeg": 1.288701502297609,
+            "initialNativeMaterialPointOffsetM": 0.012348281436713477
+          },
+          "stability": {
+            "acquired": true,
+            "stationarySourceWrist": true,
+            "continuousLoadedFromSetup": false,
+            "retainedAfterAcquisition": false,
+            "anchorWithin2mm": false
+          },
+          "lossIntervals": 28,
+          "zeroIntervals": 28
+        }
+      }
+    },
+    {
+      "variant": "male",
+      "kind": "dense",
+      "identicalHistory": true,
+      "samples": 1650,
+      "finalTime": 1.649999999999929,
+      "floorTranslationM": 0.01961172789462907,
+      "acquisition": {
+        "L": {
+          "acquisition": {
+            "timeS": 0.06700000000000005,
+            "loadN": 32.63459946955723,
+            "worldPositionM": [
+              0.2943549939441165,
+              0.0007916896672994166,
+              1.748064064451125
+            ],
+            "sourceMaterialPointM": [
+              0.2932817993428372,
+              -0.003467943474098699,
+              1.750767807559393
+            ],
+            "sourceMaterialPointOffsetM": 0.0051581438470655085,
+            "sourceWristErrorM": 0.007493462130317562,
+            "sourceOrientationErrorDeg": 2.3438108165981184,
+            "initialNativeMaterialPointOffsetM": 0.015625359930781332
+          },
+          "stability": {
+            "acquired": true,
+            "stationarySourceWrist": true,
+            "continuousLoadedFromSetup": false,
+            "retainedAfterAcquisition": false,
+            "anchorWithin2mm": false
+          },
+          "lossIntervals": 50,
+          "zeroIntervals": 50
+        },
+        "R": {
+          "acquisition": {
+            "timeS": 0.08800000000000006,
+            "loadN": 19.436393047097024,
+            "worldPositionM": [
+              -0.2796777719710473,
+              0.000941702804590958,
+              1.7351434115998894
+            ],
+            "sourceMaterialPointM": [
+              -0.27209913985998485,
+              -0.00364946932187208,
+              1.738984161164542
+            ],
+            "sourceMaterialPointOffsetM": 0.009657426333553763,
+            "sourceWristErrorM": 0.009495505503656066,
+            "sourceOrientationErrorDeg": 2.830429761933739,
+            "initialNativeMaterialPointOffsetM": 0.017258443937043642
+          },
+          "stability": {
+            "acquired": true,
+            "stationarySourceWrist": true,
+            "continuousLoadedFromSetup": false,
+            "retainedAfterAcquisition": false,
+            "anchorWithin2mm": false
+          },
+          "lossIntervals": 18,
+          "zeroIntervals": 18
+        }
+      }
+    },
+    {
+      "variant": "male",
+      "kind": "sparse",
+      "identicalHistory": true,
+      "samples": 1650,
+      "finalTime": 1.649999999999929,
+      "floorTranslationM": 0.01961172789462907,
+      "acquisition": {
+        "L": {
+          "acquisition": {
+            "timeS": 0.06700000000000005,
+            "loadN": 31.875174543580854,
+            "worldPositionM": [
+              0.2943422046512517,
+              0.0008085791495769216,
+              1.748089119783682
+            ],
+            "sourceMaterialPointM": [
+              0.29328992246053054,
+              -0.0034857435656210217,
+              1.750766992178014
+            ],
+            "sourceMaterialPointOffsetM": 0.005169091404831123,
+            "sourceWristErrorM": 0.007486817334789096,
+            "sourceOrientationErrorDeg": 2.3190401519145536,
+            "initialNativeMaterialPointOffsetM": 0.015585375422392718
+          },
+          "stability": {
+            "acquired": true,
+            "stationarySourceWrist": true,
+            "continuousLoadedFromSetup": false,
+            "retainedAfterAcquisition": false,
+            "anchorWithin2mm": false
+          },
+          "lossIntervals": 34,
+          "zeroIntervals": 34
+        },
+        "R": {
+          "acquisition": {
+            "timeS": 0.08800000000000006,
+            "loadN": 20.8207392667152,
+            "worldPositionM": [
+              -0.2789727318658171,
+              0.0008844940500652175,
+              1.7347187171857839
+            ],
+            "sourceMaterialPointM": [
+              -0.2714333536817571,
+              -0.00359020414970148,
+              1.7386069590274218
+            ],
+            "sourceMaterialPointOffsetM": 0.009590806639711784,
+            "sourceWristErrorM": 0.009423644924378576,
+            "sourceOrientationErrorDeg": 2.8507898339641056,
+            "initialNativeMaterialPointOffsetM": 0.017353440448003476
+          },
+          "stability": {
+            "acquired": true,
+            "stationarySourceWrist": true,
+            "continuousLoadedFromSetup": false,
+            "retainedAfterAcquisition": false,
+            "anchorWithin2mm": false
+          },
+          "lossIntervals": 18,
+          "zeroIntervals": 18
+        }
+      }
+    }
+  ]
+}

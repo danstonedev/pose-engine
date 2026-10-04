@@ -193,6 +193,15 @@ const NOT_MET: Record<string, number> = {
   'push-up male 60 R_Hand depth': 0.03878, // 5c1c9ac 0.03461, 2d8f5e6 0.03915
   'push-up male 120 L_Hand depth': 0.03878, // 5c1c9ac 0.03465, 2d8f5e6 0.03916
   'push-up male 120 R_Hand depth': 0.03878, // 5c1c9ac 0.03464, 2d8f5e6 0.03915
+  // Explicit planted palms now use a 12 Hz prepared guide. These subdegree
+  // angular-speed corners exceed the historical unplanted fixture's ratchet;
+  // they are not fixed-angle snaps (pushup-pop-rates-2.json). Removing the
+  // new contacts restores the old ratchet but increases wrist floor depth
+  // from <0.1 mm to 27.6 mm (pushup-contact-policy-1.json). Retain the measured
+  // 4-significant-figure ledger and its existing 1% allowance; guide-speed
+  // smoothness remains follow-up, not a new clinical/contact tolerance.
+  'push-up male 120 L_UpperArm pop': 0.2317, // 5c1c9ac 0.110228
+  'push-up male 120 R_UpperArm pop': 0.2518, // 5c1c9ac 0.110623
   'push-up female 30 L_Hand depth': 0.03389, // 5c1c9ac 0.02573, 2d8f5e6 0.03389
   'push-up female 30 R_Hand depth': 0.03389, // 5c1c9ac 0.02573, 2d8f5e6 0.03389
   'push-up female 60 L_UpperArm pop': 4.794, // 5c1c9ac 3.77, 2d8f5e6 4.652

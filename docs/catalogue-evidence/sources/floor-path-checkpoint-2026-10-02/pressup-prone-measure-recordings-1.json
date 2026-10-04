@@ -1,0 +1,1080 @@
+{
+  "exactResultAndPoseEquality": true,
+  "before": {
+    "proneSkinSupport": "386708487c2bf658d61d31082e1937a598eb907796960aba170dee8806c31a92",
+    "footContact": "f53e30fae414065f25f1a4e1580fe87e83c8c5c578e20bf5f04046eb92219f83",
+    "handContactPose": "5e34370ade481c0694966759f856265443e847d208f0d615ec935065618bc0bc",
+    "motionTrajectory": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8",
+    "posedGeometry": "baa508a59e1caf682cac037adc8488286fdd41948dd7f1b8423efb95a0d0bb6a",
+    "motionRigInputKey": "c12b7ca2a6f051b8daaacfe6bac38633d54bb4eb34422d5437a4960f4fa0b744",
+    "motionRecording": "e1c1cb070cd3a7953c74fa9d6a3c366941ec57b11940fc9bd0892173f0d61fe9",
+    "poseRomClamp": "74063abc2b80a52820b30814a44106d210cd4677551fcd79a4c43c15a49f4df0",
+    "jointAngles": "5bb7618b768b1f4916df479174a2e9ec826d12de086dbb3623e18ae87efc0c39",
+    "pressupPalmLayout": "c9254cd4085c3c08f090bf69dbaad629a1310d21abd3b9a1578775d2058b7811"
+  },
+  "poseModeClampEnabled": false,
+  "scope": "Paired actual-rig production helper and isolated candidate; all returned values and all bone locals and world matrices must be byte-identical on each invocation. Browser/test pose-mode clamp switch disabled; contact solver still forces clinical/patient projection. Process-local exact-delegating factory/solve timing; no production source changes or cache decisions changed.",
+  "runs": [
+    {
+      "variant": "male",
+      "label": "default",
+      "factories": [
+        {
+          "initializationMs": 33.02439999999979,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 616.3725999999956,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 594.0858999999969,
+              "cachedMs": 277.7165999999952
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 11.259300000000621,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.403400000000147,
+              "cachedMs": 11.259300000000621
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 26.144099999999526,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 572.1345000000028,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 622.2579999999962,
+              "cachedMs": 263.49190000000544
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 11.508499999999913,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.765999999997803,
+              "cachedMs": 11.508499999999913
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 31.49909999999909,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 601.2001000000091,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 636.6399999999958,
+              "cachedMs": 268.4266000000116
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 11.12249999999949,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 5.8659999999999854,
+              "cachedMs": 11.12249999999949
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 7.088099999999031,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 573.0341000000026,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 610.312299999976,
+              "cachedMs": 272.5751000000055
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 11.240100000000893,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.4856999999974505,
+              "cachedMs": 11.240100000000893
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 24.400400000000445,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 555.9573999999957,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 616.1778999999988,
+              "cachedMs": 261.32459999999446
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 10.72910000000411,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 5.8814000000020314,
+              "cachedMs": 10.72910000000411
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 25.178900000002614,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 589.6515000000472,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 608.2503999999826,
+              "cachedMs": 264.93680000004315
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 12.339600000002974,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.7700000000077125,
+              "cachedMs": 12.339600000002974
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 26.199699999997392,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 562.304300000018,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 640.8842999999943,
+              "cachedMs": 252.8301000000065
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 11.974099999999453,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.259200000000419,
+              "cachedMs": 11.974099999999453
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 8.196599999999307,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 556.006499999985,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 579.6886000000195,
+              "cachedMs": 255.57369999999355
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 11.222200000003795,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 5.751199999998789,
+              "cachedMs": 11.222200000003795
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 7.562000000001717,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 14.38329999999769,
+              "cachedCalls": 3,
+              "iterations": 8,
+              "candidateMs": 12.12409999999727,
+              "cachedMs": 6.859499999998661
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 892.3729000000276,
+              "cachedCalls": 79,
+              "iterations": 632,
+              "candidateMs": 1043.1628999999994,
+              "cachedMs": 197.02320000003238
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 24967.9681,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "male",
+      "label": "patient",
+      "factories": [
+        {
+          "initializationMs": 23.23199999999997,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 495.0607000000018,
+              "cachedCalls": 107,
+              "iterations": 256,
+              "candidateMs": 528.4388999999646,
+              "cachedMs": 231.97809999999663
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 828.945800000045,
+              "cachedCalls": 85,
+              "iterations": 585,
+              "candidateMs": 984.47349999996,
+              "cachedMs": 189.8502000000226
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 11161.038199999999,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "male",
+      "label": "patient-repeat",
+      "factories": [
+        {
+          "initializationMs": 8.088599999995495,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 13.34139999999752,
+              "cachedCalls": 3,
+              "iterations": 8,
+              "candidateMs": 14.198100000001432,
+              "cachedMs": 6.041699999994307
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 847.4437000000253,
+              "cachedCalls": 79,
+              "iterations": 632,
+              "candidateMs": 1026.7554000000018,
+              "cachedMs": 172.76940000004106
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 6501.762799999997,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "female",
+      "label": "default",
+      "factories": [
+        {
+          "initializationMs": 24.15559999999823,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 482.37760000002163,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 528.9622999999556,
+              "cachedMs": 239.0672000000195
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 11.345200000003388,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 7.546199999997043,
+              "cachedMs": 11.345200000003388
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 8.543299999997544,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 478.27339999992546,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 502.3052999999709,
+              "cachedMs": 236.86979999995674
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 13.705699999991339,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.498500000001513,
+              "cachedMs": 13.705699999991339
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 9.45060000000376,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 494.02730000003066,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 523.1776999999856,
+              "cachedMs": 254.20630000000529
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 14.15549999999348,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 7.739900000007765,
+              "cachedMs": 14.15549999999348
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 9.445700000003853,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 534.8545999999624,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 556.65510000004,
+              "cachedMs": 256.7572999999684
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 10.873399999996764,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 5.858800000001793,
+              "cachedMs": 10.873399999996764
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 25.593300000000454,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 504.81280000005063,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 546.1651999999813,
+              "cachedMs": 242.33020000003307
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 12.847200000011071,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.443400000003749,
+              "cachedMs": 12.847200000011071
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 9.595099999998638,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 506.1148000000394,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 534.0799999999945,
+              "cachedMs": 257.2840000000506
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 12.455100000006496,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.644000000000233,
+              "cachedMs": 12.455100000006496
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 8.575400000001537,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 541.1321999999855,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 576.6890999999814,
+              "cachedMs": 272.47569999998814
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 12.68289999999979,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 6.81260000000475,
+              "cachedMs": 12.68289999999979
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 8.563999999998487,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 796.6870999999082,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 798.3594999999623,
+              "cachedMs": 431.30819999995583
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 19.44289999999455,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 10.585500000001048,
+              "cachedMs": 19.44289999999455
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 36.57789999998931,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 39.823300000003655,
+              "cachedCalls": 3,
+              "iterations": 13,
+              "candidateMs": 40.920500000022,
+              "cachedMs": 12.342900000003283
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 1211.995199999932,
+              "cachedCalls": 79,
+              "iterations": 523,
+              "candidateMs": 1395.1841999999888,
+              "cachedMs": 280.2991999999649
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 30302.384300000005,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "female",
+      "label": "patient",
+      "factories": [
+        {
+          "initializationMs": 12.81710000000021,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 895.5846999998903,
+              "cachedCalls": 107,
+              "iterations": 216,
+              "candidateMs": 884.9526999999653,
+              "cachedMs": 467.04629999992903
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 1469.6508999999205,
+              "cachedCalls": 85,
+              "iterations": 491,
+              "candidateMs": 1587.3872000000702,
+              "cachedMs": 413.41409999995085
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 19221.8505,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "female",
+      "label": "patient-repeat",
+      "factories": [
+        {
+          "initializationMs": 40.27320000001055,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 33.67660000000615,
+              "cachedCalls": 3,
+              "iterations": 13,
+              "candidateMs": 33.95639999999548,
+              "cachedMs": 13.84800000001269
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 1653.567699999956,
+              "cachedCalls": 79,
+              "iterations": 523,
+              "candidateMs": 1849.5520999998407,
+              "cachedMs": 349.9868000000424
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 13134.651200000008,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "neutral",
+      "label": "default",
+      "factories": [
+        {
+          "initializationMs": 45.87029999999504,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 1195.8748999999661,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 1104.8708999999653,
+              "cachedMs": 584.4783999999199
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 22.762199999997392,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 12.172300000020186,
+              "cachedMs": 22.762199999997392
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 19.34440000000177,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 1024.213499999969,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 1068.771499999959,
+              "cachedMs": 485.7663999999204
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 20.018000000010943,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 13.356299999999464,
+              "cachedMs": 20.018000000010943
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 48.92170000000624,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 1109.6161999999604,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 1112.026600000012,
+              "cachedMs": 511.77729999991425
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 22.71840000001248,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 12.757099999987986,
+              "cachedMs": 22.71840000001248
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 14.923800000004121,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 1193.9371000000829,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 1212.4498000001768,
+              "cachedMs": 546.8106000000553
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 29.832000000053085,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 14.284300000028452,
+              "cachedMs": 29.832000000053085
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 22.26150000002235,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 1321.455600000103,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 1316.6007000001264,
+              "cachedMs": 592.1646000001056
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 27.687399999966146,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 15.313799999974435,
+              "cachedMs": 27.687399999966146
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 50.4030999999959,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 1247.589800000016,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 1386.9397000000172,
+              "cachedMs": 572.4273000000103
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 24.004400000005262,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 14.568899999983842,
+              "cachedMs": 24.004400000005262
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 50.36710000000312,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 1192.3049000000174,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 1167.5678999999072,
+              "cachedMs": 576.9475000000384
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 24.27139999999781,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 11.661599999992177,
+              "cachedMs": 24.27139999999781
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 53.34959999998682,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 1200.2880000000005,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 1263.2511000001687,
+              "cachedMs": 541.8048000000999
+            },
+            "playback": {
+              "calls": 5,
+              "totalMs": 31.02290000001085,
+              "cachedCalls": 5,
+              "iterations": 0,
+              "candidateMs": 13.524999999965075,
+              "cachedMs": 31.02290000001085
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        },
+        {
+          "initializationMs": 46.8237000000081,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 43.99260000002687,
+              "cachedCalls": 3,
+              "iterations": 8,
+              "candidateMs": 60.427000000025146,
+              "cachedMs": 18.16190000003553
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 2164.6114000001107,
+              "cachedCalls": 79,
+              "iterations": 561,
+              "candidateMs": 2402.808199999912,
+              "cachedMs": 457.41480000005686
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 58030.8336,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "neutral",
+      "label": "patient",
+      "factories": [
+        {
+          "initializationMs": 47.81659999999101,
+          "paths": {
+            "guide-prepass": {
+              "calls": 141,
+              "totalMs": 1180.8502000001317,
+              "cachedCalls": 107,
+              "iterations": 226,
+              "candidateMs": 1214.141800000245,
+              "cachedMs": 560.8452000001271
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 2133.3779000001086,
+              "cachedCalls": 85,
+              "iterations": 522,
+              "candidateMs": 2441.5589000000036,
+              "cachedMs": 449.6692000000621
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 27495.9528,
+      "frames": 163,
+      "costs": {}
+    },
+    {
+      "variant": "neutral",
+      "label": "patient-repeat",
+      "factories": [
+        {
+          "initializationMs": 45.83329999999842,
+          "paths": {
+            "guide-prepass": {
+              "calls": 4,
+              "totalMs": 47.11499999999069,
+              "cachedCalls": 3,
+              "iterations": 8,
+              "candidateMs": 44.899199999985285,
+              "cachedMs": 17.078100000013364
+            },
+            "playback": {
+              "calls": 163,
+              "totalMs": 2042.2961000001524,
+              "cachedCalls": 79,
+              "iterations": 561,
+              "candidateMs": 2256.591600000218,
+              "cachedMs": 420.8916000001773
+            },
+            "other": {
+              "calls": 0,
+              "totalMs": 0,
+              "cachedCalls": 0,
+              "iterations": 0,
+              "candidateMs": 0,
+              "cachedMs": 0
+            }
+          }
+        }
+      ],
+      "elapsedMs": 15408.589500000002,
+      "frames": 163,
+      "costs": {}
+    }
+  ],
+  "measurementReuse": {
+    "calls": 27054,
+    "hits": 2793,
+    "keyMs": 7281.92390000057,
+    "fallback": 0
+  },
+  "copies": {
+    "original": "97a693be0efded14666fdd52afa529a9b9335f01dd4dde70f45bcc10e18f8ab0",
+    "candidate": "639094c3139aa9ee490d948a6f8e9fc680dcabe01025821ff0da00b4f1fbd4ec"
+  },
+  "after": {
+    "proneSkinSupport": "386708487c2bf658d61d31082e1937a598eb907796960aba170dee8806c31a92",
+    "footContact": "f53e30fae414065f25f1a4e1580fe87e83c8c5c578e20bf5f04046eb92219f83",
+    "handContactPose": "5e34370ade481c0694966759f856265443e847d208f0d615ec935065618bc0bc",
+    "motionTrajectory": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8",
+    "posedGeometry": "baa508a59e1caf682cac037adc8488286fdd41948dd7f1b8423efb95a0d0bb6a",
+    "motionRigInputKey": "c12b7ca2a6f051b8daaacfe6bac38633d54bb4eb34422d5437a4960f4fa0b744",
+    "motionRecording": "e1c1cb070cd3a7953c74fa9d6a3c366941ec57b11940fc9bd0892173f0d61fe9",
+    "poseRomClamp": "74063abc2b80a52820b30814a44106d210cd4677551fcd79a4c43c15a49f4df0",
+    "jointAngles": "5bb7618b768b1f4916df479174a2e9ec826d12de086dbb3623e18ae87efc0c39",
+    "pressupPalmLayout": "c9254cd4085c3c08f090bf69dbaad629a1310d21abd3b9a1578775d2058b7811"
+  },
+  "sourceStable": true
+}

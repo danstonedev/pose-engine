@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-02",
+  "scope": "Known impossible endpoint refusal for prepared full press-up only; not a general contact feasibility validator.",
+  "requirement": "Retain approved default motion and clinical limits. Refuse explicit patient elbow intervals that exclude the existing authored extension endpoint before playback or sampling mutates the rig.",
+  "endpointBandDeg": {
+    "min": -0.05,
+    "max": 12
+  },
+  "flags": [
+    "proneSkinSupport",
+    "pronePalmAnchorFit"
+  ],
+  "behavior": {
+    "resolver": "Returns existing refused status with readable reason.",
+    "sampler": "Returns zero frames and optional refusalReason, including runtime-only patient constraints.",
+    "stage": "Checks effective stage/resolved constraints before taking over the pose; uses existing refused outcome.",
+    "planner": "Shares the same existing endpoint incompatibility check."
+  },
+  "testEvidence": [
+    {
+      "path": "remaining-batches/pressup-patient-refusal-tests-2.log",
+      "result": "9/9 pass; all three actual bodies, resolver and runtime-only sampler refusals preserve all rig transforms; default and endpoint-compatible requests resolve unchanged.",
+      "sha256": "ddf13b26bdb4d995dbcb0ded3412692d2ce2dac0302f007b74266a8c61a4fc12"
+    },
+    {
+      "path": "remaining-batches/pressup-patient-refusal-tests-1.log",
+      "result": "24/24 floor support tests pass, plus initial10 refusal tests. The brittle source-order assertion was then removed; readable reason retested in tests-2.",
+      "sha256": "69a2f7f7046700af86900fdc53e867835006f73fcb957444e10634d11a6b9643"
+    }
+  ],
+  "diagnosticOnly": "The existing constrained partial-reach regression explicitly disables the full-endpoint layout flag and asserts nonempty playback. It verifies patient bounds and repeatability, not support acceptance or public delivery.",
+  "limitations": [
+    "Passing the interval check does not establish skin/contact/native feasibility.",
+    "Historical unsupported patient playback and failed parity artifacts remain unchanged.",
+    "Actual browser refusal/unchanged-stage evidence is recorded separately by verify-pressup-host-parity.mjs."
+  ],
+  "source": {
+    "services/pressupPatientSupport.ts": "ac3c581f377925453028baf3f3a311e0dedb8c6a7523bccea7fbc7776d97340b",
+    "services/motionSequence.ts": "259726bb5a48461459ca75c6a56a3ac9eb020d24d1d9c4b8f40850999b57becd",
+    "services/pressupPalmLayout.ts": "76be9d744953bee9a112cf08b91f043d969f5fe66ec6fe683e5c3909b2766315",
+    "services/motionRecording.ts": "e5625f076bf9268b71677192da2ba7033e92d158e07c8806f633c123c6524caf",
+    "ExamStage3D.svelte": "d8ecd2b0b9e88cdc2f9002622380dd1c059962693400f6a32288b9f6818db81d"
+  },
+  "scriptSha256": "6536b6da068b0a4fa5e6fb0379affd0f0b72f3ab43717df95c3e78539d6d8b61"
+}

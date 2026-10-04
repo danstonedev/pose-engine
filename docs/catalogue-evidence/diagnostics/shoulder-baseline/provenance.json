@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Read-only actual Blender baseline; no correction or accepted context",
+  "createdAt": "2026-10-02T19:43:34.489Z",
+  "toolRepository": "C:\\Users\\danst\\probonoEMR\\movement-realism-implementation\\simmove\\pose-engine",
+  "sourceRevision": "274ad55a3a84df593c12c24852ec80bc744d3d13",
+  "sourceStatus": "M AGENTS.md\n M docs/blender-workflow.md\n M docs/movement-improvement-status.md\n M docs/movement-templates-reference.md\n M package.json\n M scripts/blender/export-review.ts\n M scripts/blender/measure-floor-clearance.py\n M src/ExamStage3D.svelte\n M src/__tests__/assessmentBodyMotions.test.ts\n M src/__tests__/floorPalmSupports.test.ts\n M src/__tests__/modelQuantize.test.ts\n M src/__tests__/motionTrajectory.test.ts\n M src/__tests__/romRegistry.test.ts\n M src/__tests__/stageReliability.test.ts\n M src/services/assessmentBodyMotions.ts\n M src/services/balanceCoordination.ts\n M src/services/floorPalmSupports.ts\n M src/services/footContact.ts\n M src/services/handContactPose.ts\n M src/services/jointAngles.ts\n M src/services/motionRecording.ts\n M src/services/motionSequence.ts\n M src/services/motionTrajectory.ts\n M src/services/movementCommand.ts\n M src/services/poseRomClamp.ts\n M src/services/posedGeometry.ts\n M src/services/romRegistry.ts\n M src/services/rootMotion.ts\n M src/services/shoulderComplex.ts\n?? .gitattributes\n?? docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html\n?? docs/catalogue-evidence/\n?? docs/evidence/floor-plane-diagnostic-2026-10-02.json\n?? docs/evidence/pressup-surface-2026-10-02.json\n?? docs/movement-catalogue-process.md\n?? docs/movement-engineering-charter.md\n?? docs/movement-pipeline-audit-2026-10-02.md\n?? docs/neuromusculoskeletal-system/\n?? docs/unified-movement-development-prompt.md\n?? scripts/blender/audit-captured-palm-projection.ts\n?? scripts/blender/audit-motion-continuity.py\n?? scripts/blender/audit-patient-held-inputs.ts\n?? scripts/blender/audit-pressup-arm-frames.ts\n?? scripts/blender/audit-pressup-chain.ts\n?? scripts/blender/audit-pressup-clinical-dense.ts\n?? scripts/blender/audit-pressup-heading.ts\n?? scripts/blender/audit-pressup-input-sensitivity.ts\n?? scripts/blender/audit-prone-fk-scan.ts\n?? scripts/blender/audit-public-support-assets.ts\n?? scripts/blender/author-palm-surface-support.py\n?? scripts/blender/author-pressup-whole-chain.py\n?? scripts/blender/author-prone-thigh-rest.py\n?? scripts/blender/author-sparse-pressup-controls.py\n?? scripts/blender/captured-hand-solver-trace.ts\n?? scripts/blender/check-pressup-guide-continuity.ts\n?? scripts/blender/check-pressup-palm-layout.ts\n?? scripts/blender/check-prone-lower-chain-probe.ts\n?? scripts/blender/check-whole-chain-proposal.ts\n?? scripts/blender/derive-palm-support-plane.py\n?? scripts/blender/export-assessment-json.ts\n?? scripts/blender/export-sparse-pressup-probe.ts\n?? scripts/blender/probe-pressup-endpoints.ts\n?? scripts/blender/probe-prone-knee-toe-support.py\n?? scripts/blender/probe-prone-patient-order.ts\n?? scripts/blender/profile-patient-support-paths.ts\n?? scripts/blender/profile-prepared-patient.ts\n?? scripts/blender/render-prone-thigh-authoring.py\n?? scripts/blender/render-whole-chain-proposal.py\n?? scripts/blender/test-measure-floor-clearance.py\n?? scripts/blender/verify-palm-support-plane.ts\n?? scripts/catalogue/\n?? src/__tests__/hingeClinicalFrame.test.ts\n?? src/__tests__/measuredPatientHip.test.ts\n?? src/__tests__/movementCatalogue.test.ts\n?? src/__tests__/posedVertexReader.test.ts\n?? src/__tests__/preparedPalmRefinement.test.ts\n?? src/__tests__/pressUpSurfaceContact.test.ts\n?? src/__tests__/pressupPalmLayoutScope.test.ts\n?? src/__tests__/proneScreenControls.test.ts\n?? src/__tests__/proneSkinSupport.test.ts\n?? src/__tests__/proneSkinSupportIntegration.test.ts\n?? src/__tests__/proneSupportRecordingContract.test.ts\n?? src/__tests__/proneSupportSurface.test.ts\n?? src/__tests__/supportPlane.test.ts\n?? src/anatomy/forearmJointFrame.d.mts\n?? src/anatomy/forearmJointFrame.mjs\n?? src/anatomy/scapularGirdleProxy.d.mts\n?? src/anatomy/scapularGirdleProxy.mjs\n?? src/anatomy/shoulderComplexFrame.d.mts\n?? src/anatomy/shoulderComplexFrame.mjs\n?? src/anatomy/upperArmJointFrame.d.mts\n?? src/anatomy/upperArmJointFrame.mjs\n?? src/anatomy/wristJointFrame.d.mts\n?? src/anatomy/wristJointFrame.mjs\n?? src/services/handSupportSurface.ts\n?? src/services/pressupPalmLayout.ts\n?? src/services/proneSkinSupport.ts",
+  "isolatedMaster": {
+    "path": "docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html",
+    "sha256": "0e6ab4143d9bebeaa1381897b1395338d54ebbea956d3204af2834d12db29c20"
+  },
+  "priorDiagnostic": {
+    "path": "docs/catalogue-evidence/diagnostics/shoulder-flexion-baseline.json",
+    "sha256": "82550ea1d19c49ca752b0f1b2f79b97b89c2c5302337202b56ddc7ddcae289f4"
+  },
+  "inputs": [
+    {
+      "file": "shoulder-flexion-160.json",
+      "sha256": "3349c5104ae9adf46616b2e51d122ca9712c255c5d7f258f2d5b5fe2b861dc97",
+      "plane": "flexion",
+      "commandDeg": 160,
+      "sourceContext": [
+        "joint:shoulder-flexion",
+        "male",
+        "right"
+      ],
+      "isolatedContextIdentity": "2cca2a4f551f79b893f7194748e86930751aaaf1bc40e900814918c811cb49f6",
+      "registeredDefault": false,
+      "modification": "Diagnostic input only: one authored peak changed180 to160; no registry/runtime edits"
+    },
+    {
+      "file": "shoulder-abduction-160.json",
+      "sha256": "95c25172b35fb3eeab2f4cafb6e106f55faa5f614b4660a9cbd328ec7cfcb83a",
+      "plane": "abduction",
+      "commandDeg": 160,
+      "sourceContext": [
+        "joint:shoulder-abduction",
+        "male",
+        "right"
+      ],
+      "isolatedContextIdentity": "17fdb467331a1d8903f3b3a0cde447868e18cbb02da0e3f438bbb47581f29bc9",
+      "registeredDefault": true,
+      "modification": "None; exact retained definition motions[0]"
+    },
+    {
+      "file": "shoulder-flexion-180.json",
+      "sha256": "ce9aa215c77916ab6aa9b6ef1040e29982992270159260cb9c24ad82e5d57475",
+      "plane": "flexion",
+      "commandDeg": 180,
+      "sourceContext": [
+        "joint:shoulder-flexion",
+        "male",
+        "right"
+      ],
+      "isolatedContextIdentity": "2cca2a4f551f79b893f7194748e86930751aaaf1bc40e900814918c811cb49f6",
+      "registeredDefault": true,
+      "modification": "None; exact retained definition motions[0]"
+    }
+  ],
+  "sources": [
+    {
+      "path": "scripts/blender/export-review.ts",
+      "sha256": "c5331887fa16d2c0658e997b1387de789007c5398b1baf586b289f612d27376b",
+      "isolatedSha256": "b76c77c572a5a2942a5f1627a865d687b785a76cf5d29f89fca9ccec1fc7ea54",
+      "sameAsIsolated": false
+    },
+    {
+      "path": "scripts/blender/build-motion-review.py",
+      "sha256": "0b6ac68493bdeecb0c1045149e67747a04becae832f879367e15754c4043710b",
+      "isolatedSha256": null,
+      "sameAsIsolated": false
+    },
+    {
+      "path": "scripts/blender/render-motion-review.py",
+      "sha256": "7e821a397a2fc8e8a9b81b79032a2649ea50a6726756343f9002b8e789330c0c",
+      "isolatedSha256": null,
+      "sameAsIsolated": false
+    },
+    {
+      "path": "scripts/blender/verify-roundtrip.ts",
+      "sha256": "74c608ab958f04d2138c37da17be95f71cd7735657217f780469fcd512dd8d78",
+      "isolatedSha256": "a6b605723d8f8054b87bc5323e69f356abc217662fe1f251e9b6ac2e6be7b21b",
+      "sameAsIsolated": false
+    },
+    {
+      "path": "src/services/movementCommand.ts",
+      "sha256": "0a3fe6f7e569db963415f5568e537d5969ec133565b5b5a81cf352b746fcdbb8",
+      "isolatedSha256": "d5fff5decddc9ff95182983fef865147774441825798ad4e603176a8a0f39a58",
+      "sameAsIsolated": false
+    },
+    {
+      "path": "src/services/twistRig.ts",
+      "sha256": "a4bb9ec5296309f8a5098b9115f7ea6564ce2b574997866cee45784dd9ac023d",
+      "isolatedSha256": "a4bb9ec5296309f8a5098b9115f7ea6564ce2b574997866cee45784dd9ac023d",
+      "sameAsIsolated": true
+    },
+    {
+      "path": "src/services/stageTwistOverlay.ts",
+      "sha256": "e570e9c6da76feca4fdcf53c547581d7fb318660f5a57294e5edad4715c8a056",
+      "isolatedSha256": "e570e9c6da76feca4fdcf53c547581d7fb318660f5a57294e5edad4715c8a056",
+      "sameAsIsolated": true
+    },
+    {
+      "path": "src/services/motionTrajectory.ts",
+      "sha256": "50aa9f64a1934fdbc8cdc96faa6c994f982338527214631b8e07b7620e53c4d8",
+      "isolatedSha256": "d37f7f5c8eb7aee8e1a35eb56030f12263b8c3ca45488d34a8889c5896741fdd",
+      "sameAsIsolated": false
+    },
+    {
+      "path": "src/services/motionRecording.ts",
+      "sha256": "43ed99569f681167c88af694445cd7ac799484b0fd4d000d876716190d5c4720",
+      "isolatedSha256": "f1445f323bef04851a12e28e4d949861c62f189265a42b36a7f322c42cf39c93",
+      "sameAsIsolated": false
+    },
+    {
+      "path": "src/services/poseRomClamp.ts",
+      "sha256": "8290e81b943cd031a0864bce787509fe7a5cc74e1fbfaf7c0173e650aa6cfc9d",
+      "isolatedSha256": "4c0eaceca45ca50ca6b303c8eed808d87d9dd920f4a6f70b4975061798f3e3bf",
+      "sameAsIsolated": false
+    },
+    {
+      "path": "src/services/motionSequence.ts",
+      "sha256": "7b053da07a87de4fd5dac1b4c9a85234d5ba05879a8f32f91d88292a02a51d08",
+      "isolatedSha256": "fd8ae262ecf6bfe81617e738ed1c15c71401855a8b91eded8ec0d2562d1dbe73",
+      "sameAsIsolated": false
+    },
+    {
+      "path": "src/services/anatomicPose.ts",
+      "sha256": "6c94e140af45a742247c014ed672c920798902dc6aefcaa36dd2e6bdfd4ad5b3",
+      "isolatedSha256": "6c94e140af45a742247c014ed672c920798902dc6aefcaa36dd2e6bdfd4ad5b3",
+      "sameAsIsolated": true
+    },
+    {
+      "path": "src/anatomy/bodyVariants.ts",
+      "sha256": "57b6018f732ae4da88ddeb1ae2ed1067791fa7072b80c09b198f300d0a978d30",
+      "isolatedSha256": "57b6018f732ae4da88ddeb1ae2ed1067791fa7072b80c09b198f300d0a978d30",
+      "sameAsIsolated": true
+    },
+    {
+      "path": "models/painmap3D_male.runtime.glb",
+      "sha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "isolatedSha256": "a9d69ded7a07d610cd3a4ff71e98028dfbf68b3b18c5cb7a546e0c1e70a1e92a",
+      "sameAsIsolated": true
+    },
+    {
+      "path": "models/painmap3D_female.runtime.glb",
+      "sha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "isolatedSha256": "90feabfeff9d85c3c0ca3f73ef7f36c41f832c5c6739496eb1a507e1393181fd",
+      "sameAsIsolated": true
+    },
+    {
+      "path": "models/painmap3D_neutral.runtime.glb",
+      "sha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "isolatedSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+      "sameAsIsolated": true
+    }
+  ],
+  "blender": {
+    "executable": "C:/Program Files/Blender Foundation/Blender 5.2/blender.exe",
+    "version": "5.2.2 LTS",
+    "buildHash": "d13f752e3b9c"
+  },
+  "workUnitId": "work:shoulder-coordination-and-endpoints",
+  "limitations": [
+    "Original WIP contains active floor changes. Outputs have their own source digest and do not inherit isolated context identities.",
+    "Input JSON is retained from isolated master; only one flexion160 peak differs from registered definitions.",
+    "All three body variants/right emitted by existing custom-motion exporter. Baseline is editable sampled armature playback; no IK controls, correction, native or host acceptance."
+  ],
+  "acceptedContexts": 0
+}
