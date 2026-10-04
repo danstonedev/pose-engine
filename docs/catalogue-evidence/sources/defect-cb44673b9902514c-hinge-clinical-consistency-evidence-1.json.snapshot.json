@@ -1,0 +1,64 @@
+{
+  "timestamp": "2026-10-02T16:46:43.981Z",
+  "scope": "Clinical reference consistency and bounded palm solver. Not whole-motion visual/native/patient acceptance.",
+  "identities": {
+    "src/services/handContactPose.ts": "b9d7a04aa412cd89c1eb0d7d01ee3b1f5639118af7b87fcfe654956a2ec08c16",
+    "src/services/poseRomClamp.ts": "b6562f87c673a28adc2a2f09bbd21817cb27187b770ebe0d17934c47734f0c2d",
+    "src/services/rootMotion.ts": "1907dd8b9044238f2da51d49909b3b96165339e492433812f3c144dc0cc629d7",
+    "src/services/footContact.ts": "f71c32956fbbc45a7bcb68a91a2f592762202f8187b80012a830cf38876c0409",
+    "src/services/jointAngles.ts": "c03d5b886333b1e761c4d6d0f880032904377270f4409427105872c5b3863987",
+    "src/__tests__/hingeClinicalFrame.test.ts": "7e256519ed72d3775d7ecf548e90db02c8944ce3d98fc6833fc611f202a846cf",
+    "src/__tests__/floorPalmSupports.test.ts": "4694f7869fecf451903ac7d5fbdeaf55b017bd9ec8c3e76863fb8d2d366699d4"
+  },
+  "changes": {
+    "hingeDeviation": "Same mirrored clinical convention as readout; intersect unchanged engineering play with registry/patient ROM; patient-valid endpoint takes priority when play disjoint, with engineering residual reported.",
+    "rotatedRest": "Parent rootMotion change preserves fingerCurlRest and gaitLegFrames.",
+    "palmSolver": "Original 40-step budget. Compare ordinary DLS with feasible one-sided tangent cone NNLS only at an active boundary; project actual trials through existing clinical bounds; stop line search at first improvement. No clinical/contact/timeout relaxation."
+  },
+  "tests": {
+    "combined": {
+      "log": "hinge-clinical-contact-regression-10.log",
+      "files": 7,
+      "passed": 126,
+      "total": 126,
+      "timeoutMs": 5000,
+      "durationSec": 30.97
+    },
+    "focused": {
+      "log": "hinge-clinical-contact-regression-9.log",
+      "passed": 45,
+      "total": 45
+    },
+    "patientRepeatedCaseMs": {
+      "male": 3958,
+      "female": 3604,
+      "neutral": 4855
+    },
+    "newClinicalReferenceCases": 21,
+    "typecheck": {
+      "log": "hinge-clinical-typecheck-3.log",
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "retainedFailures": [
+    "hinge-clinical-frame-fail-1.log",
+    "hinge-clinical-contact-regression-1.log",
+    "hinge-clinical-contact-regression-2.log",
+    "hinge-clinical-contact-regression-3.log",
+    "hinge-clinical-contact-regression-5.log",
+    "hinge-clinical-contact-regression-6.log",
+    "hinge-clinical-contact-regression-8.log"
+  ],
+  "diagnosisArtifacts": [
+    "hinge-clinical-dls-replay-1.json",
+    "hinge-clinical-dls-replay-2.json",
+    "hinge-clinical-dls-replay-3.json"
+  ],
+  "limits": [
+    "No current-byte-equivalence claim to candidate2; corrected deviation limits and solver change poses. Blender/native/consuming-host evidence must be regenerated.",
+    "Constrained unreachable targets retain measurable contact residuals. Correct joint bounds take priority.",
+    "Worst repeated patient case is close to default test time limit; reduced extra work passes in coordinated quiet CPU run."
+  ],
+  "approvalReview": "Explicit 15-second runner timeout request was rejected as relaxing standing gate. It was not executed or bypassed; solver work was reduced and original timeout passes."
+}

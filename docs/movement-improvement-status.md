@@ -1,3 +1,5 @@
+> Current tracking lives in the master [movement/joint catalogue](MASTER-MOVEMENT-JOINT-CATALOGUE.html). Use its defects, references, work ownership and acceptance records for future corrections. This document retains historical findings and provenance; its old status labels and numerical results need current scoped evidence. Reconciliation remains partial.
+
 # Movement improvement status
 
 Reviewed 2 October 2026. Standing stance/dowel shipped in engine #166 as

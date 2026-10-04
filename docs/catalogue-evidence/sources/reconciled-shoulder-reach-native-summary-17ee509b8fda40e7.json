@@ -1,0 +1,3063 @@
+{
+  "at": "2026-09-30T00:18:44.767Z",
+  "hostCandidate": "04b1abd0def0bb003241dad10d161f3ac708bfe7",
+  "engineCommit": "bb49b5069aaa98f773d0b3133ab434664dfce1f6",
+  "resultSha256": "a287954f50d703b6ef404d585d05b8b853d126eec47e7ff23fe03fe71bed9cb1",
+  "startedAt": "2026-09-30T00:03:55.573Z",
+  "finishedAt": "2026-09-30T00:18:23.957Z",
+  "summary": {
+    "cases": 64,
+    "movements": 20,
+    "contactEnabled": 64,
+    "trialRan": 64,
+    "initialized": 64,
+    "reachedRequestedEnd": 39,
+    "terminalFailures": 25,
+    "installationOrInvariantErrors": 0,
+    "movementSuccesses": "Not inferred from native clock completion"
+  },
+  "completed": 39,
+  "tracking": 30,
+  "previousCompleted": 41,
+  "previousTracking": 29,
+  "scope": "Diagnostic sampled tracking: joint <=15 degrees, pelvis <=0.05 m, key-pose segment <=15 degrees. Full-interval completion, native support acceptance and clinical acceptance are separate. No thresholds or controller settings were relaxed.",
+  "sourceChanges": [],
+  "controllerChanges": [],
+  "acceptance": [
+    {
+      "path": "movements/sfma-repo-legacy-v1/cervical-extension/top-tier/acceptance.json",
+      "baseline": "ce80e8a3f7b7535b02789bcb8844c97a2cf57903901eb3243a49daa93f3fd4fd",
+      "actual": "ce80e8a3f7b7535b02789bcb8844c97a2cf57903901eb3243a49daa93f3fd4fd",
+      "unchanged": true
+    },
+    {
+      "path": "movements/sfma-repo-legacy-v1/cervical-rotation/top-tier/acceptance.json",
+      "baseline": "1742ef8950ddad1cfed9304c87f0e5809278a617d2c20dc82feee5d91139748c",
+      "actual": "1742ef8950ddad1cfed9304c87f0e5809278a617d2c20dc82feee5d91139748c",
+      "unchanged": true
+    },
+    {
+      "path": "movements/sfma-repo-legacy-v1/single-leg-stance/top-tier/acceptance.json",
+      "baseline": "b6c9b93022d22b8fb5a5e83a44e24193e3fecc43397108b224c8300f7d2ef899",
+      "actual": "b6c9b93022d22b8fb5a5e83a44e24193e3fecc43397108b224c8300f7d2ef899",
+      "unchanged": true
+    },
+    {
+      "path": "movements/sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier/acceptance.json",
+      "baseline": "edc5bae83d1418e0ac0da7d54efe2b9e8fa6cbc491e32e6933ca89fe972c4112",
+      "actual": "edc5bae83d1418e0ac0da7d54efe2b9e8fa6cbc491e32e6933ca89fe972c4112",
+      "unchanged": true
+    }
+  ],
+  "allAcceptanceUnchanged": true,
+  "changedOutcomes": [
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 23.95361870564349,
+      "pelvisErrorM": 0.1404832171880586,
+      "segmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "Head",
+        "errorDeg": 6.4432380733816315
+      },
+      "previousJointErrorDeg": 5.2590219249074845,
+      "previousPelvisErrorM": 0.04602025668427697,
+      "previousSegmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 12.654794786362697
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0011034119589631171,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "cec1dd415ed65398f4dc26e4f614a8607ed01f9ddac3197c24973e341b9005d5",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "c1c514d78b068ab05565f42f9bc40ead7b92dba4bd26732b17e55b72c4cde266",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 16.04911081178448,
+      "pelvisErrorM": 0.11343671543654651,
+      "segmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "Head",
+        "errorDeg": 6.413673584587162
+      },
+      "previousJointErrorDeg": 5.3041259577270115,
+      "previousPelvisErrorM": 0.04643248573121487,
+      "previousSegmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 12.694214006009862
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0011972240683370463,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "1dccb67cffe96b06351501ba0d903d9e119755ec36d67ce25c01eb7d9d7f67ec",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "d1ed098be95edbc05653a60fb8aed8d2755f5e19017f367889b84e9c18a36cb1",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 9.287623220828616,
+      "pelvisErrorM": 0.029231489131548914,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 12.136564219645624
+      },
+      "previousJointErrorDeg": 6.8685259145939686,
+      "previousPelvisErrorM": 0.029126343952611797,
+      "previousSegmentError": {
+        "timeS": 2.4,
+        "label": "Target (2.4 s)",
+        "body": "L_Hand",
+        "errorDeg": 15.336642837134185
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "a334c65601766fa2e933efe18a56ed558a39055219a18ef31cc68d8dd89345a3",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "d770fdcbb9ec5f93794cc9f871dec0e4e3631da4ee2184a98eaa97067e412086",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 9.373624222397076,
+      "pelvisErrorM": 0.029650188447213007,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 12.244027057446395
+      },
+      "previousJointErrorDeg": 5.73442880228501,
+      "previousPelvisErrorM": 0.02939101303932021,
+      "previousSegmentError": {
+        "timeS": 2.4,
+        "label": "Target (2.4 s)",
+        "body": "L_Hand",
+        "errorDeg": 18.7154540703341
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "ec8a24c46ae5ba365278687f37e9a1e11030d7e225938731694f454b26635ffb",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "7e8f4d31edb3957726f0e037d3148f3fefb36ae5df6ca5bdc2dbdf6651079d13",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 1.4893319264128688,
+      "pelvisErrorM": 0.006308189887162867,
+      "segmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 4.781129648835084
+      },
+      "previousJointErrorDeg": 5.646836673233454,
+      "previousPelvisErrorM": 0.006306065720000495,
+      "previousSegmentError": {
+        "timeS": 3.8,
+        "label": "Hold target (3.8 s)",
+        "body": "L_Hand",
+        "errorDeg": 17.93340289304199
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "0a6171552cc5ce8fc5ecb4d7ab6f2b97d3c3ef9a898bbbd7c41fdd1825d54fe1",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "8c595fe3173378f879a78fa17be88abb250488b82e075b8bca0ed8496b80427c",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    }
+  ],
+  "rows": [
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/aslr/aslr",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 6.7160899512233065,
+      "pelvisErrorM": 0.004960229000093365,
+      "segmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Hand",
+        "errorDeg": 8.868837904457349
+      },
+      "previousJointErrorDeg": 6.7160899512233065,
+      "previousPelvisErrorM": 0.004960229000093365,
+      "previousSegmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Hand",
+        "errorDeg": 8.868837904457349
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "cfb1cc92a84f23cd5bbcb30d463b9ed9abb50d9cf1a8d3fe72655afc08b8f616",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "cfb1cc92a84f23cd5bbcb30d463b9ed9abb50d9cf1a8d3fe72655afc08b8f616",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/aslr/aslr",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 6.792691905524057,
+      "pelvisErrorM": 0.004884084538442714,
+      "segmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Hand",
+        "errorDeg": 8.885415924749468
+      },
+      "previousJointErrorDeg": 6.792691905524057,
+      "previousPelvisErrorM": 0.004884084538442714,
+      "previousSegmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Hand",
+        "errorDeg": 8.885415924749468
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "f9ec98d60adb1e26365f5d13da2a692c917088d25940b4bd12a6bef37c0e099f",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "f9ec98d60adb1e26365f5d13da2a692c917088d25940b4bd12a6bef37c0e099f",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/aslr/aslr",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 11.923153359359038,
+      "pelvisErrorM": 0.025082486100295835,
+      "segmentError": {
+        "timeS": 4,
+        "label": "End (4 s)",
+        "body": "Head",
+        "errorDeg": 11.976279041348583
+      },
+      "previousJointErrorDeg": 11.923153359359038,
+      "previousPelvisErrorM": 0.025082486100295835,
+      "previousSegmentError": {
+        "timeS": 4,
+        "label": "End (4 s)",
+        "body": "Head",
+        "errorDeg": 11.976279041348583
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "bb6e1a7168c770dc9165f2ae0e6a693de37e43d8129abbe6f74e135983f3070a",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "bb6e1a7168c770dc9165f2ae0e6a693de37e43d8129abbe6f74e135983f3070a",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/aslr/aslr",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 11.744514188892449,
+      "pelvisErrorM": 0.025018653413264574,
+      "segmentError": {
+        "timeS": 4,
+        "label": "End (4 s)",
+        "body": "Head",
+        "errorDeg": 12.001311515506385
+      },
+      "previousJointErrorDeg": 11.744514188892449,
+      "previousPelvisErrorM": 0.025018653413264574,
+      "previousSegmentError": {
+        "timeS": 4,
+        "label": "End (4 s)",
+        "body": "Head",
+        "errorDeg": 12.001311515506385
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "50eee4fc4c500e2fa3ecb0ed55ec372b9f611dccc0568e5c5ff2be17e1ac385c",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "50eee4fc4c500e2fa3ecb0ed55ec372b9f611dccc0568e5c5ff2be17e1ac385c",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/deep-squat/deep-squat",
+        "variant": "female",
+        "side": "both"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 4.887828098992042,
+      "pelvisErrorM": 0.05099956157015859,
+      "segmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Foot",
+        "errorDeg": 5.542301030078372
+      },
+      "previousJointErrorDeg": 4.887828098992042,
+      "previousPelvisErrorM": 0.05099956157015859,
+      "previousSegmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Foot",
+        "errorDeg": 5.542301030078372
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "5191409b87ca667c32175ebcf263cb653d6bf793798b01366f12310de5be684f",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "5191409b87ca667c32175ebcf263cb653d6bf793798b01366f12310de5be684f",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/deep-squat/deep-squat",
+        "variant": "male",
+        "side": "both"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 6.480524616241896,
+      "pelvisErrorM": 0.05093350620881343,
+      "segmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Foot",
+        "errorDeg": 6.343008006411896
+      },
+      "previousJointErrorDeg": 6.480524616241896,
+      "previousPelvisErrorM": 0.05093350620881343,
+      "previousSegmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Foot",
+        "errorDeg": 6.343008006411896
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "d5efa954ed7a62a51ad9f176e4fcf804fbc2d9f3abedf9afadcba1ae6c8e14ab",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "d5efa954ed7a62a51ad9f176e4fcf804fbc2d9f3abedf9afadcba1ae6c8e14ab",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/hurdle-step/hurdle-step",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 14.726831075718884,
+      "pelvisErrorM": 0.14417977137830296,
+      "segmentError": {
+        "timeS": 0.65,
+        "label": "Stage 1 (0.65 s)",
+        "body": "Head",
+        "errorDeg": 25.985028697685895
+      },
+      "previousJointErrorDeg": 14.726831075718884,
+      "previousPelvisErrorM": 0.14417977137830296,
+      "previousSegmentError": {
+        "timeS": 0.65,
+        "label": "Stage 1 (0.65 s)",
+        "body": "Head",
+        "errorDeg": 25.985028697685895
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0010801805752144564,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "ed53749de24232e0324f7a5d2808b7f5061837d7b3ded66092cfbd71933bacda",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "ed53749de24232e0324f7a5d2808b7f5061837d7b3ded66092cfbd71933bacda",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/hurdle-step/hurdle-step",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 16.53380137107618,
+      "pelvisErrorM": 0.1298910317547475,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 16.53380137107618,
+      "previousPelvisErrorM": 0.1298910317547475,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-joint-speed",
+          "observed": 8.03110206060537,
+          "maximum": 8
+        }
+      ],
+      "hashes": {
+        "routeSha256": "638524d814d708b1dd9015968537902836f8b00d81d7d3adab1c04f7b629c5da",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "638524d814d708b1dd9015968537902836f8b00d81d7d3adab1c04f7b629c5da",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/hurdle-step/hurdle-step",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 9.948389836951478,
+      "pelvisErrorM": 0.009084838608715527,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 9.948389836951478,
+      "previousPelvisErrorM": 0.009084838608715527,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0010246090121414503,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "cb4b5eea8548f886cfb071ffbacce3ccb8d50b2e8d475c682b20f5452d625e01",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "cb4b5eea8548f886cfb071ffbacce3ccb8d50b2e8d475c682b20f5452d625e01",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/hurdle-step/hurdle-step",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 11.977907573825869,
+      "pelvisErrorM": 0.15095156115355599,
+      "segmentError": {
+        "timeS": 0.65,
+        "label": "Stage 1 (0.65 s)",
+        "body": "Head",
+        "errorDeg": 25.498369045541743
+      },
+      "previousJointErrorDeg": 11.977907573825869,
+      "previousPelvisErrorM": 0.15095156115355599,
+      "previousSegmentError": {
+        "timeS": 0.65,
+        "label": "Stage 1 (0.65 s)",
+        "body": "Head",
+        "errorDeg": 25.498369045541743
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0010007548593477839,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "d81a5684877c99a3290fd2dac7582d46daaca815744d23195649eea5867f4e5b",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "d81a5684877c99a3290fd2dac7582d46daaca815744d23195649eea5867f4e5b",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 27.1663777465508,
+      "pelvisErrorM": 0.7914129901484405,
+      "segmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "Head",
+        "errorDeg": 38.72359387071788
+      },
+      "previousJointErrorDeg": 27.1663777465508,
+      "previousPelvisErrorM": 0.7914129901484405,
+      "previousSegmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "Head",
+        "errorDeg": 38.72359387071788
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0028209684676501995,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "f4f3d24297536588ae77ed71bf79628f80e0e17f8cbffd35b6cbd34caecd6445",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "f4f3d24297536588ae77ed71bf79628f80e0e17f8cbffd35b6cbd34caecd6445",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 26.09515352943943,
+      "pelvisErrorM": 0.7946075893740526,
+      "segmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Foot",
+        "errorDeg": 38.762486569766594
+      },
+      "previousJointErrorDeg": 26.09515352943943,
+      "previousPelvisErrorM": 0.7946075893740526,
+      "previousSegmentError": {
+        "timeS": 2,
+        "label": "Target (2 s)",
+        "body": "L_Foot",
+        "errorDeg": 38.762486569766594
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0024540886130657883,
+          "maximum": 0.001
+        },
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.002265735338768796,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "40cb63fbdddd507f58af892b1d9e54bd1a94337fdd5439dbf48c0b7d53fb8d8b",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "40cb63fbdddd507f58af892b1d9e54bd1a94337fdd5439dbf48c0b7d53fb8d8b",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 2.201845895747735,
+      "pelvisErrorM": 0.007110638139639771,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 2.201845895747735,
+      "previousPelvisErrorM": 0.007110638139639771,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.001023084003210346,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "ad3b8f161501ed21697f3a28b9f3fd03b2098d78cb5f9998a4c1cf987de40cc5",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "ad3b8f161501ed21697f3a28b9f3fd03b2098d78cb5f9998a4c1cf987de40cc5",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/in-line-lunge/in-line-lunge",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 2.130351791012483,
+      "pelvisErrorM": 0.006627885521695529,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 2.130351791012483,
+      "previousPelvisErrorM": 0.006627885521695529,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.0011087345411656536,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "85f063b7c44c7a1cd07f91877134d98803ae93aeaec3cc73667c4c9721226346",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "85f063b7c44c7a1cd07f91877134d98803ae93aeaec3cc73667c4c9721226346",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 39.561651403009975,
+      "pelvisErrorM": 0.10508417829571638,
+      "segmentError": {
+        "timeS": 4.8,
+        "label": "End (4.8 s)",
+        "body": "R_Hand",
+        "errorDeg": 40.18908598892852
+      },
+      "previousJointErrorDeg": 39.561651403009975,
+      "previousPelvisErrorM": 0.10508417829571638,
+      "previousSegmentError": {
+        "timeS": 4.8,
+        "label": "End (4.8 s)",
+        "body": "R_Hand",
+        "errorDeg": 40.18908598892852
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "ea01f2cda4d528143ad0d6e78a1e2758b6cdd3d09feeba3306feefb6b5be96e9",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "ea01f2cda4d528143ad0d6e78a1e2758b6cdd3d09feeba3306feefb6b5be96e9",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 39.561651403009975,
+      "pelvisErrorM": 0.10508417829571638,
+      "segmentError": {
+        "timeS": 4.8,
+        "label": "End (4.8 s)",
+        "body": "R_Hand",
+        "errorDeg": 40.18908598892852
+      },
+      "previousJointErrorDeg": 39.561651403009975,
+      "previousPelvisErrorM": 0.10508417829571638,
+      "previousSegmentError": {
+        "timeS": 4.8,
+        "label": "End (4.8 s)",
+        "body": "R_Hand",
+        "errorDeg": 40.18908598892852
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "0d4355cfcb202ae27024abd8383ae85c1d60f3008d84df8470f5657f001ec18c",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "0d4355cfcb202ae27024abd8383ae85c1d60f3008d84df8470f5657f001ec18c",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 33.36379625581226,
+      "pelvisErrorM": 0.10112363456448635,
+      "segmentError": {
+        "timeS": 1.6,
+        "label": "Target (1.6 s)",
+        "body": "L_Hand",
+        "errorDeg": 55.67572077615549
+      },
+      "previousJointErrorDeg": 33.36379625581226,
+      "previousPelvisErrorM": 0.10112363456448635,
+      "previousSegmentError": {
+        "timeS": 1.6,
+        "label": "Target (1.6 s)",
+        "body": "L_Hand",
+        "errorDeg": 55.67572077615549
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "43c0ae67d4d42d4e5f9778dadf248d903976b90db86d39cb902c952720eb03d1",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "43c0ae67d4d42d4e5f9778dadf248d903976b90db86d39cb902c952720eb03d1",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/rotary-stability/flexion-clearing",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 33.36379625581226,
+      "pelvisErrorM": 0.10112363456448635,
+      "segmentError": {
+        "timeS": 1.6,
+        "label": "Target (1.6 s)",
+        "body": "L_Hand",
+        "errorDeg": 55.67572077615549
+      },
+      "previousJointErrorDeg": 33.36379625581226,
+      "previousPelvisErrorM": 0.10112363456448635,
+      "previousSegmentError": {
+        "timeS": 1.6,
+        "label": "Target (1.6 s)",
+        "body": "L_Hand",
+        "errorDeg": 55.67572077615549
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "7270a094f7c6b5aebf0c0bbeb0ca1738d16fecd3b2de43824c29e0049454db13",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "7270a094f7c6b5aebf0c0bbeb0ca1738d16fecd3b2de43824c29e0049454db13",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/rotary-stability/rotary-stability",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 58.571942425435445,
+      "pelvisErrorM": 0.20060870713974124,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 58.571942425435445,
+      "previousPelvisErrorM": 0.20060870713974124,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.0014083767422846066,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "e48ba183e8e54988d8a102cc604cf68de0ea9a20092e7950f428a808ce83374b",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "e48ba183e8e54988d8a102cc604cf68de0ea9a20092e7950f428a808ce83374b",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/rotary-stability/rotary-stability",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 28.593323581552962,
+      "pelvisErrorM": 0.17709861682641562,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 28.593323581552962,
+      "previousPelvisErrorM": 0.17709861682641562,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.001409017991192991,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "72cea7a1260eab880bab7f777436e395467350c86a40126e4ebc44553e1e7ed7",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "72cea7a1260eab880bab7f777436e395467350c86a40126e4ebc44553e1e7ed7",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/rotary-stability/rotary-stability",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 48.01596838345344,
+      "pelvisErrorM": 0.19251332632984983,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 48.01596838345344,
+      "previousPelvisErrorM": 0.19251332632984983,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.0013820050747066976,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "a50db6d065d7290d9fff010bf6c83499394af7b2307362acf81d825f934455dc",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "a50db6d065d7290d9fff010bf6c83499394af7b2307362acf81d825f934455dc",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/rotary-stability/rotary-stability",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 23.99217947705857,
+      "pelvisErrorM": 0.1580313428268307,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 23.99217947705857,
+      "previousPelvisErrorM": 0.1580313428268307,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.0010237289698522066,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "004d1a4b856397a741580eb75114ae688bead1adecdce60596f8409239c5290b",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "004d1a4b856397a741580eb75114ae688bead1adecdce60596f8409239c5290b",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 3.0506961008424303,
+      "pelvisErrorM": 0.01197660775852896,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 8.35143896463197
+      },
+      "previousJointErrorDeg": 3.405989209380173,
+      "previousPelvisErrorM": 0.01193542948268556,
+      "previousSegmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 8.334199980389396
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "50c000e31990f783dc83632fce47ad59d526f3d03851fab5047e7979fce3551b",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "bc2f696eb03c749b6d3c6c7b698adeec24bbcef3f0e96a17d511c049a97469da",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 2.7121010971182606,
+      "pelvisErrorM": 0.012054791004686512,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 8.363881100361954
+      },
+      "previousJointErrorDeg": 3.3085855380197806,
+      "previousPelvisErrorM": 0.01202318269595176,
+      "previousSegmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 8.342143549562197
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "cb1768323b6055df9710c535fd576728f0869717e776ab970db82270db7dc7a5",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "25369ea910c4f5644725a763408c1c3ada7a0e6b3dc8314e8fe39ddf578553f9",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 5.274104330588809,
+      "pelvisErrorM": 0.011788145549330973,
+      "segmentError": {
+        "timeS": 3.8,
+        "label": "Hold target (3.8 s)",
+        "body": "L_Hand",
+        "errorDeg": 11.820640374110962
+      },
+      "previousJointErrorDeg": 5.2792376833305585,
+      "previousPelvisErrorM": 0.01178449163549979,
+      "previousSegmentError": {
+        "timeS": 3.8,
+        "label": "Hold target (3.8 s)",
+        "body": "L_Hand",
+        "errorDeg": 11.933932253506905
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "ecbd965bb199291268782c9a7d6a411fd811b5c57bdad9ab735a863dbd8f5222",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "ca8d2f73edd008df4c254ae3176a54ba5f304b2edec7aa55315322012a750240",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-clearing",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 3.7757832329918246,
+      "pelvisErrorM": 0.011814461176097682,
+      "segmentError": {
+        "timeS": 3.8,
+        "label": "Hold target (3.8 s)",
+        "body": "R_Hand",
+        "errorDeg": 9.804264438844681
+      },
+      "previousJointErrorDeg": 4.040236444129114,
+      "previousPelvisErrorM": 0.011802903153269366,
+      "previousSegmentError": {
+        "timeS": 2.4,
+        "label": "Target (2.4 s)",
+        "body": "R_Hand",
+        "errorDeg": 10.79957896423059
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "ea2e29c0ffef25e338935360fa8656cac30f8c0522502dcf90bc7d4952e4179f",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "23a9f93cec477cd1a8f83eeac7e71ef84c89ca9c066490b22af8031b5211150c",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 23.95361870564349,
+      "pelvisErrorM": 0.1404832171880586,
+      "segmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "Head",
+        "errorDeg": 6.4432380733816315
+      },
+      "previousJointErrorDeg": 5.2590219249074845,
+      "previousPelvisErrorM": 0.04602025668427697,
+      "previousSegmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 12.654794786362697
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0011034119589631171,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "cec1dd415ed65398f4dc26e4f614a8607ed01f9ddac3197c24973e341b9005d5",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "c1c514d78b068ab05565f42f9bc40ead7b92dba4bd26732b17e55b72c4cde266",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 16.04911081178448,
+      "pelvisErrorM": 0.11343671543654651,
+      "segmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "Head",
+        "errorDeg": 6.413673584587162
+      },
+      "previousJointErrorDeg": 5.3041259577270115,
+      "previousPelvisErrorM": 0.04643248573121487,
+      "previousSegmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 12.694214006009862
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0011972240683370463,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "1dccb67cffe96b06351501ba0d903d9e119755ec36d67ce25c01eb7d9d7f67ec",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "d1ed098be95edbc05653a60fb8aed8d2755f5e19017f367889b84e9c18a36cb1",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 9.287623220828616,
+      "pelvisErrorM": 0.029231489131548914,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 12.136564219645624
+      },
+      "previousJointErrorDeg": 6.8685259145939686,
+      "previousPelvisErrorM": 0.029126343952611797,
+      "previousSegmentError": {
+        "timeS": 2.4,
+        "label": "Target (2.4 s)",
+        "body": "L_Hand",
+        "errorDeg": 15.336642837134185
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "a334c65601766fa2e933efe18a56ed558a39055219a18ef31cc68d8dd89345a3",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "d770fdcbb9ec5f93794cc9f871dec0e4e3631da4ee2184a98eaa97067e412086",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/shoulder-mobility/shoulder-mobility",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 9.373624222397076,
+      "pelvisErrorM": 0.029650188447213007,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 12.244027057446395
+      },
+      "previousJointErrorDeg": 5.73442880228501,
+      "previousPelvisErrorM": 0.02939101303932021,
+      "previousSegmentError": {
+        "timeS": 2.4,
+        "label": "Target (2.4 s)",
+        "body": "L_Hand",
+        "errorDeg": 18.7154540703341
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "ec8a24c46ae5ba365278687f37e9a1e11030d7e225938731694f454b26635ffb",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "7e8f4d31edb3957726f0e037d3148f3fefb36ae5df6ca5bdc2dbdf6651079d13",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+        "variant": "female",
+        "side": "both"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 62.582349776302,
+      "pelvisErrorM": 0.10229608627067782,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 62.582349776302,
+      "previousPelvisErrorM": 0.10229608627067782,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0011221883915515417,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "f377ffb506a02fdfe4c220ef6345b3298677406d693cac16034f758e768a7ce5",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "f377ffb506a02fdfe4c220ef6345b3298677406d693cac16034f758e768a7ce5",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/trunk-stability-push-up/extension-clearing",
+        "variant": "male",
+        "side": "both"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 79.53932604811753,
+      "pelvisErrorM": 0.11423610592190077,
+      "segmentError": {
+        "timeS": 4.4,
+        "label": "End (4.4 s)",
+        "body": "R_Hand",
+        "errorDeg": 38.96818055581362
+      },
+      "previousJointErrorDeg": 79.53932604811753,
+      "previousPelvisErrorM": 0.11423610592190077,
+      "previousSegmentError": {
+        "timeS": 4.4,
+        "label": "End (4.4 s)",
+        "body": "R_Hand",
+        "errorDeg": 38.96818055581362
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "f32fd5542fc284bc08dd1551c95957722e1df55449b41f1918fd16cd50328dde",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "f32fd5542fc284bc08dd1551c95957722e1df55449b41f1918fd16cd50328dde",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+        "variant": "female",
+        "side": "both"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 70.8335333465966,
+      "pelvisErrorM": 0.17276864599549868,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 70.8335333465966,
+      "previousPelvisErrorM": 0.17276864599549868,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0011425070630226904,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "b722fefe8a6e2b406fb1579eed3588adea5d0f818de2cbfab0ae3d63b31ddf92",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "b722fefe8a6e2b406fb1579eed3588adea5d0f818de2cbfab0ae3d63b31ddf92",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "fms-repo-legacy-v1/trunk-stability-push-up/trunk-stability-push-up",
+        "variant": "male",
+        "side": "both"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 78.00688337168722,
+      "pelvisErrorM": 0.3170284757035999,
+      "segmentError": {
+        "timeS": 4.6,
+        "label": "End (4.6 s)",
+        "body": "R_Hand",
+        "errorDeg": 151.72059723640868
+      },
+      "previousJointErrorDeg": 78.00688337168722,
+      "previousPelvisErrorM": 0.3170284757035999,
+      "previousSegmentError": {
+        "timeS": 4.6,
+        "label": "End (4.6 s)",
+        "body": "R_Hand",
+        "errorDeg": 151.72059723640868
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "3cbb7357a312b20af7f6c9cc9534bb997b4ab3d861baca46c6af15f8f34b754c",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "3cbb7357a312b20af7f6c9cc9534bb997b4ab3d861baca46c6af15f8f34b754c",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/cervical-extension/top-tier",
+        "variant": "female",
+        "side": "both"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 4.184830065068172,
+      "pelvisErrorM": 0.011170724952317076,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 7.465253330089986
+      },
+      "previousJointErrorDeg": 4.184830065068172,
+      "previousPelvisErrorM": 0.011170724952317076,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 7.465253330089986
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "1064dc2b63dada33dca212278e1daa152946db7011530dace1391ef826d28b6a",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "1064dc2b63dada33dca212278e1daa152946db7011530dace1391ef826d28b6a",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/cervical-extension/top-tier",
+        "variant": "male",
+        "side": "both"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 4.181466705968591,
+      "pelvisErrorM": 0.010123976431657291,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 7.426374970114673
+      },
+      "previousJointErrorDeg": 4.181466705968591,
+      "previousPelvisErrorM": 0.010123976431657291,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 7.426374970114673
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "39ad177586bf83bf10bad875ab9e56b8675b08141703b59fe975c9b695ca1d99",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "39ad177586bf83bf10bad875ab9e56b8675b08141703b59fe975c9b695ca1d99",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/cervical-flexion/top-tier",
+        "variant": "female",
+        "side": "both"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 3.9157544672433477,
+      "pelvisErrorM": 0.01122543729442035,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 2.523625426558599
+      },
+      "previousJointErrorDeg": 3.9157544672433477,
+      "previousPelvisErrorM": 0.01122543729442035,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 2.523625426558599
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "2b56789376940b39b02f93caa37766335d958fc3e53709ac06fba8f662b1ae35",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "2b56789376940b39b02f93caa37766335d958fc3e53709ac06fba8f662b1ae35",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/cervical-flexion/top-tier",
+        "variant": "male",
+        "side": "both"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 3.933094032720629,
+      "pelvisErrorM": 0.010738338058585529,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 2.3903122506066032
+      },
+      "previousJointErrorDeg": 3.933094032720629,
+      "previousPelvisErrorM": 0.010738338058585529,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 2.3903122506066032
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "b8019656e412b90e3cbc8595b85ccb8f397925ed34016082f3c6839f2f153711",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "b8019656e412b90e3cbc8595b85ccb8f397925ed34016082f3c6839f2f153711",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/cervical-rotation/top-tier",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 5.595463765015135,
+      "pelvisErrorM": 0.008098901606949949,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 6.4151003160900855
+      },
+      "previousJointErrorDeg": 5.595463765015135,
+      "previousPelvisErrorM": 0.008098901606949949,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 6.4151003160900855
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "53cf817b9832a69d1b5ebc5d82607591531663c60050bc9bbca02f4f3431c60f",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "53cf817b9832a69d1b5ebc5d82607591531663c60050bc9bbca02f4f3431c60f",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/cervical-rotation/top-tier",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 5.595470989927406,
+      "pelvisErrorM": 0.008098713390089935,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 6.414085428112519
+      },
+      "previousJointErrorDeg": 5.595470989927406,
+      "previousPelvisErrorM": 0.008098713390089935,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 6.414085428112519
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "f5bcfa0c484f1c9aacadacd50305c3e9cd4dbbb4f4756e19e402fdebcaa1c16b",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "f5bcfa0c484f1c9aacadacd50305c3e9cd4dbbb4f4756e19e402fdebcaa1c16b",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/cervical-rotation/top-tier",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 5.593784932508064,
+      "pelvisErrorM": 0.007681218365392346,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 6.4845852988386365
+      },
+      "previousJointErrorDeg": 5.593784932508064,
+      "previousPelvisErrorM": 0.007681218365392346,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 6.4845852988386365
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "273f5b63693782a6596aa4ffd05b6bb44d11a4fc559f5828a90fa4ca02ddced4",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "273f5b63693782a6596aa4ffd05b6bb44d11a4fc559f5828a90fa4ca02ddced4",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/cervical-rotation/top-tier",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 5.593779146402855,
+      "pelvisErrorM": 0.007680734782897771,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 6.485025527558676
+      },
+      "previousJointErrorDeg": 5.593779146402855,
+      "previousPelvisErrorM": 0.007680734782897771,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Target (0.9 s)",
+        "body": "Head",
+        "errorDeg": 6.485025527558676
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "5409298e1c4d323344a1976b512aaacf4249d0f4ee31eb9fe6ddfcfcef2d9259",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "5409298e1c4d323344a1976b512aaacf4249d0f4ee31eb9fe6ddfcfcef2d9259",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+        "variant": "female",
+        "side": "both"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 37.91644457504849,
+      "pelvisErrorM": 0.06999409262255281,
+      "segmentError": {
+        "timeS": 1.6,
+        "label": "Target (1.6 s)",
+        "body": "Head",
+        "errorDeg": 37.98589362698886
+      },
+      "previousJointErrorDeg": 37.91644457504849,
+      "previousPelvisErrorM": 0.06999409262255281,
+      "previousSegmentError": {
+        "timeS": 1.6,
+        "label": "Target (1.6 s)",
+        "body": "Head",
+        "errorDeg": 37.98589362698886
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0010012665846129407,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "eedd0a049b25d406ea0d31d933c1ba51bd31340696dfebc172af4bac258fad66",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "eedd0a049b25d406ea0d31d933c1ba51bd31340696dfebc172af4bac258fad66",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+        "variant": "male",
+        "side": "both"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 38.08961985890875,
+      "pelvisErrorM": 0.17425544033475468,
+      "segmentError": {
+        "timeS": 1.6,
+        "label": "Target (1.6 s)",
+        "body": "Head",
+        "errorDeg": 38.83090910113129
+      },
+      "previousJointErrorDeg": 38.08961985890875,
+      "previousPelvisErrorM": 0.17425544033475468,
+      "previousSegmentError": {
+        "timeS": 1.6,
+        "label": "Target (1.6 s)",
+        "body": "Head",
+        "errorDeg": 38.83090910113129
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "02b14c985c3080a0fe8055b2cefc8154742f98d31b3e8c90b16b44b19cfc8326",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "02b14c985c3080a0fe8055b2cefc8154742f98d31b3e8c90b16b44b19cfc8326",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+        "variant": "female",
+        "side": "both"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 12.381888136810579,
+      "pelvisErrorM": 0.22993861283854278,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Stage 1 (0.9 s)",
+        "body": "L_Hand",
+        "errorDeg": 6.1081767084141605
+      },
+      "previousJointErrorDeg": 12.381888136810579,
+      "previousPelvisErrorM": 0.22993861283854278,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Stage 1 (0.9 s)",
+        "body": "L_Hand",
+        "errorDeg": 6.1081767084141605
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0013400545231033868,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "0b3cee7cd2adb7f0cbec345bd912c39f9a1809b7c67ae802d79d1cd45b29c90f",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "0b3cee7cd2adb7f0cbec345bd912c39f9a1809b7c67ae802d79d1cd45b29c90f",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+        "variant": "male",
+        "side": "both"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 19.807873479442637,
+      "pelvisErrorM": 0.3552040320908633,
+      "segmentError": {
+        "timeS": 0.9,
+        "label": "Stage 1 (0.9 s)",
+        "body": "Head",
+        "errorDeg": 2.5130126494777487
+      },
+      "previousJointErrorDeg": 19.807873479442637,
+      "previousPelvisErrorM": 0.3552040320908633,
+      "previousSegmentError": {
+        "timeS": 0.9,
+        "label": "Stage 1 (0.9 s)",
+        "body": "Head",
+        "errorDeg": 2.5130126494777487
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0014473176853690654,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "e1cff4d986eb6097ef149703e6418991060dbcd1befaacb44f3b225b77192756",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "e1cff4d986eb6097ef149703e6418991060dbcd1befaacb44f3b225b77192756",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 14.503242048012098,
+      "pelvisErrorM": 1.189509427889332,
+      "segmentError": {
+        "timeS": 1.8,
+        "label": "Target (1.8 s)",
+        "body": "Head",
+        "errorDeg": 27.425679465008454
+      },
+      "previousJointErrorDeg": 14.503242048012098,
+      "previousPelvisErrorM": 1.189509427889332,
+      "previousSegmentError": {
+        "timeS": 1.8,
+        "label": "Target (1.8 s)",
+        "body": "Head",
+        "errorDeg": 27.425679465008454
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0021436499352638144,
+          "maximum": 0.001
+        },
+        {
+          "id": "native-joint-speed",
+          "observed": 10.059016665016392,
+          "maximum": 8
+        }
+      ],
+      "hashes": {
+        "routeSha256": "3c9e798a0831b683f2b74a802d1016004ac038e7207aa47d19c46a81e6039b68",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "3c9e798a0831b683f2b74a802d1016004ac038e7207aa47d19c46a81e6039b68",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 14.534516804536922,
+      "pelvisErrorM": 1.1959012428118034,
+      "segmentError": {
+        "timeS": 1.8,
+        "label": "Target (1.8 s)",
+        "body": "Head",
+        "errorDeg": 30.46834252165804
+      },
+      "previousJointErrorDeg": 14.534516804536922,
+      "previousPelvisErrorM": 1.1959012428118034,
+      "previousSegmentError": {
+        "timeS": 1.8,
+        "label": "Target (1.8 s)",
+        "body": "Head",
+        "errorDeg": 30.46834252165804
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0020332643783178067,
+          "maximum": 0.001
+        },
+        {
+          "id": "native-joint-speed",
+          "observed": 11.762879797462595,
+          "maximum": 8
+        }
+      ],
+      "hashes": {
+        "routeSha256": "3ddfafce2336211c11a3e8279fbacaaa85ce40d7d56de2e68ce1c98c627fa24e",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "3ddfafce2336211c11a3e8279fbacaaa85ce40d7d56de2e68ce1c98c627fa24e",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 4.113682609460051,
+      "pelvisErrorM": 0.049202262647414494,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 4.113682609460051,
+      "previousPelvisErrorM": 0.049202262647414494,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.0011041428407746118,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "e0d6f9b4c42b06b1672caf4b32085a82470adcc112d13a06d540d5f884b17a40",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "e0d6f9b4c42b06b1672caf4b32085a82470adcc112d13a06d540d5f884b17a40",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 4.079372784636368,
+      "pelvisErrorM": 0.04922226518153085,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 4.079372784636368,
+      "previousPelvisErrorM": 0.04922226518153085,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.001112938893244721,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "2f60bed6febf62984d088a8e6b6777f742075c58f8e217f05f9f48d322796eea",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "2f60bed6febf62984d088a8e6b6777f742075c58f8e217f05f9f48d322796eea",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/overhead-deep-squat/top-tier",
+        "variant": "female",
+        "side": "both"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 12.88084152025034,
+      "pelvisErrorM": 0.05280964927553863,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 12.88084152025034,
+      "previousPelvisErrorM": 0.05280964927553863,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-contact-residual",
+          "observed": 0.0010612149241077521,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "8a13036760d3f877a86dcb4ab0db8ff474d92a7a139d35b4e92f786b237516f8",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "8a13036760d3f877a86dcb4ab0db8ff474d92a7a139d35b4e92f786b237516f8",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/overhead-deep-squat/top-tier",
+        "variant": "male",
+        "side": "both"
+      },
+      "completed": false,
+      "previousCompleted": false,
+      "tracking": false,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 0.39729185064592665,
+      "pelvisErrorM": 0.002817101857502946,
+      "segmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "previousJointErrorDeg": 0.39729185064592665,
+      "previousPelvisErrorM": 0.002817101857502946,
+      "previousSegmentError": {
+        "timeS": 0,
+        "label": "Start (0 s)",
+        "body": "Head",
+        "errorDeg": 0
+      },
+      "terminalChecks": [
+        {
+          "id": "native-self-contact-residual",
+          "observed": 0.0010489369578976252,
+          "maximum": 0.001
+        }
+      ],
+      "hashes": {
+        "routeSha256": "e7e722b2c665465ef6245b5fc52a75b42d7adaae4316ad918a8586a999782f58",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "e7e722b2c665465ef6245b5fc52a75b42d7adaae4316ad918a8586a999782f58",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/single-leg-stance/top-tier",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 9.276446647150859,
+      "pelvisErrorM": 0.01554543391420666,
+      "segmentError": {
+        "timeS": 19,
+        "label": "Stage 3 (19 s)",
+        "body": "L_Foot",
+        "errorDeg": 4.374702074307393
+      },
+      "previousJointErrorDeg": 9.276446647150859,
+      "previousPelvisErrorM": 0.01554543391420666,
+      "previousSegmentError": {
+        "timeS": 19,
+        "label": "Stage 3 (19 s)",
+        "body": "L_Foot",
+        "errorDeg": 4.374702074307393
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "54e358207081f92c41808c76e661f95bb92fa4d48af8392a89af32bac2c9ca0d",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "54e358207081f92c41808c76e661f95bb92fa4d48af8392a89af32bac2c9ca0d",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/single-leg-stance/top-tier",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 9.191174139693466,
+      "pelvisErrorM": 0.014873536245998563,
+      "segmentError": {
+        "timeS": 19,
+        "label": "Stage 3 (19 s)",
+        "body": "R_Foot",
+        "errorDeg": 4.3662344143172085
+      },
+      "previousJointErrorDeg": 9.191174139693466,
+      "previousPelvisErrorM": 0.014873536245998563,
+      "previousSegmentError": {
+        "timeS": 19,
+        "label": "Stage 3 (19 s)",
+        "body": "R_Foot",
+        "errorDeg": 4.3662344143172085
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "7ff675a0ff148130a5206c5c2b309108ab5272ff7ebe1b4e11f4bbf5ea2a3de3",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "7ff675a0ff148130a5206c5c2b309108ab5272ff7ebe1b4e11f4bbf5ea2a3de3",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/single-leg-stance/top-tier",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 10.759082438384128,
+      "pelvisErrorM": 0.018420718879823564,
+      "segmentError": {
+        "timeS": 19,
+        "label": "Stage 3 (19 s)",
+        "body": "L_Foot",
+        "errorDeg": 3.9790127104574156
+      },
+      "previousJointErrorDeg": 10.759082438384128,
+      "previousPelvisErrorM": 0.018420718879823564,
+      "previousSegmentError": {
+        "timeS": 19,
+        "label": "Stage 3 (19 s)",
+        "body": "L_Foot",
+        "errorDeg": 3.9790127104574156
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "670456eff3f70f3488e01b6b3eecd6add3c8949f47c8d39dd17d6b4b874b3532",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "670456eff3f70f3488e01b6b3eecd6add3c8949f47c8d39dd17d6b4b874b3532",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/single-leg-stance/top-tier",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 10.700598848475332,
+      "pelvisErrorM": 0.018588519045792017,
+      "segmentError": {
+        "timeS": 19,
+        "label": "Stage 3 (19 s)",
+        "body": "R_Foot",
+        "errorDeg": 3.949416928652442
+      },
+      "previousJointErrorDeg": 10.700598848475332,
+      "previousPelvisErrorM": 0.018588519045792017,
+      "previousSegmentError": {
+        "timeS": 19,
+        "label": "Stage 3 (19 s)",
+        "body": "R_Foot",
+        "errorDeg": 3.949416928652442
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "dcb695a387795da8717f6888a7163a22397e96fd02e26768a3ce5ef680b9a5f9",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "dcb695a387795da8717f6888a7163a22397e96fd02e26768a3ce5ef680b9a5f9",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 1.4932782417793358,
+      "pelvisErrorM": 0.00721750923420094,
+      "segmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 4.72840558875311
+      },
+      "previousJointErrorDeg": 1.4031452363136159,
+      "previousPelvisErrorM": 0.007473711045090269,
+      "previousSegmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 4.703516408345731
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "81f3d5e11bd9c9fc2ee662868ea8597fe52846e143ed92b3afe8114caba8b98c",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "bbb61fa6cf9790833692326bd016ab938fb250ae817886b4126977610c318949",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 1.4965319730237543,
+      "pelvisErrorM": 0.007202228653042248,
+      "segmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 4.710722636618737
+      },
+      "previousJointErrorDeg": 1.4086975388909506,
+      "previousPelvisErrorM": 0.007853869365733433,
+      "previousSegmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 4.717320283345486
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "b012e9b3277a772802d0a3ebac320754f88ba55e362beccf7437fc1496b27e85",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "3668f3fc158e5ba07bcc3ea7cc34a8517e30790c0b5ee2e3bba3e91ee0f0814e",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": false,
+      "error": null,
+      "jointErrorDeg": 1.4893319264128688,
+      "pelvisErrorM": 0.006308189887162867,
+      "segmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 4.781129648835084
+      },
+      "previousJointErrorDeg": 5.646836673233454,
+      "previousPelvisErrorM": 0.006306065720000495,
+      "previousSegmentError": {
+        "timeS": 3.8,
+        "label": "Hold target (3.8 s)",
+        "body": "L_Hand",
+        "errorDeg": 17.93340289304199
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "0a6171552cc5ce8fc5ecb4d7ab6f2b97d3c3ef9a898bbbd7c41fdd1825d54fe1",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "8c595fe3173378f879a78fa17be88abb250488b82e075b8bca0ed8496b80427c",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 1.4903234583305895,
+      "pelvisErrorM": 0.006293405296756684,
+      "segmentError": {
+        "timeS": 1.2,
+        "label": "Stage 1 (1.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 4.786603418836216
+      },
+      "previousJointErrorDeg": 3.7822199538677017,
+      "previousPelvisErrorM": 0.006486323478275061,
+      "previousSegmentError": {
+        "timeS": 3.8,
+        "label": "Hold target (3.8 s)",
+        "body": "R_Hand",
+        "errorDeg": 11.2348275754749
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "883a23478aafb517f771cf49993d7e1657b40360b21a352d302811e6710f9869",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "70b5a5ece26edd58993209359d37bec2d6a0aa4385dfae3243257de2700958ab",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+        "variant": "female",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 5.119124626363208,
+      "pelvisErrorM": 0.04603063487997265,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 11.758359569131253
+      },
+      "previousJointErrorDeg": 5.010304533297246,
+      "previousPelvisErrorM": 0.03279253331209609,
+      "previousSegmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 12.277381332892222
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "6f4c2c0cd3fcaa00caccd3a6ec3e5d5fe9f088a28c8410be1c22e7f11a233e07",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "1671eaade68e13d9d9a2ca507bdd772c2412bb6a8231fd8eede7f6366379bb58",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+        "variant": "female",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 5.326688732439411,
+      "pelvisErrorM": 0.04758780788348351,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 11.849954995532192
+      },
+      "previousJointErrorDeg": 5.051469128579276,
+      "previousPelvisErrorM": 0.03294566204044874,
+      "previousSegmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 12.322460714450589
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "476fa27720c5ad37fca617bd099f2f261e615e5292d8ccfa98171a5c9359baea",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "e872a6d2c09accb6c27d7a86180c613958081b45cb356b1c2c465df4f93ffcfd",
+        "bindingSha256": "c9de05387e95387404d0dc12f75ad0dea9cdd10d26593850444959d7e1c4def9",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+        "variant": "male",
+        "side": "L"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 9.214084277570889,
+      "pelvisErrorM": 0.025032429485189647,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "L_Hand",
+        "errorDeg": 11.908349860766982
+      },
+      "previousJointErrorDeg": 7.082572057700691,
+      "previousPelvisErrorM": 0.025235103858022717,
+      "previousSegmentError": {
+        "timeS": 2.4,
+        "label": "Target (2.4 s)",
+        "body": "L_Hand",
+        "errorDeg": 14.863355064497306
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "54aa8cb320b96a3fd10a2f8dbce1e943c284d950f3eb23c131700e0f9aeab0e3",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "e7726717b091ee5eb0fe044fc4e0715b3fbb115750801e0743c1ced8de206fee",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    },
+    {
+      "context": {
+        "movement": "sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+        "variant": "male",
+        "side": "R"
+      },
+      "completed": true,
+      "previousCompleted": true,
+      "tracking": true,
+      "previousTracking": true,
+      "error": null,
+      "jointErrorDeg": 9.302482803964592,
+      "pelvisErrorM": 0.025172094397574705,
+      "segmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 12.006140707073437
+      },
+      "previousJointErrorDeg": 5.329448014546437,
+      "previousPelvisErrorM": 0.025553421694091517,
+      "previousSegmentError": {
+        "timeS": 6.2,
+        "label": "End (6.2 s)",
+        "body": "R_Hand",
+        "errorDeg": 12.812611495328742
+      },
+      "terminalChecks": [],
+      "hashes": {
+        "routeSha256": "bde17d2c72ce58cf3cbff86f06164a172077d860f705f02a16ad84b8abdb1f39",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      },
+      "previousHashes": {
+        "routeSha256": "336a00aa0c4bf3fe0bc10b22f0b51255086c4deaba2ff6202ce84cddcc8994a8",
+        "bindingSha256": "1d5a989ce497c6307f6e3b35d3cbb5ac421783fd682fbf0231714afd912b834b",
+        "settingsSha256": "8bb3ddc8151bb21be7661b71d9840f2714068ac5a09a8875fc2bd973c585a9a7",
+        "controllerVersion": "authored-pelvis-support-torque-v13"
+      }
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+> Current tracking lives in the master [movement/joint catalogue](MASTER-MOVEMENT-JOINT-CATALOGUE.html). Use its defects, references, work ownership and acceptance records for future corrections. This document retains historical findings and provenance; its old status labels and numerical results need current scoped evidence. Reconciliation remains partial.
+
 # Movement Template Reference — SME Verification Sheet
 
 **Purpose.** The composed-motion planner (simMOVE / simLAB) now anchors on a small

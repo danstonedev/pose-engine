@@ -1,0 +1,1549 @@
+{
+  "sourceStable": true,
+  "cases": [
+    {
+      "delta": 0,
+      "invocation": "guide preparation",
+      "reprojection": {
+        "key": "L_Hand",
+        "degrees": 0
+      },
+      "trace": [
+        {
+          "kind": "guided",
+          "stop": "iteration-limit",
+          "iterations": 40,
+          "cost": 0.005689949171262668,
+          "groups": {
+            "position": 0.005308197024481919,
+            "orientation": 0.00002900484239561828,
+            "floor": 0,
+            "guide": 0.0003421932850545355,
+            "prior": 0.00001055401933059539
+          },
+          "last": {
+            "iteration": 39,
+            "dampingBefore": 0.0030517578125,
+            "costBefore": 0.005689951821661252,
+            "groupsBefore": {
+              "position": 0.005308187589301039,
+              "orientation": 0.00002894324376611643,
+              "floor": 0,
+              "guide": 0.00034227984474689203,
+              "prior": 0.00001054114384720457
+            },
+            "atBoundary": true,
+            "selected": "nnls",
+            "costAfter": 0.005689949171262668,
+            "groupsAfter": {
+              "position": 0.005308197024481919,
+              "orientation": 0.00002900484239561828,
+              "floor": 0,
+              "guide": 0.0003421932850545355,
+              "prior": 0.00001055401933059539
+            },
+            "gain": 0.733324848556837,
+            "predictedReduction": 3.6142217040360802e-9,
+            "dampingAfter": 0.0030517578125
+          },
+          "minSlope": -0.0000023251109973477265,
+          "bestSmall": {
+            "kind": "dls",
+            "fraction": 0.03125,
+            "cost": 0.005689314050083246,
+            "groups": {
+              "position": 0.0053133840979136164,
+              "orientation": 0.000026640683675020472,
+              "floor": 0,
+              "guide": 0.00033877315601242407,
+              "prior": 0.00001051611248218577
+            },
+            "turnNorm": 0.00262741040941819,
+            "clippedModelCost": 0.005689153710242419,
+            "rawModelCost": 0.005689207053409677
+          },
+          "rejections": [
+            {
+              "iteration": 2,
+              "lambda": 0.0000025,
+              "cost": 0.005721789600153341,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.00048828125,
+                "cost": 0.005721419509065046,
+                "groups": {
+                  "position": 0.005347601594921988,
+                  "orientation": 0.000022798173503108684,
+                  "floor": 0,
+                  "guide": 0.00034171332770640064,
+                  "prior": 0.000009306412933550225
+                },
+                "turnNorm": 0.00012050981403944643,
+                "clippedModelCost": 0.005721610576394903,
+                "rawModelCost": 0.005721419424674327
+              }
+            },
+            {
+              "iteration": 3,
+              "lambda": 0.000025,
+              "cost": 0.005721789600153341,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.00048828125,
+                "cost": 0.005721409749812071,
+                "groups": {
+                  "position": 0.0053476177552344885,
+                  "orientation": 0.000022786300561620512,
+                  "floor": 0,
+                  "guide": 0.0003416991126195888,
+                  "prior": 0.00000930658139637245
+                },
+                "turnNorm": 0.00012053967862519169,
+                "clippedModelCost": 0.005721604897331637,
+                "rawModelCost": 0.0057214096592455325
+              }
+            },
+            {
+              "iteration": 10,
+              "lambda": 0.002,
+              "cost": 0.005721254832441341,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.00572007576329564,
+                "groups": {
+                  "position": 0.0053447739918760255,
+                  "orientation": 0.000025109781983539977,
+                  "floor": 0,
+                  "guide": 0.00034052506498757933,
+                  "prior": 0.000009666924448494496
+                },
+                "turnNorm": 0.002877649836554343,
+                "clippedModelCost": 0.0057200908912509235,
+                "rawModelCost": 0.005719957826846648
+              }
+            },
+            {
+              "iteration": 30,
+              "lambda": 0.000009765625,
+              "cost": 0.005698044477837176,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.00000762939453125,
+                "cost": 0.00569797927038723,
+                "groups": {
+                  "position": 0.005316311920185935,
+                  "orientation": 0.00002881635557779262,
+                  "floor": 0,
+                  "guide": 0.00034251472385789656,
+                  "prior": 0.000010336270765606182
+                },
+                "turnNorm": 0.0000030561869039428426,
+                "clippedModelCost": 0.005698012114780297,
+                "rawModelCost": 0.005697979270362468
+              }
+            },
+            {
+              "iteration": 31,
+              "lambda": 0.00009765625,
+              "cost": 0.005698044477837176,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.000003814697265625,
+                "cost": 0.005698006921068287,
+                "groups": {
+                  "position": 0.005316338656110323,
+                  "orientation": 0.000028816373099053866,
+                  "floor": 0,
+                  "guide": 0.00034251561230287035,
+                  "prior": 0.000010336279556039902
+                },
+                "turnNorm": 0.0000015604272545210319,
+                "clippedModelCost": 0.0056980257210498125,
+                "rawModelCost": 0.005698006921064748
+              }
+            },
+            {
+              "iteration": 32,
+              "lambda": 0.0009765625,
+              "cost": 0.005698044477837176,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005697912068093216,
+                "groups": {
+                  "position": 0.005319211443802826,
+                  "orientation": 0.000027756441902721026,
+                  "floor": 0,
+                  "guide": 0.0003406025933353976,
+                  "prior": 0.00001034158905227064
+                },
+                "turnNorm": 0.0016332686381490468,
+                "clippedModelCost": 0.005697858611094795,
+                "rawModelCost": 0.005697879822932695
+              }
+            },
+            {
+              "iteration": 33,
+              "lambda": 0.009765625,
+              "cost": 0.005698044477837176,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.0625,
+                "cost": 0.005696809250882359,
+                "groups": {
+                  "position": 0.005325865420334183,
+                  "orientation": 0.000024372146642685807,
+                  "floor": 0,
+                  "guide": 0.00033628176072617554,
+                  "prior": 0.000010289923179313918
+                },
+                "turnNorm": 0.004411344919691595,
+                "clippedModelCost": 0.005696397139163018,
+                "rawModelCost": 0.005696472275752585
+              }
+            }
+          ]
+        },
+        {
+          "kind": "refinement",
+          "stop": "iteration-limit",
+          "iterations": 40,
+          "cost": 0.005284518024366218,
+          "groups": {
+            "position": 0.005278796643168171,
+            "orientation": 0.0000018334500814924094,
+            "floor": 0,
+            "guide": 0,
+            "prior": 0.000003887931116553907
+          },
+          "last": {
+            "iteration": 39,
+            "dampingBefore": 0.01,
+            "costBefore": 0.0052846814344657,
+            "groupsBefore": {
+              "position": 0.005278744309927693,
+              "orientation": 0.000002047591728148131,
+              "floor": 0,
+              "guide": 0,
+              "prior": 0.000003889532809858151
+            },
+            "atBoundary": true,
+            "selected": "nnls",
+            "costAfter": 0.005284518024366218,
+            "groupsAfter": {
+              "position": 0.005278796643168171,
+              "orientation": 0.0000018334500814924094,
+              "floor": 0,
+              "guide": 0,
+              "prior": 0.000003887931116553907
+            },
+            "gain": 0.298442594347283,
+            "predictedReduction": 5.47542819213237e-7,
+            "dampingAfter": 0.01
+          },
+          "minSlope": -0.00016105272298428094,
+          "bestSmall": {
+            "kind": "dls",
+            "fraction": 0.0625,
+            "cost": 0.005282605981179346,
+            "groups": {
+              "position": 0.0052778247655459265,
+              "orientation": 8.78372761850501e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 0.000003902842871568371
+            },
+            "turnNorm": 0.004286966368381694,
+            "clippedModelCost": 0.005282253435123429,
+            "rawModelCost": 0.005282258967238995
+          },
+          "rejections": [
+            {
+              "iteration": 3,
+              "lambda": 0.0000025,
+              "cost": 0.005291630067941183,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005291313009611868,
+                "groups": {
+                  "position": 0.0052858697372812945,
+                  "orientation": 0.0000017436438519564654,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 0.0000036996284786174107
+                },
+                "turnNorm": 0.001662999578600162,
+                "clippedModelCost": 0.005291160266150168,
+                "rawModelCost": 0.005291294040621624
+              }
+            },
+            {
+              "iteration": 4,
+              "lambda": 0.000025,
+              "cost": 0.005291630067941183,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005291215895493038,
+                "groups": {
+                  "position": 0.005285795827541363,
+                  "orientation": 0.0000017143057831826287,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 0.0000037057621684910086
+                },
+                "turnNorm": 0.0015818809080511355,
+                "clippedModelCost": 0.005291087387414266,
+                "rawModelCost": 0.005291196521188737
+              }
+            },
+            {
+              "iteration": 7,
+              "lambda": 0.000125,
+              "cost": 0.005291521961491993,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005290694828348981,
+                "groups": {
+                  "position": 0.005285359771223023,
+                  "orientation": 0.000001629165000153174,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 0.0000037058921258058765
+                },
+                "turnNorm": 0.002675600953791272,
+                "clippedModelCost": 0.0052904643162720475,
+                "rawModelCost": 0.005290609415188027
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "delta": 0,
+      "invocation": "final playback refinement",
+      "reprojection": {
+        "key": "L_Hand",
+        "degrees": 0
+      },
+      "trace": [
+        {
+          "kind": "refinement",
+          "stop": "iteration-limit",
+          "iterations": 40,
+          "cost": 0.0052642054494602035,
+          "groups": {
+            "position": 0.005263864558956382,
+            "orientation": 1.6269986880054602e-7,
+            "floor": 0,
+            "guide": 0,
+            "prior": 1.7819063502185555e-7
+          },
+          "last": {
+            "iteration": 39,
+            "dampingBefore": 0.01220703125,
+            "costBefore": 0.0052642491987653535,
+            "groupsBefore": {
+              "position": 0.005263870260282652,
+              "orientation": 2.0435954990107798e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 1.7457893280166765e-7
+            },
+            "atBoundary": true,
+            "selected": "nnls",
+            "costAfter": 0.0052642054494602035,
+            "groupsAfter": {
+              "position": 0.005263864558956382,
+              "orientation": 1.6269986880054602e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 1.7819063502185555e-7
+            },
+            "gain": 1.3573367027619063,
+            "predictedReduction": 3.2231726336540145e-8,
+            "dampingAfter": 0.006103515625
+          },
+          "minSlope": -0.000028746955294671515,
+          "bestSmall": {
+            "kind": "dls",
+            "fraction": 0.0625,
+            "cost": 0.0052624048507334915,
+            "groups": {
+              "position": 0.005262099410828093,
+              "orientation": 1.2164796262089588e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 1.8379194277908003e-7
+            },
+            "turnNorm": 0.004288349234717007,
+            "clippedModelCost": 0.005262060530810888,
+            "rawModelCost": 0.005262059431159264
+          },
+          "rejections": [
+            {
+              "iteration": 0,
+              "lambda": 0.00001,
+              "cost": 0.005280630093249664,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.00527963439307605,
+                "groups": {
+                  "position": 0.005277962608715548,
+                  "orientation": 0.0000016715227015896422,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 2.61658910373581e-10
+                },
+                "turnNorm": 0.0013479895275866208,
+                "clippedModelCost": 0.005279739039329647,
+                "rawModelCost": 0.0052796156490199295
+              }
+            },
+            {
+              "iteration": 1,
+              "lambda": 0.0001,
+              "cost": 0.005280630093249664,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005279149410225107,
+                "groups": {
+                  "position": 0.0052778184141144815,
+                  "orientation": 0.0000013297797186397624,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.2163919860672165e-9
+                },
+                "turnNorm": 0.002906400965096046,
+                "clippedModelCost": 0.005279120519913107,
+                "rawModelCost": 0.0052790396445680145
+              }
+            },
+            {
+              "iteration": 2,
+              "lambda": 0.001,
+              "cost": 0.005280630093249664,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.0052786927073222864,
+                "groups": {
+                  "position": 0.005277482802835862,
+                  "orientation": 0.0000012086373141773448,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.2671722471625134e-9
+                },
+                "turnNorm": 0.0029664469103562094,
+                "clippedModelCost": 0.005278756996153766,
+                "rawModelCost": 0.005278569484631654
+              }
+            },
+            {
+              "iteration": 29,
+              "lambda": 0.000009765625,
+              "cost": 0.005278621888747017,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005277809298020745,
+                "groups": {
+                  "position": 0.005277478939672667,
+                  "orientation": 1.9500367768716197e-7,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.353546703898656e-7
+                },
+                "turnNorm": 0.0026680304582962153,
+                "clippedModelCost": 0.005277485733231457,
+                "rawModelCost": 0.0052777335196559924
+              }
+            },
+            {
+              "iteration": 30,
+              "lambda": 0.00009765625,
+              "cost": 0.005278621888747017,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005277330032617836,
+                "groups": {
+                  "position": 0.005277068077429298,
+                  "orientation": 1.2247638453033255e-7,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.394788040063404e-7
+                },
+                "turnNorm": 0.002809821608996525,
+                "clippedModelCost": 0.005277185375385754,
+                "rawModelCost": 0.005277222813812282
+              }
+            },
+            {
+              "iteration": 31,
+              "lambda": 0.0009765625,
+              "cost": 0.005278621888747017,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.00527690087593899,
+                "groups": {
+                  "position": 0.0052766773785896314,
+                  "orientation": 8.046446858394528e-8,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.430328807748238e-7
+                },
+                "turnNorm": 0.002885671187450073,
+                "clippedModelCost": 0.0052768550006424865,
+                "rawModelCost": 0.005276780589089696
+              }
+            },
+            {
+              "iteration": 32,
+              "lambda": 0.009765625,
+              "cost": 0.005278621888747017,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.0625,
+                "cost": 0.005276451388514195,
+                "groups": {
+                  "position": 0.005276253047963784,
+                  "orientation": 5.4568245028202026e-8,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.4377230538230704e-7
+                },
+                "turnNorm": 0.004499552965061574,
+                "clippedModelCost": 0.005275918322817111,
+                "rawModelCost": 0.005276067379221876
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "delta": -5e-8,
+      "invocation": "guide preparation",
+      "reprojection": {
+        "key": "L_Hand",
+        "degrees": 0
+      },
+      "trace": [
+        {
+          "kind": "guided",
+          "stop": "iteration-limit",
+          "iterations": 40,
+          "cost": 0.005689949130518034,
+          "groups": {
+            "position": 0.0053081969382450115,
+            "orientation": 0.000029005186310667267,
+            "floor": 0,
+            "guide": 0.00034219291448190557,
+            "prior": 0.000010554091480449603
+          },
+          "last": {
+            "iteration": 39,
+            "dampingBefore": 0.0030517578125,
+            "costBefore": 0.005689951780311581,
+            "groupsBefore": {
+              "position": 0.005308187506883572,
+              "orientation": 0.00002894359888066188,
+              "floor": 0,
+              "guide": 0.00034227945540186744,
+              "prior": 0.000010541219145478063
+            },
+            "atBoundary": true,
+            "selected": "nnls",
+            "costAfter": 0.005689949130518034,
+            "groupsAfter": {
+              "position": 0.0053081969382450115,
+              "orientation": 0.000029005186310667267,
+              "floor": 0,
+              "guide": 0.00034219291448190557,
+              "prior": 0.000010554091480449603
+            },
+            "gain": 0.7333343031576892,
+            "predictedReduction": 3.6133500592658296e-9,
+            "dampingAfter": 0.0030517578125
+          },
+          "minSlope": -0.0000023249643100677924,
+          "bestSmall": {
+            "kind": "dls",
+            "fraction": 0.03125,
+            "cost": 0.005689314024386863,
+            "groups": {
+              "position": 0.005313384060352989,
+              "orientation": 0.00002664101777822718,
+              "floor": 0,
+              "guide": 0.00033877275953826945,
+              "prior": 0.000010516186717378137
+            },
+            "turnNorm": 0.002627392999895136,
+            "clippedModelCost": 0.005689153673104617,
+            "rawModelCost": 0.005689207027260292
+          },
+          "rejections": [
+            {
+              "iteration": 2,
+              "lambda": 0.0000025,
+              "cost": 0.005721789628509428,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.00048828125,
+                "cost": 0.005721419538902095,
+                "groups": {
+                  "position": 0.005347601677388139,
+                  "orientation": 0.00002279828972341687,
+                  "floor": 0,
+                  "guide": 0.000341713127034689,
+                  "prior": 0.000009306444755851824
+                },
+                "turnNorm": 0.00012050987423306265,
+                "clippedModelCost": 0.005721610605758351,
+                "rawModelCost": 0.005721419454511381
+              }
+            },
+            {
+              "iteration": 3,
+              "lambda": 0.000025,
+              "cost": 0.005721789628509428,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.00048828125,
+                "cost": 0.005721409780598823,
+                "groups": {
+                  "position": 0.005347617837720625,
+                  "orientation": 0.000022786417697480586,
+                  "floor": 0,
+                  "guide": 0.00034169891195228624,
+                  "prior": 0.000009306613228429633
+                },
+                "turnNorm": 0.00012053913336833407,
+                "clippedModelCost": 0.005721604927215922,
+                "rawModelCost": 0.005721409690032326
+              }
+            },
+            {
+              "iteration": 10,
+              "lambda": 0.002,
+              "cost": 0.005721255082872469,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005720075971192778,
+                "groups": {
+                  "position": 0.005344774153112599,
+                  "orientation": 0.00002511000430379332,
+                  "floor": 0,
+                  "guide": 0.0003405248495483258,
+                  "prior": 0.00000966696422806176
+                },
+                "turnNorm": 0.002877719201267273,
+                "clippedModelCost": 0.00572009115903005,
+                "rawModelCost": 0.005719958036410545
+              }
+            },
+            {
+              "iteration": 30,
+              "lambda": 0.000009765625,
+              "cost": 0.0056980446539760254,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.00000762939453125,
+                "cost": 0.005697979446475173,
+                "groups": {
+                  "position": 0.005316312052417133,
+                  "orientation": 0.000028816782366102367,
+                  "floor": 0,
+                  "guide": 0.0003425142611701112,
+                  "prior": 0.000010336350521826976
+                },
+                "turnNorm": 0.0000030561871923982653,
+                "clippedModelCost": 0.0056980122909325685,
+                "rawModelCost": 0.005697979446450399
+              }
+            },
+            {
+              "iteration": 31,
+              "lambda": 0.00009765625,
+              "cost": 0.0056980446539760254,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.000003814697265625,
+                "cost": 0.005698007097013116,
+                "groups": {
+                  "position": 0.00531633878818286,
+                  "orientation": 0.00002881679990630436,
+                  "floor": 0,
+                  "guide": 0.00034251514961144617,
+                  "prior": 0.00001033635931250822
+                },
+                "turnNorm": 0.0000015604392231314792,
+                "clippedModelCost": 0.005698025897101468,
+                "rawModelCost": 0.0056980070970095555
+              }
+            },
+            {
+              "iteration": 32,
+              "lambda": 0.0009765625,
+              "cost": 0.0056980446539760254,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005697912315240051,
+                "groups": {
+                  "position": 0.005319211622201132,
+                  "orientation": 0.000027756892798958952,
+                  "floor": 0,
+                  "guide": 0.0003406021308951943,
+                  "prior": 0.000010341669344766563
+                },
+                "turnNorm": 0.001633303980665846,
+                "clippedModelCost": 0.0056978588586838125,
+                "rawModelCost": 0.005697880070047738
+              }
+            },
+            {
+              "iteration": 33,
+              "lambda": 0.009765625,
+              "cost": 0.0056980446539760254,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.0625,
+                "cost": 0.005696809516555048,
+                "groups": {
+                  "position": 0.005325865601221211,
+                  "orientation": 0.00002437258410007133,
+                  "floor": 0,
+                  "guide": 0.0003362813279831566,
+                  "prior": 0.000010290003250608768
+                },
+                "turnNorm": 0.004411405730078358,
+                "clippedModelCost": 0.0056963974220213195,
+                "rawModelCost": 0.0056964725428920344
+              }
+            }
+          ]
+        },
+        {
+          "kind": "refinement",
+          "stop": "iteration-limit",
+          "iterations": 40,
+          "cost": 0.005284517948038691,
+          "groups": {
+            "position": 0.00527879651789626,
+            "orientation": 0.0000018334611851633779,
+            "floor": 0,
+            "guide": 0,
+            "prior": 0.000003887968957268422
+          },
+          "last": {
+            "iteration": 39,
+            "dampingBefore": 0.01,
+            "costBefore": 0.005284681350931956,
+            "groupsBefore": {
+              "position": 0.005278744180028689,
+              "orientation": 0.0000020475998684251894,
+              "floor": 0,
+              "guide": 0,
+              "prior": 0.000003889571034840928
+            },
+            "atBoundary": true,
+            "selected": "nnls",
+            "costAfter": 0.005284517948038691,
+            "groupsAfter": {
+              "position": 0.00527879651789626,
+              "orientation": 0.0000018334611851633779,
+              "floor": 0,
+              "guide": 0,
+              "prior": 0.000003887968957268422
+            },
+            "gain": 0.2984324371367773,
+            "predictedReduction": 5.475373080505302e-7,
+            "dampingAfter": 0.01
+          },
+          "minSlope": -0.00016105242510579913,
+          "bestSmall": {
+            "kind": "dls",
+            "fraction": 0.0625,
+            "cost": 0.005282605897549958,
+            "groups": {
+              "position": 0.005277824638742917,
+              "orientation": 8.783778389512725e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 0.00000390288096808955
+            },
+            "turnNorm": 0.004286968233596255,
+            "clippedModelCost": 0.005282253350824759,
+            "rawModelCost": 0.005282258883353851
+          },
+          "rejections": [
+            {
+              "iteration": 3,
+              "lambda": 0.0000025,
+              "cost": 0.005291629913487574,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005291312855675818,
+                "groups": {
+                  "position": 0.0052858695302248635,
+                  "orientation": 0.0000017436717340027934,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 0.000003699653716948754
+                },
+                "turnNorm": 0.0016629648052146082,
+                "clippedModelCost": 0.005291160113596631,
+                "rawModelCost": 0.005291293886677497
+              }
+            },
+            {
+              "iteration": 4,
+              "lambda": 0.000025,
+              "cost": 0.005291629913487574,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005291215742323694,
+                "groups": {
+                  "position": 0.005285795622178023,
+                  "orientation": 0.0000017143326461461253,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 0.000003705787499525113
+                },
+                "turnNorm": 0.0015818459502625142,
+                "clippedModelCost": 0.0052910872375344165,
+                "rawModelCost": 0.0052911963679379125
+              }
+            },
+            {
+              "iteration": 7,
+              "lambda": 0.000125,
+              "cost": 0.005291521826652346,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.0052906946744916234,
+                "groups": {
+                  "position": 0.0052853595777227706,
+                  "orientation": 0.0000016291692648609792,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 0.0000037059275039915307
+                },
+                "turnNorm": 0.002675581442819272,
+                "clippedModelCost": 0.005290464155583129,
+                "rawModelCost": 0.0052906092618288224
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "delta": -5e-8,
+      "invocation": "final playback refinement",
+      "reprojection": {
+        "key": "L_Hand",
+        "degrees": 0
+      },
+      "trace": [
+        {
+          "kind": "refinement",
+          "stop": "iteration-limit",
+          "iterations": 40,
+          "cost": 0.005264188492914591,
+          "groups": {
+            "position": 0.00526385262353478,
+            "orientation": 1.546033174603715e-7,
+            "floor": 0,
+            "guide": 0,
+            "prior": 1.8126606234904602e-7
+          },
+          "last": {
+            "iteration": 39,
+            "dampingBefore": 0.006103515625,
+            "costBefore": 0.005264197438844676,
+            "groupsBefore": {
+              "position": 0.005263858389951817,
+              "orientation": 1.6076684902763178e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 1.7828204383047793e-7
+            },
+            "atBoundary": true,
+            "selected": "nnls",
+            "costAfter": 0.005264188492914591,
+            "groupsAfter": {
+              "position": 0.00526385262353478,
+              "orientation": 1.546033174603715e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 1.8126606234904602e-7
+            },
+            "gain": 0.9705419160770073,
+            "predictedReduction": 9.217458758932484e-9,
+            "dampingAfter": 0.0030517578125
+          },
+          "minSlope": -0.000012824130125971636,
+          "bestSmall": {
+            "kind": "dls",
+            "fraction": 0.0625,
+            "cost": 0.005262571657681969,
+            "groups": {
+              "position": 0.005262243277590882,
+              "orientation": 1.3759827801089365e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 1.9078181307634594e-7
+            },
+            "turnNorm": 0.004834206541127139,
+            "clippedModelCost": 0.005262111962894214,
+            "rawModelCost": 0.0052621779895187
+          },
+          "rejections": [
+            {
+              "iteration": 0,
+              "lambda": 0.00001,
+              "cost": 0.005280629979081423,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005279634277246078,
+                "groups": {
+                  "position": 0.0052779624824481125,
+                  "orientation": 0.0000016715331389679686,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 2.6165899707543785e-10
+                },
+                "turnNorm": 0.0013479897509177988,
+                "clippedModelCost": 0.005279738924446948,
+                "rawModelCost": 0.005279615533187037
+              }
+            },
+            {
+              "iteration": 1,
+              "lambda": 0.0001,
+              "cost": 0.005280629979081423,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.0052791492947409455,
+                "groups": {
+                  "position": 0.0052778182894560625,
+                  "orientation": 0.0000013297888925748227,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.2163923086912186e-9
+                },
+                "turnNorm": 0.0029064013505288085,
+                "clippedModelCost": 0.005279120405419595,
+                "rawModelCost": 0.005279039529070024
+              }
+            },
+            {
+              "iteration": 2,
+              "lambda": 0.001,
+              "cost": 0.005280629979081423,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005278692591733064,
+                "groups": {
+                  "position": 0.00527748267838519,
+                  "orientation": 0.0000012086461753617748,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.2671725132889405e-9
+                },
+                "turnNorm": 0.002966447221856827,
+                "clippedModelCost": 0.005278756881554525,
+                "rawModelCost": 0.005278569369033702
+              }
+            },
+            {
+              "iteration": 28,
+              "lambda": 0.000009765625,
+              "cost": 0.0052786358730772505,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.00527786567986756,
+                "groups": {
+                  "position": 0.005277531113329286,
+                  "orientation": 1.9853741808779616e-7,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.3602912018560876e-7
+                },
+                "turnNorm": 0.00269029098970549,
+                "clippedModelCost": 0.005277535874317356,
+                "rawModelCost": 0.005277790001719595
+              }
+            },
+            {
+              "iteration": 29,
+              "lambda": 0.00009765625,
+              "cost": 0.0052786358730772505,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005277369977901174,
+                "groups": {
+                  "position": 0.0052771051459582765,
+                  "orientation": 1.2476067477847267e-7,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.4007126811863663e-7
+                },
+                "turnNorm": 0.00281964574058702,
+                "clippedModelCost": 0.005277221342706214,
+                "rawModelCost": 0.00527726317549004
+              }
+            },
+            {
+              "iteration": 30,
+              "lambda": 0.0009765625,
+              "cost": 0.0052786358730772505,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005276920522983257,
+                "groups": {
+                  "position": 0.005276695763764449,
+                  "orientation": 8.121581307659314e-8,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.4354340572985752e-7
+                },
+                "turnNorm": 0.002888405399596606,
+                "clippedModelCost": 0.005276882419242266,
+                "rawModelCost": 0.005276800909359278
+              }
+            },
+            {
+              "iteration": 31,
+              "lambda": 0.009765625,
+              "cost": 0.0052786358730772505,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.0625,
+                "cost": 0.005276459278755904,
+                "groups": {
+                  "position": 0.005276258938879983,
+                  "orientation": 5.603375576749141e-8,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.4430612015312877e-7
+                },
+                "turnNorm": 0.004495546619239889,
+                "clippedModelCost": 0.005275948104797269,
+                "rawModelCost": 0.005276076429104533
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "delta": 5e-8,
+      "invocation": "guide preparation",
+      "reprojection": {
+        "key": "L_Hand",
+        "degrees": 0
+      },
+      "trace": [
+        {
+          "kind": "guided",
+          "stop": "iteration-limit",
+          "iterations": 40,
+          "cost": 0.005689946970320872,
+          "groups": {
+            "position": 0.005308192226054777,
+            "orientation": 0.0000290243933386297,
+            "floor": 0,
+            "guide": 0.0003421722368479295,
+            "prior": 0.000010558114079533363
+          },
+          "last": {
+            "iteration": 39,
+            "dampingBefore": 0.0030517578125,
+            "costBefore": 0.005689949586846629,
+            "groupsBefore": {
+              "position": 0.00530818300528145,
+              "orientation": 0.000028963422871643342,
+              "floor": 0,
+              "guide": 0.00034225774337282917,
+              "prior": 0.000010545415320707863
+            },
+            "atBoundary": true,
+            "selected": "nnls",
+            "costAfter": 0.005689946970320872,
+            "groupsAfter": {
+              "position": 0.005308192226054777,
+              "orientation": 0.0000290243933386297,
+              "floor": 0,
+              "guide": 0.0003421722368479295,
+              "prior": 0.000010558114079533363
+            },
+            "gain": 0.7338811723023164,
+            "predictedReduction": 3.5653261809889814e-9,
+            "dampingAfter": 0.0030517578125
+          },
+          "minSlope": -0.0000023169267888924136,
+          "bestSmall": {
+            "kind": "dls",
+            "fraction": 0.03125,
+            "cost": 0.005689312708089851,
+            "groups": {
+              "position": 0.005313382036399436,
+              "orientation": 0.000026659680834742974,
+              "floor": 0,
+              "guide": 0.00033875066615616394,
+              "prior": 0.000010520324699510801
+            },
+            "turnNorm": 0.002626449503169906,
+            "clippedModelCost": 0.005689151727376645,
+            "rawModelCost": 0.005689205686349732
+          },
+          "rejections": [
+            {
+              "iteration": 2,
+              "lambda": 0.0000025,
+              "cost": 0.005721791204137891,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.00048828125,
+                "cost": 0.005721421196732196,
+                "groups": {
+                  "position": 0.0053476062540613965,
+                  "orientation": 0.000022804744009881218,
+                  "floor": 0,
+                  "guide": 0.0003417019873943854,
+                  "prior": 0.000009308211266532026
+                },
+                "turnNorm": 0.0001205132116576763,
+                "clippedModelCost": 0.005721612237307613,
+                "rawModelCost": 0.005721421112343103
+              }
+            },
+            {
+              "iteration": 3,
+              "lambda": 0.000025,
+              "cost": 0.005721791204137891,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.00048828125,
+                "cost": 0.005721411491167866,
+                "groups": {
+                  "position": 0.005347622415505002,
+                  "orientation": 0.0000227929228252169,
+                  "floor": 0,
+                  "guide": 0.0003416877725568352,
+                  "prior": 0.00000930838028081138
+                },
+                "turnNorm": 0.00012050886772226052,
+                "clippedModelCost": 0.005721606587685406,
+                "rawModelCost": 0.005721411400603714
+              }
+            },
+            {
+              "iteration": 10,
+              "lambda": 0.002,
+              "cost": 0.005721269027002984,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005720087677086299,
+                "groups": {
+                  "position": 0.005344783255419874,
+                  "orientation": 0.000025122408091102744,
+                  "floor": 0,
+                  "guide": 0.00034051283815145233,
+                  "prior": 0.00000966917542386977
+                },
+                "turnNorm": 0.00288162161868607,
+                "clippedModelCost": 0.005720106091235373,
+                "rawModelCost": 0.005719969834474931
+              }
+            },
+            {
+              "iteration": 30,
+              "lambda": 0.000009765625,
+              "cost": 0.00569805448890357,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.00000762939453125,
+                "cost": 0.005697989278565059,
+                "groups": {
+                  "position": 0.005316319429819297,
+                  "orientation": 0.000028840554426941428,
+                  "floor": 0,
+                  "guide": 0.0003424885024201587,
+                  "prior": 0.000010340791898661352
+                },
+                "turnNorm": 0.000003056213009751916,
+                "clippedModelCost": 0.00569802212660218,
+                "rawModelCost": 0.005697989278540234
+              }
+            },
+            {
+              "iteration": 31,
+              "lambda": 0.00009765625,
+              "cost": 0.00569805448890357,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.000003814697265625,
+                "cost": 0.005698016921230261,
+                "groups": {
+                  "position": 0.005316346156840153,
+                  "orientation": 0.000028840573024768513,
+                  "floor": 0,
+                  "guide": 0.00034248939066221484,
+                  "prior": 0.000010340800703125413
+                },
+                "turnNorm": 0.0000015611041573498177,
+                "clippedModelCost": 0.005698035727226181,
+                "rawModelCost": 0.0056980169212267
+              }
+            },
+            {
+              "iteration": 32,
+              "lambda": 0.0009765625,
+              "cost": 0.00569805448890357,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005697926123960212,
+                "groups": {
+                  "position": 0.005319221596912367,
+                  "orientation": 0.000027782014625227525,
+                  "floor": 0,
+                  "guide": 0.0003405763726047916,
+                  "prior": 0.000010346139817826103
+                },
+                "turnNorm": 0.0016352687853167637,
+                "clippedModelCost": 0.005697872700336927,
+                "rawModelCost": 0.005697893876619613
+              }
+            },
+            {
+              "iteration": 33,
+              "lambda": 0.009765625,
+              "cost": 0.00569805448890357,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.0625,
+                "cost": 0.005696824415723292,
+                "groups": {
+                  "position": 0.005325875765820597,
+                  "orientation": 0.000024396979679569834,
+                  "floor": 0,
+                  "guide": 0.0003362572093745704,
+                  "prior": 0.000010294460848555335
+                },
+                "turnNorm": 0.004414798244209831,
+                "clippedModelCost": 0.005696413280589914,
+                "rawModelCost": 0.005696487522000214
+              }
+            }
+          ]
+        },
+        {
+          "kind": "refinement",
+          "stop": "iteration-limit",
+          "iterations": 40,
+          "cost": 0.005284676735527554,
+          "groups": {
+            "position": 0.0052787369469829174,
+            "orientation": 0.0000020481244977507733,
+            "floor": 0,
+            "guide": 0,
+            "prior": 0.000003891664046883809
+          },
+          "last": {
+            "iteration": 39,
+            "dampingBefore": 0.01,
+            "costBefore": 0.005284810582833487,
+            "groupsBefore": {
+              "position": 0.00527905093851665,
+              "orientation": 0.0000018769408267213498,
+              "floor": 0,
+              "guide": 0,
+              "prior": 0.000003882703490116221
+            },
+            "atBoundary": true,
+            "selected": "nnls",
+            "costAfter": 0.005284676735527554,
+            "groupsAfter": {
+              "position": 0.0052787369469829174,
+              "orientation": 0.0000020481244977507733,
+              "floor": 0,
+              "guide": 0,
+              "prior": 0.000003891664046883809
+            },
+            "gain": 0.276053604840216,
+            "predictedReduction": 4.848598373153115e-7,
+            "dampingAfter": 0.01
+          },
+          "minSlope": -0.0004026173437953683,
+          "bestSmall": {
+            "kind": "dls",
+            "fraction": 0.0625,
+            "cost": 0.0052824141247452055,
+            "groups": {
+              "position": 0.005277620870093773,
+              "orientation": 8.83136652631178e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 0.000003910117998799797
+            },
+            "turnNorm": 0.00450378574425607,
+            "clippedModelCost": 0.005282059316182395,
+            "rawModelCost": 0.005282026340442771
+          },
+          "rejections": [
+            {
+              "iteration": 3,
+              "lambda": 0.0000025,
+              "cost": 0.005291621395163752,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005291304384164794,
+                "groups": {
+                  "position": 0.005285858090785515,
+                  "orientation": 0.0000017452288964726976,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 0.0000037010644828069913
+                },
+                "turnNorm": 0.0016610507455979695,
+                "clippedModelCost": 0.005291151728231431,
+                "rawModelCost": 0.005291285414694161
+              }
+            },
+            {
+              "iteration": 4,
+              "lambda": 0.000025,
+              "cost": 0.005291621395163752,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.00529120731416839,
+                "groups": {
+                  "position": 0.005285784277174623,
+                  "orientation": 0.000001715833576507805,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 0.0000037072034172581166
+                },
+                "turnNorm": 0.0015799221198014321,
+                "clippedModelCost": 0.005291078997828517,
+                "rawModelCost": 0.005291187935207443
+              }
+            },
+            {
+              "iteration": 7,
+              "lambda": 0.000125,
+              "cost": 0.005291514397704608,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005290686218075345,
+                "groups": {
+                  "position": 0.005285348894960127,
+                  "orientation": 0.0000016294212434984978,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 0.0000037079018717201523
+                },
+                "turnNorm": 0.002674527602400488,
+                "clippedModelCost": 0.005290455324323058,
+                "rawModelCost": 0.005290600833009779
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "delta": 5e-8,
+      "invocation": "final playback refinement",
+      "reprojection": {
+        "key": "L_Hand",
+        "degrees": 0
+      },
+      "trace": [
+        {
+          "kind": "refinement",
+          "stop": "iteration-limit",
+          "iterations": 40,
+          "cost": 0.005250271324709709,
+          "groups": {
+            "position": 0.0052498851300645105,
+            "orientation": 1.4903568558174014e-7,
+            "floor": 0,
+            "guide": 0,
+            "prior": 2.371589596173895e-7
+          },
+          "last": {
+            "iteration": 39,
+            "dampingBefore": 0.00390625,
+            "costBefore": 0.005250288532209186,
+            "groupsBefore": {
+              "position": 0.00524988829901125,
+              "orientation": 1.6466193374588426e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 2.355712641896737e-7
+            },
+            "atBoundary": true,
+            "selected": "nnls",
+            "costAfter": 0.005250271324709709,
+            "groupsAfter": {
+              "position": 0.0052498851300645105,
+              "orientation": 1.4903568558174014e-7,
+              "floor": 0,
+              "guide": 0,
+              "prior": 2.371589596173895e-7
+            },
+            "gain": 0.5334471460180203,
+            "predictedReduction": 3.225717787758847e-8,
+            "dampingAfter": 0.00390625
+          },
+          "minSlope": -0.000010924566190377573,
+          "bestSmall": {
+            "kind": "dls",
+            "fraction": 0.03125,
+            "cost": 0.005248650447576319,
+            "groups": {
+              "position": 0.005248365452477388,
+              "orientation": 4.139564790152434e-8,
+              "floor": 0,
+              "guide": 0,
+              "prior": 2.43599451031136e-7
+            },
+            "turnNorm": 0.0024792031655157193,
+            "clippedModelCost": 0.005248607689007135,
+            "rawModelCost": 0.005248546536993272
+          },
+          "rejections": [
+            {
+              "iteration": 1,
+              "lambda": 0.00001,
+              "cost": 0.0052806093896408885,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.015625,
+                "cost": 0.005279802138405793,
+                "groups": {
+                  "position": 0.005277895743657244,
+                  "orientation": 0.0000019057723598966443,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 6.223886525174125e-10
+                },
+                "turnNorm": 0.0013728084023770402,
+                "clippedModelCost": 0.005279810527515704,
+                "rawModelCost": 0.005279783488778264
+              }
+            },
+            {
+              "iteration": 2,
+              "lambda": 0.0001,
+              "cost": 0.0052806093896408885,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005279185846062847,
+                "groups": {
+                  "position": 0.00527761957921762,
+                  "orientation": 0.0000015646456108517182,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.6212343743389505e-9
+                },
+                "turnNorm": 0.002916095317515859,
+                "clippedModelCost": 0.005279081291267639,
+                "rawModelCost": 0.005279077483666979
+              }
+            },
+            {
+              "iteration": 8,
+              "lambda": 0.008,
+              "cost": 0.005272509530052813,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.0625,
+                "cost": 0.005269777028118112,
+                "groups": {
+                  "position": 0.0052690226052890515,
+                  "orientation": 7.320188898809716e-7,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 2.240393917954543e-8
+                },
+                "turnNorm": 0.0045835861971058045,
+                "clippedModelCost": 0.005269549580103121,
+                "rawModelCost": 0.00526938978140104
+              }
+            },
+            {
+              "iteration": 31,
+              "lambda": 0.0003125,
+              "cost": 0.005260818628530558,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.005259537091784384,
+                "groups": {
+                  "position": 0.005259262246487464,
+                  "orientation": 1.0329292412628402e-7,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.7155237279413484e-7
+                },
+                "turnNorm": 0.002994624441555973,
+                "clippedModelCost": 0.00525944256604884,
+                "rawModelCost": 0.005259418249155011
+              }
+            },
+            {
+              "iteration": 32,
+              "lambda": 0.003125,
+              "cost": 0.005260818628530558,
+              "bestSmall": {
+                "kind": "dls",
+                "fraction": 0.03125,
+                "cost": 0.0052592025947163544,
+                "groups": {
+                  "position": 0.00525895449719286,
+                  "orientation": 7.651758641895386e-8,
+                  "floor": 0,
+                  "guide": 0,
+                  "prior": 1.7157993707517075e-7
+                },
+                "turnNorm": 0.0026710684211225656,
+                "clippedModelCost": 0.0052591517508357435,
+                "rawModelCost": 0.00525909265600834
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

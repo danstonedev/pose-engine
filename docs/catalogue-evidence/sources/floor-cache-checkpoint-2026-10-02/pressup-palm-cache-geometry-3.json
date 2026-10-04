@@ -1,0 +1,1955 @@
+{
+  "before": {
+    "footContact": "ed5e2a1bc5137cf198b8bb9c835bbbd36c49d60b59e7ffd3c6b2b0d50e23f1ef",
+    "handContactPose": "4c7231dec5c6953d75e5b2da31219e6a4d7b1f80156643d75f1dc49abeec4888",
+    "motionRecording": "e1c1cb070cd3a7953c74fa9d6a3c366941ec57b11940fc9bd0892173f0d61fe9",
+    "proneSkinSupport": "72bbb1a2c906c69c550ab6f92914bb3eb2d74fbfc355d94138649e7b0eb9971d",
+    "motionRigInputKey": "c12b7ca2a6f051b8daaacfe6bac38633d54bb4eb34422d5437a4960f4fa0b744"
+  },
+  "scope": "Actual male rig; controlled5mm anterior movement of pelvis-owned skin vertices in memory, no production asset edit. Authored palm anchor fit disabled so fixed placement remains the same. Warm guide after geometry edit compared with fresh-cache edited rig.",
+  "runs": [
+    {
+      "label": "warm-original",
+      "guideCalls": [
+        {
+          "calls": 141,
+          "reusedPathObjects": [
+            false,
+            false
+          ]
+        }
+      ],
+      "roots": [
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12102220809718753,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12102220809718753,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12958976251055235,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12958976251055235,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12102220809718753,
+            0
+          ]
+        }
+      ],
+      "support": [
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12102220809718753,
+          "requiredRootTranslationM": 0.12102220809718753,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12102220809718753,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 802,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.11684631374033874,
+              "gapM": 0.004175894356848786,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 1805,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": -0.1137188160694201,
+              "gapM": 0.007303392027767433,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 1703,
+              "dominantBone": "CC_Base_Head"
+            },
+            "L_leg": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.11452127013535018,
+              "gapM": 0.006500937961837344,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.11452281725522659,
+              "gapM": 0.006499390841960939,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": 0,
+            "L_hipFlexion": 5.867156760042847,
+            "R_hipFlexion": 5.867401938953187,
+            "L_kneeFlexion": 10.588144704590881,
+            "R_kneeFlexion": 10.588446243711536
+          },
+          "activeLimits": [],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12102220809718753,
+          "requiredRootTranslationM": 0.12102220809718753,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12102220809718753,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 802,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.11684631374033874,
+              "gapM": 0.004175894356848786,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 1805,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": -0.1137188160694201,
+              "gapM": 0.007303392027767433,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 1703,
+              "dominantBone": "CC_Base_Head"
+            },
+            "L_leg": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.11452127013535018,
+              "gapM": 0.006500937961837344,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.11452281725522659,
+              "gapM": 0.006499390841960939,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": 0,
+            "L_hipFlexion": 5.867156760042847,
+            "R_hipFlexion": 5.867401938953187,
+            "L_kneeFlexion": 10.588144704590881,
+            "R_kneeFlexion": 10.588446243711536
+          },
+          "activeLimits": [],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12967624183670165,
+          "requiredRootTranslationM": 0.12967624183670165,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12967624183670165,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 969,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.056836558566772645,
+              "gapM": 0.07283968326992901,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 967,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": 0.40562778922558224,
+              "gapM": 0.5353040310622839,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 2158,
+              "dominantBone": "CC_Base_NeckTwist01"
+            },
+            "L_leg": {
+              "minimumY": -0.1296766393553256,
+              "gapM": -3.975186239624229e-7,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12966227841419029,
+              "gapM": 0.000013963422511364953,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12967601024230901,
+              "gapM": 2.3159439263564785e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 372,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12965995639606911,
+              "gapM": 0.00001628544063253523,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1669,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12934468047982706,
+              "gapM": 0.0003315613568745934,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.1293250632057136,
+              "gapM": 0.00035117863098804714,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.12464444851880294,
+              "gapM": 0.005031793317898714,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.12460663124877884,
+              "gapM": 0.00506961058792281,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.1296766393553256,
+              "gapM": -3.975186239624229e-7,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12966227841419029,
+              "gapM": 0.000013963422511364953,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": -25.000000851943618,
+            "L_hipFlexion": -8.578500651087877,
+            "R_hipFlexion": -8.582929887036087,
+            "L_kneeFlexion": 11.243614303909153,
+            "R_kneeFlexion": 11.23717597445708
+          },
+          "activeLimits": [
+            "Spine_Upper.flexion"
+          ],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12967624183670165,
+          "requiredRootTranslationM": 0.12967624183670165,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12967624183670165,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 969,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.056836558566772645,
+              "gapM": 0.07283968326992901,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 967,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": 0.40562778922558224,
+              "gapM": 0.5353040310622839,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 2158,
+              "dominantBone": "CC_Base_NeckTwist01"
+            },
+            "L_leg": {
+              "minimumY": -0.1296766393553256,
+              "gapM": -3.975186239624229e-7,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12966227841419029,
+              "gapM": 0.000013963422511364953,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12967601024230901,
+              "gapM": 2.3159439263564785e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 372,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12965995639606911,
+              "gapM": 0.00001628544063253523,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1669,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12934468047982706,
+              "gapM": 0.0003315613568745934,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.1293250632057136,
+              "gapM": 0.00035117863098804714,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.12464444851880294,
+              "gapM": 0.005031793317898714,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.12460663124877884,
+              "gapM": 0.00506961058792281,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.1296766393553256,
+              "gapM": -3.975186239624229e-7,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12966227841419029,
+              "gapM": 0.000013963422511364953,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": -25.000000851943618,
+            "L_hipFlexion": -8.578500651087877,
+            "R_hipFlexion": -8.582929887036087,
+            "L_kneeFlexion": 11.243614303909153,
+            "R_kneeFlexion": 11.23717597445708
+          },
+          "activeLimits": [
+            "Spine_Upper.flexion"
+          ],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12102220809718753,
+          "requiredRootTranslationM": 0.12102220809718753,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12102220809718753,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 802,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.11684631374033874,
+              "gapM": 0.004175894356848786,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 1805,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": -0.1137188160694201,
+              "gapM": 0.007303392027767433,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 1703,
+              "dominantBone": "CC_Base_Head"
+            },
+            "L_leg": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.11452127013535018,
+              "gapM": 0.006500937961837344,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.11452281725522659,
+              "gapM": 0.006499390841960939,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": 0,
+            "L_hipFlexion": 5.867156760042847,
+            "R_hipFlexion": 5.867401938953187,
+            "L_kneeFlexion": 10.588144704590881,
+            "R_kneeFlexion": 10.588446243711536
+          },
+          "activeLimits": [],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        }
+      ]
+    },
+    {
+      "label": "warm-edited",
+      "guideCalls": [
+        {
+          "calls": 141,
+          "reusedPathObjects": [
+            false,
+            false
+          ]
+        }
+      ],
+      "roots": [
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12102220809718753,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12102220809718753,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.13451755121379697,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.13451755121379697,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12102220809718753,
+            0
+          ]
+        }
+      ],
+      "support": [
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12102220809718753,
+          "requiredRootTranslationM": 0.12102220809718753,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12102220809718753,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 802,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.11684631374033874,
+              "gapM": 0.004175894356848786,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 1805,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": -0.1137188160694201,
+              "gapM": 0.007303392027767433,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 1703,
+              "dominantBone": "CC_Base_Head"
+            },
+            "L_leg": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.11452127013535018,
+              "gapM": 0.006500937961837344,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.11452281725522659,
+              "gapM": 0.006499390841960939,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": 0,
+            "L_hipFlexion": 5.867156760042847,
+            "R_hipFlexion": 5.867401938953187,
+            "L_kneeFlexion": 10.588144704590881,
+            "R_kneeFlexion": 10.588446243711536
+          },
+          "activeLimits": [],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12102220809718753,
+          "requiredRootTranslationM": 0.12102220809718753,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12102220809718753,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 802,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.11684631374033874,
+              "gapM": 0.004175894356848786,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 1805,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": -0.1137188160694201,
+              "gapM": 0.007303392027767433,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 1703,
+              "dominantBone": "CC_Base_Head"
+            },
+            "L_leg": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.11452127013535018,
+              "gapM": 0.006500937961837344,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.11452281725522659,
+              "gapM": 0.006499390841960939,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": 0,
+            "L_hipFlexion": 5.867156760042847,
+            "R_hipFlexion": 5.867401938953187,
+            "L_kneeFlexion": 10.588144704590881,
+            "R_kneeFlexion": 10.588446243711536
+          },
+          "activeLimits": [],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.13460388286272973,
+          "requiredRootTranslationM": 0.13460388286272973,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.13460388286272973,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 969,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.056836558566772645,
+              "gapM": 0.07776732429595709,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 967,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": 0.40562778922558224,
+              "gapM": 0.540231672088312,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 2158,
+              "dominantBone": "CC_Base_NeckTwist01"
+            },
+            "L_leg": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_leg": {
+              "minimumY": -0.1345957926954913,
+              "gapM": 0.000008090167238433699,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_envelope": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_envelope": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.13460351579854696,
+              "gapM": 3.6706418277132613e-7,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.1345957926954913,
+              "gapM": 0.000008090167238433699,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": -25.000000851943618,
+            "L_hipFlexion": -7.392472748420179,
+            "R_hipFlexion": -7.3933396873200055,
+            "L_kneeFlexion": 12.848230584168123,
+            "R_kneeFlexion": 12.847281151268096
+          },
+          "activeLimits": [
+            "Spine_Upper.flexion"
+          ],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.13460388286272973,
+          "requiredRootTranslationM": 0.13460388286272973,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.13460388286272973,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 969,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.056836558566772645,
+              "gapM": 0.07776732429595709,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 967,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": 0.40562778922558224,
+              "gapM": 0.540231672088312,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 2158,
+              "dominantBone": "CC_Base_NeckTwist01"
+            },
+            "L_leg": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_leg": {
+              "minimumY": -0.1345957926954913,
+              "gapM": 0.000008090167238433699,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_envelope": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_envelope": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.13460351579854696,
+              "gapM": 3.6706418277132613e-7,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.1345957926954913,
+              "gapM": 0.000008090167238433699,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": -25.000000851943618,
+            "L_hipFlexion": -7.392472748420179,
+            "R_hipFlexion": -7.3933396873200055,
+            "L_kneeFlexion": 12.848230584168123,
+            "R_kneeFlexion": 12.847281151268096
+          },
+          "activeLimits": [
+            "Spine_Upper.flexion"
+          ],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12102220809718753,
+          "requiredRootTranslationM": 0.12102220809718753,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12102220809718753,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 802,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.11684631374033874,
+              "gapM": 0.004175894356848786,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 1805,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": -0.1137188160694201,
+              "gapM": 0.007303392027767433,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 1703,
+              "dominantBone": "CC_Base_Head"
+            },
+            "L_leg": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.11452127013535018,
+              "gapM": 0.006500937961837344,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.11452281725522659,
+              "gapM": 0.006499390841960939,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": 0,
+            "L_hipFlexion": 5.867156760042847,
+            "R_hipFlexion": 5.867401938953187,
+            "L_kneeFlexion": 10.588144704590881,
+            "R_kneeFlexion": 10.588446243711536
+          },
+          "activeLimits": [],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        }
+      ]
+    },
+    {
+      "label": "fresh-edited",
+      "guideCalls": [
+        {
+          "calls": 141,
+          "reusedPathObjects": [
+            false,
+            false
+          ]
+        }
+      ],
+      "roots": [
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12102220809718753,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12102220809718753,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.13451755121379697,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.13451755121379697,
+            0
+          ]
+        },
+        {
+          "orientQuat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865476
+          ],
+          "translateM": [
+            0,
+            0.12102220809718753,
+            0
+          ]
+        }
+      ],
+      "support": [
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12102220809718753,
+          "requiredRootTranslationM": 0.12102220809718753,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12102220809718753,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 802,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.11684631374033874,
+              "gapM": 0.004175894356848786,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 1805,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": -0.1137188160694201,
+              "gapM": 0.007303392027767433,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 1703,
+              "dominantBone": "CC_Base_Head"
+            },
+            "L_leg": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.11452127013535018,
+              "gapM": 0.006500937961837344,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.11452281725522659,
+              "gapM": 0.006499390841960939,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": 0,
+            "L_hipFlexion": 5.867156760042847,
+            "R_hipFlexion": 5.867401938953187,
+            "L_kneeFlexion": 10.588144704590881,
+            "R_kneeFlexion": 10.588446243711536
+          },
+          "activeLimits": [],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12102220809718753,
+          "requiredRootTranslationM": 0.12102220809718753,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12102220809718753,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 802,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.11684631374033874,
+              "gapM": 0.004175894356848786,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 1805,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": -0.1137188160694201,
+              "gapM": 0.007303392027767433,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 1703,
+              "dominantBone": "CC_Base_Head"
+            },
+            "L_leg": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.11452127013535018,
+              "gapM": 0.006500937961837344,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.11452281725522659,
+              "gapM": 0.006499390841960939,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": 0,
+            "L_hipFlexion": 5.867156760042847,
+            "R_hipFlexion": 5.867401938953187,
+            "L_kneeFlexion": 10.588144704590881,
+            "R_kneeFlexion": 10.588446243711536
+          },
+          "activeLimits": [],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.13460388286272973,
+          "requiredRootTranslationM": 0.13460388286272973,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.13460388286272973,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 969,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.056836558566772645,
+              "gapM": 0.07776732429595709,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 967,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": 0.40562778922558224,
+              "gapM": 0.540231672088312,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 2158,
+              "dominantBone": "CC_Base_NeckTwist01"
+            },
+            "L_leg": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_leg": {
+              "minimumY": -0.1345957926954913,
+              "gapM": 0.000008090167238433699,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_envelope": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_envelope": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.13460351579854696,
+              "gapM": 3.6706418277132613e-7,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.1345957926954913,
+              "gapM": 0.000008090167238433699,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": -25.000000851943618,
+            "L_hipFlexion": -7.392472748420179,
+            "R_hipFlexion": -7.3933396873200055,
+            "L_kneeFlexion": 12.848230584168123,
+            "R_kneeFlexion": 12.847281151268096
+          },
+          "activeLimits": [
+            "Spine_Upper.flexion"
+          ],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.13460388286272973,
+          "requiredRootTranslationM": 0.13460388286272973,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.13460388286272973,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 969,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.056836558566772645,
+              "gapM": 0.07776732429595709,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 967,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": 0.40562778922558224,
+              "gapM": 0.540231672088312,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 2158,
+              "dominantBone": "CC_Base_NeckTwist01"
+            },
+            "L_leg": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_leg": {
+              "minimumY": -0.1345957926954913,
+              "gapM": 0.000008090167238433699,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_envelope": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_envelope": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.13460354918927422,
+              "gapM": 3.3367345550483485e-7,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.13459578252076557,
+              "gapM": 0.000008100341964162316,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.13460351579854696,
+              "gapM": 3.6706418277132613e-7,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.1345957926954913,
+              "gapM": 0.000008090167238433699,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": -25.000000851943618,
+            "L_hipFlexion": -7.392472748420179,
+            "R_hipFlexion": -7.3933396873200055,
+            "L_kneeFlexion": 12.848230584168123,
+            "R_kneeFlexion": 12.847281151268096
+          },
+          "activeLimits": [
+            "Spine_Upper.flexion"
+          ],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        },
+        {
+          "feasible": true,
+          "reusedSolution": true,
+          "iterations": 0,
+          "pelvisMinimumY": -0.12102220809718753,
+          "requiredRootTranslationM": 0.12102220809718753,
+          "regions": {
+            "pelvis": {
+              "minimumY": -0.12102220809718753,
+              "gapM": 0,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 802,
+              "dominantBone": "CC_Base_Pelvis"
+            },
+            "torso": {
+              "minimumY": -0.11684631374033874,
+              "gapM": 0.004175894356848786,
+              "mesh": "CC_Base_Body_2",
+              "vertex": 1805,
+              "dominantBone": "CC_Base_Waist"
+            },
+            "head": {
+              "minimumY": -0.1137188160694201,
+              "gapM": 0.007303392027767433,
+              "mesh": "CC_Base_Body_1",
+              "vertex": 1703,
+              "dominantBone": "CC_Base_Head"
+            },
+            "L_leg": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_leg": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            },
+            "L_thighCalf": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_thighCalf": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_envelope": {
+              "minimumY": -0.12102222993948863,
+              "gapM": -2.1842301106689277e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 371,
+              "dominantBone": "CC_Base_L_ThighTwist01"
+            },
+            "R_envelope": {
+              "minimumY": -0.12102222984250317,
+              "gapM": -2.174531564536064e-8,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1668,
+              "dominantBone": "CC_Base_R_ThighTwist01"
+            },
+            "L_kneeBand": {
+              "minimumY": -0.11452127013535018,
+              "gapM": 0.006500937961837344,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 183,
+              "dominantBone": "CC_Base_L_KneeShareBone"
+            },
+            "R_kneeBand": {
+              "minimumY": -0.11452281725522659,
+              "gapM": 0.006499390841960939,
+              "mesh": "CC_Base_Body_4",
+              "vertex": 1478,
+              "dominantBone": "CC_Base_R_KneeShareBone"
+            },
+            "L_toes": {
+              "minimumY": -0.12102225797708929,
+              "gapM": -4.9879901764526835e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 54,
+              "dominantBone": "CC_Base_L_BigToe1"
+            },
+            "R_toes": {
+              "minimumY": -0.12102225771300595,
+              "gapM": -4.9615818425996494e-8,
+              "mesh": "CC_Base_Body_5",
+              "vertex": 305,
+              "dominantBone": "CC_Base_R_BigToe1"
+            }
+          },
+          "correctedDegrees": {
+            "thoracicFlexion": 0,
+            "L_hipFlexion": 5.867156760042847,
+            "R_hipFlexion": 5.867401938953187,
+            "L_kneeFlexion": 10.588144704590881,
+            "R_kneeFlexion": 10.588446243711536
+          },
+          "activeLimits": [],
+          "reasons": [],
+          "scope": "Geometric pelvis, full thigh/calf and toe skin support only. Distal-envelope and knee-band clearance remain separate diagnostics. Root, hands, source ankle/toe posture within bounds, force, compression and motion acceptance remain separate."
+        }
+      ]
+    }
+  ],
+  "measuredEdits": [
+    {
+      "mesh": "CC_Base_Body_2",
+      "vertex": 969,
+      "worldDelta": [
+        7.445856516547406e-15,
+        -6.643108285686594e-11,
+        0.004999996751535035
+      ]
+    },
+    {
+      "mesh": "CC_Base_Body_2",
+      "vertex": 969,
+      "worldDelta": [
+        7.445856516547406e-15,
+        -6.643108285686594e-11,
+        0.004999996751535035
+      ]
+    }
+  ],
+  "changedVertices": 1,
+  "changedFreshVertices": 1,
+  "maxRotationDeg": {
+    "value": 0.0000029575586669421963,
+    "key": "L_Index2",
+    "tMs": 0
+  },
+  "maxTrackedPositionM": {
+    "value": 0
+  },
+  "after": {
+    "footContact": "ed5e2a1bc5137cf198b8bb9c835bbbd36c49d60b59e7ffd3c6b2b0d50e23f1ef",
+    "handContactPose": "4c7231dec5c6953d75e5b2da31219e6a4d7b1f80156643d75f1dc49abeec4888",
+    "motionRecording": "e1c1cb070cd3a7953c74fa9d6a3c366941ec57b11940fc9bd0892173f0d61fe9",
+    "proneSkinSupport": "72bbb1a2c906c69c550ab6f92914bb3eb2d74fbfc355d94138649e7b0eb9971d",
+    "motionRigInputKey": "c12b7ca2a6f051b8daaacfe6bac38633d54bb4eb34422d5437a4960f4fa0b744"
+  },
+  "sourceStable": true
+}

@@ -1,0 +1,138 @@
+{
+  "name": "AROM · Right shoulder flexion",
+  "startFrom": "current",
+  "stance": "planted",
+  "keyframes": [
+    {
+      "durationMs": 250,
+      "holdMs": 150,
+      "stance": "planted",
+      "root": {
+        "orient": {
+          "pitchDeg": 0,
+          "rollDeg": 0,
+          "yawDeg": 0
+        },
+        "translateM": [
+          0,
+          0,
+          0
+        ]
+      },
+      "targets": [
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 0
+        }
+      ]
+    },
+    {
+      "durationMs": 1300,
+      "holdMs": 1200,
+      "stance": "planted",
+      "root": {
+        "orient": {
+          "pitchDeg": 0,
+          "rollDeg": 0,
+          "yawDeg": 0
+        },
+        "translateM": [
+          0,
+          0,
+          0
+        ]
+      },
+      "targets": [
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 160
+        }
+      ]
+    },
+    {
+      "durationMs": 1000,
+      "stance": "planted",
+      "root": {
+        "orient": {
+          "pitchDeg": 0,
+          "rollDeg": 0,
+          "yawDeg": 0
+        },
+        "translateM": [
+          0,
+          0,
+          0
+        ]
+      },
+      "targets": [
+        {
+          "joint": "L_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "L_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpLeg",
+          "motion": "hipFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_Leg",
+          "motion": "kneeFlexion",
+          "targetDegrees": 0
+        },
+        {
+          "joint": "R_UpperArm",
+          "motion": "shoulderFlexion",
+          "targetDegrees": 0
+        }
+      ]
+    }
+  ]
+}

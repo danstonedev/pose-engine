@@ -42,8 +42,8 @@ for (const entry of manifest.cases) {
     for (const mesh of meshes) {
       const positions = mesh.geometry.getAttribute('position');
       for (let index = 0; index < positions.count; index++) {
-        const point = new THREE.Vector3().fromBufferAttribute(positions, index);
-        mesh.applyBoneTransform(index, point); point.applyMatrix4(mesh.matrixWorld);
+        // getVertexPosition includes facial morphs before skinning, matching the rendered surface.
+        const point = mesh.getVertexPosition(index, new THREE.Vector3()).applyMatrix4(mesh.matrixWorld);
         const key = point.toArray().map(n => Math.floor(n / gridSize)).join(',');
         const cell = cells.get(key) ?? []; cell.push(point); cells.set(key, cell);
       }

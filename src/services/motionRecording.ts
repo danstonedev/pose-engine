@@ -60,6 +60,7 @@ import {
   applyVerticalCalibration,
   applyWeightedDescent,
   captureFloorReference,
+  floorReferenceForSupport,
   captureGroundSupportAnchors,
   captureFootFrames,
   captureFootSetupFrames,
@@ -98,6 +99,9 @@ import {
 import { balanceCoordination } from './balanceCoordination';
 import { hasFixedBilateralFootSupport, bilateralFootSetupMs } from './motionSupport';
 import { clearLocomotorArms } from './locomotorArmClearance';
+import { createProneSkinSupport, type ProneSkinSupportResult } from './proneSkinSupport';
+import { preparePressupPalmLayout, type PronePalmLayoutResult } from './pressupPalmLayout';
+import { motionRigInputKey } from './motionRigInputKey';
 import { enforceShoulderCapacities } from './poseRomClamp';
 import { attachShoulderSupportResiduals, shoulderConstraintsForPolicy } from './shoulderRuntime';
 import type { RomScenarioConstraints } from './romConstraints';
@@ -287,6 +291,11 @@ export interface RecordedFrame {
   angles: Record<string, Record<string, number>>;
   /** Final realized shoulder state, after all contact/IK corrections. */
   shoulders?: import('./shoulderRuntime').ShoulderInspections;
+  /** Geometric joint-support residuals before root grounding; no forces or
+   * compression inferred. Retains infeasible patient support explicitly. */
+  proneSupport?: ProneSkinSupportResult;
+  /** Once-per-motion geometric palm planning, including unresolved endpoints. */
+  pronePalmLayout?: PronePalmLayoutResult;
   /** Model-root state relative to its grounded rest transform: orientation
    *  quaternion [x,y,z,w] (identity = upright) and translation in meters
    *  (INCLUDES any planted foot-pin Y shift — the honest world position). */
@@ -562,6 +571,16 @@ export function sampleComposedMotion(
   });
   if (resolved.status !== 'ok' || resolved.keyframes.length === 0) return empty();
 
+  let pronePalmLayout: PronePalmLayoutResult | undefined;
+  if (resolved.pronePalmAnchorFit) {
+    pronePalmLayout = preparePressupPalmLayout({
+      resolvedMotion: opts.contacts ? { ...resolved, contacts: opts.contacts } : resolved,
+      baselinePose, variantCfg, rest, skeletonHarness, constraints: opts.constraints,
+    });
+    resolved = { ...resolved, contacts: pronePalmLayout.contacts, pronePalmAnchorFit: false };
+    if (opts.contacts) opts = { ...opts, contacts: pronePalmLayout.contacts };
+  }
+
   // BALANCE COORDINATION (COM-driven postural control): for a motion flagged
   // `balanceAssist`, measure each keyframe's COM-vs-base offset on this harness
   // and fold ROM-clamped re-centering targets into the resolved keyframes —
@@ -601,7 +620,15 @@ export function sampleComposedMotion(
   applyCustomPose(skinned.skeleton, variantCfg, baselinePose);
   root.updateMatrixWorld(true);
   const needsPelvisSurface = resolved.keyframes.some(frame => frame.groundingPosture === 'prone-supported');
-  const floorRef = captureFloorReference(skinned.skeleton, variantCfg, needsPelvisSurface ? root : undefined);
+  const floorRef = floorReferenceForSupport(
+    captureFloorReference(skinned.skeleton, variantCfg, needsPelvisSurface ? root : undefined), resolved.supportPlaneY);
+  if (resolved.proneSkinSupport) {
+    const support = createProneSkinSupport({ root, skinned, variantCfg, baselinePose, rest });
+    floorRef.pronePelvisSurface = support.pelvisSurface;
+    floorRef.proneSupportPrepare = () => {
+      floorRef.proneSupportResult = support.solve({ constraints: opts.constraints, floorY: floorRef.floorY });
+    };
+  }
   let footFrames = footFramesForCurrentPose(
     captureFootFrames(skinned.skeleton, variantCfg, rest),
     resolved.startFrom === 'current' ? opts.currentPose : null,
@@ -755,6 +782,7 @@ export function sampleComposedMotion(
   const { trajectory } = useLoopCycle
     ? buildLoopTrajectory(built, { timeScale })
     : buildComposedTrajectory(built, {
+        startAtSetup: resolved.startAtSetup,
         startPose: prevPose,
         startQuat: prevQuat,
         startTranslate: prevTranslate,
@@ -1143,7 +1171,12 @@ export function sampleComposedMotion(
   if (resolved.fixedGroundSupports?.length) {
     const setupAt = resolved.startAtSetup ? 0 : toTrajectory.toTrajectory(resolved.keyframes[0]?.durationMs ?? 0);
     if (resolved.startAtSetup) for (const plant of footPlants) if (plant.palmSupport) plant.fromMs = 0;
-    preparePalmSupportApproach(footPlants, setupAt, totalMs, JSON.stringify([built, prevPose, prevQuat, prevTranslate, timeScale, resolved.reps]), poseReachFrameAt, () => ({
+    const supportInputKey = motionRigInputKey({
+      resolvedMotion: opts.contacts ? { ...resolved, contacts: opts.contacts } : resolved,
+      baselinePose, variantCfg, rest, skeletonHarness, constraints: opts.constraints,
+      rootTransform: { position: rootRestPos, quaternion: rootRestQuat, scale: rootRestScale },
+    });
+    preparePalmSupportApproach(footPlants, setupAt, totalMs, JSON.stringify([built, prevPose, prevQuat, prevTranslate, timeScale, resolved.reps, supportInputKey]), poseReachFrameAt, () => ({
       rest: rotateRestReferenceByPelvis(
         rotateRestReferenceByRoot(rest, root.quaternion.clone().multiply(rootRestQuat.clone().invert())),
         skinned.skeleton, variantCfg,
@@ -1152,7 +1185,7 @@ export function sampleComposedMotion(
       heelStrikeY: 0, initialTargets: initialPlantTargets, floorY: floorRef.floorY,
     }), () => {
       floorRef.supportAnchorsXZ = captureGroundSupportAnchors(skinned.skeleton, variantCfg, resolved.fixedGroundSupports!);
-    }, !resolved.startAtSetup);
+    }, !resolved.startAtSetup, trajectory.knotTimesMs);
   }
 
   /** Sample the rig at absolute time t and read back one frame. */
@@ -1398,9 +1431,9 @@ export function sampleComposedMotion(
         .map(bone => ({ bone, targetY: floorRef.restY[bone] ?? floorRef.floorY, mode: 'vertical' as const }));
       if (supportToes.length) pinContactsToFloor(root, skinned.skeleton, variantCfg, supportToes, true);
     }
-    if (anyPlant || groundReachSolved || footRooted) {
-      // Contact IK, a grounding reach, or an articulated-pelvis stance plant
-      // can re-solve limb joints. Record those locals too, so replay matches
+    if (anyPlant || groundReachSolved || footRooted || resolved.proneSkinSupport) {
+      // Contact IK, a grounding reach, prone skin support or an articulated
+      // pelvis stance plant can re-solve joints. Record those locals so replay matches
       // the measured body and feet rather than reverting to the input FK.
       root.updateMatrixWorld(true);
       effPose = serializeCustomPose(skinned.skeleton, variantCfg, variantCfg.id);
@@ -1470,6 +1503,8 @@ export function sampleComposedMotion(
       pose: effPose,
       angles: copyAngles(report.joints as Record<string, Record<string, number>>),
       shoulders: report.shoulders,
+      ...(floorRef.proneSupportResult ? { proneSupport: structuredClone(floorRef.proneSupportResult) } : {}),
+      ...(pronePalmLayout ? { pronePalmLayout: structuredClone(pronePalmLayout) } : {}),
       root: {
         orientQuat,
         translateM: [
@@ -1719,7 +1754,8 @@ export function bakeFrameEdit(
   const frames = rec.frames.map((f, i) => {
     const d = Math.abs(f.tMs - centerT);
     if (i === idx) {
-      return { ...copyFrame(f, f.tMs), pose: editedPose, angles: editedAngles, shoulders: undefined };
+      return { ...copyFrame(f, f.tMs), pose: editedPose, angles: editedAngles,
+        shoulders: undefined, proneSupport: undefined, pronePalmLayout: undefined };
     }
     if (blendMs <= 0 || d >= blendMs) return f;
     const w = 1 - d / blendMs; // 1 at the edit, 0 at the window edge
@@ -1727,7 +1763,8 @@ export function bakeFrameEdit(
     const angles = opts.measure
       ? opts.measure(pose)
       : blendAngles(f.angles, editedAngles, w);
-    return { ...copyFrame(f, f.tMs), pose, angles, shoulders: undefined };
+    return { ...copyFrame(f, f.tMs), pose, angles,
+      shoulders: undefined, proneSupport: undefined, pronePalmLayout: undefined };
   });
   return { ...rec, frames };
 }

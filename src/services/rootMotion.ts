@@ -121,13 +121,12 @@ export function rotateRestReferenceByRoot(
     for (const k in rest.worldDirs) worldDirs[k] = rot3(rest.worldDirs[k]!);
   }
   return {
+    // Local anatomical metadata (finger neutral curls, gait geometry, shoulder
+    // frames and hinge axes) survives every world-frame rebase.
+    ...rest,
     pelvisWorldQuat: rot4(rest.pelvisWorldQuat),
-    ...(rest.shoulderFrames ? { shoulderFrames: rest.shoulderFrames } : {}),
-    localQuats: rest.localQuats,
     worldQuats,
     ...(worldDirs ? { worldDirs } : {}),
-    // Parent-local, so a root rotation leaves them as they are.
-    ...(rest.hingeAxes ? { hingeAxes: rest.hingeAxes } : {}),
   };
 }
 
@@ -198,12 +197,10 @@ export function rotateRestReferenceByPelvis(
       worldDirs[k] = k === PELVIS_KEY ? rest.worldDirs[k]! : rot3(rest.worldDirs[k]!);
   }
   return {
+    ...rest,
     pelvisWorldQuat: rest.pelvisWorldQuat, // the subject of the measurement — see above
-    ...(rest.shoulderFrames ? { shoulderFrames: rest.shoulderFrames } : {}),
-    localQuats: rest.localQuats,
     worldQuats,
     ...(worldDirs ? { worldDirs } : {}),
-    ...(rest.hingeAxes ? { hingeAxes: rest.hingeAxes } : {}), // parent-local (see ByRoot)
   };
 }
 
@@ -246,16 +243,52 @@ function contactBones(
 
 /** Per-contact rest world-Y — the floor reference each ground-contact bone
  *  returns to under a PLANTED stance. Captured once at anatomic rest. */
+export interface PosedSupportSurface {
+  meshes: { skin: THREE.SkinnedMesh; vertices: number[] }[];
+}
+
 export interface FloorReference {
   restY: Record<string, number>;
   /** World X/Z points captured from this motion's supported setup pose. */
   supportAnchorsXZ?: Record<string, [number, number]>;
   /** Anterior pelvis skin point in the Hips bone's local frame, measured at rest. */
   pronePelvisPoint?: [number, number, number];
+  /** Actual torso/pelvis vertices, including unmapped chest helpers owned by
+   * the spine. Evaluated from current skinning, not rigid rest-point offsets. */
+  proneSupportSurface?: PosedSupportSurface;
+  /** Optional whole-chain solve for a prepared prone motion. The solve changes
+   * bounded joint coordinates; the floor pin alone owns root translation. */
+  proneSupportPrepare?: () => void;
+  /** Pelvis-only surface used by that solve, separate from legacy torso minima. */
+  pronePelvisSurface?: PosedSupportSurface;
+  /** Last joint-support solve, measured before the subsequent root pin. */
+  proneSupportResult?: import('./proneSkinSupport').ProneSkinSupportResult;
+  pronePalmLayout?: import('./pressupPalmLayout').PronePalmLayoutResult;
+  /** Explicit plane candidates use posed support geometry. Legacy motions
+   * retain the original pelvis reference until separately qualified. */
+  usePosedProneSupport?: true;
   /** The ground-plane world-Y (the lowest foot contact's rest-Y) — the level a
    *  NON-foot contact (a hand in a push-up, a knee in quadruped) is grounded to,
    *  and the datum a seat height is measured up from. */
   floorY: number;
+}
+
+/** Give each motion its own support datum and anchors. The captured rest
+ * reference remains reusable by later motions and ordinary standing playback.
+ * An explicit plane is world Y in metres; foot rest heights stay unchanged. */
+export function floorReferenceForSupport(reference: FloorReference, supportPlaneY?: number): FloorReference {
+  const floor = { ...reference };
+  delete floor.supportAnchorsXZ;
+  delete floor.usePosedProneSupport;
+  delete floor.proneSupportPrepare;
+  delete floor.pronePelvisSurface;
+  delete floor.proneSupportResult;
+  delete floor.pronePalmLayout;
+  if (typeof supportPlaneY === 'number' && Number.isFinite(supportPlaneY)) {
+    floor.floorY = supportPlaneY;
+    floor.usePosedProneSupport = true;
+  }
+  return floor;
 }
 
 const _fp = new THREE.Vector3();
@@ -279,34 +312,45 @@ export function captureFloorReference(
   if (skinRoot && hips) {
     skinRoot.updateWorldMatrix(true, true);
     let anteriorZ = -Infinity;
+    const surface: PosedSupportSurface = { meshes: [] };
     skinRoot.traverse(object => {
       const skin = object as THREE.SkinnedMesh;
       if (!skin.isSkinnedMesh) return;
       if (!skin.skeleton.bones.includes(hips)) return;
       // Skin may be weighted to an unmapped pelvis helper below the Hips control.
-      const pelvicInfluence = skin.skeleton.bones.map(bone => {
+      const supportOwner = skin.skeleton.bones.map(bone => {
         let current: THREE.Object3D | null = bone;
         while (current) {
           const canonical = normalizeBoneNameForVariant(current.name, variantCfg.boneNameMap).canonical;
-          if (canonical) return canonical === 'Hips';
+          if (canonical) return canonical;
           current = current.parent;
         }
-        return false;
+        return undefined;
       });
+      const torsoOwner = new Set(['Hips', 'Spine_Lower', 'Spine_Mid', 'Spine_Upper']);
       skin.skeleton.update();
       const indices = skin.geometry.getAttribute('skinIndex');
       const weights = skin.geometry.getAttribute('skinWeight');
       const position = skin.geometry.getAttribute('position');
+      const vertices: number[] = [];
       for (let i = 0; i < position.count; i++) {
-        let influence = 0;
-        for (let j = 0; j < 4; j++) if (pelvicInfluence[indices.getComponent(i, j)]) influence += weights.getComponent(i, j);
+        let influence = 0, torsoInfluence = 0;
+        for (let j = 0; j < 4; j++) {
+          const owner = supportOwner[indices.getComponent(i, j)];
+          const weight = weights.getComponent(i, j);
+          if (owner === 'Hips') influence += weight;
+          if (owner && torsoOwner.has(owner)) torsoInfluence += weight;
+        }
+        if (torsoInfluence >= .5) vertices.push(i);
         if (influence < .5) continue;
         skin.getVertexPosition(i, _fp).applyMatrix4(skin.matrixWorld);
         if (_fp.z <= anteriorZ) continue;
         anteriorZ = _fp.z;
         reference.pronePelvisPoint = hips.worldToLocal(_fp).toArray();
       }
+      if (vertices.length) surface.meshes.push({ skin, vertices });
     });
+    if (surface.meshes.length) reference.proneSupportSurface = surface;
   }
   return reference;
 }
@@ -320,6 +364,11 @@ export interface GroundContact {
   mode?: 'vertical' | 'reach';
   /** null requires measured geometry and refuses a bone-center fallback. */
   localPoint?: [number, number, number] | null;
+  /** A posed skin envelope sets Y; the named bone remains the X/Z anchor.
+   * null refuses to substitute a bone center when required skin is missing. */
+  surface?: PosedSupportSurface | null;
+  /** Run before any support height is measured. */
+  prepare?: () => void;
   targetXZ?: [number, number];
 }
 
@@ -373,7 +422,10 @@ export function captureGroundSupportAnchors(skeleton: THREE.Skeleton, variantCfg
 function groundingContactDefinitions(posture: string, floor: FloorReference): GroundContact[] {
   switch (posture) {
     case 'prone-supported':
-      return [{ bone: 'Hips', targetY: floor.floorY, mode: 'vertical', localPoint: floor.pronePelvisPoint ?? null }];
+      return [{ bone: 'Hips', targetY: floor.floorY, mode: 'vertical',
+        ...(floor.proneSupportPrepare ? { surface: floor.pronePelvisSurface ?? null, prepare: floor.proneSupportPrepare }
+          : floor.usePosedProneSupport ? { surface: floor.proneSupportSurface ?? null }
+          : { localPoint: floor.pronePelvisPoint ?? null }) }];
     case 'sitting':
       return [
         { bone: 'Hips', targetY: floor.floorY + SEAT_HEIGHT_M, mode: 'vertical' },
@@ -444,6 +496,9 @@ export function pinContactsToFloor(
   contacts: GroundContact[],
   liftOnly = false,
 ): number {
+  // Prepare the complete chain before evaluating any contact, so the support
+  // heights all describe one pose. Repeated callbacks run only once per pin.
+  for (const prepare of new Set(contacts.filter(c => c.mode !== 'reach').map(c => c.prepare))) prepare?.();
   root.updateMatrixWorld(true);
   const bones = boneByCanonicalKey(skeleton, variantCfg);
   let lift = -Infinity;
@@ -452,10 +507,24 @@ export function pinContactsToFloor(
     if (c.mode === 'reach') continue;
     const bone = bones.get(c.bone);
     if (!bone || !Number.isFinite(c.targetY)) continue;
-    if (c.localPoint === null) throw new Error(`Missing measured support surface for ${c.bone}`);
-    if (c.localPoint) _fp.fromArray(c.localPoint).applyMatrix4(bone.matrixWorld);
-    else bone.getWorldPosition(_fp);
-    lift = Math.max(lift, c.targetY - _fp.y);
+    if (c.localPoint === null || c.surface === null) throw new Error(`Missing measured support surface for ${c.bone}`);
+    let contactY: number;
+    if (c.surface) {
+      contactY = Infinity;
+      for (const { skin, vertices } of c.surface.meshes) {
+        skin.skeleton.update();
+        for (const vertex of vertices) {
+          skin.getVertexPosition(vertex, _fp).applyMatrix4(skin.matrixWorld);
+          contactY = Math.min(contactY, _fp.y);
+        }
+      }
+      if (!Number.isFinite(contactY)) throw new Error(`Missing finite posed support surface for ${c.bone}`);
+    } else {
+      if (c.localPoint) _fp.fromArray(c.localPoint).applyMatrix4(bone.matrixWorld);
+      else bone.getWorldPosition(_fp);
+      contactY = _fp.y;
+    }
+    lift = Math.max(lift, c.targetY - contactY);
     if (c.targetXZ) {
       // Anchor the joint's horizontal position; a measured skin point may set Y.
       bone.getWorldPosition(_fp);

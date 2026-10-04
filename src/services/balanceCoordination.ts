@@ -59,6 +59,7 @@ import type { RomScenarioConstraints } from './romConstraints';
 import { buildSequencePoses, type ResolvedComposedMotion } from './motionSequence';
 import {
   captureFloorReference,
+  floorReferenceForSupport,
   captureFootFrames,
   footFramesForCurrentPose,
   pinRootToFloor,
@@ -425,7 +426,8 @@ export function balanceCoordination(
   applyCustomPose(skeleton, variantCfg, baselinePose);
   root.updateMatrixWorld(true);
   const needsPelvisSurface = resolved.keyframes.some(frame => frame.groundingPosture === 'prone-supported');
-  const floorRef = captureFloorReference(skeleton, variantCfg, needsPelvisSurface ? root : undefined);
+  const floorRef = floorReferenceForSupport(
+    captureFloorReference(skeleton, variantCfg, needsPelvisSurface ? root : undefined), resolved.supportPlaneY);
   const footFrames = footFramesForCurrentPose(captureFootFrames(skeleton, variantCfg, rest),
     resolved.startFrom === 'current' ? harness.currentPose : null,
     resolved.keyframes.flatMap(k => k.targets.map(t => t.joint)));

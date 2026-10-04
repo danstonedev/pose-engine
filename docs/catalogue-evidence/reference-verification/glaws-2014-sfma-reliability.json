@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:glaws-2014-sfma-reliability",
+  "title": "Intra- and inter-rater reliability of the Selective Functional Movement Assessment (SFMA)",
+  "primaryUrls": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC4004125/",
+    "https://pubmed.ncbi.nlm.nih.gov/24790781/"
+  ],
+  "doi": null,
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Inspected primary PMC indexed Methods/Procedures and primary PubMed bibliographic record, PMID24790781. Direct PMC access produced a browser check. Verified legacy task/video study description; full Appendix A criteria were not extracted.",
+  "claims": [
+    {
+      "id": "ref:glaws-2014-sfma-reliability:claim-1",
+      "description": "Primary paper describes the ten legacy SFMA task subdivisions, filmed in two planes; Appendix A is cited by the repository legacy overhead recipe.",
+      "kind": "protocol"
+    }
+  ],
+  "limitations": [
+    "Primary indexed Methods verified; direct PMC fetch encountered reCAPTCHA.",
+    "Appendix A procedure content not fully extracted or retained in this seed.",
+    "No automatic clinical score, current protocol identity or detailed production-rig coordination is established.",
+    "Study itself distinguishes reliability from validity; no reference trajectory has been imported."
+  ],
+  "license": {
+    "status": "unknown",
+    "name": null,
+    "scope": null,
+    "retentionConditions": "Do not assume public access permits dataset or media redistribution."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4004125/",
+        "section": "Methods: Procedures; Appendix A; Discussion limitations"
+      },
+      {
+        "path": "simmove/pose-engine/src/services/assessmentBodyMotions.ts",
+        "sha256": "bda9d6bac61f7db7dcd67d59bea5ce771029c335ee37bff1782e1f7b7c1e2c88",
+        "line": 209,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+      "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+      "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+      "screen:sfma-repo-legacy-v1/upper-extremity-pattern-one/top-tier",
+      "screen:sfma-repo-legacy-v1/upper-extremity-pattern-two/top-tier",
+      "screen:sfma-repo-legacy-v1/multisegmental-flexion/top-tier",
+      "screen:sfma-repo-legacy-v1/multisegmental-extension/top-tier",
+      "screen:sfma-repo-legacy-v1/multisegmental-rotation/top-tier",
+      "screen:sfma-repo-legacy-v1/single-leg-stance/top-tier",
+      "screen:sfma-repo-legacy-v1/overhead-deep-squat/top-tier"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}

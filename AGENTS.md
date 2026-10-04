@@ -1,4 +1,15 @@
+Read `docs/unified-movement-development-prompt.md` before movement work. Reconcile defects, references and shared ownership in the single master; changed and reviewed contexts require current comparison and closure evidence.
+
 # Blender is required for movement work
+
+Use the workspace's single master movement–joint catalogue at
+`docs/MASTER-MOVEMENT-JOINT-CATALOGUE.html`
+before editing a movement. Follow the workspace catalogue protocol: identify
+motion/body/side/phase; define joint roles and shared controller ownership;
+validate the complete body, including head to pelvis; refresh the same master
+and record scoped, current evidence. Do not create separate regional acceptance
+catalogues or treat missing targets as held/uninvolved joints. Catalogue roles
+still require runtime measurement; the master is now enforced in builds and CI. Read `docs/movement-catalogue-process.md`.
 
 The user requires Blender authoring and full-motion visual review for **all movements**, not only floor or upper-extremity motions.
 

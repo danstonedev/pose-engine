@@ -1,0 +1,80 @@
+﻿{
+    "schema":  "native-arm-source-representation-correction/v1",
+    "date":  "2026-10-02",
+    "controllerVersion":  "authored-pelvis-support-torque-v21",
+    "scope":  "Source rig command representation correction only. No native dynamics run or motion qualification.",
+    "wristBefore":  {
+                        "cases":  44,
+                        "unrepresentedCases":  40,
+                        "maximumLocalResidualRad":  0.18482698315845758,
+                        "maximumCompiledRotationErrorRad":  1.4756240601310173,
+                        "outsideRangeCases":  0,
+                        "frozenFrames":  8
+                    },
+    "forearmBefore":  {
+                          "cases":  44,
+                          "unrepresentedCases":  0,
+                          "maximumLocalResidualRad":  1.5519897767444611E-09,
+                          "maximumCompiledRotationErrorRad":  4.2146848510894035E-08,
+                          "outsideRangeCases":  8,
+                          "frozenFrames":  8,
+                          "forearmCases":  16,
+                          "forearmUnrepresentedCases":  16,
+                          "maximumForearmResidualRad":  0.2033930512068044,
+                          "maximumHypotheticalSourceForearmAxisResidualRad":  1.1568856900843067E-10
+                      },
+    "after":  {
+                  "cases":  44,
+                  "unrepresentedCases":  0,
+                  "maximumLocalResidualRad":  1.5519897767444611E-09,
+                  "maximumCompiledRotationErrorRad":  4.2146848510894035E-08,
+                  "outsideRangeCases":  8,
+                  "frozenFrames":  8,
+                  "forearmCases":  16,
+                  "forearmUnrepresentedCases":  0,
+                  "maximumForearmResidualRad":  1.1568856900843067E-10,
+                  "maximumCompiledForearmRotationErrorRad":  2.9802322387695313E-08,
+                  "maximumHypotheticalSourceForearmAxisResidualRad":  1.1568856900843067E-10
+              },
+    "sourcePoseIdentity":  {
+                               "cases":  60,
+                               "changed":  0,
+                               "report":  "remaining-batches/native-arm-command-identities-v21-1.json",
+                               "method":  "Former production command file reconstructed and checked against its previously recorded SHA256, then imported with relocated dependency paths"
+                           },
+    "verification":  {
+                         "focusedTests":  "remaining-batches/native-arm-conformance-tests-v21-1.log:3/3 pass",
+                         "typecheck":  "remaining-batches/native-arm-engine-typecheck-v21-1.log",
+                         "frozenSourceFrames":  8
+                     },
+    "unchanged":  [
+                      "Engine command quaternions in all60 checked wrist/forearm cases",
+                      "Engine clinical and patient bounds",
+                      "Native2DOFforearm and2DOFwrist topology",
+                      "Native forearm ranges -5..150 flexion and -90..90 axial",
+                      "Native wrist ranges -75..75 flexion and -35..35 deviation",
+                      "Native gains,capacity,mass,inertia,colliders and legacy overhead deviation path"
+                  ],
+    "remaining":  [
+                      "Engine80degreewristflexionstill exceeds unchanged native75degreecap;8conformancecorners explicitlyreported",
+                      "Frozen contact source retains hand-local axial twist and off-axis elbow orientation not exactly represented by2DOFsegments; source/localresidualsremainunqualified",
+                      "Fresh finalcandidate native retarget/tracking onbothbodies required; previousv19trials stale",
+                      "Currentv21native jointaxis Blenderreview remains required; v19restproject is historical",
+                      "Geometric elbow readout includes neutral rigbend and is not identical to native localflexion qpos"
+                  ],
+    "reports":  [
+                    "remaining-batches/native-wrist-conformance-before-1.json",
+                    "remaining-batches/native-wrist-conformance-after-2.json",
+                    "remaining-batches/native-arm-conformance-v21-1.json"
+                ],
+    "sourceHashes":  {
+                         "experiments/lower-body/authored-anatomy.mjs":  "4568eddaf721b2b51c11c086cb5f36e2107720cae5c610e647a4d43629515e10",
+                         "experiments/lower-body/squat-arms.mjs":  "e58aa097c7bf7c1ae0cd21c6fe10c94d72a91761effeba7665c8fa1108b860c7",
+                         "experiments/lower-body/authored-controller-identity.mjs":  "d87c0741c46582d7dd15603ce736a60d9cd6232567a79cfb3bdbbee4aee71380",
+                         "pose-engine/src/services/movementCommand.ts":  "25e810e5043afabb0f40acfaed939a1e9da3eb2ddd212806659434f44617e166",
+                         "pose-engine/src/services/poseRomClamp.ts":  "b6562f87c673a28adc2a2f09bbd21817cb27187b770ebe0d17934c47734f0c2d",
+                         "pose-engine/src/services/jointAngles.ts":  "c03d5b886333b1e761c4d6d0f880032904377270f4409427105872c5b3863987",
+                         "pose-engine/src/anatomy/wristJointFrame.mjs":  "d241efc1dffec491e137d72027c27caad75baa40a7ce60574c9989a9b839d3ae",
+                         "pose-engine/src/anatomy/forearmJointFrame.mjs":  "21bb2ec51f390db9af2e1975330ee123e199f9ae92fd97f5d5ac4aa0f2e1dbbd"
+                     }
+}

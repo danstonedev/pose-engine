@@ -1,0 +1,823 @@
+{
+  "scope": "Exact saved1083ms guide output; same limits and projection ordering. Local quaternion-axis perturbations test projector continuity independently of solver.",
+  "assetSha256": "85241044b0e125c1c4d83f1e18375b8e41123c87d81906c329970569bb62bb62",
+  "witnessSha256": "c0d83c53d43e8d7b027a5c24fcdfd9f3d39eb1514420a581aaf29d3db655a5a8",
+  "cases": [
+    {
+      "mode": "deadband",
+      "idempotenceDeg": 0,
+      "joint": {
+        "strategy": "body-euler",
+        "raw": {
+          "flexion": -10.000005196481805,
+          "abduction": -5.00007721338531,
+          "rotation": -30.00009999999538
+        },
+        "anatomicFlexion": -10.000005196481805,
+        "anatomicRotation": -30.00009999999538,
+        "ranges": {
+          "flexion": {
+            "min": -10,
+            "max": 40
+          },
+          "abduction": {
+            "min": -5,
+            "max": 60
+          },
+          "rotation": {
+            "min": -30,
+            "max": 30
+          }
+        }
+      },
+      "probes": [
+        {
+          "stepDeg": 1e-9,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 27568.91847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 1.0000013779969346e-9,
+          "wristDisplacementM": 3.5342002870606586e-12,
+          "wristSecantMPerRad": 0.20249476040249975,
+          "rotation": -30.000099999030592
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 27568.91847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 1.0000013779700638e-9,
+          "wristDisplacementM": 3.729212748871521e-12,
+          "wristSecantMPerRad": 0.21366815141671833,
+          "rotation": -30.000099999689066
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 27568.91847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 9.999989925376145e-10,
+          "wristDisplacementM": 1.967592465320037e-12,
+          "wristSecantMPerRad": 0.11273474406457892,
+          "rotation": -30.000099999915147
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 2756.891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 1.0000001057317688e-8,
+          "wristDisplacementM": 3.53409166284336e-11,
+          "wristSecantMPerRad": 0.2024885366932956,
+          "rotation": -30.000099990347447
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 2756.891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 1.0000002647595884e-8,
+          "wristDisplacementM": 3.72914347968303e-11,
+          "wristSecantMPerRad": 0.21366418258456746,
+          "rotation": -30.000099996932246
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 2756.891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 9.999992310795315e-9,
+          "wristDisplacementM": 1.9675766473354838e-11,
+          "wristSecantMPerRad": 0.11273383776082362,
+          "rotation": -30.000099999193015
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 275.6891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 1.0000000103151125e-7,
+          "wristDisplacementM": 3.5340834308230706e-10,
+          "wristSecantMPerRad": 0.20248806503327618,
+          "rotation": -30.000099903516073
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 275.6891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 9.999999944123393e-8,
+          "wristDisplacementM": 3.7291521151095127e-10,
+          "wristSecantMPerRad": 0.21366467735805922,
+          "rotation": -30.000099969364044
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 275.6891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 9.999999785095661e-8,
+          "wristDisplacementM": 1.967559723116792e-10,
+          "wristSecantMPerRad": 0.11273286807452101,
+          "rotation": -30.000099991971744
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 27.568918475664262,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 0.0000010000000039540033,
+          "wristDisplacementM": 3.534082113716027e-9,
+          "wristSecantMPerRad": 0.20248798956860142,
+          "rotation": -30.000099035202393
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 27.568918475664262,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 0.0000010000000007734486,
+          "wristDisplacementM": 3.729152977444525e-9,
+          "wristSecantMPerRad": 0.21366472676621595,
+          "rotation": -30.000099693682067
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 27.568918475664262,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 0.000001000000004749142,
+          "wristDisplacementM": 1.967558762886043e-9,
+          "wristSecantMPerRad": 0.11273281305735175,
+          "rotation": -30.000099919759013
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 2.756891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 0.000010000000004553941,
+          "wristDisplacementM": 3.534082071283682e-8,
+          "wristSecantMPerRad": 0.2024879871374071,
+          "rotation": -30.000090352065587
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.0001368693351430641,
+          "wristDisplacementM": 4.851951829828396e-7,
+          "wristSecantMPerRad": 2.7799636224994404,
+          "rotation": -30.00000000436122
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 0.000009999999996602558,
+          "wristDisplacementM": 3.72915312938254e-8,
+          "wristSecantMPerRad": 0.21366473547162296,
+          "rotation": -30.000096936862114
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 2.756891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 0.000010000000004553941,
+          "wristDisplacementM": 1.967558512110395e-8,
+          "wristSecantMPerRad": 0.1127327986889655,
+          "rotation": -30.000099197631698
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 0.2756891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 0.00013983406260050952,
+          "wristDisplacementM": 5.104659515747425e-7,
+          "wristSecantMPerRad": 0.2924754461036221,
+          "rotation": -30.000000004361205
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.00016652289708046303,
+          "wristDisplacementM": 6.416257986699246e-7,
+          "wristSecantMPerRad": 0.3676245029049735,
+          "rotation": -30.000000004361212
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 0.2756891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 0.2756891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 0.00009999999999386799,
+          "wristDisplacementM": 1.9675585261470487e-7,
+          "wristSecantMPerRad": 0.11273279949320653,
+          "rotation": -30.000091976357773
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.0002809614954838718,
+          "wristDisplacementM": 7.358010043699033e-7,
+          "wristSecantMPerRad": 0.042158292111882496,
+          "rotation": -30.000000004361226
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 0.0010265365791906232,
+          "wristDisplacementM": 0.000003960751541643793,
+          "wristSecantMPerRad": 0.22693434703612364,
+          "rotation": -29.999135212471504
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.0009630268079988264,
+          "wristDisplacementM": 0.00000354538670216014,
+          "wristSecantMPerRad": 0.20313569477558144,
+          "rotation": -30.000000004361205
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 0.0003286768753360979,
+          "wristDisplacementM": 0.0000012688813198542894,
+          "wristSecantMPerRad": 0.07270154433064024,
+          "rotation": -29.999793690015352
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 0.00013663584429164503,
+          "wristDisplacementM": 4.811683986142376e-7,
+          "wristSecantMPerRad": 0.02756891847566426,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 0.0010000000000108809,
+          "wristDisplacementM": 0.0000019675585257900804,
+          "wristSecantMPerRad": 0.11273279947275373,
+          "rotation": -30.000019763546117
+        }
+      ]
+    },
+    {
+      "mode": "continuous",
+      "idempotenceDeg": 1.6692065508611827e-10,
+      "joint": {
+        "strategy": "body-euler",
+        "raw": {
+          "flexion": -10.000000001514634,
+          "abduction": -5.000000000760212,
+          "rotation": -30.000000004361237
+        },
+        "anatomicFlexion": -10.000000001514634,
+        "anatomicRotation": -30.000000004361237,
+        "ranges": {
+          "flexion": {
+            "min": -10,
+            "max": 40
+          },
+          "abduction": {
+            "min": -5,
+            "max": 60
+          },
+          "rotation": {
+            "min": -30,
+            "max": 30
+          }
+        }
+      },
+      "probes": [
+        {
+          "stepDeg": 1e-9,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-9,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 2.2269006292847374e-10,
+          "wristDisplacementM": 3.9757266093570555e-13,
+          "wristSecantMPerRad": 0.02277923552140162,
+          "rotation": -30.000000004361212
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 1.6970044909318282e-9,
+          "wristDisplacementM": 3.0307086050944468e-12,
+          "wristSecantMPerRad": 0.01736468120058927,
+          "rotation": -30.000000004361226
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 5.4964994562905915e-9,
+          "wristDisplacementM": 2.0999594585780824e-11,
+          "wristSecantMPerRad": 0.12031881412510154,
+          "rotation": -29.999999999074515
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 8.018363857828105e-9,
+          "wristDisplacementM": 2.8730040226755546e-11,
+          "wristSecantMPerRad": 0.16461100502341713,
+          "rotation": -30.00000000436122
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-8,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 9.06874984658546e-9,
+          "wristDisplacementM": 1.6196587455481286e-11,
+          "wristSecantMPerRad": 0.09279961037136107,
+          "rotation": -30.00000000436122
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 2.381188557142099e-8,
+          "wristDisplacementM": 4.252807120055327e-11,
+          "wristSecantMPerRad": 0.024366789906235666,
+          "rotation": -30.00000000436122
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 9.64773504509334e-8,
+          "wristDisplacementM": 3.679614019786865e-10,
+          "wristSecantMPerRad": 0.21082635357095475,
+          "rotation": -29.999999912243105
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 9.400987705904927e-8,
+          "wristDisplacementM": 3.450326131832429e-10,
+          "wristSecantMPerRad": 0.19768912529769708,
+          "rotation": -30.000000004361212
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 2.6269968157016614e-8,
+          "wristDisplacementM": 1.0182513100844427e-10,
+          "wristSecantMPerRad": 0.05834150255150545,
+          "rotation": -29.999999978091257
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 1e-7,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 9.823152217495754e-8,
+          "wristDisplacementM": 1.82312078226994e-10,
+          "wristSecantMPerRad": 0.10445712636665665,
+          "rotation": -30.000000000698822
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 2.44960758964786e-7,
+          "wristDisplacementM": 4.375002452487106e-10,
+          "wristSecantMPerRad": 0.025066917588689567,
+          "rotation": -30.00000000436122
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 0.0000010063032447458162,
+          "wristDisplacementM": 3.8376420279993005e-9,
+          "wristSecantMPerRad": 0.21988069148638603,
+          "rotation": -29.99999904392906
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 9.541606788540944e-7,
+          "wristDisplacementM": 3.5092907774844397e-9,
+          "wristSecantMPerRad": 0.2010675506340417,
+          "rotation": -30.00000000436122
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 3.0195077923749384e-7,
+          "wristDisplacementM": 1.1703917614746102e-9,
+          "wristSecantMPerRad": 0.0670585083093773,
+          "rotation": -29.999999702410445
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.000001,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 0.0000010000000079296967,
+          "wristDisplacementM": 1.967558499067672e-9,
+          "wristSecantMPerRad": 0.11273279794167253,
+          "rotation": -29.99999992412485
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.0000024564496805514105,
+          "wristDisplacementM": 4.387222954013377e-9,
+          "wristSecantMPerRad": 0.025136935904788413,
+          "rotation": -30.00000000436122
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 0.00001010456313724363,
+          "wristDisplacementM": 3.853444952431398e-8,
+          "wristSecantMPerRad": 0.22078613236030933,
+          "rotation": -29.999990360788686
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.000009555688869229515,
+          "wristDisplacementM": 3.515187818153949e-8,
+          "wristSecantMPerRad": 0.20140542617602158,
+          "rotation": -30.000000004361233
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 0.0000030587589572764524,
+          "wristDisplacementM": 1.1856058976833212e-8,
+          "wristSecantMPerRad": 0.06793021410307361,
+          "rotation": -29.999996945602277
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.00001,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 0.000010000000005349082,
+          "wristDisplacementM": 1.9675585066248105e-8,
+          "wristSecantMPerRad": 0.11273279837466466,
+          "rotation": -29.99999920199743
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.000024571362955820905,
+          "wristDisplacementM": 4.388449395212307e-8,
+          "wristSecantMPerRad": 0.02514396289524038,
+          "rotation": -30.00000000436122
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 0.00010108715821949136,
+          "wristDisplacementM": 3.855024897729345e-7,
+          "wristSecantMPerRad": 0.2208766565577433,
+          "rotation": -29.99990352939468
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.00009557097259903695,
+          "wristDisplacementM": 3.5157772434562177e-7,
+          "wristSecantMPerRad": 0.2014391977581798,
+          "rotation": -30.000000004361212
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 0.00003062684978449173,
+          "wristDisplacementM": 1.1871276652001101e-7,
+          "wristSecantMPerRad": 0.06801740495918572,
+          "rotation": -29.999969377511437
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.0001,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 0.0001000000000002291,
+          "wristDisplacementM": 1.9675585246723953e-7,
+          "wristSecantMPerRad": 0.11273279940871511,
+          "rotation": -29.99999198072246
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 0,
+          "sign": -1,
+          "maximumTurnDeg": 0.00024572289707910905,
+          "wristDisplacementM": 4.38861493463873e-7,
+          "wristSecantMPerRad": 0.025144911366288086,
+          "rotation": -30.00000000436122
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 0,
+          "sign": 1,
+          "maximumTurnDeg": 0.0010109127109390076,
+          "wristDisplacementM": 0.000003855179195231482,
+          "wristSecantMPerRad": 0.22088549715340514,
+          "rotation": -29.999035216439673
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 1,
+          "sign": -1,
+          "maximumTurnDeg": 0.0009557237987568375,
+          "wristDisplacementM": 0.0000035158333738194524,
+          "wristSecantMPerRad": 0.20144241379109568,
+          "rotation": -30.000000004361205
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 1,
+          "sign": 1,
+          "maximumTurnDeg": 0.0003063086706039763,
+          "wristDisplacementM": 0.0000011872833784155562,
+          "wristSecantMPerRad": 0.06802632666924519,
+          "rotation": -29.99969369569059
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 2,
+          "sign": -1,
+          "maximumTurnDeg": 1.669185022354041e-10,
+          "wristDisplacementM": 0,
+          "wristSecantMPerRad": 0,
+          "rotation": -30.000000004361237
+        },
+        {
+          "stepDeg": 0.001,
+          "axis": 2,
+          "sign": 1,
+          "maximumTurnDeg": 0.0010000000000029293,
+          "wristDisplacementM": 0.0000019675585254101645,
+          "wristSecantMPerRad": 0.11273279945098616,
+          "rotation": -29.99991976790028
+        }
+      ]
+    }
+  ]
+}

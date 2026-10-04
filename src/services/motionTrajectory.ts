@@ -110,6 +110,9 @@ export interface PoseTrajectory {
   locomotorArmClearance?: boolean;
   constrainGaitPoseAt?(pose: CustomPose, tMs: number): CustomPose;
   totalMs: number;
+  /** Exact trajectory boundaries, including held-pose arrival and departure.
+   * Contact guides include these so interpolation cannot anticipate a return. */
+  knotTimesMs?: readonly number[];
   /** Pose + root at absolute time tMs (clamped to [0, totalMs]). */
   sampleAt(tMs: number): TrajectorySample;
   /** Grounding-posture switches along the timeline, in time order — absent (or
@@ -218,6 +221,15 @@ const _qe = new THREE.Quaternion();
 
 /** SQUAD(q0,q1,s0,s1,t) = slerp( slerp(q0,q1,t), slerp(s0,s1,t), 2t(1-t) ). */
 function squad(q0: Q, q1: Q, s0: Q, s1: Q, t: number): Q {
+  // Imported Float32 quaternions can be slightly non-unit. Equal-input slerp
+  // may normalize them differently as t varies, so preserve authored endpoints
+  // and constant channels exactly. Equal endpoints with distinct controls can
+  // still describe a moving fly-through arc and must follow the spline.
+  if (t === 0) return [...q0];
+  if (t === 1) return [...q1];
+  if (q0.every((value, index) => value === q1[index] && value === s0[index] && value === s1[index])) {
+    return [...q0];
+  }
   _qa.set(q0[0], q0[1], q0[2], q0[3]);
   _qb.set(q1[0], q1[1], q1[2], q1[3]);
   _qc.set(s0[0], s0[1], s0[2], s0[3]);
@@ -406,6 +418,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
     const only = knots[0];
     return {
       totalMs,
+      knotTimesMs: Object.freeze([...times]),
       sampleAt: () => ({
         pose: only ? clonePose(only.pose) : emptyPose(),
         rootQuat: only ? [...only.rootQuat] : [0, 0, 0, 1],
@@ -586,6 +599,7 @@ export function buildPoseTrajectory(knots: TrajectoryKnot[]): PoseTrajectory {
 
   return {
     totalMs,
+    knotTimesMs: Object.freeze([...times]),
     ...(groundingSwitches.length ? { groundingSwitches } : {}),
     sampleAt(tMs: number): TrajectorySample {
       const tClamped = Math.min(totalMs, Math.max(0, tMs));
@@ -812,6 +826,9 @@ export function buildComposedTrajectory(
     startQuat: [number, number, number, number];
     startTranslate: [number, number, number];
     timeScale: number;
+    /** Initial pose is already the first setup pose. Its preparation interval
+     * is a true hold; future spline tangents must not move the body below it. */
+    startAtSetup?: boolean;
     /** FINITE reps: replay the whole cycle this many times (default 1) — the
      *  repeat happens HERE, at trajectory time, so the authored plan stays small
      *  (a "50 jumps" is a 6-keyframe motion). Each rep flows into the next
@@ -852,7 +869,7 @@ export function buildComposedTrajectory(
       pose: startPose,
       rootQuat: startQuat,
       rootTranslate: startTranslate,
-      stop: !cyclicEnds && !flowIn,
+      stop: opts.startAtSetup === true || (!cyclicEnds && !flowIn),
       planted: built.roots[0]?.stance === 'planted',
       groundingPosture: built.roots[0]?.groundingPosture,
     },
@@ -873,7 +890,7 @@ export function buildComposedTrajectory(
       tCursor += built.durationsMs[i]! / timeScale;
       if (r === 0) settleAtMs.push(tCursor);
       if (isVeryLast) finalArrivalIdx = knots.length;
-      const stop = holdMs > 0 || (isVeryLast && !cyclicEnds);
+      const stop = holdMs > 0 || (isVeryLast && !cyclicEnds) || (opts.startAtSetup === true && r === 0 && i === 0);
       // SETTLE SHAPE (roadmap 5.5): a STOP arrival (a held keyframe or the final
       // settle) carries its keyframe's velocity class, so the time-warp brakes
       // later/harder for functional/ballistic arrivals. 'deliberate'/absent adds
@@ -986,6 +1003,7 @@ export function buildLoopTrajectory(
     const root0 = built.roots[0];
     const flat: PoseTrajectory = {
       totalMs: dur[0] ?? 1,
+      knotTimesMs: Object.freeze([0, dur[0] ?? 1]),
       sampleAt: () => ({
         pose: only ? clonePose(only) : emptyPose(),
         rootQuat: root0 ? [...root0.quat] : [0, 0, 0, 1],
@@ -1042,6 +1060,7 @@ export function buildLoopTrajectory(
     trajectory: withGaitLegClearance({
       locomotorArmClearance: built.locomotorArmClearance,
       totalMs: period,
+      knotTimesMs: Object.freeze([...cycle.map(knot => knot.timeMs), period]),
       sampleAt: (tMs: number) => inner.sampleAt(wrap(tMs)),
     }, built.gaitClearance, ts, dur[0]!),
     enterAtMs,

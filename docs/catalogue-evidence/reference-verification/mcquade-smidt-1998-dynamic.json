@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:mcquade-smidt-1998-dynamic",
+  "title": "Dynamic scapulohumeral rhythm: the effects of external resistance during elevation of the arm in the scapular plane",
+  "primaryUrls": [
+    "https://pubmed.ncbi.nlm.nih.gov/9475136/",
+    "https://doi.org/10.2519/jospt.1998.27.2.125"
+  ],
+  "doi": "10.2519/jospt.1998.27.2.125",
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Inspected primary PubMed abstract and bibliographic record, PMID9475136. Verified phase/load dependence for the described scapular-plane experiment; full trajectories and model correspondence were not verified.",
+  "claims": [
+    {
+      "id": "ref:mcquade-smidt-1998-dynamic:claim-1",
+      "description": "Abstract supports phase/load dependence during scapular-plane elevation, so a constant universal ratio is insufficient.",
+      "kind": "limit"
+    }
+  ],
+  "limitations": [
+    "Abstract-only verification; matched flexion/abduction/behind-back trajectories not imported.",
+    "No SC/AC independence, production proxy validity or load-specific force acceptance is established.",
+    "Exact tolerances and primary per-frame data unavailable in this seed."
+  ],
+  "license": {
+    "status": "unknown",
+    "name": null,
+    "scope": null,
+    "retentionConditions": "Do not assume public access permits dataset or media redistribution."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/9475136/",
+        "section": "Abstract"
+      },
+      {
+        "path": "simmove/pose-engine/src/services/movementTemplates.data.ts",
+        "sha256": "d28acd37fe2677a942a60e82e944b98941a2dae1c9c71ec144c416f61470fc7e",
+        "line": 177,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "library:shoulder-flexion-elevation",
+      "library:shoulder-abduction-elevation",
+      "engine-template:shoulder-flexion-elevation",
+      "engine-template:shoulder-abduction-elevation"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}

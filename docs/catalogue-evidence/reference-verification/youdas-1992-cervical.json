@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:youdas-1992-cervical",
+  "title": "Normal range of motion of the cervical spine: an initial goniometric study",
+  "primaryUrls": [
+    "https://pubmed.ncbi.nlm.nih.gov/1409874/"
+  ],
+  "doi": "10.1093/ptj/72.11.770",
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Inspected primary PubMed abstract and bibliography, PMID1409874. Verified cervical AROM study scope and instrument; exact age/sex tables and segmental distributions were not extracted.",
+  "claims": [
+    {
+      "id": "ref:youdas-1992-cervical:claim-1",
+      "description": "Primary abstract describes cervical AROM measurement and age/gender effects; segmental Neck/Head distributions are unsupported.",
+      "kind": "limit"
+    }
+  ],
+  "limitations": [
+    "Abstract/bibliography verified; exact tables and age/sex strata not extracted.",
+    "No per-frame cervical sequence, independent vertebral joints or task gaze acceptance."
+  ],
+  "license": {
+    "status": "unknown",
+    "name": null,
+    "scope": null,
+    "retentionConditions": "Do not assume public access permits dataset or media redistribution."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/1409874/",
+        "section": "Abstract"
+      },
+      {
+        "path": "simmove/pose-engine/docs/movement-templates-reference.md",
+        "sha256": "157a8a07400e7f287fe40d488450f6ce99eabc702c59be88e3d6640c79fd961b",
+        "line": 65,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "joint:cervical-flexion",
+      "joint:cervical-extension",
+      "joint:cervical-rotation",
+      "joint:cervical-side-bend",
+      "library:cervical-rotation",
+      "library:cervical-lateral-flexion",
+      "screen:sfma-repo-legacy-v1/cervical-flexion/top-tier",
+      "screen:sfma-repo-legacy-v1/cervical-extension/top-tier",
+      "screen:sfma-repo-legacy-v1/cervical-rotation/top-tier",
+      "engine-template:cervical-rotation",
+      "engine-template:cervical-lateral-flexion"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}

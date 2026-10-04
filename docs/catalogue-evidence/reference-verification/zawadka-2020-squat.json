@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "referenceId": "ref:zawadka-2020-squat",
+  "title": "How Are Squat Timing and Kinematics in The Sagittal Plane Related to Squat Depth?",
+  "primaryUrls": [
+    "https://pubmed.ncbi.nlm.nih.gov/32874102/",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC7429430/",
+    "https://www.jssm.org/hf.php?id=jssm-19-500.xml"
+  ],
+  "doi": null,
+  "accessedAt": "2026-10-02",
+  "assessment": "Checked primary source content only. No motion, rig, clinical or dataset acceptance.",
+  "checkedScope": "Checked primary PubMed bibliographic record and indexed abstract, PMID32874102, against the repository citation. PMC direct access produced a browser check and journal direct access failed. Exact numerical tables and source trajectories were not verified.",
+  "claims": [
+    {
+      "id": "ref:zawadka-2020-squat:claim-1",
+      "description": "Primary record identifies Zawadka et al., not Kim; study relates sagittal kinematics and normalized descent timing to bodyweight squat depth.",
+      "kind": "observed"
+    }
+  ],
+  "limitations": [
+    "Template sheet attribution is wrong; preserve original claim and correct provenance separately.",
+    "Exact numerical table support for current changed template values is unverified.",
+    "Study task does not validate FMS overhead/dowel squat or legacy SFMA setup.",
+    "PMC page encountered reCAPTCHA; journal direct fetch unavailable; PubMed abstract verified.",
+    "License and raw trajectories not verified or retained."
+  ],
+  "license": {
+    "status": "unknown",
+    "name": null,
+    "scope": null,
+    "retentionConditions": "Do not assume public access permits dataset or media redistribution."
+  },
+  "retainedFullText": false,
+  "retainedDataset": false,
+  "provenance": {
+    "inspector": "/root/reference_reconciliation",
+    "method": "local source reconciliation and web primary-source inspection",
+    "seed": {
+      "path": "remaining-batches/catalogue-unification/reference-seed.proposal.json",
+      "sha256": "44c805e31214043143f3d6525d28ece3c70bf3b1815bb142f970a314846909a6"
+    },
+    "localSourceLocators": [
+      {
+        "url": "https://pubmed.ncbi.nlm.nih.gov/32874102/",
+        "section": "bibliography and abstract"
+      },
+      {
+        "path": "simmove/pose-engine/docs/movement-templates-reference.md",
+        "sha256": "157a8a07400e7f287fe40d488450f6ce99eabc702c59be88e3d6640c79fd961b",
+        "line": 63,
+        "hashKind": "utf8-normalized-lf-no-bom"
+      }
+    ]
+  },
+  "taskApplicability": {
+    "candidateMotionIds": [
+      "engine-template:squat",
+      "library:squat",
+      "exercises:squat"
+    ],
+    "bodyMapping": "Not independently established.",
+    "boneFrameMapping": "Not independently established.",
+    "scopeNarrowing": "Only existing seed candidates retained or narrowed; never broadened."
+  }
+}
